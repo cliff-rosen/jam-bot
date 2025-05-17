@@ -1,0 +1,684 @@
+.agent-workflow-demo {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.agent-workflow-demo h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.demo-description {
+    font-size: 1rem;
+    color: #6b7280;
+    margin-bottom: 2rem;
+}
+
+/* Workflow Phases - Top Section */
+.workflow-phases {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding: 1.5rem 2rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+    min-height: 120px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.phase-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0.75rem 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    flex: 0 0 auto;
+    text-align: center;
+    min-width: 100px;
+    max-width: 150px;
+    position: relative;
+    z-index: 2;
+}
+
+.phase-item:hover {
+    background-color: #f3f4f6;
+    transform: translateY(-2px);
+}
+
+.phase-item.active {
+    background-color: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.phase-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e5e7eb;
+    color: #4b5563;
+    border-radius: 50%;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.phase-item.active .phase-icon {
+    background-color: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.phase-label {
+    font-size: 0.875rem;
+    color: #4b5563;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.phase-item.active .phase-label {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.phase-connector {
+    flex: 1;
+    height: 2px;
+    background-color: #e5e7eb;
+    margin: 0;
+    min-width: 20px;
+    max-width: 100px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Detail Panel - Bottom Section */
+.detail-panel {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-height: 300px;
+}
+
+.detail-panel h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #1f2937;
+}
+
+.detail-panel h4 {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+}
+
+.question-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.question-input input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.question-input button {
+    padding: 0.75rem 1.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.question-input button:hover {
+    background-color: #2563eb;
+}
+
+.question-input button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.error-message {
+    color: #ef4444;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.original-question,
+.improved-question,
+.knowledge-base,
+.final-answer {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+.phase-progress {
+    margin-top: 1rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress {
+    height: 100%;
+    background-color: #3b82f6;
+    transition: width 0.5s ease;
+}
+
+.workflow-steps {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+.workflow-steps ul.steps-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.workflow-steps .step-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0.5rem;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.workflow-steps .step-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.workflow-steps .step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.workflow-steps .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #3b82f6;
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.workflow-steps .step-label {
+    flex: 1;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.workflow-steps .step-type {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background-color: #e5e7eb;
+    color: #4b5563;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.workflow-steps .step-description {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.workflow-steps .step-tool {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f3f4f6;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.workflow-steps .step-tool p {
+    margin: 0.25rem 0;
+}
+
+/* Workflow Signature Styles */
+.workflow-signature {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+/* Metadata section */
+.signature-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.metadata-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.metadata-label {
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.metadata-value {
+    color: #1f2937;
+}
+
+.signature-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.signature-section {
+    background-color: white;
+    border-radius: 4px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.signature-section h5 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1f2937;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.signature-section ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.signature-section li {
+    padding: 0.5rem;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 0.5rem;
+}
+
+.signature-section li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.signature-section .required-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.125rem 0.375rem;
+    background-color: #ef4444;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.signature-section .final-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.125rem 0.375rem;
+    background-color: #10b981;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.chain-outputs {
+    margin-top: 1.5rem;
+}
+
+.output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.output-item {
+    background-color: #f9fafb;
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.output-item h5 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.output-value {
+    font-size: 0.875rem;
+}
+
+.output-value pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.output-value p {
+    margin: 0;
+}
+
+.phase-results {
+    margin-top: 1.5rem;
+}
+
+.phase-results pre {
+    background-color: #f9fafb;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow: auto;
+    font-size: 0.875rem;
+}
+
+.chain-outputs-so-far {
+    margin-top: 1.5rem;
+}
+
+.new-question-btn {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.new-question-btn:hover {
+    background-color: #2563eb;
+}
+
+.new-question-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .agent-workflow-demo h2 {
+        color: #f3f4f6;
+    }
+
+    .workflow-phases {
+        background-color: #1f2937;
+    }
+
+    .phase-item:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .phase-item.active {
+        background-color: rgba(59, 130, 246, 0.2);
+    }
+
+    .phase-icon {
+        background-color: #374151;
+        color: #d1d5db;
+    }
+
+    .phase-label {
+        color: #d1d5db;
+    }
+
+    .phase-item.active .phase-label {
+        color: #f3f4f6;
+    }
+
+    .phase-connector {
+        background-color: #4b5563;
+    }
+
+    .detail-panel {
+        background-color: #1f2937;
+    }
+
+    .detail-panel h3 {
+        color: #f3f4f6;
+    }
+
+    .detail-panel h4 {
+        color: #d1d5db;
+    }
+
+    .question-input input {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: #f3f4f6;
+    }
+
+    .original-question,
+    .improved-question,
+    .knowledge-base,
+    .final-answer {
+        background-color: #111827;
+        color: #f3f4f6;
+    }
+
+    .progress-bar {
+        background-color: #374151;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .workflow-phases {
+        padding: 1rem;
+        justify-content: flex-start;
+    }
+
+    .phase-item {
+        min-width: 80px;
+        padding: 0.5rem 0.25rem;
+    }
+
+    .phase-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+
+    .phase-label {
+        font-size: 0.75rem;
+    }
+
+    .phase-connector {
+        min-width: 10px;
+        max-width: 40px;
+    }
+}
+
+/* Developer section */
+.developer-section {
+    margin-top: 1rem;
+    border-top: 1px dashed #d1d5db;
+    padding-top: 1rem;
+}
+
+.developer-section summary {
+    cursor: pointer;
+    color: #4b5563;
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    background-color: #f3f4f6;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.developer-section summary:hover {
+    background-color: #e5e7eb;
+}
+
+.signature-description {
+    margin-top: 0.5rem;
+    padding: 1rem;
+    background-color: #1f2937;
+    color: #e5e7eb;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.875rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+}
+
+/* Add styles for the workflow inputs */
+.workflow-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-field label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.input-field .required {
+    color: #e53935;
+    margin-left: 4px;
+}
+
+.input-description {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.input-field input,
+.input-field textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+    transition: border-color 0.2s;
+}
+
+.input-field input:focus,
+.input-field textarea:focus {
+    border-color: #2196f3;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.submit-button {
+    margin-top: 10px;
+    padding: 10px 16px;
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    align-self: flex-start;
+}
+
+.submit-button:hover:not(:disabled) {
+    background-color: #1976d2;
+}
+
+.submit-button:disabled {
+    background-color: #b0bec5;
+    cursor: not-allowed;
+}
+
+.error-message {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #ffebee;
+    border-left: 4px solid #e53935;
+    color: #c62828;
+    border-radius: 4px;
+}
+
+/* Add styles for the output header and final badge */
+.output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.output-header h5 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.final-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: #10b981;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}

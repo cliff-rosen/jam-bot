@@ -1,0 +1,8 @@
+{
+    "status": "supervisor_completed: FINAL_ANSWER",
+    "supervisor_response": {
+        "response_type": "FINAL_ANSWER",
+        "response_content": "I've created a mission to help you with your request. Here's what we'll do:\n\n**Mission Title:** Medical Insurance Selection Mission\n**Goal:** Assist the user in finding and selecting a suitable medical insurance plan that meets their needs and budget.\n\nWe'll need the following inputs:\n- User's current medical needs and preferences\n- Budget for insurance premiums\n- List of available insurance providers and their plans\n- Eligibility criteria for different plans\n- Comparison criteria (coverage, costs, network of providers)\n\nAnd we'll deliver:\n- A shortlist of suitable medical insurance plans\n- Detailed comparison chart of selected plans\n- Recommendation report highlighting the best option based on user needs\n- Guidance on the application process for the chosen plan\n\nWe'll know we've succeeded when:\n- User identifies at least three suitable options from the shortlist\n- User understands the differences between selected plans\n- User feels confident in choosing a plan based on provided recommendations\n- User successfully completes the application process for the chosen plan\n\nWould you like to proceed with this mission?"
+    },
+    "next_node": "__end__"
+}

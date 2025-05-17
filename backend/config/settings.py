@@ -7,7 +7,7 @@ load_dotenv(override=True)
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "FractalBot"
+    APP_NAME: str = "JamBot"
     SETTING_VERSION: str = "0.0.1"
 
     # Database settings

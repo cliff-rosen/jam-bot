@@ -176,5 +176,3 @@ class BaseMessage(BaseModel):
 class BotRequest(BaseModel):
     message: str
     history: List[MessageHistory]
-    mission: Mission
-    selectedTools: List[Tool]

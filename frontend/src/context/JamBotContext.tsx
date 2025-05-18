@@ -1,8 +1,7 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { emailApi } from '@/lib/api/emailApi';
-import { Message } from '@/types.old/message';
-import { MessageRole } from '@/types.old/message';
+import { Message, MessageRole } from '@/types/bot';
 import { getDataFromLine } from '@/lib/api/botApi';
 import { botApi, DataFromLine } from '@/lib/api/botApi';
 
@@ -118,16 +117,24 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 error = data.error;
             }
             const messageToAdd = newStatusMessage + " " + message + " " + error;
-
         }
-
 
         return data.token || "";
     }, []);
 
-
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
+    }, []);
+
+    const updateStreamingMessage = useCallback((message: string) => {
+        dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
+    }, []);
+
+    const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
+        dispatch({
+            type: 'SET_COLLAB_AREA',
+            payload: { type, content }
+        });
     }, []);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
@@ -163,36 +170,22 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 timestamp: new Date().toISOString()
             };
 
-            // addMessage(finalMessage);
-            // update the current messages with the final message
-
-
         } catch (error) {
             console.error('Error streaming message:', error);
         } finally {
-
-            const updateStreamingMessage = useCallback((message: string) => {
-                dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
-            }, []);
-
-            const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
-                dispatch({
-                    type: 'SET_COLLAB_AREA',
-                    payload: { type, content }
-                });
-            }, []);
-
-            return (
-                <JamBotContext.Provider value={{
-                    state,
-                    addMessage,
-                    updateStreamingMessage,
-                    sendMessage,
-                    setCollabArea
-                }}>
-                    {children}
-                </JamBotContext.Provider>
-            );
+            updateStreamingMessage('');
         }
-    }, [state, addMessage]);
+    }, [state, addMessage, processBotMessage, updateStreamingMessage]);
+
+    return (
+        <JamBotContext.Provider value={{
+            state,
+            addMessage,
+            updateStreamingMessage,
+            sendMessage,
+            setCollabArea
+        }}>
+            {children}
+        </JamBotContext.Provider>
+    );
 };

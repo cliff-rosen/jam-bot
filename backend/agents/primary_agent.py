@@ -41,10 +41,6 @@ You are a helpful assistant named Jack that can answer question.
 class State(TypedDict):
     """State for the RAVE workflow"""
     messages: List[Message]
-    mission: Mission
-    mission_proposal: MissionProposal
-    selectedTools: List[Tool]
-    assets: List[Asset]
     supervisor_response: SupervisorResponse
     next_node: str
 
@@ -127,54 +123,11 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     if not last_message:
         raise ValueError("No user message found in state")
 
-    # Get current state information
-    mission = state.get("mission")
-    workflow = mission.workflow if mission else None
-                  
-    # Determine state values for the prompt
-    has_mission = bool(mission)
-    has_workflow = bool(workflow)
-
-    # Get status information
-    mission_status = mission.status if mission else "none"
-    workflow_status = workflow.status if workflow else "none"
-
-    # Check if we already have a mission proposal in the conversation
-    if mission and mission.status == "complete":
-        # If mission is complete, provide a final answer
-        response_content = f"Mission complete! Here are the results:\n\n" \
-                         f"**Mission Title:** {mission.title}\n" \
-                         f"**Goal:** {mission.goal}\n\n" \
-                         f"Outputs produced:\n" + \
-                         "\n".join(f"- {output}" for output in mission.outputs)
-
-        response_message = Message(
-            id=str(uuid.uuid4()),
-            role=MessageRole.ASSISTANT,
-            content=response_content,
-            timestamp=datetime.now().isoformat()
-        )
-
-        if writer:
-            writer({
-                "status": "supervisor_completed: FINAL_ANSWER",
-                "supervisor_response": {
-                    "response_type": "FINAL_ANSWER",
-                    "response_content": response_message.content
-                },
-                "token": response_message.content,
-                "next_node": END
-            })
-
-        return Command(goto=END, update={"messages": [response_message]})
-
     try:
         # Create and format the prompt
         prompt = SupervisorPrompt()
         formatted_prompt = prompt.get_formatted_prompt(
-            user_input=last_message.content,
-            mission_status=mission_status,
-            workflow_status=workflow_status
+            user_input=last_message.content
         )
 
         # Generate and parse the response
@@ -190,13 +143,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         )
 
         # Based on response type, determine next node
-        next_node = None
-        if supervisor_response.response_type == "MISSION_SPECIALIST":
-            next_node = "mission_proposal_node"
-        elif supervisor_response.response_type == "WORKFLOW_SPECIALIST":
-            next_node = "workflow_node"
-        else:
-            next_node = END
+        next_node = END
 
         if writer:
             writer({
@@ -304,8 +251,8 @@ graph_builder = StateGraph(State)
 
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
-graph_builder.add_node("mission_proposal_node", mission_proposal_node)
-graph_builder.add_node("workflow_node", workflow_node)
+# graph_builder.add_node("mission_proposal_node", mission_proposal_node)
+# graph_builder.add_node("workflow_node", workflow_node)
 # Add edges
 graph_builder.add_edge(START, "supervisor_node")
 

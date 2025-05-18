@@ -80,39 +80,6 @@ export const botApi = {
         yield* makeStreamRequest('/api/bot/stream', requestBody, 'POST');
     },
 
-    streamWorkflow: async function* (mission: Mission, selectedTools: Tool[]): AsyncGenerator<StreamUpdate> {
-
-        const requestBody = {
-            message: mission.goal,
-            history: [],
-            mission,
-            selectedTools
-        };
-
-        yield* makeStreamRequest('/api/bot/workflow/stream', requestBody, 'POST');
-    },
-
-    sendMessage: async (message: string, history: Message[], mission: Mission, selectedTools: Tool[]): Promise<SendMessageResponse> => {
-        try {
-            // Convert Message[] to MessageHistory[]
-            const messageHistory: MessageHistory[] = history.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-                timestamp: msg.timestamp.toISOString()
-            }));
-
-            const response = await api.post<SendMessageResponse>('/api/bot/run', {
-                message,
-                history: messageHistory,
-                mission,
-                selectedTools
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error sending message:', error);
-            throw new Error(handleApiError(error));
-        }
-    },
 
 
 }; 

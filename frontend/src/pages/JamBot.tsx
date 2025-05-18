@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Chat from '@/components/Chat';
+import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
 
 const JamBotPage: React.FC = () => {
@@ -8,7 +9,7 @@ const JamBotPage: React.FC = () => {
 
     const { state, addMessage, updateStreamingMessage, sendMessage } = useJamBot();
 
-    const { currentMessages, currentStreamingMessage } = state;
+    const { currentMessages, currentStreamingMessage, collabArea } = state;
 
     return (
         <div className="h-full flex">
@@ -38,13 +39,11 @@ const JamBotPage: React.FC = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="h-full flex flex-col flex-1">
-                    <div className="flex flex-col items-center">
-                        {/* Mission Header */}
-                        <div className="pt-2 pb-2 w-full">
-                            Hello
-                        </div>
-                    </div>
+                <div className="h-full flex-1">
+                    <CollabArea
+                        type={collabArea.type}
+                        content={collabArea.content}
+                    />
                 </div>
             </div>
         </div>

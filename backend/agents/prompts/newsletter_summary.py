@@ -44,6 +44,37 @@ class NewsletterSummaryPrompt(BasePrompt):
         
         self.system_message = """You are an expert at analyzing and synthesizing information from multiple newsletter articles about generative AI developments. Your task is to identify patterns, trends, and significant developments across multiple newsletters, with special attention to practical implications for companies building and deploying AI applications.
 
+Your response MUST follow this exact format:
+{{
+    "overview": "High-level summary of key developments...",
+    "trends": {{
+        "model_advancements": ["trend 1", "trend 2"],
+        "deployment_patterns": ["pattern 1", "pattern 2"],
+        "industry_adoption": ["adoption 1", "adoption 2"],
+        "emerging_use_cases": ["use case 1", "use case 2"],
+        "technical_insights": ["insight 1", "insight 2"]
+    }},
+    "significant_developments": [
+        {{
+            "development": "Description of development",
+            "impact": "Impact of the development"
+        }}
+    ],
+    "company_highlights": {{
+        "Microsoft": ["highlight 1", "highlight 2"],
+        "OpenAI": ["highlight 1", "highlight 2"],
+        "Google": ["highlight 1", "highlight 2"],
+        "Anthropic": ["highlight 1", "highlight 2"],
+        "Meta": ["highlight 1", "highlight 2"],
+        "Other": ["highlight 1", "highlight 2"]
+    }},
+    "recommendations": [
+        "Recommendation 1",
+        "Recommendation 2",
+        "Recommendation 3"
+    ]
+}}
+
 Focus on:
 
 1. Model Advancements and Capabilities:
@@ -80,6 +111,15 @@ Focus on:
    - Product launches and updates
    - Research breakthroughs
    - Market positioning changes
+
+6. Recommendations and Actionable Insights:
+   - Specific recommendations for companies building with AI
+   - Strategic considerations based on the developments
+   - Practical next steps for implementation
+   - Risk mitigation strategies
+   - Competitive positioning advice
+
+CRITICAL: You MUST include at least 3 recommendations in your response. These should be actionable insights that companies can use to inform their AI strategy and implementation decisions.
 
 Filter out:
 - Minor updates or incremental improvements

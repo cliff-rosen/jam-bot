@@ -16,7 +16,7 @@ class NewsletterSummaryService:
         self.llm = ChatOpenAI(
             model="gpt-4",
             api_key=os.getenv("OPENAI_API_KEY")
-        )
+            )
         self.prompt = NewsletterSummaryPrompt()
         
     async def generate_summary(
@@ -57,11 +57,14 @@ class NewsletterSummaryService:
                 params['source_name'] = source_name
                 
             result = db.execute(query, params)
-            
+
+            print(f"Retrieved newsletter count of {result.rowcount}")
+
             # Convert rows to dictionaries
             newsletters = []
             source_ids = []
             for row in result:
+                print(f"Processing newsletter {row.id}")
                 try:
                     extraction = row.extraction
                     if isinstance(extraction, str):
@@ -109,7 +112,11 @@ class NewsletterSummaryService:
                  :source_ids, :created_at, :updated_at, :metadata)
             """)
             
-            db.execute(query, summary_obj.dict())
+            # Convert summary to JSON string before storing
+            summary_dict = summary_obj.dict()
+            summary_dict['summary'] = json.dumps(summary_dict['summary'])
+            
+            db.execute(query, summary_dict)
             db.commit()
             
             return summary_obj
@@ -142,9 +149,11 @@ class NewsletterSummaryService:
             )
             
             # Get summary from LLM
+            print(f"Generating summary for {len(newsletters)} newsletters")
             response = await self.llm.ainvoke(formatted_prompt)
             
             # Parse the response
+            print(f"Parsing response: {response.content}")
             summary = self.prompt.parse_response(response.content)
             
             return summary.dict()

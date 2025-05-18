@@ -1,6 +1,11 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { emailApi } from '@/lib/api/emailApi';
+import { Message } from '@/types.old/message';
+import { MessageRole } from '@/types.old/message';
+import { getDataFromLine } from '@/lib/api/botApi';
+import { botApi, DataFromLine } from '@/lib/api/botApi';
+
 
 const getCollabAreaData = async () => {
     try {
@@ -90,34 +95,104 @@ export const useJamBot = () => {
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
 
+    const processBotMessage = useCallback((data: DataFromLine) => {
+        if (data.token) {
+            const newMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: data.token,
+                timestamp: new Date().toISOString()
+            };
+            addMessage(newMessage);
+        }
+
+        if (data.status) {
+            const newStatusMessage = data.status;
+
+            let message = "";
+            let error = "";
+            if (data.message) {
+                message = data.message;
+            }
+            if (data.error) {
+                error = data.error;
+            }
+            const messageToAdd = newStatusMessage + " " + message + " " + error;
+
+        }
+
+
+        return data.token || "";
+    }, []);
+
+
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
     }, []);
 
-    const sendMessage = useCallback((message: ChatMessage) => {
-        dispatch({ type: 'SEND_MESSAGE', payload: message });
-    }, []);
+    const sendMessage = useCallback(async (message: ChatMessage) => {
+        addMessage(message);
+        let finalContent = '';
 
-    const updateStreamingMessage = useCallback((message: string) => {
-        dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
-    }, []);
+        try {
+            // Convert ChatMessage[] to Message[]
+            const messages: Message[] = state.currentMessages.map(msg => ({
+                message_id: msg.id,
+                role: msg.role === 'user' ? MessageRole.USER : MessageRole.ASSISTANT,
+                content: msg.content,
+                timestamp: new Date(msg.timestamp)
+            }));
 
-    const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
-        dispatch({
-            type: 'SET_COLLAB_AREA',
-            payload: { type, content }
-        });
-    }, []);
+            for await (const update of botApi.streamMessage(message.content, messages)) {
+                const lines = update.data.split('\n');
+                for (const line of lines) {
+                    const data = getDataFromLine(line);
+                    finalContent += processBotMessage(data);
+                }
+            }
 
-    return (
-        <JamBotContext.Provider value={{
-            state,
-            addMessage,
-            updateStreamingMessage,
-            sendMessage,
-            setCollabArea
-        }}>
-            {children}
-        </JamBotContext.Provider>
-    );
+            if (finalContent.length === 0) {
+                finalContent = "No direct response from the bot. Check item view for more information.";
+            }
+
+            // Update the final message with the complete content
+            const finalMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: finalContent,
+                timestamp: new Date().toISOString()
+            };
+
+            // addMessage(finalMessage);
+            // update the current messages with the final message
+
+
+        } catch (error) {
+            console.error('Error streaming message:', error);
+        } finally {
+
+            const updateStreamingMessage = useCallback((message: string) => {
+                dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
+            }, []);
+
+            const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
+                dispatch({
+                    type: 'SET_COLLAB_AREA',
+                    payload: { type, content }
+                });
+            }, []);
+
+            return (
+                <JamBotContext.Provider value={{
+                    state,
+                    addMessage,
+                    updateStreamingMessage,
+                    sendMessage,
+                    setCollabArea
+                }}>
+                    {children}
+                </JamBotContext.Provider>
+            );
+        }
+    }, [state, addMessage]);
 };

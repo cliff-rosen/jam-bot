@@ -19,6 +19,8 @@ function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
 
+  console.log("app");
+
   // Set up session expiry handler
   useEffect(() => {
     setStreamSessionExpiredHandler(handleSessionExpired);

@@ -12,6 +12,8 @@ const JamBotPage: React.FC = () => {
 
     const { currentMessages, currentStreamingMessage, collabArea } = state;
 
+    console.log("jam bot page");
+
     return (
         <div className="h-full flex">
             <div className="flex h-full gap-4 px-4 w-full">

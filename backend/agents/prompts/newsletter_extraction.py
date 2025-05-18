@@ -30,17 +30,64 @@ class NewsletterExtractionPrompt(BasePrompt):
     def __init__(self):
         super().__init__(NewsletterExtractionResponse)
         
-        self.system_message = """You are an expert at analyzing newsletter articles and extracting structured information about AI developments. Your task is to identify and categorize key information about:
-1. Model capabilities and advancements
-2. New releases and updates
-3. Tools and workflows
-4. Market adoption and trends
-5. Notable use cases
-6. Implementation insights
+        self.system_message = """You are an expert at analyzing newsletter articles and extracting only the most significant developments in generative AI, with special attention to developments from major AI companies (Microsoft, OpenAI, Meta, Google, Anthropic, etc.). Focus on news that meaningfully impacts companies developing and deploying generative AI applications.
 
-Focus on concrete developments rather than speculation. For each category, provide specific, factual information found in the article. If no relevant information is found for a category, include "none found"."""
+Your task is to identify and categorize key information about:
 
-        self.user_message_template = """Please analyze the following newsletter article and extract the key information into a structured format.
+1. Model capabilities and advancements - Focus on:
+   - New or improved model capabilities that enable new types of applications
+   - Performance improvements that reduce costs or improve quality
+   - Novel approaches to specific tasks (e.g., code generation, reasoning, planning)
+   - Multimodal capabilities and their practical applications
+   - Special attention to developments from major AI companies
+
+2. Model deployment and runtime - Focus on:
+   - New deployment options (cloud, edge, hybrid)
+   - Performance optimizations and cost reductions
+   - Scaling solutions and infrastructure improvements
+   - New APIs and integration capabilities
+   - Runtime improvements that affect production deployments
+
+3. Prompt engineering and orchestration - Focus on:
+   - New prompt engineering techniques and best practices
+   - Orchestration frameworks and libraries
+   - Chain-of-thought and reasoning improvements
+   - Tool use and function calling capabilities
+   - Multi-agent systems and their practical applications
+
+4. Development tools and workflows - Focus on:
+   - New development frameworks and libraries
+   - Testing and evaluation tools
+   - Monitoring and observability solutions
+   - Security and safety tools
+   - Development best practices and patterns
+
+5. Vertical applications and use cases - Focus on:
+   - Successful enterprise deployments
+   - Industry-specific solutions
+   - Novel applications that solve real problems
+   - Case studies with measurable impact
+   - Integration patterns with existing systems
+
+6. Implementation insights - Focus on:
+   - Production deployment patterns
+   - Cost optimization strategies
+   - Performance tuning techniques
+   - Security and compliance approaches
+   - Scaling and reliability best practices
+
+Filter out:
+- Minor updates or incremental improvements (even from major companies)
+- Small application releases from unknown entities (unless they demonstrate truly novel approaches)
+- Routine product updates without significant new capabilities
+- Speculative or unsubstantiated claims
+- Marketing fluff or hype without concrete developments
+- Non-generative AI developments unless they have practical applications for building and deploying gen AI applications
+- Academic research without clear practical applications
+
+For each category, provide specific, factual information found in the article. If no significant developments are found for a category, include "none found"."""
+
+        self.user_message_template = """Please analyze the following newsletter article and extract only the most significant developments in generative AI, with special attention to developments from major AI companies and practical aspects that help companies build and deploy gen AI applications.
 
 Article for extraction:
 Source: {source}

@@ -86,8 +86,9 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                 ))}
                 {streamingMessage && (
                     <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        <div className="max-w-[80%] rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50 backdrop-blur-sm">
                             {streamingMessage}
+                            <div className="inline-block ml-2 w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
                         </div>
                     </div>
                 )}

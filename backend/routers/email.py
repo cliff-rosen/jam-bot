@@ -31,231 +31,9 @@ router = APIRouter(prefix="/email", tags=["email"])
 email_service = EmailService()
 newsletter_extraction_service = NewsletterExtractionService()
 
-
-def credentials_to_dict(credentials):
-    return {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes,
-    }
-
-
-@router.get("/auth/init")
-async def init_oauth2(
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Initialize the OAuth2 flow for Google Mail API
-    
-    Args:
-        user: Authenticated user
-        db: Database session
-        
-    Returns:
-        JSON response with the authorization URL
-    """
-    try:
-        # Log the redirect URI being used
-        logger.info(f"Using redirect URI: {settings.GOOGLE_REDIRECT_URI}")
-        
-        # Create OAuth2 flow
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": settings.GOOGLE_CLIENT_ID,
-                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
-                    "scopes": email_service.SCOPES
-                }
-            },
-            scopes=email_service.SCOPES,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI
-        )
-        
-        # Generate authorization URL
-        auth_url, state = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='false',
-            prompt='consent'
-        )
-        
-        # Log the generated authorization URL
-        logger.info(f"Generated authorization URL: {auth_url}")
-        
-        # Store state in session or database for verification
-        # For now, we'll use the user_id as part of the state
-        state = f"{state}_{user.user_id}"
-        
-        return {"url": auth_url}
-        
-    except Exception as e:
-        logger.error(f"Error initializing OAuth2 flow: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error initializing OAuth2 flow: {str(e)}"
-        )
-
-@router.get("/auth/callback")
-async def oauth2_callback(
-    code: str,
-    state: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Handle the OAuth2 callback from Google
-    
-    Args:
-        code: Authorization code from Google
-        state: State parameter for verification
-        db: Database session
-        
-    Returns:
-        JSON response with success status
-    """
-    try:
-        # Log the received parameters
-        logger.info(f"Received callback with state: {state}")
-        
-        # Create OAuth2 flow
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": settings.GOOGLE_CLIENT_ID,
-                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
-                    "scopes": email_service.SCOPES
-                }
-            },
-            scopes=email_service.SCOPES,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI
-        )
-        
-        # Exchange code for tokens
-        flow.fetch_token(code=code)
-        credentials = flow.credentials
-        
-        # Decode the ID token
-        try:
-            # Add a small delay to ensure token is valid
-            await asyncio.sleep(1)
-            
-            # Get the raw ID token
-            raw_id_token = credentials.id_token
-            print("Raw ID token: ", raw_id_token)
-
-            # Decode without verification first to get the token data
-            decoded_token = jwt.decode(raw_id_token, options={"verify_signature": False})
-    
-            
-            # Get the email from the decoded token
-            user_email = decoded_token.get('email')
-            if not user_email:
-                raise ValueError("No email found in ID token")
-                
-            logger.info(f"Got email from ID token: {user_email}")
-            
-        except Exception as e:
-            logger.error(f"Error decoding ID token: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to decode ID token: {str(e)}"
-            )
-        
-        user = db.query(User).filter(User.email == user_email).first()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"User not found for email: {user_email}"
-            )
-        
-        # Store credentials in database
-        db_credentials = GoogleOAuth2Credentials(
-            user_id=user.user_id,
-            token=credentials.token,
-            refresh_token=credentials.refresh_token,
-            token_uri=credentials.token_uri,
-            client_id=credentials.client_id,
-            client_secret=credentials.client_secret,
-            scopes=credentials.scopes,
-            expiry=credentials.expiry
-        )
-        
-        # Update or insert credentials
-        existing_credentials = db.query(GoogleOAuth2Credentials).filter(
-            GoogleOAuth2Credentials.user_id == user.user_id
-        ).first()
-        
-        if existing_credentials:
-            # Check if scopes have changed
-            if set(existing_credentials.scopes) != set(credentials.scopes):
-                logger.info(f"Scopes have changed for user {user.user_id}. Updating credentials.")
-                # Update all fields including scopes
-                for key, value in db_credentials.__dict__.items():
-                    if key != '_sa_instance_state':
-                        setattr(existing_credentials, key, value)
-            else:
-                # Only update token-related fields if scopes haven't changed
-                existing_credentials.token = credentials.token
-                existing_credentials.refresh_token = credentials.refresh_token
-                existing_credentials.expiry = credentials.expiry
-        else:
-            db.add(db_credentials)
-            
-        db.commit()
-        
-        # Return success response
-        return {"success": True, "message": "Gmail connected successfully"}
-        
-    except Exception as e:
-        logger.error(f"Error handling OAuth2 callback: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error handling OAuth2 callback: {str(e)}"
-        )
-
-@router.post("/auth/disconnect")
-async def disconnect_gmail(
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Disconnect Gmail by removing OAuth2 credentials
-    
-    Args:
-        user: Authenticated user
-        db: Database session
-        
-    Returns:
-        JSON response with success status
-    """
-    try:
-        # Find and delete the user's Gmail credentials
-        credentials = db.query(GoogleOAuth2Credentials).filter(
-            GoogleOAuth2Credentials.user_id == user.user_id
-        ).first()
-        
-        if credentials:
-            db.delete(credentials)
-            db.commit()
-            return {"success": True, "message": "Gmail disconnected successfully"}
-        else:
-            return {"success": True, "message": "Gmail was not connected"}
-            
-    except Exception as e:
-        logger.error(f"Error disconnecting Gmail: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error disconnecting Gmail: {str(e)}"
-        )
+##########################
+### Email Management ###
+##########################
 
 @router.get("/labels", response_model=EmailAgentResponse)
 async def list_labels(
@@ -467,6 +245,10 @@ async def get_message(
             success=False,
             error=str(e)
         )
+
+#############################
+### Newsletter Management ###
+#############################
 
 @router.post("/newsletter/extract", response_model=EmailAgentResponse)
 async def extract_newsletter(
@@ -776,3 +558,231 @@ async def get_newsletters(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         ) 
+    
+##########################
+### Session Management ###
+##########################
+
+def credentials_to_dict(credentials):
+    return {
+        "token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "token_uri": credentials.token_uri,
+        "client_id": credentials.client_id,
+        "client_secret": credentials.client_secret,
+        "scopes": credentials.scopes,
+    }
+
+@router.get("/auth/init")
+async def init_oauth2(
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Initialize the OAuth2 flow for Google Mail API
+    
+    Args:
+        user: Authenticated user
+        db: Database session
+        
+    Returns:
+        JSON response with the authorization URL
+    """
+    try:
+        # Log the redirect URI being used
+        logger.info(f"Using redirect URI: {settings.GOOGLE_REDIRECT_URI}")
+        
+        # Create OAuth2 flow
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
+                    "scopes": email_service.SCOPES
+                }
+            },
+            scopes=email_service.SCOPES,
+            redirect_uri=settings.GOOGLE_REDIRECT_URI
+        )
+        
+        # Generate authorization URL
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='false',
+            prompt='consent'
+        )
+        
+        # Log the generated authorization URL
+        logger.info(f"Generated authorization URL: {auth_url}")
+        
+        # Store state in session or database for verification
+        # For now, we'll use the user_id as part of the state
+        state = f"{state}_{user.user_id}"
+        
+        return {"url": auth_url}
+        
+    except Exception as e:
+        logger.error(f"Error initializing OAuth2 flow: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error initializing OAuth2 flow: {str(e)}"
+        )
+
+@router.get("/auth/callback")
+async def oauth2_callback(
+    code: str,
+    state: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Handle the OAuth2 callback from Google
+    
+    Args:
+        code: Authorization code from Google
+        state: State parameter for verification
+        db: Database session
+        
+    Returns:
+        JSON response with success status
+    """
+    try:
+        # Log the received parameters
+        logger.info(f"Received callback with state: {state}")
+        
+        # Create OAuth2 flow
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
+                    "scopes": email_service.SCOPES
+                }
+            },
+            scopes=email_service.SCOPES,
+            redirect_uri=settings.GOOGLE_REDIRECT_URI
+        )
+        
+        # Exchange code for tokens
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+        
+        # Decode the ID token
+        try:
+            # Add a small delay to ensure token is valid
+            await asyncio.sleep(1)
+            
+            # Get the raw ID token
+            raw_id_token = credentials.id_token
+            print("Raw ID token: ", raw_id_token)
+
+            # Decode without verification first to get the token data
+            decoded_token = jwt.decode(raw_id_token, options={"verify_signature": False})
+    
+            
+            # Get the email from the decoded token
+            user_email = decoded_token.get('email')
+            if not user_email:
+                raise ValueError("No email found in ID token")
+                
+            logger.info(f"Got email from ID token: {user_email}")
+            
+        except Exception as e:
+            logger.error(f"Error decoding ID token: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to decode ID token: {str(e)}"
+            )
+        
+        user = db.query(User).filter(User.email == user_email).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User not found for email: {user_email}"
+            )
+        
+        # Store credentials in database
+        db_credentials = GoogleOAuth2Credentials(
+            user_id=user.user_id,
+            token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            token_uri=credentials.token_uri,
+            client_id=credentials.client_id,
+            client_secret=credentials.client_secret,
+            scopes=credentials.scopes,
+            expiry=credentials.expiry
+        )
+        
+        # Update or insert credentials
+        existing_credentials = db.query(GoogleOAuth2Credentials).filter(
+            GoogleOAuth2Credentials.user_id == user.user_id
+        ).first()
+        
+        if existing_credentials:
+            # Check if scopes have changed
+            if set(existing_credentials.scopes) != set(credentials.scopes):
+                logger.info(f"Scopes have changed for user {user.user_id}. Updating credentials.")
+                # Update all fields including scopes
+                for key, value in db_credentials.__dict__.items():
+                    if key != '_sa_instance_state':
+                        setattr(existing_credentials, key, value)
+            else:
+                # Only update token-related fields if scopes haven't changed
+                existing_credentials.token = credentials.token
+                existing_credentials.refresh_token = credentials.refresh_token
+                existing_credentials.expiry = credentials.expiry
+        else:
+            db.add(db_credentials)
+            
+        db.commit()
+        
+        # Return success response
+        return {"success": True, "message": "Gmail connected successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error handling OAuth2 callback: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error handling OAuth2 callback: {str(e)}"
+        )
+
+@router.post("/auth/disconnect")
+async def disconnect_gmail(
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Disconnect Gmail by removing OAuth2 credentials
+    
+    Args:
+        user: Authenticated user
+        db: Database session
+        
+    Returns:
+        JSON response with success status
+    """
+    try:
+        # Find and delete the user's Gmail credentials
+        credentials = db.query(GoogleOAuth2Credentials).filter(
+            GoogleOAuth2Credentials.user_id == user.user_id
+        ).first()
+        
+        if credentials:
+            db.delete(credentials)
+            db.commit()
+            return {"success": True, "message": "Gmail disconnected successfully"}
+        else:
+            return {"success": True, "message": "Gmail was not connected"}
+            
+    except Exception as e:
+        logger.error(f"Error disconnecting Gmail: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error disconnecting Gmail: {str(e)}"
+        )

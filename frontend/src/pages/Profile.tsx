@@ -1,5 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
-import EmailAgentOAuthButton from '@/components/agents/email/EmailAgentOAuthButton';
+import EmailAgentOAuthButton from '@/components/EmailAgentOAuthButton';
 import { EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export default function Profile() {

@@ -28,7 +28,6 @@ function App() {
   // Main app content when authenticated - defined inside App to ensure context is available
   const AuthenticatedApp = () => {
 
-
     return (
       <div className="min-h-screen flex flex-col dark:bg-gray-900 bg-gray-50">
         <TopBar />
@@ -48,28 +47,6 @@ function App() {
 
             {/* Catch-all route for unmatched paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
-
-            {/* Fractal Bot routes */}
-            {/* <Route path="/fractal-bot" element={<FractalBotPage />} /> */}
-
-            {/* Workflow routes
-            <Route path="/workflows" element={<WorkflowsManager />} />
-            <Route path="/workflows/:id" element={<Workflow />} />
-            <Route path="/workflow/:id" element={<Workflow />} />
-
-            {/* Prompt template routes with multiple path patterns */}
-            {/* <Route path="/prompt-templates" element={<PromptTemplateManager />} />
-            <Route path="/prompts" element={<PromptTemplateManager />} />
-            <Route path="/prompt-template/:id" element={<PromptTemplate />} />
-            <Route path="/prompt/:id" element={<PromptTemplate />} /> */}
-
-            {/* File routes */}
-            {/* <Route path="/files" element={<FilesManager />} /> */}
-
-            {/* Job routes */}
-            {/* <Route path="/jobs" element={<JobsManager />} />
-            <Route path="/jobs/:id" element={<Job />} />
-            <Route path="/job/:id" element={<Job />} /> */}
 
           </Routes>
         </div>

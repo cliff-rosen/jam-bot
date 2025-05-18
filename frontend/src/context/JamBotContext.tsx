@@ -1,8 +1,30 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
+import { emailApi } from '@/lib/api/emailApi';
+
+const getCollabAreaData = async () => {
+    try {
+        const response = await emailApi.getNewsletters({
+            page: 1,
+            page_size: 10
+        });
+        return response.newsletters;
+    } catch (error) {
+        console.error('Error fetching newsletters:', error);
+        return {
+            newsletters: [],
+            pagination: {
+                page: 1,
+                page_size: 10,
+                total_count: 0,
+                total_pages: 0
+            }
+        };
+    }
+}
 
 interface CollabAreaState {
-    type: 'default' | 'workflow' | 'document' | 'code';
+    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list';
     content: any;
 }
 
@@ -22,8 +44,8 @@ const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
     collabArea: {
-        type: 'default',
-        content: null
+        type: 'object-list',
+        content: await getCollabAreaData()
     }
 };
 

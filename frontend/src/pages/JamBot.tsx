@@ -4,6 +4,7 @@ import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
 
+
 const JamBotPage: React.FC = () => {
     const [isChatCollapsed, setIsChatCollapsed] = useState(false);
 

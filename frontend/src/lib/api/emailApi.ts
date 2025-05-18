@@ -39,6 +39,30 @@ export interface EmailSearchResponse {
     error?: string;
 }
 
+export interface Newsletter {
+    id: number;
+    source_name: string;
+    issue_identifier?: string;
+    email_date: string;
+    subject_line?: string;
+    raw_content?: string;
+    cleaned_content?: string;
+    extraction?: any;
+    processed_status?: string;
+}
+
+export interface NewsletterPagination {
+    page: number;
+    page_size: number;
+    total_count: number;
+    total_pages: number;
+}
+
+export interface GetNewslettersResponse {
+    newsletters: Newsletter[];
+    pagination: NewsletterPagination;
+}
+
 export const emailApi = {
     checkConnection: async (): Promise<boolean> => {
         try {
@@ -96,6 +120,22 @@ export const emailApi = {
         } catch (error) {
             console.error('Error listing labels:', error);
             throw new Error(handleApiError(error));
+        }
+    },
+
+    async getNewsletters(params: {
+        page?: number;
+        page_size?: number;
+        source_name?: string;
+        processed_status?: string;
+        start_date?: string;
+        end_date?: string;
+    }): Promise<GetNewslettersResponse> {
+        try {
+            const response = await api.get('/api/email/newsletters', { params });
+            return response.data.data;
+        } catch (error) {
+            throw handleApiError(error);
         }
     }
 }; 

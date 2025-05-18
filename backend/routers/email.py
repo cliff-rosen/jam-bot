@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
 from services.auth_service import validate_token
 from services.email_service import EmailService
 from services.newsletter_extraction_service import NewsletterExtractionService
@@ -646,6 +646,123 @@ async def extract_newsletter_range(
         
     except Exception as e:
         logger.error(f"Error processing newsletter range: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.get("/newsletters", response_model=EmailAgentResponse)
+async def get_newsletters(
+    page: int = 1,
+    page_size: int = 10,
+    source_name: Optional[str] = None,
+    processed_status: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve newsletters with pagination and filtering options
+    
+    Args:
+        page: Page number (1-based)
+        page_size: Number of items per page
+        source_name: Filter by source name
+        processed_status: Filter by processing status
+        start_date: Filter by start date
+        end_date: Filter by end date
+        user: Authenticated user
+        db: Database session
+        
+    Returns:
+        EmailAgentResponse with list of newsletters and pagination info
+    """
+    try:
+        # Build the base query
+        from sqlalchemy import text
+        query = text("""
+            SELECT * FROM newsletters 
+            WHERE 1=1
+        """)
+        params = {}
+        
+        # Add filters
+        if source_name:
+            query = text(str(query) + " AND source_name = :source_name")
+            params['source_name'] = source_name
+            
+        if processed_status:
+            query = text(str(query) + " AND processed_status = :processed_status")
+            params['processed_status'] = processed_status
+            
+        if start_date:
+            query = text(str(query) + " AND email_date >= :start_date")
+            params['start_date'] = start_date
+            
+        if end_date:
+            query = text(str(query) + " AND email_date <= :end_date")
+            params['end_date'] = end_date
+            
+        # Add pagination
+        offset = (page - 1) * page_size
+        query = text(str(query) + " ORDER BY email_date DESC LIMIT :limit OFFSET :offset")
+        params['limit'] = page_size
+        params['offset'] = offset
+        
+        # Execute query
+        result = db.execute(query, params)
+        
+        # Convert rows to dictionaries
+        newsletters = []
+        for row in result:
+            newsletter = {
+                'id': row.id,
+                'source_name': row.source_name,
+                'issue_identifier': row.issue_identifier,
+                'email_date': row.email_date,
+                'subject_line': row.subject_line,
+                'raw_content': row.raw_content,
+                'cleaned_content': row.cleaned_content,
+                'extraction': row.extraction,
+                'processed_status': row.processed_status
+            }
+            newsletters.append(newsletter)
+            
+        # Get total count for pagination
+        count_query = text("""
+            SELECT COUNT(*) FROM newsletters 
+            WHERE 1=1
+        """)
+        count_params = {k: v for k, v in params.items() if k not in ['limit', 'offset']}
+        
+        if source_name:
+            count_query = text(str(count_query) + " AND source_name = :source_name")
+        if processed_status:
+            count_query = text(str(count_query) + " AND processed_status = :processed_status")
+        if start_date:
+            count_query = text(str(count_query) + " AND email_date >= :start_date")
+        if end_date:
+            count_query = text(str(count_query) + " AND email_date <= :end_date")
+            
+        total_count = db.execute(count_query, count_params).scalar()
+        
+        return EmailAgentResponse(
+            success=True,
+            data={
+                'newsletters': newsletters,
+                'pagination': {
+                    'page': page,
+                    'page_size': page_size,
+                    'total_count': total_count,
+                    'total_pages': (total_count + page_size - 1) // page_size
+                }
+            },
+            message=f"Successfully retrieved {len(newsletters)} newsletters"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving newsletters: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

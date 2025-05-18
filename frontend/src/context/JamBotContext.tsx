@@ -4,33 +4,8 @@ import { emailApi } from '@/lib/api/emailApi';
 import { Message, MessageRole } from '@/types/bot';
 import { getDataFromLine } from '@/lib/api/botApi';
 import { botApi, DataFromLine } from '@/lib/api/botApi';
+import { CollabAreaState, getCollabAreaData } from '@/types/collabArea';
 
-
-const getCollabAreaData = async () => {
-    try {
-        const response = await emailApi.getNewsletters({
-            page: 1,
-            page_size: 10
-        });
-        return response.newsletters;
-    } catch (error) {
-        console.error('Error fetching newsletters:', error);
-        return {
-            newsletters: [],
-            pagination: {
-                page: 1,
-                page_size: 10,
-                total_count: 0,
-                total_pages: 0
-            }
-        };
-    }
-}
-
-interface CollabAreaState {
-    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list';
-    content: any;
-}
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -96,27 +71,24 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const processBotMessage = useCallback((data: DataFromLine) => {
         if (data.token) {
+            const response = data.supervisor_response.response_content;
             const newMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: data.token,
+                content: response,
                 timestamp: new Date().toISOString()
             };
             addMessage(newMessage);
         }
 
         if (data.status) {
-            const newStatusMessage = data.status;
-
-            let message = "";
-            let error = "";
-            if (data.message) {
-                message = data.message;
-            }
-            if (data.error) {
-                error = data.error;
-            }
-            const messageToAdd = newStatusMessage + " " + message + " " + error;
+            const newMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: data.status,
+                timestamp: new Date().toISOString()
+            };
+            // addMessage(newMessage);
         }
 
         return data.token || "";

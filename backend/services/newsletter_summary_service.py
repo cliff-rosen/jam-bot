@@ -112,9 +112,12 @@ class NewsletterSummaryService:
                  :source_ids, :created_at, :updated_at, :metadata)
             """)
             
-            # Convert summary to JSON string before storing
+            # Convert all JSON fields to strings for MariaDB
             summary_dict = summary_obj.dict()
             summary_dict['summary'] = json.dumps(summary_dict['summary'])
+            summary_dict['metadata'] = json.dumps(summary_dict['metadata'])
+            summary_dict['source_ids'] = json.dumps(summary_dict['source_ids'])
+            summary_dict['period_type'] = period_type.value  # Use the enum value instead of the full enum string
             
             db.execute(query, summary_dict)
             db.commit()

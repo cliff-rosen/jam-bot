@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { VariableRenderer } from './common/VariableRenderer';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -30,55 +31,44 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         const currentItem = content[currentIndex];
+        const showNavigation = content.length > 1;
 
         return (
-            <div className="h-full flex">
-                {/* Object List Sidebar */}
-                <div className="w-64 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                    <div className="p-2">
-                        {content.map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setCurrentIndex(index)}
-                                className={`w-full text-left px-3 py-2 rounded-md mb-1 transition-colors ${index === currentIndex
-                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                    }`}
-                            >
-                                Item {index + 1}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Object Viewer */}
-                <div className="flex-1 flex flex-col">
-                    {/* Navigation Controls */}
-                    <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="h-full flex flex-col">
+                {/* Navigation controls - only show if there are multiple items */}
+                {showNavigation && (
+                    <div className="flex-none flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                         <button
                             onClick={handlePrevious}
                             disabled={currentIndex === 0}
-                            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                            className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <ChevronLeft className="w-5 h-5" />
+                            Previous
                         </button>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {currentIndex + 1} of {content.length}
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                            Item {currentIndex + 1} of {content.length}
                         </span>
                         <button
                             onClick={handleNext}
                             disabled={currentIndex === content.length - 1}
-                            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+                            className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <ChevronRight className="w-5 h-5" />
+                            Next
                         </button>
                     </div>
+                )}
 
-                    {/* JSON Viewer */}
-                    <div className="flex-1 p-4 overflow-auto">
-                        <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg overflow-auto text-gray-900 dark:text-gray-100">
-                            {JSON.stringify(currentItem, null, 2)}
-                        </pre>
+                {/* Content area */}
+                <div className="flex-1 overflow-auto">
+                    <div className="h-full p-6">
+                        <VariableRenderer
+                            value={currentItem}
+                            useEnhancedJsonView={true}
+                            maxTextLength={1000}
+                            maxArrayItems={20}
+                            maxArrayItemLength={500}
+                            className="h-full"
+                        />
                     </div>
                 </div>
             </div>
@@ -99,7 +89,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             </div>
 
             {/* Main Content Section */}
-            <div className="flex-1 p-4 overflow-auto">
+            <div className="flex-1 overflow-hidden">
                 {/* Content will be rendered here based on type */}
                 {type === 'default' && (
                     <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
@@ -108,17 +98,38 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 )}
                 {type === 'workflow' && content && (
                     <div className="h-full">
-                        {/* Workflow content will go here */}
+                        <VariableRenderer
+                            value={content}
+                            useEnhancedJsonView={true}
+                            maxTextLength={1000}
+                            maxArrayItems={20}
+                            maxArrayItemLength={500}
+                            className="h-full"
+                        />
                     </div>
                 )}
                 {type === 'document' && content && (
                     <div className="h-full">
-                        {/* Document content will go here */}
+                        <VariableRenderer
+                            value={content}
+                            useEnhancedJsonView={true}
+                            maxTextLength={1000}
+                            maxArrayItems={20}
+                            maxArrayItemLength={500}
+                            className="h-full"
+                        />
                     </div>
                 )}
                 {type === 'code' && content && (
                     <div className="h-full">
-                        {/* Code editor content will go here */}
+                        <VariableRenderer
+                            value={content}
+                            useEnhancedJsonView={true}
+                            maxTextLength={1000}
+                            maxArrayItems={20}
+                            maxArrayItemLength={500}
+                            className="h-full"
+                        />
                     </div>
                 )}
                 {type === 'object-list' && renderObjectList()}

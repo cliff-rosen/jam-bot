@@ -51,8 +51,7 @@ export const VariableRenderer: React.FC<VariableRendererProps> = ({
             return (
                 <JsonRenderer
                     data={value}
-                    initialCollapsed={true}
-                    maxInitialDepth={1} // Only expand the first level by default
+                    maxInitialDepth={2} // Expand first two levels by default
                     className={className}
                 />
             );
@@ -81,7 +80,7 @@ export const VariableRenderer: React.FC<VariableRendererProps> = ({
             return (
                 <JsonRenderer
                     data={value}
-                    initialCollapsed={true}
+                    maxInitialDepth={2} // Expand first two levels by default
                     className={className}
                 />
             );
@@ -97,7 +96,7 @@ export const VariableRenderer: React.FC<VariableRendererProps> = ({
 
     if (isMarkdown || hasMarkdownSyntax) {
         return (
-            <div className={className}>
+            <div className={`h-full ${className}`}>
                 <TextRenderer text={stringValue} maxLength={maxTextLength}>
                     {(text: string) => <MarkdownRenderer content={text} />}
                 </TextRenderer>

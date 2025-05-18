@@ -716,6 +716,15 @@ async def get_newsletters(
         # Convert rows to dictionaries
         newsletters = []
         for row in result:
+            # Parse extraction from JSON string to object if it exists
+            extraction = None
+            if row.extraction:
+                try:
+                    extraction = json.loads(row.extraction)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse extraction JSON for newsletter {row.id}")
+                    extraction = None
+
             newsletter = {
                 'id': row.id,
                 'source_name': row.source_name,
@@ -724,7 +733,7 @@ async def get_newsletters(
                 'subject_line': row.subject_line,
                 'raw_content': row.raw_content,
                 'cleaned_content': row.cleaned_content,
-                'extraction': row.extraction,
+                'extraction': extraction,
                 'processed_status': row.processed_status
             }
             newsletters.append(newsletter)

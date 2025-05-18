@@ -1,5 +1,5 @@
 import { api, handleApiError } from './index';
-import { Workflow, WorkflowStatus, WorkflowStepId, WorkflowStepType } from '../../types/workflows';
+import { Workflow, WorkflowStatus, WorkflowStepId } from '../../types/workflows';
 
 export const workflowApi = {
     getWorkflows: async (): Promise<Workflow[]> => {

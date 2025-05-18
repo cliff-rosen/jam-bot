@@ -1,40 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
-import { MoonIcon, SunIcon, DocumentTextIcon, Square2StackIcon, FolderIcon, PlayIcon, BeakerIcon, ChatBubbleLeftRightIcon, UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { MoonIcon, SunIcon, ChatBubbleLeftRightIcon, BeakerIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 import settings from '../config/settings'
 import { HelpGuide } from './HelpGuide';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function TopBar() {
     const { isAuthenticated, logout, user } = useAuth()
     const { isDarkMode, toggleTheme } = useTheme()
     const location = useLocation()
-    const [isDevelopOpen, setIsDevelopOpen] = useState(false);
-    const developRef = useRef<HTMLDivElement>(null);
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (developRef.current && !developRef.current.contains(event.target as Node)) {
-                setIsDevelopOpen(false);
-            }
-        }
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Close dropdown when route changes
-    useEffect(() => {
-        setIsDevelopOpen(false);
-    }, [location.pathname]);
-
-    const isDevelopActive = location.pathname.startsWith('/workflows') ||
-        location.pathname.startsWith('/prompts') ||
-        location.pathname.startsWith('/files');
 
     return (
         <div className="bg-white dark:bg-gray-800 shadow">
@@ -58,78 +33,18 @@ export default function TopBar() {
                                     } inline-flex items-center px-4 border-b-2 text-sm font-medium`}
                             >
                                 <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
-                                Collaborate
+                                Jam
                             </Link>
 
-                            {/* Develop Section with Dropdown */}
-                            <div className="relative" ref={developRef}>
-                                <button
-                                    onClick={() => setIsDevelopOpen(!isDevelopOpen)}
-                                    className={`${isDevelopActive
-                                        ? 'border-blue-500 text-gray-900 dark:text-gray-100'
-                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                        } inline-flex items-center px-4 border-b-2 text-sm font-medium`}
-                                >
-                                    <BeakerIcon className="h-5 w-5 mr-2" />
-                                    Develop
-                                    <ChevronDownIcon className={`h-4 w-4 ml-1 transition-transform duration-200 ${isDevelopOpen ? 'rotate-180' : ''}`} />
-                                </button>
-                                {isDevelopOpen && (
-                                    <div className="absolute left-0 mt-1 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
-                                        <div className="py-1" role="menu">
-                                            <Link
-                                                to="/workflows"
-                                                className={`${location.pathname.startsWith('/workflows')
-                                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                    } block px-4 py-2 text-sm transition-colors duration-150`}
-                                                role="menuitem"
-                                            >
-                                                <div className="flex items-center">
-                                                    <Square2StackIcon className="h-5 w-5 mr-2" />
-                                                    Workflows
-                                                </div>
-                                            </Link>
-                                            <Link
-                                                to="/prompts"
-                                                className={`${location.pathname.startsWith('/prompts')
-                                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                    } block px-4 py-2 text-sm transition-colors duration-150`}
-                                                role="menuitem"
-                                            >
-                                                <div className="flex items-center">
-                                                    <DocumentTextIcon className="h-5 w-5 mr-2" />
-                                                    Templates
-                                                </div>
-                                            </Link>
-                                            <Link
-                                                to="/files"
-                                                className={`${location.pathname.startsWith('/files')
-                                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                    } block px-4 py-2 text-sm transition-colors duration-150`}
-                                                role="menuitem"
-                                            >
-                                                <div className="flex items-center">
-                                                    <FolderIcon className="h-5 w-5 mr-2" />
-                                                    Files
-                                                </div>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
                             <Link
-                                to="/jobs"
-                                className={`${location.pathname.startsWith('/jobs')
+                                to="/lab"
+                                className={`${location.pathname === '/lab'
                                     ? 'border-blue-500 text-gray-900 dark:text-gray-100'
                                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                     } inline-flex items-center px-4 border-b-2 text-sm font-medium`}
                             >
-                                <PlayIcon className="h-5 w-5 mr-2" />
-                                Run
+                                <BeakerIcon className="h-5 w-5 mr-2" />
+                                Lab
                             </Link>
                         </div>
                     </div>

@@ -27,11 +27,10 @@ function App() {
 
   // Main app content when authenticated - defined inside App to ensure context is available
   const AuthenticatedApp = () => {
-
     return (
-      <div className="min-h-screen flex flex-col dark:bg-gray-900 bg-gray-50">
+      <div className="h-screen flex flex-col dark:bg-gray-900 bg-gray-50">
         <TopBar />
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden">
           <Routes>
             {/* <Route path="/" element={<Navigate to="/workflows" />} /> */}
             <Route path="/" element={<Navigate to="/jam-bot" />} />

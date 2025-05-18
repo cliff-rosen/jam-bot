@@ -43,7 +43,9 @@ class NewsletterExtractionService:
             )
             
             # Get extraction from LLM
+            print('retrieving response from LLM')
             response = await self.llm.ainvoke(formatted_prompt)
+            print('response retrieved from LLM')
 
             extraction = prompt.parse_response(response.content)
 

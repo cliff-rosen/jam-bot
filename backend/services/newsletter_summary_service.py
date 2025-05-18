@@ -1,0 +1,214 @@
+from typing import Dict, Any, List, Optional
+from datetime import date, datetime, timedelta
+import logging
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from langchain_openai import ChatOpenAI
+import os
+import json
+from schemas.newsletter import NewsletterSummary, TimePeriodType
+from agents.prompts.newsletter_summary import NewsletterSummaryPrompt
+
+logger = logging.getLogger(__name__)
+
+class NewsletterSummaryService:
+    def __init__(self):
+        self.llm = ChatOpenAI(
+            model="gpt-4",
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
+        self.prompt = NewsletterSummaryPrompt()
+        
+    async def generate_summary(
+        self,
+        db: Session,
+        period_type: TimePeriodType,
+        start_date: date,
+        end_date: date,
+        source_name: Optional[str] = None
+    ) -> NewsletterSummary:
+        """
+        Generate a summary of newsletters for a given time period
+        
+        Args:
+            db: Database session
+            period_type: Type of time period (day, week, month)
+            start_date: Start date of the period
+            end_date: End date of the period
+            source_name: Optional source name to filter by
+            
+        Returns:
+            NewsletterSummary object containing the generated summary
+        """
+        try:
+            # Get newsletters for the period
+            query = text("""
+                SELECT * FROM newsletters 
+                WHERE email_date BETWEEN :start_date AND :end_date
+                AND processed_status = 'extracted'
+            """)
+            params = {
+                'start_date': start_date,
+                'end_date': end_date
+            }
+            
+            if source_name:
+                query = text(str(query) + " AND source_name = :source_name")
+                params['source_name'] = source_name
+                
+            result = db.execute(query, params)
+            
+            # Convert rows to dictionaries
+            newsletters = []
+            source_ids = []
+            for row in result:
+                try:
+                    extraction = row.extraction
+                    if isinstance(extraction, str):
+                        extraction = json.loads(extraction)
+                    newsletters.append({
+                        'id': row.id,
+                        'source_name': row.source_name,
+                        'email_date': row.email_date,
+                        'extraction': extraction
+                    })
+                    source_ids.append(row.id)
+                except Exception as e:
+                    logger.warning(f"Error processing newsletter {row.id}: {str(e)}")
+                    continue
+            
+            if not newsletters:
+                raise ValueError(f"No processed newsletters found for period {start_date} to {end_date}")
+                
+            # Generate summary using LLM
+            summary = await self._generate_summary_content(newsletters)
+            
+            # Create summary record
+            summary_obj = NewsletterSummary(
+                period_type=period_type,
+                start_date=start_date,
+                end_date=end_date,
+                summary=summary,
+                source_count=len(newsletters),
+                source_ids=source_ids,
+                created_at=date.today(),
+                updated_at=date.today(),
+                metadata={
+                    'source_name': source_name,
+                    'period_type': period_type
+                }
+            )
+            
+            # Store in database
+            query = text("""
+                INSERT INTO newsletter_summaries 
+                (period_type, start_date, end_date, summary, source_count, 
+                 source_ids, created_at, updated_at, metadata)
+                VALUES 
+                (:period_type, :start_date, :end_date, :summary, :source_count,
+                 :source_ids, :created_at, :updated_at, :metadata)
+            """)
+            
+            db.execute(query, summary_obj.dict())
+            db.commit()
+            
+            return summary_obj
+            
+        except Exception as e:
+            logger.error(f"Error generating newsletter summary: {str(e)}")
+            raise
+            
+    async def _generate_summary_content(self, newsletters: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Generate summary content using LLM
+        
+        Args:
+            newsletters: List of newsletter dictionaries with extractions
+            
+        Returns:
+            Dictionary containing the summary
+        """
+        try:
+            # Format extractions for the prompt
+            extractions_text = ""
+            for newsletter in newsletters:
+                extractions_text += f"\nSource: {newsletter['source_name']}\nDate: {newsletter['email_date']}\n"
+                extractions_text += f"Extraction: {json.dumps(newsletter['extraction'], indent=2)}\n"
+            
+            # Create and format the prompt
+            formatted_prompt = self.prompt.get_formatted_prompt(
+                count=len(newsletters),
+                extractions=extractions_text
+            )
+            
+            # Get summary from LLM
+            response = await self.llm.ainvoke(formatted_prompt)
+            
+            # Parse the response
+            summary = self.prompt.parse_response(response.content)
+            
+            return summary.dict()
+            
+        except Exception as e:
+            logger.error(f"Error generating summary content: {str(e)}")
+            raise
+            
+    async def get_summary(
+        self,
+        db: Session,
+        period_type: TimePeriodType,
+        start_date: date,
+        end_date: date,
+        source_name: Optional[str] = None
+    ) -> Optional[NewsletterSummary]:
+        """
+        Get an existing summary for a time period
+        
+        Args:
+            db: Database session
+            period_type: Type of time period
+            start_date: Start date
+            end_date: End date
+            source_name: Optional source name filter
+            
+        Returns:
+            NewsletterSummary if found, None otherwise
+        """
+        try:
+            query = text("""
+                SELECT * FROM newsletter_summaries 
+                WHERE period_type = :period_type
+                AND start_date = :start_date
+                AND end_date = :end_date
+            """)
+            params = {
+                'period_type': period_type,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+            
+            if source_name:
+                query = text(str(query) + " AND metadata->>'source_name' = :source_name")
+                params['source_name'] = source_name
+                
+            result = db.execute(query, params).first()
+            
+            if not result:
+                return None
+                
+            return NewsletterSummary(
+                id=result.id,
+                period_type=result.period_type,
+                start_date=result.start_date,
+                end_date=result.end_date,
+                summary=result.summary,
+                source_count=result.source_count,
+                source_ids=result.source_ids,
+                created_at=result.created_at,
+                updated_at=result.updated_at,
+                metadata=result.metadata
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting newsletter summary: {str(e)}")
+            raise 

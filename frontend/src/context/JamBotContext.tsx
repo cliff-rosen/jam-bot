@@ -70,7 +70,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
 
     const processBotMessage = useCallback((data: DataFromLine) => {
-        if (data.token) {
+        console.log("data", data);
+        if (data.supervisor_response) {
             const response = data.supervisor_response.response_content;
             const newMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
@@ -78,17 +79,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 content: response,
                 timestamp: new Date().toISOString()
             };
+            console.log("newMessage", newMessage);
             addMessage(newMessage);
         }
 
         if (data.status) {
-            const newMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: data.status,
-                timestamp: new Date().toISOString()
-            };
-            // addMessage(newMessage);
+            updateStreamingMessage(data.status);
         }
 
         return data.token || "";

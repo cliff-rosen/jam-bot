@@ -114,7 +114,7 @@ async def llm_call(state: State, writer: StreamWriter, config: Dict[str, Any]) -
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
     if writer:
-        writer({"status": "supervisor_starting"})
+        writer({"status": "supervisor starting"})
 
     llm = getModel("supervisor", config, writer)
     
@@ -123,11 +123,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     if not last_message:
         raise ValueError("No user message found in state")
 
+    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
+
     try:
         # Create and format the prompt
         prompt = SupervisorPrompt()
         formatted_prompt = prompt.get_formatted_prompt(
-            user_input=last_message.content
+            user_input=last_message.content,
+            message_history=message_history
         )
 
         # Generate and parse the response

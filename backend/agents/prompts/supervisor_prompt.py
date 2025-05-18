@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from .base_prompt import BasePrompt
@@ -14,10 +14,12 @@ class SupervisorPrompt(BasePrompt):
     def __init__(self):
         super().__init__(SupervisorResponse)
         
-        self.system_message = """You are a helpful assistant. Always answer FINAL_ANSWER for now."""
+        self.system_message = """You are a helpful assistant. Always answer with a helpful response_content and response_type: FINAL_ANSWER for now."""
 
-        self.user_message_template = """User request: {user_input}
+        self.user_message_template = """Previous conversation:
+{message_history}
 
+User request: {user_input}
 
 {format_instructions}"""
 

@@ -1,4 +1,4 @@
-import { Message, ChatResponse } from '../../components/fractal-bot/types/state';
+import { Message, ChatResponse } from '../../types/bot';
 import { api, handleApiError } from './index';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 
@@ -18,15 +18,17 @@ export interface SendMessageResponse extends ChatResponse { }
 
 export interface DataFromLine {
     token: string | null;
-    status: string | null;
-    error: string | null;
     message: string | null;
+    status: string | null;
+    supervisor_response: string | null;
+    error: string | null;
 }
 
 export function getDataFromLine(line: string): DataFromLine {
     const res: DataFromLine = {
         token: null,
         status: null,
+        supervisor_response: null,
         error: null,
         message: null,
     };
@@ -41,6 +43,9 @@ export function getDataFromLine(line: string): DataFromLine {
         const data = JSON.parse(jsonStr);
         if (data.token) {
             res.token = data.token;
+        }
+        if (data.supervisor_response) {
+            res.supervisor_response = data.supervisor_response;
         }
         if (data.status) {
             res.status = data.status;

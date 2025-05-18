@@ -8,7 +8,7 @@ import { useJamBot } from '@/context/JamBotContext';
 const JamBotPage: React.FC = () => {
     const [isChatCollapsed, setIsChatCollapsed] = useState(false);
 
-    const { state, addMessage, updateStreamingMessage, sendMessage } = useJamBot();
+    const { state, sendMessage } = useJamBot();
 
     const { currentMessages, currentStreamingMessage, collabArea } = state;
 

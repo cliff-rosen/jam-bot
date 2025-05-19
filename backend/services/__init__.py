@@ -1,5 +1,4 @@
 from .ai_service import ai_service
-from .workflow_service import WorkflowService
 from .auth_service import validate_token
 
 __all__ = [

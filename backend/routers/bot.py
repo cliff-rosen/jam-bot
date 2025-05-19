@@ -5,14 +5,12 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import asyncio
 import json
-from sse_starlette.sse import EventSourceResponse
-
-from database import get_db
-from services.bot_service import BotService
-from schemas import Message, MessageRole, BotRequest
-from agents.primary_agent import graph, State
 import uuid
 import os
+from sse_starlette.sse import EventSourceResponse
+
+from schemas import Message, MessageRole, BotRequest
+from agents.primary_agent import graph, State
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/api/bot", tags=["bot"])

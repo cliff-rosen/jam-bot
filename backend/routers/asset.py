@@ -1,17 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
+
 from database import get_db
 from services.asset_service import AssetService
-from schemas.asset import FileType, Asset, CreateAssetRequest
 from services import auth_service
+from schemas.asset import FileType, Asset
 from models import User
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
 @router.post("/", response_model=Asset)
 async def create_asset(
-    request: CreateAssetRequest,
+    request,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth_service.validate_token)
 ):

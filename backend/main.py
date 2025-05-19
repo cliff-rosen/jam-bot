@@ -4,11 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 # from routers import search, auth, workflow, tools, files, bot, email, asset
 from routers import auth, bot, email, asset
-from database import get_db, init_db, engine, Base
-from models import Base as ModelBase
+from database import init_db
 from config import settings, setup_logging
 from middleware import LoggingMiddleware
-import sys
 from pydantic import ValidationError
 from starlette.responses import JSONResponse
 

@@ -14,16 +14,6 @@ from .schemas.auth import (
     Token,
     TokenData
 )
-from .schemas.prompt import (
-    PromptTemplateToken,
-    PromptTemplateBase,
-    PromptTemplateCreate,
-    PromptTemplateUpdate,
-    PromptTemplateResponse,
-    PromptTemplateTest,
-    LLMExecuteRequest,
-    LLMExecuteResponse
-)
 from .schemas.asset import (
     FileType,
     DataType,
@@ -49,44 +39,61 @@ from .schemas.bot import (
     MessageRole,
     ChatResponse
 )
-from .schemas.file import (
-    FileBase,
-    FileCreate,
-    FileUpdate,
-    FileResponse,
-    FileContentResponse,
-    FileImageResponse
+from .schemas.newsletter import (
+    Newsletter,
+    NewsletterExtractionRange,
+    NewsletterSummary,
+    TimePeriodType
 )
-from .schemas.tool import (
-    SchemaValue,
-    ToolParameter,
-    ToolOutput,
-    ToolSignature,
-    ToolBase,
-    ToolCreate,
-    ToolUpdate,
-    ToolResponse,
-    ParameterSchema,
-    OutputSchema
-)
-from .schemas.workflow import (
-    WorkflowCreate,
-    WorkflowUpdate,
-    WorkflowStepCreate,
-    WorkflowVariableCreate,
-    WorkflowExecuteRequest,
-    WorkflowResponse,
-    WorkflowStepResponse,
-    WorkflowVariableResponse,
-    WorkflowExecuteResponse,
-    WorkflowSimpleResponse,
-    WorkflowStepSimpleResponse,
-    EvaluationConfig,
-    EvaluationCondition,
-    VariableType,
-    Variable
-)
-# Re-export all schemas
+
+# from .schemas.prompt import (
+#     PromptTemplateToken,
+#     PromptTemplateBase,
+#     PromptTemplateCreate,
+#     PromptTemplateUpdate,
+#     PromptTemplateResponse,
+#     PromptTemplateTest,
+#     LLMExecuteRequest,
+#     LLMExecuteResponse
+# )
+# from .schemas.file import (
+#     FileBase,
+#     FileCreate,
+#     FileUpdate,
+#     FileResponse,
+#     FileContentResponse,
+#     FileImageResponse
+# )
+# from .schemas.tool import (
+#     SchemaValue,
+#     ToolParameter,
+#     ToolOutput,
+#     ToolSignature,
+#     ToolBase,
+#     ToolCreate,
+#     ToolUpdate,
+#     ToolResponse,
+#     ParameterSchema,
+#     OutputSchema
+# )
+# from .schemas.workflow import (
+#     WorkflowCreate,
+#     WorkflowUpdate,
+#     WorkflowStepCreate,
+#     WorkflowVariableCreate,
+#     WorkflowExecuteRequest,
+#     WorkflowResponse,
+#     WorkflowStepResponse,
+#     WorkflowVariableResponse,
+#     WorkflowExecuteResponse,
+#     WorkflowSimpleResponse,
+#     WorkflowStepSimpleResponse,
+#     EvaluationConfig,
+#     EvaluationCondition,
+#     VariableType,
+#     Variable
+# )
+# # Re-export all schemas
 __all__ = [
     # Auth schemas
     'UserBase',
@@ -100,25 +107,7 @@ __all__ = [
     'MessageRole',
     'ChatResponse',
     
-    # File schemas
-    'FileBase',
-    'FileCreate',
-    'FileUpdate',
-    'FileResponse',
-    'FileContentResponse',
-    'FileImageResponse',
-    
-        # Prompt template schemas
-    'PromptTemplateToken',
-    'PromptTemplateBase',
-    'PromptTemplateCreate',
-    'PromptTemplateUpdate',
-    'PromptTemplateResponse',
-    'PromptTemplateTest',
-    'LLMExecuteRequest',
-    'LLMExecuteResponse',
-
-    # Asset schemas
+     # Asset schemas
     'FileType',
     'DataType',
     'AgentType',
@@ -136,35 +125,60 @@ __all__ = [
     'EmailThread',
     'DateRange',
     'EmailSearchParams',
-    'EmailAgentResponse'
+    'EmailAgentResponse',
 
-# Tool schemas
-    'SchemaValue',
-    'ToolParameter',
-    'ToolOutput',
-    'ToolSignature',
-    'ToolBase',
-    'ToolCreate',
-    'ToolUpdate',
-    'ToolResponse',
-    'ParameterSchema',
-    'OutputSchema',
+    # Newsletter schemas
+    'Newsletter',
+    'NewsletterExtractionRange',
+    'NewsletterSummary',
+    'TimePeriodType',
+
     
-    # Workflow schemas
-    'WorkflowCreate',
-    'WorkflowUpdate',
-    'WorkflowStepCreate',
-    'WorkflowVariableCreate',
-    'WorkflowExecuteRequest',
-    'WorkflowResponse',
-    'WorkflowStepResponse',
-    'WorkflowVariableResponse',
-    'WorkflowExecuteResponse',
-    'WorkflowSimpleResponse',
-    'WorkflowStepSimpleResponse',
-    'EvaluationConfig',
-    'EvaluationCondition',
-    'VariableType',
-    'Variable',
+    # # Prompt template schemas
+    # 'PromptTemplateToken',
+    # 'PromptTemplateBase',
+    # 'PromptTemplateCreate',
+    # 'PromptTemplateUpdate',
+    # 'PromptTemplateResponse',
+    # 'PromptTemplateTest',
+    # 'LLMExecuteRequest',
+    # 'LLMExecuteResponse',
+
+    # # Tool schemas
+    # 'SchemaValue',
+    # 'ToolParameter',
+    # 'ToolOutput',
+    # 'ToolSignature',
+    # 'ToolBase',
+    # 'ToolCreate',
+    # 'ToolUpdate',
+    # 'ToolResponse',
+    # 'ParameterSchema',
+    # 'OutputSchema',
+    
+    # # Workflow schemas
+    # 'WorkflowCreate',
+    # 'WorkflowUpdate',
+    # 'WorkflowStepCreate',
+    # 'WorkflowVariableCreate',
+    # 'WorkflowExecuteRequest',
+    # 'WorkflowResponse',
+    # 'WorkflowStepResponse',
+    # 'WorkflowVariableResponse',
+    # 'WorkflowExecuteResponse',
+    # 'WorkflowSimpleResponse',
+    # 'WorkflowStepSimpleResponse',
+    # 'EvaluationConfig',
+    # 'EvaluationCondition',
+    # 'VariableType',
+    # 'Variable',
+
+    # # File schemas
+    # 'FileBase',
+    # 'FileCreate',
+    # 'FileUpdate',
+    # 'FileResponse',
+    # 'FileContentResponse',
+    # 'FileImageResponse',
 
 ] 

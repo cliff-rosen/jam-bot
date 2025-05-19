@@ -101,19 +101,12 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 {/* Content will be rendered here based on type */}
                 {type === 'default' && (
                     <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                        Select a collaboration type to begin
+                        - - -
                     </div>
                 )}
                 {type === 'workflow' && content && (
                     <div className="h-full">
-                        <VariableRenderer
-                            value={content}
-                            useEnhancedJsonView={true}
-                            maxTextLength={1000}
-                            maxArrayItems={20}
-                            maxArrayItemLength={500}
-                            className="h-full"
-                        />
+                        WORKFLOW
                     </div>
                 )}
                 {type === 'document' && content && (

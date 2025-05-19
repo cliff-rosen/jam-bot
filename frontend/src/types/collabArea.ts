@@ -46,18 +46,13 @@ export const getCollabAreaData2 = async () => {
     } catch (error) {
         console.error('Error fetching newsletters:', error);
         return {
-            newsletters: [],
-            pagination: {
-                page: 1,
-                page_size: 10,
-                total_count: 0,
-                total_pages: 0
-            }
-        };
+            type: 'object-list',
+            content: []
+        }
     }
 }
 
 export interface CollabAreaState {
-    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list';
+    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object';
     content: any;
 }

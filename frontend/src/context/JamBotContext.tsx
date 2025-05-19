@@ -1,9 +1,10 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { ChatMessage } from '@/types/chat';
-import { emailApi } from '@/lib/api/emailApi';
-import { Message, MessageRole } from '@/types/bot';
+import { useAuth } from './AuthContext';
 import { getDataFromLine } from '@/lib/api/botApi';
 import { botApi, DataFromLine } from '@/lib/api/botApi';
+
+import { ChatMessage } from '@/types/chat';
+import { Message, MessageRole } from '@/types/bot';
 import { CollabAreaState, getCollabAreaData } from '@/types/collabArea';
 
 
@@ -22,7 +23,10 @@ type JamBotAction =
 const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
-    collabArea: await getCollabAreaData() as CollabAreaState
+    collabArea: {
+        type: 'default',
+        content: null
+    }
 };
 
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
@@ -64,7 +68,16 @@ export const useJamBot = () => {
 };
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
+    const { isAuthenticated } = useAuth();
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            getCollabAreaData().then(data => {
+                dispatch({ type: 'SET_COLLAB_AREA', payload: data });
+            });
+        }
+    }, [isAuthenticated]);
 
     const processBotMessage = useCallback((data: DataFromLine) => {
         console.log("data", data);

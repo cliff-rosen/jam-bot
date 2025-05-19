@@ -17,12 +17,9 @@ from .schemas.auth import (
 from .schemas.asset import (
     FileType,
     DataType,
-    AgentType,
-    AgentStatus,
-    ActionType,
-    ActionButton,
     Asset,
-    Agent
+    AssetType,
+    CollectionType,
 )
 from .schemas.email import (
     EmailLabelType,
@@ -46,53 +43,6 @@ from .schemas.newsletter import (
     TimePeriodType
 )
 
-# from .schemas.prompt import (
-#     PromptTemplateToken,
-#     PromptTemplateBase,
-#     PromptTemplateCreate,
-#     PromptTemplateUpdate,
-#     PromptTemplateResponse,
-#     PromptTemplateTest,
-#     LLMExecuteRequest,
-#     LLMExecuteResponse
-# )
-# from .schemas.file import (
-#     FileBase,
-#     FileCreate,
-#     FileUpdate,
-#     FileResponse,
-#     FileContentResponse,
-#     FileImageResponse
-# )
-# from .schemas.tool import (
-#     SchemaValue,
-#     ToolParameter,
-#     ToolOutput,
-#     ToolSignature,
-#     ToolBase,
-#     ToolCreate,
-#     ToolUpdate,
-#     ToolResponse,
-#     ParameterSchema,
-#     OutputSchema
-# )
-# from .schemas.workflow import (
-#     WorkflowCreate,
-#     WorkflowUpdate,
-#     WorkflowStepCreate,
-#     WorkflowVariableCreate,
-#     WorkflowExecuteRequest,
-#     WorkflowResponse,
-#     WorkflowStepResponse,
-#     WorkflowVariableResponse,
-#     WorkflowExecuteResponse,
-#     WorkflowSimpleResponse,
-#     WorkflowStepSimpleResponse,
-#     EvaluationConfig,
-#     EvaluationCondition,
-#     VariableType,
-#     Variable
-# )
 # # Re-export all schemas
 __all__ = [
     # Auth schemas
@@ -110,12 +60,9 @@ __all__ = [
      # Asset schemas
     'FileType',
     'DataType',
-    'AgentType',
-    'AgentStatus',
-    'ActionType',
-    'ActionButton',
+    'AssetType',
+    'CollectionType',
     'Asset',
-    'Agent',
 
     # Email schemas
     'EmailLabelType',

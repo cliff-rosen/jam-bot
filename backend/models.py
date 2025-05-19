@@ -8,6 +8,7 @@ from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
 from uuid import uuid4
 import json
 from schemas.asset import FileType, DataType, AssetType, CollectionType
+from schemas.workflow import HopStatus, WorkflowStatus
 
 Base = declarative_base()
 
@@ -396,4 +397,59 @@ class Asset(Base):
     # Relationships
     user = relationship("User", back_populates="assets")
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+
+class HopStep(Base):
+    """A single step within a hop"""
+    __tablename__ = "hop_steps"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    hop_id = Column(String(36), ForeignKey("hops.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    action = Column(String(255), nullable=False)
+    parameters = Column(JSON, nullable=False, default=dict)
+    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.PLANNING)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    hop = relationship("Hop", back_populates="steps")
+
+class Hop(Base):
+    """A mini-workflow that transforms inputs into outputs"""
+    __tablename__ = "hops"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    workflow_id = Column(String(36), ForeignKey("workflows.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    input_assets = Column(JSON, nullable=False, default=list)  # List of asset IDs
+    output_assets = Column(JSON, nullable=False, default=list)  # List of asset IDs
+    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.PLANNING)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    workflow = relationship("Workflow", back_populates="hops")
+    steps = relationship("HopStep", back_populates="hop", cascade="all, delete-orphan")
+
+class Workflow(Base):
+    """A workflow consisting of multiple hops"""
+    __tablename__ = "workflows"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(Enum(WorkflowStatus), nullable=False, default=WorkflowStatus.DRAFT)
+    error = Column(Text, nullable=True)
+    metadata = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="workflows")
+    hops = relationship("Hop", back_populates="workflow", cascade="all, delete-orphan")
 

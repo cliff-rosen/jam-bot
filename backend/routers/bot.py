@@ -13,7 +13,7 @@ from schemas import Message, MessageRole, BotRequest
 from agents.primary_agent import graph, State
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-router = APIRouter(prefix="/api/bot", tags=["bot"])
+router = APIRouter(prefix="/bot", tags=["bot"])
 
 
 @router.post("/stream")

@@ -231,7 +231,6 @@ async def workflow_node(state: State, writer: StreamWriter, config: Dict[str, An
     return Command(goto=END, update={})
 
 
-
 ### Graph
 
 # Define the graph

@@ -1,9 +1,9 @@
-import { emailApi } from '@/lib/api/emailApi';
+import { newsletterApi } from '@/lib/api/newsletterApi';
 
 export const getCollabAreaData = async () => {
 
     try {
-        const response = await emailApi.getNewsletterSummary({
+        const response = await newsletterApi.getNewsletterSummary({
             period_type: 'day',
             start_date: '2025-05-01',
             end_date: '2025-05-01'
@@ -33,7 +33,7 @@ export const getCollabAreaData = async () => {
 export const getCollabAreaData2 = async () => {
 
     try {
-        const response = await emailApi.getNewsletters({
+        const response = await newsletterApi.getNewsletters({
             page: 1,
             page_size: 10
         });

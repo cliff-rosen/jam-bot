@@ -4,7 +4,7 @@ import { VariableRenderer } from './common/VariableRenderer';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
-    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list';
+    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object';
     content?: any;
 }
 
@@ -19,6 +19,14 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         if (Array.isArray(content)) {
             setCurrentIndex(prev => Math.min(content.length - 1, prev + 1));
         }
+    };
+
+    const renderObject = () => {
+        return (
+            <div className="h-full">
+                <VariableRenderer value={content} useEnhancedJsonView={true} maxTextLength={1000} maxArrayItems={20} maxArrayItemLength={500} className="h-full" />
+            </div>
+        );
     };
 
     const renderObjectList = () => {
@@ -133,6 +141,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     </div>
                 )}
                 {type === 'object-list' && renderObjectList()}
+                {type === 'object' && renderObject()}
             </div>
         </div>
     );

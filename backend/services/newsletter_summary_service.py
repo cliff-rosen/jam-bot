@@ -208,17 +208,22 @@ class NewsletterSummaryService:
             if not result:
                 return None
                 
+            # Parse JSON strings from database into Python objects
+            summary_data = json.loads(result.summary) if isinstance(result.summary, str) else result.summary
+            source_ids = json.loads(result.source_ids) if isinstance(result.source_ids, str) else result.source_ids
+            metadata = json.loads(result.metadata) if isinstance(result.metadata, str) else result.metadata
+                
             return NewsletterSummary(
                 id=result.id,
                 period_type=result.period_type,
                 start_date=result.start_date,
                 end_date=result.end_date,
-                summary=result.summary,
+                summary=summary_data,
                 source_count=result.source_count,
-                source_ids=result.source_ids,
+                source_ids=source_ids,
                 created_at=result.created_at,
                 updated_at=result.updated_at,
-                metadata=result.metadata
+                metadata=metadata
             )
             
         except Exception as e:

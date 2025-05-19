@@ -2,29 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
+
 from services.auth_service import validate_token
 from services.email_service import EmailService
 from services.newsletter_extraction_service import NewsletterExtractionService
 from services.newsletter_summary_service import NewsletterSummaryService
+
+from models import GoogleOAuth2Credentials, User
+from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 from schemas.email import (
     EmailLabel,
     EmailMessage,
     EmailSearchParams,
     EmailAgentResponse
 )
-from schemas.asset import Asset, FileType
 from database import get_db
 import logging
-from fastapi.responses import RedirectResponse
 from config.settings import settings
+
 from google_auth_oauthlib.flow import Flow
-from models import GoogleOAuth2Credentials, User
-from google.oauth2 import id_token
-from google.auth.transport import requests
 import jwt
 import asyncio
-import uuid
-from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 import json
 
 logger = logging.getLogger(__name__)
@@ -585,6 +583,7 @@ async def get_newsletter_summary(
     try:
         # Get the summary
         summary = await newsletter_summary_service.get_summary(
+            db=db,
             period_type=period_type,
             start_date=start_date,
             end_date=end_date
@@ -592,7 +591,7 @@ async def get_newsletter_summary(
         
         return EmailAgentResponse(
             success=True,
-            data=summary,   
+            data=summary.dict() if summary else None,   
             message=f"Successfully retrieved summary for {period_type} from {start_date} to {end_date}"
         )
         

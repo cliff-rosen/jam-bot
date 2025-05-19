@@ -1,18 +1,19 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import base64
+from bs4 import BeautifulSoup
+from sqlalchemy import text
 import logging
 from sqlalchemy.orm import Session
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from models import GoogleOAuth2Credentials
-from schemas.asset import FileType, DataType
-from schemas.email import DateRange
+
 from config.settings import settings
-import base64
-from bs4 import BeautifulSoup
-from sqlalchemy import text
+
+from models import GoogleOAuth2Credentials
+from schemas.email import DateRange
 
 logger = logging.getLogger(__name__)
 

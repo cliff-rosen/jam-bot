@@ -22,10 +22,7 @@ type JamBotAction =
 const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
-    collabArea: {
-        type: 'object-list',
-        content: await getCollabAreaData()
-    }
+    collabArea: await getCollabAreaData() as CollabAreaState
 };
 
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {

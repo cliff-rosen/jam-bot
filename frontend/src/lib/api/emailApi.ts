@@ -63,6 +63,12 @@ export interface GetNewslettersResponse {
     pagination: NewsletterPagination;
 }
 
+export interface GetNewsletterSummaryResponse {
+    summary: string;
+    source_count: number;
+    source_ids: number[];
+}
+
 export const emailApi = {
     checkConnection: async (): Promise<boolean> => {
         try {
@@ -137,5 +143,20 @@ export const emailApi = {
         } catch (error) {
             throw handleApiError(error);
         }
+    },
+
+    async getNewsletterSummary(params: {
+        period_type: string;
+        start_date: string;
+        end_date: string;
+    }): Promise<GetNewsletterSummaryResponse> {
+        try {
+            const response = await api.get('/api/email/newsletter-summary', { params });
+            return response.data.data;
+        } catch (error) {
+            throw handleApiError(error);
+        }
     }
+
+
 }; 

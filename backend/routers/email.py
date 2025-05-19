@@ -5,6 +5,7 @@ from datetime import datetime, date
 from services.auth_service import validate_token
 from services.email_service import EmailService
 from services.newsletter_extraction_service import NewsletterExtractionService
+from services.newsletter_summary_service import NewsletterSummaryService
 from schemas.email import (
     EmailLabel,
     EmailMessage,
@@ -23,13 +24,14 @@ from google.auth.transport import requests
 import jwt
 import asyncio
 import uuid
-from schemas.newsletter import Newsletter, NewsletterExtractionRange
+from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email", tags=["email"])
 email_service = EmailService()
 newsletter_extraction_service = NewsletterExtractionService()
+newsletter_summary_service = NewsletterSummaryService()
 
 ##########################
 ### Email Management ###
@@ -558,7 +560,49 @@ async def get_newsletters(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         ) 
+
+@router.get("/newsletter-summary", response_model=EmailAgentResponse)
+async def get_newsletter_summary(
+    period_type: TimePeriodType,
+    start_date: date,
+    end_date: date,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a summary of newsletters for a given period
     
+    Args:
+        period_type: Type of period to summarize (day, week, month)
+        start_date: Start date of the period
+        end_date: End date of the period
+        user: Authenticated user
+        db: Database session
+        
+    Returns:
+        EmailAgentResponse with the summary
+    """
+    try:
+        # Get the summary
+        summary = await newsletter_summary_service.get_summary(
+            period_type=period_type,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        return EmailAgentResponse(
+            success=True,
+            data=summary,   
+            message=f"Successfully retrieved summary for {period_type} from {start_date} to {end_date}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting newsletter summary: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )   
+
 ##########################
 ### Session Management ###
 ##########################

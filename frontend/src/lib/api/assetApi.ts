@@ -1,40 +1,35 @@
-import { Asset, FileType, DataType } from '@/types/asset';
+import { Asset, AssetType, CollectionType, AssetWithPersistence } from '@/types/asset';
 import { api } from '@/lib/api';
 
 // Type for creating an asset
 interface CreateAssetParams {
-    name: string;
-    description?: string;
-    fileType: FileType;
-    dataType: DataType;
+    type: AssetType;
+    subtype?: string;
+    is_collection?: boolean;
+    collection_type?: CollectionType;
     content?: any;
+    metadata?: Record<string, any>;
 }
 
 // Type for updating an asset
 interface UpdateAssetParams {
-    name?: string;
-    description?: string;
-    fileType?: FileType;
-    dataType?: DataType;
+    type?: AssetType;
+    subtype?: string;
+    is_collection?: boolean;
+    collection_type?: CollectionType;
     content?: any;
+    metadata?: Record<string, any>;
 }
 
 export const assetApi = {
     // Get all assets
-    async getAssets(fileType?: FileType, dataType?: DataType): Promise<Asset[]> {
-        const response = await api.get('/api/assets', {
-            params: {
-                type: fileType,
-                subtype: dataType
-            }
-        });
+    async getAssets(): Promise<AssetWithPersistence[]> {
+        const response = await api.get('/api/assets');
         return response.data.map((asset: any) => ({
             ...asset,
-            fileType: asset.fileType,
-            dataType: asset.dataType,
             persistence: {
                 isInDb: true,
-                dbId: asset.asset_id,
+                dbId: asset.id,
                 isDirty: false,
                 lastSyncedAt: new Date().toISOString(),
                 version: 1
@@ -43,15 +38,13 @@ export const assetApi = {
     },
 
     // Get a specific asset
-    async getAsset(id: string): Promise<Asset> {
+    async getAsset(id: string): Promise<AssetWithPersistence> {
         const response = await api.get(`/api/assets/${id}`);
         return {
             ...response.data,
-            fileType: response.data.type,
-            dataType: response.data.subtype || DataType.UNSTRUCTURED,
             persistence: {
                 isInDb: true,
-                dbId: response.data.asset_id,
+                dbId: response.data.id,
                 isDirty: false,
                 lastSyncedAt: new Date().toISOString(),
                 version: 1
@@ -60,26 +53,13 @@ export const assetApi = {
     },
 
     // Create a new asset
-    async createAsset(params: CreateAssetParams): Promise<Asset> {
-        // Map frontend types to backend format
-        const backendParams = {
-            name: params.name,
-            fileType: params.fileType,
-            dataType: params.dataType,
-            description: params.description,
-            content: params.content
-        };
-
-        const response = await api.post('/api/assets', backendParams);
-
-        // Map backend response to frontend format
+    async createAsset(params: CreateAssetParams): Promise<AssetWithPersistence> {
+        const response = await api.post('/api/assets', params);
         return {
             ...response.data,
-            fileType: response.data.type,
-            dataType: response.data.subtype || DataType.UNSTRUCTURED,
             persistence: {
                 isInDb: true,
-                dbId: response.data.asset_id,
+                dbId: response.data.id,
                 isDirty: false,
                 lastSyncedAt: new Date().toISOString(),
                 version: 1
@@ -88,26 +68,13 @@ export const assetApi = {
     },
 
     // Update an asset
-    async updateAsset(id: string, updates: UpdateAssetParams): Promise<Asset> {
-        // Map frontend types to backend format
-        const backendUpdates = {
-            name: updates.name,
-            fileType: updates.fileType,
-            dataType: updates.dataType,
-            description: updates.description,
-            content: updates.content
-        };
-
-        const response = await api.put(`/api/assets/${id}`, backendUpdates);
-
-        // Map backend response to frontend format
+    async updateAsset(id: string, updates: UpdateAssetParams): Promise<AssetWithPersistence> {
+        const response = await api.put(`/api/assets/${id}`, updates);
         return {
             ...response.data,
-            fileType: response.data.type,
-            dataType: response.data.subtype || DataType.UNSTRUCTURED,
             persistence: {
                 isInDb: true,
-                dbId: response.data.asset_id,
+                dbId: response.data.id,
                 isDirty: false,
                 lastSyncedAt: new Date().toISOString(),
                 version: 1

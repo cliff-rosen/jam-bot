@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
 
@@ -61,12 +61,28 @@ class DataType(str, Enum):
             except ValueError:
                 return None
 
+class AssetType(str, Enum):
+    """Type of asset"""
+    FILE = "file"
+    PRIMITIVE = "primitive"
+    OBJECT = "object"
+
+class CollectionType(str, Enum):
+    """Type of collection if asset is a collection"""
+    ARRAY = "array"
+    MAP = "map"
+    SET = "set"
+    NONE = "null"
+
 class Asset(BaseModel):
-    asset_id: str
-    name: str
-    description: Optional[str] = None
-    fileType: FileType
-    dataType: Optional[DataType] = None
+    id: str
+    type: AssetType
+    subtype: Optional[str] = None  # specific_format_or_schema
+    is_collection: bool = False
+    collection_type: Optional[CollectionType] = None
     content: Optional[Any] = None
-    metadata: Dict[str, Any] = {}
+    asset_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        from_attributes = True
 

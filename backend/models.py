@@ -7,7 +7,7 @@ from sqlalchemy.sql import text
 from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
 from uuid import uuid4
 import json
-from schemas.asset import FileType, DataType
+from schemas.asset import FileType, DataType, AssetType, CollectionType
 
 Base = declarative_base()
 
@@ -383,12 +383,13 @@ class GoogleOAuth2Credentials(Base):
 class Asset(Base):
     __tablename__ = "assets"
     
-    asset_id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    fileType = Column(Enum(FileType), nullable=False)
-    dataType = Column(Enum(DataType), nullable=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    type = Column(Enum(AssetType), nullable=False)
+    subtype = Column(String(255), nullable=True)
+    is_collection = Column(Boolean, default=False)
+    collection_type = Column(Enum(CollectionType), nullable=True)
     content = Column(JSON, nullable=True)
+    asset_metadata = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

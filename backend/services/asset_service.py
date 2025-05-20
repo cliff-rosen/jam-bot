@@ -107,21 +107,21 @@ class AssetService:
 
         # Handle special cases for updates
         if 'content' in updates:
-            # If dataType exists and not unstructured, wrap content in object with dataType as key
-            if asset_model.dataType and asset_model.dataType != DataType.UNSTRUCTURED:
-                updates['content'] = {asset_model.dataType: updates['content']}
             asset_model.content = updates['content']
         if 'name' in updates:
             asset_model.name = updates['name']
         if 'description' in updates:
             asset_model.description = updates['description']
-        if 'fileType' in updates:
-            asset_model.fileType = updates['fileType']
-        if 'dataType' in updates:
-            asset_model.dataType = updates['dataType']
-            # If content exists and new dataType is not unstructured, rewrap content
-            if asset_model.content and updates['dataType'] != DataType.UNSTRUCTURED:
-                asset_model.content = {updates['dataType']: asset_model.content}
+        if 'type' in updates:
+            asset_model.type = updates['type']
+        if 'subtype' in updates:
+            asset_model.subtype = updates['subtype']
+        if 'is_collection' in updates:
+            asset_model.is_collection = updates['is_collection']
+        if 'collection_type' in updates:
+            asset_model.collection_type = updates['collection_type']
+        if 'asset_metadata' in updates:
+            asset_model.asset_metadata = updates['asset_metadata']
 
         asset_model.updated_at = datetime.utcnow()
         self.db.commit()

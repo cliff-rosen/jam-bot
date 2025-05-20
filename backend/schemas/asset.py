@@ -76,6 +76,8 @@ class CollectionType(str, Enum):
 
 class Asset(BaseModel):
     id: str
+    name: str
+    description: Optional[str] = None
     type: AssetType
     subtype: Optional[str] = None  # specific_format_or_schema
     is_collection: bool = False
@@ -86,3 +88,13 @@ class Asset(BaseModel):
     class Config:
         from_attributes = True
 
+class CreateAssetRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    type: str
+    subtype: Optional[str] = None
+    is_collection: bool = False
+    collection_type: Optional[CollectionType] = None
+    content: Optional[Any] = None
+    asset_metadata: Optional[Dict[str, Any]] = None
+    

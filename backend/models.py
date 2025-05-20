@@ -52,7 +52,9 @@ class Asset(Base):
     __tablename__ = "assets"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    type = Column(Enum(AssetType), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
     is_collection = Column(Boolean, default=False)
     collection_type = Column(Enum(CollectionType), nullable=True)

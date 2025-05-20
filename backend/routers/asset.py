@@ -5,14 +5,14 @@ from typing import List, Optional
 from database import get_db
 from services.asset_service import AssetService
 from services import auth_service
-from schemas.asset import FileType, Asset
+from schemas.asset import FileType, Asset, CreateAssetRequest
 from models import User
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
 @router.post("/", response_model=Asset)
 async def create_asset(
-    request,
+    request: CreateAssetRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth_service.validate_token)
 ):
@@ -21,10 +21,12 @@ async def create_asset(
     return asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
-        fileType=request.fileType,
-        dataType=request.dataType,
-        description=request.description,
-        content=request.content
+        type=request.type,
+        subtype=request.subtype,
+        is_collection=request.is_collection,
+        collection_type=request.collection_type,
+        content=request.content,
+        asset_metadata=request.asset_metadata
     )
 
 @router.get("/{asset_id}", response_model=Asset)

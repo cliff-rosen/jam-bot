@@ -13,6 +13,8 @@ export enum CollectionType {
 
 export interface Asset {
     id: string;
+    name: string;
+    description?: string;
     type: AssetType;
     subtype?: string;
     is_collection: boolean;

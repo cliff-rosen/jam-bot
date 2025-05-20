@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from models import Asset as AssetModel
-from schemas.asset import FileType, Asset, DataType
+from schemas.asset import FileType, Asset, DataType, AssetType, CollectionType
 from datetime import datetime
 from fastapi import UploadFile
 import uuid
@@ -14,42 +14,40 @@ class AssetService:
     def _model_to_schema(self, model: AssetModel) -> Asset:
         """Convert database model to schema"""
         content = model.content
-        # If content is a string and dataType is not unstructured, wrap it
-        if isinstance(content, str) and model.dataType != DataType.UNSTRUCTURED:
-            content = {model.dataType.value: content}
         
         # Ensure metadata is a dictionary
         metadata = model.metadata if isinstance(model.metadata, dict) else {}
         
         return Asset(
-            asset_id=str(model.asset_id),
+            id=str(model.id),
             name=model.name,
             description=model.description,
-            fileType=model.fileType,
-            dataType=model.dataType,
+            type=model.type,
+            subtype=model.subtype,
+            is_collection=model.is_collection,
+            collection_type=model.collection_type,
             content=content,
-            metadata=metadata
+            asset_metadata=metadata
         )
 
     def create_asset(
         self,
         user_id: str,
         name: str,
+        type: str,
+        subtype: Optional[str] = None,
+        is_collection: bool = False,
+        collection_type: Optional[CollectionType] = None,
         description: Optional[str] = None,
-        fileType: FileType = FileType.TXT,
-        dataType: Optional[DataType] = None,
         content: Optional[Any] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        asset_metadata: Optional[Dict[str, Any]] = None
     ) -> Asset:
         """Create a new asset"""
-        # If content is provided and dataType is not unstructured, wrap it
-        if content is not None and dataType and dataType != DataType.UNSTRUCTURED:
-            content = {dataType.value: content}
 
         # Ensure metadata is a dictionary
-        metadata_dict = metadata if isinstance(metadata, dict) else {}
-        if not metadata_dict:
-            metadata_dict = {
+        asset_metadata_dict = asset_metadata if isinstance(asset_metadata, dict) else {}
+        if not asset_metadata_dict:
+            asset_metadata_dict = {
                 "createdAt": datetime.utcnow().isoformat(),
                 "updatedAt": datetime.utcnow().isoformat(),
                 "creator": None,
@@ -62,10 +60,12 @@ class AssetService:
             user_id=user_id,
             name=name,
             description=description,
-            fileType=fileType,
-            dataType=dataType or DataType.UNSTRUCTURED,
+            type=type,
+            subtype=subtype,
+            is_collection=is_collection,
+            collection_type=collection_type,
             content=content,
-            metadata=metadata_dict
+            asset_metadata=asset_metadata_dict
         )
         self.db.add(asset_model)
         self.db.commit()

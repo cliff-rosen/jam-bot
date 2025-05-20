@@ -8,7 +8,7 @@ from services import auth_service
 from schemas.asset import FileType, Asset, CreateAssetRequest
 from models import User
 
-router = APIRouter(prefix="/api/assets", tags=["assets"])
+router = APIRouter(prefix="/assets", tags=["assets"])
 
 @router.post("/", response_model=Asset)
 async def create_asset(

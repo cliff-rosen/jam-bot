@@ -1,30 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
 import AssetPanels from '@/components/hop/AssetPanels';
-import { AssetType } from '@/types/asset';
+import { Asset, AssetType } from '@/types/asset';
+import { assetApi } from '@/lib/api/assetApi';
 
 const JamBotPage: React.FC = () => {
     const { state, sendMessage } = useJamBot();
     const { currentMessages, currentStreamingMessage, collabArea } = state;
 
-    // Mock assets for now - replace with actual assets from your state/context
-    const mockAssets = [
-        {
-            id: '1',
-            name: 'Sample File',
-            description: 'A sample file asset',
-            type: AssetType.FILE,
-            subtype: 'pdf',
-            is_collection: false,
-            content: 'Sample content',
-            asset_metadata: {
-                createdAt: new Date().toISOString(),
-                tags: ['sample', 'test']
-            }
-        }
-    ];
+    const [assets, setAssets] = useState<Asset[]>([]);
+
+    useEffect(() => {
+        const fetchAssets = async () => {
+            const fetchedAssets = await assetApi.getAssets();
+            setAssets(fetchedAssets);
+        };
+        fetchAssets();
+    }, []);
 
     return (
         <div className="flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">
@@ -47,7 +41,7 @@ const JamBotPage: React.FC = () => {
 
             {/* Asset Panels - Flexible width */}
             <div className="flex-1 h-full min-w-[500px]">
-                <AssetPanels assets={mockAssets} />
+                <AssetPanels assets={assets} />
             </div>
         </div>
     );

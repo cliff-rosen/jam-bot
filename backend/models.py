@@ -57,7 +57,7 @@ class Asset(Base):
     type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
     is_collection = Column(Boolean, default=False)
-    collection_type = Column(Enum(CollectionType), nullable=True)
+    collection_type = Column(Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
     content = Column(JSON, nullable=True)
     asset_metadata = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)

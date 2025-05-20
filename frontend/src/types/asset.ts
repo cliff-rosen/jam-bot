@@ -11,6 +11,15 @@ export enum CollectionType {
     NONE = "null"
 }
 
+export enum DataType {
+    UNSTRUCTURED = "unstructured",
+    EMAIL_LIST = "email_list",
+    GENERIC_LIST = "generic_list",
+    GENERIC_TABLE = "generic_table",
+    EMAIL_MESSAGE = "email_message",
+    EMAIL_SUMMARIES_LIST = "email_summaries_list"
+}
+
 export interface Asset {
     id: string;
     name: string;

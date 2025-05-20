@@ -3,14 +3,32 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
-
+import AssetPanels from '@/components/hop/AssetPanels';
+import { AssetType } from '@/types/asset';
 
 const JamBotPage: React.FC = () => {
     const [isChatCollapsed, setIsChatCollapsed] = useState(false);
+    const [isAssetPanelCollapsed, setIsAssetPanelCollapsed] = useState(false);
 
     const { state, sendMessage } = useJamBot();
-
     const { currentMessages, currentStreamingMessage, collabArea } = state;
+
+    // Mock assets for now - replace with actual assets from your state/context
+    const mockAssets = [
+        {
+            id: '1',
+            name: 'Sample File',
+            description: 'A sample file asset',
+            type: AssetType.FILE,
+            subtype: 'pdf',
+            is_collection: false,
+            content: 'Sample content',
+            asset_metadata: {
+                createdAt: new Date().toISOString(),
+                tags: ['sample', 'test']
+            }
+        }
+    ];
 
     console.log("jam bot page");
 
@@ -42,11 +60,33 @@ const JamBotPage: React.FC = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="h-full flex-1">
-                    <CollabArea
-                        type={collabArea.type}
-                        content={collabArea.content}
-                    />
+                <div className="h-full flex-1 flex">
+                    <div className="flex-1">
+                        <CollabArea
+                            type={collabArea.type}
+                            content={collabArea.content}
+                        />
+                    </div>
+
+                    {/* Asset Panels */}
+                    <div
+                        className={`relative transition-all duration-300 ease-in-out ${isAssetPanelCollapsed ? 'w-0' : 'w-[800px]'
+                            } h-full flex-shrink-0`}
+                    >
+                        <button
+                            onClick={() => setIsAssetPanelCollapsed(!isAssetPanelCollapsed)}
+                            className="absolute -left-3 top-4 z-10 p-1 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            {isAssetPanelCollapsed ? (
+                                <ChevronLeft className="w-4 h-4 text-gray-500" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                            )}
+                        </button>
+                        <div className={`h-full transition-opacity duration-300 ${isAssetPanelCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+                            <AssetPanels assets={mockAssets} />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

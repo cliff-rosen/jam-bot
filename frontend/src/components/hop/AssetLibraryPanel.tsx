@@ -27,9 +27,8 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Asset Library</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Available resources for your workflow</p>
+            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
+                <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Asset Library</h2>
             </div>
 
             {/* Search and Filter */}

@@ -17,13 +17,13 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">
-            {/* Subtle header indicating this is a detail view */}
-            <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+            {/* Header */}
+            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
                 <div className="flex items-center space-x-2">
                     {getAssetIcon(asset.type, asset.subtype)}
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         {asset.name}
-                    </span>
+                    </h2>
                 </div>
             </div>
 

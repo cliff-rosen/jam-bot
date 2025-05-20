@@ -86,8 +86,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     return (
         <div className="h-full w-full flex flex-col">
             {/* Header Section */}
-            <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
+                <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {type === 'workflow' && 'Workflow'}
                     {type === 'document' && 'Document'}
                     {type === 'code' && 'Code Editor'}

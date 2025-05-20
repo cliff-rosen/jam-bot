@@ -11,13 +11,12 @@ export enum CollectionType {
     NONE = "null"
 }
 
-export enum DataType {
-    UNSTRUCTURED = "unstructured",
-    EMAIL_LIST = "email_list",
-    GENERIC_LIST = "generic_list",
-    GENERIC_TABLE = "generic_table",
-    EMAIL_MESSAGE = "email_message",
-    EMAIL_SUMMARIES_LIST = "email_summaries_list"
+export enum AssetSubtype {
+    EMAIL = "email",
+    NEWSLETTER = "newsletter",
+    SEARCH_RESULT = "search_result",
+    WEB_PAGE = "web_page",
+    PUBMED_ARTICLE = "pubmed_article"
 }
 
 export interface Asset {
@@ -25,7 +24,7 @@ export interface Asset {
     name: string;
     description?: string;
     type: AssetType;
-    subtype?: string;
+    subtype?: AssetSubtype;
     is_collection: boolean;
     collection_type?: CollectionType;
     content: any;

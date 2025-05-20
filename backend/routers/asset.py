@@ -5,7 +5,7 @@ from typing import List, Optional
 from database import get_db
 from services.asset_service import AssetService
 from services import auth_service
-from schemas.asset import FileType, Asset, CreateAssetRequest
+from schemas.asset import Asset, CreateAssetRequest
 from models import User
 
 router = APIRouter(prefix="/assets", tags=["assets"])

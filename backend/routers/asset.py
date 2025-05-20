@@ -44,17 +44,13 @@ async def get_asset(
 
 @router.get("/", response_model=List[Asset])
 async def get_user_assets(
-    fileType: Optional[FileType] = None,
-    dataType: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get all assets for the current user"""
     asset_service = AssetService(db)
     return asset_service.get_user_assets(
-        user_id=current_user.user_id,
-        fileType=fileType,
-        dataType=dataType
+        user_id=current_user.user_id
     )
 
 @router.put("/{asset_id}", response_model=Asset)

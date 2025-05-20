@@ -85,17 +85,10 @@ class AssetService:
     def get_user_assets(
         self,
         user_id: int,
-        fileType: Optional[FileType] = None,
-        dataType: Optional[DataType] = None
     ) -> List[Asset]:
         """Get all assets for a user, optionally filtered by fileType and dataType"""
         query = self.db.query(AssetModel).filter(AssetModel.user_id == user_id)
         
-        if fileType:
-            query = query.filter(AssetModel.fileType == fileType)
-        if dataType:
-            query = query.filter(AssetModel.dataType == dataType)
-            
         return [self._model_to_schema(model) for model in query.all()]
 
     def update_asset(

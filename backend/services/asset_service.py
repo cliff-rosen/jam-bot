@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from models import Asset as AssetModel, File
+from models import Asset as AssetModel
 from schemas.asset import FileType, Asset, DataType
 from datetime import datetime
 from fastapi import UploadFile

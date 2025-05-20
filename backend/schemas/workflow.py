@@ -54,7 +54,7 @@ class Workflow(BaseModel):
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    workflow_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     class Config:
         from_attributes = True 

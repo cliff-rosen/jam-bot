@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
@@ -7,9 +6,6 @@ import AssetPanels from '@/components/hop/AssetPanels';
 import { AssetType } from '@/types/asset';
 
 const JamBotPage: React.FC = () => {
-    const [isChatCollapsed, setIsChatCollapsed] = useState(false);
-    const [isAssetPanelCollapsed, setIsAssetPanelCollapsed] = useState(false);
-
     const { state, sendMessage } = useJamBot();
     const { currentMessages, currentStreamingMessage, collabArea } = state;
 
@@ -30,64 +26,28 @@ const JamBotPage: React.FC = () => {
         }
     ];
 
-    console.log("jam bot page");
-
     return (
-        <div className="h-full flex">
-            <div className="flex h-full gap-4 px-4 w-full">
-                {/* Left Chat Rail */}
-                <div
-                    className={`relative transition-all duration-300 ease-in-out ${isChatCollapsed ? 'w-0' : 'w-[400px]'}
-                    } h-full flex-shrink-0`}
-                >
-                    <button
-                        onClick={() => setIsChatCollapsed(!isChatCollapsed)}
-                        className="absolute -right-3 top-4 z-10 p-1 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                        {isChatCollapsed ? (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                        ) : (
-                            <ChevronLeft className="w-4 h-4 text-gray-500" />
-                        )}
-                    </button>
-                    <div className={`h-full transition-opacity duration-300 ${isChatCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                        <Chat
-                            messages={currentMessages}
-                            streamingMessage={currentStreamingMessage}
-                            onNewMessage={sendMessage}
-                        />
-                    </div>
-                </div>
+        <div className="flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">
+            {/* Chat Area - Fixed width */}
+            <div className="w-[400px] h-full flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700">
+                <Chat
+                    messages={currentMessages}
+                    streamingMessage={currentStreamingMessage}
+                    onNewMessage={sendMessage}
+                />
+            </div>
 
-                {/* Main Content Area */}
-                <div className="h-full flex-1 flex">
-                    <div className="flex-1">
-                        <CollabArea
-                            type={collabArea.type}
-                            content={collabArea.content}
-                        />
-                    </div>
+            {/* Collab Area - Fixed width */}
+            <div className="w-[600px] h-full flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700">
+                <CollabArea
+                    type={collabArea.type}
+                    content={collabArea.content}
+                />
+            </div>
 
-                    {/* Asset Panels */}
-                    <div
-                        className={`relative transition-all duration-300 ease-in-out ${isAssetPanelCollapsed ? 'w-0' : 'w-[800px]'
-                            } h-full flex-shrink-0`}
-                    >
-                        <button
-                            onClick={() => setIsAssetPanelCollapsed(!isAssetPanelCollapsed)}
-                            className="absolute -left-3 top-4 z-10 p-1 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            {isAssetPanelCollapsed ? (
-                                <ChevronLeft className="w-4 h-4 text-gray-500" />
-                            ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-500" />
-                            )}
-                        </button>
-                        <div className={`h-full transition-opacity duration-300 ${isAssetPanelCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                            <AssetPanels assets={mockAssets} />
-                        </div>
-                    </div>
-                </div>
+            {/* Asset Panels - Flexible width */}
+            <div className="flex-1 h-full min-w-[500px]">
+                <AssetPanels assets={mockAssets} />
             </div>
         </div>
     );

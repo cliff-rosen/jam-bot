@@ -1,4 +1,4 @@
-import { AssetType } from '@/types/asset';
+import { AssetType } from '../../../types/asset';
 import { DocumentIcon, DocumentTextIcon, ListBulletIcon, TableCellsIcon, PhotoIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { getAssetColor } from './assetUtils';
 

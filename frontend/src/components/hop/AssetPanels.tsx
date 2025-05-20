@@ -11,18 +11,17 @@ const AssetPanels: React.FC<AssetPanelsProps> = ({ assets }) => {
     const [selectedAsset, setSelectedAsset] = useState<Asset | undefined>();
 
     return (
-        <div className="h-full flex">
-            {/* Asset Library Panel */}
-            <div className="w-1/2 h-full">
+        <div className="flex h-full w-full">
+            {/* Asset Library Panel - Fixed width */}
+            <div className="w-[300px] h-full flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <AssetLibraryPanel
                     assets={assets}
                     onAssetSelect={setSelectedAsset}
                     selectedAssetId={selectedAsset?.id}
                 />
             </div>
-
-            {/* Asset Inspector Panel */}
-            <div className="w-1/2 h-full">
+            {/* Asset Inspector Panel - Grows to fill space */}
+            <div className="flex-1 h-full bg-white dark:bg-gray-800">
                 <AssetInspectorPanel asset={selectedAsset} />
             </div>
         </div>

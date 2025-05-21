@@ -1,7 +1,8 @@
 export enum AssetType {
     FILE = "file",
     PRIMITIVE = "primitive",
-    OBJECT = "object"
+    OBJECT = "object",
+    DATABASE_ENTITY = "database_entity"
 }
 
 export enum CollectionType {

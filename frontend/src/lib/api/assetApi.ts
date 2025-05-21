@@ -39,7 +39,22 @@ export const assetApi = {
 
     // Get a specific asset
     async getAsset(id: string): Promise<AssetWithPersistence> {
-        const response = await api.get(`/api/assets/${id}`);
+        const response = await api.get(`/api/assets/${id}/details`);
+        return {
+            ...response.data,
+            persistence: {
+                isInDb: true,
+                dbId: response.data.id,
+                isDirty: false,
+                lastSyncedAt: new Date().toISOString(),
+                version: 1
+            }
+        };
+    },
+
+    // Get detailed asset information including database entity content
+    async getAssetDetails(id: string): Promise<AssetWithPersistence> {
+        const response = await api.get(`/api/assets/${id}/details`);
         return {
             ...response.data,
             persistence: {

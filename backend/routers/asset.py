@@ -121,7 +121,7 @@ async def download_file_asset(
         }
     )
 
-@router.get("/assets/{asset_id}/details")
+@router.get("/{asset_id}/details")
 async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Get detailed information about an asset, including its content.

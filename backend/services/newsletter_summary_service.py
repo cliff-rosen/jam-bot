@@ -49,6 +49,7 @@ class NewsletterSummaryService:
                 'end_date': end_date
             }
             result = db.execute(query, params)
+            print(f"Retrieved {result.rowcount} newsletters for date range {start_date} to {end_date}")
             
             # Convert rows to dictionaries
             newsletters = []
@@ -58,7 +59,8 @@ class NewsletterSummaryService:
             # Generate summaries for each day in the range
             summaries = []
             for day in range((end_date - start_date).days + 1):
-                print(f"Generating summary for {day} days from {start_date} to {end_date}")
+                print("--------------------------------")
+                print(f"Generating summary for day {day + 1} from {start_date} to {end_date}")
                 current_date = start_date + timedelta(days=day)
                 summary = await self.generate_summary(db, TimePeriodType.DAY, current_date, current_date)
                 summaries.append(summary)

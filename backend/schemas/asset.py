@@ -60,6 +60,15 @@ class DatabaseEntityMetadata(BaseModel):
     columns: Optional[List[str]] = None  # Specific columns to retrieve, None means all
     is_direct_content: bool = False  # Whether content is stored directly in asset or needs to be fetched
 
+class AssetSubtype(str, Enum):
+    """Specific format or schema of the asset"""
+    EMAIL = "email"
+    NEWSLETTER = "newsletter"
+    SEARCH_RESULT = "search_result"
+    WEB_PAGE = "web_page"
+    PUBMED_ARTICLE = "pubmed_article"
+    DAILY_NEWSLETTER_RECAP = "daily_newsletter_recap"  # For daily newsletter summary recaps
+
 class Asset(BaseModel):
     id: str
     name: str
@@ -84,4 +93,26 @@ class CreateAssetRequest(BaseModel):
     collection_type: Optional[CollectionType] = None
     content: Optional[Any] = None
     asset_metadata: Optional[Dict[str, Any]] = None
+    
+# Asset Definitions
+DAILY_NEWSLETTER_RECAP_ASSET = Asset(
+    id="daily_newsletter_recap",
+    name="Daily Newsletter Recap",
+    description="A collection of daily newsletter summaries",
+    type=AssetType.DATABASE_ENTITY,
+    subtype=AssetSubtype.DAILY_NEWSLETTER_RECAP,
+    is_collection=True,
+    collection_type=CollectionType.ARRAY,
+    content=None,
+    asset_metadata={},
+    db_entity_metadata=DatabaseEntityMetadata(
+        table_name="newsletter_summaries",
+        query_type="list",
+        query_params={
+            "period_type": "day"
+        },
+        columns=["id", "period_type", "start_date", "end_date", "summary", "source_count", "source_ids", "created_at", "updated_at", "metadata"],
+        is_direct_content=False
+    )
+)
     

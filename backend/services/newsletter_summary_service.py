@@ -18,7 +18,58 @@ class NewsletterSummaryService:
             api_key=os.getenv("OPENAI_API_KEY")
             )
         self.prompt = NewsletterSummaryPrompt()
+
+
+    async def generate_daily_summaries_for_range(
+        self,
+        db: Session,
+        start_date: date,
+        end_date: date
+    ) -> List[NewsletterSummary]:
+        """
+        Generate daily summaries for a given date range
         
+        Args:
+            db: Database session
+            start_date: Start date of the range
+        
+
+        Returns:
+            List of NewsletterSummary objects containing the generated summaries
+        """
+        try:
+            # Get all newsletters for the date range
+            query = text("""
+                SELECT * FROM newsletters 
+                WHERE email_date BETWEEN :start_date AND :end_date
+                AND processed_status = 'extracted'
+            """)
+            params = {
+                'start_date': start_date,
+                'end_date': end_date
+            }
+            result = db.execute(query, params)
+            
+            # Convert rows to dictionaries
+            newsletters = []
+            for row in result:
+                newsletters.append(row)
+                
+            # Generate summaries for each day in the range
+            summaries = []
+            for day in range((end_date - start_date).days + 1):
+                print(f"Generating summary for {day} days from {start_date} to {end_date}")
+                current_date = start_date + timedelta(days=day)
+                summary = await self.generate_summary(db, TimePeriodType.DAY, current_date, current_date)
+                summaries.append(summary)
+                
+            return summaries
+            
+        except Exception as e:
+            logger.error(f"Error generating daily summaries for range: {str(e)}")
+            raise
+   
+            
     async def generate_summary(
         self,
         db: Session,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Asset, AssetType } from '@/types/asset';
 import { getAssetIcon } from '@/lib/utils/assets/assetIconUtils';
 import { assetApi } from '@/lib/api/assetApi';
+import { VariableRenderer } from '@/components/common/VariableRenderer';
 
 interface AssetInspectorPanelProps {
     asset?: Asset;
@@ -87,22 +88,16 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                                     <div className="space-y-2">
                                         {displayAsset.content.map((item: any, index: number) => (
                                             <div key={index} className="p-3 bg-white dark:bg-gray-800 rounded border dark:border-gray-700">
-                                                <pre className="text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">
-                                                    {JSON.stringify(item, null, 2)}
-                                                </pre>
+                                                <VariableRenderer value={item} />
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <pre className="text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">
-                                        {JSON.stringify(displayAsset.content, null, 2)}
-                                    </pre>
+                                    <VariableRenderer value={displayAsset.content} />
                                 )}
                             </div>
                         ) : (
-                            <pre className="text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">
-                                {JSON.stringify(displayAsset.content, null, 2)}
-                            </pre>
+                            <VariableRenderer value={displayAsset.content} />
                         )}
                     </div>
                 )}

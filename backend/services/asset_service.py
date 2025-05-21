@@ -140,25 +140,4 @@ class AssetService:
         self.db.delete(asset_model)
         self.db.commit()
         return True
-
-    def download_file_asset(self, asset_id: str, user_id: int) -> Optional[tuple[bytes, str, str]]:
-        """Download a file asset"""
-        asset_model = self.db.query(AssetModel).filter(
-            AssetModel.asset_id == asset_id,
-            AssetModel.user_id == user_id,
-            AssetModel.fileType == FileType.FILE
-        ).first()
-        
-        if not asset_model or not asset_model.content or "file_id" not in asset_model.content:
-            return None
-
-        file_id = asset_model.content["file_id"]
-        file_model = self.db.query(File).filter(
-            File.file_id == file_id,
-            File.user_id == user_id
-        ).first()
-        
-        if not file_model:
-            return None
-
-        return file_model.content, file_model.mime_type, file_model.name 
+    

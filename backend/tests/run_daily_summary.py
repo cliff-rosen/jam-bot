@@ -7,9 +7,8 @@ async def run_newsletter_summary_test():
     from services.newsletter_summary_service import NewsletterSummaryService
     from sqlalchemy.orm import Session
 
-    start_date = datetime(2025, 3, 31)
-    end_date = datetime(2025, 4, 10)
-
+    start_date = datetime(2025, 4, 11)
+    end_date = datetime(2025, 4, 30)
     # Initialize the service
     service = NewsletterSummaryService()
 

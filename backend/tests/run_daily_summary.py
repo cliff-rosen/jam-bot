@@ -16,7 +16,7 @@ async def run_newsletter_summary_test():
     db = next(get_db())
     try:
         # Generate summary
-        summary = await service.generate_daily_summaries_for_range(
+        summary = await service.generate_daily_newsletter_recaps_for_range(
             db=db,
             start_date=start_date,
             end_date=end_date

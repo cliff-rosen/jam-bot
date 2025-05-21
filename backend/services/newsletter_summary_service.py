@@ -20,7 +20,7 @@ class NewsletterSummaryService:
         self.prompt = NewsletterSummaryPrompt()
 
 
-    async def generate_daily_summaries_for_range(
+    async def generate_daily_newsletter_recaps_for_range(
         self,
         db: Session,
         start_date: date,
@@ -38,31 +38,14 @@ class NewsletterSummaryService:
             List of NewsletterSummary objects containing the generated summaries
         """
         try:
-            # Get all newsletters for the date range
-            query = text("""
-                SELECT * FROM newsletters 
-                WHERE email_date BETWEEN :start_date AND :end_date
-                AND processed_status = 'extracted'
-            """)
-            params = {
-                'start_date': start_date,
-                'end_date': end_date
-            }
-            result = db.execute(query, params)
-            print(f"Retrieved {result.rowcount} newsletters for date range {start_date} to {end_date}")
-            
-            # Convert rows to dictionaries
-            newsletters = []
-            for row in result:
-                newsletters.append(row)
-                
+               
             # Generate summaries for each day in the range
             summaries = []
             for day in range((end_date - start_date).days + 1):
                 print("--------------------------------")
                 print(f"Generating summary for day {day + 1} from {start_date} to {end_date}")
                 current_date = start_date + timedelta(days=day)
-                summary = await self.generate_summary(db, TimePeriodType.DAY, current_date, current_date)
+                summary = await self.generate_newsletter_recap_for_range(db, TimePeriodType.DAY, current_date, current_date)
                 summaries.append(summary)
                 
             return summaries
@@ -72,7 +55,7 @@ class NewsletterSummaryService:
             raise
    
             
-    async def generate_summary(
+    async def generate_newsletter_recap_for_range(
         self,
         db: Session,
         period_type: TimePeriodType,

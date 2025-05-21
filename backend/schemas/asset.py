@@ -43,6 +43,7 @@ class AssetType(str, Enum):
     FILE = "file"
     PRIMITIVE = "primitive"
     OBJECT = "object"
+    DATABASE_ENTITY = "database_entity"  # For assets that represent database entities
 
 class CollectionType(str, Enum):
     """Type of collection if asset is a collection"""
@@ -50,6 +51,14 @@ class CollectionType(str, Enum):
     MAP = "map"
     SET = "set"
     NONE = "null"
+
+class DatabaseEntityMetadata(BaseModel):
+    """Metadata for assets that represent database entities"""
+    table_name: str
+    query_type: Literal["list", "single"] = "list"
+    query_params: Dict[str, Any] = Field(default_factory=dict)  # For WHERE clauses, LIMIT, etc.
+    columns: Optional[List[str]] = None  # Specific columns to retrieve, None means all
+    is_direct_content: bool = False  # Whether content is stored directly in asset or needs to be fetched
 
 class Asset(BaseModel):
     id: str
@@ -61,6 +70,7 @@ class Asset(BaseModel):
     collection_type: Optional[CollectionType] = None
     content: Optional[Any] = None
     asset_metadata: Dict[str, Any] = Field(default_factory=dict)
+    db_entity_metadata: Optional[DatabaseEntityMetadata] = None  # For database entity assets
 
     class Config:
         from_attributes = True

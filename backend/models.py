@@ -60,6 +60,7 @@ class Asset(Base):
     collection_type = Column(Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
     content = Column(JSON, nullable=True)
     asset_metadata = Column(JSON, nullable=False, default=dict)
+    db_entity_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

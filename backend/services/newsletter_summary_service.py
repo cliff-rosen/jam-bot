@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class NewsletterSummaryService:
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="gpt-4",
+            model="gpt-4o",
             api_key=os.getenv("OPENAI_API_KEY")
             )
         self.prompt = NewsletterSummaryPrompt()

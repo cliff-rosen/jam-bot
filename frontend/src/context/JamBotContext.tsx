@@ -5,7 +5,6 @@ import { chatApi } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { CollabAreaState } from '@/types/collabArea';
 
-
 interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
@@ -74,7 +73,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             const response = data.supervisor_response.response_content;
             const newMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
-                role: 'assistant',
+                role: MessageRole.ASSISTANT,
                 content: response,
                 timestamp: new Date().toISOString()
             };
@@ -110,16 +109,21 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         try {
             // Convert ChatMessage[] to Message[]
-            const messages: Message[] = state.currentMessages.map(msg => ({
-                message_id: msg.id,
-                role: msg.role === 'user' ? MessageRole.USER : MessageRole.ASSISTANT,
+            const messages: ChatMessage[] = state.currentMessages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
                 content: msg.content,
-                timestamp: new Date(msg.timestamp)
+                timestamp: msg.timestamp
             }));
 
             const chatRequest: ChatRequest = {
                 message: message.content,
-                history: messages
+                history: messages,
+                payload: {
+                    missionId: state.missionId,
+                    assets: state.assets
+                }
+
             };
 
             for await (const update of chatApi.streamMessage(chatRequest)) {

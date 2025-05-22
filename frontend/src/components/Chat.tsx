@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
+import { MessageRole } from '@/types/chat';
 
 interface ChatProps {
     messages: ChatMessage[];
@@ -33,7 +34,7 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
 
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
-            role: 'user',
+            role: MessageRole.USER,
             content: input,
             timestamp: new Date().toISOString()
         };

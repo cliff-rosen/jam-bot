@@ -1,4 +1,4 @@
-import { ChatMessage, ChatResponse, ChatRequest, AgentResponse } from '../../types/chat';
+import { ChatRequest, AgentResponse } from '../../types/chat';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 
 
@@ -48,15 +48,8 @@ export const chatApi = {
     streamMessage: async function* (
         chatRequest: ChatRequest,
     ): AsyncGenerator<StreamUpdate> {
-        // Convert Message[] to MessageHistory[]
-        const messageHistory: ChatMessage[] = chatRequest.history;
 
-        const requestBody = {
-            message: chatRequest.message,
-            history: messageHistory,
-        };
-
-        yield* makeStreamRequest('/api/bot/stream', requestBody, 'POST');
+        yield* makeStreamRequest('/api/bot/stream', chatRequest, 'POST');
     },
 
 

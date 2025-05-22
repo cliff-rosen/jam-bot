@@ -13,7 +13,7 @@ const AssetPanels: React.FC<AssetPanelsProps> = ({ assets }) => {
     return (
         <div className="flex h-full w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-l border-gray-200 dark:border-gray-700">
             {/* Asset Library Panel - Fixed width */}
-            <div className="w-[300px] h-full flex-shrink-0 border-r border-gray-200 dark:border-gray-700">
+            <div className="w-[360px] h-full flex-shrink-0 border-r border-gray-200 dark:border-gray-700">
                 <AssetLibraryPanel
                     assets={assets}
                     onAssetSelect={setSelectedAsset}

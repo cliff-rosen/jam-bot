@@ -16,7 +16,7 @@ class AssetService:
         content = model.content
         
         # Ensure metadata is a dictionary
-        metadata = model.metadata if isinstance(model.metadata, dict) else {}
+        metadata = model.asset_metadata if isinstance(model.asset_metadata, dict) else {}
         
         return Asset(
             id=str(model.id),

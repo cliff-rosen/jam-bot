@@ -86,5 +86,5 @@ export const formatTimestamp = (timestamp: string): string => {
 };
 
 // Export all APIs
-export * from './botApi';
+export * from './chatApi';
 export * from './emailApi'; 

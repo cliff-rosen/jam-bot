@@ -41,3 +41,11 @@ class ChatResponse(BaseModel):
         default_factory=dict,
         description="Optional side effects from the bot's response"
     )
+
+class AgentResponse(BaseModel):
+    token: str | None = Field(description="The token for the agent")
+    message: str | None = Field(description="The message from the agent")
+    status: str | None = Field(description="The status of the agent")
+    supervisor_response: str | None = Field(description="The supervisor response from the agent")
+    error: str | None = Field(description="The error from the agent")
+

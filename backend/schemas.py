@@ -31,7 +31,7 @@ from .schemas.email import (
     EmailSearchParams,
     EmailAgentResponse
 )
-from .schemas.bot import (
+from .schemas.chat import (
     Message,
     MessageRole,
     ChatResponse

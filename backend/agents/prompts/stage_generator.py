@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from .base_prompt import BasePrompt
-from schemas.bot import StageProposal
+from backend.schemas.chat import StageProposal
 
 class StageGeneratorResponse(BaseModel):
     """Structure for stages generator"""

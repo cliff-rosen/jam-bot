@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
-from schemas.bot import Message, MessageRole
+from schemas.chat import Message, MessageRole, AgentResponse
 import os
 
 from agents.prompts.supervisor_prompt import SupervisorPrompt, SupervisorResponse
@@ -134,12 +134,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         next_node = END
 
         if writer:
-            writer({
-                "token": supervisor_response.response_content,
-                "status": "supervisor_completed: " + supervisor_response.response_type,
-                "supervisor_response": supervisor_response.dict(),
-                "next_node": next_node
-            })
+            agent_response = AgentResponse(
+                token=supervisor_response.response_content,
+                message=supervisor_response.response_content,
+                status="supervisor_completed: " + supervisor_response.response_type,
+                supervisor_response=supervisor_response.dict(),
+                next_node=next_node
+            )
+            writer(agent_response.dict())
 
         return Command(goto=next_node, update={"messages": [response_message]})
 

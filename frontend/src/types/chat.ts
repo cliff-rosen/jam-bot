@@ -51,3 +51,10 @@ export type ChatMessage = {
     };
 }
 
+export interface AgentResponse {
+    token: string | null;
+    message: string | null;
+    status: string | null;
+    supervisor_response: string | null;
+    error: string | null;
+}

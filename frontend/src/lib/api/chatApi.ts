@@ -1,17 +1,10 @@
-import { Message, ChatResponse, BotRequest } from '../../types/bot';
+import { Message, ChatResponse, BotRequest, AgentResponse } from '../../types/chat';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 
 
-export interface DataFromLine {
-    token: string | null;
-    message: string | null;
-    status: string | null;
-    supervisor_response: string | null;
-    error: string | null;
-}
 
-export function getDataFromLine(line: string): DataFromLine {
-    const res: DataFromLine = {
+export function getDataFromLine(line: string): AgentResponse {
+    const res: AgentResponse = {
         token: null,
         status: null,
         supervisor_response: null,

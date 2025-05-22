@@ -18,7 +18,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import StreamWriter, Send, Command
 
 
-from schemas.bot import Message, ChatResponse, MessageRole, Mission, Tool, Asset, MissionProposal
+from backend.schemas.chat import Message, ChatResponse, MessageRole, Mission, Tool, Asset, MissionProposal
 import os
 
 from agents.prompts.mission_definition import MissionDefinitionPrompt, MissionProposal

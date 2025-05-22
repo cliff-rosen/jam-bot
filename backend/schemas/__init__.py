@@ -11,7 +11,7 @@ from .auth import (
     TokenData
 )
 
-from .bot import (
+from .chat import (
     Message,
     MessageRole,
     ChatResponse,

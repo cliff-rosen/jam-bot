@@ -1,25 +1,7 @@
-export type MessageType =
-    | 'text'
-    | 'action_prompt'
-    | 'agent_update'
-    | 'asset_added';
-
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: string;
-    type: MessageType;
-    actionButton?: {
-        label: string;
-        action: string;
-        disabled?: boolean;
-    };
-}
-
 export enum MessageRole {
     USER = 'user',
-    ASSISTANT = 'assistant'
+    ASSISTANT = 'assistant',
+    SYSTEM = 'system'
 }
 
 export interface Message {
@@ -42,4 +24,28 @@ export interface ChatResponse {
             results: any;
         }>;
     };
-} 
+}
+
+export interface BotRequest {
+    message: string;
+    history: Message[];
+}
+
+export type MessageType =
+    | 'text'
+    | 'action_prompt'
+    | 'agent_update'
+    | 'asset_added';
+
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+    type: MessageType;
+    actionButton?: {
+        label: string;
+        action: string;
+        disabled?: boolean;
+    };
+}

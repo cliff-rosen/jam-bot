@@ -3,7 +3,7 @@ import { getDataFromLine } from '@/lib/api/botApi';
 import { botApi, DataFromLine } from '@/lib/api/botApi';
 
 import { ChatMessage } from '@/types/chat';
-import { Message, MessageRole } from '@/types/bot';
+import { BotRequest, Message, MessageRole } from '@/types/bot';
 import { CollabAreaState } from '@/types/collabArea';
 
 
@@ -118,7 +118,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 timestamp: new Date(msg.timestamp)
             }));
 
-            for await (const update of botApi.streamMessage(message.content, messages)) {
+            const botRequest: BotRequest = {
+                message: message.content,
+                history: messages
+            };
+
+            for await (const update of botApi.streamMessage(botRequest)) {
                 const lines = update.data.split('\n');
                 for (const line of lines) {
                     const data = getDataFromLine(line);

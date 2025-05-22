@@ -1,9 +1,8 @@
 import { createContext, useContext, useReducer, useCallback } from 'react';
 import { getDataFromLine } from '@/lib/api/chatApi';
-import { botApi, DataFromLine } from '@/lib/api/chatApi';
+import { chatApi } from '@/lib/api/chatApi';
 
-import { ChatMessage } from '@/types/chat';
-import { BotRequest, Message, MessageRole } from '@/types/chat';
+import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { CollabAreaState } from '@/types/collabArea';
 
 
@@ -69,7 +68,7 @@ export const useJamBot = () => {
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
 
-    const processBotMessage = useCallback((data: DataFromLine) => {
+    const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
         if (data.supervisor_response) {
             const response = data.supervisor_response.response_content;
@@ -118,12 +117,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 timestamp: new Date(msg.timestamp)
             }));
 
-            const botRequest: BotRequest = {
+            const chatRequest: ChatRequest = {
                 message: message.content,
                 history: messages
             };
 
-            for await (const update of botApi.streamMessage(botRequest)) {
+            for await (const update of chatApi.streamMessage(chatRequest)) {
                 const lines = update.data.split('\n');
                 for (const line of lines) {
                     const data = getDataFromLine(line);
@@ -138,7 +137,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             // Update the final message with the complete content
             const finalMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
-                role: 'assistant',
+                role: MessageRole.ASSISTANT,
                 content: finalContent,
                 timestamp: new Date().toISOString()
             };

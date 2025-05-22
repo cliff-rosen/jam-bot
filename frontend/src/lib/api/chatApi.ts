@@ -1,4 +1,4 @@
-import { Message, ChatResponse, BotRequest, AgentResponse } from '../../types/chat';
+import { ChatMessage, ChatResponse, ChatRequest, AgentResponse } from '../../types/chat';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 
 
@@ -43,16 +43,16 @@ export function getDataFromLine(line: string): AgentResponse {
 }
 
 
-export const botApi = {
+export const chatApi = {
 
     streamMessage: async function* (
-        botRequest: BotRequest,
+        chatRequest: ChatRequest,
     ): AsyncGenerator<StreamUpdate> {
         // Convert Message[] to MessageHistory[]
-        const messageHistory: Message[] = botRequest.history;
+        const messageHistory: ChatMessage[] = chatRequest.history;
 
         const requestBody = {
-            message: botRequest.message,
+            message: chatRequest.message,
             history: messageHistory,
         };
 

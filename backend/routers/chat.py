@@ -5,7 +5,7 @@ import uuid
 import os
 from sse_starlette.sse import EventSourceResponse
 
-from schemas import Message, MessageRole, BotRequest
+from schemas import Message, MessageRole, ChatRequest
 from agents.primary_agent import graph, State
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/bot", tags=["bot"])
 
 
 @router.post("/stream")
-async def bot_stream(request: Request, bot_request: BotRequest):
+async def chat_stream(request: Request, chat_request: ChatRequest):
     """Endpoint that streams responses from the graph"""
     
     async def event_generator():
@@ -27,14 +27,14 @@ async def bot_stream(request: Request, bot_request: BotRequest):
                     content=msg.content,
                     timestamp=msg.timestamp.isoformat()
                 )
-                for msg in bot_request.history
+                for msg in chat_request.history
             ]
             
             # Add the current message
             current_message = Message(
                 id=str(uuid.uuid4()),
                 role=MessageRole.USER,
-                content=bot_request.message,
+                content=chat_request.message,
                 timestamp=datetime.now().isoformat()
             )
             messages.append(current_message)

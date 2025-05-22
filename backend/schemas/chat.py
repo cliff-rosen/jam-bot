@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
+from .workflow import WorkflowStatus, Workflow, Mission
 
 
 ### BOT REQUEST ###
@@ -31,15 +32,30 @@ class Message(BaseModel):
             data['timestamp'] = data['timestamp'].isoformat()
         return cls(**data)
 
-class BotRequest(BaseModel):
-    message: str
-    history: List[Message]
+class AssetReference(BaseModel):
+    """Lightweight asset reference for chat requests"""
+    id: str = Field(description="Unique identifier for the asset")
+    name: str = Field(description="Name of the asset")
+    description: str = Field(description="Description of the asset")
+    type: str = Field(description="Type of the asset")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Optional metadata for the asset"
+    )
+
+class ChatRequest(BaseModel):
+    message: str = Field(description="The message content")
+    history: List[Message] = Field(description="Previous messages in the conversation")
+    payload: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Optional payload including assets, workflow info, and context"
+    )
 
 class ChatResponse(BaseModel):
     message: Message = Field(description="The bot's response message")
-    sideEffects: Optional[Dict[str, Any]] = Field(
+    payload: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description="Optional side effects from the bot's response"
+        description="Optional payload including assets, workflow info, and context"
     )
 
 class AgentResponse(BaseModel):

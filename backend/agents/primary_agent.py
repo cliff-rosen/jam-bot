@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse
+from schemas.workflow import Mission
 import os
 
 from agents.prompts.supervisor_prompt import SupervisorPrompt, SupervisorResponse
@@ -26,6 +27,7 @@ You are a helpful assistant named Jack that can answer question.
 class State(TypedDict):
     """State for the RAVE workflow"""
     messages: List[Message]
+    mission: Mission
     supervisor_response: SupervisorResponse
     next_node: str
 
@@ -115,7 +117,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         prompt = SupervisorPrompt()
         formatted_prompt = prompt.get_formatted_prompt(
             user_input=last_message.content,
-            message_history=message_history
+            message_history=message_history,
+            mission=state["mission"]
         )
 
         # Generate and parse the response
@@ -123,11 +126,12 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         supervisor_response = prompt.parse_response(response.content)
         
         # Create a response message
+        current_time = datetime.now()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=supervisor_response.response_content,
-            timestamp=datetime.now().isoformat()
+            timestamp=current_time.isoformat()
         )
 
         # Based on response type, determine next node
@@ -139,7 +143,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 message=supervisor_response.response_content,
                 status="supervisor_completed: " + supervisor_response.response_type,
                 supervisor_response=supervisor_response.dict(),
-                next_node=next_node
+                next_node=next_node,
+                error=None
             )
             writer(agent_response.dict())
 

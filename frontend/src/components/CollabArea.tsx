@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { VariableRenderer } from './common/VariableRenderer';
+import Mission from './Mission';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -84,6 +85,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
     return (
         <div className="h-full w-full flex flex-col">
+            {/* Mission Header */}
+            <Mission className="flex-shrink-0" />
+
             {/* Header Section */}
             <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">

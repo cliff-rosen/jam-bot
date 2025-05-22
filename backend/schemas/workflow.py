@@ -8,6 +8,7 @@ from .asset import Asset
 class WorkflowStatus(str, Enum):
     """Status of a workflow or its components"""
     PENDING = "pending"
+    READY = "ready"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"

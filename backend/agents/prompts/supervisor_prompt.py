@@ -14,9 +14,25 @@ class SupervisorPrompt(BasePrompt):
     def __init__(self):
         super().__init__(SupervisorResponse)
         
-        self.system_message = """You are a helpful assistant. Always answer with a helpful response_content and response_type: FINAL_ANSWER for now."""
+        self.system_message = """You are a helpful assistant that coordinates between different specialists to help users achieve their goals. You have access to the current mission context and can either:
+1. Provide a FINAL_ANSWER if you can directly help the user
+2. Route to MISSION_SPECIALIST if the request requires mission planning or modification
+3. Route to WORKFLOW_SPECIALIST if the request requires workflow execution or modification
 
-        self.user_message_template = """Previous conversation:
+Always consider the mission's goal and success criteria when determining how to respond."""
+
+        self.user_message_template = """Current Mission Context:
+Goal: {mission.goal}
+Success Criteria:
+{mission.success_criteria}
+
+Inputs Required:
+{mission.inputs}
+
+Expected Outputs:
+{mission.outputs}
+
+Previous conversation:
 {message_history}
 
 User request: {user_input}

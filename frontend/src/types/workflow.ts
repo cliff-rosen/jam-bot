@@ -1,4 +1,4 @@
-import { Asset } from './asset';
+import { Asset, AssetType } from './asset';
 
 export enum WorkflowStatus {
     PENDING = "pending", // In design
@@ -89,4 +89,39 @@ export interface Mission {
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
-} 
+}
+
+export const defaultMission: Mission = {
+    id: "default",
+    name: "AI Newsletter Summarization",
+    description: "Summarize AI news for a given date range.",
+    goal: "Generate a concise report of AI news for the selected date range.",
+    success_criteria: ["Report is accurate and covers all major AI news in the range."],
+    inputs: [
+        {
+            id: "input-date-range",
+            name: "Date Range",
+            description: "The range of dates to summarize.",
+            type: AssetType.PRIMITIVE,
+            is_collection: false,
+            content: null,
+            asset_metadata: {},
+        }
+    ],
+    outputs: [
+        {
+            id: "output-report",
+            name: "Report",
+            description: "The generated AI news summary report.",
+            type: AssetType.FILE,
+            is_collection: false,
+            content: null,
+            asset_metadata: {},
+        }
+    ],
+    status: WorkflowStatus.READY,
+    workflows: [],
+    metadata: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+}

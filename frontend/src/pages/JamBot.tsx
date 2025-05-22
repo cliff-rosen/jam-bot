@@ -1,24 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
 import { useJamBot } from '@/context/JamBotContext';
 import AssetPanels from '@/components/hop/AssetPanels';
-import { Asset, AssetType } from '@/types/asset';
-import { assetApi } from '@/lib/api/assetApi';
 
 const JamBotPage: React.FC = () => {
     const { state, sendMessage } = useJamBot();
-    const { currentMessages, currentStreamingMessage, collabArea } = state;
-
-    const [assets, setAssets] = useState<Asset[]>([]);
-
-    useEffect(() => {
-        const fetchAssets = async () => {
-            const fetchedAssets = await assetApi.getAssets();
-            setAssets(fetchedAssets);
-        };
-        fetchAssets();
-    }, []);
+    const { currentMessages, currentStreamingMessage, collabArea, assets, mission } = state;
 
     return (
         <div className="flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">

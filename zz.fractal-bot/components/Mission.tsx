@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFractalBot } from '@/context/FractalBotContext';
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, Target, CheckCircle2, Clock } from 'lucide-react';
 import { WorkflowVariable } from '@/components/fractal-bot/types/index';
 
 interface MissionProps {
@@ -78,6 +78,23 @@ export default function Mission({
 
     return (
         <div className={`dark:bg-[#1e2330] ${className}`}>
+            {/* Clean Summary Bar */}
+            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+                <div>
+                    <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                        {mission.title || 'No Mission Selected'}
+                    </h1>
+                    {mission.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {mission.description}
+                        </p>
+                    )}
+                </div>
+                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.status)}`}>
+                    {getStatusText(mission.status)}
+                </span>
+            </div>
+
             <div className="p-4">
                 {/* Mission Header */}
                 <div className="relative">

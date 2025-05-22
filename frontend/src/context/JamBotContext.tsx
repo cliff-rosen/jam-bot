@@ -1,21 +1,27 @@
-import { createContext, useContext, useReducer, useCallback } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { getDataFromLine } from '@/lib/api/chatApi';
 import { chatApi } from '@/lib/api/chatApi';
 
-import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
+import { ChatMessage, AgentResponse, ChatRequest, MessageRole, Asset, AssetReference } from '@/types/chat';
+import { Mission, defaultMission } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
+import { assetApi } from '@/lib/api/assetApi';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
     collabArea: CollabAreaState;
+    assets: Asset[];
+    mission: Mission;
 }
 
 type JamBotAction =
     | { type: 'ADD_MESSAGE'; payload: ChatMessage }
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
-    | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState };
+    | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
+    | { type: 'SET_ASSETS'; payload: Asset[] }
+    | { type: 'SET_MISSION'; payload: Mission };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -23,7 +29,9 @@ const initialState: JamBotState = {
     collabArea: {
         type: 'default',
         content: null
-    }
+    },
+    assets: [],
+    mission: defaultMission
 };
 
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
@@ -42,6 +50,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             return {
                 ...state,
                 collabArea: action.payload
+            };
+        case 'SET_ASSETS':
+            return {
+                ...state,
+                assets: action.payload
             };
         default:
             return state;
@@ -66,6 +79,14 @@ export const useJamBot = () => {
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
+
+    useEffect(() => {
+        const fetchAssets = async () => {
+            const fetchedAssets = await assetApi.getAssets();
+            dispatch({ type: 'SET_ASSETS', payload: fetchedAssets });
+        };
+        fetchAssets();
+    }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
@@ -96,13 +117,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
     }, []);
 
-    const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
-        dispatch({
-            type: 'SET_COLLAB_AREA',
-            payload: { type, content }
-        });
-    }, []);
-
     const sendMessage = useCallback(async (message: ChatMessage) => {
         addMessage(message);
         let finalContent = '';
@@ -120,7 +134,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 message: message.content,
                 history: messages,
                 payload: {
-                    missionId: state.missionId,
+                    mission: state.mission,
                     assets: state.assets
                 }
 
@@ -152,6 +166,13 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             updateStreamingMessage('');
         }
     }, [state, addMessage, processBotMessage, updateStreamingMessage]);
+
+    const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
+        dispatch({
+            type: 'SET_COLLAB_AREA',
+            payload: { type, content }
+        });
+    }, []);
 
     return (
         <JamBotContext.Provider value={{

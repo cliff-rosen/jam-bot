@@ -6,6 +6,7 @@ import os
 from sse_starlette.sse import EventSourceResponse
 
 from schemas import Message, MessageRole, ChatRequest
+from schemas.workflow import Mission
 from agents.primary_agent import graph, State
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -38,9 +39,23 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                 timestamp=datetime.now().isoformat()
             )
             messages.append(current_message)
+
+            # Add the mission
+            mission_dict = chat_request.payload["mission"]
+            mission = Mission(
+                id=mission_dict["id"],
+                name=mission_dict["name"],
+                description=mission_dict["description"],
+                goal=mission_dict["goal"],
+                success_criteria=mission_dict["success_criteria"],
+                inputs=mission_dict["inputs"],
+                outputs=mission_dict["outputs"],
+                status=mission_dict["status"],
+            )
             
             state = State(
                 messages=messages,
+                mission=mission,
                 supervisor_response=None,
                 next_node=None,
             )

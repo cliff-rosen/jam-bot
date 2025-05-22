@@ -48,9 +48,9 @@ __all__ = [
     # Chat schemas
     'Message',
     'MessageRole',
+    'ChatRequest',
     'ChatResponse',
     'AgentResponse',
-    'ChatRequest',
     'AssetReference',
 
     # Newsletter schemas

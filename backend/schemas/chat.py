@@ -19,10 +19,6 @@ class Message(BaseModel):
     role: MessageRole = Field(description="Role of the message sender (user/assistant/system)")
     content: str = Field(description="Content of the message")
     timestamp: str = Field(description="When the message was sent in ISO format")
-    metadata: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Optional metadata for the message including missionId, stageId, stepId, or assetId"
-    )
 
     @classmethod
     def create(cls, **data):
@@ -62,6 +58,6 @@ class AgentResponse(BaseModel):
     token: str | None = Field(description="The token for the agent")
     message: str | None = Field(description="The message from the agent")
     status: str | None = Field(description="The status of the agent")
-    supervisor_response: str | None = Field(description="The supervisor response from the agent")
+    supervisor_response: str | object | None = Field(description="The supervisor response from the agent")
     error: str | None = Field(description="The error from the agent")
 

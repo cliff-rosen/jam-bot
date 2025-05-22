@@ -1,19 +1,6 @@
 import { Message, ChatResponse, BotRequest } from '../../types/bot';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 
-export interface MessageHistory {
-    role: string;
-    content: string;
-    timestamp: string;
-}
-
-export interface SendMessageRequest {
-    message: string;
-    history: MessageHistory[];
-}
-
-export interface SendMessageResponse extends ChatResponse { }
-
 
 export interface DataFromLine {
     token: string | null;
@@ -69,11 +56,7 @@ export const botApi = {
         botRequest: BotRequest,
     ): AsyncGenerator<StreamUpdate> {
         // Convert Message[] to MessageHistory[]
-        const messageHistory: MessageHistory[] = botRequest.history.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp.toISOString()
-        }));
+        const messageHistory: Message[] = botRequest.history;
 
         const requestBody = {
             message: botRequest.message,

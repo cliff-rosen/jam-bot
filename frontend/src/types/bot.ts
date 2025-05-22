@@ -8,7 +8,7 @@ export interface Message {
     message_id: string;
     role: MessageRole;
     content: string;
-    timestamp: Date;
+    timestamp?: Date;
     metadata?: Record<string, any>;
 }
 
@@ -37,15 +37,17 @@ export type MessageType =
     | 'agent_update'
     | 'asset_added';
 
-export interface ChatMessage {
+export type ChatMessage = {
     id: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: string;
-    type: MessageType;
-    actionButton?: {
-        label: string;
-        action: string;
-        disabled?: boolean;
+    metadata?: {
+        missionId?: string;
+        stageId?: string;
+        stepId?: string;
+        assetId?: string;
+        type?: 'status' | 'error' | 'info';
     };
 }
+

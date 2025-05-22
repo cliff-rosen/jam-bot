@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useCallback } from 'react';
 import { getDataFromLine } from '@/lib/api/botApi';
 import { botApi, DataFromLine } from '@/lib/api/botApi';
 
-import { ChatMessage } from '@/types/chat';
+import { ChatMessage } from '@/types/bot';
 import { BotRequest, Message, MessageRole } from '@/types/bot';
 import { CollabAreaState } from '@/types/collabArea';
 

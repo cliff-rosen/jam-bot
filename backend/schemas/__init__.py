@@ -15,8 +15,10 @@ from .chat import (
     Message,
     MessageRole,
     ChatResponse,
-    BotRequest
-)
+    AgentResponse,
+    ChatRequest,
+    AssetReference
+ )
 
 from .asset import (
     Asset,
@@ -29,6 +31,12 @@ from .newsletter import (
     TimePeriodType
 )
 
+from .workflow import (
+    WorkflowStatus,
+    Workflow,
+    Mission
+)
+
 __all__ = [
     # Auth schemas
     'UserBase',
@@ -37,11 +45,13 @@ __all__ = [
     'Token',
     'TokenData',
     
-    # Bot schemas
+    # Chat schemas
     'Message',
     'MessageRole',
     'ChatResponse',
-    'BotRequest',
+    'AgentResponse',
+    'ChatRequest',
+    'AssetReference',
 
     # Newsletter schemas
     'Newsletter',
@@ -51,4 +61,9 @@ __all__ = [
 
     # Asset schemas
     'Asset',
+
+    # Workflow schemas
+    'WorkflowStatus',
+    'Workflow',
+    'Mission'
 ]  

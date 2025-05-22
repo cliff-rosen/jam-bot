@@ -8,7 +8,7 @@ from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
 from uuid import uuid4
 import json
 from schemas.asset import AssetType, CollectionType
-from schemas.workflow import HopStatus, WorkflowStatus
+from schemas.workflow import WorkflowStatus
 
 Base = declarative_base()
 

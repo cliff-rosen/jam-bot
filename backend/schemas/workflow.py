@@ -41,8 +41,21 @@ class ToolUse(BaseModel):
     """Represents a tool use in a workflow step"""
     id: str = Field(description="Unique identifier for the tool use")
     name: str = Field(description="Name of the tool")
-    parameters: Dict[str, Any] = Field(description="Parameters passed to the tool")
+    
+    # Maps tool parameter names to state variable IDs
+    parameter_mapping: Dict[str, str] = Field(
+        description="Maps tool parameter names to state variable IDs that provide their values"
+    )
+    
+    # Maps tool result paths to state variable IDs
+    result_mapping: Dict[str, str] = Field(
+        description="Maps tool result paths (dot notation) to state variable IDs that will store the results"
+    )
+    
+    # The actual parameters and results after state variable substitution
+    parameters: Dict[str, Any] = Field(description="Parameters passed to the tool after state variable substitution")
     results: Any = Field(description="Results from the tool use")
+    
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
     error: Optional[str] = Field(default=None, description="Error message if the tool use failed")

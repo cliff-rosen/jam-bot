@@ -33,8 +33,17 @@ export interface StateVariable {
 export interface ToolUse {
     id: string;
     name: string;
-    parameters: Record<string, any>;
-    results: any;
+
+    // Maps tool parameter names to state variable IDs
+    parameter_mapping: Record<string, string>; // Maps tool parameter names to state variable IDs that provide their values
+
+    // Maps tool result paths to state variable IDs
+    result_mapping: Record<string, string>; // Maps tool result paths (dot notation) to state variable IDs that will store the results
+
+    // The actual parameters and results after state variable substitution
+    parameters: Record<string, any>; // Parameters passed to the tool after state variable substitution
+    results: any; // Results from the tool use
+
     timestamp: string;
     status: WorkflowStatus;
     error?: string;

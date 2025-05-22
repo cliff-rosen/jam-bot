@@ -5,17 +5,21 @@ from datetime import datetime, date
 import json
 import logging
 
+from services.asset_service import AssetService
 from services.auth_service import validate_token
 from services.newsletter_extraction_service import NewsletterExtractionService
 from services.newsletter_summary_service import NewsletterSummaryService
+from services.newsletter_summary_report_service import NewsletterSummaryReportService
 from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 from schemas.email import EmailAgentResponse
+from schemas.asset import Asset, AssetType
 from database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/newsletter", tags=["newsletter"])
 newsletter_extraction_service = NewsletterExtractionService()
 newsletter_summary_service = NewsletterSummaryService()
+newsletter_summary_report_service = NewsletterSummaryReportService()
 
 @router.post("/extract", response_model=EmailAgentResponse)
 async def extract_newsletter(
@@ -364,6 +368,72 @@ async def get_newsletter_summary(
         
     except Exception as e:
         logger.error(f"Error getting newsletter summary: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.get("/report", response_model=EmailAgentResponse)
+async def get_newsletter_report_as_asset(
+    period_type: TimePeriodType,
+    start_date: date,
+    end_date: date,
+    source_name: Optional[str] = None,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a markdown report from newsletter summaries for a given period
+    
+    Args:
+        period_type: Type of period to summarize (day, week, month)
+        start_date: Start date of the period
+        end_date: End date of the period
+        source_name: Optional source name to filter by
+        user: Authenticated user
+        db: Database session
+        
+    Returns:
+        EmailAgentResponse with the markdown report
+    """
+    try:
+        # Generate the report
+        print(f"Generating report for {period_type} from {start_date} to {end_date}")
+        report = await newsletter_summary_report_service.generate_report(
+            db=db,
+            start_date=start_date,
+            end_date=end_date,
+            period_type=period_type,
+            source_name=source_name
+        )
+        
+        # Create an asset
+        print(f"Creating asset")
+        asset_service = AssetService(db)  # Initialize with the actual session
+        asset = asset_service.create_asset(
+            user_id=user.user_id,  # Keep as integer to match Asset model
+            name=f"{period_type} newsletter report",
+            type=AssetType.MARKDOWN.value,  # Use enum value
+            subtype="NEWSLETTER_SUMMARY",
+            is_collection=False,
+            collection_type=None,
+            content=report,
+            asset_metadata={  # Use asset_metadata instead of metadata
+                "period_type": period_type,
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+                "source_name": source_name
+            }
+        )
+
+        return EmailAgentResponse(
+            success=True,
+            data={"report": report},
+            message=f"Successfully generated report for {period_type} from {start_date} to {end_date}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating newsletter report: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

@@ -44,6 +44,7 @@ class AssetType(str, Enum):
     PRIMITIVE = "primitive"
     OBJECT = "object"
     DATABASE_ENTITY = "database_entity"  # For assets that represent database entities
+    MARKDOWN = "markdown"
 
 class CollectionType(str, Enum):
     """Type of collection if asset is a collection"""

@@ -63,39 +63,30 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
             </div>
 
             {/* Asset List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-4">
                 {filteredAssets.length === 0 ? (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                         No assets found
                     </div>
                 ) : (
-                    filteredAssets.map(asset => (
-                        <div
-                            key={asset.id}
-                            onClick={() => onAssetSelect(asset)}
-                            className={`p-3 rounded-lg cursor-pointer transition-colors
-                                     ${selectedAssetId === asset.id
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-transparent'}
-                                     border`}
-                        >
-                            <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                    {getAssetIcon(asset.type, asset.subtype)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                        {asset.name}
-                                    </p>
-                                    {asset.description && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                            {asset.description}
-                                        </p>
-                                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                        {filteredAssets.map(asset => (
+                            <div
+                                key={asset.id}
+                                onClick={() => onAssetSelect(asset)}
+                                className={`bg-white dark:bg-gray-700 border rounded-lg p-3 cursor-pointer transition
+                                    ${selectedAssetId === asset.id
+                                        ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-700'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}`}
+                            >
+                                <div className="font-medium truncate text-xs text-gray-900 dark:text-gray-100">{asset.name}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description}</div>
+                                <div className="text-[10px] mt-1 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                                    {asset.type?.toUpperCase() || 'UNKNOWN'}
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

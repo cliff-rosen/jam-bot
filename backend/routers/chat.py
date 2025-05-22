@@ -26,7 +26,7 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                     id=str(uuid.uuid4()),
                     role=MessageRole.USER if msg.role == "user" else MessageRole.ASSISTANT,
                     content=msg.content,
-                    timestamp=msg.timestamp.isoformat()
+                    timestamp=msg.timestamp.isoformat() if type(msg.timestamp) == datetime else msg.timestamp
                 )
                 for msg in chat_request.history
             ]

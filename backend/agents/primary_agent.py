@@ -113,6 +113,12 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
 
     try:
+
+        if writer:
+            writer({
+                "status": "supervisor_request"
+            })
+
         # Create and format the prompt
         prompt = SupervisorPrompt()
         formatted_prompt = prompt.get_formatted_prompt(
@@ -126,12 +132,12 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         supervisor_response = prompt.parse_response(response.content)
         
         # Create a response message
-        current_time = datetime.now()
+        current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=supervisor_response.response_content,
-            timestamp=current_time.isoformat()
+            timestamp=current_time
         )
 
         # Based on response type, determine next node

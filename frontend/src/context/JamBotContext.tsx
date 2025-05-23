@@ -2,10 +2,11 @@ import { createContext, useContext, useReducer, useCallback, useEffect } from 'r
 import { getDataFromLine } from '@/lib/api/chatApi';
 import { chatApi } from '@/lib/api/chatApi';
 
-import { ChatMessage, AgentResponse, ChatRequest, MessageRole, Asset, AssetReference } from '@/types/chat';
-import { Mission, defaultMission } from '@/types/workflow';
+import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
+import { Mission, WorkflowStatus, defaultMission } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
+import { Asset, AssetType } from '@/types/asset';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -56,6 +57,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 assets: action.payload
             };
+        case 'SET_MISSION':
+            return {
+                ...state,
+                mission: action.payload
+            };
         default:
             return state;
     }
@@ -88,6 +94,21 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         fetchAssets();
     }, []);
 
+    const createPlaceholderAsset = (name: string, description: string, isInput: boolean): Asset => {
+        return {
+            id: `${name.toLowerCase().replace(/\s+/g, '-')}-${isInput ? 'input' : 'output'}`,
+            name,
+            description,
+            type: AssetType.PRIMITIVE,
+            is_collection: false,
+            content: null,
+            asset_metadata: {
+                is_placeholder: true,
+                is_input: isInput
+            }
+        };
+    };
+
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
         if (data.supervisor_response) {
@@ -100,6 +121,39 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             };
             console.log("newMessage", newMessage);
             addMessage(newMessage);
+
+            if (data.supervisor_response.response_type === "MISSION_DEFINITION" &&
+                data.supervisor_response.mission_proposal) {
+                const mission = data.supervisor_response.mission_proposal;
+
+                // Create placeholder assets for inputs and outputs
+                const inputAssets = mission.required_inputs.map(input =>
+                    createPlaceholderAsset(input, `Required input for ${mission.title}`, true)
+                );
+                const outputAssets = mission.expected_outputs.map(output =>
+                    createPlaceholderAsset(output, `Expected output for ${mission.title}`, false)
+                );
+
+                const newMission: Mission = {
+                    id: mission.title.toLowerCase().replace(/\s+/g, '-'),
+                    name: mission.title,
+                    description: mission.goal,
+                    goal: mission.goal,
+                    success_criteria: mission.success_criteria,
+                    inputs: inputAssets,
+                    outputs: outputAssets,
+                    status: WorkflowStatus.PENDING,
+                    workflows: [],
+                    metadata: {
+                        complexity: mission.estimated_complexity,
+                        duration: mission.estimated_duration
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                console.log("newMission", newMission);
+                dispatch({ type: 'SET_MISSION', payload: newMission });
+            }
         }
 
         if (data.status) {

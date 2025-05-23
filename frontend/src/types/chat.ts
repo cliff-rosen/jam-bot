@@ -1,4 +1,4 @@
-import { Asset } from '@/types.old/asset';
+import { Asset, AssetType } from '@/types/asset';
 import { Mission } from '@/types/workflow';
 
 export enum MessageRole {
@@ -19,7 +19,8 @@ export type AssetReference = {
     id: string;
     name: string;
     description: string;
-    type: string;
+    type: AssetType;
+    subtype?: string;
     metadata?: Record<string, any>;
 }
 
@@ -46,10 +47,26 @@ export type MessageType =
     | 'agent_update'
     | 'asset_added';
 
+export interface MissionDefinitionResponse {
+    response_type: 'MISSION_DEFINITION' | 'INTERVIEW_QUESTION';
+    response_content: string;
+    mission_proposal?: {
+        title: string;
+        goal: string;
+        success_criteria: string[];
+        required_inputs: string[];
+        expected_outputs: string[];
+        estimated_complexity: string;
+        estimated_duration: string;
+    };
+    information_gaps?: string[];
+    confidence_level?: string;
+}
+
 export interface AgentResponse {
     token: string | null;
     message: string | null;
     status: string | null;
-    supervisor_response: string | null | object;
+    supervisor_response: MissionDefinitionResponse | null;
     error: string | null;
 }

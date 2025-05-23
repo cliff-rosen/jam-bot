@@ -69,31 +69,66 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                         No assets found
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                        {filteredAssets.map(asset => (
-                            <div
-                                key={asset.id}
-                                onClick={() => onAssetSelect(asset)}
-                                className={`bg-white dark:bg-gray-700 border rounded-lg p-3 cursor-pointer transition
-                                    ${selectedAssetId === asset.id
-                                        ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-700'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}
-                                    ${asset.asset_metadata?.is_final ? 'ring-1 ring-emerald-400/30 shadow-sm shadow-emerald-200/20 dark:shadow-emerald-900/20' : ''}`}
-                            >
-                                <div className="font-medium truncate text-xs text-gray-900 dark:text-gray-100">{asset.name}</div>
-                                <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description}</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                                        {asset.type?.toUpperCase() || 'UNKNOWN'}
-                                    </div>
-                                    {asset.asset_metadata?.is_final && (
-                                        <div className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 w-fit border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
-                                            FINAL
+                    <div className="space-y-4">
+                        {/* Non-final assets */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {filteredAssets.filter(asset => !asset.asset_metadata?.is_final).map(asset => (
+                                <div
+                                    key={asset.id}
+                                    onClick={() => onAssetSelect(asset)}
+                                    className={`bg-white dark:bg-gray-700 border rounded-lg p-3 cursor-pointer transition
+                                        ${selectedAssetId === asset.id
+                                            ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-700'
+                                            : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}`}
+                                >
+                                    <div className="font-medium truncate text-xs text-gray-900 dark:text-gray-100">{asset.name}</div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                                            {asset.type?.toUpperCase() || 'UNKNOWN'}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+
+                        {/* Divider and Final Assets Section */}
+                        {filteredAssets.some(asset => asset.asset_metadata?.is_final) && (
+                            <>
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                                    </div>
+                                    <div className="relative flex justify-center">
+                                        <span className="bg-white dark:bg-gray-800 px-2 text-xs text-gray-500 dark:text-gray-400">Final Assets</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    {filteredAssets.filter(asset => asset.asset_metadata?.is_final).map(asset => (
+                                        <div
+                                            key={asset.id}
+                                            onClick={() => onAssetSelect(asset)}
+                                            className={`bg-white dark:bg-gray-700 border rounded-lg p-3 cursor-pointer transition
+                                                ${selectedAssetId === asset.id
+                                                    ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-700'
+                                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}`}
+                                        >
+                                            <div className="font-medium truncate text-xs text-gray-900 dark:text-gray-100">{asset.name}</div>
+                                            <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description}</div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                                                    {asset.type?.toUpperCase() || 'UNKNOWN'}
+                                                </div>
+                                                <div className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 w-fit border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
+                                                    FINAL
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

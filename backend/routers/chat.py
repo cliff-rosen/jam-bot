@@ -14,7 +14,7 @@ router = APIRouter(prefix="/bot", tags=["bot"])
 
 
 @router.post("/stream")
-async def chat_stream(request: Request, chat_request: ChatRequest):
+async def chat_stream(chat_request: ChatRequest):
     """Endpoint that streams responses from the graph"""
     
     async def event_generator():
@@ -23,8 +23,8 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
             # Convert history to Message objects
             messages = [
                 Message(
-                    id=str(uuid.uuid4()),
-                    role=MessageRole.USER if msg.role == "user" else MessageRole.ASSISTANT,
+                    id=msg.id,
+                    role=msg.role,
                     content=msg.content,
                     timestamp=msg.timestamp.isoformat() if type(msg.timestamp) == datetime else msg.timestamp
                 )
@@ -56,7 +56,6 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
             state = State(
                 messages=messages,
                 mission=mission,
-                supervisor_response=None,
                 next_node=None,
             )
             

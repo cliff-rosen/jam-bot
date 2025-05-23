@@ -84,6 +84,7 @@ export interface Mission {
     success_criteria: string[];
     inputs: Asset[];
     outputs: Asset[];
+    possible_stage_sequence: string[];
     status: WorkflowStatus;
     workflows: Workflow[];
     metadata: Record<string, any>;

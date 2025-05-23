@@ -56,8 +56,7 @@ export interface MissionDefinitionResponse {
         success_criteria: string[];
         required_inputs: string[];
         expected_outputs: string[];
-        estimated_complexity: string;
-        estimated_duration: string;
+        possible_stage_sequence: string[];
     };
     information_gaps?: string[];
     confidence_level?: string;

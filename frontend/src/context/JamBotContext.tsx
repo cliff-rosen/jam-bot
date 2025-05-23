@@ -142,12 +142,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     success_criteria: mission.success_criteria,
                     inputs: inputAssets,
                     outputs: outputAssets,
+                    possible_stage_sequence: mission.possible_stage_sequence,
                     status: WorkflowStatus.PENDING,
                     workflows: [],
-                    metadata: {
-                        complexity: mission.estimated_complexity,
-                        duration: mission.estimated_duration
-                    },
+                    metadata: {},
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };

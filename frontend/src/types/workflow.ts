@@ -92,6 +92,24 @@ export interface Mission {
 }
 
 export const defaultMission: Mission = {
+    id: "default-01",
+    name: "Untitled Mission",
+    description: "This is a description of the mission.",
+    goal: "This is the goal of the mission.",
+    success_criteria: ["This is the success criteria of the mission."],
+    inputs: [
+    ],
+    outputs: [
+    ],
+    status: WorkflowStatus.PENDING,
+    workflows: [],
+    metadata: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+}
+
+
+export const defaultMission2: Mission = {
     id: "default",
     name: "AI Newsletter Summarization",
     description: "Summarize AI news for a given date range.",

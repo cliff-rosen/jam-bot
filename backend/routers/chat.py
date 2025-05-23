@@ -7,7 +7,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from schemas import Message, MessageRole, ChatRequest
 from schemas.workflow import Mission
-from agents.primary_agent import graph, State
+from agents.mission_agent import graph, State
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/bot", tags=["bot"])

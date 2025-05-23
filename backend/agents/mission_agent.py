@@ -111,10 +111,9 @@ async def mission_definition_node(state: State, writer: StreamWriter, config: Di
     message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
 
     try:
-
         if writer:
             writer({
-                "status": "supervisor_request"
+                "status": "starting mission definition agent..."
             })
 
         # Create and format the prompt
@@ -127,7 +126,7 @@ async def mission_definition_node(state: State, writer: StreamWriter, config: Di
 
         # Generate and parse the response
         response = await llm.ainvoke(formatted_prompt)
-        mission_definition = prompt.parse_response(response.content)
+        mission_definition = prompt.parse_response(response.content)  # Use response.content instead of response
         
         # Create a response message
         current_time = datetime.now().isoformat()
@@ -146,7 +145,7 @@ async def mission_definition_node(state: State, writer: StreamWriter, config: Di
                 token=mission_definition.response_content,
                 message=mission_definition.response_content,
                 status="mission_definition_completed: " + mission_definition.response_type,
-                mission_definition=mission_definition.dict(),
+                supervisor_response=mission_definition.dict(),  # Use dict() to serialize the response
                 next_node=next_node,
                 error=None
             )

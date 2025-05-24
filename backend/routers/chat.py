@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends, HTTPException
 from datetime import datetime
 import json
 import uuid
 import os
 from sse_starlette.sse import EventSourceResponse
+from typing import Optional, List, Dict, Any
 
-from schemas import Message, MessageRole, ChatRequest
+from schemas import Message, MessageRole, ChatRequest, ChatResponse
 from schemas.workflow import Mission
 from agents.mission_agent import graph, State
+from services.ai_service import ai_service, LLMRequest
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/bot", tags=["bot"])
@@ -75,4 +77,63 @@ async def chat_stream(chat_request: ChatRequest):
             }
     
     return EventSourceResponse(event_generator())
+
+
+@router.post("/llm", response_model=ChatResponse)
+async def invoke_llm(
+    request: LLMRequest,
+    stream: bool = False
+):
+    """
+    Invoke an LLM with the given request parameters.
+    
+    Args:
+        request: LLM request parameters including messages, model, etc.
+        stream: Whether to stream the response
+        
+    Returns:
+        ChatResponse with the LLM's response
+    """
+    try:
+        # Set streaming flag
+        request["stream"] = stream
+        
+        if stream:
+            # For streaming responses, return an EventSourceResponse
+            async def event_generator():
+                try:
+                    async for chunk in ai_service.invoke_llm(request):
+                        yield {
+                            "event": "message",
+                            "data": json.dumps({"content": chunk})
+                        }
+                except Exception as e:
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({"error": str(e)})
+                    }
+            
+            return EventSourceResponse(event_generator())
+        else:
+            # For non-streaming responses, return a regular response
+            response = await ai_service.invoke_llm(request)
+            
+            # Create a response message
+            message = Message(
+                id=str(uuid.uuid4()),
+                role=MessageRole.ASSISTANT,
+                content=response,
+                timestamp=datetime.now().isoformat()
+            )
+            
+            return ChatResponse(
+                message=message,
+                payload={}
+            )
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error invoking LLM: {str(e)}"
+        )
 

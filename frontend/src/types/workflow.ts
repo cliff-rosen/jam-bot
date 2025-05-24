@@ -92,7 +92,7 @@ export interface Mission {
     updated_at: string;
 }
 
-export const defaultMission: Mission = {
+export const defaultMission2: Mission = {
     id: "default-01",
     name: "Untitled Mission",
     description: "This is a description of the mission.",
@@ -110,7 +110,7 @@ export const defaultMission: Mission = {
 }
 
 
-export const defaultMission2: Mission = {
+export const defaultMission: Mission = {
     id: "default",
     name: "AI Newsletter Summarization",
     description: "Summarize AI news for a given date range.",

@@ -1,11 +1,8 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from models import Asset as AssetModel
-from schemas.asset import Asset, AssetType, CollectionType
+from schemas.asset import Asset, CollectionType
 from datetime import datetime
-from fastapi import UploadFile
-import uuid
-import json
 
 class AssetService:
     def __init__(self, db: Session):
@@ -24,6 +21,7 @@ class AssetService:
             description=model.description,
             type=model.type,
             subtype=model.subtype,
+            db_entity_metadata=model.db_entity_metadata,
             is_collection=model.is_collection,
             collection_type=model.collection_type,
             content=content,
@@ -75,7 +73,7 @@ class AssetService:
     def get_asset(self, asset_id: str, user_id: int) -> Optional[Asset]:
         """Get an asset by ID"""
         asset_model = self.db.query(AssetModel).filter(
-            AssetModel.asset_id == asset_id,
+            AssetModel.id == asset_id,
             AssetModel.user_id == user_id
         ).first()
         if not asset_model:
@@ -99,7 +97,7 @@ class AssetService:
     ) -> Optional[Asset]:
         """Update an asset"""
         asset_model = self.db.query(AssetModel).filter(
-            AssetModel.asset_id == asset_id,
+            AssetModel.id == asset_id,
             AssetModel.user_id == user_id
         ).first()
         if not asset_model:
@@ -131,7 +129,7 @@ class AssetService:
     def delete_asset(self, asset_id: str, user_id: int) -> bool:
         """Delete an asset"""
         asset_model = self.db.query(AssetModel).filter(
-            AssetModel.asset_id == asset_id,
+            AssetModel.id == asset_id,
             AssetModel.user_id == user_id
         ).first()
         if not asset_model:

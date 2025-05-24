@@ -94,6 +94,14 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         fetchAssets();
     }, []);
 
+    const addMessage = useCallback((message: ChatMessage) => {
+        dispatch({ type: 'ADD_MESSAGE', payload: message });
+    }, []);
+
+    const updateStreamingMessage = useCallback((message: string) => {
+        dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
+    }, []);
+
     const createPlaceholderAsset = (name: string, description: string, isInput: boolean): Asset => {
         return {
             id: `${name.toLowerCase().replace(/\s+/g, '-')}-${isInput ? 'input' : 'output'}`,
@@ -119,7 +127,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 content: response,
                 timestamp: new Date().toISOString()
             };
-            console.log("newMessage", newMessage);
             addMessage(newMessage);
 
             if (data.supervisor_response.response_type === "MISSION_DEFINITION" &&
@@ -149,7 +156,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
-                console.log("newMission", newMission);
                 dispatch({ type: 'SET_MISSION', payload: newMission });
             }
         }
@@ -159,14 +165,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         return data.token || "";
-    }, []);
-
-    const addMessage = useCallback((message: ChatMessage) => {
-        dispatch({ type: 'ADD_MESSAGE', payload: message });
-    }, []);
-
-    const updateStreamingMessage = useCallback((message: string) => {
-        dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
     }, []);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {

@@ -81,46 +81,6 @@ async def delete_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
     return {"message": "Asset deleted successfully"}
 
-@router.post("/upload", response_model=Asset)
-async def upload_file_asset(
-    file: UploadFile = FastAPIFile(...),
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    subtype: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_service.validate_token)
-):
-    """Upload a file as an asset"""
-    asset_service = AssetService(db)
-    return await asset_service.upload_file_asset(
-        user_id=current_user.user_id,
-        file=file,
-        name=name,
-        description=description,
-        subtype=subtype
-    )
-
-@router.get("/{asset_id}/download")
-async def download_file_asset(
-    asset_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_service.validate_token)
-):
-    """Download a file asset"""
-    asset_service = AssetService(db)
-    result = asset_service.download_file_asset(asset_id, current_user.user_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="File asset not found")
-    
-    content, mime_type, filename = result
-    return Response(
-        content=content,
-        media_type=mime_type,
-        headers={
-            'Content-Disposition': f'attachment; filename="{filename}"'
-        }
-    )
-
 @router.get("/{asset_id}/details")
 async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """

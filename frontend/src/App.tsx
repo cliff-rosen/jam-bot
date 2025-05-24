@@ -1,19 +1,22 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-// contexts
 import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from './components/ui/toaster';
+
+// contexts
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
 import { JamBotProvider } from './context/JamBotContext';
 
 // utils
 import { setStreamSessionExpiredHandler } from './lib/api/streamUtils';
+
 // components
 import TopBar from './components/TopBar';
 import LoginForm from './components/auth/LoginForm';
 import EmailAuthSuccess from './pages/EmailAuthSuccess';
 import Profile from './pages/Profile';
-import { Toaster } from './components/ui/toaster';
 import JamBotPage from './pages/JamBot';
+import LabPage from './pages/Lab';
 
 function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
@@ -45,6 +48,9 @@ function App() {
 
             {/* Profile route */}
             <Route path="/profile" element={<Profile />} />
+
+            {/* Lab routes */}
+            <Route path="/lab" element={<LabPage />} />
 
             {/* Catch-all route for unmatched paths */}
             <Route path="*" element={<Navigate to="/" replace />} />

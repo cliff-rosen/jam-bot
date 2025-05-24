@@ -55,7 +55,7 @@ class CollectionType(str, Enum):
 
 class DatabaseEntityMetadata(BaseModel):
     """Metadata for assets that represent database entities"""
-    table_name: str
+    table_name: Optional[str] = None
     query_type: Literal["list", "single"] = "list"
     query_params: Dict[str, Any] = Field(default_factory=dict)  # For WHERE clauses, LIMIT, etc.
     columns: Optional[List[str]] = None  # Specific columns to retrieve, None means all

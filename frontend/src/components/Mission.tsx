@@ -57,55 +57,60 @@ export default function Mission({
     return (
         <div className={`dark:bg-[#1e2330] ${className}`}>
             {/* Section Header */}
-            <div className="flex-shrink-0 px-4 pt-4 pb-2">
+            <div className="flex-shrink-0 px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-700/50">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mission</h2>
             </div>
-            {/* Clean Summary Bar */}
-            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
-                <div>
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-2 gap-4 px-4 pt-2 pb-4">
+                {/* Left Column - Name and Description */}
+                <div className="space-y-1">
                     <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                         {mission.name || 'No Mission Selected'}
                     </h1>
                     {mission.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                             {mission.description}
                         </p>
                     )}
                 </div>
-                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.status)}`}>
-                    {getStatusText(mission.status)}
-                </span>
-            </div>
 
-            {/* Inputs & Outputs */}
-            <div className="px-4 py-3 grid grid-cols-2 gap-6 border-b border-gray-100 dark:border-gray-700/50">
-                <div>
-                    <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-1">Inputs</h3>
-                    {mission.inputs && mission.inputs.length > 0 ? (
-                        <ul className="space-y-1">
-                            {mission.inputs.map((input, idx) => (
-                                <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
-                                    {typeof input === 'string' ? input : input.name || JSON.stringify(input)}
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <div className="text-xs text-gray-400 italic">No inputs</div>
-                    )}
-                </div>
-                <div>
-                    <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-1">Outputs</h3>
-                    {mission.outputs && mission.outputs.length > 0 ? (
-                        <ul className="space-y-1">
-                            {mission.outputs.map((output, idx) => (
-                                <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
-                                    {typeof output === 'string' ? output : output.name || JSON.stringify(output)}
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <div className="text-xs text-gray-400 italic">No outputs</div>
-                    )}
+                {/* Right Column - Status, Inputs, Outputs */}
+                <div className="space-y-1">
+                    <div className="flex justify-end">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.status)}`}>
+                            {getStatusText(mission.status)}
+                        </span>
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Inputs</h3>
+                        {mission.inputs && mission.inputs.length > 0 ? (
+                            <ul className="space-y-1">
+                                {mission.inputs.map((input, idx) => (
+                                    <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
+                                        {typeof input === 'string' ? input : input.name || JSON.stringify(input)}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="text-xs text-gray-400 italic">No inputs</div>
+                        )}
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Outputs</h3>
+                        {mission.outputs && mission.outputs.length > 0 ? (
+                            <ul className="space-y-1">
+                                {mission.outputs.map((output, idx) => (
+                                    <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
+                                        {typeof output === 'string' ? output : output.name || JSON.stringify(output)}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="text-xs text-gray-400 italic">No outputs</div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

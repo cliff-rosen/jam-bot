@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 # from routers import search, auth, workflow, tools, files, bot, email, asset
-from routers import auth, email, asset, chat, newsletter
+from routers import auth, email, asset, chat, newsletter, llm
 from database import init_db
 from config import settings, setup_logging
 from middleware import LoggingMiddleware
@@ -49,6 +49,7 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(email.router, prefix="/api")
 app.include_router(newsletter.router, prefix="/api")
 app.include_router(asset.router, prefix="/api")
+app.include_router(llm.router, prefix="/api")
 
 # app.include_router(
 #     search.router,

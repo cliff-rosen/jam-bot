@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
-import { MODEL_CATEGORIES } from '@/lib/models/types';
+import { useModels } from '@/lib/hooks/useModels';
+import { ModelConfig } from '@/lib/types/models';
 
 export default function LabPage() {
+    const {
+        modelData,
+        loading: modelsLoading,
+        error: modelsError,
+        getModelByCategory,
+        getModelConfig,
+        getModelFamilyConfig
+    } = useModels();
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedModel, setSelectedModel] = useState<string>('o4');
+    const [selectedModel, setSelectedModel] = useState<string>('gpt-4.1');
     const [prompt, setPrompt] = useState<string>('');
     const [response, setResponse] = useState<string | null>(null);
+
+    const selectedModelConfig = getModelConfig(selectedModel);
+    const modelFamily = selectedModelConfig?.family;
+    const familyConfig = modelFamily ? getModelFamilyConfig(modelFamily) : null;
 
     const handleSubmit = async () => {
         if (!prompt.trim()) return;
@@ -25,6 +39,31 @@ export default function LabPage() {
         }
     };
 
+    if (modelsLoading) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-6"></div>
+                    <div className="space-y-6">
+                        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (modelsError) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto">
+                <div className="text-red-500">
+                    Error loading models: {modelsError.message}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 max-w-4xl mx-auto">
             <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Lab</h1>
@@ -42,21 +81,77 @@ export default function LabPage() {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     >
                         <optgroup label="Best Models">
-                            {MODEL_CATEGORIES.best.map((model: string) => (
-                                <option key={model} value={model}>{model}</option>
+                            {getModelByCategory('best').map((modelId) => (
+                                <option key={modelId} value={modelId}>{modelId}</option>
                             ))}
                         </optgroup>
                         <optgroup label="High Performance">
-                            {MODEL_CATEGORIES.high_performance.map((model: string) => (
-                                <option key={model} value={model}>{model}</option>
+                            {getModelByCategory('high_performance').map((modelId) => (
+                                <option key={modelId} value={modelId}>{modelId}</option>
                             ))}
                         </optgroup>
                         <optgroup label="Fast Models">
-                            {MODEL_CATEGORIES.fast.map((model: string) => (
-                                <option key={model} value={model}>{model}</option>
+                            {getModelByCategory('fast').map((modelId) => (
+                                <option key={modelId} value={modelId}>{modelId}</option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="Legacy Models">
+                            {getModelByCategory('legacy').map((modelId) => (
+                                <option key={modelId} value={modelId}>{modelId}</option>
                             ))}
                         </optgroup>
                     </select>
+
+                    {/* Model Info */}
+                    {selectedModelConfig && (
+                        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">{selectedModelConfig.description}</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-700 dark:text-gray-300">
+                                <div>
+                                    <p><span className="font-medium">Context Window:</span> {selectedModelConfig.context_window.toLocaleString()} tokens</p>
+                                    <p><span className="font-medium">Max Output:</span> {selectedModelConfig.max_output.toLocaleString()} tokens</p>
+                                    <p><span className="font-medium">Training Data:</span> {selectedModelConfig.training_data}</p>
+                                </div>
+                                <div>
+                                    <p><span className="font-medium">Family:</span> {selectedModelConfig.family}</p>
+                                    <p><span className="font-medium">Category:</span> {selectedModelConfig.category}</p>
+                                    {selectedModelConfig.aliases && (
+                                        <p><span className="font-medium">Aliases:</span> {selectedModelConfig.aliases.join(', ')}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Features */}
+                            {Object.entries(selectedModelConfig.features).length > 0 && (
+                                <div className="mt-2">
+                                    <p className="font-medium text-gray-900 dark:text-gray-100">Features:</p>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {Object.entries(selectedModelConfig.features).map(([feature, enabled]) => (
+                                            enabled && (
+                                                <span key={feature} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded-full text-xs">
+                                                    {feature.replace(/_/g, ' ')}
+                                                </span>
+                                            )
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Parameter Support */}
+                            {familyConfig && (
+                                <div className="mt-2">
+                                    <p className="font-medium text-gray-900 dark:text-gray-100">Parameter Support:</p>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {familyConfig.supported_parameters.map(param => (
+                                            <span key={param} className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 rounded-full text-xs">
+                                                {param}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Prompt Input */}

@@ -3,7 +3,11 @@ Model data for LLM providers including OpenAI and Anthropic.
 This file contains comprehensive information about all available models.
 """
 
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Union, Literal
+
+# Parameter value types
+ParameterValue = Union[float, int, str, bool]
+ParameterConstraint = Dict[str, Any]
 
 # OpenAI Models
 OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
@@ -16,7 +20,10 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "features": ["vision", "json_mode", "function_calling"],
         "category": "best",
         "aliases": ["gpt-4-turbo-preview"],
-        "supported_parameters": {"temperature", "max_tokens", "system"}
+        "supported_parameters": {"temperature", "max_tokens", "system"},
+        "parameter_constraints": {
+            "temperature": {"min": 0.0, "max": 2.0}
+        }
     },
     "o4-mini": {
         "description": "Faster, more affordable reasoning model",
@@ -26,7 +33,10 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "features": ["function_calling"],
         "category": "high_performance",
         "aliases": ["gpt-4-mini"],
-        "supported_parameters": {"temperature", "max_tokens", "system"}
+        "supported_parameters": {"temperature", "max_tokens", "system"},
+        "parameter_constraints": {
+            "temperature": {"min": 0.0, "max": 2.0}
+        }
     },
     "o3": {
         "description": "Powerful reasoning model for complex tasks",
@@ -36,7 +46,13 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "features": ["function_calling"],
         "category": "best",
         "aliases": ["gpt-4"],
-        "supported_parameters": {"temperature", "max_tokens", "system"}
+        "supported_parameters": {"temperature", "max_completion_tokens", "system"},
+        "parameter_mapping": {
+            "max_tokens": "max_completion_tokens"
+        },
+        "parameter_constraints": {
+            "temperature": {"default": 1.0, "only_default": True}
+        }
     },
     "o3-mini": {
         "description": "Small model alternative to o3",
@@ -45,7 +61,10 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Sep 2021",
         "features": ["function_calling"],
         "category": "fast",
-        "supported_parameters": {"max_completion_tokens", "system"}  # Does not support temperature
+        "supported_parameters": {"max_completion_tokens", "system"},  # Does not support temperature
+        "parameter_mapping": {
+            "max_tokens": "max_completion_tokens"
+        }
     },
     
     # Flagship Chat Models
@@ -57,7 +76,10 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "features": ["vision", "json_mode", "function_calling"],
         "category": "best",
         "aliases": ["gpt-4-turbo-preview"],
-        "supported_parameters": {"temperature", "max_tokens", "system"}
+        "supported_parameters": {"temperature", "max_tokens", "system"},
+        "parameter_constraints": {
+            "temperature": {"min": 0.0, "max": 2.0}
+        }
     },
     "gpt-4o": {
         "description": "Fast, intelligent, flexible GPT model",
@@ -66,7 +88,10 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Apr 2023",
         "features": ["vision", "json_mode", "function_calling"],
         "category": "high_performance",
-        "supported_parameters": {"temperature", "max_tokens", "system"}
+        "supported_parameters": {"temperature", "max_tokens", "system"},
+        "parameter_constraints": {
+            "temperature": {"min": 0.0, "max": 2.0}
+        }
     }
 }
 

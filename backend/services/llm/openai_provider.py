@@ -32,17 +32,40 @@ class OpenAIProvider(LLMProvider):
         """Filter parameters based on model support while preserving required parameters"""
         model_info = self._get_model_info(model)
         supported_params = model_info.get("supported_parameters", set())
+        parameter_mapping = model_info.get("parameter_mapping", {})
+        parameter_constraints = model_info.get("parameter_constraints", {})
         
         # Always include required parameters
         filtered_params = {k: v for k, v in params.items() if k in self.REQUIRED_PARAMETERS}
         
-        # Add supported optional parameters
+        # Add supported optional parameters, applying any necessary parameter mapping and constraints
         for k, v in params.items():
-            if k not in self.REQUIRED_PARAMETERS and k in supported_params:
-                filtered_params[k] = v
+            if k not in self.REQUIRED_PARAMETERS:
+                # Check if parameter needs to be mapped
+                mapped_key = parameter_mapping.get(k, k)
+                if mapped_key in supported_params:
+                    # Check parameter constraints
+                    constraints = parameter_constraints.get(mapped_key, {})
+                    
+                    # Handle only_default constraint
+                    if constraints.get("only_default", False):
+                        default_value = constraints.get("default")
+                        if v != default_value:
+                            logger.warning(f"Parameter {mapped_key} only supports default value {default_value} for model {model}, using default instead of {v}")
+                            v = default_value
+                    
+                    # Handle min/max constraints
+                    if "min" in constraints and v < constraints["min"]:
+                        logger.warning(f"Parameter {mapped_key} value {v} is below minimum {constraints['min']} for model {model}, using minimum value")
+                        v = constraints["min"]
+                    if "max" in constraints and v > constraints["max"]:
+                        logger.warning(f"Parameter {mapped_key} value {v} is above maximum {constraints['max']} for model {model}, using maximum value")
+                        v = constraints["max"]
+                    
+                    filtered_params[mapped_key] = v
         
         # Log any removed optional parameters
-        removed_params = set(params.keys()) - supported_params - self.REQUIRED_PARAMETERS
+        removed_params = set(params.keys()) - supported_params - self.REQUIRED_PARAMETERS - set(parameter_mapping.keys())
         if removed_params:
             logger.warning(f"Removed unsupported optional parameters for model {model}: {removed_params}")
             

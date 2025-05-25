@@ -1,6 +1,7 @@
 import { ChatRequest, AgentResponse } from '../../types/chat';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
-
+import { api } from './index';
+import { ChatMessage } from '@/types/chat';
 
 
 export function getDataFromLine(line: string): AgentResponse {
@@ -40,6 +41,17 @@ export function getDataFromLine(line: string): AgentResponse {
     }
 
     return res;
+}
+
+
+export const invokeLLM = async (messages: ChatMessage[], model: string): Promise<string> => {
+    const response = await api.post('/api/chat/llm', {
+        messages,
+        model,
+        stream: false,
+        provider: 'openai'  // Default to OpenAI provider
+    });
+    return response.data.message.content;
 }
 
 

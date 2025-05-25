@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useModels } from '@/lib/hooks/useModels';
-import { ModelConfig } from '@/lib/types/models';
+import { invokeLLM } from '@/lib/api/chatApi';
+import { ChatMessage, MessageRole } from '@/types/chat';
 
 export default function LabPage() {
     const {
@@ -13,7 +14,7 @@ export default function LabPage() {
     } = useModels();
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<Error | string | null>(null);
     const [selectedModel, setSelectedModel] = useState<string>('gpt-4.1');
     const [prompt, setPrompt] = useState<string>('');
     const [response, setResponse] = useState<string | null>(null);
@@ -25,14 +26,18 @@ export default function LabPage() {
     const handleSubmit = async () => {
         if (!prompt.trim()) return;
 
+        const messages: ChatMessage[] = [
+            { role: MessageRole.USER, content: prompt, id: '1234', timestamp: new Date().toISOString() }
+        ];
+
         setLoading(true);
         setError(null);
         try {
-            // TODO: Implement API call to LLM service
-            const mockResponse = `Response from ${selectedModel}: ${prompt}`;
-            setResponse(mockResponse);
+            const response = await invokeLLM(messages, selectedModel);
+            setResponse(response);
         } catch (err) {
-            setError('Failed to get response');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to get response from LLM';
+            setError(errorMessage);
             console.error('Error getting response:', err);
         } finally {
             setLoading(false);
@@ -186,7 +191,7 @@ export default function LabPage() {
                         <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">Response</h2>
                         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                             <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">
-                                {response}
+                                {typeof response === 'string' ? response : JSON.stringify(response, null, 2)}
                             </pre>
                         </div>
                     </div>
@@ -194,8 +199,13 @@ export default function LabPage() {
 
                 {/* Error Display */}
                 {error && (
-                    <div className="text-red-500 mb-4">
-                        {error}
+                    <div className="mt-6">
+                        <h2 className="text-lg font-semibold mb-2 text-red-600 dark:text-red-400">Error</h2>
+                        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                            <pre className="whitespace-pre-wrap text-sm text-red-800 dark:text-red-200">
+                                {error instanceof Error ? error.message : String(error)}
+                            </pre>
+                        </div>
                     </div>
                 )}
             </div>

@@ -54,13 +54,14 @@ class OpenAIProvider(LLMProvider):
                             logger.warning(f"Parameter {mapped_key} only supports default value {default_value} for model {model}, using default instead of {v}")
                             v = default_value
                     
-                    # Handle min/max constraints
-                    if "min" in constraints and v < constraints["min"]:
-                        logger.warning(f"Parameter {mapped_key} value {v} is below minimum {constraints['min']} for model {model}, using minimum value")
-                        v = constraints["min"]
-                    if "max" in constraints and v > constraints["max"]:
-                        logger.warning(f"Parameter {mapped_key} value {v} is above maximum {constraints['max']} for model {model}, using maximum value")
-                        v = constraints["max"]
+                    # Handle min/max constraints - only if value is not None
+                    if v is not None:
+                        if "min" in constraints and v < constraints["min"]:
+                            logger.warning(f"Parameter {mapped_key} value {v} is below minimum {constraints['min']} for model {model}, using minimum value")
+                            v = constraints["min"]
+                        if "max" in constraints and v > constraints["max"]:
+                            logger.warning(f"Parameter {mapped_key} value {v} is above maximum {constraints['max']} for model {model}, using maximum value")
+                            v = constraints["max"]
                     
                     filtered_params[mapped_key] = v
         

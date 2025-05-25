@@ -39,6 +39,7 @@ class LLMProvider(ABC):
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
         system: Optional[str] = None,
+        temperature: Optional[float] = None,
         **kwargs: Any
     ) -> str:
         """Create a chat completion with the given messages"""
@@ -51,6 +52,7 @@ class LLMProvider(ABC):
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
         system: Optional[str] = None,
+        temperature: Optional[float] = None,
         **kwargs: Any
     ) -> AsyncGenerator[str, None]:
         """Create a streaming chat completion with the given messages"""

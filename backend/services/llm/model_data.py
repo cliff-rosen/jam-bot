@@ -3,7 +3,7 @@ Model data for LLM providers including OpenAI and Anthropic.
 This file contains comprehensive information about all available models.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set
 
 # OpenAI Models
 OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
@@ -15,7 +15,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Apr 2023",
         "features": ["vision", "json_mode", "function_calling"],
         "category": "best",
-        "aliases": ["gpt-4-turbo-preview"]
+        "aliases": ["gpt-4-turbo-preview"],
+        "supported_parameters": {"temperature", "max_tokens", "system"}
     },
     "o4-mini": {
         "description": "Faster, more affordable reasoning model",
@@ -24,7 +25,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Apr 2023",
         "features": ["function_calling"],
         "category": "high_performance",
-        "aliases": ["gpt-4-mini"]
+        "aliases": ["gpt-4-mini"],
+        "supported_parameters": {"temperature", "max_tokens", "system"}
     },
     "o3": {
         "description": "Powerful reasoning model for complex tasks",
@@ -33,7 +35,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Sep 2021",
         "features": ["function_calling"],
         "category": "best",
-        "aliases": ["gpt-4"]
+        "aliases": ["gpt-4"],
+        "supported_parameters": {"temperature", "max_tokens", "system"}
     },
     "o3-mini": {
         "description": "Small model alternative to o3",
@@ -41,7 +44,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "max_output": 4096,
         "training_data": "Sep 2021",
         "features": ["function_calling"],
-        "category": "fast"
+        "category": "fast",
+        "supported_parameters": {"max_completion_tokens", "system"}  # Does not support temperature
     },
     
     # Flagship Chat Models
@@ -52,7 +56,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Apr 2023",
         "features": ["vision", "json_mode", "function_calling"],
         "category": "best",
-        "aliases": ["gpt-4-turbo-preview"]
+        "aliases": ["gpt-4-turbo-preview"],
+        "supported_parameters": {"temperature", "max_tokens", "system"}
     },
     "gpt-4o": {
         "description": "Fast, intelligent, flexible GPT model",
@@ -60,7 +65,8 @@ OPENAI_MODELS: Dict[str, Dict[str, Any]] = {
         "max_output": 4096,
         "training_data": "Apr 2023",
         "features": ["vision", "json_mode", "function_calling"],
-        "category": "high_performance"
+        "category": "high_performance",
+        "supported_parameters": {"temperature", "max_tokens", "system"}
     }
 }
 
@@ -74,7 +80,8 @@ ANTHROPIC_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Mar 2025",
         "features": ["vision", "extended_thinking", "priority_tier"],
         "category": "best",
-        "aliases": ["claude-4"]
+        "aliases": ["claude-4"],
+        "supported_parameters": {"max_tokens", "system"}  # Anthropic models don't support temperature
     },
     
     # High Performance Models
@@ -85,7 +92,8 @@ ANTHROPIC_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "Mar 2025",
         "features": ["vision", "extended_thinking", "priority_tier"],
         "category": "high_performance",
-        "aliases": ["claude-4-sonnet"]
+        "aliases": ["claude-4-sonnet"],
+        "supported_parameters": {"max_tokens", "system"}
     },
     
     # Fast Models
@@ -96,7 +104,8 @@ ANTHROPIC_MODELS: Dict[str, Dict[str, Any]] = {
         "training_data": "July 2024",
         "features": ["vision", "priority_tier"],
         "category": "fast",
-        "aliases": ["claude-3.5-haiku"]
+        "aliases": ["claude-3.5-haiku"],
+        "supported_parameters": {"max_tokens", "system"}
     }
 }
 

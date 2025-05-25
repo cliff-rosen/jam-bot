@@ -12,7 +12,7 @@ from agents.mission_agent import graph, State
 from services.ai_service import ai_service, LLMRequest
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-router = APIRouter(prefix="/bot", tags=["bot"])
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 @router.post("/stream")

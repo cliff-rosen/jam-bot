@@ -13,6 +13,7 @@ from .llm.model_data import (
     MODEL_ALIASES,
     MODEL_CATEGORIES
 )
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,8 @@ class AIService:
         try:
             # Get provider
             provider_name = request.get("provider", self.default_provider)
+            if provider_name not in self.providers:
+                raise ValueError(f"Invalid provider: {provider_name}")
             provider = self.providers[provider_name]
 
             # Get model
@@ -120,11 +123,21 @@ class AIService:
                 # Resolve model alias
                 model = MODEL_ALIASES[model]
 
-            # Prepare messages
-            messages = request["messages"]
+            # Validate messages
+            messages = request.get("messages")
+            if not messages:
+                raise ValueError("No messages provided in request")
+            if not isinstance(messages, list):
+                raise ValueError(f"Messages must be a list, got {type(messages)}")
+
+            # Prepare other parameters
             system = request.get("system")
             max_tokens = request.get("max_tokens")
             temperature = request.get("temperature")
+
+            # Log request details (excluding sensitive content)
+            logger.info(f"LLM Request - Provider: {provider_name}, Model: {model}, Stream: {request.get('stream', False)}")
+            logger.debug(f"LLM Request Details - Max Tokens: {max_tokens}, Temperature: {temperature}")
 
             # Handle streaming
             if request.get("stream", False):
@@ -145,8 +158,20 @@ class AIService:
                 )
 
         except Exception as e:
-            logger.error(f"Error in invoke_llm: {str(e)}")
-            raise
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc(),
+                "request_info": {
+                    "provider": request.get("provider", self.default_provider),
+                    "model": request.get("model"),
+                    "stream": request.get("stream", False),
+                    "message_count": len(request.get("messages", [])),
+                }
+            }
+            logger.error(f"Error in invoke_llm: {error_details}")
+            # Re-raise with more context
+            raise Exception(f"Error invoking LLM: {str(e)}\nDetails: {error_details}")
 
     async def send_messages(self, 
                           messages: List[Message],

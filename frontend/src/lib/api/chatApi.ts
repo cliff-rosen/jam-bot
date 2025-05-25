@@ -49,7 +49,7 @@ export const chatApi = {
         chatRequest: ChatRequest,
     ): AsyncGenerator<StreamUpdate> {
 
-        yield* makeStreamRequest('/api/bot/stream', chatRequest, 'POST');
+        yield* makeStreamRequest('/api/chat/stream', chatRequest, 'POST');
     },
 
 

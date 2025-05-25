@@ -93,9 +93,13 @@ class AnthropicProvider(LLMProvider):
         messages: List[Dict[str, str]],
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
-        system: Optional[str] = None
+        system: Optional[str] = None,
+        temperature: Optional[float] = None,
+        **kwargs
     ) -> str:
         try:
+            if temperature is not None:
+                logger.warning("Anthropic does not support temperature; ignoring.")
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS
@@ -134,9 +138,12 @@ class AnthropicProvider(LLMProvider):
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
         system: Optional[str] = None,
-        **kwargs: Any
+        temperature: Optional[float] = None,
+        **kwargs
     ) -> AsyncGenerator[str, None]:
         try:
+            if temperature is not None:
+                logger.warning("Anthropic does not support temperature; ignoring.")
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS

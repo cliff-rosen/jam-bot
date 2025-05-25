@@ -57,6 +57,9 @@ export interface OpenAIProvider {
 
 export interface AnthropicProvider {
     models: Record<string, ModelConfig>;
+    categories: ModelCategories;
+    families: ModelFamilyCategories;
+    family_configs: Record<string, ModelFamily>;
 }
 
 export interface ModelData {

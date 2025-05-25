@@ -69,6 +69,13 @@ export default function LabPage() {
         );
     }
 
+    const getModelDisplayName = (modelId: string) => {
+        const config = getModelConfig(modelId);
+        if (!config) return modelId;
+        const provider = modelId.startsWith('gpt-') || modelId.startsWith('o') ? 'OpenAI' : 'Anthropic';
+        return `${config.aliases?.[0] || modelId} (${provider})`;
+    };
+
     return (
         <div className="p-6 max-w-4xl mx-auto">
             <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Lab</h1>
@@ -87,22 +94,22 @@ export default function LabPage() {
                     >
                         <optgroup label="Best Models">
                             {getModelByCategory('best').map((modelId) => (
-                                <option key={modelId} value={modelId}>{modelId}</option>
+                                <option key={modelId} value={modelId}>{getModelDisplayName(modelId)}</option>
                             ))}
                         </optgroup>
                         <optgroup label="High Performance">
                             {getModelByCategory('high_performance').map((modelId) => (
-                                <option key={modelId} value={modelId}>{modelId}</option>
+                                <option key={modelId} value={modelId}>{getModelDisplayName(modelId)}</option>
                             ))}
                         </optgroup>
                         <optgroup label="Fast Models">
                             {getModelByCategory('fast').map((modelId) => (
-                                <option key={modelId} value={modelId}>{modelId}</option>
+                                <option key={modelId} value={modelId}>{getModelDisplayName(modelId)}</option>
                             ))}
                         </optgroup>
                         <optgroup label="Legacy Models">
                             {getModelByCategory('legacy').map((modelId) => (
-                                <option key={modelId} value={modelId}>{modelId}</option>
+                                <option key={modelId} value={modelId}>{getModelDisplayName(modelId)}</option>
                             ))}
                         </optgroup>
                     </select>
@@ -120,6 +127,7 @@ export default function LabPage() {
                                 <div>
                                     <p><span className="font-medium">Family:</span> {selectedModelConfig.family}</p>
                                     <p><span className="font-medium">Category:</span> {selectedModelConfig.category}</p>
+                                    <p><span className="font-medium">Provider:</span> {selectedModel.startsWith('gpt-') || selectedModel.startsWith('o') ? 'OpenAI' : 'Anthropic'}</p>
                                     {selectedModelConfig.aliases && (
                                         <p><span className="font-medium">Aliases:</span> {selectedModelConfig.aliases.join(', ')}</p>
                                     )}

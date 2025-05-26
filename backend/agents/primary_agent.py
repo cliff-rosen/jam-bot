@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from serpapi import GoogleSearch
 import uuid
+from openai import OpenAI
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
@@ -17,6 +18,10 @@ import os
 from agents.prompts.supervisor_prompt import SupervisorPrompt, SupervisorResponse
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "vs_68347e57e7408191a5a775f40db83f44")  # Default to existing store
+
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 SYSTEM_MESSAGE = """
 You are a helpful assistant named Jack that can answer question.
@@ -48,8 +53,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     """Supervisor node that either answers directly or routes to specialists"""
     if writer:
         writer({"status": "supervisor starting"})
-
-    llm = getModel("supervisor", config, writer)
     
     # Get the last user message
     last_message = state["messages"][-1]
@@ -59,7 +62,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
 
     try:
-
         if writer:
             writer({
                 "status": "supervisor_request"
@@ -73,9 +75,36 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             mission=state["mission"]
         )
 
-        # Generate and parse the response
-        response = await llm.ainvoke(formatted_prompt)
-        supervisor_response = prompt.parse_response(response.content)
+        # Use OpenAI responses API with vector store integration
+        response = client.responses.create(
+            model="gpt-4o",
+            input=formatted_prompt,
+            tools=[{
+                "type": "file_search",
+                "vector_store_ids": [VECTOR_STORE_ID]
+            }]
+        )
+        
+        # Get file search information from the response
+        file_search_info = []
+        if hasattr(response, 'tool_calls'):
+            for tool_call in response.tool_calls:
+                if tool_call.type == 'file_search':
+                    file_search_info.append({
+                        'file_id': tool_call.file_id,
+                        'file_name': tool_call.file_name,
+                        'search_query': tool_call.search_query
+                    })
+        
+        # Format the response as JSON for the supervisor response parser
+        response_json = {
+            "response_type": "FINAL_ANSWER",
+            "response_content": response.output_text,
+            "file_search_info": file_search_info
+        }
+        
+        # Parse the response
+        supervisor_response = prompt.parse_response(json.dumps(response_json))
         
         # Create a response message
         current_time = datetime.now().isoformat()
@@ -109,85 +138,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 "error": str(e)
             })
         raise
-
-async def mission_proposal_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Generate a mission proposal based on user input"""
-    if writer:
-        writer({"status": "mission_proposal_in_progress"})
-
-    llm = getModel("mission_proposal", config, writer)
-    
-    # Get the last user message
-    last_message = state["messages"][-1]
-    tools_str = "\n".join([f"- {tool.name}: {tool.description}" for tool in state["selectedTools"]])
-
-    if not last_message:
-        raise ValueError("No user message found in state")
-    print(f"Last message: {last_message}")
-
-    if writer:
-        writer({
-            "status": "mission_proposal_request: " + last_message.content
-        })
-
-    try:
-        # Create and format the prompt
-        prompt = MissionDefinitionPrompt()
-        formatted_prompt = prompt.get_formatted_prompt(
-            user_input=last_message.content,
-            available_tools=tools_str
-        )
-
-        print("Generating response...")
-        # Generate and parse the response
-        response = await llm.ainvoke(formatted_prompt)
-
-        print("Parsing response...")
-
-        mission_proposal = prompt.parse_response(response.content)
-        
-        mission_proposal_str = f"**Title:** {mission_proposal.title}\n**Goal:** {mission_proposal.goal}\n\n**Inputs needed:**\n" + "\n".join(f"- {input}" for input in mission_proposal.inputs) + "\n\n**Expected outputs:**\n" + "\n".join(f"- {output}" for output in mission_proposal.outputs) + "\n\n**Success criteria:**\n" + "\n".join(f"- {criteria}" for criteria in mission_proposal.success_criteria)
-
-        # Create a response message
-        response_message = Message(
-            id=str(uuid.uuid4()),
-            role=MessageRole.ASSISTANT,
-            content=mission_proposal_str,
-            timestamp=datetime.now().isoformat()
-        )
-
-        if writer:
-            writer({
-                "status": "mission_proposal_completed",
-                "mission_proposal": mission_proposal.dict()
-            })
-
-        return {
-            "messages": [response_message],
-            "mission_proposal": mission_proposal.dict()
-        }
-
-    except Exception as e:
-        if writer:
-            writer({
-                "status": "error",
-                "error": str(e)
-            })
-        raise
-
-async def workflow_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Workflow node that generates a workflow based on a mission proposal"""
-    if writer:
-        writer({"status": "workflow_in_progress"})
-
-    if writer:
-        writer({
-            "status": "workflow_completed: workflow node is busy right now",
-            "token": "workflow node is busy right now",
-            "next_node": END
-        })
-
-    return Command(goto=END, update={})
 
 
 ### Graph

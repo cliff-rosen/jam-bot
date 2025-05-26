@@ -8,7 +8,8 @@ from typing import Optional, List, Dict, Any
 
 from schemas import Message, MessageRole, ChatRequest, ChatResponse
 from schemas.workflow import Mission
-from agents.mission_agent import graph, State
+#from agents.mission_agent import graph, State
+from agents.primary_agent import graph, State
 from services.ai_service import ai_service, LLMRequest
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

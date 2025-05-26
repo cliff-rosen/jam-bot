@@ -24,7 +24,7 @@ class CustomJSONEncoder(json.JSONEncoder):
             return obj.isoformat()
         return str(obj)
 
-async def run_upload_assets():
+async def upload_assets():
     db = next(get_db())
     asset_service = AssetService(db)
 
@@ -108,7 +108,7 @@ async def test_search():
     print(response)
 
 async def go():
-    #await run_upload_assets()
+    #await upload_assets()
     #await get_file_list()
     #await create_vector_store()
     #await add_files_to_vector_store()

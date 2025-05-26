@@ -96,11 +96,23 @@ async def add_files_to_vector_store():
         )
         print(result)
 
+async def test_search():
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input="Summmarize model developments discussed in the newsletter collection",
+        tools=[{
+            "type": "file_search",
+            "vector_store_ids": [vector_store_id]
+        }]
+    )
+    print(response)
+
 async def go():
     #await run_upload_assets()
     #await get_file_list()
     #await create_vector_store()
-    await add_files_to_vector_store()
+    #await add_files_to_vector_store()
+    await test_search()
     print("done")
 
 

@@ -29,3 +29,27 @@ async def run_newsletter_summary_test():
 
 if __name__ == "__main__":
     asyncio.run(run_newsletter_summary_test())
+
+
+
+
+client.vector_stores.files.create(
+    vector_store_id=vector_store.id,
+    file_id=file_id
+)
+
+
+
+from openai import OpenAI
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-4o-mini",
+    input="What is deep research by OpenAI?",
+    tools=[{
+        "type": "file_search",
+        "vector_store_ids": ["<vector_store_id>"]
+    }]
+)
+print(response)
+

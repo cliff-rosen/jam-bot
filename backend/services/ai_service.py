@@ -46,13 +46,33 @@ class AIService:
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider()
         }
-        self.default_provider = "openai"
+        # Initialize provider mapping from models
+        self._model_to_provider: Dict[str, str] = {}
+        for model in OPENAI_MODELS:
+            self._model_to_provider[model] = "openai"
+        for model in ANTHROPIC_MODELS:
+            self._model_to_provider[model] = "anthropic"
+        # Add aliases to the mapping
+        for alias, model in MODEL_ALIASES.items():
+            self._model_to_provider[alias] = self._model_to_provider[model]
 
-    def set_default_provider(self, provider: str):
-        """Change the default LLM provider"""
-        if provider not in self.providers:
-            raise ValueError(f"Unsupported provider: {provider}")
-        self.default_provider = provider
+    def get_provider_for_model(self, model: str) -> str:
+        """Get the provider for a given model"""
+        if model in self._model_to_provider:
+            return self._model_to_provider[model]
+        raise ValueError(f"Unknown model: {model}")
+
+    def get_default_model(self, provider: str) -> str:
+        """Get the default model for a provider"""
+        if provider not in DEFAULT_MODELS:
+            raise ValueError(f"Unknown provider: {provider}")
+        return DEFAULT_MODELS[provider]
+
+    def get_fast_model(self, provider: str) -> str:
+        """Get the fast model for a provider"""
+        if provider not in FAST_MODELS:
+            raise ValueError(f"Unknown provider: {provider}")
+        return FAST_MODELS[provider]
 
     def get_model_info(self, model: str) -> Dict[str, Any]:
         """Get information about a model"""
@@ -100,28 +120,28 @@ class AIService:
                 - system: Optional system message
                 - temperature: Optional temperature for response
                 - stream: Whether to stream the response
-                - provider: Which provider to use (defaults to default_provider)
+                - provider: Which provider to use (defaults to provider from model)
                 - use_fast: Whether to use the fast model for the provider
 
         Returns:
             Either a string response or an async generator for streaming responses
         """
         try:
-            # Get provider
-            provider_name = request.get("provider", self.default_provider)
-            if provider_name not in self.providers:
-                raise ValueError(f"Invalid provider: {provider_name}")
-            provider = self.providers[provider_name]
-
-            # Get model
+            # Get model and determine provider
             model = request.get("model")
             if not model:
                 # Use fast model if specified, otherwise use default
                 use_fast = request.get("use_fast", False)
-                model = FAST_MODELS[provider_name] if use_fast else DEFAULT_MODELS[provider_name]
-            elif model in MODEL_ALIASES:
-                # Resolve model alias
-                model = MODEL_ALIASES[model]
+                provider = request.get("provider", "openai")  # Default to openai if no model or provider specified
+                model = self.get_fast_model(provider) if use_fast else self.get_default_model(provider)
+            else:
+                # Determine provider from model
+                provider = self.get_provider_for_model(model)
+
+            # Validate provider exists
+            if provider not in self.providers:
+                raise ValueError(f"Invalid provider: {provider}")
+            provider_instance = self.providers[provider]
 
             # Validate messages
             messages = request.get("messages")
@@ -136,12 +156,12 @@ class AIService:
             temperature = request.get("temperature")
 
             # Log request details (excluding sensitive content)
-            logger.info(f"LLM Request - Provider: {provider_name}, Model: {model}, Stream: {request.get('stream', False)}")
+            logger.info(f"LLM Request - Provider: {provider}, Model: {model}, Stream: {request.get('stream', False)}")
             logger.debug(f"LLM Request Details - Max Tokens: {max_tokens}, Temperature: {temperature}")
 
             # Handle streaming
             if request.get("stream", False):
-                return provider.create_chat_completion_stream(
+                return provider_instance.create_chat_completion_stream(
                     messages=messages,
                     model=model,
                     max_tokens=max_tokens,
@@ -149,7 +169,7 @@ class AIService:
                     temperature=temperature
                 )
             else:
-                return await provider.create_chat_completion(
+                return await provider_instance.create_chat_completion(
                     messages=messages,
                     model=model,
                     max_tokens=max_tokens,
@@ -163,8 +183,8 @@ class AIService:
                 "error_message": str(e),
                 "traceback": traceback.format_exc(),
                 "request_info": {
-                    "provider": request.get("provider", self.default_provider),
-                    "model": request.get("model"),
+                    "provider": provider if 'provider' in locals() else None,
+                    "model": model if 'model' in locals() else None,
                     "stream": request.get("stream", False),
                     "message_count": len(request.get("messages", [])),
                 }
@@ -190,7 +210,7 @@ class AIService:
             model: Optional model to use (defaults to provider's default)
             max_tokens: Optional maximum tokens for response
             system: Optional system message to include in the prompt
-            provider: Optional provider to use (defaults to default_provider)
+            provider: Optional provider to use (defaults to provider from model)
             stream: Whether to stream the response
 
         Returns:

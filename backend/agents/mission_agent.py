@@ -44,58 +44,6 @@ def getModel(node_name: str, config: Dict[str, Any], writer: Optional[Callable] 
     
     return ChatOpenAI(**chat_config)
 
-async def llm_call(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Process messages through the LLM and stream the response"""
-    if writer:
-        writer({"status": "in_progress"})
-
-    llm = getModel("llm", config, writer)
-    
-    # Convert messages to LangChain format
-    langchain_messages = [SystemMessage(content=SYSTEM_MESSAGE)]
-    for msg in state["messages"]:
-        if msg.role == MessageRole.USER:
-            langchain_messages.append(HumanMessage(content=msg.content))
-        elif msg.role == MessageRole.ASSISTANT:
-            langchain_messages.append(AIMessage(content=msg.content))
-        elif msg.role == MessageRole.SYSTEM:
-            langchain_messages.append(SystemMessage(content=msg.content))
-
-    # Stream the response
-    response_content = ""
-    async for chunk in llm.astream(langchain_messages):
-        if writer:
-            writer({
-                "token": chunk.content,
-                "metadata": {
-                    "type": "token",
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-        response_content += chunk.content
-
-    try:
-        # Try to parse the response as JSON
-        response_json = json.loads(response_content)
-    except json.JSONDecodeError:
-        # If not JSON, assume it's a regular response
-        pass
-
-    # Create the response message
-    response_message = Message(
-        id=str(uuid.uuid4()),
-        role=MessageRole.ASSISTANT,
-        content=response_content,
-        timestamp=datetime.now().isoformat()
-    )
-
-    if writer:
-        writer({"status": "completed"})
-
-    return {
-        "messages": [response_message]
-    }
-
 async def mission_definition_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Mission definition node that either answers directly or routes to specialists"""
     if writer:

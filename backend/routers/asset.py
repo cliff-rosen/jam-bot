@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 from database import get_db
 from services.asset_service import AssetService
@@ -11,6 +12,8 @@ from services.db_entity_service import DatabaseEntityService
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
+
+# CREATE ASSET
 @router.post("/", response_model=Asset)
 async def create_asset(
     request: CreateAssetRequest,
@@ -30,6 +33,7 @@ async def create_asset(
         asset_metadata=request.asset_metadata
     )
 
+# RETRIEVE ASSETS
 @router.get("/{asset_id}", response_model=Asset)
 async def get_asset(
     asset_id: str,
@@ -42,44 +46,6 @@ async def get_asset(
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     return asset
-
-@router.get("/", response_model=List[Asset])
-async def get_user_assets(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_service.validate_token)
-):
-    """Get all assets for the current user"""
-    asset_service = AssetService(db)
-    return asset_service.get_user_assets(
-        user_id=current_user.user_id
-    )
-
-@router.put("/{asset_id}", response_model=Asset)
-async def update_asset(
-    asset_id: str,
-    updates: dict,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_service.validate_token)
-):
-    """Update an asset"""
-    asset_service = AssetService(db)
-    asset = asset_service.update_asset(asset_id, current_user.user_id, updates)
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return asset
-
-@router.delete("/{asset_id}")
-async def delete_asset(
-    asset_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_service.validate_token)
-):
-    """Delete an asset"""
-    asset_service = AssetService(db)
-    success = asset_service.delete_asset(asset_id, current_user.user_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return {"message": "Asset deleted successfully"}
 
 @router.get("/{asset_id}/details")
 async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -131,4 +97,44 @@ async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dic
         "content": asset.content,
         "asset_metadata": asset.asset_metadata,
         "db_entity_metadata": asset.db_entity_metadata
-    } 
+    }
+
+@router.get("/", response_model=List[Asset])
+async def get_user_assets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth_service.validate_token)
+):
+    """Get all assets for the current user"""
+    asset_service = AssetService(db)
+    return asset_service.get_user_assets(
+        user_id=current_user.user_id
+    )
+
+# UPDATE ASSET
+@router.put("/{asset_id}", response_model=Asset)
+async def update_asset(
+    asset_id: str,
+    updates: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth_service.validate_token)
+):
+    """Update an asset"""
+    asset_service = AssetService(db)
+    asset = asset_service.update_asset(asset_id, current_user.user_id, updates)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return asset
+
+# DELETE ASSET
+@router.delete("/{asset_id}")
+async def delete_asset(
+    asset_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth_service.validate_token)
+):
+    """Delete an asset"""
+    asset_service = AssetService(db)
+    success = asset_service.delete_asset(asset_id, current_user.user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return {"message": "Asset deleted successfully"} 

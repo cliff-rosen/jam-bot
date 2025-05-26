@@ -1,17 +1,55 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from models import Asset as AssetModel
-from schemas.asset import Asset, CollectionType
+from schemas.asset import Asset, CollectionType, DatabaseEntityMetadata
 from datetime import datetime
+import tiktoken
+from services.db_entity_service import DatabaseEntityService
 
 class AssetService:
     def __init__(self, db: Session):
         self.db = db
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")  # Using OpenAI's tokenizer
+        self.db_entity_service = DatabaseEntityService(db)
+
+    def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
+        """Get an asset with all its details, including database entity content if applicable"""
+        asset_model = self.db.query(AssetModel).filter(AssetModel.id == asset_id).first()
+        if not asset_model:
+            return None
+
+        # Convert to schema
+        asset = self._model_to_schema(asset_model)
+
+        # If this is a database entity asset, fetch its content using DatabaseEntityService
+        if asset.type == "database_entity" and asset.db_entity_metadata:
+            content = self.db_entity_service.fetch_entities(asset.db_entity_metadata)
+            asset.content = content
+
+        return asset
+
+    def _calculate_token_count(self, content: Any) -> int:
+        """Calculate token count for an asset's content"""
+        if content is None:
+            return 0
+            
+        if isinstance(content, str):
+            return len(self.tokenizer.encode(content))
+        elif isinstance(content, (list, tuple)):
+            return sum(self._calculate_token_count(item) for item in content)
+        elif isinstance(content, dict):
+            return sum(self._calculate_token_count(v) for v in content.values())
+        else:
+            # For other types, convert to string and count
+            return len(self.tokenizer.encode(str(content)))
 
     def _model_to_schema(self, model: AssetModel) -> Asset:
         """Convert database model to schema"""
         content = model.content
-        
+        # if content is a string then truncate it to 1000 characters
+        if isinstance(content, str):
+            content = content
+
         # Ensure metadata is a dictionary
         metadata = model.asset_metadata if isinstance(model.asset_metadata, dict) else {}
         
@@ -42,6 +80,9 @@ class AssetService:
     ) -> Asset:
         """Create a new asset"""
 
+        # Calculate token count
+        token_count = self._calculate_token_count(content)
+
         # Ensure metadata is a dictionary
         asset_metadata_dict = asset_metadata if isinstance(asset_metadata, dict) else {}
         if not asset_metadata_dict:
@@ -51,8 +92,11 @@ class AssetService:
                 "creator": None,
                 "tags": [],
                 "agent_associations": [],
-                "version": 1
+                "version": 1,
+                "token_count": token_count
             }
+        else:
+            asset_metadata_dict["token_count"] = token_count
 
         asset_model = AssetModel(
             user_id=user_id,
@@ -102,6 +146,17 @@ class AssetService:
         ).first()
         if not asset_model:
             return None
+
+        # If content is being updated, we need to recalculate token count
+        if 'content' in updates:
+            # Calculate new token count
+            new_token_count = self._calculate_token_count(updates['content'])
+            
+            # Update metadata with new token count
+            if 'asset_metadata' not in updates:
+                updates['asset_metadata'] = asset_model.asset_metadata if isinstance(asset_model.asset_metadata, dict) else {}
+            updates['asset_metadata']['token_count'] = new_token_count
+            updates['asset_metadata']['updatedAt'] = datetime.utcnow().isoformat()
 
         # Handle special cases for updates
         if 'content' in updates:

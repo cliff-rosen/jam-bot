@@ -23,18 +23,23 @@ class AnthropicProvider(LLMProvider):
     async def generate(self,
                        prompt: str,
                        model: Optional[str] = None,
-                       max_tokens: Optional[int] = None
+                       max_tokens: Optional[int] = None,
+                       temperature: Optional[float] = None
                        ) -> str:
         try:
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS
 
-            message = await self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            params = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}]
+            }
+            if temperature is not None:
+                params["temperature"] = temperature
+
+            message = await self.client.messages.create(**params)
 
             # Log request statistics
             self._log_request_stats(
@@ -54,19 +59,24 @@ class AnthropicProvider(LLMProvider):
     async def generate_stream(self,
                               prompt: str,
                               model: Optional[str] = None,
-                              max_tokens: Optional[int] = None
+                              max_tokens: Optional[int] = None,
+                              temperature: Optional[float] = None
                               ) -> AsyncGenerator[str, None]:
         try:
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS
 
-            stream = await self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
-                stream=True
-            )
+            params = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": True
+            }
+            if temperature is not None:
+                params["temperature"] = temperature
+
+            stream = await self.client.messages.create(**params)
 
             # For streaming, we can't get exact token counts during the stream
             # We'll log a simplified version at the end
@@ -98,8 +108,6 @@ class AnthropicProvider(LLMProvider):
         **kwargs
     ) -> str:
         try:
-            if temperature is not None:
-                logger.warning("Anthropic does not support temperature; ignoring.")
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS
@@ -111,9 +119,11 @@ class AnthropicProvider(LLMProvider):
                 "max_tokens": max_tokens
             }
 
-            # Add optional system parameter if provided
+            # Add optional parameters if provided
             if system is not None:
                 params["system"] = system
+            if temperature is not None:
+                params["temperature"] = temperature
 
             message = await self.client.messages.create(**params)
 
@@ -142,8 +152,6 @@ class AnthropicProvider(LLMProvider):
         **kwargs
     ) -> AsyncGenerator[str, None]:
         try:
-            if temperature is not None:
-                logger.warning("Anthropic does not support temperature; ignoring.")
             start_time = time.time()
             model = model or self.get_default_model()
             max_tokens = max_tokens or DEFAULT_MAX_TOKENS
@@ -156,9 +164,11 @@ class AnthropicProvider(LLMProvider):
                 "stream": True
             }
 
-            # Add optional system parameter if provided
+            # Add optional parameters if provided
             if system is not None:
                 params["system"] = system
+            if temperature is not None:
+                params["temperature"] = temperature
 
             stream = await self.client.messages.create(**params)
 

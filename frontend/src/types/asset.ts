@@ -20,6 +20,16 @@ export enum AssetSubtype {
     PUBMED_ARTICLE = "pubmed_article"
 }
 
+export interface AssetMetadata {
+    createdAt: string;
+    updatedAt: string;
+    creator: string | null;
+    tags: string[];
+    agent_associations: string[];
+    version: number;
+    token_count: number;
+}
+
 export interface Asset {
     id: string;
     name: string;
@@ -29,7 +39,7 @@ export interface Asset {
     is_collection: boolean;
     collection_type?: CollectionType;
     content: any;
-    asset_metadata: Record<string, any>;
+    asset_metadata: AssetMetadata;
 }
 
 export interface AssetPersistence {

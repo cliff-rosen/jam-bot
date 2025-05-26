@@ -21,6 +21,7 @@ class DatabaseEntityService:
             
         Raises:
             ValueError: If the table doesn't exist or query parameters are invalid
+
         """
         # Construct the base query
         columns = "*" if not metadata.columns else ", ".join(metadata.columns)

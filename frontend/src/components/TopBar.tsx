@@ -27,7 +27,7 @@ export default function TopBar() {
                             {/* Main Navigation Items */}
                             <Link
                                 to="/fractal-bot"
-                                className={`${location.pathname === '/fractal-bot'
+                                className={`${location.pathname === '/jam-bot'
                                     ? 'border-blue-500 text-gray-900 dark:text-gray-100'
                                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                     } inline-flex items-center px-4 border-b-2 text-sm font-medium`}

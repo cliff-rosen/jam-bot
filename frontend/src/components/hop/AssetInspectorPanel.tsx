@@ -68,6 +68,27 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                     </p>
                 )}
 
+                {/* Metadata Section */}
+                <div className="mb-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                            {displayAsset.type?.toUpperCase() || 'UNKNOWN'}
+                        </div>
+                        {displayAsset.asset_metadata?.token_count !== undefined && (
+                            <div className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 w-fit border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                                {displayAsset.asset_metadata.token_count} tokens
+                            </div>
+                        )}
+                    </div>
+                    {displayAsset.asset_metadata && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div>Created: {new Date(displayAsset.asset_metadata.createdAt).toLocaleString()}</div>
+                            <div>Updated: {new Date(displayAsset.asset_metadata.updatedAt).toLocaleString()}</div>
+                            <div>Version: {displayAsset.asset_metadata.version}</div>
+                        </div>
+                    )}
+                </div>
+
                 {loading && (
                     <div className="flex items-center justify-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"></div>
@@ -80,7 +101,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                     </div>
                 )}
 
-                {!loading && !error && (
+                {displayAsset.content && (
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         {displayAsset.type === AssetType.DATABASE_ENTITY ? (
                             <div className="space-y-4">

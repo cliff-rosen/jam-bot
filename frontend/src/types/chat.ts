@@ -62,10 +62,19 @@ export interface MissionDefinitionResponse {
     confidence_level?: string;
 }
 
+export interface SupervisorResponse {
+    response_type: 'FINAL_ANSWER' | 'MISSION_SPECIALIST' | 'WORKFLOW_SPECIALIST';
+    response_content: string;
+    result_details: any;
+}
+
+
+
 export interface AgentResponse {
     token: string | null;
     message: string | null;
     status: string | null;
-    supervisor_response: MissionDefinitionResponse | null;
+    mission_response?: MissionDefinitionResponse | null;
+    supervisor_payload?: SupervisorResponse | null;
     error: string | null;
 }

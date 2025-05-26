@@ -94,6 +94,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {type === 'workflow' && 'Workflow'}
                     {type === 'document' && 'Document'}
                     {type === 'code' && 'Code Editor'}
+                    {type === 'object' && 'Object'}
                     {type === 'object-list' && 'Object List'}
                     {type === 'default' && 'Collaboration Area'}
                 </h2>

@@ -79,39 +79,36 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         response = client.responses.create(
             model="gpt-4o",
             input=formatted_prompt,
-            tools=[{
-                "type": "file_search",
-                "vector_store_ids": [VECTOR_STORE_ID]
-            }]
+            # tools=[{
+            #     "type": "file_search",
+            #     "vector_store_ids": [VECTOR_STORE_ID]
+            # }],
+            # include=["file_search_call.results"]
         )
-        
-        # Get file search information from the response
-        file_search_info = []
-        if hasattr(response, 'tool_calls'):
-            for tool_call in response.tool_calls:
-                if tool_call.type == 'file_search':
-                    file_search_info.append({
-                        'file_id': tool_call.file_id,
-                        'file_name': tool_call.file_name,
-                        'search_query': tool_call.search_query
-                    })
-        
-        # Format the response as JSON for the supervisor response parser
-        response_json = {
-            "response_type": "FINAL_ANSWER",
-            "response_content": response.output_text,
-            "file_search_info": file_search_info
-        }
-        
+                   
+        print('======================================================')
+        print("response", response)
+
+        # Extract JSON content from between code blocks if present
+        response_text = response.output_text
+        if "```json" in response_text:
+            # Extract content between code blocks
+            json_content = response_text.split("```json")[1].split("```")[0].strip()
+        else:
+            json_content = response_text
+
         # Parse the response
-        supervisor_response = prompt.parse_response(json.dumps(response_json))
-        
+        supervisor_response_obj = prompt.parse_response(json_content)
+
+        print('======================================================')
+        print("supervisor_response_obj", supervisor_response_obj)
+
         # Create a response message
         current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=supervisor_response.response_content,
+            content=supervisor_response_obj.response_content,
             timestamp=current_time
         )
 
@@ -120,10 +117,11 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
         if writer:
             agent_response = AgentResponse(
-                token=supervisor_response.response_content,
-                message=supervisor_response.response_content,
-                status="supervisor_completed: " + supervisor_response.response_type,
-                supervisor_response=supervisor_response.dict(),
+                token=supervisor_response_obj.response_content,
+                message=supervisor_response_obj.response_content,
+                status="supervisor_completed: " + supervisor_response_obj.response_type,
+                supervisor_payload=supervisor_response_obj.dict(),
+                mission_response=None,
                 next_node=next_node,
                 error=None
             )

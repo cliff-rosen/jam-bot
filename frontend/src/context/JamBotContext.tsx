@@ -119,8 +119,9 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
-        if (data.supervisor_response) {
-            const response = data.supervisor_response.response_content;
+
+        if (data.mission_response) {
+            const response = data.mission_response.response_content;
             const newMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: MessageRole.ASSISTANT,
@@ -129,9 +130,9 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             };
             addMessage(newMessage);
 
-            if (data.supervisor_response.response_type === "MISSION_DEFINITION" &&
-                data.supervisor_response.mission_proposal) {
-                const mission = data.supervisor_response.mission_proposal;
+            if (data.mission_response.response_type === "MISSION_DEFINITION" &&
+                data.mission_response.mission_proposal) {
+                const mission = data.mission_response.mission_proposal;
 
                 // Create placeholder assets for inputs and outputs
                 const inputAssets = mission.required_inputs.map(input =>
@@ -158,6 +159,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 };
                 dispatch({ type: 'SET_MISSION', payload: newMission });
             }
+        }
+
+        if (data.supervisor_payload) {
+            console.log("supervisor_payload", data.supervisor_payload);
+            // set collab area to document
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data.supervisor_payload.result_details } });
         }
 
         if (data.status) {

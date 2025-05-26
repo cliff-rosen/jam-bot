@@ -5,6 +5,7 @@ import uuid
 import os
 from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 
 from schemas import Message, MessageRole, ChatRequest, ChatResponse
 from schemas.workflow import Mission
@@ -15,6 +16,13 @@ from services.ai_service import ai_service, LLMRequest
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+class ResponsesAPIRequest(BaseModel):
+    """Request model for the responses API"""
+    input_text: str
+    model: str = "gpt-4o"
+    tools: Optional[List[Dict[str, Any]]] = None
+    include: Optional[List[str]] = None
+    max_output_tokens: Optional[int] = None
 
 @router.post("/stream")
 async def chat_stream(chat_request: ChatRequest):
@@ -23,58 +31,35 @@ async def chat_stream(chat_request: ChatRequest):
     async def event_generator():
         """Generate SSE events from graph outputs"""
         try:
-            # Convert history to Message objects
-            messages = [
-                Message(
-                    id=msg.id,
-                    role=msg.role,
-                    content=msg.content,
-                    timestamp=msg.timestamp.isoformat() if type(msg.timestamp) == datetime else msg.timestamp
-                )
-                for msg in chat_request.history
-            ]
-            
-            # Add the current message
-            current_message = Message(
-                id=str(uuid.uuid4()),
-                role=MessageRole.USER,
-                content=chat_request.message,
-                timestamp=datetime.now().isoformat()
-            )
-            messages.append(current_message)
-
-            # Add the mission
-            mission_dict = chat_request.payload["mission"]
-            mission = Mission(
-                id=mission_dict["id"],
-                name=mission_dict["name"],
-                description=mission_dict["description"],
-                goal=mission_dict["goal"],
-                success_criteria=mission_dict["success_criteria"],
-                inputs=mission_dict["inputs"],
-                outputs=mission_dict["outputs"],
-                status=mission_dict["status"],
-            )
-            
+            # Initialize state
             state = State(
-                messages=messages,
-                mission=mission,
-                next_node=None,
+                messages=chat_request.messages,
+                mission=chat_request.mission,
+                next_node="supervisor_node"
             )
             
-            # Stream responses from the graph
-            async for chunk in graph.astream(state, stream_mode="custom"):
-                yield {
-                    "event": "message",
-                    "data": json.dumps(chunk)
-                }
-                
+            # Run the graph
+            async for output in graph.astream(state):
+                if isinstance(output, dict):
+                    # Convert to JSON string
+                    yield {
+                        "event": "message",
+                        "data": json.dumps(output)
+                    }
+                else:
+                    # Handle other output types
+                    yield {
+                        "event": "message",
+                        "data": json.dumps({"content": str(output)})
+                    }
+                    
         except Exception as e:
-            # Handle errors
-            print(f"Error: {e}")
+            # Log the error
+            print(f"Error in chat_stream: {str(e)}")
+            # Send error event
             yield {
                 "event": "error",
-                "data": json.dumps({"status": "error", "message": str(e)})
+                "data": json.dumps({"error": str(e)})
             }
     
     return EventSourceResponse(event_generator())
@@ -136,5 +121,28 @@ async def invoke_llm(
         raise HTTPException(
             status_code=500,
             detail=f"Error invoking LLM: {str(e)}"
+        )
+
+@router.post("/responses")
+async def invoke_responses_api(query: str) -> Dict[str, Any]:
+    """
+    Invoke the OpenAI responses API with the given parameters.
+    
+    Args:
+        query: The input text to process
+        
+    Returns:
+        Dictionary containing the API response
+    """
+    try:
+        response = await ai_service.invoke_responses_api(
+            input_text=query
+        )
+        # Convert response object to dictionary using model_dump()
+        return response.model_dump(exclude_none=True)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error invoking responses API: {str(e)}"
         )
 

@@ -226,6 +226,69 @@ class AIService:
         }
         return await self.invoke_llm(request)
 
+    async def invoke_responses_api(self, 
+        input_text: str,
+        model: str = "gpt-4o",
+        tools: Optional[List[Dict[str, Any]]] = None,
+        include: Optional[List[str]] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        max_output_tokens: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Invoke the OpenAI responses API with the given parameters.
+
+        Args:
+            input_text: The input text to process
+            model: The model to use (defaults to gpt-4o)
+            tools: Optional list of tools to include (e.g., file search)
+            include: Optional list of fields to include in the response
+            temperature: Optional temperature for response generation
+            top_p: Optional top_p for response generation
+            max_output_tokens: Optional maximum number of output tokens
+
+        Returns:
+            Dictionary containing the API response
+        """
+        try:
+            # Get OpenAI provider
+            provider = self.providers["openai"]
+            if not isinstance(provider, OpenAIProvider):
+                raise ValueError("OpenAI provider not found")
+
+            # Prepare parameters
+            VECTOR_STORE_ID = "vs_68347e57e7408191a5a775f40db83f44"
+
+            params = {
+                "model": model,
+                "input": input_text,
+                "tools": [
+                    {
+                        "type": "file_search",
+                        "vector_store_ids": [VECTOR_STORE_ID]
+                    }
+                ],
+                "include": ["file_search_call.results"]
+            }
+
+            # Make the API call
+            response = await provider.client.responses.create(**params)
+            return response
+
+        except Exception as e:
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc(),
+                "request_info": {
+                    "model": model,
+                    "has_tools": tools is not None,
+                    "has_include": include is not None
+                }
+            }
+            logger.error(f"Error in invoke_responses_api: {error_details}")
+            raise Exception(f"Error invoking responses API: {str(e)}\nDetails: {error_details}")
+
 # Create a singleton instance
 ai_service = AIService()
 

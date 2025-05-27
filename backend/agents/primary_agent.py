@@ -71,7 +71,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         prompt = SupervisorPrompt()
         formatted_prompt = prompt.get_formatted_prompt(
             user_input=last_message.content,
-            message_history=message_history,
+            message_history=message_history,    
             mission=state["mission"]
         )
 

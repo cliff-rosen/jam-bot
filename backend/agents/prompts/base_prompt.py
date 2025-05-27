@@ -1,6 +1,6 @@
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, List
 from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 
 class BasePrompt:
@@ -21,6 +21,31 @@ class BasePrompt:
         
         # Format the template with the provided variables
         return prompt_template.format(**kwargs)
+        
+    def get_formatted_messages(self, **kwargs: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Get a list of messages in OpenAI format"""
+        # Add format instructions to kwargs if not already present
+        if "format_instructions" not in kwargs:
+            kwargs["format_instructions"] = self.format_instructions
+            
+        # Get the prompt template
+        prompt_template = self.get_prompt_template()
+        
+        # Format each message in the template
+        messages = []
+        for message in prompt_template.messages:
+            # Get the role based on message type
+            role = "system" if isinstance(message, SystemMessagePromptTemplate) else "user"
+            
+            # Get the formatted content from the prompt template
+            content = message.prompt.format(**kwargs)
+            
+            messages.append({
+                "role": role,
+                "content": content
+            })
+                
+        return messages
         
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Get the base prompt template. Must be implemented by subclasses."""

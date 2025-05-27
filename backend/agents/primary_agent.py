@@ -202,6 +202,10 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         if hasattr(response, 'file_search_call'):
             search_results = response.file_search_call.results
 
+        print("================================================")
+        print("Search results:", search_results)
+        print("================================================")
+
         # Create a response message with the search results
         current_time = datetime.now().isoformat()
         response_message = Message(

@@ -6,7 +6,7 @@ from .base_prompt import BasePrompt
 class SupervisorResponse(BaseModel):
     """Structure for supervisor's response"""
     response_type: str = Field(description="Type of response: FINAL_ANSWER, REQUIRES_CLARIFICATION")
-    response_content: str = Field(description="Content of the response - either direct answer or specialist request summary")
+    response_content: str = Field(description="Content of the response - either direct answer or clarification request")
 
 class SupervisorPrompt(BasePrompt):
     """Prompt template for supervisor"""
@@ -14,9 +14,9 @@ class SupervisorPrompt(BasePrompt):
     def __init__(self):
         super().__init__(SupervisorResponse)
         
-        self.system_message = """You are a helpful assistant that coordinates between different specialists to help users achieve their goals and answers questions about their knowledge missions. You have access to the current mission context and can either:
+        self.system_message = """You are a helpful assistant that helps users achieve their goals and answers questions about their knowledge missions. You have access to the current mission context and can either:
 1. Provide a FINAL_ANSWER if you can directly help the user
-2. Route to REQUIRES_CLARIFICATION if the request requires clarification
+2. Request REQUIRES_CLARIFICATION if the request requires clarification
 
 Always consider the mission's goal and success criteria when determining how to respond."""
 

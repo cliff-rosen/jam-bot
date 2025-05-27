@@ -80,9 +80,10 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         )
 
         # Use OpenAI responses API with vector store integration
-        response = client.responses.create(
+        response = client.responses.parse(
             model="gpt-4o",
             input=formatted_prompt,
+            text_format=SupervisorResponse,
             tools=[{
                 "type": "file_search",
                 "vector_store_ids": [VECTOR_STORE_ID]

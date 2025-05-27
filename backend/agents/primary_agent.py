@@ -83,16 +83,13 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         response = client.responses.create(
             model="gpt-4o",
             input=formatted_prompt,
-            # tools=[{
-            #     "type": "file_search",
-            #     "vector_store_ids": [VECTOR_STORE_ID]
-            # }],
-            # include=["file_search_call.results"]
+            tools=[{
+                "type": "file_search",
+                "vector_store_ids": [VECTOR_STORE_ID]
+            }],
+            include=["file_search_call.results"]
         )
                    
-        print('======================================================')
-        print("response", response)
-
         # Extract JSON content from between code blocks if present
         response_text = response.output_text
         if "```json" in response_text:
@@ -103,9 +100,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
         # Parse the response
         supervisor_response_obj = prompt.parse_response(json_content)
-
-        print('======================================================')
-        print("supervisor_response_obj", supervisor_response_obj)
 
         # Create a response message
         current_time = datetime.now().isoformat()

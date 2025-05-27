@@ -43,11 +43,15 @@ async def chat_stream(chat_request: ChatRequest):
             mission_dict = chat_request.payload.get("mission", {})
             mission = Mission(**mission_dict) if mission_dict else None
             
+            # Get available assets from payload
+            available_assets = chat_request.payload.get("assets", [])
+            
             # Initialize state
             state = State(
                 messages=messages,
                 mission=mission,
-                next_node="supervisor_node"
+                next_node="supervisor_node",
+                available_assets=available_assets
             )
             
             # Run the graph

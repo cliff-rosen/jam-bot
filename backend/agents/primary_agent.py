@@ -36,6 +36,8 @@ class State(BaseModel):
     messages: List[Message]
     mission: Mission
     next_node: str
+    search_params: Dict[str, Any] = {}
+    available_assets: List[Dict[str, Any]] = []
 
     class Config:
         arbitrary_types_allowed = True
@@ -57,6 +59,7 @@ def getModel(node_name: str, config: Dict[str, Any], writer: Optional[Callable] 
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
+    print("Supervisor node")
     if writer:
         writer({"status": "supervisor starting"})
     
@@ -78,7 +81,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         formatted_messages = prompt.get_formatted_messages(
             user_input=last_message.content,
             message_history=message_history,    
-            mission=state.mission
+            mission=state.mission,
+            available_assets=state.available_assets
         )
 
        
@@ -100,6 +104,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                    
         # Extract JSON content from between code blocks if present
         response_text = response.choices[0].message.content
+
         if "```json" in response_text:
             # Extract content between code blocks
             json_content = response_text.split("```json")[1].split("```")[0].strip()
@@ -120,14 +125,22 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
         # Handle tool calls if present
         next_node = END
+        state_update = {"messages": [response_message.model_dump()]}
+        
         if supervisor_response_obj.tool_call:
+            print("Tool call:", supervisor_response_obj.tool_call)
             tool_call = supervisor_response_obj.tool_call
             if tool_call.name == "asset_retrieve":
                 # TODO: Implement asset retrieval
                 pass
             elif tool_call.name == "asset_search":
-                # TODO: Implement asset search
-                pass
+                # Route to asset search node with the query
+                next_node = "asset_search_node"
+                # Add the search parameters to the state update
+                state_update["search_params"] = {
+                    "asset_id": tool_call.parameters.get("asset_id"),
+                    "query": tool_call.parameters.get("query")
+                }
             else:
                 raise ValueError(f"Unknown tool call: {tool_call.name}")
 
@@ -143,7 +156,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             )
             writer(agent_response.model_dump())
 
-        return Command(goto=next_node, update={"messages": [response_message.model_dump()]})
+        return Command(goto=next_node, update=state_update)
 
     except Exception as e:
         if writer:
@@ -155,36 +168,28 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
 
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Supervisor node that either answers directly or routes to specialists"""
+    """Node that handles asset search operations"""
+    print("Asset search node")
+
     if writer:
-        writer({"status": "supervisor starting"})
+        writer({"status": "asset_search_starting"})
     
-    # Get the last user message
-    last_message = state.messages[-1]
-    if not last_message:
-        raise ValueError("No user message found in state")
-
-    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state.messages])
-
     try:
         if writer:
             writer({
-                "status": "supervisor_request"
+                "status": "asset_search_request"
             })
 
-        # Create and format the prompt
-        prompt = SupervisorPrompt()
-        formatted_prompt = prompt.get_formatted_prompt(
-            user_input=last_message.content,
-            message_history=message_history,    
-            mission=state.mission
-        )
+        # Get search parameters from state
+        search_params = state.search_params
+        print("Search params:", search_params)  # Debug log
+        if not search_params or not search_params.get("query"):
+            raise ValueError("No search query provided")
 
-        # Use OpenAI responses API with vector store integration
-        response = client.responses.parse(
+        # Use OpenAI responses API for file search
+        response = client.responses.create(
             model="gpt-4o",
-            input=formatted_prompt,
-            text_format=SupervisorResponse,
+            input=search_params["query"],
             tools=[{
                 "type": "file_search",
                 "vector_store_ids": [VECTOR_STORE_ID]
@@ -192,34 +197,29 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             include=["file_search_call.results"]
         )
                    
-        # Extract JSON content from between code blocks if present
-        response_text = response.output_text
-        if "```json" in response_text:
-            # Extract content between code blocks
-            json_content = response_text.split("```json")[1].split("```")[0].strip()
-        else:
-            json_content = response_text
+        # Extract search results from the response
+        search_results = []
+        if hasattr(response, 'file_search_call'):
+            search_results = response.file_search_call.results
 
-        # Parse the response
-        supervisor_response_obj = prompt.parse_response(json_content)
-
-        # Create a response message
+        # Create a response message with the search results
         current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=supervisor_response_obj.response_content,
+            content=f"Found {len(search_results)} results for your search. Here they are:\n\n" + 
+                   "\n\n".join([f"- {result.title}: {result.snippet}" for result in search_results]),
             timestamp=current_time
         )
 
-        # Based on response type, determine next node
-        next_node = END
+        # Route back to supervisor with the results
+        next_node = "supervisor_node"
 
         if writer:
             agent_response = AgentResponse(
-                token=supervisor_response_obj.response_content,
-                message=supervisor_response_obj.response_content,
-                status="supervisor_completed: " + supervisor_response_obj.response_type,
+                token=response_message.content,
+                message=response_message.content,
+                status="asset_search_completed",
                 supervisor_payload=response.model_dump(),
                 mission_response=None,
                 next_node=next_node,
@@ -230,6 +230,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         return Command(goto=next_node, update={"messages": [response_message.model_dump()]})
 
     except Exception as e:
+        print("Error in asset search node:", e)
         if writer:
             writer({
                 "status": "error",
@@ -245,10 +246,11 @@ graph_builder = StateGraph(State)
 
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
-# graph_builder.add_node("mission_proposal_node", mission_proposal_node)
-# graph_builder.add_node("workflow_node", workflow_node)
-# Add edges
+graph_builder.add_node("asset_search_node", asset_search_node)
+
+# Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")
+# Supervisor can go to either asset search or END
 
 # Compile the graph with streaming support
 compiled = graph_builder.compile()

@@ -33,6 +33,9 @@ Available tools:
      - asset_id: string (required) - The ID of the asset to search in
      - query: string (required) - The search query to find relevant chunks
 
+Available Assets:
+{available_assets}
+
 Always consider the mission's goal and success criteria when determining how to respond."""
 
         self.user_message_template = """Current Mission Context:
@@ -58,4 +61,31 @@ User request: {user_input}
         return ChatPromptTemplate.from_messages([
             ("system", self.system_message),
             ("human", self.user_message_template)
-        ]) 
+        ])
+
+    def get_formatted_messages(
+        self,
+        user_input: str,
+        message_history: str,
+        mission: Any,
+        available_assets: List[Dict[str, Any]] = None
+    ) -> List[Dict[str, str]]:
+        """Get formatted messages for the prompt"""
+        # Format available assets into a readable string
+        assets_str = "No assets available"
+        if available_assets:
+            assets_str = "\n".join([
+                f"- {asset.get('name', 'Unnamed')} (ID: {asset.get('id', 'unknown')}): {asset.get('description', 'No description')}"
+                for asset in available_assets
+            ])
+
+        # Get the format instructions from the base class
+        format_instructions = self.parser.get_format_instructions()
+
+        return super().get_formatted_messages(
+            mission=mission,
+            message_history=message_history,
+            user_input=user_input,
+            available_assets=assets_str,
+            format_instructions=format_instructions
+        ) 

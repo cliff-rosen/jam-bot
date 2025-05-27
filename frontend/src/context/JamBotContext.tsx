@@ -164,19 +164,23 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.supervisor_payload) {
             console.log("supervisor_payload", data.supervisor_payload);
             // set collab area to document
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data.supervisor_payload.result_details } });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data.supervisor_payload } });
         }
 
+        // Handle streaming content
         if (data.status) {
+            console.log("updating status", data.status);
             updateStreamingMessage(data.status);
         }
 
+        // Return the token content for accumulation
         return data.token || "";
-    }, []);
+    }, [addMessage, updateStreamingMessage]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
         addMessage(message);
         let finalContent = '';
+        let streamingContent = '';
 
         try {
             // Convert ChatMessage[] to Message[]
@@ -194,14 +198,20 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     mission: state.mission,
                     assets: state.assets
                 }
-
             };
 
             for await (const update of chatApi.streamMessage(chatRequest)) {
                 const lines = update.data.split('\n');
                 for (const line of lines) {
+                    if (!line.trim()) continue; // Skip empty lines
                     const data = getDataFromLine(line);
-                    finalContent += processBotMessage(data);
+                    const token = processBotMessage(data);
+                    if (token) {
+                        streamingContent += token;
+                        // Update UI immediately after each token
+                        updateStreamingMessage(streamingContent);
+                        finalContent += token;
+                    }
                 }
             }
 
@@ -216,6 +226,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 content: finalContent,
                 timestamp: new Date().toISOString()
             };
+            addMessage(finalMessage);
 
         } catch (error) {
             console.error('Error streaming message:', error);

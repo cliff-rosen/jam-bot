@@ -31,20 +31,45 @@ async def chat_stream(chat_request: ChatRequest):
     async def event_generator():
         """Generate SSE events from graph outputs"""
         try:
+            # Create message with all required fields
+            messages = [Message(
+                id=str(uuid.uuid4()),
+                role=MessageRole.USER,
+                content=chat_request.message,
+                timestamp=datetime.now().isoformat()
+            )]
+            
+            # Get mission from payload
+            mission_dict = chat_request.payload.get("mission", {})
+            mission = Mission(**mission_dict) if mission_dict else None
+            
             # Initialize state
             state = State(
-                messages=chat_request.messages,
-                mission=chat_request.mission,
+                messages=messages,
+                mission=mission,
                 next_node="supervisor_node"
             )
             
             # Run the graph
-            async for output in primary_agent.astream(state):
+            async for output in primary_agent.astream(state, stream_mode="custom"):
                 if isinstance(output, dict):
-                    # Convert to JSON string
+                    # Convert any Message objects in the dict to their dict representation
+                    processed_output = {}
+                    for key, value in output.items():
+                        if isinstance(value, Message):
+                            processed_output[key] = value.model_dump()
+                        else:
+                            processed_output[key] = value
+                    
                     yield {
                         "event": "message",
-                        "data": json.dumps(output)
+                        "data": json.dumps(processed_output)
+                    }
+                elif isinstance(output, Message):
+                    # Convert Message object to dict before JSON serialization
+                    yield {
+                        "event": "message",
+                        "data": json.dumps(output.model_dump())
                     }
                 else:
                     # Handle other output types

@@ -4,6 +4,7 @@ from datetime import datetime
 from serpapi import GoogleSearch
 import uuid
 from openai import OpenAI
+from pydantic import BaseModel
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
@@ -28,11 +29,14 @@ You are a helpful assistant named Jack that can answer question.
 """
 
 
-class State(TypedDict):
+class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
     next_node: str
+
+    class Config:
+        arbitrary_types_allowed = True
 
 def validate_state(state: State) -> bool:
     """Validate the state before processing"""
@@ -55,11 +59,11 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         writer({"status": "supervisor starting"})
     
     # Get the last user message
-    last_message = state["messages"][-1]
+    last_message = state.messages[-1]
     if not last_message:
         raise ValueError("No user message found in state")
 
-    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
+    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state.messages])
 
     try:
         if writer:
@@ -72,7 +76,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         formatted_prompt = prompt.get_formatted_prompt(
             user_input=last_message.content,
             message_history=message_history,    
-            mission=state["mission"]
+            mission=state.mission
         )
 
         # Use OpenAI responses API with vector store integration
@@ -120,14 +124,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 token=supervisor_response_obj.response_content,
                 message=supervisor_response_obj.response_content,
                 status="supervisor_completed: " + supervisor_response_obj.response_type,
-                supervisor_payload=supervisor_response_obj.dict(),
+                supervisor_payload=response.model_dump(),
                 mission_response=None,
                 next_node=next_node,
                 error=None
             )
-            writer(agent_response.dict())
+            writer(agent_response.model_dump())
 
-        return Command(goto=next_node, update={"messages": [response_message]})
+        return Command(goto=next_node, update={"messages": [response_message.model_dump()]})
 
     except Exception as e:
         if writer:

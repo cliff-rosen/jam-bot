@@ -12,6 +12,10 @@ export type ChatMessage = {
     role: MessageRole;
     content: string;
     timestamp: string;
+    metadata?: {
+        type?: string;
+        [key: string]: any;
+    };
 }
 
 // Lightweight asset reference for chat requests

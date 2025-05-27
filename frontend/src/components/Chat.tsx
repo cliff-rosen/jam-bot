@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { MessageRole } from '@/types/chat';
+import { MarkdownRenderer } from './common/MarkdownRenderer';
 
 interface ChatProps {
     messages: ChatMessage[];
@@ -46,7 +47,6 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
         setTimeout(() => {
             inputRef.current?.focus();
         }, 0);
-
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -76,7 +76,9 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                                     : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                                 }`}
                         >
-                            {message.content}
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <MarkdownRenderer content={message.content} />
+                            </div>
                             {message.metadata?.type && (
                                 <div className="text-xs mt-1 opacity-75">
                                     {message.metadata.type}
@@ -88,7 +90,9 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                 {streamingMessage && (
                     <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50 backdrop-blur-sm">
-                            {streamingMessage}
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <MarkdownRenderer content={streamingMessage} />
+                            </div>
                             <div className="inline-block ml-2 w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
                         </div>
                     </div>

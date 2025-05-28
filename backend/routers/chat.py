@@ -56,7 +56,6 @@ async def chat_stream(chat_request: ChatRequest):
             
             # Run the graph
             async for output in primary_agent.astream(state, stream_mode="custom"):
-                print("output", output)
                 if isinstance(output, dict):
                     # Convert any Message objects in the dict to their dict representation
                     processed_output = {}

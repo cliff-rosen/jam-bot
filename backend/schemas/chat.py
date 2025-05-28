@@ -61,4 +61,5 @@ class AgentResponse(BaseModel):
     supervisor_payload: str | object | None = Field(description="The supervisor response from the agent")
     mission_response: str | object | None = Field(description="The mission response from the agent")
     error: str | None = Field(description="The error from the agent")
-
+    state: str | object | None = Field(description="The state of the agent")
+    debug: str | object | None = Field(description="The debug information from the agent")

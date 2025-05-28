@@ -80,5 +80,7 @@ export interface AgentResponse {
     status: string | null;
     mission_response?: MissionDefinitionResponse | null;
     supervisor_payload?: SupervisorResponse | null;
+    state: string | object | null;
     error: string | null;
+    debug: string | object | null;
 }

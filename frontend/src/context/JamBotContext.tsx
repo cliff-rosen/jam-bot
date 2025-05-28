@@ -1,7 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { getDataFromLine } from '@/lib/api/chatApi';
-import { chatApi } from '@/lib/api/chatApi';
-
+import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, WorkflowStatus, defaultMission } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
@@ -164,7 +162,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.supervisor_payload) {
             console.log("supervisor_payload", data.supervisor_payload);
             // set collab area to document
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data.supervisor_payload } });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data } });
         }
 
         // Handle streaming content

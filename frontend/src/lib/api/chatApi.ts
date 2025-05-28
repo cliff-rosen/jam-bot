@@ -12,6 +12,8 @@ export function getDataFromLine(line: string): AgentResponse {
         mission_response: null,
         error: null,
         message: null,
+        state: null,
+        debug: null
     };
 
     if (!line.startsWith('data: ')) {
@@ -39,6 +41,12 @@ export function getDataFromLine(line: string): AgentResponse {
         }
         if (data.error) {
             res.error = data.error;
+        }
+        if (data.state) {
+            res.state = data.state;
+        }
+        if (data.debug) {
+            res.debug = data.debug;
         }
     } catch (e) {
         res.error = e instanceof Error ? e.message : String(e);

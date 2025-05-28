@@ -74,9 +74,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             mission=state.mission,
             available_assets=state.available_assets
         )
-
-       
-        # Get the schema and add the required name field
         schema = SupervisorResponse.model_json_schema()
         
         # Use OpenAI responses API with vector store integration
@@ -102,24 +99,24 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             json_content = response_text
 
         # Parse the response
-        supervisor_response_obj = prompt.parse_response(json_content)
+        parsed_response = prompt.parse_response(json_content)
 
         # Create a response message
         current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=supervisor_response_obj.response_text,
+            content=parsed_response.response_text,
             timestamp=current_time
         )
 
         # Handle tool calls if present
         next_node = END
-        state_update = {"messages": [response_message.model_dump()]}
+        state_update = {"messages": [*state.messages, response_message.model_dump()]}
         
-        if supervisor_response_obj.tool_call:
-            print("Tool call:", supervisor_response_obj.tool_call)
-            tool_call = supervisor_response_obj.tool_call
+        if parsed_response.tool_call:
+            print("Tool call:", parsed_response.tool_call)
+            tool_call = parsed_response.tool_call
             if tool_call.name == "asset_retrieve":
                 # TODO: Implement asset retrieval
                 pass
@@ -134,15 +131,21 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             else:
                 raise ValueError(f"Unknown tool call: {tool_call.name}")
 
+        print("================================================")
+        print("Current state:", state_update)
+        print("================================================")
+
         if writer:
             agent_response = AgentResponse(
-                token=supervisor_response_obj.response_text,
-                message=supervisor_response_obj.response_text,
+                token=parsed_response.response_text,
+                message=parsed_response.response_text,
                 status="supervisor_completed",
                 supervisor_payload=response.model_dump(),
                 mission_response=None,
                 next_node=next_node,
-                error=None
+                error=None,
+                state=state_update,
+                debug="hello"
             )
             writer(agent_response.model_dump())
 

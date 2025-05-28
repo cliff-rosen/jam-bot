@@ -60,9 +60,12 @@ export async function* makeStreamRequest(endpoint: string, params: Record<string
     const decoder = new TextDecoder();
 
     try {
+        console.log("Streaming response loop starting, waiting for data...");
         while (true) {
             const { done, value } = await reader.read();
+            console.log("Stream read, done:", done, "value:", value);
             if (done) {
+                console.log("Stream ended, flushing remaining data...");
                 const final = decoder.decode(); // Flush any remaining bytes
                 if (final) yield { data: final };
                 break;

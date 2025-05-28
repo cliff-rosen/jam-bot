@@ -231,7 +231,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
             console.error('Error streaming message:', error);
         } finally {
-            updateStreamingMessage('');
+            //updateStreamingMessage('');
         }
     }, [state, addMessage, processBotMessage, updateStreamingMessage]);
 

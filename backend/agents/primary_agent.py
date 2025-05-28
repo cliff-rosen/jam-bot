@@ -3,8 +3,9 @@ import json
 from datetime import datetime
 from serpapi import GoogleSearch
 import uuid
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
+import asyncio
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
@@ -24,7 +25,7 @@ OPENAI_API_KEY = settings.OPENAI_API_KEY
 VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "vs_68347e57e7408191a5a775f40db83f44")  # Default to existing store
 
 # Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 SYSTEM_MESSAGE = """
 You are a helpful assistant named Jack that can answer question.
@@ -45,17 +46,6 @@ class State(BaseModel):
 def validate_state(state: State) -> bool:
     """Validate the state before processing"""
     return True
-
-def getModel(node_name: str, config: Dict[str, Any], writer: Optional[Callable] = None) -> ChatOpenAI:
-    """Get the appropriate model for a given node."""
-    model_name = "gpt-4o"  
-    
-    chat_config = {
-        "model": model_name,
-        "api_key": OPENAI_API_KEY
-    }
-    
-    return ChatOpenAI(**chat_config)
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
@@ -90,7 +80,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         schema = SupervisorResponse.model_json_schema()
         
         # Use OpenAI responses API with vector store integration
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-4o",
             messages=formatted_messages,
             response_format={
@@ -166,7 +156,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             })
         raise
 
-
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles asset search operations"""
     print("Asset search node")
@@ -187,7 +176,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             raise ValueError("No search query provided")
 
         # Use OpenAI responses API for file search
-        response = client.responses.create(
+        response = await client.responses.create(
             model="gpt-4o",
             input=search_params["query"],
             tools=[{
@@ -242,6 +231,19 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             })
         raise
 
+async def test_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+    """Test node that just returns a message"""
+    print("Test node")
+    if writer:
+        writer({"status": "test_starting"})
+        
+    # sleep for 3 seconds
+    await asyncio.sleep(3)
+
+    if writer:
+        writer({"status": "test_completed", "message": "Test completed"})
+        
+    return Command(goto=END)
 
 ### Graph
 
@@ -251,9 +253,12 @@ graph_builder = StateGraph(State)
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
 graph_builder.add_node("asset_search_node", asset_search_node)
+graph_builder.add_node("test_node", test_node)
 
 # Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")
+# graph_builder.add_edge(START, "test_node")
+
 # Supervisor can go to either asset search or END
 
 # Compile the graph with streaming support

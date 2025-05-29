@@ -53,6 +53,10 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     if writer:
         writer({"status": "supervisor starting"})
     
+    print("================================================")
+    print("Supervisor state:", state)
+    print("================================================")
+
     # Get the last user message
     last_message = state.messages[-1]
     if not last_message:
@@ -189,7 +193,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         search_results = response.output[0].results
 
         print("================================================")
-        print("Search results:", search_results[0:3])
+        print("Search results length:", len(search_results))
         print("================================================")
 
         search_results_string = "Here are the search results for your query: " + search_params["query"] + "\n\n"

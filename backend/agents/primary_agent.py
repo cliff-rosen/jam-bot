@@ -239,8 +239,8 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
 
         if writer:
             agent_response = AgentResponse(
-                token=response_message.content,
-                message=response_message.content,
+                token=response_message.content[0:100],
+                message=response_message.content[0:100],
                 status="asset_search_completed",
                 error=None,
                 debug="hello",

@@ -118,9 +118,9 @@ export const defaultMission: Mission = {
     success_criteria: ["Report is accurate and covers all major AI news in the range."],
     inputs: [
         {
-            id: "input-date-range",
-            name: "Date Range",
-            description: "The range of dates to summarize.",
+            id: "input-topic-areas",
+            name: "Topic Areas",
+            description: "The topic areas to focus on.",
             type: AssetType.PRIMITIVE,
             is_collection: false,
             content: null,

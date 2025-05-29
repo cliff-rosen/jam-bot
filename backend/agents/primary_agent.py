@@ -131,10 +131,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             else:
                 raise ValueError(f"Unknown tool call: {tool_call.name}")
 
-        print("================================================")
-        print("Current state:", state_update)
-        print("================================================")
-
         if writer:
             agent_response = AgentResponse(
                 token=parsed_response.response_text,
@@ -181,7 +177,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         # Use OpenAI responses API for file search
         response = await client.responses.create(
             model="gpt-4o",
-            input=search_params["query"],
+            input="See what you can find about " + search_params["query"],
             tools=[{
                 "type": "file_search",
                 "vector_store_ids": [VECTOR_STORE_ID]
@@ -190,21 +186,22 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         )
                    
         # Extract search results from the response
-        search_results = []
-        if hasattr(response, 'file_search_call'):
-            search_results = response.file_search_call.results
+        search_results = response.output[0].results
 
         print("================================================")
-        print("Search results:", search_results)
+        print("Search results:", search_results[0:3])
         print("================================================")
+
+        search_results_string = "Here are the search results for your query: " + search_params["query"] + "\n\n"
+        for result in search_results:
+            search_results_string += result.text + "\n\n"
 
         # Create a response message with the search results
         current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=f"Found {len(search_results)} results for your search. Here they are:\n\n" + 
-                   "\n\n".join([f"- {result.title}: {result.snippet}" for result in search_results]),
+            content=search_results_string,
             timestamp=current_time
         )
 
@@ -219,11 +216,15 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
                 supervisor_payload=response.model_dump(),
                 mission_response=None,
                 next_node=next_node,
-                error=None
+                error=None,
+                state={"messages": [*state.messages, response_message.model_dump()]},
+                debug="hello"
             )
             writer(agent_response.model_dump())
 
-        return Command(goto=next_node, update={"messages": [response_message.model_dump()]})
+        state_update = {"messages": [*state.messages, response_message.model_dump()]}
+
+        return Command(goto=next_node, update=state_update)
 
     except Exception as e:
         print("Error in asset search node:", e)

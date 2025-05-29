@@ -21,7 +21,7 @@ class SupervisorPrompt(BasePrompt):
         
         self.system_message = """You are a helpful assistant that helps users achieve their goals and answers questions about their knowledge missions. You have access to the current mission context and can either:
 1. Provide a direct response using response_text
-2. Make a tool call to gather more information
+2. Make a tool call to gather more information and then provide a response using response_text
 
 Available tools:
 1. asset_retrieve: Retrieve the entire contents of an asset

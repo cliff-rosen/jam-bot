@@ -189,11 +189,6 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         })
     
     try:
-        if writer:
-            writer({
-                "status": "asset_search_request",
-                "payload": serialize_state(state)
-            })
 
         # Get search parameters from state
         search_params = state.search_params

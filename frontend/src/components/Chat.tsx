@@ -86,7 +86,13 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                                 }`}
                         >
                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                                <MarkdownRenderer content={message.content} />
+                                {message.content.startsWith('STATUS:') ? (
+                                    <div className="opacity-50">
+                                        <MarkdownRenderer content={message.content.slice(7)} />
+                                    </div>
+                                ) : (
+                                    <MarkdownRenderer content={message.content} />
+                                )}
                             </div>
                             <div className="flex items-center justify-between mt-1">
                                 {message.metadata?.type && (

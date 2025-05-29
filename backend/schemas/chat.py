@@ -58,8 +58,13 @@ class AgentResponse(BaseModel):
     token: str | None = Field(description="The token for the agent")
     message: str | None = Field(description="The message from the agent")
     status: str | None = Field(description="The status of the agent")
-    supervisor_payload: str | object | None = Field(description="The supervisor response from the agent")
-    mission_response: str | object | None = Field(description="The mission response from the agent")
+    payload: str | object | None = Field(description="The payload from the agent")
     error: str | None = Field(description="The error from the agent")
-    state: str | object | None = Field(description="The state of the agent")
     debug: str | object | None = Field(description="The debug information from the agent")
+
+class StatusResponse(BaseModel):
+    status: str = Field(description="The status of the agent")
+    payload: str | object | None = Field(description="The payload from the agent")
+    error: str | None = Field(description="The error from the agent")
+    debug: str | object | None = Field(description="The debug information from the agent")
+

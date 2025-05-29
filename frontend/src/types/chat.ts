@@ -73,14 +73,18 @@ export interface SupervisorResponse {
 }
 
 
-
 export interface AgentResponse {
     token: string | null;
     message: string | null;
     status: string | null;
-    mission_response?: MissionDefinitionResponse | null;
-    supervisor_payload?: SupervisorResponse | null;
-    state: string | object | null;
+    payload: string | object | null;
+    error: string | null;
+    debug: string | object | null;
+}
+
+export interface StatusResponse {
+    status: string;
+    payload: string | object | null;
     error: string | null;
     debug: string | object | null;
 }

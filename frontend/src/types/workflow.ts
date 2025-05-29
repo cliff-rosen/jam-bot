@@ -113,7 +113,7 @@ export const defaultMission2: Mission = {
 export const defaultMission: Mission = {
     id: "default",
     name: "AI Newsletter Summarization",
-    description: "Summarize AI news for a given date range.",
+    description: "Summarize AI news for a given topic.",
     goal: "Generate a concise report of AI news for the selected date range.",
     success_criteria: ["Report is accurate and covers all major AI news in the range."],
     inputs: [

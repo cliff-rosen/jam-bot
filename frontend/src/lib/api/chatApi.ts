@@ -8,11 +8,9 @@ export function getDataFromLine(line: string): AgentResponse {
     const res: AgentResponse = {
         token: null,
         status: null,
-        supervisor_payload: null,
-        mission_response: null,
         error: null,
         message: null,
-        state: null,
+        payload: null,
         debug: null
     };
 
@@ -27,11 +25,8 @@ export function getDataFromLine(line: string): AgentResponse {
         if (data.token) {
             res.token = data.token;
         }
-        if (data.supervisor_payload) {
-            res.supervisor_payload = data.supervisor_payload;
-        }
-        if (data.mission_response) {
-            res.mission_response = data.mission_response;
+        if (data.payload) {
+            res.payload = data.payload;
         }
         if (data.status) {
             res.status = data.status;
@@ -41,9 +36,6 @@ export function getDataFromLine(line: string): AgentResponse {
         }
         if (data.error) {
             res.error = data.error;
-        }
-        if (data.state) {
-            res.state = data.state;
         }
         if (data.debug) {
             res.debug = data.debug;

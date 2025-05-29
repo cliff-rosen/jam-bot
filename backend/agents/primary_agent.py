@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
-from schemas.chat import Message, MessageRole, AgentResponse
+from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission
 import os
 from config.settings import settings
@@ -39,7 +39,7 @@ class State(BaseModel):
     next_node: str
     search_params: Dict[str, Any] = {}
     available_assets: List[Dict[str, Any]] = []
-
+    
     class Config:
         arbitrary_types_allowed = True
 
@@ -47,16 +47,24 @@ def validate_state(state: State) -> bool:
     """Validate the state before processing"""
     return True
 
+def serialize_state(state: State) -> dict:
+    """Helper function to serialize state with datetime handling"""
+    def convert_datetime(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {k: convert_datetime(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_datetime(item) for item in obj]
+        return obj
+
+    state_dict = state.model_dump()
+    return convert_datetime(state_dict)
+
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
-    print("Supervisor node")
-    if writer:
-        writer({"status": "supervisor starting"})
+    print("Supervisor")
     
-    print("================================================")
-    print("Supervisor state:", state)
-    print("================================================")
-
     # Get the last user message
     last_message = state.messages[-1]
     if not last_message:
@@ -67,7 +75,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     try:
         if writer:
             writer({
-                "status": "supervisor_request"
+                "status": "supervisor_request",
+                "payload": serialize_state(state)
             })
 
         # Create and format the prompt
@@ -116,7 +125,13 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
         # Handle tool calls if present
         next_node = END
-        state_update = {"messages": [*state.messages, response_message.model_dump()]}
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "next_node": next_node,
+            "search_params": state.search_params,
+            "available_assets": state.available_assets
+        }
         
         if parsed_response.tool_call:
             print("Tool call:", parsed_response.tool_call)
@@ -132,6 +147,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                     "asset_id": tool_call.parameters.get("asset_id"),
                     "query": tool_call.parameters.get("query")
                 }
+                state_update["next_node"] = next_node
             else:
                 raise ValueError(f"Unknown tool call: {tool_call.name}")
 
@@ -140,12 +156,9 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 token=parsed_response.response_text,
                 message=parsed_response.response_text,
                 status="supervisor_completed",
-                supervisor_payload=response.model_dump(),
-                mission_response=None,
-                next_node=next_node,
                 error=None,
-                state=state_update,
-                debug="hello"
+                debug="hello",
+                payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
 
@@ -155,21 +168,27 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         if writer:
             writer({
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
+                "state": serialize_state(state)
             })
         raise
 
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles asset search operations"""
+    print("================================================")
     print("Asset search node")
 
     if writer:
-        writer({"status": "asset_search_starting"})
+        writer({
+            "status": "asset_search_starting",
+            "payload": serialize_state(state)
+        })
     
     try:
         if writer:
             writer({
-                "status": "asset_search_request"
+                "status": "asset_search_request",
+                "payload": serialize_state(state)
             })
 
         # Get search parameters from state
@@ -211,22 +230,24 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
 
         # Route back to supervisor with the results
         next_node = "supervisor_node"
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "next_node": next_node,
+            "search_params": state.search_params,
+            "available_assets": state.available_assets
+        }
 
         if writer:
             agent_response = AgentResponse(
                 token=response_message.content,
                 message=response_message.content,
                 status="asset_search_completed",
-                supervisor_payload=response.model_dump(),
-                mission_response=None,
-                next_node=next_node,
                 error=None,
-                state={"messages": [*state.messages, response_message.model_dump()]},
-                debug="hello"
+                debug="hello",
+                payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
-
-        state_update = {"messages": [*state.messages, response_message.model_dump()]}
 
         return Command(goto=next_node, update=state_update)
 
@@ -235,7 +256,8 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         if writer:
             writer({
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
+                "state": serialize_state(state)
             })
         raise
 

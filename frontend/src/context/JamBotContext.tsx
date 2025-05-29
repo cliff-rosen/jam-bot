@@ -12,6 +12,7 @@ interface JamBotState {
     collabArea: CollabAreaState;
     assets: Asset[];
     mission: Mission;
+    payload_history: Record<string, any>[];
 }
 
 type JamBotAction =
@@ -20,7 +21,8 @@ type JamBotAction =
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
     | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
     | { type: 'SET_ASSETS'; payload: Asset[] }
-    | { type: 'SET_MISSION'; payload: Mission };
+    | { type: 'SET_MISSION'; payload: Mission }
+    | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -30,7 +32,8 @@ const initialState: JamBotState = {
         content: null
     },
     assets: [],
-    mission: defaultMission
+    mission: defaultMission,
+    payload_history: []
 };
 
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
@@ -59,6 +62,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             return {
                 ...state,
                 mission: action.payload
+            };
+        case 'ADD_PAYLOAD_HISTORY':
+            return {
+                ...state,
+                payload_history: [...state.payload_history, action.payload]
             };
         default:
             return state;
@@ -92,6 +100,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         fetchAssets();
     }, []);
 
+    const addPayloadHistory = useCallback((payload: Record<string, any>) => {
+        dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
+    }, []);
+
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
     }, []);
@@ -100,79 +112,50 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
     }, []);
 
-    const createPlaceholderAsset = (name: string, description: string, isInput: boolean): Asset => {
-        return {
-            id: `${name.toLowerCase().replace(/\s+/g, '-')}-${isInput ? 'input' : 'output'}`,
-            name,
-            description,
-            type: AssetType.PRIMITIVE,
-            is_collection: false,
-            content: null,
-            asset_metadata: {
-                is_placeholder: true,
-                is_input: isInput
-            }
-        };
-    };
-
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
 
-        if (data.mission_response) {
-            const response = data.mission_response.response_content;
-            const newMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: MessageRole.ASSISTANT,
-                content: response,
-                timestamp: new Date().toISOString()
-            };
-            addMessage(newMessage);
+        let token: string = "";
 
-            if (data.mission_response.response_type === "MISSION_DEFINITION" &&
-                data.mission_response.mission_proposal) {
-                const mission = data.mission_response.mission_proposal;
+        let newCollabAreaContent: any;
 
-                // Create placeholder assets for inputs and outputs
-                const inputAssets = mission.required_inputs.map(input =>
-                    createPlaceholderAsset(input, `Required input for ${mission.title}`, true)
-                );
-                const outputAssets = mission.expected_outputs.map(output =>
-                    createPlaceholderAsset(output, `Expected output for ${mission.title}`, false)
-                );
+        let newMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: MessageRole.ASSISTANT,
+            content: "",
+            timestamp: new Date().toISOString()
+        };
 
-                const newMission: Mission = {
-                    id: mission.title.toLowerCase().replace(/\s+/g, '-'),
-                    name: mission.title,
-                    description: mission.goal,
-                    goal: mission.goal,
-                    success_criteria: mission.success_criteria,
-                    inputs: inputAssets,
-                    outputs: outputAssets,
-                    possible_stage_sequence: mission.possible_stage_sequence,
-                    status: WorkflowStatus.PENDING,
-                    workflows: [],
-                    metadata: {},
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
-                dispatch({ type: 'SET_MISSION', payload: newMission });
+        if (data.token) {
+            token = data.token;
+        }
+
+        if (data.status) {
+            newMessage.content = "STATUS: " + data.status;
+            if (data.state) {
+                newCollabAreaContent = data.state;
             }
         }
 
-        if (data.supervisor_payload) {
-            console.log("supervisor_payload", data.supervisor_payload);
-            // set collab area to document
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: data } });
+        if (data.message) {
+            newMessage.content = data.message;
+            if (data.payload) {
+                newCollabAreaContent = data.payload;
+            }
         }
 
-        // Handle streaming content
-        if (data.status) {
-            console.log("updating status", data.status);
-            updateStreamingMessage(data.status);
+        if (newMessage.content) {
+            addMessage(newMessage);
+        }
+
+        if (newCollabAreaContent) {
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+            addPayloadHistory({ [newMessage.id]: newCollabAreaContent });
         }
 
         // Return the token content for accumulation
-        return data.token || "";
+        return token;
+
     }, [addMessage, updateStreamingMessage]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
@@ -217,14 +200,14 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 finalContent = "No direct response from the bot. Check item view for more information.";
             }
 
-            // Update the final message with the complete content
-            const finalMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: MessageRole.ASSISTANT,
-                content: finalContent,
-                timestamp: new Date().toISOString()
-            };
-            addMessage(finalMessage);
+            // // Update the final message with the complete content
+            // const finalMessage: ChatMessage = {
+            //     id: (Date.now() + 1).toString(),
+            //     role: MessageRole.ASSISTANT,
+            //     content: finalContent,
+            //     timestamp: new Date().toISOString()
+            // };
+            // addMessage(finalMessage);
 
         } catch (error) {
             console.error('Error streaming message:', error);

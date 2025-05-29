@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send } from 'lucide-react';
+import { Send, ExternalLink } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { MessageRole } from '@/types/chat';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
+import { useJamBot } from '@/context/JamBotContext';
 
 interface ChatProps {
     messages: ChatMessage[];
@@ -15,6 +16,7 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const { state, setCollabArea } = useJamBot();
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -56,6 +58,13 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
         }
     };
 
+    const handleCollabClick = (messageId: string) => {
+        const payload = state.payload_history.find(item => item[messageId]);
+        if (payload) {
+            setCollabArea('object', payload[messageId]);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800 shadow-sm">
             <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
@@ -79,14 +88,26 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                             <div className="prose prose-sm dark:prose-invert max-w-none">
                                 <MarkdownRenderer content={message.content} />
                             </div>
-                            {message.metadata?.type && (
-                                <div className="text-xs mt-1 opacity-75">
-                                    {message.metadata.type}
-                                </div>
-                            )}
+                            <div className="flex items-center justify-between mt-1">
+                                {message.metadata?.type && (
+                                    <div className="text-xs opacity-75">
+                                        {message.metadata.type}
+                                    </div>
+                                )}
+                                {state.payload_history.some(item => item[message.id]) && (
+                                    <button
+                                        onClick={() => handleCollabClick(message.id)}
+                                        className="text-xs opacity-75 hover:opacity-100 transition-opacity flex items-center gap-1"
+                                    >
+                                        <ExternalLink className="w-3 h-3" />
+                                        View in Collab
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
+
                 {streamingMessage && (
                     <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50 backdrop-blur-sm">

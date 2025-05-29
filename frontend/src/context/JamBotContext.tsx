@@ -79,6 +79,7 @@ const JamBotContext = createContext<{
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
     setCollabArea: (type: CollabAreaState['type'], content?: any) => void;
+    addPayloadHistory: (payload: Record<string, any>) => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -100,16 +101,16 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         fetchAssets();
     }, []);
 
-    const addPayloadHistory = useCallback((payload: Record<string, any>) => {
-        dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
-    }, []);
-
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
     }, []);
 
     const updateStreamingMessage = useCallback((message: string) => {
         dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
+    }, []);
+
+    const addPayloadHistory = useCallback((payload: Record<string, any>) => {
+        dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -132,8 +133,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (data.status) {
             newMessage.content = "STATUS: " + data.status;
-            if (data.state) {
-                newCollabAreaContent = data.state;
+            if (data.payload) {
+                newCollabAreaContent = data.payload;
             }
         }
 
@@ -156,7 +157,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         // Return the token content for accumulation
         return token;
 
-    }, [addMessage, updateStreamingMessage]);
+    }, [addMessage, updateStreamingMessage, addPayloadHistory]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
         addMessage(message);
@@ -200,15 +201,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 finalContent = "No direct response from the bot. Check item view for more information.";
             }
 
-            // // Update the final message with the complete content
-            // const finalMessage: ChatMessage = {
-            //     id: (Date.now() + 1).toString(),
-            //     role: MessageRole.ASSISTANT,
-            //     content: finalContent,
-            //     timestamp: new Date().toISOString()
-            // };
-            // addMessage(finalMessage);
-
         } catch (error) {
             console.error('Error streaming message:', error);
         } finally {
@@ -229,7 +221,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             addMessage,
             updateStreamingMessage,
             sendMessage,
-            setCollabArea
+            setCollabArea,
+            addPayloadHistory
         }}>
             {children}
         </JamBotContext.Provider>

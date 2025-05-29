@@ -59,7 +59,11 @@ def serialize_state(state: State) -> dict:
         return obj
 
     state_dict = state.model_dump()
-    return convert_datetime(state_dict)
+    messages = state_dict.get("messages", [])
+    for message in messages:
+        message["timestamp"] = convert_datetime(message["timestamp"])
+        message["content"] = message["content"][0:100]
+    return messages
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
@@ -215,7 +219,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         print("Search results length:", len(search_results))
         print("================================================")
 
-        search_results_string = "Here are the search results for your query: " + search_params["query"] + "\n\n"
+        search_results_string = "Here are the search results for: " + search_params["query"] + "\n\n"
         for result in search_results:
             search_results_string += result.text + "\n\n"
 

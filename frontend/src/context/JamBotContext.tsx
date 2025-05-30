@@ -126,7 +126,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (data.status) {
             const statusMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
+                id: `status_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 role: MessageRole.STATUS,
                 content: data.status,
                 timestamp: new Date().toISOString()
@@ -139,11 +139,11 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        if (data.message) {
+        if (data.response_text) {
             const chatMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
+                id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 role: MessageRole.ASSISTANT,
-                content: data.message,
+                content: data.response_text,
                 timestamp: new Date().toISOString()
             };
             addMessage(chatMessage);

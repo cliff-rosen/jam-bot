@@ -77,7 +77,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         })
 
     try:
-        # Create and format the prompt
+        # Create and format the prompt from the messages and payload
         prompt = SupervisorPrompt()
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
@@ -96,31 +96,21 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                     "schema": schema,
                     "name": "SupervisorResponse"
                 }
-            }
+            },
+            temperature=0.0
         )
                    
         # Extract JSON content from between code blocks if present
         response_text = response.choices[0].message.content
-
-        if "```json" in response_text:
-            # Extract content between code blocks
-            json_content = response_text.split("```json")[1].split("```")[0].strip()
-        else:
-            json_content = response_text
-
-        # Parse the response
-        parsed_response = prompt.parse_response(json_content)
+        parsed_response = prompt.parse_response(response_text)
 
         # Create a response message
-        current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_text,
-            timestamp=current_time
+            timestamp=datetime.now().isoformat()
         )
-
-        # Handle tool calls if present
         next_node = END
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
@@ -129,7 +119,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "search_params": state.search_params,
             "available_assets": state.available_assets
         }
-        
+
+        # Handle tool calls if present        
         if parsed_response.tool_call:
             print("Tool call:", parsed_response.tool_call)
             tool_call = parsed_response.tool_call
@@ -148,10 +139,11 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             else:
                 raise ValueError(f"Unknown tool call: {tool_call.name}")
 
+        # Stream response and return command
         if writer:
             agent_response = AgentResponse(
-                token=parsed_response.response_text,
-                message=parsed_response.response_text,
+                token=response_message.content[0:100],
+                response_text=parsed_response.response_text,
                 status="supervisor_completed",
                 error=None,
                 debug="hello",

@@ -9,7 +9,7 @@ export function getDataFromLine(line: string): AgentResponse {
         token: null,
         status: null,
         error: null,
-        message: null,
+        response_text: null,
         payload: null,
         debug: null
     };
@@ -25,14 +25,14 @@ export function getDataFromLine(line: string): AgentResponse {
         if (data.token) {
             res.token = data.token;
         }
+        if (data.response_text) {
+            res.response_text = data.response_text;
+        }
         if (data.payload) {
             res.payload = data.payload;
         }
         if (data.status) {
             res.status = data.status;
-        }
-        if (data.message) {
-            res.message = data.message;
         }
         if (data.error) {
             res.error = data.error;

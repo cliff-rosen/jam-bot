@@ -68,9 +68,9 @@ export interface SupervisorResponse {
 
 export interface AgentResponse {
     token: string | null;
-    message: string | null;
-    status: string | null;
+    response_text: string | null;
     payload: string | object | null;
+    status: string | null;
     error: string | null;
     debug: string | object | null;
 }

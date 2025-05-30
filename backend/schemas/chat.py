@@ -55,9 +55,9 @@ class ChatResponse(BaseModel):
 
 class AgentResponse(BaseModel):
     token: str | None = Field(description="The token for the agent")
-    message: str | None = Field(description="The message from the agent")
-    status: str | None = Field(description="The status of the agent")
+    response_text: str | None = Field(description="The message from the agent")
     payload: str | object | None = Field(description="The payload from the agent")
+    status: str | None = Field(description="The status of the agent")
     error: str | None = Field(description="The error from the agent")
     debug: str | object | None = Field(description="The debug information from the agent")
 

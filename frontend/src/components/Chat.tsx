@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ExternalLink } from 'lucide-react';
+import { Send, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { MessageRole } from '@/types/chat';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
@@ -14,9 +14,16 @@ interface ChatProps {
 export default function Chat({ messages, onNewMessage, streamingMessage }: ChatProps) {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showStatusMessages, setShowStatusMessages] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { state, setCollabArea } = useJamBot();
+
+    // Filter messages based on showStatusMessages state
+    const filteredMessages = showStatusMessages
+        ? messages
+        : messages.filter(message => message.role !== MessageRole.STATUS);
+    console.log(filteredMessages);
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -67,12 +74,23 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800 shadow-sm">
-            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
+            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700 flex justify-between items-center">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chat</h2>
+                <button
+                    onClick={() => setShowStatusMessages(!showStatusMessages)}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title={showStatusMessages ? "Hide status messages" : "Show status messages"}
+                >
+                    {showStatusMessages ? (
+                        <Eye className="w-4 h-4" />
+                    ) : (
+                        <EyeOff className="w-4 h-4" />
+                    )}
+                </button>
             </div>
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((message) => (
+                {filteredMessages.map((message) => (
                     <div
                         key={message.id}
                         className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}

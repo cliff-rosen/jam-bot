@@ -16,7 +16,7 @@ class MissionProposal(BaseModel):
 class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""
     response_type: str = Field(description="Type of response: MISSION_DEFINITION or INTERVIEW_QUESTION")
-    response_content: str = Field(description="Content of the response - either mission definition or interview question")
+    response_text: str = Field(description="Content of the response - either mission definition or interview question")
     mission_proposal: Optional[MissionProposal] = Field(description="Optional mission proposal if enough information is gathered")
     information_gaps: Optional[List[str]] = Field(description="List of information gaps that need to be filled")
     confidence_level: Optional[str] = Field(description="Confidence level in the mission proposal (Low/Medium/High)")

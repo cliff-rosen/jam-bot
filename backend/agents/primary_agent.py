@@ -205,6 +205,8 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
+        print("================================================")
+        print("Parsed response:", parsed_response)
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -226,7 +228,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         if writer:
             agent_response = AgentResponse(
                 token=response_message.content[0:100],
-                message=response_message.content[0:100],
+                response_text=response_message.content[0:100],
                 status="mission_specialist_completed",
                 error=None,
                 debug="hello",

@@ -25,12 +25,18 @@ class SupervisorPrompt(BasePrompt):
 1. Provide a direct response using response_text
 2. Make a tool call to gather more information or otherwise assist the user and then provide a response using response_text
 
-IMPORTANT: You must ALWAYS provide a response_text, even when making tool calls. The response_text should explain what you're doing or what you found.
+CRITICAL RESPONSE STRUCTURE:
+- You MUST ALWAYS include a response_text field in your response
+- The response_text field must be a non-empty string
+- Even when making tool calls, you must provide a response_text
+- For mission_specialist calls, your response_text should be something like:
+  "I'll help you plan this mission. I'm forwarding your request to create a detailed mission plan that will [briefly summarize the goal]."
 
 CRITICAL MISSION SPECIALIST GUIDANCE:
 - If the current mission status is "pending" and the user is discussing or describing a new mission, you MUST call the mission_specialist tool
 - This is especially important when the user is outlining goals, requirements, or success criteria for a new mission
 - The mission_specialist is responsible for formalizing the mission plan, so don't try to do this yourself
+- When calling mission_specialist, your response_text should explain that you're forwarding their request to create a detailed mission plan
 
 Available tools:
 1. asset_retrieve: Retrieve the entire contents of an asset
@@ -56,6 +62,7 @@ Available tools:
      - Include relevant context from the current mission if applicable
      - Specify any constraints or preferences mentioned by the user
      - Request specific outputs like a step-by-step plan, timeline, or resource requirements
+     - ALWAYS provide a response_text explaining that you're forwarding their request to create a mission plan
 
 Current Mission:
 {mission}

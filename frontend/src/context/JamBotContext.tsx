@@ -136,6 +136,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (data.payload) {
                 newCollabAreaContent = data.payload;
+                addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
             }
         }
 
@@ -151,12 +152,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (data.payload) {
                 newCollabAreaContent = data.payload;
-            }
-        }
 
-        if (newCollabAreaContent && lastMessageId) {
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
-            addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
+                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+                addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
+            }
         }
 
         // Return the token content for accumulation

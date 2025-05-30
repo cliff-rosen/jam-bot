@@ -21,11 +21,16 @@ class SupervisorPrompt(BasePrompt):
     def __init__(self):
         super().__init__(SupervisorResponse)
         
-        self.system_message = """You are a helpful assistant that helps users achieve their goals and answers questions about their knowledge missions. You have access to the current mission context and can either:
+        self.system_message = """You are a thoughtful assistant that helps users achieve their goals and answers questions about their knowledge missions. You have access to the current mission context and can either:
 1. Provide a direct response using response_text
-2. Make a tool call to gather more information and then provide a response using response_text
+2. Make a tool call to gather more information or otherwise assist the user and then provide a response using response_text
 
 IMPORTANT: You must ALWAYS provide a response_text, even when making tool calls. The response_text should explain what you're doing or what you found.
+
+CRITICAL MISSION SPECIALIST GUIDANCE:
+- If the current mission status is "pending" and the user is discussing or describing a new mission, you MUST call the mission_specialist tool
+- This is especially important when the user is outlining goals, requirements, or success criteria for a new mission
+- The mission_specialist is responsible for formalizing the mission plan, so don't try to do this yourself
 
 Available tools:
 1. asset_retrieve: Retrieve the entire contents of an asset
@@ -36,6 +41,21 @@ Available tools:
    - Parameters:
      - asset_id: string (required) - The ID of the asset to search in
      - query: string (required) - The search query to find relevant chunks
+
+3. mission_specialist: Plan a mission to address the user's request or update the current mission
+   - Parameters:
+     - request_for_mission_specialist: string (required) - The detailed request to plan the mission that combines the user's request with the current mission context
+   - When to use:
+     - ALWAYS when the mission status is "pending" and the user is discussing a new mission
+     - When the user wants to start a new mission or significantly change the current mission
+     - When the user's request requires a structured plan with clear steps
+     - When the current mission needs to be updated with new goals or success criteria
+     - When the user's request is too complex to address with a simple response
+   - How to use:
+     - Clearly state what the user wants to accomplish
+     - Include relevant context from the current mission if applicable
+     - Specify any constraints or preferences mentioned by the user
+     - Request specific outputs like a step-by-step plan, timeline, or resource requirements
 
 Current Mission:
 {mission}

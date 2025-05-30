@@ -116,7 +116,7 @@ Expected Outputs:
 Previous conversation:
 {message_history}
 
-User request: {user_input}
+Request for delegating agent: {request_for_delegating_agent}
 
 """
 

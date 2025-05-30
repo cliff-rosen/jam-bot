@@ -37,10 +37,10 @@ class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
-    next_node: str
-    search_params: Dict[str, Any] = {}
     available_assets: List[Dict[str, Any]] = []
-    
+    tool_params: Dict[str, Any] = {}
+    next_node: str
+  
     class Config:
         arbitrary_types_allowed = True
 
@@ -64,7 +64,7 @@ def serialize_state(state: State) -> dict:
     for message in messages:
         message["timestamp"] = convert_datetime(message["timestamp"])
         message["content"] = message["content"][0:100]
-    return messages
+    return {"messages": messages, "tool_params": state.tool_params}
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
@@ -84,7 +84,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             mission=state.mission,
             available_assets=state.available_assets
         )
-        schema = SupervisorResponse.model_json_schema()
+        schema = prompt.get_schema()
         
         # Use OpenAI responses API with vector store integration
         response = await client.chat.completions.create(
@@ -94,7 +94,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 "type": "json_schema",
                 "json_schema": {
                     "schema": schema,
-                    "name": "SupervisorResponse"
+                    "name": prompt.get_response_model_name()
                 }
             },
             temperature=0.0
@@ -111,12 +111,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             content=parsed_response.response_text,
             timestamp=datetime.now().isoformat()
         )
+
         next_node = END
+
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "next_node": next_node,
-            "search_params": state.search_params,
+            "tool_params": state.tool_params,
             "available_assets": state.available_assets
         }
 
@@ -131,9 +133,15 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 # Route to asset search node with the query
                 next_node = "asset_search_node"
                 # Add the search parameters to the state update
-                state_update["search_params"] = {
+                state_update["tool_params"] = {
                     "asset_id": tool_call.parameters.get("asset_id"),
                     "query": tool_call.parameters.get("query")
+                }
+                state_update["next_node"] = next_node
+            elif tool_call.name == "mission_specialist":
+                next_node = "mission_specialist_node"
+                state_update["tool_params"] = {
+                    "request_for_mission_specialist": tool_call.parameters.get("request_for_mission_specialist")
                 }
                 state_update["next_node"] = next_node
             else:
@@ -172,23 +180,16 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             "payload": serialize_state(state)
         })
     
-    # Get the last user message
-    last_message = state.messages[-1]
-    if not last_message:
-        raise ValueError("No user message found in state")
-
-    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state.messages])
-
     try:
         # Create and format the prompt
         prompt = MissionDefinitionPrompt()
         formatted_messages = prompt.get_formatted_messages(
-            message_history=message_history,
+            message_history=state.messages,
             mission=state.mission,
-            available_assets=state.available_assets
+            available_assets=state.available_assets,
+            request_for_delegating_agent=state.tool_params.get("request_for_mission_specialist")
         )
-                    
-        schema = MissionDefinitionResponse.model_json_schema()
+        schema = prompt.get_schema()
 
         response = await client.chat.completions.create(
             model="gpt-4o",
@@ -197,37 +198,29 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 "type": "json_schema",
                 "json_schema": {    
                     "schema": schema,
-                    "name": "MissionDefinitionResponse"
+                    "name": prompt.get_response_model_name()
                 }
             }
         )   
         
         response_text = response.choices[0].message.content
+        parsed_response = prompt.parse_response(response_text)
 
-        if "```json" in response_text:
-            # Extract content between code blocks
-            json_content = response_text.split("```json")[1].split("```")[0].strip()
-        else:
-            json_content = response_text
-
-        # Parse the response
-        parsed_response = prompt.parse_response(json_content)
-
-        current_time = datetime.now().isoformat()
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=parsed_response.response_text,
-            timestamp=current_time
+            content="RESPONSE FROM MISSION SPECIALIST: " + parsed_response.model_dump_json(),
+            timestamp=datetime.now().isoformat()
         )
 
         next_node = "supervisor_node"
+
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
+            "available_assets": state.available_assets,
+            "tool_params": {},
             "next_node": next_node,
-            "search_params": state.search_params,
-            "available_assets": state.available_assets
         }
 
         if writer:
@@ -341,6 +334,7 @@ graph_builder = StateGraph(State)
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
 graph_builder.add_node("asset_search_node", asset_search_node)
+graph_builder.add_node("mission_specialist_node", mission_specialist_node)
 
 # Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")

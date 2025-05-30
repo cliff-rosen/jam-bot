@@ -7,6 +7,7 @@ class BasePrompt:
     """Base class for all prompts that encapsulates common functionality"""
     
     def __init__(self, response_model: Type[BaseModel]):
+        self.response_model = response_model
         self.parser = PydanticOutputParser(pydantic_object=response_model)
         self.format_instructions = self.parser.get_format_instructions()
         
@@ -53,4 +54,12 @@ class BasePrompt:
         
     def parse_response(self, response: str) -> BaseModel:
         """Parse the LLM response using the configured parser"""
-        return self.parser.parse(response) 
+        return self.parser.parse(response)
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Get the JSON schema for the response model"""
+        return self.response_model.model_json_schema()
+
+    def get_response_model_name(self) -> str:
+        """Get the name of the response model"""
+        return self.response_model.__name__ 

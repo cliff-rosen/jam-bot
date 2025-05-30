@@ -31,14 +31,6 @@ async def chat_stream(chat_request: ChatRequest):
     async def event_generator():
         """Generate SSE events from graph outputs"""
         try:
-            # Create message with all required fields
-            messages = [Message(
-                id=str(uuid.uuid4()),
-                role=MessageRole.USER,
-                content=chat_request.message,
-                timestamp=datetime.now().isoformat()
-            )]
-            
             # Get mission from payload
             mission_dict = chat_request.payload.get("mission", {})
             mission = Mission(**mission_dict) if mission_dict else None
@@ -46,9 +38,9 @@ async def chat_stream(chat_request: ChatRequest):
             # Get available assets from payload
             available_assets = chat_request.payload.get("assets", [])
             
-            # Initialize state
+            # Initialize state with all messages
             state = State(
-                messages=messages,
+                messages=chat_request.messages,
                 mission=mission,
                 next_node="supervisor_node",
                 available_assets=available_assets

@@ -165,17 +165,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         let streamingContent = '';
 
         try {
-            // Convert ChatMessage[] to Message[]
-            const messages: ChatMessage[] = state.currentMessages.map(msg => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.content,
-                timestamp: msg.timestamp
-            }));
-
             const chatRequest: ChatRequest = {
-                message: message.content,
-                history: messages,
+                messages: [...state.currentMessages, message],
                 payload: {
                     mission: state.mission,
                     assets: state.assets

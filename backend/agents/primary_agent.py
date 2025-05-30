@@ -19,6 +19,7 @@ import os
 from config.settings import settings
 
 from agents.prompts.supervisor_prompt import SupervisorPrompt, SupervisorResponse
+from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -69,25 +70,17 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     """Supervisor node that either answers directly or routes to specialists"""
     print("Supervisor")
     
-    # Get the last user message
-    last_message = state.messages[-1]
-    if not last_message:
-        raise ValueError("No user message found in state")
-
-    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state.messages])
+    if writer:
+        writer({
+            "status": "supervisor_request",
+            "payload": serialize_state(state)
+        })
 
     try:
-        if writer:
-            writer({
-                "status": "supervisor_request",
-                "payload": serialize_state(state)
-            })
-
         # Create and format the prompt
         prompt = SupervisorPrompt()
         formatted_messages = prompt.get_formatted_messages(
-            user_input=last_message.content,
-            message_history=message_history,    
+            messages=state.messages,
             mission=state.mission,
             available_assets=state.available_assets
         )
@@ -177,6 +170,98 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             })
         raise
 
+async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+    """Node that handles mission specialist operations"""
+    print("Mission specialist node")
+
+    if writer:
+        writer({
+            "status": "mission_specialist_starting",
+            "payload": serialize_state(state)
+        })
+    
+    # Get the last user message
+    last_message = state.messages[-1]
+    if not last_message:
+        raise ValueError("No user message found in state")
+
+    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state.messages])
+
+    try:
+        # Create and format the prompt
+        prompt = MissionDefinitionPrompt()
+        formatted_messages = prompt.get_formatted_messages(
+            message_history=message_history,
+            mission=state.mission,
+            available_assets=state.available_assets
+        )
+                    
+        schema = MissionDefinitionResponse.model_json_schema()
+
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=formatted_messages,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {    
+                    "schema": schema,
+                    "name": "MissionDefinitionResponse"
+                }
+            }
+        )   
+        
+        response_text = response.choices[0].message.content
+
+        if "```json" in response_text:
+            # Extract content between code blocks
+            json_content = response_text.split("```json")[1].split("```")[0].strip()
+        else:
+            json_content = response_text
+
+        # Parse the response
+        parsed_response = prompt.parse_response(json_content)
+
+        current_time = datetime.now().isoformat()
+        response_message = Message(
+            id=str(uuid.uuid4()),
+            role=MessageRole.ASSISTANT,
+            content=parsed_response.response_text,
+            timestamp=current_time
+        )
+
+        next_node = "supervisor_node"
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "next_node": next_node,
+            "search_params": state.search_params,
+            "available_assets": state.available_assets
+        }
+
+        if writer:
+            agent_response = AgentResponse(
+                token=response_message.content[0:100],
+                message=response_message.content[0:100],
+                status="mission_specialist_completed",
+                error=None,
+                debug="hello",
+                payload=serialize_state(State(**state_update))
+            )
+
+            writer(agent_response.model_dump())
+
+        return Command(goto=next_node, update=state_update)
+
+    except Exception as e:
+        print("Error in mission specialist node:", e)
+        if writer:
+            writer({
+                "status": "error",
+                "error": str(e),
+                "state": serialize_state(state)
+            })
+        raise
+
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles asset search operations"""
     print("================================================")
@@ -209,10 +294,6 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
                    
         # Extract search results from the response
         search_results = response.output[0].results
-
-        print("================================================")
-        print("Search results length:", len(search_results))
-        print("================================================")
 
         search_results_string = "Here are the search results for: " + search_params["query"] + "\n\n"
         for result in search_results:
@@ -260,20 +341,6 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             })
         raise
 
-async def test_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Test node that just returns a message"""
-    print("Test node")
-    if writer:
-        writer({"status": "test_starting"})
-        
-    # sleep for 3 seconds
-    await asyncio.sleep(3)
-
-    if writer:
-        writer({"status": "test_completed", "message": "Test completed"})
-        
-    return Command(goto=END)
-
 ### Graph
 
 # Define the graph
@@ -282,11 +349,9 @@ graph_builder = StateGraph(State)
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
 graph_builder.add_node("asset_search_node", asset_search_node)
-graph_builder.add_node("test_node", test_node)
 
 # Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")
-# graph_builder.add_edge(START, "test_node")
 
 # Supervisor can go to either asset search or END
 

@@ -29,8 +29,7 @@ export type AssetReference = {
 }
 
 export interface ChatRequest {
-    message: string;
-    history: ChatMessage[];
+    messages: ChatMessage[];
     payload?: {
         assets?: Asset[];
         mission?: Mission;
@@ -71,7 +70,6 @@ export interface SupervisorResponse {
     response_content: string;
     result_details: any;
 }
-
 
 export interface AgentResponse {
     token: string | null;

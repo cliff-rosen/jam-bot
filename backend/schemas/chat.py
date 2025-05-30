@@ -40,8 +40,7 @@ class AssetReference(BaseModel):
     )
 
 class ChatRequest(BaseModel):
-    message: str = Field(description="The message content")
-    history: List[Message] = Field(description="Previous messages in the conversation")
+    messages: List[Message] = Field(description="All messages in the conversation")
     payload: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Optional payload including assets, workflow info, and context"

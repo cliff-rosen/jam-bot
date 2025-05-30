@@ -1,6 +1,8 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from schemas.chat import Message, MessageRole
 from .base_prompt import BasePrompt
 
 class ToolCall(BaseModel):
@@ -33,40 +35,24 @@ Available tools:
      - asset_id: string (required) - The ID of the asset to search in
      - query: string (required) - The search query to find relevant chunks
 
+Current Mission:
+{mission}
+
 Available Assets:
 {available_assets}
 
 Always consider the mission's goal and success criteria when determining how to respond."""
 
-        self.user_message_template = """Current Mission Context:
-Goal: {mission.goal}
-Success Criteria:
-{mission.success_criteria}
-
-Inputs Required:
-{mission.inputs}
-
-Expected Outputs:
-{mission.outputs}
-
-Previous conversation:
-{message_history}
-
-User request: {user_input}
-
-{format_instructions}"""
-
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Return a ChatPromptTemplate for supervisor"""
         return ChatPromptTemplate.from_messages([
             ("system", self.system_message),
-            ("human", self.user_message_template)
+            MessagesPlaceholder(variable_name="messages")
         ])
 
     def get_formatted_messages(
         self,
-        user_input: str,
-        message_history: str,
+        messages: List[Message],
         mission: Any,
         available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
@@ -79,13 +65,47 @@ User request: {user_input}
                 for asset in available_assets
             ])
 
+        # Format mission into a readable string
+        mission_str = f"""Goal: {mission.goal}
+Success Criteria:
+{mission.success_criteria}
+
+Inputs Required:
+{mission.inputs}
+
+Expected Outputs:
+{mission.outputs}"""
+
+        # Convert messages to langchain message format
+        langchain_messages = []
+        for msg in messages:
+            if msg.role == MessageRole.USER:
+                langchain_messages.append(HumanMessage(content=msg.content))
+            elif msg.role == MessageRole.ASSISTANT:
+                langchain_messages.append(AIMessage(content=msg.content))
+            elif msg.role == MessageRole.SYSTEM:
+                langchain_messages.append(SystemMessage(content=msg.content))
+
         # Get the format instructions from the base class
         format_instructions = self.parser.get_format_instructions()
 
-        return super().get_formatted_messages(
-            mission=mission,
-            message_history=message_history,
-            user_input=user_input,
+        # Format the messages using the prompt template
+        prompt = self.get_prompt_template()
+        formatted_messages = prompt.format_messages(
+            mission=mission_str,
+            messages=langchain_messages,
             available_assets=assets_str,
             format_instructions=format_instructions
-        ) 
+        )
+
+        # Convert langchain messages to OpenAI format
+        openai_messages = []
+        for msg in formatted_messages:
+            if isinstance(msg, SystemMessage):
+                openai_messages.append({"role": "system", "content": msg.content})
+            elif isinstance(msg, HumanMessage):
+                openai_messages.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, AIMessage):
+                openai_messages.append({"role": "assistant", "content": msg.content})
+
+        return openai_messages 

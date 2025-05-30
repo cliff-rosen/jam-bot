@@ -25,6 +25,8 @@ class SupervisorPrompt(BasePrompt):
 1. Provide a direct response using response_text
 2. Make a tool call to gather more information and then provide a response using response_text
 
+IMPORTANT: You must ALWAYS provide a response_text, even when making tool calls. The response_text should explain what you're doing or what you found.
+
 Available tools:
 1. asset_retrieve: Retrieve the entire contents of an asset
    - Parameters:

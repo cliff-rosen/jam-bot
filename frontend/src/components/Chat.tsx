@@ -8,7 +8,7 @@ import { useJamBot } from '@/context/JamBotContext';
 interface ChatProps {
     messages: ChatMessage[];
     streamingMessage: string;
-    onNewMessage: (message: ChatMessage) => void;
+    onNewMessage: (message: Omit<ChatMessage, 'role'> & { role: Exclude<MessageRole, MessageRole.STATUS> }) => void;
 }
 
 export default function Chat({ messages, onNewMessage, streamingMessage }: ChatProps) {
@@ -35,9 +35,9 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
         setInput('');
         setIsLoading(true);
 
-        const userMessage: ChatMessage = {
+        const userMessage = {
             id: Date.now().toString(),
-            role: MessageRole.USER,
+            role: MessageRole.USER as const,
             content: input,
             timestamp: new Date().toISOString()
         };
@@ -75,24 +75,20 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                 {messages.map((message) => (
                     <div
                         key={message.id}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
-                            className={`max-w-[80%] rounded-lg p-3 ${message.role === 'user'
+                            className={`max-w-[80%] rounded-lg p-3 ${message.role === MessageRole.USER
                                 ? 'bg-blue-500 text-white'
-                                : message.role === 'system'
+                                : message.role === MessageRole.SYSTEM
                                     ? 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-500'
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                                    : message.role === MessageRole.STATUS
+                                        ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                                 }`}
                         >
                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                                {message.content.startsWith('STATUS:') ? (
-                                    <div className="opacity-50">
-                                        <MarkdownRenderer content={message.content.slice(7)} />
-                                    </div>
-                                ) : (
-                                    <MarkdownRenderer content={message.content} />
-                                )}
+                                <MarkdownRenderer content={message.content} />
                             </div>
                             <div className="flex items-center justify-between mt-1">
                                 {message.metadata?.type && (

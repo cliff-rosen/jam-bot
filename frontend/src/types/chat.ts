@@ -4,7 +4,8 @@ import { Mission } from '@/types/workflow';
 export enum MessageRole {
     USER = 'user',
     ASSISTANT = 'assistant',
-    SYSTEM = 'system'
+    SYSTEM = 'system',
+    STATUS = 'status'
 }
 
 export type ChatMessage = {
@@ -43,12 +44,6 @@ export interface ChatResponse {
         mission?: Mission;
     };
 }
-
-export type MessageType =
-    | 'text'
-    | 'action_prompt'
-    | 'agent_update'
-    | 'asset_added';
 
 export interface MissionDefinitionResponse {
     response_type: 'MISSION_DEFINITION' | 'INTERVIEW_QUESTION';

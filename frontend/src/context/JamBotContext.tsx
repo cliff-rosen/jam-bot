@@ -117,41 +117,46 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("data", data);
 
         let token: string = "";
-
         let newCollabAreaContent: any;
-
-        let newMessage: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            role: MessageRole.ASSISTANT,
-            content: "",
-            timestamp: new Date().toISOString()
-        };
+        let lastMessageId: string | null = null;
 
         if (data.token) {
             token = data.token;
         }
 
         if (data.status) {
-            newMessage.content = "STATUS: " + data.status;
+            const statusMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: MessageRole.STATUS,
+                content: data.status,
+                timestamp: new Date().toISOString()
+            };
+            addMessage(statusMessage);
+            lastMessageId = statusMessage.id;
+
             if (data.payload) {
                 newCollabAreaContent = data.payload;
             }
         }
 
         if (data.message) {
-            newMessage.content = data.message;
+            const chatMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: MessageRole.ASSISTANT,
+                content: data.message,
+                timestamp: new Date().toISOString()
+            };
+            addMessage(chatMessage);
+            lastMessageId = chatMessage.id;
+
             if (data.payload) {
                 newCollabAreaContent = data.payload;
             }
         }
 
-        if (newMessage.content) {
-            addMessage(newMessage);
-        }
-
-        if (newCollabAreaContent) {
+        if (newCollabAreaContent && lastMessageId) {
             dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
-            addPayloadHistory({ [newMessage.id]: newCollabAreaContent });
+            addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
         }
 
         // Return the token content for accumulation
@@ -165,8 +170,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         let streamingContent = '';
 
         try {
+            // Filter out status messages before sending to backend
+            const filteredMessages = state.currentMessages.filter(msg => msg.role !== MessageRole.STATUS);
             const chatRequest: ChatRequest = {
-                messages: [...state.currentMessages, message],
+                messages: [...filteredMessages, message],
                 payload: {
                     mission: state.mission,
                     assets: state.assets

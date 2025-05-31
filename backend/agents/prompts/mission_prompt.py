@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
-from schemas.workflow import Mission
+from schemas.workflow import Mission, Asset
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,
@@ -13,12 +13,13 @@ from utils.message_formatter import (
 
 class MissionProposal(BaseModel):
     """Structure for a proposed mission"""
-    title: str = Field(description="Title of the mission")
-    goal: str = Field(description="Main goal of the mission")
+    name: str = Field(description="Name of the mission")
+    description: str = Field(description="Description of the mission")
+    goal: str = Field(description="The main goal of the mission")
     success_criteria: List[str] = Field(description="List of criteria that define mission success")
-    inputs: List[str] = Field(description="Required inputs for the mission")
-    outputs: List[str] = Field(description="Expected outputs from the mission")
-    possible_stage_sequence: List[str] = Field(description="Suggested sequence of stages to complete the mission")
+    inputs: List[Dict[str, Any]] = Field(description="Input assets required for the mission")
+    outputs: List[Dict[str, Any]] = Field(description="Output assets produced by the mission")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
 
 class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""
@@ -40,12 +41,12 @@ class MissionDefinitionPrompt(BasePrompt):
 4. Ask clarifying questions when needed
 
 When creating a mission proposal, ensure it includes:
-- A clear, concise title
+- A clear, concise name
+- A detailed description
 - A specific, measurable goal
 - Concrete success criteria
-- Required inputs
-- Expected outputs
-- A logical sequence of stages
+- Required input assets
+- Expected output assets
 
 If information is missing or unclear, use the INTERVIEW_QUESTION response type to ask for clarification.
 

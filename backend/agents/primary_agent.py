@@ -217,12 +217,13 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         print("Parsed response:", parsed_response)
 
         if parsed_response.mission_proposal:
-            state.mission.title = parsed_response.mission_proposal.title
+            state.mission.name = parsed_response.mission_proposal.name
+            state.mission.description = parsed_response.mission_proposal.description
             state.mission.goal = parsed_response.mission_proposal.goal
             state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
             state.mission.inputs = parsed_response.mission_proposal.inputs
             state.mission.outputs = parsed_response.mission_proposal.outputs
-            state.mission.possible_stage_sequence = parsed_response.mission_proposal.possible_stage_sequence
+            state.mission.metadata = parsed_response.mission_proposal.metadata
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -235,7 +236,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
-            "mission": state.mission,  # Keep existing mission
+            "mission": state.mission,
             "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,

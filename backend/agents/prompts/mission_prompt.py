@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission
 from .base_prompt import BasePrompt
@@ -23,11 +23,9 @@ class MissionProposal(BaseModel):
 class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""
     response_type: str = Field(description="Type of response: MISSION_DEFINITION or INTERVIEW_QUESTION")
-    response_content: str = Field(description="The main response text")
-    mission_proposal: Optional[MissionProposal] = Field(default=None, description="Proposed mission structure if response_type is MISSION_DEFINITION")
-    information_gaps: Optional[List[str]] = Field(default=None, description="List of information gaps that need to be filled")
-    confidence_level: Optional[str] = Field(default=None, description="Confidence level in the mission proposal")
-
+    response_content: str = Field(description="The main response text added to the conversation")
+    mission_proposal: Optional[MissionProposal] = Field(default=None, description="Proposed mission details")
+    
 class MissionDefinitionPrompt(BasePrompt):
     """Prompt template for mission definition"""
     
@@ -55,33 +53,20 @@ Current Mission Context:
 {mission}
 
 Available Assets:
-{available_assets}
-
-Request from User:
-{request_for_delegating_agent}"""
-
-        self.user_message_template = """Please help me plan this mission based on the following request:
-{request_for_delegating_agent}
-
-Current mission context:
-{mission}
-
-Available assets:
 {available_assets}"""
 
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Return a ChatPromptTemplate for mission definition"""
         return ChatPromptTemplate.from_messages([
             ("system", self.system_message),
-            ("human", self.user_message_template)
+            MessagesPlaceholder(variable_name="messages")
         ])
     
     def get_formatted_messages(
         self,
-        message_history: List[Message],
+        messages: List[Message],
         mission: Mission,
-        available_assets: List[Dict[str, Any]] = None,
-        request_for_delegating_agent: str = None
+        available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
         # Format available assets and mission using utility functions
@@ -89,7 +74,7 @@ Available assets:
         mission_str = format_mission(mission)
 
         # Convert messages to langchain message format
-        langchain_messages = format_langchain_messages(message_history)
+        langchain_messages = format_langchain_messages(messages)
 
         # Get the format instructions from the base class
         format_instructions = self.parser.get_format_instructions()
@@ -100,7 +85,6 @@ Available assets:
             mission=mission_str,
             messages=langchain_messages,
             available_assets=assets_str,
-            request_for_delegating_agent=request_for_delegating_agent,
             format_instructions=format_instructions
         )
 

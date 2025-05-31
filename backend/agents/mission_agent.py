@@ -27,6 +27,8 @@ class State(TypedDict):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
+    available_assets: List[Dict[str, Any]]
+    tool_params: Dict[str, Any]
     next_node: str
 
 def validate_state(state: State) -> bool:
@@ -48,66 +50,6 @@ async def mission_definition_node(state: State, writer: StreamWriter, config: Di
     """Mission definition node that either answers directly or routes to specialists"""
     if writer:
         writer({"status": "mission definition starting"})
-
-    llm = getModel("supervisor", config, writer)
-    
-    # Get the last user message
-    last_message = state["messages"][-1]
-    if not last_message:
-        raise ValueError("No user message found in state")
-
-    message_history = "\n".join([f"{msg.role}: {msg.content}" for msg in state["messages"]])
-
-    try:
-        if writer:
-            writer({
-                "status": "starting mission definition agent..."
-            })
-
-        # Create and format the prompt
-        prompt = MissionDefinitionPrompt()
-        formatted_prompt = prompt.get_formatted_prompt(
-            user_input=last_message.content,
-            message_history=message_history,
-            mission=state["mission"]
-        )
-
-        # Generate and parse the response
-        response = await llm.ainvoke(formatted_prompt)
-        mission_definition = prompt.parse_response(response.content)  # Use response.content instead of response
-        
-        # Create a response message
-        current_time = datetime.now().isoformat()
-        response_message = Message(
-            id=str(uuid.uuid4()),
-            role=MessageRole.ASSISTANT,
-            content=mission_definition.response_content,
-            timestamp=current_time
-        )
-
-        # Based on response type, determine next node
-        next_node = END
-
-        if writer:
-            agent_response = AgentResponse(
-                token=mission_definition.response_content,
-                message=mission_definition.response_content,
-                status="mission_definition_completed: " + mission_definition.response_type,
-                supervisor_response=mission_definition.dict(),  # Use dict() to serialize the response
-                next_node=next_node,
-                error=None
-            )
-            writer(agent_response.dict())
-
-        return Command(goto=next_node, update={"messages": [response_message]})
-
-    except Exception as e:
-        if writer:
-            writer({
-                "status": "error",
-                "error": str(e)
-            })
-        raise
 
 
 ### Graph

@@ -64,7 +64,16 @@ def serialize_state(state: State) -> dict:
     for message in messages:
         message["timestamp"] = convert_datetime(message["timestamp"])
         message["content"] = message["content"][0:100]
-    return {"messages": messages, "tool_params": state.tool_params}
+    
+    mission_dict = state.mission.model_dump() if state.mission else None
+    if mission_dict:
+        mission_dict = convert_datetime(mission_dict)
+    
+    return {
+        "messages": messages, 
+        "tool_params": state.tool_params,
+        "mission": mission_dict
+    }
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that either answers directly or routes to specialists"""
@@ -184,10 +193,9 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         # Create and format the prompt
         prompt = MissionDefinitionPrompt()
         formatted_messages = prompt.get_formatted_messages(
-            message_history=state.messages,
+            messages=state.messages,
             mission=state.mission,
             available_assets=state.available_assets,
-            request_for_delegating_agent=state.tool_params.get("request_for_mission_specialist")
         )
         schema = prompt.get_schema()
 
@@ -208,18 +216,26 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         print("================================================")
         print("Parsed response:", parsed_response)
 
+        if parsed_response.mission_proposal:
+            state.mission.title = parsed_response.mission_proposal.title
+            state.mission.goal = parsed_response.mission_proposal.goal
+            state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
+            state.mission.inputs = parsed_response.mission_proposal.inputs
+            state.mission.outputs = parsed_response.mission_proposal.outputs
+            state.mission.possible_stage_sequence = parsed_response.mission_proposal.possible_stage_sequence
+
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content="RESPONSE FROM MISSION SPECIALIST: " + parsed_response.model_dump_json(),
+            content=parsed_response.response_content,
             timestamp=datetime.now().isoformat()
         )
 
-        next_node = "supervisor_node"
+        next_node = END
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
-            "mission": parsed_response.mission_proposal,
+            "mission": state.mission,  # Keep existing mission
             "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,
@@ -228,7 +244,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         if writer:
             agent_response = AgentResponse(
                 token=response_message.content[0:100],
-                response_text=response_message.content[0:100],
+                response_text=parsed_response.response_content,
                 status="mission_specialist_completed",
                 error=None,
                 debug="hello",
@@ -240,12 +256,15 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         return Command(goto=next_node, update=state_update)
 
     except Exception as e:
-        print("Error in mission specialist node:", e)
+        import traceback
+        error_traceback = traceback.format_exc()
+        print("Error in mission specialist node:", error_traceback)
         if writer:
             writer({
                 "status": "error",
                 "error": str(e),
-                "state": serialize_state(state)
+                "state": serialize_state(state),
+                "debug": error_traceback,
             })
         raise
 
@@ -339,7 +358,7 @@ graph_builder.add_node("asset_search_node", asset_search_node)
 graph_builder.add_node("mission_specialist_node", mission_specialist_node)
 
 # Add edges - define all possible paths
-graph_builder.add_edge(START, "supervisor_node")
+graph_builder.add_edge(START, "mission_specialist_node")
 
 # Supervisor can go to either asset search or END
 

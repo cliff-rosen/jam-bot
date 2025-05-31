@@ -42,8 +42,9 @@ async def chat_stream(chat_request: ChatRequest):
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
+                available_assets=available_assets,
+                tool_params={},
                 next_node="supervisor_node",
-                available_assets=available_assets
             )
             
             # Run the graph

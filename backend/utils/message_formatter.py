@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission
 
-def format_messages_for_openai(messages: List[Message]) -> List[Dict[str, str]]:
+def format_messages_for_openai(messages: List[Any]) -> List[Dict[str, str]]:
     """
     Convert a list of Message objects to OpenAI API format.
     
@@ -15,12 +15,22 @@ def format_messages_for_openai(messages: List[Message]) -> List[Dict[str, str]]:
     """
     openai_messages = []
     for msg in messages:
-        if msg.role == MessageRole.USER:
-            openai_messages.append({"role": "user", "content": msg.content})
-        elif msg.role == MessageRole.ASSISTANT:
-            openai_messages.append({"role": "assistant", "content": msg.content})
-        elif msg.role == MessageRole.SYSTEM:
-            openai_messages.append({"role": "system", "content": msg.content})
+        if isinstance(msg, (HumanMessage, AIMessage, SystemMessage)):
+            # Handle LangChain message types
+            if isinstance(msg, HumanMessage):
+                openai_messages.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, AIMessage):
+                openai_messages.append({"role": "assistant", "content": msg.content})
+            elif isinstance(msg, SystemMessage):
+                openai_messages.append({"role": "system", "content": msg.content})
+        else:
+            # Handle our own Message type
+            if msg.role == MessageRole.USER:
+                openai_messages.append({"role": "user", "content": msg.content})
+            elif msg.role == MessageRole.ASSISTANT:
+                openai_messages.append({"role": "assistant", "content": msg.content})
+            elif msg.role == MessageRole.SYSTEM:
+                openai_messages.append({"role": "system", "content": msg.content})
     
     return openai_messages
 

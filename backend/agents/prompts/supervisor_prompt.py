@@ -4,6 +4,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from schemas.chat import Message, MessageRole
 from .base_prompt import BasePrompt
+from utils.message_formatter import (
+    format_langchain_messages, 
+    format_messages_for_openai,
+    format_assets,
+    format_mission
+)
 
 class ToolCall(BaseModel):
     """Structure for tool calls"""
@@ -87,34 +93,12 @@ Always consider the mission's goal and success criteria when determining how to 
         available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
-        # Format available assets into a readable string
-        assets_str = "No assets available"
-        if available_assets:
-            assets_str = "\n".join([
-                f"- {asset.get('name', 'Unnamed')} (ID: {asset.get('id', 'unknown')}): {asset.get('description', 'No description')}"
-                for asset in available_assets
-            ])
-
-        # Format mission into a readable string
-        mission_str = f"""Goal: {mission.goal}
-Success Criteria:
-{mission.success_criteria}
-
-Inputs Required:
-{mission.inputs}
-
-Expected Outputs:
-{mission.outputs}"""
+        # Format available assets and mission using utility functions
+        assets_str = format_assets(available_assets)
+        mission_str = format_mission(mission)
 
         # Convert messages to langchain message format
-        langchain_messages = []
-        for msg in messages:
-            if msg.role == MessageRole.USER:
-                langchain_messages.append(HumanMessage(content=msg.content))
-            elif msg.role == MessageRole.ASSISTANT:
-                langchain_messages.append(AIMessage(content=msg.content))
-            elif msg.role == MessageRole.SYSTEM:
-                langchain_messages.append(SystemMessage(content=msg.content))
+        langchain_messages = format_langchain_messages(messages)
 
         # Get the format instructions from the base class
         format_instructions = self.parser.get_format_instructions()
@@ -129,13 +113,4 @@ Expected Outputs:
         )
 
         # Convert langchain messages to OpenAI format
-        openai_messages = []
-        for msg in formatted_messages:
-            if isinstance(msg, SystemMessage):
-                openai_messages.append({"role": "system", "content": msg.content})
-            elif isinstance(msg, HumanMessage):
-                openai_messages.append({"role": "user", "content": msg.content})
-            elif isinstance(msg, AIMessage):
-                openai_messages.append({"role": "assistant", "content": msg.content})
-
-        return openai_messages 
+        return format_messages_for_openai(formatted_messages) 

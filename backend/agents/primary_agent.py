@@ -219,7 +219,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
-            "mission": state.mission,
+            "mission": parsed_response.mission_proposal,
             "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,

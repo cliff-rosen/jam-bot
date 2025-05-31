@@ -63,6 +63,7 @@ Available tools:
      - Specify any constraints or preferences mentioned by the user
      - Request specific outputs like a step-by-step plan, timeline, or resource requirements
      - ALWAYS provide a response_text explaining that you're forwarding their request to create a mission plan
+     - When the mission specialist is done the result will be added to the conversation history and the conversation will be sent back to you. You should then summarize the result in your response_text for the user in a FINAL ANSWER
 
 Current Mission:
 {mission}

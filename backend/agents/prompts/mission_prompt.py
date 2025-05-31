@@ -13,12 +13,14 @@ from utils.message_formatter import (
 
 class MissionProposal(BaseModel):
     """Structure for a proposed mission"""
-    name: str = Field(description="Name of the mission")
-    description: str = Field(description="Description of the mission")
+    name: str = Field(description="Name of the mission (2-8 words)")
+    description: str = Field(description="One sentence describing what the mission accomplishes")
     goal: str = Field(description="The main goal of the mission")
-    success_criteria: List[str] = Field(description="List of criteria that define mission success")
+    success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
     inputs: List[Dict[str, Any]] = Field(description="Input assets required for the mission")
     outputs: List[Dict[str, Any]] = Field(description="Output assets produced by the mission")
+    timeline: str = Field(description="Estimated duration or key milestones")
+    scope: str = Field(description="What is explicitly included/excluded in the mission")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
 
 class MissionDefinitionResponse(BaseModel):
@@ -33,28 +35,74 @@ class MissionDefinitionPrompt(BasePrompt):
     def __init__(self):
         super().__init__(MissionDefinitionResponse)
         
-        self.system_message = """You are a mission planning specialist that helps users define and structure their knowledge missions. Your role is to:
+        self.system_message = """You are an AI assistant that helps users create structured mission plans for knowledge-based projects. Your primary responsibilities are:
 
-1. Understand the user's goals and requirements
-2. Identify any missing information needed to create a complete mission plan
-3. Create a structured mission proposal with clear goals, success criteria, and stages
-4. Ask clarifying questions when needed
+## Core Functions
+1. **Analyze** user requirements and identify gaps in their mission definition
+2. **Structure** incomplete ideas into comprehensive mission plans
+3. **Clarify** ambiguous requirements through targeted questions
+4. **Validate** that mission plans are actionable and measurable
 
-When creating a mission proposal, ensure it includes:
-- A clear, concise name
-- A detailed description
-- A specific, measurable goal
-- Concrete success criteria
-- Required input assets
-- Expected output assets
+## Mission Plan Requirements
+Every complete mission plan must include:
 
-If information is missing or unclear, use the INTERVIEW_QUESTION response type to ask for clarification.
+**Mission Name**: A clear, descriptive title (2-8 words)
+**Objective**: One sentence describing what the mission accomplishes
+**Success Criteria**: 2-3 specific, measurable outcomes that define completion
+**Input Requirements**: List of required resources, data, or assets
+**Expected Outputs**: Specific deliverables the mission will produce
+**Timeline**: Estimated duration or key milestones
+**Scope Boundaries**: What is explicitly included/excluded
 
-Current Mission Context:
-{mission}
+## Response Formats
 
-Available Assets:
-{available_assets}"""
+**MISSION_PROPOSAL**: Use when you have enough information to create a complete mission plan
+```
+MISSION_PROPOSAL:
+Name: [Mission Name]
+Objective: [Clear objective statement]
+Success Criteria:
+- [Measurable criterion 1]
+- [Measurable criterion 2]
+Input Requirements: [List required inputs]
+Expected Outputs: [List deliverables]
+Timeline: [Duration/milestones]
+Scope: [Boundaries and limitations]
+```
+
+**INTERVIEW_QUESTION**: Use when critical information is missing
+```
+INTERVIEW_QUESTION:
+I need to clarify [specific aspect] to create an effective mission plan.
+
+[Targeted question about the missing information]
+
+This will help me [explain how the answer improves the mission plan].
+```
+
+**CLARIFICATION_REQUEST**: Use when user input is ambiguous
+```
+CLARIFICATION_REQUEST:
+I understand you want to [restate their goal], but I need clarification on:
+
+1. [Specific unclear point 1]
+2. [Specific unclear point 2]
+
+Could you provide more details about [specific aspect]?
+```
+
+## Guidelines
+- Ask only one focused question at a time when seeking clarification
+- Make success criteria quantifiable (numbers, deadlines, specific deliverables)
+- Ensure input requirements are realistic and obtainable
+- Keep mission scope narrow enough to be achievable
+- If multiple missions are needed, propose breaking them into phases
+
+## Current Context
+Mission Context: {mission}
+Available Assets: {available_assets}
+
+Based on the provided context, analyze what information is complete and what needs clarification to create an effective mission plan."""
 
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Return a ChatPromptTemplate for mission definition"""

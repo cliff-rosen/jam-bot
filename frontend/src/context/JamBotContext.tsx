@@ -158,7 +158,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        // Return the token content for accumulation
+        if (data.payload?.mission) {
+            dispatch({ type: 'SET_MISSION', payload: data.payload.mission });
+        }
+
         return token;
 
     }, [addMessage, updateStreamingMessage, addPayloadHistory]);

@@ -13,6 +13,8 @@ class WorkflowStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    HOP_DESIGN = "hop_design"  # Need to design the next hop
+    HOP_IMPLEMENTATION = "hop_implementation"  # Hop is designed, needs implementation
 
 
 class StateVariableType(str, Enum):
@@ -21,6 +23,20 @@ class StateVariableType(str, Enum):
     PRIMITIVE = "primitive"  # Basic type (string, number, boolean)
     OBJECT = "object"  # Complex object
     COLLECTION = "collection"  # Array or map of other types
+
+
+class Hop(BaseModel):
+    """Represents a single hop in the mission execution"""
+    id: str = Field(description="Unique identifier for the hop")
+    name: str = Field(description="Name of the hop")
+    description: str = Field(description="Description of what this hop accomplishes")
+    input_assets: List[str] = Field(description="IDs of input assets for this hop")
+    output_asset: Asset = Field(description="The output asset this hop will produce")
+    is_final: bool = Field(default=False, description="Whether this hop produces the final deliverable")
+    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
+    tool_configuration: Optional[Dict[str, Any]] = Field(default=None, description="Tool configuration for implementation")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class StateVariable(BaseModel):
@@ -111,6 +127,8 @@ class Mission(BaseModel):
     outputs: List[Asset] = Field(description="Output assets produced by the mission")
     status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
     workflows: List[Workflow] = Field(default_factory=list)
+    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or implemented")
+    completed_hops: List[Hop] = Field(default_factory=list, description="List of completed hops")
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow) 

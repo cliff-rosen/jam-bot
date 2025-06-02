@@ -14,14 +14,15 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, WorkflowStatus
+from schemas.workflow import Mission, WorkflowStatus, Hop
 from schemas.asset import Asset
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
 
 from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
-from agents.prompts.workflow_prompt import WorkflowDefinitionPrompt, WorkflowDefinitionResponse
+from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
+from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -68,6 +69,7 @@ class State(BaseModel):
     available_assets: List[Dict[str, Any]] = []
     tool_params: Dict[str, Any] = {}
     next_node: str
+    current_hop: Optional[Hop] = None
   
     class Config:
         arbitrary_types_allowed = True
@@ -97,10 +99,15 @@ def serialize_state(state: State) -> dict:
     if mission_dict:
         mission_dict = convert_datetime(mission_dict)
     
+    current_hop_dict = state.current_hop.model_dump() if state.current_hop else None
+    if current_hop_dict:
+        current_hop_dict = convert_datetime(current_hop_dict)
+    
     return {
         "messages": messages, 
         "tool_params": state.tool_params,
-        "mission": mission_dict
+        "mission": mission_dict,
+        "current_hop": current_hop_dict
     }
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
@@ -124,15 +131,35 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             next_node = "mission_specialist_node"
             routing_message = "Mission is in pending status. Routing to mission specialist to complete the mission definition."
         elif state.mission.status == WorkflowStatus.READY:
-            # Mission is ready - needs workflow
-            next_node = "workflow_specialist_node"
-            routing_message = "Mission is defined and ready. Routing to workflow specialist to design the workflow."
+            # Mission is ready - update status to HOP_DESIGN and route to hop designer
+            state.mission.status = WorkflowStatus.HOP_DESIGN
+            next_node = "hop_designer_node"
+            routing_message = "Mission is defined and ready. Routing to hop designer to plan the next step."
+        elif state.mission.status == WorkflowStatus.HOP_DESIGN:
+            # Need to design a hop
+            next_node = "hop_designer_node"
+            routing_message = "Routing to hop designer to plan the next step toward completing the mission."
+        elif state.mission.status == WorkflowStatus.HOP_IMPLEMENTATION:
+            # Hop is designed, needs implementation
+            if state.current_hop and state.current_hop.status == WorkflowStatus.PENDING:
+                next_node = "hop_implementer_node"
+                routing_message = "Hop has been designed. Routing to hop implementer to configure the tools."
+            else:
+                # Hop might be completed, go back to design phase
+                state.mission.status = WorkflowStatus.HOP_DESIGN
+                next_node = "hop_designer_node"
+                routing_message = "Previous hop completed. Routing to hop designer for the next step."
         elif state.mission.status == WorkflowStatus.IN_PROGRESS:
-            # Mission is in progress - could route to execution or monitoring
-            next_node = "workflow_specialist_node"  # For now, go to workflow specialist
-            routing_message = "Mission is in progress. Routing to workflow specialist for workflow updates."
+            # Mission is in progress - check if we need more hops
+            state.mission.status = WorkflowStatus.HOP_DESIGN
+            next_node = "hop_designer_node"
+            routing_message = "Mission is in progress. Routing to hop designer to plan the next step."
+        elif state.mission.status == WorkflowStatus.COMPLETED:
+            # Mission completed
+            next_node = END
+            routing_message = "Mission has been completed successfully!"
         else:
-            # Default case - end or handle completed/failed missions
+            # Default case - end or handle failed missions
             next_node = END
             routing_message = f"Mission status is {state.mission.status}. No further routing needed."
 
@@ -149,7 +176,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "available_assets": state.available_assets
+            "available_assets": state.available_assets,
+            "current_hop": state.current_hop
         }
 
         # Stream response and return command
@@ -361,6 +389,227 @@ async def workflow_specialist_node(state: State, writer: StreamWriter, config: D
             })
         raise
 
+async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+    """Node that handles hop designer operations"""
+    print("Hop designer node")
+
+    if writer:
+        writer({
+            "status": "hop_designer_starting",
+            "payload": serialize_state(state)
+        })
+    
+    try:
+        # Create and format the prompt
+        prompt = HopDesignerPrompt()
+        formatted_messages = prompt.get_formatted_messages(
+            messages=state.messages,
+            mission=state.mission,
+            available_assets=state.available_assets,
+            completed_hops=state.mission.completed_hops if state.mission else []
+        )
+        schema = prompt.get_schema()
+
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=formatted_messages,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {    
+                    "schema": schema,
+                    "name": prompt.get_response_model_name()
+                }
+            }
+        )   
+        
+        response_text = response.choices[0].message.content
+        parsed_response = prompt.parse_response(response_text)
+        print("================================================")
+        print("Parsed hop design response:", parsed_response)
+
+        if parsed_response.hop_proposal:
+            # Convert hop proposal to Hop object
+            hop_proposal = parsed_response.hop_proposal
+            new_hop = Hop(
+                id=str(uuid.uuid4()),
+                name=hop_proposal.name,
+                description=hop_proposal.description,
+                input_assets=hop_proposal.input_assets,
+                output_asset=convert_asset_lite_to_asset(hop_proposal.output_asset),
+                is_final=hop_proposal.is_final,
+                status=WorkflowStatus.PENDING
+            )
+            
+            # Update state with new hop
+            state.current_hop = new_hop
+            state.mission.current_hop = new_hop
+            state.mission.status = WorkflowStatus.HOP_IMPLEMENTATION
+
+        response_message = Message(
+            id=str(uuid.uuid4()),
+            role=MessageRole.ASSISTANT,
+            content=parsed_response.response_content,
+            timestamp=datetime.now().isoformat()
+        )
+
+        # Route back to supervisor
+        next_node = "supervisor_node"
+
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "available_assets": state.available_assets,
+            "tool_params": {},
+            "next_node": next_node,
+            "current_hop": state.current_hop
+        }
+
+        if writer:
+            agent_response = AgentResponse(
+                token=response_message.content[0:100],
+                response_text=parsed_response.response_content,
+                status="hop_designer_completed",
+                error=None,
+                debug=f"Hop designed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}",
+                payload=serialize_state(State(**state_update))
+            )
+
+            writer(agent_response.model_dump())
+
+        return Command(goto=next_node, update=state_update)
+
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print("Error in hop designer node:", error_traceback)
+        if writer:
+            writer({
+                "status": "error",
+                "error": str(e),
+                "state": serialize_state(state),
+                "debug": error_traceback,
+            })
+        raise
+
+async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+    """Node that handles hop implementer operations"""
+    print("Hop implementer node")
+
+    if writer:
+        writer({
+            "status": "hop_implementer_starting",
+            "payload": serialize_state(state)
+        })
+    
+    try:
+        if not state.current_hop:
+            raise ValueError("No current hop to implement")
+
+        # Create and format the prompt
+        prompt = HopImplementerPrompt()
+        formatted_messages = prompt.get_formatted_messages(
+            messages=state.messages,
+            mission=state.mission,
+            current_hop=state.current_hop,
+            available_assets=state.available_assets
+        )
+        schema = prompt.get_schema()
+
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=formatted_messages,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {    
+                    "schema": schema,
+                    "name": prompt.get_response_model_name()
+                }
+            }
+        )   
+        
+        response_text = response.choices[0].message.content
+        parsed_response = prompt.parse_response(response_text)
+        print("================================================")
+        print("Parsed hop implementation response:", parsed_response)
+
+        if parsed_response.implementation:
+            # Store the tool configuration in the hop
+            implementation = parsed_response.implementation
+            state.current_hop.tool_configuration = {
+                "tool_steps": [step.model_dump() for step in implementation.tool_steps],
+                "error_handling": implementation.error_handling,
+                "validation_checks": implementation.validation_checks
+            }
+            state.current_hop.status = WorkflowStatus.READY
+            
+            # For now, mark hop as completed and add to completed hops
+            # In a real implementation, this would trigger actual tool execution
+            state.current_hop.status = WorkflowStatus.COMPLETED
+            state.mission.completed_hops.append(state.current_hop)
+            
+            # Add the output asset to available assets
+            output_asset = state.current_hop.output_asset
+            state.available_assets.append(output_asset.model_dump())
+            
+            # Check if mission is complete (before clearing current_hop)
+            is_final_hop = state.current_hop.is_final
+            
+            # Clear current hop and update mission status
+            state.current_hop = None
+            state.mission.current_hop = None
+            
+            # Update mission status based on whether this was the final hop
+            if is_final_hop:
+                state.mission.status = WorkflowStatus.COMPLETED
+            else:
+                state.mission.status = WorkflowStatus.HOP_DESIGN
+
+        response_message = Message(
+            id=str(uuid.uuid4()),
+            role=MessageRole.ASSISTANT,
+            content=parsed_response.response_content,
+            timestamp=datetime.now().isoformat()
+        )
+
+        # Route back to supervisor
+        next_node = "supervisor_node"
+
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "available_assets": state.available_assets,
+            "tool_params": {},
+            "next_node": next_node,
+            "current_hop": state.current_hop
+        }
+
+        if writer:
+            agent_response = AgentResponse(
+                token=response_message.content[0:100],
+                response_text=parsed_response.response_content,
+                status="hop_implementer_completed",
+                error=None,
+                debug=f"Hop implemented: {state.current_hop.name if state.current_hop else 'Hop completed'}",
+                payload=serialize_state(State(**state_update))
+            )
+
+            writer(agent_response.model_dump())
+
+        return Command(goto=next_node, update=state_update)
+
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print("Error in hop implementer node:", error_traceback)
+        if writer:
+            writer({
+                "status": "error",
+                "error": str(e),
+                "state": serialize_state(state),
+                "debug": error_traceback,
+            })
+        raise
+
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles asset search operations"""
     print("================================================")
@@ -449,7 +698,8 @@ graph_builder = StateGraph(State)
 graph_builder.add_node("supervisor_node", supervisor_node)
 graph_builder.add_node("asset_search_node", asset_search_node)
 graph_builder.add_node("mission_specialist_node", mission_specialist_node)
-graph_builder.add_node("workflow_specialist_node", workflow_specialist_node)
+graph_builder.add_node("hop_designer_node", hop_designer_node)
+graph_builder.add_node("hop_implementer_node", hop_implementer_node)
 
 # Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")

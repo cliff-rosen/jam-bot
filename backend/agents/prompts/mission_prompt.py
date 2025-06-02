@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission, Asset
+from schemas.asset import AssetType, CollectionType
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,
@@ -11,14 +12,26 @@ from utils.message_formatter import (
     format_mission
 )
 
+class AssetLite(BaseModel):
+    """Simplified asset definition for mission proposals"""
+    name: str = Field(description="Name of the asset")
+    description: str = Field(description="Clear description of what this asset contains")
+    type: AssetType = Field(description="Type of asset (file, primitive, object, database_entity)")
+    subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email')")
+    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items")
+    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true")
+    required: bool = Field(default=True, description="Whether this asset is required for the mission")
+    schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
+    example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
+    
 class MissionProposal(BaseModel):
     """Structure for a proposed mission"""
     name: str = Field(description="Name of the mission (2-8 words)")
     description: str = Field(description="One sentence describing what the mission accomplishes")
     goal: str = Field(description="The main goal of the mission")
     success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
-    inputs: List[Dict[str, Any]] = Field(description="Input assets required for the mission")
-    outputs: List[Dict[str, Any]] = Field(description="Output assets produced by the mission")
+    inputs: List[AssetLite] = Field(description="Input assets required for the mission")
+    outputs: List[AssetLite] = Field(description="Output assets produced by the mission")
     scope: str = Field(description="What is explicitly included/excluded in the mission")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
 
@@ -52,6 +65,47 @@ The system has these general capabilities available for mission execution:
 
 Consider these capabilities when assessing mission feasibility, but don't design detailed workflows at this stage.
 
+## Understanding Input Assets
+When defining a mission, ALL inputs should be represented as assets. Common input asset types include:
+
+### 1. Query/Question Assets
+- The primary question or query driving the mission
+- Type: Usually PRIMITIVE or OBJECT
+- Example: "What are the top AI breakthroughs in healthcare this month?"
+
+### 2. Configuration Parameter Assets
+- Settings that control how the mission executes
+- Type: PRIMITIVE or OBJECT
+- Examples:
+  - Location parameters (city, radius, coordinates)
+  - Filter criteria (ratings, price range, categories)
+  - Time constraints (date ranges, deadlines)
+  - Quality thresholds (minimum confidence, accuracy levels)
+
+### 3. Reference Data Assets
+- Existing data to use as context or for comparison
+- Type: Can be any type (FILE, OBJECT, DATABASE_ENTITY)
+- Examples:
+  - Previous reports for trend analysis
+  - Benchmark datasets
+  - Template documents
+
+### 4. Constraint/Filter Assets
+- Rules and boundaries for the mission
+- Type: Usually OBJECT
+- Examples:
+  - Inclusion/exclusion lists
+  - Regulatory compliance rules
+  - Budget limitations
+
+### 5. Processing Instruction Assets
+- Specific methods or approaches to use
+- Type: PRIMITIVE or OBJECT
+- Examples:
+  - Analysis methodology preferences
+  - Output format specifications
+  - Workflow preferences
+
 ## Mission Validation Requirements
 Before proposing any mission, ensure it meets these essential conditions:
 
@@ -81,8 +135,8 @@ Every complete mission plan must include:
 **Mission Name**: A clear, descriptive title (2-8 words)
 **Objective**: One sentence describing what the mission accomplishes
 **Success Criteria**: 2-3 specific, measurable outcomes that define completion
-**Input Requirements**: List of required resources, data, or assets
-**Expected Outputs**: Specific deliverables the mission will produce
+**Input Requirements**: List of required resources, data, or assets (properly structured as AssetLite objects)
+**Expected Outputs**: Specific deliverables the mission will produce (properly structured as AssetLite objects)
 **Scope Boundaries**: What is explicitly included/excluded
 
 ## Response Formats
@@ -95,8 +149,8 @@ Objective: [Clear objective statement]
 Success Criteria:
 - [Measurable criterion 1]
 - [Measurable criterion 2]
-Input Requirements: [List required inputs]
-Expected Outputs: [List deliverables]
+Input Requirements: [List required inputs as AssetLite structures]
+Expected Outputs: [List deliverables as AssetLite structures]
 Scope: [Boundaries and limitations]
 ```
 
@@ -117,6 +171,7 @@ This will help me [explain how the answer improves the mission plan].
 - Keep mission scope narrow enough to be achievable
 - Verify the mission is technically feasible given available tool categories
 - If multiple missions are needed, propose breaking them into phases
+- Always structure inputs and outputs as proper AssetLite objects with clear types and descriptions
 
 ## Current Context
 Mission Context: {mission}

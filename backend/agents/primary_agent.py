@@ -15,6 +15,8 @@ from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission
+from schemas.asset import Asset
+from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
 
@@ -32,6 +34,32 @@ SYSTEM_MESSAGE = """
 You are a helpful assistant named Jack that can answer question.
 """
 
+def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
+    """Convert an AssetLite object to a full Asset object"""
+    current_time = datetime.utcnow()
+    
+    return Asset(
+        id=str(uuid.uuid4()),  # Generate new ID
+        name=asset_lite.name,
+        description=asset_lite.description,
+        type=asset_lite.type,
+        subtype=asset_lite.subtype,
+        is_collection=asset_lite.is_collection,
+        collection_type=asset_lite.collection_type,
+        content=asset_lite.example_value,  # Use example as initial content
+        asset_metadata={
+            "created_at": current_time.isoformat(),
+            "updated_at": current_time.isoformat(),
+            "creator": "mission_specialist",
+            "tags": [],
+            "agent_associations": [],
+            "version": 1,
+            "token_count": 0,
+            "required": asset_lite.required,
+            "schema_description": asset_lite.schema_description,
+            "source": "mission_proposal"
+        }
+    )
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -221,8 +249,16 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission.description = parsed_response.mission_proposal.description
             state.mission.goal = parsed_response.mission_proposal.goal
             state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
-            state.mission.inputs = parsed_response.mission_proposal.inputs
-            state.mission.outputs = parsed_response.mission_proposal.outputs
+            
+            # Convert AssetLite objects to full Asset objects
+            state.mission.inputs = [
+                convert_asset_lite_to_asset(asset_lite) 
+                for asset_lite in parsed_response.mission_proposal.inputs
+            ]
+            state.mission.outputs = [
+                convert_asset_lite_to_asset(asset_lite) 
+                for asset_lite in parsed_response.mission_proposal.outputs
+            ]
 
         response_message = Message(
             id=str(uuid.uuid4()),

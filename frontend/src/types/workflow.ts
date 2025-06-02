@@ -98,10 +98,9 @@ export const defaultMission: Mission = {
     description: "This is a description of the mission.",
     goal: "This is the goal of the mission.",
     success_criteria: ["This is the success criteria of the mission."],
-    inputs: [
-    ],
-    outputs: [
-    ],
+    inputs: [],
+    outputs: [],
+    possible_stage_sequence: [],
     status: WorkflowStatus.PENDING,
     workflows: [],
     metadata: {},
@@ -124,7 +123,15 @@ export const defaultMission2: Mission = {
             type: AssetType.PRIMITIVE,
             is_collection: false,
             content: null,
-            asset_metadata: {},
+            asset_metadata: {
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                creator: null,
+                tags: [],
+                agent_associations: [],
+                version: 1,
+                token_count: 0
+            },
         }
     ],
     outputs: [
@@ -135,9 +142,18 @@ export const defaultMission2: Mission = {
             type: AssetType.FILE,
             is_collection: false,
             content: null,
-            asset_metadata: {},
+            asset_metadata: {
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                creator: null,
+                tags: [],
+                agent_associations: [],
+                version: 1,
+                token_count: 0
+            },
         }
     ],
+    possible_stage_sequence: [],
     status: WorkflowStatus.READY,
     workflows: [],
     metadata: {},

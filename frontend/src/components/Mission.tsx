@@ -1,5 +1,6 @@
 import React from 'react';
 import { useJamBot } from '@/context/JamBotContext';
+import { FileText } from 'lucide-react';
 
 interface MissionProps {
     className?: string;
@@ -9,7 +10,8 @@ export default function Mission({
     className = ''
 }: MissionProps) {
     const {
-        state
+        state,
+        setCollabArea
     } = useJamBot();
 
     const mission = state.mission || {
@@ -19,6 +21,8 @@ export default function Mission({
         inputs: [],
         outputs: []
     };
+
+    const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.status === 'pending';
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -76,7 +80,16 @@ export default function Mission({
 
                 {/* Right Column - Status, Inputs, Outputs */}
                 <div className="space-y-1">
-                    <div className="flex justify-end">
+                    <div className="flex justify-end items-center gap-2">
+                        {hasPendingProposal && (
+                            <button
+                                onClick={() => setCollabArea('mission-proposal', state.collabArea.content)}
+                                className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                            >
+                                <FileText className="w-3 h-3" />
+                                View Proposal
+                            </button>
+                        )}
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.status)}`}>
                             {getStatusText(mission.status)}
                         </span>

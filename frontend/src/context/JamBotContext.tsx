@@ -22,7 +22,8 @@ type JamBotAction =
     | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
     | { type: 'SET_ASSETS'; payload: Asset[] }
     | { type: 'SET_MISSION'; payload: Mission }
-    | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> };
+    | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
+    | { type: 'ACCEPT_MISSION_PROPOSAL' };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -68,6 +69,18 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 payload_history: [...state.payload_history, action.payload]
             };
+        case 'ACCEPT_MISSION_PROPOSAL':
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    status: WorkflowStatus.READY
+                },
+                collabArea: {
+                    type: 'default',
+                    content: null
+                }
+            };
         default:
             return state;
     }
@@ -80,6 +93,7 @@ const JamBotContext = createContext<{
     sendMessage: (message: ChatMessage) => void;
     setCollabArea: (type: CollabAreaState['type'], content?: any) => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
+    acceptMissionProposal: () => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -111,6 +125,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const addPayloadHistory = useCallback((payload: Record<string, any>) => {
         dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
+    }, []);
+
+    const acceptMissionProposal = useCallback(() => {
+        dispatch({ type: 'ACCEPT_MISSION_PROPOSAL' });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -153,13 +171,24 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             if (data.payload) {
                 newCollabAreaContent = data.payload;
 
-                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+                // Check if this is a mission proposal (status was mission_specialist_completed)
+                const isMissionProposal = data.status === 'mission_specialist_completed' &&
+                    typeof data.payload === 'object' &&
+                    data.payload !== null &&
+                    'mission' in data.payload;
+
+                if (isMissionProposal) {
+                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
+                } else {
+                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+                }
+
                 addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
             }
         }
 
-        if (data.payload?.mission) {
-            dispatch({ type: 'SET_MISSION', payload: data.payload.mission });
+        if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
+            dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
         }
 
         return token;
@@ -222,7 +251,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             updateStreamingMessage,
             sendMessage,
             setCollabArea,
-            addPayloadHistory
+            addPayloadHistory,
+            acceptMissionProposal
         }}>
             {children}
         </JamBotContext.Provider>

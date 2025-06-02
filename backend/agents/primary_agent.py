@@ -223,11 +223,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
             state.mission.inputs = parsed_response.mission_proposal.inputs
             state.mission.outputs = parsed_response.mission_proposal.outputs
-            state.mission.metadata = {
-                **state.mission.metadata,
-                "timeline": parsed_response.mission_proposal.timeline,
-                "scope": parsed_response.mission_proposal.scope
-            }
 
         response_message = Message(
             id=str(uuid.uuid4()),

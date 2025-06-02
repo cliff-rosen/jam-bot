@@ -53,6 +53,6 @@ export const getCollabAreaData2 = async () => {
 }
 
 export interface CollabAreaState {
-    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object';
+    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal';
     content: any;
 }

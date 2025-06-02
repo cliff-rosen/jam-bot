@@ -19,7 +19,6 @@ class MissionProposal(BaseModel):
     success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
     inputs: List[Dict[str, Any]] = Field(description="Input assets required for the mission")
     outputs: List[Dict[str, Any]] = Field(description="Output assets produced by the mission")
-    timeline: str = Field(description="Estimated duration or key milestones")
     scope: str = Field(description="What is explicitly included/excluded in the mission")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
 
@@ -35,7 +34,7 @@ class MissionDefinitionPrompt(BasePrompt):
     def __init__(self):
         super().__init__(MissionDefinitionResponse)
         
-        self.system_message = """You are an AI assistant that helps users create structured mission plans for knowledge-based projects. Your primary responsibilities are:
+        self.system_message = """You are an AI assistant that helps users create structured mission definitions for knowledge-based projects. Your primary responsibilities are:
 
 ## Core Functions
 1. **Analyze** user requirements and identify gaps in their mission definition
@@ -53,6 +52,29 @@ The system has these general capabilities available for mission execution:
 
 Consider these capabilities when assessing mission feasibility, but don't design detailed workflows at this stage.
 
+## Mission Validation Requirements
+Before proposing any mission, ensure it meets these essential conditions:
+
+1. **Clearly Defined Information Asset Output**: The mission must produce a specific, well-defined information asset as its primary output. This must include:
+   - Exact format specification (e.g., JSON schema, CSV structure, PDF report template)
+   - Content requirements and data fields
+   - Quality criteria and validation rules
+   - Delivery format and access method
+
+2. **Clearly Defined Input Sources**: The mission must identify specific inputs that will drive the transformation process:
+   - Source data locations and types
+   - Required access permissions or credentials
+   - Data quality expectations and preprocessing needs
+   - Input validation criteria
+
+3. **Available Tools and Resources**: The transformation from inputs to outputs must be achievable with available system capabilities:
+   - Required tool categories are available in the system
+   - No dependency on unavailable external services or specialized tools
+   - Computational and storage requirements are reasonable
+   - Timeline is realistic given available resources
+
+If any of these conditions cannot be met with the available information, ask clarifying questions before proposing a mission.
+
 ## Mission Plan Requirements
 Every complete mission plan must include:
 
@@ -61,7 +83,6 @@ Every complete mission plan must include:
 **Success Criteria**: 2-3 specific, measurable outcomes that define completion
 **Input Requirements**: List of required resources, data, or assets
 **Expected Outputs**: Specific deliverables the mission will produce
-**Timeline**: Estimated duration or key milestones
 **Scope Boundaries**: What is explicitly included/excluded
 
 ## Response Formats
@@ -76,7 +97,6 @@ Success Criteria:
 - [Measurable criterion 2]
 Input Requirements: [List required inputs]
 Expected Outputs: [List deliverables]
-Timeline: [Duration/milestones]
 Scope: [Boundaries and limitations]
 ```
 

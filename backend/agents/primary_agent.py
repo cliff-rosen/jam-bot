@@ -14,14 +14,14 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission
+from schemas.workflow import Mission, WorkflowStatus
 from schemas.asset import Asset
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
 
-from agents.prompts.supervisor_prompt import SupervisorPrompt, SupervisorResponse
 from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
+from agents.prompts.workflow_prompt import WorkflowDefinitionPrompt, WorkflowDefinitionResponse
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -104,52 +104,45 @@ def serialize_state(state: State) -> dict:
     }
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Supervisor node that either answers directly or routes to specialists"""
-    print("Supervisor")
+    """Supervisor node that routes based on mission status"""
+    print("Supervisor - Routing based on mission status")
     
     if writer:
         writer({
-            "status": "supervisor_request",
+            "status": "supervisor_routing",
             "payload": serialize_state(state)
         })
 
     try:
-        # Create and format the prompt from the messages and payload
-        prompt = SupervisorPrompt()
-        formatted_messages = prompt.get_formatted_messages(
-            messages=state.messages,
-            mission=state.mission,
-            available_assets=state.available_assets
-        )
-        schema = prompt.get_schema()
-        
-        # Use OpenAI responses API with vector store integration
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=formatted_messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "schema": schema,
-                    "name": prompt.get_response_model_name()
-                }
-            },
-            temperature=0.0
-        )
-                   
-        # Extract JSON content from between code blocks if present
-        response_text = response.choices[0].message.content
-        parsed_response = prompt.parse_response(response_text)
+        # Simple routing logic based on mission status
+        if not state.mission:
+            # No mission exists - create one
+            next_node = "mission_specialist_node"
+            routing_message = "No mission defined yet. Routing to mission specialist to help define your mission."
+        elif state.mission.status == WorkflowStatus.PENDING:
+            # Mission is pending - needs definition
+            next_node = "mission_specialist_node"
+            routing_message = "Mission is in pending status. Routing to mission specialist to complete the mission definition."
+        elif state.mission.status == WorkflowStatus.READY:
+            # Mission is ready - needs workflow
+            next_node = "workflow_specialist_node"
+            routing_message = "Mission is defined and ready. Routing to workflow specialist to design the workflow."
+        elif state.mission.status == WorkflowStatus.IN_PROGRESS:
+            # Mission is in progress - could route to execution or monitoring
+            next_node = "workflow_specialist_node"  # For now, go to workflow specialist
+            routing_message = "Mission is in progress. Routing to workflow specialist for workflow updates."
+        else:
+            # Default case - end or handle completed/failed missions
+            next_node = END
+            routing_message = f"Mission status is {state.mission.status}. No further routing needed."
 
-        # Create a response message
+        # Create a simple routing message
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
-            content=parsed_response.response_text,
+            content=routing_message,
             timestamp=datetime.now().isoformat()
         )
-
-        next_node = END
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
@@ -159,39 +152,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "available_assets": state.available_assets
         }
 
-        # Handle tool calls if present        
-        if parsed_response.tool_call:
-            print("Tool call:", parsed_response.tool_call)
-            tool_call = parsed_response.tool_call
-            if tool_call.name == "asset_retrieve":
-                # TODO: Implement asset retrieval
-                pass
-            elif tool_call.name == "asset_search":
-                # Route to asset search node with the query
-                next_node = "asset_search_node"
-                # Add the search parameters to the state update
-                state_update["tool_params"] = {
-                    "asset_id": tool_call.parameters.get("asset_id"),
-                    "query": tool_call.parameters.get("query")
-                }
-                state_update["next_node"] = next_node
-            elif tool_call.name == "mission_specialist":
-                next_node = "mission_specialist_node"
-                state_update["tool_params"] = {
-                    "request_for_mission_specialist": tool_call.parameters.get("request_for_mission_specialist")
-                }
-                state_update["next_node"] = next_node
-            else:
-                raise ValueError(f"Unknown tool call: {tool_call.name}")
-
         # Stream response and return command
         if writer:
             agent_response = AgentResponse(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_text,
-                status="supervisor_completed",
+                token=routing_message,
+                response_text=routing_message,
+                status="supervisor_routing_completed",
                 error=None,
-                debug="hello",
+                debug=f"Routing to: {next_node}",
                 payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
@@ -304,6 +272,95 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             })
         raise
 
+async def workflow_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+    """Node that handles workflow specialist operations"""
+    print("Workflow specialist node")
+
+    if writer:
+        writer({
+            "status": "workflow_specialist_starting",
+            "payload": serialize_state(state)
+        })
+    
+    try:
+        # Create and format the prompt
+        prompt = WorkflowDefinitionPrompt()
+        formatted_messages = prompt.get_formatted_messages(
+            messages=state.messages,
+            mission=state.mission,
+            available_assets=state.available_assets,
+        )
+        schema = prompt.get_schema()
+
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=formatted_messages,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {    
+                    "schema": schema,
+                    "name": prompt.get_response_model_name()
+                }
+            }
+        )   
+        
+        response_text = response.choices[0].message.content
+        parsed_response = prompt.parse_response(response_text)
+        print("================================================")
+        print("Parsed workflow response:", parsed_response)
+
+        if parsed_response.workflow_proposal:
+            # Create a new workflow and add it to the mission
+            workflow_proposal = parsed_response.workflow_proposal
+            
+            # TODO: Convert WorkflowProposal to actual Workflow object
+            # For now, we'll just update the mission status to show workflow planning is in progress
+            state.mission.status = WorkflowStatus.READY  # Update status to indicate workflow is being planned
+
+        response_message = Message(
+            id=str(uuid.uuid4()),
+            role=MessageRole.ASSISTANT,
+            content=parsed_response.response_content,
+            timestamp=datetime.now().isoformat()
+        )
+
+        next_node = END
+
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "available_assets": state.available_assets,
+            "tool_params": {},
+            "next_node": next_node,
+        }
+
+        if writer:
+            agent_response = AgentResponse(
+                token=response_message.content[0:100],
+                response_text=parsed_response.response_content,
+                status="workflow_specialist_completed",
+                error=None,
+                debug="workflow planning complete",
+                payload=serialize_state(State(**state_update))
+            )
+
+            writer(agent_response.model_dump())
+
+        return Command(goto=next_node, update=state_update)
+
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print("Error in workflow specialist node:", error_traceback)
+        if writer:
+            writer({
+                "status": "error",
+                "error": str(e),
+                "state": serialize_state(state),
+                "debug": error_traceback,
+            })
+        raise
+
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles asset search operations"""
     print("================================================")
@@ -318,7 +375,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
     try:
 
         # Get search parameters from state
-        search_params = state.search_params
+        search_params = state.tool_params
         print("Search params:", search_params)  # Debug log
         if not search_params or not search_params.get("query"):
             raise ValueError("No search query provided")
@@ -356,7 +413,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "next_node": next_node,
-            "search_params": state.search_params,
+            "tool_params": state.tool_params,
             "available_assets": state.available_assets
         }
 
@@ -392,11 +449,13 @@ graph_builder = StateGraph(State)
 graph_builder.add_node("supervisor_node", supervisor_node)
 graph_builder.add_node("asset_search_node", asset_search_node)
 graph_builder.add_node("mission_specialist_node", mission_specialist_node)
+graph_builder.add_node("workflow_specialist_node", workflow_specialist_node)
 
 # Add edges - define all possible paths
-graph_builder.add_edge(START, "mission_specialist_node")
+graph_builder.add_edge(START, "supervisor_node")
 
-# Supervisor can go to either asset search or END
+# Supervisor can route to different nodes based on state
+# The supervisor node will use the Command object to determine next node
 
 # Compile the graph with streaming support
 compiled = graph_builder.compile()

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { FileText } from 'lucide-react';
+import { HopStatus } from '@/types/workflow';
 
 interface MissionProps {
     className?: string;
@@ -23,7 +24,14 @@ export default function Mission({
     };
 
     const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.mission_status === 'pending';
-    const hasPendingHopProposal = state.collabArea.type === 'hop-proposal' && mission.hop_status === 'hop_proposed';
+    const hasPendingHopProposal = state.collabArea.type === 'hop-proposal' && mission.hop_status === HopStatus.HOP_PROPOSED;
+
+    console.log('Mission component state:', {
+        collabAreaType: state.collabArea.type,
+        hopStatus: mission.hop_status,
+        expectedHopStatus: HopStatus.HOP_PROPOSED,
+        hasPendingHopProposal
+    });
 
     const getStatusColor = (status: string) => {
         switch (status) {

@@ -196,11 +196,21 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     data.payload !== null &&
                     'mission' in data.payload;
 
-                // Check if this is a hop proposal (status was hop_designer_completed)
-                const isHopProposal = data.status === 'hop_designer_completed' &&
+                // Check if this is a hop proposal - either by status or by having current_hop
+                const isHopProposal = (data.status === 'hop_designer_completed' ||
+                    data.status === 'supervisor_routing_completed') &&
                     typeof data.payload === 'object' &&
                     data.payload !== null &&
-                    'current_hop' in data.payload;
+                    'current_hop' in data.payload &&
+                    data.payload.current_hop !== null;
+
+                console.log('HOP DETECTION DEBUG:', {
+                    status: data.status,
+                    payloadType: typeof data.payload,
+                    hasCurrentHop: typeof data.payload === 'object' && data.payload !== null && 'current_hop' in data.payload,
+                    isHopProposal,
+                    willSetType: isHopProposal ? 'hop-proposal' : 'object'
+                });
 
                 if (isMissionProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });

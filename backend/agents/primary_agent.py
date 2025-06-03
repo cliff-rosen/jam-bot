@@ -14,7 +14,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
+from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
 from schemas.asset import Asset
 from agents.prompts.mission_prompt import AssetLite
 import os

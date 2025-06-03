@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message
 from schemas.workflow import Mission, Asset, Hop
-from schemas.tools import ToolType, TOOL_REGISTRY
+from schemas.tools import ToolType, TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,
@@ -78,14 +78,19 @@ class HopImplementerPrompt(BasePrompt):
    Example:
    ```
    "parameter_mapping": {
-     "query": {
+     "source_type": {
+       "type": "literal",
+       "value": "gmail"  // direct value for tool parameter
+     },
+     "query_criteria": {
        "type": "asset_field",
        "asset": "email_criteria",  // refers to the logical name in input_mapping
-       "path": "content.search_string"  // path within the asset to get the value
+       "path": "content.search_criteria"  // path within the asset to get the value
      },
-     "max_results": {
-       "type": "literal",
-       "value": 50  // direct value, not from an asset
+     "date_range": {
+       "type": "asset_field", 
+       "asset": "date_range",
+       "path": "content"
      }
    }
    ```
@@ -95,8 +100,8 @@ class HopImplementerPrompt(BasePrompt):
    Example:
    ```
    "output_mapping": {
-     "emails": "content.email_list",  // tool's 'emails' output goes to asset's content.email_list
-     "total_count": "metadata.count"   // tool's 'total_count' goes to asset's metadata.count
+     "emails": "content.email_list",  // tool's output goes to asset's content field
+     "total_count": "metadata.count"   // tool output goes to asset's metadata
    }
    ```
 
@@ -111,6 +116,20 @@ class HopImplementerPrompt(BasePrompt):
 3. **Error Handling**: Consider what could go wrong and how to handle it
 4. **Validation**: Include checks to ensure the hop succeeded
 5. **Efficiency**: Use the minimum number of tool steps needed
+
+## Example Workflows
+
+### Gmail Email Analysis:
+1. search_data_source (gmail) → retrieve emails
+2. extract_from_record (llm_prompt) → analyze each email  
+3. group_by_reduce → group by time periods
+4. transform_records → format final report
+
+### Data Processing Pipeline:
+1. search_data_source → get raw data
+2. filter_records → clean data
+3. enrich_records → add computed fields
+4. store_in_database → persist results
 
 ## Response Formats
 
@@ -188,7 +207,7 @@ Based on this context, create a detailed implementation plan for the current hop
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
         # Format tool descriptions
-        tool_descriptions = self._format_tool_descriptions()
+        tool_descriptions = format_tool_descriptions_for_implementation()
         
         # Format available assets and mission
         assets_str = format_assets(available_assets)
@@ -217,24 +236,6 @@ Based on this context, create a detailed implementation plan for the current hop
         # Convert langchain messages to OpenAI format
         return format_messages_for_openai(formatted_messages)
     
-    def _format_tool_descriptions(self) -> str:
-        """Format tool descriptions for the prompt"""
-        descriptions = []
-        for tool_type, tool_def in TOOL_REGISTRY.items():
-            desc = f"### {tool_def.name.value}\n"
-            desc += f"Description: {tool_def.description}\n"
-            desc += "Parameters:\n"
-            for param in tool_def.parameters:
-                desc += f"  - {param.name} ({param.type}): {param.description}"
-                if not param.required:
-                    desc += f" [Optional, default: {param.default}]"
-                desc += "\n"
-            desc += "Outputs:\n"
-            for output in tool_def.outputs:
-                desc += f"  - {output.name} ({output.type}): {output.description}\n"
-            descriptions.append(desc)
-        return "\n".join(descriptions)
-    
     def _format_hop(self, hop: Hop) -> str:
         """Format hop information for the prompt"""
         input_mapping_str = "\n".join([
@@ -242,10 +243,15 @@ Based on this context, create a detailed implementation plan for the current hop
             for param_name, asset_id in hop.input_mapping.items()
         ])
         
+        output_mapping_str = "\n".join([
+            f"  - {local_key}: {external_id}"
+            for local_key, external_id in hop.output_mapping.items()
+        ])
+        
         return f"""Name: {hop.name}
 Description: {hop.description}
 Input Mapping:
 {input_mapping_str}
-Output Asset: {hop.output_asset.name} ({hop.output_asset.type})
-Output Mission Asset ID: {hop.output_mission_asset_id if hop.output_mission_asset_id else 'None (intermediate asset)'}
+Output Mapping:
+{output_mapping_str}
 Is Final: {'Yes' if hop.is_final else 'No'}""" 

@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission, Asset
 from schemas.asset import AssetType, CollectionType
+from schemas.tools import TOOL_REGISTRY, get_available_tools, get_tools_by_category, format_tool_descriptions_for_mission_design
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,
@@ -53,17 +54,23 @@ class MissionDefinitionPrompt(BasePrompt):
 1. **Analyze** user requirements and identify gaps in their mission definition
 2. **Structure** incomplete ideas into comprehensive mission plans
 3. **Clarify** ambiguous requirements through targeted questions
-4. **Validate** that mission plans are actionable and measurable
+4. **Validate** that mission plans are actionable and measurable with available tools
 
-## Available Tool Categories
-The system has these general capabilities available for mission execution:
-- **Research & Information Gathering** (web search, knowledge base access)
-- **Communication & Collaboration** (email, messaging, document sharing)
-- **Data Processing & Analysis** (document extraction, statistical analysis, visualization)
-- **Storage & Organization** (data containers, version control, export)
-- **Integration & Automation** (API connections, external services)
+## Available Tools and Capabilities
+The system has these specific tools available for mission execution:
 
-Consider these capabilities when assessing mission feasibility, but don't design detailed workflows at this stage.
+{tool_descriptions}
+
+## Tool-Based Mission Validation
+When validating mission feasibility, consider these specific capabilities:
+
+**Data Sources**: search_data_source supports gmail, google_drive, database, api, file, slack, notion
+**Analysis**: extract_from_record can use LLM analysis, regex, json_path for extracting insights
+**Processing**: group_by_reduce, filter_records, transform_records for data manipulation
+**Storage**: store_in_database supports multiple storage types and formats
+**Validation**: validate_records for data quality assurance
+
+Consider these actual tool capabilities when assessing mission feasibility and designing input/output assets.
 
 ## Understanding Input Assets
 When defining a mission, ALL inputs should be represented as assets. Common input asset types include:
@@ -116,18 +123,18 @@ Before proposing any mission, ensure it meets these essential conditions:
    - Delivery format and access method
 
 2. **Clearly Defined Input Sources**: The mission must identify specific inputs that will drive the transformation process:
-   - Source data locations and types
+   - Source data locations and types (compatible with search_data_source)
    - Required access permissions or credentials
    - Data quality expectations and preprocessing needs
    - Input validation criteria
 
-3. **Available Tools and Resources**: The transformation from inputs to outputs must be achievable with available system capabilities:
-   - Required tool categories are available in the system
-   - No dependency on unavailable external services or specialized tools
-   - Computational and storage requirements are reasonable
-   - Timeline is realistic given available resources
+3. **Available Tools and Resources**: The transformation from inputs to outputs must be achievable with available system tools:
+   - Required data sources are supported (gmail, slack, notion, etc.)
+   - Analysis methods are available (LLM extraction, aggregation, filtering)
+   - Output formats are supported by transform_records and store_in_database
+   - Timeline is realistic given tool capabilities
 
-If any of these conditions cannot be met with the available information, ask clarifying questions before proposing a mission.
+If any of these conditions cannot be met with the available tools, ask clarifying questions before proposing a mission.
 
 ## Mission Plan Requirements
 Every complete mission plan must include:
@@ -167,9 +174,9 @@ This will help me [explain how the answer improves the mission plan].
 ## Guidelines
 - Ask only one focused question at a time when seeking clarification
 - Make success criteria quantifiable (numbers, deadlines, specific deliverables)
-- Ensure input requirements are realistic and obtainable
-- Keep mission scope narrow enough to be achievable
-- Verify the mission is technically feasible given available tool categories
+- Ensure input requirements are realistic and obtainable with supported data sources
+- Keep mission scope narrow enough to be achievable with available tools
+- Verify the mission is technically feasible given actual tool capabilities
 - If multiple missions are needed, propose breaking them into phases
 - Always structure inputs and outputs as proper AssetLite objects with clear types and descriptions
 
@@ -193,6 +200,9 @@ Based on the provided context, analyze what information is complete and what nee
         available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
+        # Format tool descriptions
+        tool_descriptions = format_tool_descriptions_for_mission_design()
+        
         # Format available assets and mission using utility functions
         assets_str = format_assets(available_assets)
         mission_str = format_mission(mission)
@@ -206,6 +216,7 @@ Based on the provided context, analyze what information is complete and what nee
         # Format the messages using the prompt template
         prompt = self.get_prompt_template()
         formatted_messages = prompt.format_messages(
+            tool_descriptions=tool_descriptions,
             mission=mission_str,
             messages=langchain_messages,
             available_assets=assets_str,
@@ -213,5 +224,5 @@ Based on the provided context, analyze what information is complete and what nee
         )
 
         # Convert langchain messages to OpenAI format
-        return format_messages_for_openai(formatted_messages) 
+        return format_messages_for_openai(formatted_messages)
     

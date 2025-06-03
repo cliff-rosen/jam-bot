@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission, Asset, Hop
+from schemas.tools import TOOL_REGISTRY, get_available_tools, get_tools_by_category, format_tool_descriptions_for_hop_design
 from .base_prompt import BasePrompt
 from .mission_prompt import AssetLite
 from utils.message_formatter import (
@@ -58,19 +59,32 @@ class HopDesignerPrompt(BasePrompt):
 3. **Design** the next hop that moves closer to the goal
 4. **Validate** that the hop is achievable with available tools
 
+## Available Tools
+The system has these specific tools available for hop implementation:
+
+{tool_descriptions}
+
 ## Hop Design Principles
 1. **Incremental Progress**: Each hop should make meaningful progress toward the goal
 2. **Clear Inputs/Outputs**: Specify exactly what assets are needed and what will be produced
-3. **Tool Availability**: Consider what tools are available (search, extraction, storage, summarization)
+3. **Tool Compatibility**: Design hops that can be implemented with available tools
 4. **Logical Sequencing**: Each hop should build on previous results
 5. **Final Deliverable**: Identify when a hop will produce the final mission output
 
-## Available Tool Categories
-- **Search & Discovery**: Find emails, documents, or information
-- **Data Extraction**: Extract structured data from unstructured sources
-- **Data Storage**: Store extracted information for later use
-- **Analysis & Summarization**: Analyze and summarize collected data
-- **Report Generation**: Create formatted reports or outputs
+## Tool-Specific Design Patterns
+
+### Common Hop Patterns:
+1. **Data Retrieval Hop**: Use search_data_source to gather emails, documents, or data
+2. **Data Analysis Hop**: Use extract_from_record with LLM prompts to analyze content
+3. **Data Processing Hop**: Use group_by_reduce, filter_records, or transform_records for manipulation
+4. **Storage Hop**: Use store_in_database to persist intermediate or final results
+5. **Report Generation Hop**: Use transform_records to format final deliverables
+
+### Example Gmail Analysis Workflow:
+- Hop 1: search_data_source(gmail) → raw email collection
+- Hop 2: extract_from_record(llm_prompt) → structured email analysis
+- Hop 3: group_by_reduce(by date) → daily/weekly summaries
+- Hop 4: transform_records → formatted report
 
 ## Response Formats
 
@@ -79,6 +93,8 @@ class HopDesignerPrompt(BasePrompt):
 HOP_PROPOSAL:
 Next Hop: [Name of the hop]
 Purpose: [What this hop accomplishes]
+
+Tool Approach: [Which tool(s) this hop will likely use]
 
 Input Mapping:
 - [logical_name]: [asset_id or asset_name]
@@ -90,11 +106,12 @@ Output:
 - Name: [Output asset name]
 - Type: [Asset type]
 - Description: [What this asset contains]
+- Schema: [Expected structure/format]
 
 Output Mission Asset: [mission_output_asset_id if final, or None]
 Is Final: [Yes/No - whether this produces the final deliverable]
 
-Rationale: [Why this is the right next step]
+Rationale: [Why this is the right next step given available tools]
 ```
 
 **INTERVIEW_QUESTION**: Use when you need clarification
@@ -111,23 +128,25 @@ This will help me [explain how the answer improves the hop design].
 1. Review the mission goal and success criteria
 2. Inventory available assets (what we have so far)
 3. Identify the gap between current state and goal
-4. Design a hop that addresses the most logical next piece
-5. Ensure the hop output is clearly defined and useful
+4. Consider which tools can bridge that gap effectively
+5. Design a hop that leverages appropriate tools
+6. Ensure the hop output is clearly defined and useful for next steps
 
 ## Guidelines
 - Make hops atomic and focused on a single objective
 - Ensure each hop has clear, measurable outputs
-- Consider dependencies between hops
-- Prefer hops that can be fully automated
-- Design for reusability when possible
-- Think about error cases and data quality
+- Consider tool capabilities when designing hop logic
+- Design hops that can be fully implemented with available tools
+- Prefer hops that leverage tool strengths (LLM analysis, aggregation, filtering)
+- Think about data flow between tools
+- Consider error cases and data quality validation
 
 ## Current Context
 Mission: {mission}
 Available Assets: {available_assets}
 Completed Hops: {completed_hops}
 
-Based on this context, design the next hop that will move us closer to completing the mission."""
+Based on this context and the available tools, design the next hop that will move us closer to completing the mission."""
 
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Return a ChatPromptTemplate for hop design"""
@@ -144,13 +163,16 @@ Based on this context, design the next hop that will move us closer to completin
         completed_hops: List[Hop] = None
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
+        # Format tool descriptions
+        tool_descriptions = format_tool_descriptions_for_hop_design()
+        
         # Format available assets and mission using utility functions
         assets_str = format_assets(available_assets)
         mission_str = format_mission(mission)
         
         # Format completed hops
         hops_str = "None" if not completed_hops else "\n".join([
-            f"- {hop.name}: {hop.description} (Output: {hop.output_asset.name})"
+            f"- {hop.name}: {hop.description}"
             for hop in completed_hops
         ])
 
@@ -163,6 +185,7 @@ Based on this context, design the next hop that will move us closer to completin
         # Format the messages using the prompt template
         prompt = self.get_prompt_template()
         formatted_messages = prompt.format_messages(
+            tool_descriptions=tool_descriptions,
             mission=mission_str,
             messages=langchain_messages,
             available_assets=assets_str,

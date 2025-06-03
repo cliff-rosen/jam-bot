@@ -1,290 +1,314 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from enum import Enum
+import json
+import os
 
 
 class ToolType(str, Enum):
-    """Types of available tools"""
-    GMAIL_SEARCH = "gmail_search"
-    EMAIL_EXTRACTION = "email_extraction"
-    DATA_STORE_UPDATE = "data_store_update"
-    DATA_STORE_SUMMARIZE = "data_store_summarize"
+    """Types of available tools based on tools.json"""
+    SEARCH_DATA_SOURCE = "search_data_source"
+    EXTRACT_FROM_RECORD = "extract_from_record"
+    ENRICH_RECORDS = "enrich_records"
+    STORE_IN_DATABASE = "store_in_database"
+    GROUP_BY_REDUCE = "group_by_reduce"
+    FILTER_RECORDS = "filter_records"
+    TRANSFORM_RECORDS = "transform_records"
+    VALIDATE_RECORDS = "validate_records"
 
 
-class ToolParameter(BaseModel):
-    """Definition of a tool parameter"""
-    name: str = Field(description="Parameter name")
-    type: str = Field(description="Parameter type (string, number, boolean, object, array)")
-    description: str = Field(description="Description of the parameter")
-    required: bool = Field(default=True, description="Whether this parameter is required")
-    default: Optional[Any] = Field(default=None, description="Default value if not required")
-    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
+class SourceType(str, Enum):
+    """Supported data source types"""
+    GMAIL = "gmail"
+    GOOGLE_DRIVE = "google_drive"
+    DATABASE = "database"
+    API = "api"
+    FILE = "file"
+    SLACK = "slack"
+    NOTION = "notion"
 
 
-class ToolOutput(BaseModel):
-    """Definition of a tool output"""
-    name: str = Field(description="Output field name")
-    type: str = Field(description="Output type")
-    description: str = Field(description="Description of the output")
-    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
+class ExtractionMethod(str, Enum):
+    """Methods for record extraction"""
+    LLM_PROMPT = "llm_prompt"
+    REGEX = "regex"
+    JSON_PATH = "json_path"
+    API_CALL = "api_call"
+    CUSTOM_FUNCTION = "custom_function"
+
+
+class ComputationType(str, Enum):
+    """Types of computation for enrichment"""
+    TIMESTAMP = "timestamp"
+    HASH = "hash"
+    UUID = "uuid"
+    COMPUTED_FIELD = "computed_field"
+    LOOKUP = "lookup"
+    CONDITIONAL = "conditional"
+
+
+class StorageType(str, Enum):
+    """Types of storage systems"""
+    OBJECT_DB = "object_db"
+    RELATIONAL_DB = "relational_db"
+    FILE = "file"
+    MEMORY = "memory"
+    CLOUD_STORAGE = "cloud_storage"
+
+
+class FilterOperator(str, Enum):
+    """Filter operators"""
+    EQUALS = "equals"
+    NOT_EQUALS = "not_equals"
+    GREATER_THAN = "greater_than"
+    LESS_THAN = "less_than"
+    CONTAINS = "contains"
+    NOT_CONTAINS = "not_contains"
+    IN = "in"
+    NOT_IN = "not_in"
+    REGEX = "regex"
+    EXISTS = "exists"
+    NOT_EXISTS = "not_exists"
+
+
+class TransformationType(str, Enum):
+    """Types of record transformations"""
+    RENAME_FIELD = "rename_field"
+    COMPUTE_FIELD = "compute_field"
+    FORMAT_FIELD = "format_field"
+    SPLIT_FIELD = "split_field"
+    MERGE_FIELDS = "merge_fields"
+    CONVERT_TYPE = "convert_type"
+
+
+class OutputFormat(str, Enum):
+    """Output format options"""
+    PRESERVE = "preserve"
+    FLATTEN = "flatten"
+    NORMALIZE = "normalize"
+    PIVOT = "pivot"
+
+
+class ValidationMode(str, Enum):
+    """Validation modes"""
+    STRICT = "strict"
+    LENIENT = "lenient"
+    REPORT_ONLY = "report_only"
 
 
 class ToolDefinition(BaseModel):
-    """Complete definition of a tool"""
-    name: ToolType = Field(description="Name of the tool")
+    """Complete definition of a tool from tools.json"""
+    name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
-    parameters: List[ToolParameter] = Field(description="List of input parameters")
-    outputs: List[ToolOutput] = Field(description="List of output fields")
-    example_usage: Optional[Dict[str, Any]] = Field(default=None, description="Example of tool usage")
+    parameters: Dict[str, Any] = Field(description="JSON schema for tool parameters")
+    
+    @classmethod
+    def load_from_json(cls, file_path: str = "_specs/tools.json") -> Dict[str, 'ToolDefinition']:
+        """Load tool definitions from tools.json"""
+        try:
+            with open(file_path, 'r') as f:
+                tools_data = json.load(f)
+            
+            tool_registry = {}
+            for tool_def in tools_data.get("tool_definitions", []):
+                tool_registry[tool_def["name"]] = cls(
+                    name=tool_def["name"],
+                    description=tool_def["description"],
+                    parameters=tool_def["parameters"]
+                )
+            
+            return tool_registry
+        except FileNotFoundError:
+            # Fallback if tools.json is not found
+            return {}
 
 
-# Gmail Search Tool
-GMAIL_SEARCH_TOOL = ToolDefinition(
-    name=ToolType.GMAIL_SEARCH,
-    description="Search Gmail for emails matching specified criteria",
-    parameters=[
-        ToolParameter(
-            name="query",
-            type="string",
-            description="Gmail search query (e.g., 'from:sender@example.com subject:Important')",
-            required=True
-        ),
-        ToolParameter(
-            name="max_results",
-            type="number",
-            description="Maximum number of emails to return",
-            required=False,
-            default=50
-        ),
-        ToolParameter(
-            name="include_body",
-            type="boolean",
-            description="Whether to include email body in results",
-            required=False,
-            default=True
-        )
-    ],
-    outputs=[
-        ToolOutput(
-            name="emails",
-            type="array",
-            description="List of emails matching the search criteria",
-            schema={
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "string"},
-                        "thread_id": {"type": "string"},
-                        "from": {"type": "string"},
-                        "to": {"type": "array", "items": {"type": "string"}},
-                        "subject": {"type": "string"},
-                        "date": {"type": "string"},
-                        "body": {"type": "string"},
-                        "labels": {"type": "array", "items": {"type": "string"}}
-                    }
-                }
-            }
-        ),
-        ToolOutput(
-            name="total_count",
-            type="number",
-            description="Total number of emails found"
-        )
-    ],
-    example_usage={
-        "description": "Example showing how to map from assets to tool parameters",
-        "parameter_mapping": {
-            "query": {
-                "type": "asset_field",
-                "asset_id": "search_criteria_asset",
-                "field_path": "content.email_query"
-            },
-            "max_results": {
-                "type": "literal",
-                "value": 100
-            }
-        },
-        "output_mapping": {
-            "emails": "email_list",
-            "total_count": "metadata.total_emails"
+# Load tool registry from tools.json
+try:
+    TOOL_REGISTRY = ToolDefinition.load_from_json()
+except Exception as e:
+    print(f"Warning: Could not load tools.json: {e}")
+    TOOL_REGISTRY = {}
+
+
+def get_tool_definition(tool_name: str) -> Optional[ToolDefinition]:
+    """Get the definition for a specific tool"""
+    return TOOL_REGISTRY.get(tool_name)
+
+
+def get_available_tools() -> List[str]:
+    """Get list of all available tool names"""
+    return list(TOOL_REGISTRY.keys())
+
+
+def get_tools_by_category() -> Dict[str, List[str]]:
+    """Categorize tools by their primary function"""
+    categories = {
+        "data_retrieval": ["search_data_source"],
+        "data_processing": ["extract_from_record", "enrich_records", "transform_records"],
+        "data_analysis": ["group_by_reduce", "filter_records"],
+        "data_storage": ["store_in_database"],
+        "data_validation": ["validate_records"]
+    }
+    return categories
+
+
+# Common tool parameter patterns for hop implementer
+COMMON_PARAMETER_PATTERNS = {
+    "asset_input": {
+        "type": "string",
+        "description": "Name of the input asset containing data to process"
+    },
+    "asset_output": {
+        "type": "string", 
+        "description": "Name for the output asset"
+    },
+    "date_range": {
+        "type": "object",
+        "properties": {
+            "start_date": {"type": "string", "format": "date"},
+            "end_date": {"type": "string", "format": "date"}
         }
     }
-)
-
-# Email Extraction Tool
-EMAIL_EXTRACTION_TOOL = ToolDefinition(
-    name=ToolType.EMAIL_EXTRACTION,
-    description="Extract structured information from a single email",
-    parameters=[
-        ToolParameter(
-            name="email",
-            type="object",
-            description="The email object to extract information from",
-            required=True,
-            schema={
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "subject": {"type": "string"},
-                    "body": {"type": "string"},
-                    "from": {"type": "string"},
-                    "date": {"type": "string"}
-                }
-            }
-        ),
-        ToolParameter(
-            name="extraction_schema",
-            type="object",
-            description="Schema defining what information to extract",
-            required=True,
-            schema={
-                "type": "object",
-                "additionalProperties": {
-                    "type": "object",
-                    "properties": {
-                        "type": {"type": "string"},
-                        "description": {"type": "string"},
-                        "required": {"type": "boolean"}
-                    }
-                }
-            }
-        )
-    ],
-    outputs=[
-        ToolOutput(
-            name="extracted_data",
-            type="object",
-            description="Extracted information according to the provided schema",
-            schema={"type": "object", "additionalProperties": True}
-        ),
-        ToolOutput(
-            name="extraction_confidence",
-            type="number",
-            description="Confidence score of the extraction (0-1)"
-        )
-    ]
-)
-
-# Data Store Update Tool
-DATA_STORE_UPDATE_TOOL = ToolDefinition(
-    name=ToolType.DATA_STORE_UPDATE,
-    description="Add or update data in a persistent data store",
-    parameters=[
-        ToolParameter(
-            name="store_name",
-            type="string",
-            description="Name of the data store to update",
-            required=True
-        ),
-        ToolParameter(
-            name="key",
-            type="string",
-            description="Key to identify the record",
-            required=True
-        ),
-        ToolParameter(
-            name="data",
-            type="object",
-            description="Data to store",
-            required=True,
-            schema={"type": "object", "additionalProperties": True}
-        ),
-        ToolParameter(
-            name="operation",
-            type="string",
-            description="Operation type: 'create', 'update', 'upsert'",
-            required=False,
-            default="upsert"
-        )
-    ],
-    outputs=[
-        ToolOutput(
-            name="success",
-            type="boolean",
-            description="Whether the operation was successful"
-        ),
-        ToolOutput(
-            name="record_id",
-            type="string",
-            description="ID of the created/updated record"
-        ),
-        ToolOutput(
-            name="operation_type",
-            type="string",
-            description="Type of operation performed (created/updated)"
-        )
-    ]
-)
-
-# Data Store Summarize Tool
-DATA_STORE_SUMMARIZE_TOOL = ToolDefinition(
-    name=ToolType.DATA_STORE_SUMMARIZE,
-    description="Read and summarize data from a data store",
-    parameters=[
-        ToolParameter(
-            name="store_name",
-            type="string",
-            description="Name of the data store to read from",
-            required=True
-        ),
-        ToolParameter(
-            name="filter",
-            type="object",
-            description="Optional filter criteria",
-            required=False,
-            schema={"type": "object", "additionalProperties": True}
-        ),
-        ToolParameter(
-            name="summarization_type",
-            type="string",
-            description="Type of summarization: 'statistical', 'narrative', 'both'",
-            required=False,
-            default="both"
-        ),
-        ToolParameter(
-            name="fields_to_summarize",
-            type="array",
-            description="Specific fields to include in the summary",
-            required=False,
-            schema={"type": "array", "items": {"type": "string"}}
-        )
-    ],
-    outputs=[
-        ToolOutput(
-            name="total_records",
-            type="number",
-            description="Total number of records in the store"
-        ),
-        ToolOutput(
-            name="summary",
-            type="object",
-            description="Summary of the data",
-            schema={
-                "type": "object",
-                "properties": {
-                    "statistical": {"type": "object", "additionalProperties": True},
-                    "narrative": {"type": "string"}
-                }
-            }
-        ),
-        ToolOutput(
-            name="sample_records",
-            type="array",
-            description="Sample of records from the store",
-            schema={"type": "array", "items": {"type": "object", "additionalProperties": True}}
-        )
-    ]
-)
-
-# Registry of all available tools
-TOOL_REGISTRY = {
-    ToolType.GMAIL_SEARCH: GMAIL_SEARCH_TOOL,
-    ToolType.EMAIL_EXTRACTION: EMAIL_EXTRACTION_TOOL,
-    ToolType.DATA_STORE_UPDATE: DATA_STORE_UPDATE_TOOL,
-    ToolType.DATA_STORE_SUMMARIZE: DATA_STORE_SUMMARIZE_TOOL
 }
 
-def get_tool_definition(tool_name: ToolType) -> ToolDefinition:
-    """Get the definition for a specific tool"""
-    return TOOL_REGISTRY.get(tool_name) 
+
+# Example workflows using the tools
+EXAMPLE_WORKFLOWS = {
+    "gmail_analysis": {
+        "description": "Analyze Gmail emails by time periods",
+        "steps": [
+            {
+                "tool": "search_data_source",
+                "purpose": "Retrieve emails from Gmail folder",
+                "key_parameters": ["source_type", "query_criteria", "date_range"]
+            },
+            {
+                "tool": "extract_from_record", 
+                "purpose": "Extract key information from each email",
+                "key_parameters": ["extraction_schema", "extraction_method"]
+            },
+            {
+                "tool": "group_by_reduce",
+                "purpose": "Group emails by day and summarize",
+                "key_parameters": ["group_by_fields", "aggregation_functions"]
+            },
+            {
+                "tool": "group_by_reduce",
+                "purpose": "Group daily summaries by week", 
+                "key_parameters": ["group_by_fields", "aggregation_functions"]
+            },
+            {
+                "tool": "transform_records",
+                "purpose": "Format final report",
+                "key_parameters": ["transformations", "output_format"]
+            }
+        ]
+    }
+}
+
+
+def format_tool_descriptions_for_mission_design() -> str:
+    """Format tool descriptions optimized for mission design context"""
+    if not TOOL_REGISTRY:
+        return "No tools available - tools.json could not be loaded"
+    
+    descriptions = []
+    for tool_name, tool_def in TOOL_REGISTRY.items():
+        desc = f"### {tool_name}\n"
+        desc += f"**Purpose**: {tool_def.description}\n"
+        
+        # Format key parameters from JSON schema
+        if "properties" in tool_def.parameters:
+            key_params = []
+            for param_name, param_schema in tool_def.parameters["properties"].items():
+                if param_name in tool_def.parameters.get("required", []):
+                    param_type = param_schema.get("type", "unknown")
+                    if "enum" in param_schema:
+                        key_params.append(f"{param_name} (options: {', '.join(param_schema['enum'])})")
+                    else:
+                        key_params.append(f"{param_name} ({param_type})")
+            
+            if key_params:
+                desc += f"**Key Parameters**: {', '.join(key_params)}\n"
+        
+        desc += "\n"
+        descriptions.append(desc)
+    
+    return "\n".join(descriptions)
+
+
+def format_tool_descriptions_for_hop_design() -> str:
+    """Format tool descriptions optimized for hop design context"""
+    if not TOOL_REGISTRY:
+        return "No tools available - tools.json could not be loaded"
+    
+    descriptions = []
+    for tool_name, tool_def in TOOL_REGISTRY.items():
+        desc = f"### {tool_name}\n"
+        desc += f"**Purpose**: {tool_def.description}\n"
+        
+        # Format key capabilities and parameters
+        if "properties" in tool_def.parameters:
+            key_info = []
+            
+            # Special handling for different tools
+            if tool_name == "search_data_source":
+                source_types = tool_def.parameters["properties"].get("source_type", {}).get("enum", [])
+                if source_types:
+                    key_info.append(f"**Sources**: {', '.join(source_types)}")
+            
+            elif tool_name == "extract_from_record":
+                methods = tool_def.parameters["properties"].get("extraction_method", {}).get("enum", [])
+                if methods:
+                    key_info.append(f"**Methods**: {', '.join(methods)}")
+            
+            elif tool_name == "group_by_reduce":
+                key_info.append("**Capabilities**: Group by date/field expressions, aggregate functions (count, avg, sum, collect)")
+            
+            elif tool_name == "store_in_database":
+                storage_types = tool_def.parameters["properties"].get("storage_type", {}).get("enum", [])
+                if storage_types:
+                    key_info.append(f"**Storage Types**: {', '.join(storage_types)}")
+            
+            if key_info:
+                desc += "\n".join(key_info) + "\n"
+        
+        desc += "\n"
+        descriptions.append(desc)
+    
+    return "\n".join(descriptions)
+
+
+def format_tool_descriptions_for_implementation() -> str:
+    """Format tool descriptions optimized for hop implementation context"""
+    if not TOOL_REGISTRY:
+        return "No tools available - tools.json could not be loaded"
+    
+    descriptions = []
+    for tool_name, tool_def in TOOL_REGISTRY.items():
+        desc = f"### {tool_name}\n"
+        desc += f"Description: {tool_def.description}\n"
+        
+        # Format parameters from JSON schema
+        if "properties" in tool_def.parameters:
+            desc += "Parameters:\n"
+            for param_name, param_schema in tool_def.parameters["properties"].items():
+                param_type = param_schema.get("type", "unknown")
+                param_desc = param_schema.get("description", "No description")
+                is_required = param_name in tool_def.parameters.get("required", [])
+                
+                desc += f"  - {param_name} ({param_type}): {param_desc}"
+                if not is_required:
+                    default_val = param_schema.get("default", "None")
+                    desc += f" [Optional, default: {default_val}]"
+                desc += "\n"
+                
+                # Add enum values if present
+                if "enum" in param_schema:
+                    desc += f"    Options: {', '.join(param_schema['enum'])}\n"
+        
+        desc += "\n"
+        descriptions.append(desc)
+    
+    return "\n".join(descriptions) 

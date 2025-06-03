@@ -66,10 +66,10 @@ class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
+    available_assets: List[Asset] = []
+    current_hop: Optional[Hop] = None
     tool_params: Dict[str, Any] = {}
     next_node: str
-    current_hop: Optional[Hop] = None
-    available_assets: List[Asset] = []
   
     class Config:
         arbitrary_types_allowed = True

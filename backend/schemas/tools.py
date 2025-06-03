@@ -6,7 +6,7 @@ import os
 
 
 class ToolType(str, Enum):
-    """Types of available tools based on tools.json"""
+    """Types of available tools based on actual implementations"""
     SEARCH_DATA_SOURCE = "search_data_source"
     EXTRACT_FROM_RECORD = "extract_from_record"
     ENRICH_RECORDS = "enrich_records"
@@ -96,39 +96,43 @@ class ValidationMode(str, Enum):
     REPORT_ONLY = "report_only"
 
 
+class ToolOutputSchema(BaseModel):
+    """Defines the output schema for a tool"""
+    name: str = Field(description="Output field name")
+    type: str = Field(description="Data type (string, number, boolean, object, array)")
+    description: str = Field(description="Description of what this output contains")
+    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
+    required: bool = Field(default=True, description="Whether this output is always present")
+    example: Optional[Any] = Field(default=None, description="Example value")
+
+
 class ToolDefinition(BaseModel):
-    """Complete definition of a tool from tools.json"""
+    """Complete definition of a tool with proper input/output schemas"""
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
-    parameters: Dict[str, Any] = Field(description="JSON schema for tool parameters")
+    input_schema: Dict[str, Any] = Field(description="JSON schema for tool input parameters")
+    output_schema: List[ToolOutputSchema] = Field(description="Structured output schema definition")
+    category: str = Field(description="Category of tool (data_retrieval, processing, analysis, etc.)")
+    examples: Optional[List[Dict[str, Any]]] = Field(default=None, description="Usage examples")
     
     @classmethod
-    def load_from_json(cls, file_path: str = "_specs/tools.json") -> Dict[str, 'ToolDefinition']:
-        """Load tool definitions from tools.json"""
-        try:
-            with open(file_path, 'r') as f:
-                tools_data = json.load(f)
-            
-            tool_registry = {}
-            for tool_def in tools_data.get("tool_definitions", []):
-                tool_registry[tool_def["name"]] = cls(
-                    name=tool_def["name"],
-                    description=tool_def["description"],
-                    parameters=tool_def["parameters"]
-                )
-            
-            return tool_registry
-        except FileNotFoundError:
-            # Fallback if tools.json is not found
-            return {}
+    def create_from_implementation(cls, tool_class) -> 'ToolDefinition':
+        """Create tool definition from actual tool implementation"""
+        # This will be implemented by actual tool classes
+        # Each tool class should define get_tool_definition() method
+        if hasattr(tool_class, 'get_tool_definition'):
+            return tool_class.get_tool_definition()
+        else:
+            raise NotImplementedError(f"Tool {tool_class.__name__} must implement get_tool_definition()")
 
 
-# Load tool registry from tools.json
-try:
-    TOOL_REGISTRY = ToolDefinition.load_from_json()
-except Exception as e:
-    print(f"Warning: Could not load tools.json: {e}")
-    TOOL_REGISTRY = {}
+# Tool registry - will be populated by actual tool implementations
+TOOL_REGISTRY: Dict[str, ToolDefinition] = {}
+
+
+def register_tool(tool_definition: ToolDefinition) -> None:
+    """Register a tool in the global registry"""
+    TOOL_REGISTRY[tool_definition.name] = tool_definition
 
 
 def get_tool_definition(tool_name: str) -> Optional[ToolDefinition]:
@@ -143,13 +147,12 @@ def get_available_tools() -> List[str]:
 
 def get_tools_by_category() -> Dict[str, List[str]]:
     """Categorize tools by their primary function"""
-    categories = {
-        "data_retrieval": ["search_data_source"],
-        "data_processing": ["extract_from_record", "enrich_records", "transform_records"],
-        "data_analysis": ["group_by_reduce", "filter_records"],
-        "data_storage": ["store_in_database"],
-        "data_validation": ["validate_records"]
-    }
+    categories = {}
+    for tool_name, tool_def in TOOL_REGISTRY.items():
+        category = tool_def.category
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(tool_name)
     return categories
 
 
@@ -173,64 +176,32 @@ COMMON_PARAMETER_PATTERNS = {
 }
 
 
-# Example workflows using the tools
-EXAMPLE_WORKFLOWS = {
-    "gmail_analysis": {
-        "description": "Analyze Gmail emails by time periods",
-        "steps": [
-            {
-                "tool": "search_data_source",
-                "purpose": "Retrieve emails from Gmail folder",
-                "key_parameters": ["source_type", "query_criteria", "date_range"]
-            },
-            {
-                "tool": "extract_from_record", 
-                "purpose": "Extract key information from each email",
-                "key_parameters": ["extraction_schema", "extraction_method"]
-            },
-            {
-                "tool": "group_by_reduce",
-                "purpose": "Group emails by day and summarize",
-                "key_parameters": ["group_by_fields", "aggregation_functions"]
-            },
-            {
-                "tool": "group_by_reduce",
-                "purpose": "Group daily summaries by week", 
-                "key_parameters": ["group_by_fields", "aggregation_functions"]
-            },
-            {
-                "tool": "transform_records",
-                "purpose": "Format final report",
-                "key_parameters": ["transformations", "output_format"]
-            }
-        ]
-    }
-}
-
-
 def format_tool_descriptions_for_mission_design() -> str:
     """Format tool descriptions optimized for mission design context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tools.json could not be loaded"
+        return "No tools available - tool implementations not loaded yet"
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
         desc = f"### {tool_name}\n"
         desc += f"**Purpose**: {tool_def.description}\n"
+        desc += f"**Category**: {tool_def.category}\n"
         
-        # Format key parameters from JSON schema
-        if "properties" in tool_def.parameters:
-            key_params = []
-            for param_name, param_schema in tool_def.parameters["properties"].items():
-                if param_name in tool_def.parameters.get("required", []):
-                    param_type = param_schema.get("type", "unknown")
+        # Show key input capabilities
+        if "properties" in tool_def.input_schema:
+            key_inputs = []
+            for param_name, param_schema in tool_def.input_schema["properties"].items():
+                if param_name in tool_def.input_schema.get("required", []):
                     if "enum" in param_schema:
-                        key_params.append(f"{param_name} (options: {', '.join(param_schema['enum'])})")
-                    else:
-                        key_params.append(f"{param_name} ({param_type})")
-            
-            if key_params:
-                desc += f"**Key Parameters**: {', '.join(key_params)}\n"
+                        key_inputs.append(f"{param_name} (options: {', '.join(param_schema['enum'])})")
+            if key_inputs:
+                desc += f"**Key Capabilities**: {', '.join(key_inputs)}\n"
+        
+        # Show what it produces
+        if tool_def.output_schema:
+            outputs = [output.name for output in tool_def.output_schema if output.required]
+            if outputs:
+                desc += f"**Produces**: {', '.join(outputs)}\n"
         
         desc += "\n"
         descriptions.append(desc)
@@ -241,38 +212,23 @@ def format_tool_descriptions_for_mission_design() -> str:
 def format_tool_descriptions_for_hop_design() -> str:
     """Format tool descriptions optimized for hop design context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tools.json could not be loaded"
+        return "No tools available - tool implementations not loaded yet"
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
         desc = f"### {tool_name}\n"
         desc += f"**Purpose**: {tool_def.description}\n"
+        desc += f"**Category**: {tool_def.category}\n"
         
-        # Format key capabilities and parameters
-        if "properties" in tool_def.parameters:
-            key_info = []
-            
-            # Special handling for different tools
-            if tool_name == "search_data_source":
-                source_types = tool_def.parameters["properties"].get("source_type", {}).get("enum", [])
-                if source_types:
-                    key_info.append(f"**Sources**: {', '.join(source_types)}")
-            
-            elif tool_name == "extract_from_record":
-                methods = tool_def.parameters["properties"].get("extraction_method", {}).get("enum", [])
-                if methods:
-                    key_info.append(f"**Methods**: {', '.join(methods)}")
-            
-            elif tool_name == "group_by_reduce":
-                key_info.append("**Capabilities**: Group by date/field expressions, aggregate functions (count, avg, sum, collect)")
-            
-            elif tool_name == "store_in_database":
-                storage_types = tool_def.parameters["properties"].get("storage_type", {}).get("enum", [])
-                if storage_types:
-                    key_info.append(f"**Storage Types**: {', '.join(storage_types)}")
-            
-            if key_info:
-                desc += "\n".join(key_info) + "\n"
+        # Show input/output flow for chaining
+        if tool_def.output_schema:
+            outputs = [f"{out.name} ({out.type})" for out in tool_def.output_schema if out.required]
+            if outputs:
+                desc += f"**Outputs**: {', '.join(outputs)}\n"
+        
+        # Show examples if available
+        if tool_def.examples:
+            desc += f"**Usage Pattern**: {tool_def.examples[0].get('description', 'See documentation')}\n"
         
         desc += "\n"
         descriptions.append(desc)
@@ -283,20 +239,20 @@ def format_tool_descriptions_for_hop_design() -> str:
 def format_tool_descriptions_for_implementation() -> str:
     """Format tool descriptions optimized for hop implementation context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tools.json could not be loaded"
+        return "No tools available - tool implementations not loaded yet"
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
         desc = f"### {tool_name}\n"
         desc += f"Description: {tool_def.description}\n"
         
-        # Format parameters from JSON schema
-        if "properties" in tool_def.parameters:
-            desc += "Parameters:\n"
-            for param_name, param_schema in tool_def.parameters["properties"].items():
+        # Detailed input schema
+        desc += "Input Parameters:\n"
+        if "properties" in tool_def.input_schema:
+            for param_name, param_schema in tool_def.input_schema["properties"].items():
                 param_type = param_schema.get("type", "unknown")
                 param_desc = param_schema.get("description", "No description")
-                is_required = param_name in tool_def.parameters.get("required", [])
+                is_required = param_name in tool_def.input_schema.get("required", [])
                 
                 desc += f"  - {param_name} ({param_type}): {param_desc}"
                 if not is_required:
@@ -304,11 +260,44 @@ def format_tool_descriptions_for_implementation() -> str:
                     desc += f" [Optional, default: {default_val}]"
                 desc += "\n"
                 
-                # Add enum values if present
                 if "enum" in param_schema:
                     desc += f"    Options: {', '.join(param_schema['enum'])}\n"
+        
+        # Detailed output schema
+        desc += "Outputs:\n"
+        for output in tool_def.output_schema:
+            desc += f"  - {output.name} ({output.type}): {output.description}"
+            if not output.required:
+                desc += " [Optional]"
+            desc += "\n"
+            if output.example:
+                desc += f"    Example: {output.example}\n"
         
         desc += "\n"
         descriptions.append(desc)
     
-    return "\n".join(descriptions) 
+    return "\n".join(descriptions)
+
+
+# TODO: Replace this placeholder with actual tool loading
+# This should be called during app startup to load real tools
+def load_tool_implementations():
+    """Load actual tool implementations into the registry"""
+    # This will be implemented to discover and load real tools
+    # For now, we'll have an empty registry until tools are implemented
+    pass
+
+
+# Example workflows - these should come from real tool combinations
+EXAMPLE_WORKFLOWS = {
+    "gmail_analysis": {
+        "description": "Analyze Gmail emails by time periods",
+        "status": "pending_tool_implementations",
+        "planned_steps": [
+            "search_data_source(gmail) → email collection",
+            "extract_from_record(llm_prompt) → content analysis", 
+            "group_by_reduce(by date) → time-based aggregation",
+            "transform_records → formatted report"
+        ]
+    }
+} 

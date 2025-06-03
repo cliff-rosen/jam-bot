@@ -69,6 +69,7 @@ class State(BaseModel):
     tool_params: Dict[str, Any] = {}
     next_node: str
     current_hop: Optional[Hop] = None
+    available_assets: List[Asset] = []
   
     class Config:
         arbitrary_types_allowed = True
@@ -102,11 +103,14 @@ def serialize_state(state: State) -> dict:
     if current_hop_dict:
         current_hop_dict = convert_datetime(current_hop_dict)
     
+    available_assets_dict = [asset.model_dump() for asset in state.available_assets] if state.available_assets else []
+    
     return {
         "messages": messages, 
         "tool_params": state.tool_params,
         "mission": mission_dict,
-        "current_hop": current_hop_dict
+        "current_hop": current_hop_dict,
+        "available_assets": available_assets_dict
     }
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
@@ -181,7 +185,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "current_hop": state.current_hop
+            "current_hop": state.current_hop,
+            "available_assets": state.available_assets
         }
 
         # Stream response and return command
@@ -284,6 +289,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
+            "available_assets": state.available_assets
         }
 
         if writer:
@@ -400,7 +406,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "current_hop": state.current_hop
+            "current_hop": state.current_hop,
+            "available_assets": state.available_assets
         }
 
         if writer:
@@ -556,7 +563,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "current_hop": state.current_hop
+            "current_hop": state.current_hop,
+            "available_assets": state.available_assets
         }
 
         if writer:
@@ -642,6 +650,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
+            "available_assets": state.available_assets
         }
 
         if writer:

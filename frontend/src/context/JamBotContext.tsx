@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, WorkflowStatus, defaultMission } from '@/types/workflow';
+import { Mission, MissionStatus, HopStatus, defaultMission } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset, AssetType } from '@/types/asset';
@@ -74,7 +74,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: {
                     ...state.mission,
-                    status: WorkflowStatus.READY
+                    mission_status: MissionStatus.ACTIVE,
+                    hop_status: HopStatus.READY_TO_DESIGN
                 },
                 collabArea: {
                     type: 'default',

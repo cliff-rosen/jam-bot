@@ -17,16 +17,16 @@ export default function Mission({
     const mission = state.mission || {
         name: '',
         description: '',
-        status: 'pending',
+        mission_status: 'pending',
         inputs: [],
         outputs: []
     };
 
-    const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.status === 'pending';
+    const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.mission_status === 'pending';
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'completed':
+            case 'complete':
                 return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
             case 'active':
                 return 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
@@ -43,16 +43,16 @@ export default function Mission({
 
     const getStatusText = (status: string) => {
         switch (status) {
-            case 'completed':
+            case 'complete':
                 return 'COMPLETED';
-            case 'current':
-                return 'IN PROGRESS';
+            case 'active':
+                return 'ACTIVE';
             case 'failed':
                 return 'FAILED';
             case 'ready':
                 return 'READY';
-            case 'active':
-                return 'ACTIVE';
+            case 'pending':
+                return 'PENDING';
             default:
                 return 'PENDING';
         }
@@ -90,8 +90,8 @@ export default function Mission({
                                 View Proposal
                             </button>
                         )}
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.status)}`}>
-                            {getStatusText(mission.status)}
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.mission_status)}`}>
+                            {getStatusText(mission.mission_status)}
                         </span>
                     </div>
 

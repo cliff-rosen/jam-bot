@@ -17,8 +17,20 @@ class HopProposal(BaseModel):
     """Structure for a proposed hop"""
     name: str = Field(description="Name of the hop (e.g., 'Extract Email Data', 'Generate Summary Report')")
     description: str = Field(description="Clear description of what this hop accomplishes")
-    input_assets: List[str] = Field(description="Names of existing assets that will be used as input")
+    
+    # Maps logical input names to asset IDs/names
+    input_mapping: Dict[str, str] = Field(
+        description="Maps logical input parameter names to existing asset IDs or names"
+    )
+    
     output_asset: AssetLite = Field(description="The asset that will be produced by this hop")
+    
+    # If this is a final hop producing a mission output
+    output_mission_asset_id: Optional[str] = Field(
+        default=None,
+        description="ID of the mission output asset this hop produces (if final hop)"
+    )
+    
     is_final: bool = Field(description="Whether this hop produces the final deliverable")
     rationale: str = Field(description="Explanation of why this is the right next step")
     alternative_approaches: Optional[List[str]] = Field(default=None, description="Other approaches considered")
@@ -68,15 +80,18 @@ HOP_PROPOSAL:
 Next Hop: [Name of the hop]
 Purpose: [What this hop accomplishes]
 
-Inputs:
-- [Asset 1]: [How it will be used]
-- [Asset 2]: [How it will be used]
+Input Mapping:
+- [logical_name]: [asset_id or asset_name]
+  Example:
+  - search_criteria: mission_input_asset_1  # From mission inputs
+  - previous_results: hop_output_asset_2    # From previous hop
 
 Output:
 - Name: [Output asset name]
 - Type: [Asset type]
 - Description: [What this asset contains]
 
+Output Mission Asset: [mission_output_asset_id if final, or None]
 Is Final: [Yes/No - whether this produces the final deliverable]
 
 Rationale: [Why this is the right next step]

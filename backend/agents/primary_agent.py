@@ -434,8 +434,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 id=str(uuid.uuid4()),
                 name=hop_proposal.name,
                 description=hop_proposal.description,
-                input_assets=hop_proposal.input_assets,
+                input_mapping=hop_proposal.input_mapping,
                 output_asset=convert_asset_lite_to_asset(hop_proposal.output_asset),
+                output_mission_asset_id=hop_proposal.output_mission_asset_id,
                 is_final=hop_proposal.is_final,
                 status=WorkflowStatus.PENDING
             )

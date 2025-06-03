@@ -26,15 +26,65 @@ class StateVariableType(str, Enum):
 
 
 class Hop(BaseModel):
-    """Represents a single hop in the mission execution"""
+    """Represents a single hop in the mission execution
+    
+    Asset Mapping Flow:
+    1. Input Mapping: Maps logical parameter names to asset IDs
+       - Example: {"search_query": "asset_123", "filter_criteria": "asset_456"}
+       - These asset IDs refer to either mission input assets or outputs from previous hops
+    
+    2. Tool Configuration: Specifies how to extract values from assets for tool parameters
+       - parameter_mapping: Maps tool params to asset fields
+         Example: {
+           "query": {"asset": "search_query", "path": "content.query_string"},
+           "max_results": {"literal": 50}
+         }
+       - output_mapping: Maps tool outputs to output asset fields
+         Example: {
+           "emails": "content.email_list",
+           "total_count": "metadata.count"
+         }
+    
+    3. Output Asset: The asset produced by this hop
+       - Intermediate hops: Create new assets added to available_assets
+       - Final hops: Map to mission output assets via output_mission_asset_id
+    
+    Example Flow:
+    Mission Input Asset (id: "search_criteria") -> 
+    Hop Input Mapping {"criteria": "search_criteria"} ->
+    Tool Parameter Mapping {"query": {"asset": "criteria", "path": "content.search_string"}} ->
+    Tool Execution ->
+    Tool Output Mapping {"emails": "content.results"} ->
+    Hop Output Asset (new asset with results) ->
+    (if final) Mission Output Asset (id from output_mission_asset_id)
+    """
     id: str = Field(description="Unique identifier for the hop")
     name: str = Field(description="Name of the hop")
     description: str = Field(description="Description of what this hop accomplishes")
-    input_assets: List[str] = Field(description="IDs of input assets for this hop")
+    
+    # Input mapping: maps hop input names to mission asset IDs
+    input_mapping: Dict[str, str] = Field(
+        description="Maps hop input parameter names to mission asset IDs or available asset IDs"
+    )
+    
+    # Output mapping: maps to mission output asset ID if this produces a final output
+    output_mission_asset_id: Optional[str] = Field(
+        default=None,
+        description="ID of the mission output asset this hop produces (if final hop)"
+    )
+    
+    # The asset this hop will produce
     output_asset: Asset = Field(description="The output asset this hop will produce")
+    
     is_final: bool = Field(default=False, description="Whether this hop produces the final deliverable")
     status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    tool_configuration: Optional[Dict[str, Any]] = Field(default=None, description="Tool configuration for implementation")
+    
+    # Tool configuration includes parameter and result mappings
+    tool_configuration: Optional[Dict[str, Any]] = Field(
+        default=None, 
+        description="Tool configuration including parameter mappings and result mappings"
+    )
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

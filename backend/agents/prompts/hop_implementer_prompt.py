@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message
@@ -17,14 +17,29 @@ import json
 class ToolStep(BaseModel):
     """Configuration for a single tool step"""
     tool_name: ToolType = Field(description="Name of the tool to use")
-    parameters: Dict[str, Any] = Field(description="Parameters to pass to the tool")
-    output_mapping: Dict[str, str] = Field(description="Maps tool output fields to asset properties")
+    
+    # Maps tool parameter names to instructions on how to get values
+    parameter_mapping: Dict[str, Union[str, Dict[str, Any]]] = Field(
+        description="Maps tool parameter names to either direct values or extraction paths from assets"
+    )
+    
+    # Maps tool output fields to where they should be stored
+    output_mapping: Dict[str, str] = Field(
+        description="Maps tool output fields to paths in the output asset"
+    )
+    
     description: str = Field(description="What this tool step accomplishes")
 
 
 class HopImplementation(BaseModel):
     """Complete implementation plan for a hop"""
     hop_name: str = Field(description="Name of the hop being implemented")
+    
+    # Maps input names from hop.input_mapping to actual asset values
+    input_assets: Dict[str, Any] = Field(
+        description="Maps hop input names to actual asset data available"
+    )
+    
     tool_steps: List[ToolStep] = Field(description="Ordered list of tool steps to execute")
     error_handling: Dict[str, str] = Field(description="Error handling strategies for common failures")
     validation_checks: List[str] = Field(description="Checks to validate the hop succeeded")
@@ -53,6 +68,40 @@ class HopImplementerPrompt(BasePrompt):
 4. **Map** tool outputs to the desired asset structure
 5. **Validate** the implementation will achieve the hop's goal
 
+## Asset Mapping Instructions
+
+### Input Mapping Flow:
+1. The hop has `input_mapping` that maps logical names to asset IDs
+   Example: {"email_criteria": "asset_123", "date_range": "asset_456"}
+
+2. You need to create `parameter_mapping` that shows how to extract values from these assets
+   Example:
+   ```
+   "parameter_mapping": {
+     "query": {
+       "type": "asset_field",
+       "asset": "email_criteria",  // refers to the logical name in input_mapping
+       "path": "content.search_string"  // path within the asset to get the value
+     },
+     "max_results": {
+       "type": "literal",
+       "value": 50  // direct value, not from an asset
+     }
+   }
+   ```
+
+### Output Mapping Flow:
+1. Tool outputs need to be mapped to the hop's output asset structure
+   Example:
+   ```
+   "output_mapping": {
+     "emails": "content.email_list",  // tool's 'emails' output goes to asset's content.email_list
+     "total_count": "metadata.count"   // tool's 'total_count' goes to asset's metadata.count
+   }
+   ```
+
+2. If this is a final hop, the output asset will be mapped to a mission output asset
+
 ## Available Tools
 {tool_descriptions}
 
@@ -73,11 +122,11 @@ Implementing: [Hop Name]
 Tool Steps:
 1. [Tool Name]
    - Purpose: [What this step does]
-   - Parameters:
-     * param1: [exact value]
-     * param2: [exact value]
+   - Parameter Mapping:
+     * param1: {"type": "asset_field", "asset": "input_name", "path": "content.field"}
+     * param2: {"type": "literal", "value": actual_value}
    - Output Mapping:
-     * tool_output_field -> asset_property
+     * tool_output_field -> asset.path.to.store
 
 2. [Next Tool]
    ...
@@ -103,13 +152,13 @@ Please provide these details so I can create a complete implementation.
 ## Implementation Process
 1. Review the hop design and requirements
 2. Identify which tools can accomplish the goal
-3. Map input assets to tool parameters
-4. Configure each tool with exact values
-5. Define how outputs map to the target asset
+3. Map input assets to tool parameters using the input_mapping
+4. Configure each tool with exact parameter mappings
+5. Define how outputs map to the target asset structure
 6. Add error handling and validation
 
 ## Guidelines
-- Use exact values from input assets, not generic placeholders
+- Use exact paths to extract values from input assets
 - Chain tools when needed for complex transformations
 - Consider rate limits and performance
 - Handle missing or invalid data gracefully
@@ -188,8 +237,15 @@ Based on this context, create a detailed implementation plan for the current hop
     
     def _format_hop(self, hop: Hop) -> str:
         """Format hop information for the prompt"""
+        input_mapping_str = "\n".join([
+            f"  - {param_name}: {asset_id}"
+            for param_name, asset_id in hop.input_mapping.items()
+        ])
+        
         return f"""Name: {hop.name}
 Description: {hop.description}
-Input Assets: {', '.join(hop.input_assets)}
+Input Mapping:
+{input_mapping_str}
 Output Asset: {hop.output_asset.name} ({hop.output_asset.type})
+Output Mission Asset ID: {hop.output_mission_asset_id if hop.output_mission_asset_id else 'None (intermediate asset)'}
 Is Final: {'Yes' if hop.is_final else 'No'}""" 

@@ -91,7 +91,25 @@ GMAIL_SEARCH_TOOL = ToolDefinition(
             type="number",
             description="Total number of emails found"
         )
-    ]
+    ],
+    example_usage={
+        "description": "Example showing how to map from assets to tool parameters",
+        "parameter_mapping": {
+            "query": {
+                "type": "asset_field",
+                "asset_id": "search_criteria_asset",
+                "field_path": "content.email_query"
+            },
+            "max_results": {
+                "type": "literal",
+                "value": 100
+            }
+        },
+        "output_mapping": {
+            "emails": "email_list",
+            "total_count": "metadata.total_emails"
+        }
+    }
 )
 
 # Email Extraction Tool

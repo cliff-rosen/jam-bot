@@ -32,8 +32,12 @@ from .newsletter import (
 )
 
 from .workflow import (
-    WorkflowStatus,
-    Mission
+    Mission,
+    MissionStatus,
+    HopStatus,
+    ExecutionStatus,
+    Hop,
+    ToolStep
 )
 
 __all__ = [
@@ -62,7 +66,10 @@ __all__ = [
     'Asset',
 
     # Workflow schemas
-    'WorkflowStatus',
-    'Workflow',
-    'Mission'
+    'Mission',
+    'MissionStatus',
+    'HopStatus', 
+    'ExecutionStatus',
+    'Hop',
+    'ToolStep'
 ]  

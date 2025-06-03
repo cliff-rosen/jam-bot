@@ -5,16 +5,21 @@ from enum import Enum
 from .asset import Asset
 
 
-class WorkflowStatus(str, Enum):
-    """Status of a workflow or its components"""
-    PENDING = "pending"
-    READY = "ready"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-    HOP_DESIGN = "hop_design"  # Need to design the next hop
-    HOP_IMPLEMENTATION = "hop_implementation"  # Hop is designed, needs implementation
+class MissionStatus(str, Enum):
+    """Status of a mission"""
+    PENDING = "pending"  # Mission proposed but not yet approved by user
+    ACTIVE = "active"    # Mission approved and in progress
+    COMPLETE = "complete"  # Mission completed
+
+
+class HopStatus(str, Enum):
+    """Status of hops (only applies when mission is active)"""
+    READY_TO_DESIGN = "ready_to_design"      # Ready to design next hop
+    HOP_PROPOSED = "hop_proposed"            # Hop designer has proposed a hop
+    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve"  # User accepted hop, ready to resolve with tools
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"  # Hop resolved with tools, ready to run
+    HOP_RUNNING = "hop_running"              # Hop is executing
+    ALL_HOPS_COMPLETE = "all_hops_complete"  # No more hops needed
 
 
 class ExecutionStatus(str, Enum):
@@ -87,7 +92,7 @@ class Hop(BaseModel):
     )
     
     # Status tracking
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
+    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
     is_resolved: bool = Field(default=False, description="Whether the hop has been configured with tools")
     is_final: bool = Field(default=False, description="Whether this hop produces the final deliverable")
     current_step_index: int = Field(default=0, description="Index of the currently executing step")
@@ -118,7 +123,8 @@ class Mission(BaseModel):
     current_hop_index: int = Field(default=0, description="Index of the current hop")
     
     # Status tracking
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
+    mission_status: MissionStatus = Field(default=MissionStatus.PENDING)
+    hop_status: Optional[HopStatus] = Field(default=None, description="Hop status (only when mission is active)")
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow) 

@@ -1,14 +1,31 @@
 import { Asset, AssetType } from './asset';
 
+export enum MissionStatus {
+    PENDING = "pending", // Mission proposed but not yet approved by user
+    ACTIVE = "active",   // Mission approved and in progress
+    COMPLETE = "complete" // Mission completed
+}
+
+export enum HopStatus {
+    READY_TO_DESIGN = "ready_to_design",           // Ready to design next hop
+    HOP_PROPOSED = "hop_proposed",                 // Hop designer has proposed a hop
+    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve", // User accepted hop, ready to resolve with tools
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute", // Hop resolved with tools, ready to run
+    HOP_RUNNING = "hop_running",                   // Hop is executing
+    ALL_HOPS_COMPLETE = "all_hops_complete"        // No more hops needed
+}
+
+// Keep WorkflowStatus for backwards compatibility but mark as deprecated
+/** @deprecated Use MissionStatus and HopStatus instead */
 export enum WorkflowStatus {
-    PENDING = "pending", // In design
-    READY = "ready", // Ready to be used
-    IN_PROGRESS = "in_progress", // Started but not completed
-    COMPLETED = "completed", // Completed
-    FAILED = "failed", // Failed
-    CANCELLED = "cancelled", // Cancelled
-    HOP_DESIGN = "hop_design", // Need to design the next hop
-    HOP_IMPLEMENTATION = "hop_implementation" // Hop is designed, needs implementation
+    PENDING = "pending",
+    READY = "ready",
+    IN_PROGRESS = "in_progress",
+    COMPLETED = "completed",
+    FAILED = "failed",
+    CANCELLED = "cancelled",
+    HOP_DESIGN = "hop_design",
+    HOP_IMPLEMENTATION = "hop_implementation"
 }
 
 export enum ExecutionStatus {
@@ -68,7 +85,7 @@ export interface Hop {
     steps: ToolStep[]; // Ordered list of tool executions
 
     // Status tracking
-    status: WorkflowStatus;
+    status: ExecutionStatus; // Individual hop execution status
     is_resolved: boolean; // Whether the hop has been configured with tools
     is_final: boolean; // Whether this produces the final deliverable
     current_step_index: number;
@@ -95,7 +112,8 @@ export interface Mission {
     current_hop_index: number;
 
     // Status tracking
-    status: WorkflowStatus;
+    mission_status: MissionStatus; // Overall mission status
+    hop_status?: HopStatus; // Hop workflow status (only when mission is active)
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
@@ -112,12 +130,12 @@ export const defaultMission: Mission = {
     state: {},
     hops: [],
     current_hop_index: 0,
-    status: WorkflowStatus.PENDING,
+    mission_status: MissionStatus.PENDING,
+    hop_status: undefined,
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
 }
-
 
 export const defaultMission2: Mission = {
     id: "default",
@@ -166,7 +184,8 @@ export const defaultMission2: Mission = {
     state: {},
     hops: [],
     current_hop_index: 0,
-    status: WorkflowStatus.READY,
+    mission_status: MissionStatus.ACTIVE,
+    hop_status: HopStatus.READY_TO_DESIGN,
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()

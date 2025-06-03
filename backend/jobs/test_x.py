@@ -2,7 +2,7 @@ from datetime import datetime
 import asyncio
 from agents.primary_agent import graph as primary_agent, State
 from schemas.chat import Message, MessageRole
-from schemas.workflow import Mission, WorkflowStatus
+from schemas.workflow import Mission, MissionStatus
 import uuid
 import os
 from config.settings import settings
@@ -21,8 +21,10 @@ defaultMission = Mission(
     success_criteria=["Report is accurate and covers all major AI news in the range."],
     inputs=[],
     outputs=[],
-    status=WorkflowStatus.PENDING,
-    workflows=[],
+    mission_status=MissionStatus.PENDING,
+    state={},
+    hops=[],
+    current_hop_index=0,
     metadata={},
     created_at=datetime.now().isoformat(),
     updated_at=datetime.now().isoformat()

@@ -14,7 +14,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, WorkflowStatus, Hop, ToolStep
+from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
 from schemas.asset import Asset
 from agents.prompts.mission_prompt import AssetLite
 import os
@@ -110,8 +110,8 @@ def serialize_state(state: State) -> dict:
     }
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Supervisor node that routes based on mission status"""
-    print("Supervisor - Routing based on mission status")
+    """Simplified supervisor node that routes based on mission and hop status"""
+    print("Supervisor - Routing based on mission and hop status")
     
     if writer:
         writer({
@@ -120,49 +120,55 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         })
 
     try:
-        # Simple routing logic based on mission status
-        if not state.mission:
-            # No mission exists - create one
+        # Route based on mission status first
+        if not state.mission or state.mission.mission_status == MissionStatus.PENDING:
             next_node = "mission_specialist_node"
-            routing_message = "No mission defined yet. Routing to mission specialist to help define your mission."
-        elif state.mission.status == WorkflowStatus.PENDING:
-            # Mission is pending - needs definition
-            next_node = "mission_specialist_node"
-            routing_message = "Mission is in pending status. Routing to mission specialist to complete the mission definition."
-        elif state.mission.status == WorkflowStatus.READY:
-            # Mission is ready - update status to HOP_DESIGN and route to hop designer
-            state.mission.status = WorkflowStatus.HOP_DESIGN
-            next_node = "hop_designer_node"
-            routing_message = "Mission is defined and ready. Routing to hop designer to plan the next step."
-        elif state.mission.status == WorkflowStatus.HOP_DESIGN:
-            # Need to design a hop
-            next_node = "hop_designer_node"
-            routing_message = "Routing to hop designer to plan the next step toward completing the mission."
-        elif state.mission.status == WorkflowStatus.HOP_IMPLEMENTATION:
-            # Hop is designed, needs implementation
-            if state.current_hop and state.current_hop.status == WorkflowStatus.PENDING:
-                next_node = "hop_implementer_node"
-                routing_message = "Hop has been designed. Routing to hop implementer to configure the tools."
-            else:
-                # Hop might be completed, go back to design phase
-                state.mission.status = WorkflowStatus.HOP_DESIGN
+            routing_message = "Mission is pending. Routing to mission specialist to define or refine the mission."
+        
+        elif state.mission.mission_status == MissionStatus.ACTIVE:
+            # Mission is active - route based on hop status
+            if not state.mission.hop_status or state.mission.hop_status == HopStatus.READY_TO_DESIGN:
                 next_node = "hop_designer_node"
-                routing_message = "Previous hop completed. Routing to hop designer for the next step."
-        elif state.mission.status == WorkflowStatus.IN_PROGRESS:
-            # Mission is in progress - check if we need more hops
-            state.mission.status = WorkflowStatus.HOP_DESIGN
-            next_node = "hop_designer_node"
-            routing_message = "Mission is in progress. Routing to hop designer to plan the next step."
-        elif state.mission.status == WorkflowStatus.COMPLETED:
-            # Mission completed
+                routing_message = "Mission is active and ready for next hop design."
+            
+            elif state.mission.hop_status == HopStatus.HOP_PROPOSED:
+                # Hop is proposed - waiting for user approval (stay here for now)
+                next_node = END
+                routing_message = "Hop has been proposed. Waiting for your approval to proceed."
+            
+            elif state.mission.hop_status == HopStatus.HOP_READY_TO_RESOLVE:
+                next_node = "hop_implementer_node"
+                routing_message = "Hop approved. Routing to hop implementer to configure tools."
+            
+            elif state.mission.hop_status == HopStatus.HOP_READY_TO_EXECUTE:
+                # TODO: Route to hop executor when available
+                next_node = END
+                routing_message = "Hop is configured and ready to execute."
+            
+            elif state.mission.hop_status == HopStatus.HOP_RUNNING:
+                # TODO: Route to hop executor for status updates
+                next_node = END
+                routing_message = "Hop is currently running."
+            
+            elif state.mission.hop_status == HopStatus.ALL_HOPS_COMPLETE:
+                # Mark mission as complete
+                state.mission.mission_status = MissionStatus.COMPLETE
+                next_node = END
+                routing_message = "All hops complete! Mission has been completed successfully."
+            
+            else:
+                next_node = END
+                routing_message = f"Unknown hop status: {state.mission.hop_status}"
+        
+        elif state.mission.mission_status == MissionStatus.COMPLETE:
             next_node = END
             routing_message = "Mission has been completed successfully!"
+        
         else:
-            # Default case - end or handle failed missions
             next_node = END
-            routing_message = f"Mission status is {state.mission.status}. No further routing needed."
+            routing_message = f"Unknown mission status: {state.mission.mission_status}"
 
-        # Create a simple routing message
+        # Create routing message
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
@@ -185,7 +191,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 response_text=routing_message,
                 status="supervisor_routing_completed",
                 error=None,
-                debug=f"Routing to: {next_node}",
+                debug=f"Mission: {state.mission.mission_status}, Hop: {state.mission.hop_status}, Routing to: {next_node}",
                 payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
@@ -256,7 +262,9 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission.created_at = datetime.now().isoformat()
             state.mission.updated_at = datetime.now().isoformat()
             state.mission.metadata = {}
-            state.mission.status = WorkflowStatus.PENDING
+            
+            # Set mission as pending (waiting for user approval)
+            state.mission.mission_status = MissionStatus.PENDING
             
             # Initialize mission state with input assets
             for asset in state.mission.inputs:
@@ -284,7 +292,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 response_text=parsed_response.response_content,
                 status="mission_specialist_completed",
                 error=None,
-                debug="hello",
+                debug="Mission proposed and waiting for user approval",
                 payload=serialize_state(State(**state_update))
             )
 
@@ -305,92 +313,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             })
         raise
 
-async def workflow_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Node that handles workflow specialist operations"""
-    print("Workflow specialist node")
-
-    if writer:
-        writer({
-            "status": "workflow_specialist_starting",
-            "payload": serialize_state(state)
-        })
-    
-    try:
-        # Create and format the prompt
-        prompt = WorkflowDefinitionPrompt()
-        formatted_messages = prompt.get_formatted_messages(
-            messages=state.messages,
-            mission=state.mission,
-        )
-        schema = prompt.get_schema()
-
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=formatted_messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {    
-                    "schema": schema,
-                    "name": prompt.get_response_model_name()
-                }
-            }
-        )   
-        
-        response_text = response.choices[0].message.content
-        parsed_response = prompt.parse_response(response_text)
-        print("================================================")
-        print("Parsed workflow response:", parsed_response)
-
-        if parsed_response.workflow_proposal:
-            # Create a new workflow and add it to the mission
-            workflow_proposal = parsed_response.workflow_proposal
-            
-            # TODO: Convert WorkflowProposal to actual Workflow object
-            # For now, we'll just update the mission status to show workflow planning is in progress
-            state.mission.status = WorkflowStatus.READY  # Update status to indicate workflow is being planned
-
-        response_message = Message(
-            id=str(uuid.uuid4()),
-            role=MessageRole.ASSISTANT,
-            content=parsed_response.response_content,
-            timestamp=datetime.now().isoformat()
-        )
-
-        next_node = END
-
-        state_update = {
-            "messages": [*state.messages, response_message.model_dump()],
-            "mission": state.mission,
-            "tool_params": {},
-            "next_node": next_node,
-        }
-
-        if writer:
-            agent_response = AgentResponse(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_content,
-                status="workflow_specialist_completed",
-                error=None,
-                debug="workflow planning complete",
-                payload=serialize_state(State(**state_update))
-            )
-
-            writer(agent_response.model_dump())
-
-        return Command(goto=next_node, update=state_update)
-
-    except Exception as e:
-        import traceback
-        error_traceback = traceback.format_exc()
-        print("Error in workflow specialist node:", error_traceback)
-        if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state),
-                "debug": error_traceback,
-            })
-        raise
+# workflow_specialist_node removed - not needed in simplified workflow
 
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles hop designer operations"""
@@ -454,13 +377,13 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 input_mapping=hop_proposal.input_mapping,
                 output_mapping=output_mapping,
                 is_final=hop_proposal.is_final,
-                status=WorkflowStatus.PENDING
+                status=ExecutionStatus.PENDING
             )
             
             # Update state with new hop
             state.current_hop = new_hop
             state.mission.current_hop = new_hop
-            state.mission.status = WorkflowStatus.HOP_IMPLEMENTATION
+            state.mission.hop_status = HopStatus.HOP_PROPOSED
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -486,7 +409,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 response_text=parsed_response.response_content,
                 status="hop_designer_completed",
                 error=None,
-                debug=f"Hop designed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}",
+                debug=f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
                 payload=serialize_state(State(**state_update))
             )
 
@@ -571,11 +494,14 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 state.current_hop.steps.append(schema_step)
             
             state.current_hop.is_resolved = True
-            state.current_hop.status = WorkflowStatus.READY
+            state.current_hop.status = ExecutionStatus.PENDING
             
-            # For now, mark hop as completed and add to completed hops
-            # In a real implementation, this would trigger actual tool execution
-            state.current_hop.status = WorkflowStatus.COMPLETED
+            # Set hop status to ready to execute
+            state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
+            
+            # For now, simulate execution completion
+            # In a real implementation, this would be handled by a hop executor
+            state.current_hop.status = ExecutionStatus.COMPLETED
             state.mission.hops.append(state.current_hop)
             
             # Simulate creating output assets based on output mapping
@@ -605,15 +531,15 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             # Check if mission is complete (before clearing current_hop)
             is_final_hop = state.current_hop.is_final
             
-            # Clear current hop and update mission status
+            # Clear current hop
             state.current_hop = None
             state.mission.current_hop = None
             
-            # Update mission status based on whether this was the final hop
+            # Update hop status based on whether this was the final hop
             if is_final_hop:
-                state.mission.status = WorkflowStatus.COMPLETED
+                state.mission.hop_status = HopStatus.ALL_HOPS_COMPLETE
             else:
-                state.mission.status = WorkflowStatus.HOP_DESIGN
+                state.mission.hop_status = HopStatus.READY_TO_DESIGN
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -634,12 +560,15 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         }
 
         if writer:
+            hop_name = state.current_hop.name if state.current_hop else "Hop completed"
+            next_status = "ready for next hop" if not is_final_hop else "mission complete"
+            
             agent_response = AgentResponse(
                 token=response_message.content[0:100],
                 response_text=parsed_response.response_content,
                 status="hop_implementer_completed",
                 error=None,
-                debug=f"Hop implemented: {state.current_hop.name if state.current_hop else 'Hop completed'}",
+                debug=f"Hop implemented and executed: {hop_name}, {next_status}",
                 payload=serialize_state(State(**state_update))
             )
 

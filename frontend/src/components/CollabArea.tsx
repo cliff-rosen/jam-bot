@@ -6,13 +6,13 @@ import { useJamBot } from '@/context/JamBotContext';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
-    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal';
+    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal';
     content?: any;
 }
 
 const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const { acceptMissionProposal } = useJamBot();
+    const { acceptMissionProposal, acceptHopProposal } = useJamBot();
 
     const handlePrevious = () => {
         setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -129,6 +129,96 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         );
     };
 
+    const renderHopProposal = () => {
+        const hop = content?.current_hop;
+        if (!hop) {
+            return (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    No hop proposal available
+                </div>
+            );
+        }
+
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6 space-y-6">
+                    {/* Hop Proposal Header */}
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+                            Hop Proposal
+                        </h3>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                            Review the proposed hop details below. You can accept this proposal to proceed with implementation.
+                        </p>
+                    </div>
+
+                    {/* Hop Details */}
+                    <div className="space-y-4">
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Hop Name</h4>
+                            <p className="text-base text-gray-900 dark:text-gray-100">{hop.name}</p>
+                        </div>
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Description</h4>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{hop.description}</p>
+                        </div>
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Type</h4>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">
+                                {hop.is_final ? 'Final Hop (produces final deliverable)' : 'Intermediate Hop'}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Input Mapping</h4>
+                                {hop.input_mapping && Object.keys(hop.input_mapping).length > 0 ? (
+                                    <ul className="space-y-1">
+                                        {Object.entries(hop.input_mapping).map(([key, value]) => (
+                                            <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
+                                                <span className="font-medium">{key}:</span> {String(value)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No inputs required</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Output Mapping</h4>
+                                {hop.output_mapping && Object.keys(hop.output_mapping).length > 0 ? (
+                                    <ul className="space-y-1">
+                                        {Object.entries(hop.output_mapping).map(([key, value]) => (
+                                            <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
+                                                <span className="font-medium">{key}:</span> {String(value)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No outputs defined</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                            onClick={() => acceptHopProposal()}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            Accept Hop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderObjectList = () => {
         if (!Array.isArray(content) || content.length === 0) {
             return (
@@ -197,6 +287,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {type === 'object' && 'Object'}
                     {type === 'object-list' && 'Object List'}
                     {type === 'mission-proposal' && 'Mission Proposal'}
+                    {type === 'hop-proposal' && 'Hop Proposal'}
                     {type === 'default' && 'Collaboration Area'}
                 </h2>
             </div>
@@ -241,6 +332,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 {type === 'object-list' && renderObjectList()}
                 {type === 'object' && renderObject()}
                 {type === 'mission-proposal' && renderMissionProposal()}
+                {type === 'hop-proposal' && renderHopProposal()}
             </div>
         </div>
     );

@@ -23,6 +23,7 @@ export default function Mission({
     };
 
     const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.mission_status === 'pending';
+    const hasPendingHopProposal = state.collabArea.type === 'hop-proposal' && mission.hop_status === 'hop_proposed';
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -88,6 +89,15 @@ export default function Mission({
                             >
                                 <FileText className="w-3 h-3" />
                                 View Proposal
+                            </button>
+                        )}
+                        {hasPendingHopProposal && (
+                            <button
+                                onClick={() => setCollabArea('hop-proposal', state.collabArea.content)}
+                                className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors"
+                            >
+                                <FileText className="w-3 h-3" />
+                                View Hop Proposal
                             </button>
                         )}
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.mission_status)}`}>

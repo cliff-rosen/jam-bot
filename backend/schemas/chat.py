@@ -1,8 +1,8 @@
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
-from .workflow import WorkflowStatus, Workflow, Mission
+from .workflow import WorkflowStatus, Mission
 
 
 ### BOT REQUEST ###

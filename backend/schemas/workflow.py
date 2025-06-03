@@ -17,168 +17,108 @@ class WorkflowStatus(str, Enum):
     HOP_IMPLEMENTATION = "hop_implementation"  # Hop is designed, needs implementation
 
 
-class StateVariableType(str, Enum):
-    """Type of state variable"""
-    ASSET = "asset"  # References an asset
-    PRIMITIVE = "primitive"  # Basic type (string, number, boolean)
-    OBJECT = "object"  # Complex object
-    COLLECTION = "collection"  # Array or map of other types
+class ExecutionStatus(str, Enum):
+    """Status of tool execution"""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ToolStep(BaseModel):
+    """Represents an atomic unit of work - a single tool execution within a hop"""
+    id: str = Field(description="Unique identifier for the tool step")
+    tool_name: str = Field(description="Name of the tool to execute")
+    description: str = Field(description="Description of what this tool step accomplishes")
+    
+    # Asset mappings within hop state
+    parameter_mapping: Dict[str, Dict[str, Any]] = Field(
+        description="Maps tool parameters to hop state assets. Format: {tool_param: {'state_asset': local_key, 'path': '...'}}"
+    )
+    result_mapping: Dict[str, Dict[str, Any]] = Field(
+        description="Maps tool outputs to hop state assets. Format: {tool_output: {'state_asset': local_key, 'path': '...'}}"
+    )
+    
+    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
+    error: Optional[str] = Field(default=None, description="Error message if the tool execution failed")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Hop(BaseModel):
-    """Represents a single hop in the mission execution
+    """Represents a coherent unit of work that transforms input assets into output assets.
     
-    Asset Mapping Flow:
-    1. Input Mapping: Maps logical parameter names to asset IDs
-       - Example: {"search_query": "asset_123", "filter_criteria": "asset_456"}
-       - These asset IDs refer to either mission input assets or outputs from previous hops
+    A hop may be atomic (single tool) or composite (multiple tools).
     
-    2. Tool Configuration: Specifies how to extract values from assets for tool parameters
-       - parameter_mapping: Maps tool params to asset fields
-         Example: {
-           "query": {"asset": "search_query", "path": "content.query_string"},
-           "max_results": {"literal": 50}
-         }
-       - output_mapping: Maps tool outputs to output asset fields
-         Example: {
-           "emails": "content.email_list",
-           "total_count": "metadata.count"
-         }
+    Asset Flow:
+    1. Input Mapping: External assets → Hop local state
+       - Example: {"search_criteria": "mission_asset_123"}
+       - Copies/references external assets into hop's state
     
-    3. Output Asset: The asset produced by this hop
-       - Intermediate hops: Create new assets added to available_assets
-       - Final hops: Map to mission output assets via output_mission_asset_id
+    2. Tool Execution: Tools operate on hop's local state
+       - Each tool step reads from and writes to the local state
+       - Intermediate results stay within the hop
     
-    Example Flow:
-    Mission Input Asset (id: "search_criteria") -> 
-    Hop Input Mapping {"criteria": "search_criteria"} ->
-    Tool Parameter Mapping {"query": {"asset": "criteria", "path": "content.search_string"}} ->
-    Tool Execution ->
-    Tool Output Mapping {"emails": "content.results"} ->
-    Hop Output Asset (new asset with results) ->
-    (if final) Mission Output Asset (id from output_mission_asset_id)
+    3. Output Mapping: Hop local state → External assets
+       - Example: {"results": "mission_output_asset_456"}
+       - Maps local assets back to mission state or output assets
     """
     id: str = Field(description="Unique identifier for the hop")
     name: str = Field(description="Name of the hop")
     description: str = Field(description="Description of what this hop accomplishes")
     
-    # Input mapping: maps hop input names to mission asset IDs
+    # Asset mappings
     input_mapping: Dict[str, str] = Field(
-        description="Maps hop input parameter names to mission asset IDs or available asset IDs"
+        description="Maps local state keys to external asset IDs. Format: {local_key: external_asset_id}"
     )
-    
-    # Output mapping: maps to mission output asset ID if this produces a final output
-    output_mission_asset_id: Optional[str] = Field(
-        default=None,
-        description="ID of the mission output asset this hop produces (if final hop)"
-    )
-    
-    # The asset this hop will produce
-    output_asset: Asset = Field(description="The output asset this hop will produce")
-    
-    is_final: bool = Field(default=False, description="Whether this hop produces the final deliverable")
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    
-    # Tool configuration includes parameter and result mappings
-    tool_configuration: Optional[Dict[str, Any]] = Field(
-        default=None, 
-        description="Tool configuration including parameter mappings and result mappings"
-    )
-    
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class StateVariable(BaseModel):
-    """Represents a state variable in a workflow"""
-    id: str = Field(description="Unique identifier for the state variable")
-    name: str = Field(description="Name of the state variable")
-    description: str = Field(description="Description of the state variable")
-    type: StateVariableType = Field(description="Type of the state variable")
-    value: Any = Field(description="Current value of the state variable")
-    asset_id: Optional[str] = Field(default=None, description="ID of the associated asset if type is ASSET")
-    is_input: bool = Field(default=False, description="Whether this is an input to the workflow")
-    is_output: bool = Field(default=False, description="Whether this is an output from the workflow")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class ToolUse(BaseModel):
-    """Represents a tool use in a workflow step"""
-    id: str = Field(description="Unique identifier for the tool use")
-    name: str = Field(description="Name of the tool")
-    
-    # Maps tool parameter names to state variable IDs
-    parameter_mapping: Dict[str, str] = Field(
-        description="Maps tool parameter names to state variable IDs that provide their values"
-    )
-    
-    # Maps tool result paths to state variable IDs
-    result_mapping: Dict[str, str] = Field(
-        description="Maps tool result paths (dot notation) to state variable IDs that will store the results"
-    )
-    
-    # The actual parameters and results after state variable substitution
-    parameters: Dict[str, Any] = Field(description="Parameters passed to the tool after state variable substitution")
-    results: Any = Field(description="Results from the tool use")
-    
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    error: Optional[str] = Field(default=None, description="Error message if the tool use failed")
-
-
-class WorkflowStep(BaseModel):
-    """Represents a step in a workflow"""
-    id: str = Field(description="Unique identifier for the step")
-    name: str = Field(description="Name of the step")
-    description: str = Field(description="Description of what the step does")
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    tool_uses: List[ToolUse] = Field(default_factory=list)
-    input_variables: List[str] = Field(description="IDs of state variables used as input")
-    output_variables: List[str] = Field(description="IDs of state variables produced as output")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class Workflow(BaseModel):
-    """Represents a workflow"""
-    id: str = Field(description="Unique identifier for the workflow")
-    name: str = Field(description="Name of the workflow")
-    description: str = Field(description="Description of the workflow")
-    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    steps: List[WorkflowStep] = Field(default_factory=list)
-    state_variables: Dict[str, StateVariable] = Field(
+    state: Dict[str, Asset] = Field(
         default_factory=dict,
-        description="Map of state variable IDs to their definitions"
-    )
-    input_mapping: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Maps mission input asset IDs to workflow state variable IDs"
+        description="Local asset workspace for this hop"
     )
     output_mapping: Dict[str, str] = Field(
         default_factory=dict,
-        description="Maps workflow state variable IDs to mission output asset IDs"
+        description="Maps local state keys to external asset IDs. Format: {local_key: external_asset_id}"
     )
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Tool chain (populated during resolution)
+    steps: List[ToolStep] = Field(
+        default_factory=list,
+        description="Ordered list of tool executions that implement this hop"
+    )
+    
+    # Status tracking
+    status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
+    is_resolved: bool = Field(default=False, description="Whether the hop has been configured with tools")
+    is_final: bool = Field(default=False, description="Whether this hop produces the final deliverable")
+    current_step_index: int = Field(default=0, description="Index of the currently executing step")
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Mission(BaseModel):
-    """Represents a mission that can contain multiple workflows"""
+    """Represents a high-level goal that transforms input assets into output assets"""
     id: str = Field(description="Unique identifier for the mission")
     name: str = Field(description="Name of the mission")
     description: str = Field(description="Description of the mission")
     goal: str = Field(description="The main goal of the mission")
     success_criteria: List[str] = Field(description="List of criteria that define mission success")
+    
+    # Assets
     inputs: List[Asset] = Field(description="Input assets required for the mission")
     outputs: List[Asset] = Field(description="Output assets produced by the mission")
+    state: Dict[str, Asset] = Field(
+        default_factory=dict,
+        description="All assets available to the mission (inputs + hop outputs)"
+    )
+    
+    # Execution
+    hops: List[Hop] = Field(default_factory=list, description="Sequence of hops to execute")
+    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")
+    current_hop_index: int = Field(default=0, description="Index of the current hop")
+    
+    # Status tracking
     status: WorkflowStatus = Field(default=WorkflowStatus.PENDING)
-    workflows: List[Workflow] = Field(default_factory=list)
-    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or implemented")
-    completed_hops: List[Hop] = Field(default_factory=list, description="List of completed hops")
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow) 

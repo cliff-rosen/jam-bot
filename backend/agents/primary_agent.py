@@ -14,7 +14,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, WorkflowStatus, Hop
+from schemas.workflow import Mission, WorkflowStatus, Hop, ToolStep
 from schemas.asset import Asset
 from agents.prompts.mission_prompt import AssetLite
 import os
@@ -66,7 +66,6 @@ class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
-    available_assets: List[Dict[str, Any]] = []
     tool_params: Dict[str, Any] = {}
     next_node: str
     current_hop: Optional[Hop] = None
@@ -176,7 +175,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "available_assets": state.available_assets,
             "current_hop": state.current_hop
         }
 
@@ -219,7 +217,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
             mission=state.mission,
-            available_assets=state.available_assets,
         )
         schema = prompt.get_schema()
 
@@ -256,6 +253,15 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 for asset_lite in parsed_response.mission_proposal.outputs
             ]
 
+            state.mission.created_at = datetime.now().isoformat()
+            state.mission.updated_at = datetime.now().isoformat()
+            state.mission.metadata = {}
+            state.mission.status = WorkflowStatus.PENDING
+            
+            # Initialize mission state with input assets
+            for asset in state.mission.inputs:
+                state.mission.state[asset.id] = asset
+
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
@@ -268,7 +274,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
-            "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,
         }
@@ -316,7 +321,6 @@ async def workflow_specialist_node(state: State, writer: StreamWriter, config: D
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
             mission=state.mission,
-            available_assets=state.available_assets,
         )
         schema = prompt.get_schema()
 
@@ -357,7 +361,6 @@ async def workflow_specialist_node(state: State, writer: StreamWriter, config: D
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
-            "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,
         }
@@ -402,11 +405,15 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
     try:
         # Create and format the prompt
         prompt = HopDesignerPrompt()
+        
+        # Convert mission state assets to list format for the prompt
+        available_assets = [asset.model_dump() for asset in state.mission.state.values()] if state.mission else []
+        
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
             mission=state.mission,
-            available_assets=state.available_assets,
-            completed_hops=state.mission.completed_hops if state.mission else []
+            available_assets=available_assets,
+            completed_hops=state.mission.hops if state.mission else []
         )
         schema = prompt.get_schema()
 
@@ -430,13 +437,22 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         if parsed_response.hop_proposal:
             # Convert hop proposal to Hop object
             hop_proposal = parsed_response.hop_proposal
+            
+            # Create output mapping based on whether this is a final hop
+            output_mapping = {}
+            if hop_proposal.is_final and hop_proposal.output_mission_asset_id:
+                # For final hops, map to mission output
+                output_mapping[hop_proposal.output_asset.name] = hop_proposal.output_mission_asset_id
+            else:
+                # For intermediate hops, create a new asset ID
+                output_mapping[hop_proposal.output_asset.name] = f"hop_{hop_proposal.name.lower().replace(' ', '_')}_output"
+            
             new_hop = Hop(
                 id=str(uuid.uuid4()),
                 name=hop_proposal.name,
                 description=hop_proposal.description,
                 input_mapping=hop_proposal.input_mapping,
-                output_asset=convert_asset_lite_to_asset(hop_proposal.output_asset),
-                output_mission_asset_id=hop_proposal.output_mission_asset_id,
+                output_mapping=output_mapping,
                 is_final=hop_proposal.is_final,
                 status=WorkflowStatus.PENDING
             )
@@ -459,7 +475,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
-            "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,
             "current_hop": state.current_hop
@@ -508,11 +523,15 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         # Create and format the prompt
         prompt = HopImplementerPrompt()
+        
+        # Convert mission state assets to list format for the prompt
+        available_assets = [asset.model_dump() for asset in state.mission.state.values()] if state.mission else []
+        
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
             mission=state.mission,
             current_hop=state.current_hop,
-            available_assets=state.available_assets
+            available_assets=available_assets
         )
         schema = prompt.get_schema()
 
@@ -534,23 +553,54 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         print("Parsed hop implementation response:", parsed_response)
 
         if parsed_response.implementation:
-            # Store the tool configuration in the hop
+            # Populate the hop's steps from the implementation
             implementation = parsed_response.implementation
-            state.current_hop.tool_configuration = {
-                "tool_steps": [step.model_dump() for step in implementation.tool_steps],
-                "error_handling": implementation.error_handling,
-                "validation_checks": implementation.validation_checks
-            }
+            
+            # Import ToolStep from schemas
+            from schemas.workflow import ToolStep as SchemaToolStep
+            
+            # Convert implementation tool steps to schema ToolSteps
+            for impl_step in implementation.tool_steps:
+                schema_step = SchemaToolStep(
+                    id=str(uuid.uuid4()),
+                    tool_name=impl_step.tool_name.value,  # Convert enum to string
+                    description=impl_step.description,
+                    parameter_mapping=impl_step.parameter_mapping,
+                    result_mapping=impl_step.output_mapping  # Note: renamed from output_mapping to result_mapping
+                )
+                state.current_hop.steps.append(schema_step)
+            
+            state.current_hop.is_resolved = True
             state.current_hop.status = WorkflowStatus.READY
             
             # For now, mark hop as completed and add to completed hops
             # In a real implementation, this would trigger actual tool execution
             state.current_hop.status = WorkflowStatus.COMPLETED
-            state.mission.completed_hops.append(state.current_hop)
+            state.mission.hops.append(state.current_hop)
             
-            # Add the output asset to available assets
-            output_asset = state.current_hop.output_asset
-            state.available_assets.append(output_asset.model_dump())
+            # Simulate creating output assets based on output mapping
+            # In real implementation, these would be created by tool execution
+            for local_key, external_id in state.current_hop.output_mapping.items():
+                # Create a placeholder asset
+                from schemas.asset import AssetType
+                placeholder_asset = Asset(
+                    id=external_id,
+                    name=local_key,
+                    description=f"Output from {state.current_hop.name}",
+                    type=AssetType.FILE,  # Default type, would be determined by tool
+                    is_collection=False,
+                    content={"placeholder": "This would contain actual tool output"},
+                    asset_metadata={
+                        "createdAt": datetime.now().isoformat(),
+                        "updatedAt": datetime.now().isoformat(),
+                        "creator": state.current_hop.name,
+                        "tags": [],
+                        "agent_associations": [],
+                        "version": 1,
+                        "token_count": 0
+                    }
+                )
+                state.mission.state[external_id] = placeholder_asset
             
             # Check if mission is complete (before clearing current_hop)
             is_final_hop = state.current_hop.is_final
@@ -578,7 +628,6 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
-            "available_assets": state.available_assets,
             "tool_params": {},
             "next_node": next_node,
             "current_hop": state.current_hop
@@ -664,7 +713,6 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "available_assets": state.available_assets
         }
 
         if writer:

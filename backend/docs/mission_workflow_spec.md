@@ -46,9 +46,9 @@ class Hop:
     description: str
     
     # Asset mappings
-    input_mapping: Dict[str, str]    # External asset IDs → Local state keys
+    input_mapping: Dict[str, str]    # {local_key: external_asset_id}
     state: Dict[str, Asset]          # Local asset workspace
-    output_mapping: Dict[str, str]   # Local state keys → External asset IDs
+    output_mapping: Dict[str, str]   # {local_key: external_asset_id}
     
     # Tool chain (populated during resolution)
     steps: List[ToolStep]            # Tool executions that implement this hop
@@ -72,8 +72,8 @@ class ToolStep:
     description: str
     
     # Asset mappings within hop state
-    parameter_mapping: Dict[str, Dict[str, Any]]  # Tool params → State assets
-    result_mapping: Dict[str, Dict[str, Any]]     # Tool outputs → State assets
+    parameter_mapping: Dict[str, Dict[str, Any]]  # {tool_param: {"state_asset": local_key, "path": "..."}}
+    result_mapping: Dict[str, Dict[str, Any]]     # {tool_output: {"state_asset": local_key, "path": "..."}}
     
     status: ExecutionStatus
     error: Optional[str]
@@ -168,6 +168,179 @@ hop.steps = [
     )
 ]
 ```
+
+### Example: Complete Mission
+
+Let's look at a complete mission "Analyze Customer Feedback" and how it decomposes into hops:
+
+**Mission Definition:**
+```python
+mission = Mission(
+    name="Analyze Customer Feedback",
+    description="Collect and analyze customer feedback emails to identify key themes",
+    inputs=[
+        Asset(id="search_criteria", content={"query": "label:customer-feedback", "date_range": "last_30_days"})
+    ],
+    outputs=[
+        Asset(id="feedback_report", type=AssetType.REPORT)
+    ]
+)
+```
+
+**Mission Decomposition:**
+
+This mission elegantly resolves into 3 hops:
+
+### Hop 1: Gather Feedback (Atomic)
+```python
+hop1 = Hop(
+    name="Gather Customer Feedback",
+    description="Collect all customer feedback emails",
+    input_mapping={
+        "criteria": "search_criteria"  # local 'criteria' ← mission state 'search_criteria'
+    },
+    output_mapping={
+        "emails": "raw_feedback_emails"  # local 'emails' → mission state 'raw_feedback_emails'
+    }
+)
+
+# Resolution: Single tool is sufficient
+hop1.steps = [
+    ToolStep(
+        tool_name="gmail_search",
+        parameter_mapping={
+            "query": {"state_asset": "criteria", "path": "content.query"},
+            "date_filter": {"state_asset": "criteria", "path": "content.date_range"}
+        },
+        result_mapping={
+            "emails": {"state_asset": "emails", "path": "content"}
+        }
+    )
+]
+```
+
+### Hop 2: Process Feedback (Multi-Step)
+```python
+hop2 = Hop(
+    name="Process Feedback",
+    description="Extract and structure feedback data",
+    input_mapping={
+        "raw_emails": "raw_feedback_emails"  # local 'raw_emails' ← mission state 'raw_feedback_emails'
+    },
+    output_mapping={
+        "processed_data": "structured_feedback"  # local 'processed_data' → mission state 'structured_feedback'
+    }
+)
+
+# Resolution: Multiple tools needed
+hop2.steps = [
+    ToolStep(
+        tool_name="email_extraction",
+        description="Extract structured data from emails",
+        parameter_mapping={
+            "emails": {"state_asset": "raw_emails", "path": "content"},
+            "extraction_schema": {"literal": {
+                "customer_id": "string",
+                "sentiment": "string",
+                "issue_category": "string",
+                "feedback_text": "string"
+            }}
+        },
+        result_mapping={
+            "extracted_data": {"state_asset": "extracted_feedback", "path": "content"}
+        }
+    ),
+    ToolStep(
+        tool_name="data_store_update",
+        description="Store structured feedback for analysis",
+        parameter_mapping={
+            "store_name": {"literal": "feedback_analysis"},
+            "data": {"state_asset": "extracted_feedback", "path": "content"}
+        },
+        result_mapping={
+            "store_ref": {"state_asset": "processed_data", "path": "content"}
+        }
+    )
+]
+```
+
+### Hop 3: Summarize Feedback (Multi-Step)
+```python
+hop3 = Hop(
+    name="Summarize Feedback",
+    description="Generate insights report from processed feedback",
+    input_mapping={
+        "feedback_data": "structured_feedback"  # local 'feedback_data' ← mission state 'structured_feedback'
+    },
+    output_mapping={
+        "report": "feedback_report"  # local 'report' → mission state 'feedback_report' (final output)
+    }
+)
+
+# Resolution: Multiple tools for comprehensive analysis
+hop3.steps = [
+    ToolStep(
+        tool_name="data_store_summarize",
+        description="Generate statistical summary",
+        parameter_mapping={
+            "store_name": {"state_asset": "feedback_data", "path": "content.store_name"},
+            "summarization_type": {"literal": "statistical"},
+            "group_by": {"literal": ["issue_category", "sentiment"]}
+        },
+        result_mapping={
+            "summary": {"state_asset": "stats_summary", "path": "content"}
+        }
+    ),
+    ToolStep(
+        tool_name="report_generator",
+        description="Create final report",
+        parameter_mapping={
+            "stats": {"state_asset": "stats_summary", "path": "content"},
+            "raw_data": {"state_asset": "feedback_data", "path": "content"},
+            "template": {"literal": "customer_feedback_template"}
+        },
+        result_mapping={
+            "report": {"state_asset": "report", "path": "content"}
+        }
+    )
+]
+```
+
+**Key Points:**
+- **Hop 1** is atomic - a single gmail_search tool suffices
+- **Hop 2** requires multiple steps - extraction then storage
+- **Hop 3** requires multiple steps - analysis then report generation
+- Each hop maintains its own state workspace
+- Mission state accumulates all assets as hops complete
+
+## Tool Chain Visualization
+
+The resolved hops form a complete tool chain that transforms mission inputs into outputs:
+
+| Hop | Step | Tool | Inputs | Outputs | Data Flow |
+|-----|------|------|--------|---------|-----------|
+| **1: Gather** | 1 | gmail_search | search_criteria (mission input) | raw_feedback_emails | Mission Input → Emails |
+| **2: Process** | 1 | email_extraction | raw_feedback_emails | extracted_feedback | Emails → Structured Data |
+| | 2 | data_store_update | extracted_feedback | structured_feedback | Structured Data → Stored Data |
+| **3: Summarize** | 1 | data_store_summarize | structured_feedback | stats_summary | Stored Data → Statistics |
+| | 2 | report_generator | stats_summary + structured_feedback | feedback_report (mission output) | Statistics → Final Report |
+
+**Complete Chain:**
+```
+search_criteria (Mission Input)
+    ↓ gmail_search
+raw_feedback_emails
+    ↓ email_extraction
+extracted_feedback
+    ↓ data_store_update
+structured_feedback
+    ↓ data_store_summarize
+stats_summary
+    ↓ report_generator
+feedback_report (Mission Output)
+```
+
+This demonstrates how the mission's input (`search_criteria`) flows through a chain of 5 tool executions across 3 hops to produce the final output (`feedback_report`). Each tool's output becomes the input for the next, forming a valid and complete transformation pipeline.
 
 ## Execution Flow
 

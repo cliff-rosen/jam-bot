@@ -33,7 +33,6 @@ from .newsletter import (
 
 from .workflow import (
     WorkflowStatus,
-    Workflow,
     Mission
 )
 

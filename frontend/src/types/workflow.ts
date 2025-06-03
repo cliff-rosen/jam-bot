@@ -2,11 +2,20 @@ import { Asset, AssetType } from './asset';
 
 export enum WorkflowStatus {
     PENDING = "pending", // In design
-    READY = "ready", // Ready to be used; assets are pending
+    READY = "ready", // Ready to be used
     IN_PROGRESS = "in_progress", // Started but not completed
-    COMPLETED = "completed", // Completed; assets are ready
+    COMPLETED = "completed", // Completed
     FAILED = "failed", // Failed
-    CANCELLED = "cancelled" // Cancelled
+    CANCELLED = "cancelled", // Cancelled
+    HOP_DESIGN = "hop_design", // Need to design the next hop
+    HOP_IMPLEMENTATION = "hop_implementation" // Hop is designed, needs implementation
+}
+
+export enum ExecutionStatus {
+    PENDING = "pending",
+    RUNNING = "running",
+    COMPLETED = "completed",
+    FAILED = "failed"
 }
 
 export enum StateVariableType {
@@ -30,48 +39,40 @@ export interface StateVariable {
     updated_at: string;
 }
 
-export interface ToolUse {
+export interface ToolStep {
     id: string;
-    name: string;
-
-    // Maps tool parameter names to state variable IDs
-    parameter_mapping: Record<string, string>; // Maps tool parameter names to state variable IDs that provide their values
-
-    // Maps tool result paths to state variable IDs
-    result_mapping: Record<string, string>; // Maps tool result paths (dot notation) to state variable IDs that will store the results
-
-    // The actual parameters and results after state variable substitution
-    parameters: Record<string, any>; // Parameters passed to the tool after state variable substitution
-    results: any; // Results from the tool use
-
-    timestamp: string;
-    status: WorkflowStatus;
-    error?: string;
-}
-
-export interface WorkflowStep {
-    id: string;
-    name: string;
+    tool_name: string;
     description: string;
-    status: WorkflowStatus;
-    tool_uses: ToolUse[];
-    input_variables: string[]; // IDs of state variables used as input
-    output_variables: string[]; // IDs of state variables produced as output
-    metadata: Record<string, any>;
+
+    // Asset mappings within hop state
+    parameter_mapping: Record<string, { state_asset: string; path: string } | { literal: any }>;
+    result_mapping: Record<string, { state_asset: string; path: string }>;
+
+    status: ExecutionStatus;
+    error?: string;
     created_at: string;
     updated_at: string;
 }
 
-export interface Workflow {
+export interface Hop {
     id: string;
     name: string;
     description: string;
+
+    // Asset mappings
+    input_mapping: Record<string, string>; // {local_key: external_asset_id}
+    state: Record<string, Asset>; // Local asset workspace
+    output_mapping: Record<string, string>; // {local_key: external_asset_id}
+
+    // Tool chain (populated during resolution)
+    steps: ToolStep[]; // Ordered list of tool executions
+
+    // Status tracking
     status: WorkflowStatus;
-    steps: WorkflowStep[];
-    state_variables: Record<string, StateVariable>; // Map of state variable IDs to their definitions
-    input_mapping: Record<string, string>; // Maps mission input asset IDs to workflow state variable IDs
-    output_mapping: Record<string, string>; // Maps workflow state variable IDs to mission output asset IDs
-    metadata: Record<string, any>;
+    is_resolved: boolean; // Whether the hop has been configured with tools
+    is_final: boolean; // Whether this produces the final deliverable
+    current_step_index: number;
+
     created_at: string;
     updated_at: string;
 }
@@ -82,11 +83,19 @@ export interface Mission {
     description: string;
     goal: string;
     success_criteria: string[];
+
+    // Assets
     inputs: Asset[];
     outputs: Asset[];
-    possible_stage_sequence: string[];
+    state: Record<string, Asset>; // All assets available (inputs + hop outputs)
+
+    // Execution
+    hops: Hop[]; // Sequence of hops to execute
+    current_hop?: Hop; // Current hop being designed or executed
+    current_hop_index: number;
+
+    // Status tracking
     status: WorkflowStatus;
-    workflows: Workflow[];
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
@@ -100,9 +109,10 @@ export const defaultMission: Mission = {
     success_criteria: ["This is the success criteria of the mission."],
     inputs: [],
     outputs: [],
-    possible_stage_sequence: [],
+    state: {},
+    hops: [],
+    current_hop_index: 0,
     status: WorkflowStatus.PENDING,
-    workflows: [],
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -153,9 +163,10 @@ export const defaultMission2: Mission = {
             },
         }
     ],
-    possible_stage_sequence: [],
+    state: {},
+    hops: [],
+    current_hop_index: 0,
     status: WorkflowStatus.READY,
-    workflows: [],
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()

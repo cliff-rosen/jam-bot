@@ -23,6 +23,7 @@ from config.settings import settings
 from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
+from utils.prompt_logger import log_hop_implementer_prompt
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -535,6 +536,19 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             current_hop=current_hop,  # Use the found hop
             available_assets=available_assets
         )
+        
+        # Log the exact prompt messages being sent to OpenAI
+        try:
+            log_file_path = log_hop_implementer_prompt(
+                messages=formatted_messages,
+                mission_name=state.mission.name if state.mission else None,
+                hop_name=current_hop.name if current_hop else None,
+                available_assets_count=len(available_assets)
+            )
+            print(f"HopImplementer prompt messages logged to: {log_file_path}")
+        except Exception as log_error:
+            print(f"Warning: Failed to log hop implementer prompt: {log_error}")
+        
         schema = prompt.get_schema()
 
         response = await client.chat.completions.create(

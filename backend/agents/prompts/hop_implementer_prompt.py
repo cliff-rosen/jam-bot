@@ -152,7 +152,7 @@ class HopImplementerPrompt(BasePrompt):
 - **Example**: To summarize 10,000 emails, first use `extract` to get key sentences or topics from each email, then `map_reduce_rollup` to group these extractions, and ONLY THEN pass the much smaller, aggregated data to `summarize`.
 
 ## Available Tools
-{{tool_descriptions}}
+{tool_descriptions}
 
 ## Implementation Principles
 1. **Exact Configuration**: Provide exact parameter values, not placeholders
@@ -318,9 +318,9 @@ Please provide these details so I can create a complete implementation.
 ## Current Context
 IMPORTANT: Your primary focus is to generate a plan for the "Current Hop" ONLY. Use the "Mission" and "Available Assets" for context and to understand how the hop fits into the larger picture, but do NOT attempt to implement the entire mission.
 
-Mission: {{mission}}
-Current Hop: {{current_hop}}
-Available Assets: {{available_assets}}
+Mission: {mission}
+Current Hop: {current_hop}
+Available Assets: {available_assets}
 
 Based on this context, create a detailed implementation plan for the current hop."""
 

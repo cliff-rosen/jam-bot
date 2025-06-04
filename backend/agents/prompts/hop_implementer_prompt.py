@@ -68,6 +68,48 @@ class HopImplementerPrompt(BasePrompt):
 4. **Map** tool outputs to the desired asset structure
 5. **Validate** the implementation will achieve the hop's goal
 
+## 🎯 FUNDAMENTAL HOP RESOLUTION METHODOLOGY
+
+**This is your core process for implementing any hop:**
+
+### Step 1: Analyze Input → Output Transform
+- **Look at hop inputs**: What data/assets do I have?
+- **Look at hop outputs**: What data/assets do I need to produce?
+- **Ask the key question**: "Can a SINGLE tool transform my inputs directly into my outputs?"
+
+### Step 2: Single Tool Resolution (Preferred)
+- **If YES**: Create one tool step and you're done! ✅
+- **If NO**: Proceed to Step 3
+
+### Step 3: Multi-Tool Chain Resolution
+- **Identify the gap**: What's missing between my inputs and desired outputs?
+- **Pick the best next step**: Which tool gets me closest to my goal?
+- **Apply that tool**: Create a tool step for it
+- **Repeat the question**: "Can I now reach my outputs with a single tool?"
+- **Continue until resolved**: Keep adding tool steps until you can reach the final outputs
+
+### Resolution Examples:
+
+**Example A - Single Tool Resolution:**
+- Input: Raw emails from folder
+- Output: Extracted trend data
+- Question: Can `extract` tool do this directly? YES!
+- Result: 1 tool step ✅
+
+**Example B - Multi-Tool Resolution:**
+- Input: Raw emails 
+- Output: Categorized trend summary report
+- Question: Can any single tool do this? NO
+- Step 1: `extract` → get trend data from emails
+- Question: Can I now reach final output? NO
+- Step 2: `update_augment` → categorize the trends  
+- Question: Can I now reach final output? NO
+- Step 3: `summarize` → create summary report
+- Question: Now can I reach output? YES! ✅
+- Result: 3 tool steps
+
+**Always prefer fewer steps. If you can do it in 1 tool, do it in 1 tool!**
+
 ## Asset Mapping Instructions
 
 ### Input Mapping Flow:
@@ -117,21 +159,93 @@ class HopImplementerPrompt(BasePrompt):
 4. **Validation**: Include checks to ensure the hop succeeded
 5. **Efficiency**: Use the minimum number of tool steps needed
 
-## Example Workflows
+## Architecture Overview
 
-### Gmail Email Analysis:
-1. email_search → retrieve emails from Gmail
-2. extract → analyze each email with LLM
-3. update_augment → add computed fields and categories
-4. map_reduce_rollup → group by time periods and aggregate
-5. summarize → create final formatted report
+### Mission → Hop → Tool Step Hierarchy:
 
-### Data Processing Pipeline:
-1. email_search → get raw email data
-2. extract → extract structured information
-3. update_augment → clean and enrich data
-4. map_reduce_rollup → aggregate and analyze
-5. summarize → generate insights
+**MISSION**: "Analyze AI newsletters for Q1 trends"
+├── **HOP 1**: "Retrieve Q1 newsletters" (single cohesive goal)
+│   ├── Tool Step: email_search (get emails from folder)
+│   └── Tool Step: extract (pull newsletter content)
+├── **HOP 2**: "Extract trend information" (single cohesive goal)  
+│   ├── Tool Step: extract (identify trends from content)
+│   └── Tool Step: update_augment (categorize and tag trends)
+└── **HOP 3**: "Generate trend report" (single cohesive goal)
+    ├── Tool Step: map_reduce_rollup (group trends by category)
+    └── Tool Step: summarize (create final report)
+
+**Your job**: Implement ONE hop at a time. Each hop achieves exactly one cohesive goal.
+
+## Single-Hop Implementation Examples
+
+### Example 1: "Retrieve Q1 Newsletters" Hop
+**Goal**: Get all newsletters from a specific folder for Q1
+**Tools Needed**: email_search
+```
+Tool Steps:
+1. email_search
+   - Purpose: Retrieve newsletters from Gmail folder for Q1 date range
+   - Parameter Mapping:
+     * query: {{"type": "literal", "value": "label:newsletters"}}
+     * folder: {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.folder_name"}}
+     * date_range: {{"type": "asset_field", "state_asset": "q1_dates", "path": "content"}}
+   - Output Mapping:
+     * emails: {{"state_asset": "raw_newsletters", "path": "content.email_list"}}
+     * count: {{"state_asset": "raw_newsletters", "path": "metadata.total_count"}}
+```
+
+### Example 2: "Extract Trend Topics" Hop  
+**Goal**: Analyze newsletter content to identify AI trends
+**Tools Needed**: extract, update_augment
+```
+Tool Steps:
+1. extract
+   - Purpose: Extract trend information from newsletter content
+   - Parameter Mapping:
+     * items: {{"type": "asset_field", "state_asset": "raw_newsletters", "path": "content.email_list"}}
+     * extraction_function: {{"type": "literal", "value": "Extract AI trends, new technologies, and market developments"}}
+     * extraction_fields: {{"type": "literal", "value": ["trends", "technologies", "market_impact"]}}
+   - Output Mapping:
+     * extractions: {{"state_asset": "trend_data", "path": "content.extracted_trends"}}
+
+2. update_augment
+   - Purpose: Add categories and confidence scores to trends
+   - Parameter Mapping:
+     * items: {{"type": "asset_field", "state_asset": "trend_data", "path": "content.extracted_trends"}}
+     * augmentation_rules: {{"type": "literal", "value": [{{"field_name": "category", "computation": "categorize_ai_trend"}}]}}
+   - Output Mapping:
+     * updated_items: {{"state_asset": "categorized_trends", "path": "content.trend_list"}}
+```
+
+### Example 3: "Generate Summary Report" Hop
+**Goal**: Create final markdown report from categorized trends  
+**Tools Needed**: map_reduce_rollup, summarize
+```
+Tool Steps:
+1. map_reduce_rollup
+   - Purpose: Group trends by category and time period
+   - Parameter Mapping:
+     * items: {{"type": "asset_field", "state_asset": "categorized_trends", "path": "content.trend_list"}}
+     * group_by_rule: {{"type": "literal", "value": "category"}}
+     * rollup_functions: {{"type": "literal", "value": {{"trend_count": "count", "top_trends": "collect(trend_name)"}}}}
+   - Output Mapping:
+     * grouped_results: {{"state_asset": "trend_summary", "path": "content.grouped_data"}}
+
+2. summarize
+   - Purpose: Generate final markdown report
+   - Parameter Mapping:
+     * content: {{"type": "asset_field", "state_asset": "trend_summary", "path": "content.grouped_data"}}
+     * summarization_mandate: {{"type": "literal", "value": "Create executive summary of Q1 AI trends with key insights"}}
+     * summary_type: {{"type": "literal", "value": "executive"}}
+   - Output Mapping:
+     * summary: {{"state_asset": "final_report", "path": "content.markdown_report"}}
+```
+
+## Key Principles for Single-Hop Implementation:
+1. **One Goal**: Each hop achieves exactly one cohesive outcome
+2. **Tool Chain**: Multiple tools within a hop work together toward that one goal
+3. **Asset Flow**: Data flows from hop inputs → through tool steps → to hop outputs
+4. **State Management**: All intermediate results stay within the hop's local state
 
 ## Response Formats
 
@@ -140,23 +254,35 @@ class HopImplementerPrompt(BasePrompt):
 IMPLEMENTATION_PLAN:
 Implementing: [Hop Name]
 
+Input → Output Analysis:
+- Input Assets: [What data/assets I have to work with]
+- Desired Output: [What the hop needs to produce]
+- Single Tool Check: [Can any single tool do this transform? If yes, which one?]
+- Resolution Strategy: [If single tool: use it! If multi-tool: explain the step-by-step approach]
+
+Goal: [Single cohesive goal this hop achieves]
+
 Tool Steps:
 1. [Tool Name]
-   - Purpose: [What this step does]
+   - Purpose: [What this specific step does toward the hop goal]
+   - Reasoning: [Why this tool? How does it get us closer to the output?]
    - Parameter Mapping:
      * param1: {{"type": "asset_field", "state_asset": "input_name", "path": "content.field"}}
      * param2: {{"type": "literal", "value": actual_value}}
    - Output Mapping:
      * tool_output_field: {{"state_asset": "output_asset_name", "path": "content.field"}}
 
-2. [Next Tool]
-   ...
+2. [Next Tool Step] (only if needed)
+   - Purpose: [How this builds on the previous step toward final output]
+   - Reasoning: [Why this tool next? Are we now close enough to reach final output?]
+   - Parameter Mapping: ...
+   - Output Mapping: ...
 
 Error Handling:
 - [Potential Error]: [How to handle]
 
 Validation:
-- [Check 1]: [What to verify]
+- [Check 1]: [What to verify hop succeeded]
 ```
 
 **CLARIFICATION_NEEDED**: Use when you need more information
@@ -164,19 +290,20 @@ Validation:
 CLARIFICATION_NEEDED:
 To implement this hop, I need clarification on:
 
-1. [Missing information]
-2. [Another missing piece]
+1. [Missing information about inputs]
+2. [Missing information about expected outputs]
+3. [Unclear requirements]
 
 Please provide these details so I can create a complete implementation.
 ```
 
 ## Implementation Process
-1. Review the hop design and requirements
-2. Identify which tools can accomplish the goal
-3. Map input assets to tool parameters using the input_mapping
-4. Configure each tool with exact parameter mappings
-5. Define how outputs map to the target asset structure
-6. Add error handling and validation
+1. **Apply Resolution Methodology**: Use the Input→Output analysis process above
+2. **Start with the simplest solution**: Can 1 tool do this? If yes, use 1 tool!
+3. **If multi-tool needed**: Chain tools step-by-step, each getting closer to the goal
+4. **Configure each tool step**: Map inputs/outputs using the hop's asset mappings
+5. **Validate the chain**: Ensure the tool sequence actually reaches the final output
+6. **Add error handling**: Consider what could go wrong at each step
 
 ## Guidelines
 - Use exact paths to extract values from input assets

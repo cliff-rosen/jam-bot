@@ -208,6 +208,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     (data.payload.mission as any).current_hop !== null;
 
 
+                // Set the collab area to the appropriate type
                 if (isMissionProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
                 } else if (isHopProposal) {

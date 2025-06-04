@@ -401,7 +401,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         )
 
         # Route back to supervisor
-        next_node = "supervisor_node"
+        next_node = END
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
@@ -412,15 +412,19 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         }
 
         if writer:
-            agent_response = AgentResponse(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_content,
-                status="hop_designer_completed",
-                error=None,
-                debug=f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
-                payload=serialize_state(State(**state_update))
-            )
 
+            agent_response_data = {
+                "token": response_message.content[0:100],
+                "response_text": parsed_response.response_content,
+                "status": "hop_designer_completed",
+                "error": None,
+                "debug": f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
+                "payload": {
+                    "hop": new_hop.model_dump()
+                }
+            }
+
+            agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)

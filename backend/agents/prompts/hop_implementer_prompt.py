@@ -16,7 +16,7 @@ import json
 
 class ToolStep(BaseModel):
     """Configuration for a single tool step"""
-    tool_name: str = Field(description="Name of the tool to use (e.g., 'email_search', 'extract', 'map_reduce_rollup')")
+    tool_id: str = Field(description="ID of the tool to use (e.g., 'email-search-tool', 'data-extractor-v2'). Use the ID from the 'Available Tools' list.")
     
     # Maps tool parameter names to instructions on how to get values
     parameter_mapping: Dict[str, Dict[str, Any]] = Field(
@@ -172,14 +172,14 @@ class HopImplementerPrompt(BasePrompt):
 
 **MISSION**: "Analyze AI newsletters for Q1 trends"
 ├── **HOP 1**: "Retrieve Q1 newsletters" (single cohesive goal)
-│   ├── Tool Step: email_search (get emails from folder)
-│   └── Tool Step: extract (pull newsletter content)
+│   ├── Tool Step: email_search (Tool ID: email-search-tool-id) 
+│   └── Tool Step: extract (Tool ID: extract-tool-id)
 ├── **HOP 2**: "Extract trend information" (single cohesive goal)  
-│   ├── Tool Step: extract (identify trends from content)
-│   └── Tool Step: update_augment (categorize and tag trends)
+│   ├── Tool Step: extract (Tool ID: extract-tool-id)
+│   └── Tool Step: update_augment (Tool ID: update-augment-tool-id)
 └── **HOP 3**: "Generate trend report" (single cohesive goal)
-    ├── Tool Step: map_reduce_rollup (group trends by category)
-    └── Tool Step: summarize (create final report)
+    ├── Tool Step: map_reduce_rollup (Tool ID: map-reduce-rollup-tool-id)
+    └── Tool Step: summarize (Tool ID: summarize-tool-id)
 
 **Your job**: Implement ONE hop at a time. Each hop achieves exactly one cohesive goal.
 
@@ -187,10 +187,10 @@ class HopImplementerPrompt(BasePrompt):
 
 ### Example 1: "Retrieve Q1 Newsletters" Hop
 **Goal**: Get all newsletters from a specific folder for Q1
-**Tools Needed**: email_search
+**Tool ID Needed**: email-search-tool-id (Example ID)
 ```
 Tool Steps:
-1. email_search
+1. email-search-tool-id (Example ID for an email search tool)
    - Purpose: Retrieve newsletters from Gmail folder for Q1 date range
    - Parameter Mapping:
      * query: {{"type": "literal", "value": "label:newsletters"}}
@@ -203,10 +203,10 @@ Tool Steps:
 
 ### Example 2: "Extract Trend Topics" Hop  
 **Goal**: Analyze newsletter content to identify AI trends
-**Tools Needed**: extract, update_augment
+**Tool IDs Needed**: extract-tool-id, update-augment-tool-id (Example IDs)
 ```
 Tool Steps:
-1. extract
+1. extract-tool-id (Example ID for an extraction tool)
    - Purpose: Extract trend information from newsletter content
    - Parameter Mapping:
      * items: {{"type": "asset_field", "state_asset": "raw_newsletters", "path": "content.email_list"}}
@@ -215,7 +215,7 @@ Tool Steps:
    - Output Mapping:
      * extractions: {{"state_asset": "trend_data", "path": "content.extracted_trends"}}
 
-2. update_augment
+2. update-augment-tool-id (Example ID for an augmentation tool)
    - Purpose: Add categories and confidence scores to trends
    - Parameter Mapping:
      * items: {{"type": "asset_field", "state_asset": "trend_data", "path": "content.extracted_trends"}}
@@ -226,10 +226,10 @@ Tool Steps:
 
 ### Example 3: "Generate Summary Report" Hop
 **Goal**: Create final markdown report from categorized trends  
-**Tools Needed**: map_reduce_rollup, summarize
+**Tool IDs Needed**: map-reduce-rollup-tool-id, summarize-tool-id (Example IDs)
 ```
 Tool Steps:
-1. map_reduce_rollup
+1. map-reduce-rollup-tool-id (Example ID for a map-reduce tool)
    - Purpose: Group trends by category and time period
    - Parameter Mapping:
      * items: {{"type": "asset_field", "state_asset": "categorized_trends", "path": "content.trend_list"}}
@@ -238,7 +238,7 @@ Tool Steps:
    - Output Mapping:
      * grouped_results: {{"state_asset": "trend_summary", "path": "content.grouped_data"}}
 
-2. summarize
+2. summarize-tool-id (Example ID for a summarization tool)
    - Purpose: Generate final markdown report
    - Parameter Mapping:
      * content: {{"type": "asset_field", "state_asset": "trend_summary", "path": "content.grouped_data"}}
@@ -264,24 +264,24 @@ Implementing: [Hop Name]
 Input → Output Analysis:
 - Input Assets: [What data/assets I have to work with]
 - Desired Output: [What the hop needs to produce]
-- Single Tool Check: [Can any single tool do this transform? If yes, which one?]
-- Resolution Strategy: [If single tool: use it! If multi-tool: explain the step-by-step approach]
+- Single Tool Check: [Can any single tool (identified by its ID) do this transform? If yes, which Tool ID?]
+- Resolution Strategy: [If single tool: use it! If multi-tool: explain the step-by-step approach using Tool IDs]
 
 Goal: [Single cohesive goal this hop achieves]
 
 Tool Steps:
-1. [Tool Name]
+1. [Tool ID of the first tool]
    - Purpose: [What this specific step does toward the hop goal]
-   - Reasoning: [Why this tool? How does it get us closer to the output?]
+   - Reasoning: [Why this Tool ID? How does it get us closer to the output? Refer to the tool by its ID from the 'Available Tools' list.]
    - Parameter Mapping:
      * param1: {{"type": "asset_field", "state_asset": "input_name", "path": "content.field"}}
      * param2: {{"type": "literal", "value": actual_value}}
    - Output Mapping:
      * tool_output_field: {{"state_asset": "output_asset_name", "path": "content.field"}}
 
-2. [Next Tool Step] (only if needed)
+2. [Tool ID of the next tool] (only if needed)
    - Purpose: [How this builds on the previous step toward final output]
-   - Reasoning: [Why this tool next? Are we now close enough to reach final output?]
+   - Reasoning: [Why this Tool ID next? Are we now close enough to reach final output? Refer to the tool by its ID.]
    - Parameter Mapping: ...
    - Output Mapping: ...
 

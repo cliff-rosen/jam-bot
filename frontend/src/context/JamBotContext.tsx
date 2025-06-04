@@ -10,7 +10,6 @@ interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
     collabArea: CollabAreaState;
-    assets: Asset[];
     mission: Mission;
     payload_history: Record<string, any>[];
 }
@@ -20,7 +19,6 @@ type JamBotAction =
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
     | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
-    | { type: 'SET_ASSETS'; payload: Asset[] }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
@@ -34,7 +32,6 @@ const initialState: JamBotState = {
         type: 'default',
         content: null
     },
-    assets: [],
     mission: defaultMission,
     payload_history: []
 };
@@ -56,15 +53,32 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 collabArea: action.payload
             };
-        case 'SET_ASSETS':
-            return {
-                ...state,
-                assets: action.payload
-            };
         case 'SET_MISSION':
+            const newMission = action.payload as Mission;
+            const combinedState: Record<string, Asset> = { ...(newMission.state || {}) };
+
+            if (Array.isArray(newMission.inputs)) {
+                newMission.inputs.forEach(asset => {
+                    if (asset && asset.id) {
+                        combinedState[asset.id] = asset;
+                    }
+                });
+            }
+
+            if (Array.isArray(newMission.outputs)) {
+                newMission.outputs.forEach(asset => {
+                    if (asset && asset.id) {
+                        combinedState[asset.id] = asset;
+                    }
+                });
+            }
+
             return {
                 ...state,
-                mission: action.payload
+                mission: {
+                    ...newMission,
+                    state: combinedState,
+                }
             };
         case 'ADD_PAYLOAD_HISTORY':
             return {
@@ -140,14 +154,6 @@ export const useJamBot = () => {
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
-
-    useEffect(() => {
-        const fetchAssets = async () => {
-            const fetchedAssets = await assetApi.getAssets();
-            dispatch({ type: 'SET_ASSETS', payload: fetchedAssets });
-        };
-        fetchAssets();
-    }, []);
 
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
@@ -268,7 +274,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 messages: [...filteredMessages, message],
                 payload: {
                     mission: state.mission,
-                    assets: state.assets
+                    assets: Object.values(state.mission.state || {})
                 }
             };
 

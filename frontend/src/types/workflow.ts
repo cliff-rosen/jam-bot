@@ -58,7 +58,7 @@ export interface StateVariable {
 
 export interface ToolStep {
     id: string;
-    tool_name: string;
+    tool_id: string;
     description: string;
 
     // Asset mappings within hop state

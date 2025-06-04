@@ -33,7 +33,7 @@ class ExecutionStatus(str, Enum):
 class ToolStep(BaseModel):
     """Represents an atomic unit of work - a single tool execution within a hop"""
     id: str = Field(description="Unique identifier for the tool step")
-    tool_name: str = Field(description="Name of the tool to execute")
+    tool_id: str = Field(description="Identifier of the tool to execute")
     description: str = Field(description="Description of what this tool step accomplishes")
     
     # Asset mappings within hop state

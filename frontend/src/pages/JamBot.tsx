@@ -6,7 +6,7 @@ import AssetPanels from '@/components/hop/AssetPanels';
 
 const JamBotPage: React.FC = () => {
     const { state, sendMessage } = useJamBot();
-    const { currentMessages, currentStreamingMessage, collabArea, assets, mission } = state;
+    const { currentMessages, currentStreamingMessage, collabArea, mission } = state;
 
     return (
         <div className="flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">
@@ -30,7 +30,7 @@ const JamBotPage: React.FC = () => {
             {/* Asset Panels - Flexible width */}
             <div className="flex-1 h-full min-w-[500px] bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900">
                 <div className="h-full mx-4 my-2 rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
-                    <AssetPanels assets={assets} />
+                    <AssetPanels assets={Object.values(mission.state || {})} />
                 </div>
             </div>
         </div>

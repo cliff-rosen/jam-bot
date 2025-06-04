@@ -272,6 +272,10 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             for asset in state.mission.inputs:
                 state.mission.state[asset.id] = asset
 
+            # Also initialize mission state with output assets
+            for asset in state.mission.outputs:
+                state.mission.state[asset.id] = asset
+
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
@@ -505,7 +509,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             for impl_step in implementation.tool_steps:
                 schema_step = SchemaToolStep(
                     id=str(uuid.uuid4()),
-                    tool_name=impl_step.tool_name,  # Direct string, no enum conversion needed
+                    tool_id=impl_step.tool_id,  # Directly use tool_id from impl_step
                     description=impl_step.description,
                     parameter_mapping=impl_step.parameter_mapping,
                     result_mapping=impl_step.output_mapping  # Note: renamed from output_mapping to result_mapping

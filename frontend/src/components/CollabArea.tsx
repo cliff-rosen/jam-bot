@@ -341,14 +341,22 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <button
-                            onClick={() => acceptHopImplementationProposal()}
+                            onClick={() => {
+                                if (hopToRender) {
+                                    acceptHopImplementationProposal(hopToRender as Hop);
+                                }
+                            }}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />
                             Accept
                         </button>
                         <button
-                            onClick={() => acceptHopImplementationAsComplete()}
+                            onClick={() => {
+                                if (hopToRender) {
+                                    acceptHopImplementationAsComplete(hopToRender as Hop);
+                                }
+                            }}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />

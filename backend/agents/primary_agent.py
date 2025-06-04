@@ -567,8 +567,6 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
-        print("================================================")
-        print("Parsed hop implementation response:", parsed_response)
 
         if parsed_response.hop:
             # Update the current hop with the populated steps

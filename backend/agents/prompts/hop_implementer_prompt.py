@@ -19,13 +19,13 @@ class ToolStep(BaseModel):
     tool_name: str = Field(description="Name of the tool to use (e.g., 'email_search', 'extract', 'map_reduce_rollup')")
     
     # Maps tool parameter names to instructions on how to get values
-    parameter_mapping: Dict[str, Union[str, Dict[str, Any]]] = Field(
-        description="Maps tool parameter names to either direct values or extraction paths from assets"
+    parameter_mapping: Dict[str, Dict[str, Any]] = Field(
+        description="Maps tool parameter names to asset extraction instructions. Format: {param: {'type': 'asset_field', 'state_asset': 'name', 'path': 'content.field'} or {'type': 'literal', 'value': val}}"
     )
     
     # Maps tool output fields to where they should be stored
-    output_mapping: Dict[str, str] = Field(
-        description="Maps tool output fields to paths in the output asset"
+    output_mapping: Dict[str, Dict[str, str]] = Field(
+        description="Maps tool output fields to asset storage locations. Format: {output_field: {'state_asset': 'asset_name', 'path': 'content.field'}}"
     )
     
     description: str = Field(description="What this tool step accomplishes")
@@ -72,43 +72,43 @@ class HopImplementerPrompt(BasePrompt):
 
 ### Input Mapping Flow:
 1. The hop has `input_mapping` that maps logical names to asset IDs
-   Example: {"email_criteria": "asset_123", "date_range": "asset_456"}
+   Example: {{"email_criteria": "asset_123", "date_range": "asset_456"}}
 
 2. You need to create `parameter_mapping` that shows how to extract values from these assets and pass to tools
    Example:
    ```
-   "parameter_mapping": {
-     "query": {
+   "parameter_mapping": {{
+     "query": {{
        "type": "asset_field",
-       "asset": "email_criteria",  // refers to the logical name in input_mapping
-       "path": "content.search_query"  // path within the asset to get the value
-     },
-     "folder": {
+       "state_asset": "email_criteria",
+       "path": "content.search_query"
+     }},
+     "folder": {{
        "type": "literal",
-       "value": "INBOX"  // direct value for tool parameter
-     },
-     "date_range": {
+       "value": "INBOX"
+     }},
+     "date_range": {{
        "type": "asset_field", 
-       "asset": "date_range",
+       "state_asset": "date_range",
        "path": "content"
-     }
-   }
+     }}
+   }}
    ```
 
 ### Output Mapping Flow:
 1. Tool outputs need to be mapped to the hop's output asset structure
    Example:
    ```
-   "output_mapping": {
-     "emails": "content.email_list",  // tool's 'emails' output goes to asset's content.email_list
-     "count": "metadata.total_count"   // tool's 'count' output goes to asset's metadata.total_count
-   }
+   "output_mapping": {{
+     "emails": {{"state_asset": "retrieved_emails", "path": "content.email_list"}},
+     "count": {{"state_asset": "retrieved_emails", "path": "metadata.total_count"}}
+   }}
    ```
 
 2. If this is a final hop, the output asset will be mapped to a mission output asset
 
 ## Available Tools
-{tool_descriptions}
+{{tool_descriptions}}
 
 ## Implementation Principles
 1. **Exact Configuration**: Provide exact parameter values, not placeholders
@@ -144,10 +144,10 @@ Tool Steps:
 1. [Tool Name]
    - Purpose: [What this step does]
    - Parameter Mapping:
-     * param1: {"type": "asset_field", "asset": "input_name", "path": "content.field"}
-     * param2: {"type": "literal", "value": actual_value}
+     * param1: {{"type": "asset_field", "state_asset": "input_name", "path": "content.field"}}
+     * param2: {{"type": "literal", "value": actual_value}}
    - Output Mapping:
-     * tool_output_field -> asset.path.to.store
+     * tool_output_field: {{"state_asset": "output_asset_name", "path": "content.field"}}
 
 2. [Next Tool]
    ...
@@ -187,9 +187,9 @@ Please provide these details so I can create a complete implementation.
 - Think about idempotency and retries
 
 ## Current Context
-Mission: {mission}
-Current Hop: {current_hop}
-Available Assets: {available_assets}
+Mission: {{mission}}
+Current Hop: {{current_hop}}
+Available Assets: {{available_assets}}
 
 Based on this context, create a detailed implementation plan for the current hop."""
 

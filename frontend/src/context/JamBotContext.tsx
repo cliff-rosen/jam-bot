@@ -213,8 +213,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         // handle payload
         if (data.payload) {
-            newCollabAreaContent = data.payload;
-
             // first deciphher payload type
             const isMissionProposal = data.status === 'mission_specialist_completed' &&
                 typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
@@ -237,6 +235,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             // then update state accordingly
+            newCollabAreaContent = data.payload;
             if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
                 dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
             }

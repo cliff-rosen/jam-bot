@@ -243,8 +243,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
-        print("================================================")
-        print("Parsed response:", parsed_response)
 
         if parsed_response.mission_proposal:
             state.mission.name = parsed_response.mission_proposal.name
@@ -262,8 +260,9 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 for asset_lite in parsed_response.mission_proposal.outputs
             ]
 
-            state.mission.created_at = datetime.now().isoformat()
-            state.mission.updated_at = datetime.now().isoformat()
+            current_time = datetime.utcnow()
+            state.mission.created_at = current_time
+            state.mission.updated_at = current_time
             state.mission.metadata = {}
             
             # Set mission as pending (waiting for user approval)
@@ -277,7 +276,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.utcnow()
         )
 
         next_node = END
@@ -322,7 +321,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             })
         raise
 
-# workflow_specialist_node removed - not needed in simplified workflow
 
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles hop designer operations"""

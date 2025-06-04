@@ -231,9 +231,9 @@ export default function Mission({
                             <div className="text-xs text-gray-400 italic">No hops defined</div>
                         )}
                     </div>
-                    {mission.current_hop && (
+                    {(mission.current_hop || mission.hops[mission.current_hop_index - 1]) && (
                         <CurrentHopDetails
-                            hop={mission.current_hop}
+                            hop={mission.current_hop || mission.hops[mission.current_hop_index - 1]}
                             className=""
                         />
                     )}

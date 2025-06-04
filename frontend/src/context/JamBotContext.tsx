@@ -231,7 +231,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload &&
                     data.payload.hop && typeof data.payload.hop === 'object'
                 ) {
-                    isHopImplementationProposal = true;
+                    const hopPayload = data.payload.hop as Partial<Hop>;
+                    if (hopPayload.is_resolved === true) {
+                        isHopImplementationProposal = true;
+                    }
                 }
 
                 if (isMissionProposal) {

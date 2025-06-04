@@ -226,14 +226,27 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     };
 
     const renderHopImplementationProposal = () => {
-        const hop = content?.hop;
-        if (!hop || !hop.is_resolved || !hop.steps) {
+        let hopToRender: Hop | Partial<Hop> | undefined = undefined;
+
+        // Path 1: Hop data is directly in content.hop (e.g., from hop_designer_completed with resolved hop)
+        if (content?.hop && typeof content.hop === 'object' && (content.hop as Partial<Hop>).is_resolved === true) {
+            hopToRender = content.hop as Hop;
+        }
+        // Path 2: Hop data is in content.mission.current_hop (e.g., from a status that sends the full mission)
+        else if (content?.mission?.current_hop && typeof content.mission.current_hop === 'object' && (content.mission.current_hop as Partial<Hop>).is_resolved === true) {
+            hopToRender = content.mission.current_hop as Hop;
+        }
+
+        if (!hopToRender || !hopToRender.is_resolved) { // Final check on the derived hop
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                    No hop implementation available or hop is not resolved.
+                    No valid hop implementation proposal available or hop is not resolved.
                 </div>
             );
         }
+
+        // Use hopToRender for displaying details from this point onwards
+        // For example, to access name: hopToRender.name
 
         return (
             <div className="h-full overflow-auto">
@@ -248,24 +261,46 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                         </p>
                     </div>
 
-                    {/* Hop Details */}
+                    {/* Hop Details using hopToRender */}
                     <div className="space-y-4">
                         <div>
                             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Hop Name</h4>
-                            <p className="text-base text-gray-900 dark:text-gray-100">{hop.name}</p>
+                            <p className="text-base text-gray-900 dark:text-gray-100">{hopToRender.name}</p>
                         </div>
                         <div>
                             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Description</h4>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">{hop.description}</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{hopToRender.description}</p>
                         </div>
+                        {/* Displaying Inputs if available on hopToRender */}
+                        {hopToRender.input_mapping && Object.keys(hopToRender.input_mapping).length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Inputs</h4>
+                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
+                                    {Object.entries(hopToRender.input_mapping).map(([key, value]) => (
+                                        <li key={key}><span className="font-semibold">{key}:</span> {String(value)}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {/* Displaying Outputs if available on hopToRender */}
+                        {hopToRender.output_mapping && Object.keys(hopToRender.output_mapping).length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Outputs</h4>
+                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
+                                    {Object.entries(hopToRender.output_mapping).map(([key, value]) => (
+                                        <li key={key}><span className="font-semibold">{key}:</span> {String(value)}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Tool Steps */}
+                    {/* Tool Steps using hopToRender.steps */}
                     <div className="space-y-4">
                         <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300 mt-4 mb-2">Tool Steps:</h4>
-                        {hop.steps.length > 0 ? (
+                        {hopToRender.steps && hopToRender.steps.length > 0 ? (
                             <ul className="space-y-3">
-                                {hop.steps.map((step: ToolStep, index: number) => (
+                                {hopToRender.steps.map((step: ToolStep, index: number) => (
                                     <li key={step.id || index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700">
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_name}</p>
                                         {step.description && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>}

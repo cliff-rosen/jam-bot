@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
-import { ChevronDown, ChevronUp, Clock, CheckCircle, XCircle, PlayCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface CurrentHopDetailsProps {
     hop: Hop;
@@ -14,37 +15,6 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [isExpanded, setIsExpanded] = useState(true);
     const [showSteps, setShowSteps] = useState(true);
 
-    // Helper function to get status color and icon
-    const getStatusDisplay = (status: ExecutionStatus) => {
-        switch (status) {
-            case ExecutionStatus.PENDING:
-                return {
-                    color: 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30',
-                    icon: <Clock className="w-3 h-3" />
-                };
-            case ExecutionStatus.RUNNING:
-                return {
-                    color: 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
-                    icon: <PlayCircle className="w-3 h-3" />
-                };
-            case ExecutionStatus.COMPLETED:
-                return {
-                    color: 'text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30',
-                    icon: <CheckCircle className="w-3 h-3" />
-                };
-            case ExecutionStatus.FAILED:
-                return {
-                    color: 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30',
-                    icon: <XCircle className="w-3 h-3" />
-                };
-            default:
-                return {
-                    color: 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700',
-                    icon: <Clock className="w-3 h-3" />
-                };
-        }
-    };
-
     // Helper function to truncate text
     const truncateText = (text: string, maxLength: number = 50): string => {
         if (!text) return 'N/A';
@@ -52,7 +22,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
         return text.substring(0, maxLength) + '...';
     };
 
-    const statusDisplay = getStatusDisplay(hop.status);
+    const statusDisplay = getExecutionStatusDisplay(hop.status);
     const completedSteps = hop.steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.steps?.length || 0;
 
@@ -81,9 +51,9 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                 FINAL
                             </span>
                         )}
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${statusDisplay.color}`}>
+                        <span className={`${getStatusBadgeClass(statusDisplay.color)} flex items-center gap-1`}>
                             {statusDisplay.icon}
-                            {hop.status.toUpperCase()}
+                            {statusDisplay.text}
                         </span>
                     </div>
                 </div>
@@ -165,7 +135,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                             {showSteps && (
                                 <div className="space-y-2">
                                     {hop.steps.map((step, index) => {
-                                        const stepStatus = getStatusDisplay(step.status);
+                                        const stepStatus = getExecutionStatusDisplay(step.status);
                                         const isCurrentStep = index === hop.current_step_index;
 
                                         return (
@@ -187,9 +157,9 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${stepStatus.color}`}>
+                                                    <span className={`${getStatusBadgeClass(stepStatus.color)} flex items-center gap-1`}>
                                                         {stepStatus.icon}
-                                                        {step.status.toUpperCase()}
+                                                        {stepStatus.text}
                                                     </span>
                                                 </div>
 

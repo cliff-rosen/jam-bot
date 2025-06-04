@@ -193,14 +193,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     : hop
             );
 
+            // Update current_hop if it matches the hop being started
+            const updatedCurrentHopForStart = state.mission.current_hop?.id === hopIdToStart
+                ? { ...state.mission.current_hop, status: ExecutionStatus.RUNNING }
+                : state.mission.current_hop;
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForStart,
-                    current_hop: state.mission.current_hop?.id === hopIdToStart
-                        ? { ...state.mission.current_hop, status: ExecutionStatus.RUNNING }
-                        : state.mission.current_hop,
+                    current_hop: updatedCurrentHopForStart,
                     hop_status: HopStatus.HOP_RUNNING
                 }
             };
@@ -213,14 +216,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     : hop
             );
 
+            // Update current_hop if it matches the hop being completed
+            const updatedCurrentHopForComplete = state.mission.current_hop?.id === hopIdToComplete
+                ? { ...state.mission.current_hop, status: ExecutionStatus.COMPLETED }
+                : state.mission.current_hop;
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForComplete,
-                    current_hop: state.mission.current_hop?.id === hopIdToComplete
-                        ? { ...state.mission.current_hop, status: ExecutionStatus.COMPLETED }
-                        : state.mission.current_hop,
+                    current_hop: updatedCurrentHopForComplete,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for now
                 }
             };
@@ -233,14 +239,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     : hop
             );
 
+            // Update current_hop if it matches the hop being failed
+            const updatedCurrentHopForFail = state.mission.current_hop?.id === hopIdToFail
+                ? { ...state.mission.current_hop, status: ExecutionStatus.FAILED }
+                : state.mission.current_hop;
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForFail,
-                    current_hop: state.mission.current_hop?.id === hopIdToFail
-                        ? { ...state.mission.current_hop, status: ExecutionStatus.FAILED }
-                        : state.mission.current_hop,
+                    current_hop: updatedCurrentHopForFail,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for retry
                 }
             };
@@ -253,14 +262,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     : hop
             );
 
+            // Update current_hop if it matches the hop being retried
+            const updatedCurrentHopForRetry = state.mission.current_hop?.id === hopIdToRetry
+                ? { ...state.mission.current_hop, status: ExecutionStatus.PENDING }
+                : state.mission.current_hop;
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForRetry,
-                    current_hop: state.mission.current_hop?.id === hopIdToRetry
-                        ? { ...state.mission.current_hop, status: ExecutionStatus.PENDING }
-                        : state.mission.current_hop,
+                    current_hop: updatedCurrentHopForRetry,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
                 }
             };

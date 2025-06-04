@@ -4,6 +4,7 @@ import { MissionStateTable } from './common/MissionStateTable';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { FileText, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { HopStatus, MissionStatus } from '@/types/workflow';
+import { getMissionStatusDisplay, getHopStatusDisplay, getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionProps {
     className?: string;
@@ -21,7 +22,7 @@ export default function Mission({
     const mission = state.mission || {
         name: '',
         description: '',
-        mission_status: 'pending',
+        mission_status: MissionStatus.PENDING,
         inputs: [],
         outputs: [],
         goal: '',
@@ -41,65 +42,9 @@ export default function Mission({
     const hasPendingHopProposal = state.collabArea.type === 'hop-proposal' && mission.hop_status === HopStatus.HOP_PROPOSED;
     const hasPendingHopImplementationProposal = state.collabArea.type === 'hop-implementation-proposal' && mission.hop_status === HopStatus.HOP_READY_TO_RESOLVE;
 
-    console.log('Mission component state:', state);
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'complete':
-                return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
-            case 'active':
-                return 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
-            case 'failed':
-                return 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
-            case 'ready':
-                return 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20';
-            case 'pending':
-                return 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
-            default:
-                return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
-        }
-    };
-
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case 'complete':
-                return 'COMPLETED';
-            case 'active':
-                return 'ACTIVE';
-            case 'failed':
-                return 'FAILED';
-            case 'ready':
-                return 'READY';
-            case 'pending':
-                return 'PENDING';
-            default:
-                return 'PENDING';
-        }
-    };
-
-    const getHopStatusColor = (status?: HopStatus) => {
-        if (!status) return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
-        switch (status) {
-            case HopStatus.READY_TO_DESIGN:
-                return 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
-            case HopStatus.HOP_PROPOSED:
-                return 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
-            case HopStatus.HOP_READY_TO_RESOLVE:
-                return 'text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
-            case HopStatus.HOP_READY_TO_EXECUTE:
-                return 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20';
-            case HopStatus.HOP_RUNNING:
-                return 'text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30';
-            case HopStatus.ALL_HOPS_COMPLETE:
-                return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
-            default:
-                return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
-        }
-    };
-
-    const handleHopClick = (hop: any) => {
-        setCollabArea('hop', hop);
-    };
+    // Get status displays using centralized utilities
+    const missionStatusDisplay = getMissionStatusDisplay(mission.mission_status);
+    const hopStatusDisplay = mission.hop_status ? getHopStatusDisplay(mission.hop_status) : null;
 
     return (
         <div className={`dark:bg-[#1e2330] ${className}`}>
@@ -158,12 +103,16 @@ export default function Mission({
                                 View Hop Implementation
                             </button>
                         )}
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(mission.mission_status)}`}>
-                            {getStatusText(mission.mission_status)}
+
+                        {/* Mission Status */}
+                        <span className={getStatusBadgeClass(missionStatusDisplay.color)}>
+                            {missionStatusDisplay.text}
                         </span>
-                        {mission.hop_status && (
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getHopStatusColor(mission.hop_status)}`}>
-                                {mission.hop_status.replace(/_/g, ' ').toUpperCase()}
+
+                        {/* Hop Status */}
+                        {hopStatusDisplay && (
+                            <span className={getStatusBadgeClass(hopStatusDisplay.color)}>
+                                {hopStatusDisplay.text}
                             </span>
                         )}
                     </div>
@@ -228,7 +177,7 @@ export default function Mission({
                                 {mission.hops.map((hop, idx) => (
                                     <li key={hop.id || idx}>
                                         <button
-                                            onClick={() => handleHopClick(hop)}
+                                            onClick={() => setCollabArea('hop', hop)}
                                             className="w-full text-left text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] hover:bg-gray-100 dark:hover:bg-[#2a3044] rounded px-2 py-1 transition-colors cursor-pointer group"
                                         >
                                             <div className="flex justify-between items-center">
@@ -236,8 +185,8 @@ export default function Mission({
                                                     <Eye className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
                                                     <span>{hop.name || `Hop ${idx + 1}`}</span>
                                                 </div>
-                                                <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${getStatusColor(hop.status)}`}>
-                                                    {getStatusText(hop.status)}
+                                                <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${getStatusBadgeClass(getExecutionStatusDisplay(hop.status).color)}`}>
+                                                    {getExecutionStatusDisplay(hop.status).text}
                                                 </span>
                                             </div>
                                         </button>

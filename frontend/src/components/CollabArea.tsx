@@ -15,6 +15,7 @@ interface CollabAreaProps {
 const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const {
+        state,
         acceptMissionProposal,
         acceptHopProposal,
         acceptHopImplementationProposal,
@@ -379,9 +380,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     };
 
     const renderHop = () => {
-        const hop = content as Hop | undefined;
+        const staticHop = content as Hop | undefined;
 
-        if (!hop) {
+        if (!staticHop || !staticHop.id) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
                     No hop data available
@@ -389,16 +390,30 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
+        // Get the live hop data from the context state instead of using static content
+        const liveHop = state.mission.hops.find(h => h.id === staticHop.id) ||
+            (state.mission.current_hop?.id === staticHop.id ? state.mission.current_hop : null);
+
+        if (!liveHop) {
+            return (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    Hop not found in current mission
+                </div>
+            );
+        }
+
         const getActionButtons = () => {
             const buttons = [];
 
-            switch (hop.status) {
+            switch (liveHop.status) {
                 case ExecutionStatus.PENDING:
-                    if (hop.is_resolved && hop.steps && hop.steps.length > 0) {
+                    if (liveHop.is_resolved && liveHop.steps && liveHop.steps.length > 0) {
                         buttons.push(
                             <button
                                 key="start"
-                                onClick={() => startHopExecution(hop.id)}
+                                onClick={() => {
+                                    startHopExecution(liveHop.id);
+                                }}
                                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                             >
                                 <Play className="w-4 h-4" />
@@ -412,7 +427,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     buttons.push(
                         <button
                             key="complete"
-                            onClick={() => completeHopExecution(hop.id)}
+                            onClick={() => completeHopExecution(liveHop.id)}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />
@@ -422,7 +437,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     buttons.push(
                         <button
                             key="fail"
-                            onClick={() => failHopExecution(hop.id, 'Manually marked as failed')}
+                            onClick={() => failHopExecution(liveHop.id, 'Manually marked as failed')}
                             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <XCircle className="w-4 h-4" />
@@ -435,7 +450,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     buttons.push(
                         <button
                             key="retry"
-                            onClick={() => retryHopExecution(hop.id)}
+                            onClick={() => retryHopExecution(liveHop.id)}
                             className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <RotateCcw className="w-4 h-4" />
@@ -447,6 +462,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 case ExecutionStatus.COMPLETED:
                     // No actions available for completed hops
                     break;
+
+                default:
             }
 
             return buttons;
@@ -458,7 +475,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             <div className="h-full flex flex-col">
                 <div className="flex-1 overflow-auto">
                     <div className="p-6">
-                        <CurrentHopDetails hop={hop} className="" />
+                        <CurrentHopDetails hop={liveHop} className="" />
                     </div>
                 </div>
 

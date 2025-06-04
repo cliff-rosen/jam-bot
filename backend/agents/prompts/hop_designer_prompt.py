@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission, Asset, Hop
-from schemas.tools import TOOL_REGISTRY, get_available_tools, get_tools_by_category, format_tool_descriptions_for_hop_design
+from schemas.tools import format_tool_descriptions_for_hop_design
 from .base_prompt import BasePrompt
 from .mission_prompt import AssetLite
 from utils.message_formatter import (

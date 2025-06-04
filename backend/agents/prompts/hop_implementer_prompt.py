@@ -5,12 +5,7 @@ from schemas.chat import Message
 from schemas.workflow import Mission, Asset, Hop
 from schemas.tools import TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
 from .base_prompt import BasePrompt
-from utils.message_formatter import (
-    format_langchain_messages,
-    format_messages_for_openai,
-    format_assets,
-    format_mission
-)
+from utils.message_formatter import format_mission, format_assets, format_langchain_messages, format_messages_for_openai
 import json
 
 

@@ -176,7 +176,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=routing_message,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.utcnow().isoformat()
         )
 
         state_update = {
@@ -276,7 +276,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow().isoformat()
         )
 
         next_node = END
@@ -395,7 +395,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.utcnow().isoformat()
         )
 
         # Route back to supervisor
@@ -525,7 +525,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.utcnow().isoformat()
         )
 
         # Route back to supervisor

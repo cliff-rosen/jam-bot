@@ -187,15 +187,39 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
         case 'START_HOP_EXECUTION':
             const hopIdToStart = action.payload;
             // Find the hop in the hops array and update it
-            const updatedHopsForStart = state.mission.hops.map(hop =>
-                hop.id === hopIdToStart
-                    ? { ...hop, status: ExecutionStatus.RUNNING }
-                    : hop
-            );
+            const updatedHopsForStart = state.mission.hops.map(hop => {
+                if (hop.id === hopIdToStart) {
+                    // Update hop status and first step to running
+                    const updatedSteps = hop.steps?.map((step, index) => {
+                        if (index === 0) {
+                            return { ...step, status: ExecutionStatus.RUNNING };
+                        }
+                        return step;
+                    }) || [];
+
+                    return {
+                        ...hop,
+                        status: ExecutionStatus.RUNNING,
+                        steps: updatedSteps,
+                        current_step_index: 0
+                    };
+                }
+                return hop;
+            });
 
             // Update current_hop if it matches the hop being started
             const updatedCurrentHopForStart = state.mission.current_hop?.id === hopIdToStart
-                ? { ...state.mission.current_hop, status: ExecutionStatus.RUNNING }
+                ? {
+                    ...state.mission.current_hop,
+                    status: ExecutionStatus.RUNNING,
+                    steps: state.mission.current_hop.steps?.map((step, index) => {
+                        if (index === 0) {
+                            return { ...step, status: ExecutionStatus.RUNNING };
+                        }
+                        return step;
+                    }) || [],
+                    current_step_index: 0
+                }
                 : state.mission.current_hop;
 
             return {
@@ -209,39 +233,105 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'COMPLETE_HOP_EXECUTION':
             const hopIdToComplete = action.payload;
-            // Find the hop in the hops array and update it
-            const updatedHopsForComplete = state.mission.hops.map(hop =>
-                hop.id === hopIdToComplete
-                    ? { ...hop, status: ExecutionStatus.COMPLETED }
-                    : hop
-            );
 
-            // Update current_hop if it matches the hop being completed
-            const updatedCurrentHopForComplete = state.mission.current_hop?.id === hopIdToComplete
-                ? { ...state.mission.current_hop, status: ExecutionStatus.COMPLETED }
-                : state.mission.current_hop;
+            // Find the hop in the hops array and update it
+            const updatedHopsForComplete = state.mission.hops.map(hop => {
+                if (hop.id === hopIdToComplete) {
+                    // Update hop status and all steps to completed
+                    const updatedSteps = hop.steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.COMPLETED
+                    })) || [];
+
+                    return {
+                        ...hop,
+                        status: ExecutionStatus.COMPLETED,
+                        steps: updatedSteps
+                    };
+                }
+                return hop;
+            });
+
+            // Find the completed hop to check if it's final
+            const completedHopForExecution = updatedHopsForComplete.find(h => h.id === hopIdToComplete);
+
+            if (!completedHopForExecution) {
+                console.error('Completed hop not found in hops array');
+                return state;
+            }
+
+            // Determine mission status updates based on whether this is the final hop
+            let newMissionStatus = state.mission.mission_status;
+            let newHopStatus: HopStatus;
+            let newCurrentHop: Hop | undefined;
+            let newCurrentHopIndex = state.mission.current_hop_index;
+
+            if (completedHopForExecution.is_final) {
+                // Final hop completed - mission is complete
+                newMissionStatus = MissionStatus.COMPLETE;
+                newHopStatus = HopStatus.ALL_HOPS_COMPLETE;
+                newCurrentHop = undefined;
+                // Don't advance index for final hop
+            } else {
+                // Non-final hop completed - ready for next hop design
+                newHopStatus = HopStatus.READY_TO_DESIGN;
+                newCurrentHop = undefined; // Clear current hop so next one can be designed
+                newCurrentHopIndex = state.mission.current_hop_index + 1; // Move to next hop index
+            }
+
+            console.log('Hop completion:', {
+                hopId: hopIdToComplete,
+                isFinal: completedHopForExecution.is_final,
+                newHopStatus,
+                newCurrentHopIndex,
+                hopName: completedHopForExecution.name
+            });
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForComplete,
-                    current_hop: updatedCurrentHopForComplete,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for now
+                    current_hop: newCurrentHop,
+                    current_hop_index: newCurrentHopIndex,
+                    mission_status: newMissionStatus,
+                    hop_status: newHopStatus
                 }
             };
         case 'FAIL_HOP_EXECUTION':
             const { hopId: hopIdToFail, error } = action.payload;
             // Find the hop in the hops array and update it
-            const updatedHopsForFail = state.mission.hops.map(hop =>
-                hop.id === hopIdToFail
-                    ? { ...hop, status: ExecutionStatus.FAILED }
-                    : hop
-            );
+            const updatedHopsForFail = state.mission.hops.map(hop => {
+                if (hop.id === hopIdToFail) {
+                    // Update hop status and current step to failed
+                    const updatedSteps = hop.steps?.map((step, index) => {
+                        if (index === hop.current_step_index) {
+                            return { ...step, status: ExecutionStatus.FAILED };
+                        }
+                        return step;
+                    }) || [];
+
+                    return {
+                        ...hop,
+                        status: ExecutionStatus.FAILED,
+                        steps: updatedSteps
+                    };
+                }
+                return hop;
+            });
 
             // Update current_hop if it matches the hop being failed
             const updatedCurrentHopForFail = state.mission.current_hop?.id === hopIdToFail
-                ? { ...state.mission.current_hop, status: ExecutionStatus.FAILED }
+                ? {
+                    ...state.mission.current_hop,
+                    status: ExecutionStatus.FAILED,
+                    steps: state.mission.current_hop.steps?.map((step, index) => {
+                        if (index === (state.mission.current_hop?.current_step_index || 0)) {
+                            return { ...step, status: ExecutionStatus.FAILED };
+                        }
+                        return step;
+                    }) || []
+                }
                 : state.mission.current_hop;
 
             return {
@@ -250,21 +340,41 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     hops: updatedHopsForFail,
                     current_hop: updatedCurrentHopForFail,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for retry
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Stay ready to execute for retry
                 }
             };
         case 'RETRY_HOP_EXECUTION':
             const hopIdToRetry = action.payload;
             // Find the hop in the hops array and update it
-            const updatedHopsForRetry = state.mission.hops.map(hop =>
-                hop.id === hopIdToRetry
-                    ? { ...hop, status: ExecutionStatus.PENDING }
-                    : hop
-            );
+            const updatedHopsForRetry = state.mission.hops.map(hop => {
+                if (hop.id === hopIdToRetry) {
+                    // Update hop status and reset all steps to pending
+                    const updatedSteps = hop.steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.PENDING
+                    })) || [];
+
+                    return {
+                        ...hop,
+                        status: ExecutionStatus.PENDING,
+                        steps: updatedSteps,
+                        current_step_index: 0
+                    };
+                }
+                return hop;
+            });
 
             // Update current_hop if it matches the hop being retried
             const updatedCurrentHopForRetry = state.mission.current_hop?.id === hopIdToRetry
-                ? { ...state.mission.current_hop, status: ExecutionStatus.PENDING }
+                ? {
+                    ...state.mission.current_hop,
+                    status: ExecutionStatus.PENDING,
+                    steps: state.mission.current_hop.steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.PENDING
+                    })) || [],
+                    current_step_index: 0
+                }
                 : state.mission.current_hop;
 
             return {

@@ -66,7 +66,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                 {totalSteps > 0 && (
                     <div className="space-y-1">
                         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>Progress</span>
+                            <span>Step Progress</span>
                             <span>{completedSteps}/{totalSteps} steps</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
@@ -157,6 +157,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                             </span>
                                                         )}
                                                     </div>
+                                                    {/* Step Status */}
                                                     <span className={`${getStatusBadgeClass(stepStatus.color)} flex items-center gap-1`}>
                                                         {stepStatus.icon}
                                                         {stepStatus.text}

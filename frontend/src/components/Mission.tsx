@@ -104,17 +104,25 @@ export default function Mission({
                             </button>
                         )}
 
-                        {/* Mission Status */}
-                        <span className={getStatusBadgeClass(missionStatusDisplay.color)}>
-                            {missionStatusDisplay.text}
-                        </span>
-
-                        {/* Hop Status */}
-                        {hopStatusDisplay && (
-                            <span className={getStatusBadgeClass(hopStatusDisplay.color)}>
-                                {hopStatusDisplay.text}
+                        {/* Status Section - Simplified */}
+                        <div className="flex items-center justify-end gap-2">
+                            {/* Mission Status */}
+                            <span className="text-xs text-gray-500">Mission:</span>
+                            <span className={getStatusBadgeClass(missionStatusDisplay.color)}>
+                                {missionStatusDisplay.text}
                             </span>
-                        )}
+
+                            {/* Hop Status - only show if mission is active and hop status exists */}
+                            {mission.mission_status === MissionStatus.ACTIVE && hopStatusDisplay && (
+                                <>
+                                    <span className="text-xs text-gray-400">|</span>
+                                    <span className="text-xs text-gray-500">Hop:</span>
+                                    <span className={getStatusBadgeClass(hopStatusDisplay.color)}>
+                                        {hopStatusDisplay.text}
+                                    </span>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     <div>

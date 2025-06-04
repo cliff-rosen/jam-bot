@@ -2,6 +2,24 @@ import React from 'react';
 import { Clock, CheckCircle, XCircle, PlayCircle, AlertCircle } from 'lucide-react';
 import { ExecutionStatus, MissionStatus, HopStatus } from '@/types/workflow';
 
+/**
+ * STATUS LEVELS - Simple and Clear:
+ * 
+ * 1. MISSION STATUS (MissionStatus)
+ *    - Overall mission state: PENDING → ACTIVE → COMPLETE
+ *    - Shown as: "Mission: ACTIVE"
+ * 
+ * 2. HOP STATUS (ExecutionStatus)
+ *    - Individual hop state: PENDING → RUNNING → COMPLETED/FAILED
+ *    - Shown in hop list and details directly as status badge
+ * 
+ * 3. STEP STATUS (ExecutionStatus)
+ *    - Individual step state: PENDING → RUNNING → COMPLETED/FAILED  
+ *    - Shown in step details as status badge
+ * 
+ * Note: HopStatus workflow enum is internal system state, not shown to users
+ */
+
 export interface StatusDisplay {
     color: string;
     icon: React.ReactElement;

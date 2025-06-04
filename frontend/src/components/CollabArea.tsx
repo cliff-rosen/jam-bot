@@ -4,7 +4,7 @@ import Mission from './Mission';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { CheckCircle, XCircle, Play, Square, RotateCcw } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
-import { ToolStep, Hop, ExecutionStatus } from '@/types/workflow';
+import { ToolStep, Hop, ExecutionStatus, HopStatus } from '@/types/workflow';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -405,13 +405,31 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         const getActionButtons = () => {
             const buttons = [];
 
-            switch (liveHop.status) {
-                case ExecutionStatus.PENDING:
+            // Check if this hop is the current hop in the mission workflow
+            const isCurrentHop = state.mission.current_hop?.id === liveHop.id;
+            const missionHopStatus = state.mission.hop_status;
+
+            console.log('Action buttons debug:', {
+                hopId: liveHop.id,
+                hopName: liveHop.name,
+                hopStatus: liveHop.status,
+                missionHopStatus,
+                isCurrentHop,
+                isFinal: liveHop.is_final,
+                isResolved: liveHop.is_resolved,
+                stepsLength: liveHop.steps?.length || 0
+            });
+
+            // Action buttons based on backend workflow status AND hop execution status
+            if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {
+                // Hop is ready to execute according to backend workflow
+                if (liveHop.status === ExecutionStatus.PENDING) {
                     if (liveHop.is_resolved && liveHop.steps && liveHop.steps.length > 0) {
                         buttons.push(
                             <button
                                 key="start"
                                 onClick={() => {
+                                    console.log('Starting hop execution for:', liveHop.id);
                                     startHopExecution(liveHop.id);
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
@@ -421,13 +439,14 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             </button>
                         );
                     }
-                    break;
-
-                case ExecutionStatus.RUNNING:
+                } else if (liveHop.status === ExecutionStatus.RUNNING) {
                     buttons.push(
                         <button
                             key="complete"
-                            onClick={() => completeHopExecution(liveHop.id)}
+                            onClick={() => {
+                                console.log('Completing hop execution for:', liveHop.id, 'isFinal:', liveHop.is_final);
+                                completeHopExecution(liveHop.id);
+                            }}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />
@@ -444,9 +463,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             Mark Failed
                         </button>
                     );
-                    break;
-
-                case ExecutionStatus.FAILED:
+                } else if (liveHop.status === ExecutionStatus.FAILED) {
                     buttons.push(
                         <button
                             key="retry"
@@ -457,13 +474,41 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             Retry
                         </button>
                     );
-                    break;
-
-                case ExecutionStatus.COMPLETED:
-                    // No actions available for completed hops
-                    break;
-
-                default:
+                } else if (liveHop.status === ExecutionStatus.COMPLETED) {
+                    // Even if hop execution is completed, allow restart if workflow says ready to execute
+                    buttons.push(
+                        <button
+                            key="restart"
+                            onClick={() => retryHopExecution(liveHop.id)}
+                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            Restart Execution
+                        </button>
+                    );
+                }
+            } else if (missionHopStatus === HopStatus.HOP_RUNNING && isCurrentHop) {
+                // Hop is running according to backend workflow
+                buttons.push(
+                    <button
+                        key="complete"
+                        onClick={() => completeHopExecution(liveHop.id)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                        <CheckCircle className="w-4 h-4" />
+                        Mark Complete
+                    </button>
+                );
+                buttons.push(
+                    <button
+                        key="fail"
+                        onClick={() => failHopExecution(liveHop.id, 'Manually marked as failed')}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                        <XCircle className="w-4 h-4" />
+                        Mark Failed
+                    </button>
+                );
             }
 
             return buttons;
@@ -561,7 +606,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {type === 'mission-proposal' && 'Mission Proposal'}
                     {type === 'hop-proposal' && 'Hop Proposal'}
                     {type === 'hop-implementation-proposal' && 'Hop Implementation Proposal'}
-                    {type === 'hop' && 'Hop'}
+                    {type === 'hop' && 'Hop Details'}
                     {type === 'default' && 'Collaboration Area'}
                 </h2>
             </div>

@@ -1,31 +1,28 @@
 {
-    "token": "Let's begin by fetching the relevant emails.",
-    "response_text": "Let's begin by fetching the relevant emails.",
+    "token": "I will propose a hop for extracting relevant information from the AI Newsletters based on the missio",
+    "response_text": "I will propose a hop for extracting relevant information from the AI Newsletters based on the mission requirements.",
     "payload": {
         "hop": {
-            "id": "0be581e0-564b-4198-ade8-92eeaad29e1b",
-            "name": "Retrieve April AI Newsletters",
-            "description": "This hop retrieves all the relevant AI newsletters from the specified Gmail folder within the date range of April 1-30, filtered by keywords related to new model capabilities and orchestration tools.",
+            "id": "e256ca72-29e8-4bca-b171-239c461369bd",
+            "name": "Extract Relevant AI News",
+            "description": "This hop extracts information related to new model capabilities and orchestration tools from the AI newsletters.",
             "input_mapping": {
-                "gmail_credentials": "5a229668-e7ae-4000-997e-2a35c652d03c",
-                "email_source_folder": "867b9141-de6d-48e0-b583-45692c3dec41",
-                "date_range": "a6989f90-b99e-4b15-8bf6-beebe3090971",
-                "email_filters": "7e956648-ef19-4a61-bc62-31d98dc1e351"
+                "emails": "4c3e5ec8-0381-49e8-92d9-a0123267c9ee"
             },
             "state": {},
             "output_mapping": {
-                "Filtered AI Newsletters": "hop_retrieve_april_ai_newsletters_output"
+                "Extracted Insights from AI News": "hop_extract_relevant_ai_news_output"
             },
             "steps": [],
             "status": "pending",
             "is_resolved": false,
             "is_final": false,
             "current_step_index": 0,
-            "created_at": "2025-06-04T05:40:35.372493",
-            "updated_at": "2025-06-04T05:40:35.372493"
+            "created_at": "2025-06-04T06:16:18.573894",
+            "updated_at": "2025-06-04T06:16:18.573894"
         }
     },
     "status": "hop_designer_completed",
     "error": null,
-    "debug": "Hop proposed: Retrieve April AI Newsletters, waiting for user approval"
+    "debug": "Hop proposed: Extract Relevant AI News, waiting for user approval"
 }

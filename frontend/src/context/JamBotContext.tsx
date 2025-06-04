@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, HopStatus, defaultMission } from '@/types/workflow';
+import { Mission, MissionStatus, HopStatus, defaultMission, Hop } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset, AssetType } from '@/types/asset';
@@ -214,36 +214,24 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     data.payload !== null &&
                     'mission' in data.payload;
 
-                // Check if this is a hop proposal - either by status or by having current_hop in mission
-                const isHopProposal = (data.status === 'hop_designer_completed' ||
-                    data.status === 'supervisor_routing_completed') &&
-                    typeof data.payload === 'object' &&
-                    data.payload !== null &&
-                    'mission' in data.payload &&
-                    data.payload.mission &&
-                    typeof data.payload.mission === 'object' &&
-                    'current_hop' in data.payload.mission &&
-                    (data.payload.mission as any).current_hop !== null;
+                let isHopProposal = false; // for design proposals
+                let isHopImplementationProposal = false;
 
-                // Check if this is a hop implementation proposal
-                const isHopImplementationProposal = data.status === 'hop_resolver_completed' && // Assuming this new status from the agent
-                    typeof data.payload === 'object' &&
-                    data.payload !== null &&
-                    'mission' in data.payload &&
-                    data.payload.mission &&
-                    typeof data.payload.mission === 'object' &&
-                    'current_hop' in data.payload.mission &&
-                    (data.payload.mission as any).current_hop !== null &&
-                    (data.payload.mission as any).current_hop.is_resolved === true;
+                if (data.status === 'hop_designer_completed') {
+                    isHopProposal = true;
+                }
 
+                if (data.status === 'hop_resolver_completed') {
+                    isHopImplementationProposal = true;
+                }
 
                 // Set the collab area to the appropriate type
                 if (isMissionProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
-                } else if (isHopProposal) {
-                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
-                } else if (isHopImplementationProposal) {
+                } else if (isHopImplementationProposal) { // Check for implementation proposal first
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
+                } else if (isHopProposal) { // Then check for design proposal
+                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
                 } else {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
                 }

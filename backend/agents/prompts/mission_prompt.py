@@ -17,7 +17,7 @@ class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
     name: str = Field(description="Name of the asset")
     description: str = Field(description="Clear description of what this asset contains")
-    type: AssetType = Field(description="Type of asset (file, primitive, object, database_entity)")
+    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown'")
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email')")
     is_collection: bool = Field(default=False, description="Whether this asset contains multiple items")
     collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true")
@@ -179,6 +179,7 @@ This will help me [explain how the answer improves the mission plan].
 - Verify the mission is technically feasible given actual tool capabilities
 - If multiple missions are needed, propose breaking them into phases
 - Always structure inputs and outputs as proper AssetLite objects with clear types and descriptions
+- **IMPORTANT**: For the `type` field in `AssetLite`, you MUST use one of the following exact string values: "file", "primitive", "object", "database_entity", "markdown". Do not invent other types.
 
 ## Current Context
 Mission Context: {mission}

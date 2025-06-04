@@ -67,7 +67,6 @@ class State(BaseModel):
     messages: List[Message]
     mission: Mission
     available_assets: List[Asset] = []
-    current_hop: Optional[Hop] = None
     tool_params: Dict[str, Any] = {}
     next_node: str
   
@@ -99,17 +98,12 @@ def serialize_state(state: State) -> dict:
     if mission_dict:
         mission_dict = convert_datetime(mission_dict)
     
-    current_hop_dict = state.current_hop.model_dump() if state.current_hop else None
-    if current_hop_dict:
-        current_hop_dict = convert_datetime(current_hop_dict)
-    
     available_assets_dict = [asset.model_dump() for asset in state.available_assets] if state.available_assets else []
     
     return {
         "messages": messages, 
         "tool_params": state.tool_params,
         "mission": mission_dict,
-        "current_hop": current_hop_dict,
         "available_assets": available_assets_dict
     }
 
@@ -118,8 +112,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     print("Supervisor - Routing based on mission and hop status")
     print(f"DEBUG: Mission status: {state.mission.mission_status if state.mission else 'No mission'}")
     print(f"DEBUG: Hop status: {state.mission.hop_status if state.mission else 'No hop status'}")
-    print(f"DEBUG: Current hop: {state.current_hop.name if state.current_hop else 'None'}")
-    print(f"DEBUG: Mission current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
+    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
     
     if writer:
         writer({
@@ -191,7 +184,6 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "current_hop": state.current_hop,
             "available_assets": state.available_assets
         }
 
@@ -393,7 +385,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             )
             
             # Update state with new hop
-            state.current_hop = new_hop
             state.mission.current_hop = new_hop
             state.mission.hop_status = HopStatus.HOP_PROPOSED
 
@@ -412,7 +403,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "current_hop": state.current_hop,
             "available_assets": state.available_assets
         }
 
@@ -446,8 +436,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles hop implementer operations"""
     print("Hop implementer node")
-    print(f"DEBUG: state.current_hop: {state.current_hop.name if state.current_hop else 'None'}")
-    print(f"DEBUG: state.mission.current_hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
+    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
     print(f"DEBUG: Hop status: {state.mission.hop_status if state.mission else 'No hop status'}")
 
     if writer:
@@ -457,11 +446,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         })
     
     try:
-        # Check for current hop in both places and use mission's current_hop as fallback
-        current_hop = state.current_hop or (state.mission.current_hop if state.mission else None)
+        # Use mission's current_hop as the single source of truth
+        current_hop = state.mission.current_hop if state.mission else None
         
         if not current_hop:
-            error_msg = f"No current hop to implement. state.current_hop: {state.current_hop}, mission.current_hop: {state.mission.current_hop if state.mission else 'No mission'}, hop_status: {state.mission.hop_status if state.mission else 'No status'}"
+            error_msg = f"No current hop to implement. mission.current_hop: {state.mission.current_hop if state.mission else 'No mission'}, hop_status: {state.mission.hop_status if state.mission else 'No status'}"
             print(f"ERROR: {error_msg}")
             raise ValueError(error_msg)
 
@@ -519,50 +508,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             current_hop.is_resolved = True
             current_hop.status = ExecutionStatus.PENDING
             
-            # Set hop status to ready to execute
+            # Set hop status to ready to execute - that's where implementer's job ends
             state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
             
-            # For now, simulate execution completion
-            # In a real implementation, this would be handled by a hop executor
-            current_hop.status = ExecutionStatus.COMPLETED
-            state.mission.hops.append(current_hop)
-            
-            # Simulate creating output assets based on output mapping
-            # In real implementation, these would be created by tool execution
-            for local_key, external_id in current_hop.output_mapping.items():
-                # Create a placeholder asset
-                from schemas.asset import AssetType
-                placeholder_asset = Asset(
-                    id=external_id,
-                    name=local_key,
-                    description=f"Output from {current_hop.name}",
-                    type=AssetType.FILE,  # Default type, would be determined by tool
-                    is_collection=False,
-                    content={"placeholder": "This would contain actual tool output"},
-                    asset_metadata={
-                        "createdAt": datetime.now().isoformat(),
-                        "updatedAt": datetime.now().isoformat(),
-                        "creator": current_hop.name,
-                        "tags": [],
-                        "agent_associations": [],
-                        "version": 1,
-                        "token_count": 0
-                    }
-                )
-                state.mission.state[external_id] = placeholder_asset
-            
-            # Check if mission is complete (before clearing current_hop)
-            is_final_hop = current_hop.is_final
-            
-            # Clear current hop from both places
-            state.current_hop = None
-            state.mission.current_hop = None
-            
-            # Update hop status based on whether this was the final hop
-            if is_final_hop:
-                state.mission.hop_status = HopStatus.ALL_HOPS_COMPLETE
-            else:
-                state.mission.hop_status = HopStatus.READY_TO_DESIGN
+            # Note: A hop executor should handle actual execution
+            # For now, we'll let the supervisor decide what to do with a ready-to-execute hop
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -579,13 +529,12 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "current_hop": state.current_hop,
             "available_assets": state.available_assets
         }
 
         if writer:
             hop_name = current_hop.name
-            next_status = "ready for next hop" if not is_final_hop else "mission complete"
+            next_status = "ready for next hop" if not current_hop.is_final else "mission complete"
             
             agent_response = AgentResponse(
                 token=response_message.content[0:100],

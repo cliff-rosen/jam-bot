@@ -130,7 +130,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     };
 
     const renderHopProposal = () => {
-        const hop = content?.current_hop;
+        const hop = content?.mission?.current_hop;
         if (!hop) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">

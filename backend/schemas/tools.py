@@ -10,7 +10,7 @@ class ToolOutputSchema(BaseModel):
     name: str = Field(description="Output field name")
     type: str = Field(description="Data type (string, number, boolean, object, array)")
     description: str = Field(description="Description of what this output contains")
-    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
+    details_schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types if type is object or array")
     required: bool = Field(default=True, description="Whether this output is always present")
     example: Optional[Any] = Field(default=None, description="Example value")
 

@@ -374,26 +374,81 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             
             # Create output mapping based on whether this is a final hop
             output_mapping = {}
+            generated_wip_asset_id = None # To store the ID if it's a new WIP asset
+
             if hop_proposal.is_final and hop_proposal.output_mission_asset_id:
                 # For final hops, map to mission output
-                output_mapping[hop_proposal.output_asset.name] = hop_proposal.output_mission_asset_id
+                if hop_proposal.output_asset: # Ensure output_asset exists before trying to use its name
+                    output_mapping[hop_proposal.output_asset.name] = hop_proposal.output_mission_asset_id
+                else:
+                    # This case should ideally not happen if a final hop always has a defined output
+                    print(f"Warning: Hop '{hop_proposal.name}' is final but has no output_asset defined for mapping.")
             else:
                 # For intermediate hops, create a new asset ID
-                output_mapping[hop_proposal.output_asset.name] = f"hop_{hop_proposal.name.lower().replace(' ', '_')}_output"
+                if hop_proposal.output_asset: # Ensure output_asset exists
+                    # Sanitize name for use in ID and make it more unique
+                    sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
+                    generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
+                    output_mapping[hop_proposal.output_asset.name] = generated_wip_asset_id
+                else:
+                    # This case implies a non-final hop without a defined output.
+                    print(f"Warning: Hop '{hop_proposal.name}' is not final but has no output_asset defined to generate a WIP asset from or map.")
             
             new_hop = Hop(
                 id=str(uuid.uuid4()),
                 name=hop_proposal.name,
                 description=hop_proposal.description,
                 input_mapping=hop_proposal.input_mapping,
-                output_mapping=output_mapping,
+                output_mapping=output_mapping, # Contains the correct ID for WIP or final
                 is_final=hop_proposal.is_final,
                 status=ExecutionStatus.PENDING
             )
+
+            # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
+            if generated_wip_asset_id and hop_proposal.output_asset:
+                output_asset_lite = hop_proposal.output_asset
+                
+                # Convert AssetLite to Asset
+                new_wip_asset = convert_asset_lite_to_asset(output_asset_lite)
+                
+                # Override ID and update metadata for this WIP asset
+                new_wip_asset.id = generated_wip_asset_id 
+                new_wip_asset.asset_metadata["source"] = "hop_generated_wip"
+                new_wip_asset.asset_metadata["creator"] = "hop_designer_wip"
+                current_time_iso = datetime.utcnow().isoformat()
+                new_wip_asset.asset_metadata["created_at"] = current_time_iso
+                new_wip_asset.asset_metadata["updated_at"] = current_time_iso
+                
+                # Ensure mission.state exists (it should, if mission was initialized)
+                if state.mission.state is None: # Defensive check
+                    state.mission.state = {}
+                state.mission.state[new_wip_asset.id] = new_wip_asset
             
             # Update state with new hop
             state.mission.current_hop = new_hop
             state.mission.hop_status = HopStatus.HOP_PROPOSED
+
+            # Initialize and populate the new hop's local state from mission.state
+            new_hop.state = {} 
+
+            # 1. Populate hop.state with input assets
+            if state.mission and state.mission.state and new_hop.input_mapping:
+                for local_input_name, mission_asset_id in new_hop.input_mapping.items():
+                    if mission_asset_id in state.mission.state:
+                        new_hop.state[local_input_name] = state.mission.state[mission_asset_id]
+                    else:
+                        print(f"ERROR: [Hop Designer] Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
+                        # Potentially raise an error or mark mission as invalid
+            
+            # 2. Populate hop.state with output assets
+            # The output_asset_id_in_mission_state is either a mission_output_id or the generated_wip_asset_id
+            if state.mission and state.mission.state and new_hop.output_mapping:
+                for local_output_name, output_asset_id_in_mission_state in new_hop.output_mapping.items():
+                    if output_asset_id_in_mission_state in state.mission.state:
+                        new_hop.state[local_output_name] = state.mission.state[output_asset_id_in_mission_state]
+                    else:
+                        print(f"ERROR: [Hop Designer] Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
+                        # Potentially raise an error or mark mission as invalid
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -422,7 +477,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 "error": None,
                 "debug": f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
                 "payload": {
-                    "hop": new_hop.model_dump(mode='json')
+                    "hop": new_hop.model_dump(mode='json'),
+                    "mission": state.mission.model_dump(mode='json')
                 }
             }
 

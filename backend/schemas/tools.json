@@ -1,6 +1,7 @@
 {
     "tools": [
         {
+            "id": "email_search",
             "name": "email_search",
             "description": "Search and retrieve emails from Gmail with filtering capabilities",
             "category": "data_retrieval",
@@ -45,7 +46,7 @@
                     "type": "array",
                     "description": "List of retrieved emails",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -112,6 +113,7 @@
             ]
         },
         {
+            "id": "extract",
             "name": "extract",
             "description": "Extract specific information from items using extraction functions. Works with single items or lists.",
             "category": "data_processing",
@@ -154,7 +156,7 @@
                     "type": "array",
                     "description": "List of item ID and extraction pairs",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -194,7 +196,7 @@
                     "type": "object",
                     "description": "Statistics about the extraction process",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "object",
                         "properties": {
                             "total_processed": {
@@ -238,6 +240,7 @@
             ]
         },
         {
+            "id": "update_augment",
             "name": "update_augment",
             "description": "Apply updates or augmentations to a list of items",
             "category": "data_processing",
@@ -296,7 +299,7 @@
                     "type": "array",
                     "description": "Items with updates and augmentations applied",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "array",
                         "items": {
                             "type": "object"
@@ -320,7 +323,7 @@
                     "type": "object",
                     "description": "Statistics about the update process",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "object",
                         "properties": {
                             "items_updated": {
@@ -377,6 +380,7 @@
             ]
         },
         {
+            "id": "map_reduce_rollup",
             "name": "map_reduce_rollup",
             "description": "Group objects by rules and apply rollup functions to create aggregated results",
             "category": "data_analysis",
@@ -430,7 +434,7 @@
                     "type": "array",
                     "description": "Aggregated results for each group",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -467,7 +471,7 @@
                     "type": "object",
                     "description": "Overall statistics about the rollup operation",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "object",
                         "properties": {
                             "total_groups": {
@@ -516,6 +520,7 @@
             ]
         },
         {
+            "id": "summarize",
             "name": "summarize",
             "description": "Create summaries of content based on specific summarization mandates",
             "category": "data_processing",
@@ -571,7 +576,7 @@
                     "type": "object",
                     "description": "Generated summary with metadata",
                     "required": true,
-                    "schema": {
+                    "details_schema": {
                         "type": "object",
                         "properties": {
                             "title": {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { MissionStateTable } from './common/MissionStateTable';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { HopStatus, MissionStatus } from '@/types/workflow';
 
 interface MissionProps {
@@ -95,6 +95,10 @@ export default function Mission({
             default:
                 return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
         }
+    };
+
+    const handleHopClick = (hop: any) => {
+        setCollabArea('hop', hop);
     };
 
     return (
@@ -222,8 +226,21 @@ export default function Mission({
                         {mission.hops && mission.hops.length > 0 ? (
                             <ul className="space-y-1 max-h-32 overflow-y-auto">
                                 {mission.hops.map((hop, idx) => (
-                                    <li key={hop.id || idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
-                                        {hop.name || `Hop ${idx + 1}`} ({hop.status})
+                                    <li key={hop.id || idx}>
+                                        <button
+                                            onClick={() => handleHopClick(hop)}
+                                            className="w-full text-left text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] hover:bg-gray-100 dark:hover:bg-[#2a3044] rounded px-2 py-1 transition-colors cursor-pointer group"
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    <Eye className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                                                    <span>{hop.name || `Hop ${idx + 1}`}</span>
+                                                </div>
+                                                <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${getStatusColor(hop.status)}`}>
+                                                    {getStatusText(hop.status)}
+                                                </span>
+                                            </div>
+                                        </button>
                                     </li>
                                 ))}
                             </ul>

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { VariableRenderer } from './common/VariableRenderer';
 import Mission from './Mission';
+import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
-import { ToolStep, Hop } from '@/types/workflow';
+import { ToolStep, Hop, ExecutionStatus } from '@/types/workflow';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
-    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal';
+    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop';
     content?: any;
 }
 
@@ -368,6 +369,26 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         );
     };
 
+    const renderHop = () => {
+        const hop = content as Hop | undefined;
+
+        if (!hop) {
+            return (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    No hop data available
+                </div>
+            );
+        }
+
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6">
+                    <CurrentHopDetails hop={hop} className="" />
+                </div>
+            </div>
+        );
+    };
+
     const renderObjectList = () => {
         if (!Array.isArray(content) || content.length === 0) {
             return (
@@ -438,6 +459,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {type === 'mission-proposal' && 'Mission Proposal'}
                     {type === 'hop-proposal' && 'Hop Proposal'}
                     {type === 'hop-implementation-proposal' && 'Hop Implementation Proposal'}
+                    {type === 'hop' && 'Hop'}
                     {type === 'default' && 'Collaboration Area'}
                 </h2>
             </div>
@@ -484,6 +506,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 {type === 'mission-proposal' && renderMissionProposal()}
                 {type === 'hop-proposal' && renderHopProposal()}
                 {type === 'hop-implementation-proposal' && renderHopImplementationProposal()}
+                {type === 'hop' && renderHop()}
             </div>
         </div>
     );

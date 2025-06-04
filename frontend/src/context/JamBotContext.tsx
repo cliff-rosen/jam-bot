@@ -199,6 +199,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
+        // add assistant message
         if (data.response_text) {
             const chatMessage: ChatMessage = {
                 id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -208,55 +209,53 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             };
             addMessage(chatMessage);
             lastMessageId = chatMessage.id;
+        }
 
-            if (data.payload) {
-                newCollabAreaContent = data.payload;
+        // handle payload
+        if (data.payload) {
+            newCollabAreaContent = data.payload;
 
-                const isMissionProposal = data.status === 'mission_specialist_completed' &&
-                    typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
-
-                let isHopProposal = false;
-                let isHopImplementationProposal = false;
-
-                if ((data.status === 'hop_designer_completed' || data.status === 'supervisor_routing_completed') &&
-                    typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop
-                ) {
-                    const hopPayload = data.payload.hop as Partial<Hop>;
-                    if (hopPayload.is_resolved === true) {
-                        isHopImplementationProposal = true;
-                    } else {
-                        isHopProposal = true;
-                    }
-                } else if (data.status === 'hop_implementer_completed' &&
-                    typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload &&
-                    data.payload.hop && typeof data.payload.hop === 'object'
-                ) {
-                    const hopPayload = data.payload.hop as Partial<Hop>;
-                    if (hopPayload.is_resolved === true) {
-                        isHopImplementationProposal = true;
-                    }
-                }
-
-                if (isMissionProposal) {
-                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
-                } else if (isHopImplementationProposal) {
-                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
-                } else if (isHopProposal) {
-                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
+            // first deciphher payload type
+            const isMissionProposal = data.status === 'mission_specialist_completed' &&
+                typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
+            let isHopProposal = false;
+            let isHopImplementationProposal = false;
+            let hopPayload: Partial<Hop> | null = null;
+            if (typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop) {
+                hopPayload = data.payload.hop as Partial<Hop>;
+            }
+            if ((data.status === 'hop_designer_completed') && hopPayload) {
+                if (hopPayload.is_resolved === true) {
+                    isHopImplementationProposal = true;
                 } else {
-                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+                    isHopProposal = true;
                 }
+            } else if (data.status === 'hop_implementer_completed' && hopPayload) {
+                if (hopPayload.is_resolved === true) {
+                    isHopImplementationProposal = true;
+                }
+            }
 
+            // then update state accordingly
+            if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
+                dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
+            }
+            if (isMissionProposal) {
+                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
+            } else if (isHopImplementationProposal) {
+                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
+            } else if (isHopProposal) {
+                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
+            } else {
+                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+            }
+            if (lastMessageId) {
                 addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
             }
+
+            return token;
+
         }
-
-        if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-            dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
-        }
-
-        return token;
-
     }, [addMessage, updateStreamingMessage, addPayloadHistory]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {

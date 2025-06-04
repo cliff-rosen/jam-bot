@@ -24,7 +24,8 @@ type JamBotAction =
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
-    | { type: 'ACCEPT_HOP_PROPOSAL' };
+    | { type: 'ACCEPT_HOP_PROPOSAL' }
+    | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL' };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -95,6 +96,18 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     content: null
                 }
             };
+        case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                },
+                collabArea: {
+                    type: 'default',
+                    content: null
+                }
+            };
         default:
             return state;
     }
@@ -109,6 +122,7 @@ const JamBotContext = createContext<{
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: () => void;
+    acceptHopImplementationProposal: () => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -148,6 +162,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const acceptHopProposal = useCallback(() => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL' });
+    }, []);
+
+    const acceptHopImplementationProposal = useCallback(() => {
+        dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL' });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -207,12 +225,25 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     'current_hop' in data.payload.mission &&
                     (data.payload.mission as any).current_hop !== null;
 
+                // Check if this is a hop implementation proposal
+                const isHopImplementationProposal = data.status === 'hop_resolver_completed' && // Assuming this new status from the agent
+                    typeof data.payload === 'object' &&
+                    data.payload !== null &&
+                    'mission' in data.payload &&
+                    data.payload.mission &&
+                    typeof data.payload.mission === 'object' &&
+                    'current_hop' in data.payload.mission &&
+                    (data.payload.mission as any).current_hop !== null &&
+                    (data.payload.mission as any).current_hop.is_resolved === true;
+
 
                 // Set the collab area to the appropriate type
                 if (isMissionProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
                 } else if (isHopProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
+                } else if (isHopImplementationProposal) {
+                    dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
                 } else {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
                 }
@@ -287,7 +318,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             setCollabArea,
             addPayloadHistory,
             acceptMissionProposal,
-            acceptHopProposal
+            acceptHopProposal,
+            acceptHopImplementationProposal
         }}>
             {children}
         </JamBotContext.Provider>

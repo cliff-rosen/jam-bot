@@ -3,16 +3,17 @@ import { VariableRenderer } from './common/VariableRenderer';
 import Mission from './Mission';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
+import { ToolStep } from '@/types/workflow';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
-    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal';
+    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal';
     content?: any;
 }
 
 const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const { acceptMissionProposal, acceptHopProposal } = useJamBot();
+    const { acceptMissionProposal, acceptHopProposal, acceptHopImplementationProposal } = useJamBot();
 
     const handlePrevious = () => {
         setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -219,6 +220,99 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         );
     };
 
+    const renderHopImplementationProposal = () => {
+        const hop = content?.mission?.current_hop;
+        if (!hop || !hop.is_resolved || !hop.steps) {
+            return (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    No hop implementation available or hop is not resolved.
+                </div>
+            );
+        }
+
+        return (
+            <div className="h-full overflow-auto">
+                <div className="p-6 space-y-6">
+                    {/* Hop Implementation Proposal Header */}
+                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
+                            Hop Implementation Proposal
+                        </h3>
+                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                            Review the resolved tool steps for the hop below. Accepting will prepare this hop for execution.
+                        </p>
+                    </div>
+
+                    {/* Hop Details */}
+                    <div className="space-y-4">
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Hop Name</h4>
+                            <p className="text-base text-gray-900 dark:text-gray-100">{hop.name}</p>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Description</h4>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{hop.description}</p>
+                        </div>
+                    </div>
+
+                    {/* Tool Steps */}
+                    <div className="space-y-4">
+                        <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300 mt-4 mb-2">Tool Steps:</h4>
+                        {hop.steps.length > 0 ? (
+                            <ul className="space-y-3">
+                                {hop.steps.map((step: ToolStep, index: number) => (
+                                    <li key={step.id || index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700">
+                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_name}</p>
+                                        {step.description && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>}
+
+                                        {step.parameter_mapping && Object.keys(step.parameter_mapping).length > 0 && (
+                                            <div className="mt-2">
+                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Parameters:</p>
+                                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
+                                                    {Object.entries(step.parameter_mapping).map(([paramKey, paramValue]) => (
+                                                        <li key={paramKey}>
+                                                            <span className="font-semibold">{paramKey}:</span> {typeof paramValue === 'object' && paramValue !== null && 'literal' in paramValue ? JSON.stringify((paramValue as any).literal) : JSON.stringify(paramValue)}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {step.result_mapping && Object.keys(step.result_mapping).length > 0 && (
+                                            <div className="mt-2">
+                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Result Mapping:</p>
+                                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
+                                                    {Object.entries(step.result_mapping).map(([resultKey, resultValue]) => (
+                                                        <li key={resultKey}>
+                                                            <span className="font-semibold">{resultKey}:</span> {JSON.stringify(resultValue)}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-gray-500 italic">No tool steps defined for this hop.</p>
+                        )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                            onClick={() => acceptHopImplementationProposal()}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            Accept Hop Implementation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderObjectList = () => {
         if (!Array.isArray(content) || content.length === 0) {
             return (
@@ -288,6 +382,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {type === 'object-list' && 'Object List'}
                     {type === 'mission-proposal' && 'Mission Proposal'}
                     {type === 'hop-proposal' && 'Hop Proposal'}
+                    {type === 'hop-implementation-proposal' && 'Hop Implementation Proposal'}
                     {type === 'default' && 'Collaboration Area'}
                 </h2>
             </div>
@@ -333,6 +428,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 {type === 'object' && renderObject()}
                 {type === 'mission-proposal' && renderMissionProposal()}
                 {type === 'hop-proposal' && renderHopProposal()}
+                {type === 'hop-implementation-proposal' && renderHopImplementationProposal()}
             </div>
         </div>
     );

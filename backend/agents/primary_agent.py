@@ -297,7 +297,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 "response_text": parsed_response.response_content,
                 "status": "mission_specialist_completed",
                 "payload": {
-                    "mission": state.mission.model_dump()
+                    "mission": state.mission.model_dump(mode='json')
                 },
                 "error": None,
                 "debug": serialize_state(State(**state_update))
@@ -420,7 +420,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 "error": None,
                 "debug": f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
                 "payload": {
-                    "hop": new_hop.model_dump()
+                    "hop": new_hop.model_dump(mode='json')
                 }
             }
 

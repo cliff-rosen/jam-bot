@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 from enum import Enum
@@ -48,6 +48,13 @@ class ToolStep(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if the tool execution failed")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @validator('created_at', 'updated_at', pre=True)
+    def handle_empty_datetime(cls, v):
+        """Handle empty datetime strings from LLM responses"""
+        if v == "" or v is None:
+            return datetime.utcnow()
+        return v
 
 
 class Hop(BaseModel):
@@ -99,6 +106,13 @@ class Hop(BaseModel):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @validator('created_at', 'updated_at', pre=True)
+    def handle_empty_datetime(cls, v):
+        """Handle empty datetime strings from LLM responses"""
+        if v == "" or v is None:
+            return datetime.utcnow()
+        return v
 
 
 class Mission(BaseModel):

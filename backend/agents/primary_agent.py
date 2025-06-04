@@ -402,7 +402,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 input_mapping=hop_proposal.input_mapping,
                 output_mapping=output_mapping, # Contains the correct ID for WIP or final
                 is_final=hop_proposal.is_final,
-                status=ExecutionStatus.PENDING
+                status=ExecutionStatus.PENDING,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
 
             # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
@@ -568,32 +570,20 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         print("================================================")
         print("Parsed hop implementation response:", parsed_response)
 
-        if parsed_response.implementation:
-            # Populate the hop's steps from the implementation
-            implementation = parsed_response.implementation
+        if parsed_response.hop:
+            # Update the current hop with the populated steps
+            updated_hop = parsed_response.hop
             
-            # Import ToolStep from schemas
-            from schemas.workflow import ToolStep as SchemaToolStep
-            
-            # Convert implementation tool steps to schema ToolSteps
-            for impl_step in implementation.tool_steps:
-                schema_step = SchemaToolStep(
-                    id=str(uuid.uuid4()),
-                    tool_id=impl_step.tool_id,  # Directly use tool_id from impl_step
-                    description=impl_step.description,
-                    parameter_mapping=impl_step.parameter_mapping,
-                    result_mapping=impl_step.output_mapping  # Note: renamed from output_mapping to result_mapping
-                )
-                current_hop.steps.append(schema_step)
-            
+            # Copy the tool steps to the current hop
+            current_hop.steps = updated_hop.steps
             current_hop.is_resolved = True
             current_hop.status = ExecutionStatus.PENDING
             
+            # Update the timestamp
+            current_hop.updated_at = datetime.utcnow()
+            
             # Set hop status to ready to execute - that's where implementer's job ends
             state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
-            
-            # Note: A hop executor should handle actual execution
-            # For now, we'll let the supervisor decide what to do with a ready-to-execute hop
 
         response_message = Message(
             id=str(uuid.uuid4()),

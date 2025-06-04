@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, HopStatus, defaultMission, Hop } from '@/types/workflow';
+import { Mission, MissionStatus, HopStatus, defaultMission, Hop, ExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset, AssetType } from '@/types/asset';
@@ -23,7 +23,8 @@ type JamBotAction =
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: Hop }
-    | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL' };
+    | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
+    | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -116,11 +117,63 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
+            // Get the implemented hop from the action payload
+            const implementedHop = action.payload;
+
+            // Update the mission's current hop with the implemented version
+            const updatedCurrentHop = {
+                ...state.mission.current_hop,
+                ...implementedHop,
+                // Ensure we keep the original hop structure
+                steps: implementedHop.steps || [],
+                is_resolved: true,
+                status: ExecutionStatus.PENDING
+            };
+
+            // Also update the hop in the hops array if it exists
+            const updatedHopsArray = [...state.mission.hops];
+            const implCurrentHopIndex = state.mission.current_hop_index;
+            if (implCurrentHopIndex < updatedHopsArray.length) {
+                updatedHopsArray[implCurrentHopIndex] = updatedCurrentHop;
+            }
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
+                    current_hop: updatedCurrentHop,
+                    hops: updatedHopsArray,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                },
+                collabArea: {
+                    type: 'default',
+                    content: null
+                }
+            };
+        case 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE':
+            const completedHop = action.payload;
+            const updatedHops = [...state.mission.hops];
+            const completeCurrentHopIndex = state.mission.current_hop_index;
+            const isFinalHop = completedHop.is_final;
+
+            // Mark the completed hop in the hops array
+            if (completeCurrentHopIndex < updatedHops.length) {
+                updatedHops[completeCurrentHopIndex] = {
+                    ...completedHop,
+                    status: ExecutionStatus.COMPLETED
+                };
+            }
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: updatedHops,
+                    current_hop: undefined, // Clear current hop since it's now complete
+                    current_hop_index: completeCurrentHopIndex + 1, // Move to next hop
+                    // If it's the final hop, complete the mission; otherwise, ready for next hop
+                    mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status,
+                    hop_status: isFinalHop ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN
                 },
                 collabArea: {
                     type: 'default',
@@ -141,7 +194,8 @@ const JamBotContext = createContext<{
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: (hop: Hop) => void;
-    acceptHopImplementationProposal: () => void;
+    acceptHopImplementationProposal: (hop: Hop) => void;
+    acceptHopImplementationAsComplete: (hop: Hop) => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -175,8 +229,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: hop });
     }, []);
 
-    const acceptHopImplementationProposal = useCallback(() => {
-        dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL' });
+    const acceptHopImplementationProposal = useCallback((hop: Hop) => {
+        dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+    }, []);
+
+    const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
+        dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -320,7 +378,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             addPayloadHistory,
             acceptMissionProposal,
             acceptHopProposal,
-            acceptHopImplementationProposal
+            acceptHopImplementationProposal,
+            acceptHopImplementationAsComplete
         }}>
             {children}
         </JamBotContext.Provider>

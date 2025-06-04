@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
-import { VariableRenderer } from './common/VariableRenderer';
+import { MissionStateTable } from './common/MissionStateTable';
+import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { HopStatus, MissionStatus } from '@/types/workflow';
 
@@ -231,15 +232,24 @@ export default function Mission({
                         )}
                     </div>
                     {mission.current_hop && (
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Current Hop</h3>
-                            <div className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded px-2 py-1">
-                                <p>Name: {mission.current_hop.name}</p>
-                                <p>Status: {mission.current_hop.status}</p>
-                                <p>Description: {mission.current_hop.description}</p>
-                            </div>
-                        </div>
+                        <CurrentHopDetails
+                            hop={mission.current_hop}
+                            className=""
+                        />
                     )}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Mission State</h3>
+                        <MissionStateTable
+                            state={mission.state || {}}
+                            className="bg-gray-50 dark:bg-[#23283a] rounded p-2"
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Metadata (JSON)</h3>
+                        <pre className="text-xs text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded p-2 max-h-40 overflow-auto">
+                            {JSON.stringify(mission.metadata || {}, null, 2)}
+                        </pre>
+                    </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                         <div>
                             <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500">Mission ID</h3>
@@ -257,18 +267,6 @@ export default function Mission({
                             <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500">Current Hop Index</h3>
                             <p className="text-xs text-gray-600 dark:text-gray-300">{mission.current_hop_index}</p>
                         </div>
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Mission State (JSON)</h3>
-                        <pre className="text-xs text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded p-2 max-h-30 overflow-auto">
-                            <VariableRenderer value={mission.state} />
-                        </pre>
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-0.5">Metadata (JSON)</h3>
-                        <pre className="text-xs text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#23283a] rounded p-2 max-h-40 overflow-auto">
-                            {JSON.stringify(mission.metadata || {}, null, 2)}
-                        </pre>
                     </div>
                 </div>
             )}

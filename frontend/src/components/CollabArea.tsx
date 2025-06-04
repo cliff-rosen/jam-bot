@@ -13,7 +13,7 @@ interface CollabAreaProps {
 
 const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const { acceptMissionProposal, acceptHopProposal, acceptHopImplementationProposal } = useJamBot();
+    const { acceptMissionProposal, acceptHopProposal, acceptHopImplementationProposal, acceptHopImplementationAsComplete } = useJamBot();
 
     const handlePrevious = () => {
         setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -257,7 +257,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             Hop Implementation Proposal
                         </h3>
                         <p className="text-sm text-purple-700 dark:text-purple-300">
-                            Review the resolved tool steps for the hop below. Accepting will prepare this hop for execution.
+                            Review the resolved tool steps for the hop below. Choose "Accept" to prepare this hop for execution, or "Accept as Complete" to mark it as finished and move to the next hop (for testing purposes).
                         </p>
                     </div>
 
@@ -302,7 +302,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             <ul className="space-y-3">
                                 {hopToRender.steps.map((step: ToolStep, index: number) => (
                                     <li key={step.id || index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700">
-                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_name}</p>
+                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_id}</p>
                                         {step.description && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>}
 
                                         {step.parameter_mapping && Object.keys(step.parameter_mapping).length > 0 && (
@@ -345,7 +345,14 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />
-                            Accept Hop Implementation
+                            Accept
+                        </button>
+                        <button
+                            onClick={() => acceptHopImplementationAsComplete()}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            Accept as Complete
                         </button>
                     </div>
                 </div>

@@ -5,97 +5,6 @@ import json
 import os
 
 
-class ToolType(str, Enum):
-    """Types of available tools based on actual implementations"""
-    SEARCH_DATA_SOURCE = "search_data_source"
-    EXTRACT_FROM_RECORD = "extract_from_record"
-    ENRICH_RECORDS = "enrich_records"
-    STORE_IN_DATABASE = "store_in_database"
-    GROUP_BY_REDUCE = "group_by_reduce"
-    FILTER_RECORDS = "filter_records"
-    TRANSFORM_RECORDS = "transform_records"
-    VALIDATE_RECORDS = "validate_records"
-
-
-class SourceType(str, Enum):
-    """Supported data source types"""
-    GMAIL = "gmail"
-    GOOGLE_DRIVE = "google_drive"
-    DATABASE = "database"
-    API = "api"
-    FILE = "file"
-    SLACK = "slack"
-    NOTION = "notion"
-
-
-class ExtractionMethod(str, Enum):
-    """Methods for record extraction"""
-    LLM_PROMPT = "llm_prompt"
-    REGEX = "regex"
-    JSON_PATH = "json_path"
-    API_CALL = "api_call"
-    CUSTOM_FUNCTION = "custom_function"
-
-
-class ComputationType(str, Enum):
-    """Types of computation for enrichment"""
-    TIMESTAMP = "timestamp"
-    HASH = "hash"
-    UUID = "uuid"
-    COMPUTED_FIELD = "computed_field"
-    LOOKUP = "lookup"
-    CONDITIONAL = "conditional"
-
-
-class StorageType(str, Enum):
-    """Types of storage systems"""
-    OBJECT_DB = "object_db"
-    RELATIONAL_DB = "relational_db"
-    FILE = "file"
-    MEMORY = "memory"
-    CLOUD_STORAGE = "cloud_storage"
-
-
-class FilterOperator(str, Enum):
-    """Filter operators"""
-    EQUALS = "equals"
-    NOT_EQUALS = "not_equals"
-    GREATER_THAN = "greater_than"
-    LESS_THAN = "less_than"
-    CONTAINS = "contains"
-    NOT_CONTAINS = "not_contains"
-    IN = "in"
-    NOT_IN = "not_in"
-    REGEX = "regex"
-    EXISTS = "exists"
-    NOT_EXISTS = "not_exists"
-
-
-class TransformationType(str, Enum):
-    """Types of record transformations"""
-    RENAME_FIELD = "rename_field"
-    COMPUTE_FIELD = "compute_field"
-    FORMAT_FIELD = "format_field"
-    SPLIT_FIELD = "split_field"
-    MERGE_FIELDS = "merge_fields"
-    CONVERT_TYPE = "convert_type"
-
-
-class OutputFormat(str, Enum):
-    """Output format options"""
-    PRESERVE = "preserve"
-    FLATTEN = "flatten"
-    NORMALIZE = "normalize"
-    PIVOT = "pivot"
-
-
-class ValidationMode(str, Enum):
-    """Validation modes"""
-    STRICT = "strict"
-    LENIENT = "lenient"
-    REPORT_ONLY = "report_only"
-
-
 class ToolOutputSchema(BaseModel):
     """Defines the output schema for a tool"""
     name: str = Field(description="Output field name")
@@ -107,32 +16,69 @@ class ToolOutputSchema(BaseModel):
 
 
 class ToolDefinition(BaseModel):
-    """Complete definition of a tool with proper input/output schemas"""
+    """Complete definition of a pure function tool loaded from tools.json"""
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
     input_schema: Dict[str, Any] = Field(description="JSON schema for tool input parameters")
     output_schema: List[ToolOutputSchema] = Field(description="Structured output schema definition")
     category: str = Field(description="Category of tool (data_retrieval, processing, analysis, etc.)")
     examples: Optional[List[Dict[str, Any]]] = Field(default=None, description="Usage examples")
-    
-    @classmethod
-    def create_from_implementation(cls, tool_class) -> 'ToolDefinition':
-        """Create tool definition from actual tool implementation"""
-        # This will be implemented by actual tool classes
-        # Each tool class should define get_tool_definition() method
-        if hasattr(tool_class, 'get_tool_definition'):
-            return tool_class.get_tool_definition()
-        else:
-            raise NotImplementedError(f"Tool {tool_class.__name__} must implement get_tool_definition()")
 
 
-# Tool registry - will be populated by actual tool implementations
+# Tool registry - populated from tools.json
 TOOL_REGISTRY: Dict[str, ToolDefinition] = {}
 
 
-def register_tool(tool_definition: ToolDefinition) -> None:
-    """Register a tool in the global registry"""
-    TOOL_REGISTRY[tool_definition.name] = tool_definition
+def load_tools_from_file() -> Dict[str, ToolDefinition]:
+    """Load tool definitions from tools.json in schemas folder"""
+    file_path = os.path.join(os.path.dirname(__file__), "tools.json")
+    
+    try:
+        with open(file_path, 'r') as f:
+            tools_data = json.load(f)
+        return _parse_tools_response(tools_data)
+    except FileNotFoundError:
+        print(f"Tool definitions file not found: {file_path}")
+        return {}
+    except Exception as e:
+        print(f"Error loading tool definitions: {e}")
+        return {}
+
+
+def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinition]:
+    """Parse tools response from file into ToolDefinition objects"""
+    tool_registry = {}
+    
+    for tool_def in tools_data.get("tools", []):
+        try:
+            # Parse output schema
+            output_schema = []
+            for output_def in tool_def.get("output_schema", []):
+                output_schema.append(ToolOutputSchema(**output_def))
+            
+            # Create tool definition
+            tool_definition = ToolDefinition(
+                name=tool_def["name"],
+                description=tool_def["description"],
+                input_schema=tool_def["input_schema"],
+                output_schema=output_schema,
+                category=tool_def.get("category", "unknown"),
+                examples=tool_def.get("examples", None)
+            )
+            
+            tool_registry[tool_def["name"]] = tool_definition
+            
+        except Exception as e:
+            print(f"Error parsing tool definition for {tool_def.get('name', 'unknown')}: {e}")
+    
+    return tool_registry
+
+
+def refresh_tool_registry():
+    """Refresh the global tool registry from tools.json"""
+    global TOOL_REGISTRY
+    TOOL_REGISTRY = load_tools_from_file()
+    print(f"Loaded {len(TOOL_REGISTRY)} tool definitions")
 
 
 def get_tool_definition(tool_name: str) -> Optional[ToolDefinition]:
@@ -156,30 +102,10 @@ def get_tools_by_category() -> Dict[str, List[str]]:
     return categories
 
 
-# Common tool parameter patterns for hop implementer
-COMMON_PARAMETER_PATTERNS = {
-    "asset_input": {
-        "type": "string",
-        "description": "Name of the input asset containing data to process"
-    },
-    "asset_output": {
-        "type": "string", 
-        "description": "Name for the output asset"
-    },
-    "date_range": {
-        "type": "object",
-        "properties": {
-            "start_date": {"type": "string", "format": "date"},
-            "end_date": {"type": "string", "format": "date"}
-        }
-    }
-}
-
-
 def format_tool_descriptions_for_mission_design() -> str:
     """Format tool descriptions optimized for mission design context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tool implementations not loaded yet"
+        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
@@ -212,7 +138,7 @@ def format_tool_descriptions_for_mission_design() -> str:
 def format_tool_descriptions_for_hop_design() -> str:
     """Format tool descriptions optimized for hop design context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tool implementations not loaded yet"
+        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
@@ -239,7 +165,7 @@ def format_tool_descriptions_for_hop_design() -> str:
 def format_tool_descriptions_for_implementation() -> str:
     """Format tool descriptions optimized for hop implementation context"""
     if not TOOL_REGISTRY:
-        return "No tools available - tool implementations not loaded yet"
+        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
     for tool_name, tool_def in TOOL_REGISTRY.items():
@@ -279,25 +205,23 @@ def format_tool_descriptions_for_implementation() -> str:
     return "\n".join(descriptions)
 
 
-# TODO: Replace this placeholder with actual tool loading
-# This should be called during app startup to load real tools
-def load_tool_implementations():
-    """Load actual tool implementations into the registry"""
-    # This will be implemented to discover and load real tools
-    # For now, we'll have an empty registry until tools are implemented
-    pass
+# Load tools on module import
+try:
+    refresh_tool_registry()
+except Exception as e:
+    print(f"Failed to load tools on import: {e}")
+    TOOL_REGISTRY = {}
 
 
-# Example workflows - these should come from real tool combinations
+# Example workflows using pure tools
 EXAMPLE_WORKFLOWS = {
     "gmail_analysis": {
-        "description": "Analyze Gmail emails by time periods",
-        "status": "pending_tool_implementations",
-        "planned_steps": [
-            "search_data_source(gmail) → email collection",
-            "extract_from_record(llm_prompt) → content analysis", 
-            "group_by_reduce(by date) → time-based aggregation",
-            "transform_records → formatted report"
+        "description": "Analyze Gmail emails using pure tool functions",
+        "steps": [
+            "email_search(query, folder, date_range) → emails list",
+            "extract(emails, extraction_function, fields) → analyzed data", 
+            "map_reduce_rollup(data, group_by_rule, rollup_functions) → aggregated results",
+            "summarize(results, summarization_mandate) → final report"
         ]
     }
 } 

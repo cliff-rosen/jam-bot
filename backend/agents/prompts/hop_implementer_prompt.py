@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message
 from schemas.workflow import Mission, Asset, Hop
-from schemas.tools import ToolType, TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
+from schemas.tools import TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,
@@ -16,7 +16,7 @@ import json
 
 class ToolStep(BaseModel):
     """Configuration for a single tool step"""
-    tool_name: ToolType = Field(description="Name of the tool to use")
+    tool_name: str = Field(description="Name of the tool to use (e.g., 'email_search', 'extract', 'map_reduce_rollup')")
     
     # Maps tool parameter names to instructions on how to get values
     parameter_mapping: Dict[str, Union[str, Dict[str, Any]]] = Field(
@@ -74,18 +74,18 @@ class HopImplementerPrompt(BasePrompt):
 1. The hop has `input_mapping` that maps logical names to asset IDs
    Example: {"email_criteria": "asset_123", "date_range": "asset_456"}
 
-2. You need to create `parameter_mapping` that shows how to extract values from these assets
+2. You need to create `parameter_mapping` that shows how to extract values from these assets and pass to tools
    Example:
    ```
    "parameter_mapping": {
-     "source_type": {
-       "type": "literal",
-       "value": "gmail"  // direct value for tool parameter
-     },
-     "query_criteria": {
+     "query": {
        "type": "asset_field",
        "asset": "email_criteria",  // refers to the logical name in input_mapping
-       "path": "content.search_criteria"  // path within the asset to get the value
+       "path": "content.search_query"  // path within the asset to get the value
+     },
+     "folder": {
+       "type": "literal",
+       "value": "INBOX"  // direct value for tool parameter
      },
      "date_range": {
        "type": "asset_field", 
@@ -100,8 +100,8 @@ class HopImplementerPrompt(BasePrompt):
    Example:
    ```
    "output_mapping": {
-     "emails": "content.email_list",  // tool's output goes to asset's content field
-     "total_count": "metadata.count"   // tool output goes to asset's metadata
+     "emails": "content.email_list",  // tool's 'emails' output goes to asset's content.email_list
+     "count": "metadata.total_count"   // tool's 'count' output goes to asset's metadata.total_count
    }
    ```
 
@@ -120,16 +120,18 @@ class HopImplementerPrompt(BasePrompt):
 ## Example Workflows
 
 ### Gmail Email Analysis:
-1. search_data_source (gmail) → retrieve emails
-2. extract_from_record (llm_prompt) → analyze each email  
-3. group_by_reduce → group by time periods
-4. transform_records → format final report
+1. email_search → retrieve emails from Gmail
+2. extract → analyze each email with LLM
+3. update_augment → add computed fields and categories
+4. map_reduce_rollup → group by time periods and aggregate
+5. summarize → create final formatted report
 
 ### Data Processing Pipeline:
-1. search_data_source → get raw data
-2. filter_records → clean data
-3. enrich_records → add computed fields
-4. store_in_database → persist results
+1. email_search → get raw email data
+2. extract → extract structured information
+3. update_augment → clean and enrich data
+4. map_reduce_rollup → aggregate and analyze
+5. summarize → generate insights
 
 ## Response Formats
 

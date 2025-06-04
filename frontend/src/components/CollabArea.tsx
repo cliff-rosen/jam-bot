@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { VariableRenderer } from './common/VariableRenderer';
 import Mission from './Mission';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Play, Square, RotateCcw } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
 import { ToolStep, Hop, ExecutionStatus } from '@/types/workflow';
 
@@ -14,7 +14,16 @@ interface CollabAreaProps {
 
 const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const { acceptMissionProposal, acceptHopProposal, acceptHopImplementationProposal, acceptHopImplementationAsComplete } = useJamBot();
+    const {
+        acceptMissionProposal,
+        acceptHopProposal,
+        acceptHopImplementationProposal,
+        acceptHopImplementationAsComplete,
+        startHopExecution,
+        completeHopExecution,
+        failHopExecution,
+        retryHopExecution
+    } = useJamBot();
 
     const handlePrevious = () => {
         setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -380,11 +389,87 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
+        const getActionButtons = () => {
+            const buttons = [];
+
+            switch (hop.status) {
+                case ExecutionStatus.PENDING:
+                    if (hop.is_resolved && hop.steps && hop.steps.length > 0) {
+                        buttons.push(
+                            <button
+                                key="start"
+                                onClick={() => startHopExecution(hop.id)}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <Play className="w-4 h-4" />
+                                Start Execution
+                            </button>
+                        );
+                    }
+                    break;
+
+                case ExecutionStatus.RUNNING:
+                    buttons.push(
+                        <button
+                            key="complete"
+                            onClick={() => completeHopExecution(hop.id)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            Mark Complete
+                        </button>
+                    );
+                    buttons.push(
+                        <button
+                            key="fail"
+                            onClick={() => failHopExecution(hop.id, 'Manually marked as failed')}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <XCircle className="w-4 h-4" />
+                            Mark Failed
+                        </button>
+                    );
+                    break;
+
+                case ExecutionStatus.FAILED:
+                    buttons.push(
+                        <button
+                            key="retry"
+                            onClick={() => retryHopExecution(hop.id)}
+                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            Retry
+                        </button>
+                    );
+                    break;
+
+                case ExecutionStatus.COMPLETED:
+                    // No actions available for completed hops
+                    break;
+            }
+
+            return buttons;
+        };
+
+        const actionButtons = getActionButtons();
+
         return (
-            <div className="h-full overflow-auto">
-                <div className="p-6">
-                    <CurrentHopDetails hop={hop} className="" />
+            <div className="h-full flex flex-col">
+                <div className="flex-1 overflow-auto">
+                    <div className="p-6">
+                        <CurrentHopDetails hop={hop} className="" />
+                    </div>
                 </div>
+
+                {/* Action Buttons */}
+                {actionButtons.length > 0 && (
+                    <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-4">
+                        <div className="flex gap-3 justify-end">
+                            {actionButtons}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };

@@ -24,7 +24,11 @@ type JamBotAction =
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: Hop }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
-    | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop };
+    | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop }
+    | { type: 'START_HOP_EXECUTION'; payload: string }
+    | { type: 'COMPLETE_HOP_EXECUTION'; payload: string }
+    | { type: 'FAIL_HOP_EXECUTION'; payload: { hopId: string; error: string } }
+    | { type: 'RETRY_HOP_EXECUTION'; payload: string };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -180,6 +184,86 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     content: null
                 }
             };
+        case 'START_HOP_EXECUTION':
+            const hopIdToStart = action.payload;
+            // Find the hop in the hops array and update it
+            const updatedHopsForStart = state.mission.hops.map(hop =>
+                hop.id === hopIdToStart
+                    ? { ...hop, status: ExecutionStatus.RUNNING }
+                    : hop
+            );
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: updatedHopsForStart,
+                    current_hop: state.mission.current_hop?.id === hopIdToStart
+                        ? { ...state.mission.current_hop, status: ExecutionStatus.RUNNING }
+                        : state.mission.current_hop,
+                    hop_status: HopStatus.HOP_RUNNING
+                }
+            };
+        case 'COMPLETE_HOP_EXECUTION':
+            const hopIdToComplete = action.payload;
+            // Find the hop in the hops array and update it
+            const updatedHopsForComplete = state.mission.hops.map(hop =>
+                hop.id === hopIdToComplete
+                    ? { ...hop, status: ExecutionStatus.COMPLETED }
+                    : hop
+            );
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: updatedHopsForComplete,
+                    current_hop: state.mission.current_hop?.id === hopIdToComplete
+                        ? { ...state.mission.current_hop, status: ExecutionStatus.COMPLETED }
+                        : state.mission.current_hop,
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for now
+                }
+            };
+        case 'FAIL_HOP_EXECUTION':
+            const { hopId: hopIdToFail, error } = action.payload;
+            // Find the hop in the hops array and update it
+            const updatedHopsForFail = state.mission.hops.map(hop =>
+                hop.id === hopIdToFail
+                    ? { ...hop, status: ExecutionStatus.FAILED }
+                    : hop
+            );
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: updatedHopsForFail,
+                    current_hop: state.mission.current_hop?.id === hopIdToFail
+                        ? { ...state.mission.current_hop, status: ExecutionStatus.FAILED }
+                        : state.mission.current_hop,
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Keep as ready to execute for retry
+                }
+            };
+        case 'RETRY_HOP_EXECUTION':
+            const hopIdToRetry = action.payload;
+            // Find the hop in the hops array and update it
+            const updatedHopsForRetry = state.mission.hops.map(hop =>
+                hop.id === hopIdToRetry
+                    ? { ...hop, status: ExecutionStatus.PENDING }
+                    : hop
+            );
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: updatedHopsForRetry,
+                    current_hop: state.mission.current_hop?.id === hopIdToRetry
+                        ? { ...state.mission.current_hop, status: ExecutionStatus.PENDING }
+                        : state.mission.current_hop,
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                }
+            };
         default:
             return state;
     }
@@ -196,6 +280,10 @@ const JamBotContext = createContext<{
     acceptHopProposal: (hop: Hop) => void;
     acceptHopImplementationProposal: (hop: Hop) => void;
     acceptHopImplementationAsComplete: (hop: Hop) => void;
+    startHopExecution: (hopId: string) => void;
+    completeHopExecution: (hopId: string) => void;
+    failHopExecution: (hopId: string, error: string) => void;
+    retryHopExecution: (hopId: string) => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -235,6 +323,22 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
+    }, []);
+
+    const startHopExecution = useCallback((hopId: string) => {
+        dispatch({ type: 'START_HOP_EXECUTION', payload: hopId });
+    }, []);
+
+    const completeHopExecution = useCallback((hopId: string) => {
+        dispatch({ type: 'COMPLETE_HOP_EXECUTION', payload: hopId });
+    }, []);
+
+    const failHopExecution = useCallback((hopId: string, error: string) => {
+        dispatch({ type: 'FAIL_HOP_EXECUTION', payload: { hopId, error } });
+    }, []);
+
+    const retryHopExecution = useCallback((hopId: string) => {
+        dispatch({ type: 'RETRY_HOP_EXECUTION', payload: hopId });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -379,7 +483,11 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             acceptMissionProposal,
             acceptHopProposal,
             acceptHopImplementationProposal,
-            acceptHopImplementationAsComplete
+            acceptHopImplementationAsComplete,
+            startHopExecution,
+            completeHopExecution,
+            failHopExecution,
+            retryHopExecution
         }}>
             {children}
         </JamBotContext.Provider>

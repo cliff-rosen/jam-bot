@@ -149,6 +149,13 @@ class HopImplementerPrompt(BasePrompt):
 
 2. If this is a final hop, the output asset will be mapped to a mission output asset
 
+## Tool-Specific Guidance
+
+### `summarize` Tool Limitations:
+- **Context Window**: The `summarize` tool can only process content that fits within its prompt context window. It CANNOT directly summarize extremely large inputs (e.g., thousands of emails, entire books).
+- **Pre-processing Required for Large Inputs**: If the data to be summarized is extensive, you MUST use preceding tool steps (like `extract` to pull key information, or `map_reduce_rollup` to aggregate data) to create a condensed, focused input that the `summarize` tool can handle effectively.
+- **Example**: To summarize 10,000 emails, first use `extract` to get key sentences or topics from each email, then `map_reduce_rollup` to group these extractions, and ONLY THEN pass the much smaller, aggregated data to `summarize`.
+
 ## Available Tools
 {{tool_descriptions}}
 

@@ -291,15 +291,20 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         }
 
         if writer:
-            agent_response = AgentResponse(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_content,
-                status="mission_specialist_completed",
-                error=None,
-                debug="Mission proposed and waiting for user approval",
-                payload=serialize_state(State(**state_update))
-            )
+            # Prepare the AgentResponse
+            agent_response_data = {
+                "token": response_message.content[0:100],
+                "response_text": parsed_response.response_content,
+                "status": "mission_specialist_completed",
+                "payload": {
+                    "mission": state.mission.model_dump()
+                },
+                "error": None,
+                "debug": serialize_state(State(**state_update))
+            }
 
+            
+            agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)

@@ -52,7 +52,7 @@ class MissionDefinitionPrompt(BasePrompt):
 
 ## Core Functions
 1. **Analyze** user requirements and identify gaps in their mission definition
-2. **Structure** incomplete ideas into comprehensive mission plans
+2. **Structure** incomplete ideas into comprehensive mission plans. Note: Complex missions you define may later be broken down by a specialist into a sequence of smaller, tractable "hops" to achieve the overall goal.
 3. **Clarify** ambiguous requirements through targeted questions
 4. **Validate** that mission plans are actionable and measurable with available tools
 

@@ -65,11 +65,18 @@ The system has these specific tools available for hop implementation:
 {tool_descriptions}
 
 ## Hop Design Principles
-1. **Incremental Progress**: Each hop should make meaningful progress toward the goal
-2. **Clear Inputs/Outputs**: Specify exactly what assets are needed and what will be produced
-3. **Tool Compatibility**: Design hops that can be implemented with available tools
-4. **Logical Sequencing**: Each hop should build on previous results
-5. **Final Deliverable**: Identify when a hop will produce the final mission output
+
+1. **Incremental Progress**: Each hop should make meaningful progress toward the mission goal. **A hop is NOT necessarily intended to complete the entire mission in one go** (unless the mission is simple enough for a single, verifiable step).
+
+2. **Tractability and Verifiability**: Design hops that are **"right-sized"** – complex enough to be useful, but simple enough to be implemented and verified reliably. Avoid overly complex hops with too many moving parts.
+
+3. **Cohesive Goal**: Each hop should have a single, clear, and cohesive goal. What one specific outcome does this hop achieve?
+
+4. **Input/Output Focus**: Clearly define the input assets the hop consumes and the specific output asset it produces. The output of this hop becomes a potential input for the next.
+
+5. **Tool Awareness**: Consider the available tools. Can the proposed transformation be realistically achieved by a sequence of tool steps?
+
+6. **Summarization Pre-processing**: If the ultimate goal involves summarization of large data (e.g., many emails, long documents), and the input to *this hop* is that raw large data, this hop should focus on **extracting and condensing** that information into a smaller, focused dataset. The `summarize` tool has prompt size limitations; it cannot directly summarize thousands of raw emails. An `extract` or `map_reduce_rollup` step is often needed first to create a concise input for a *subsequent* summarization hop.
 
 ## Tool-Specific Design Patterns
 

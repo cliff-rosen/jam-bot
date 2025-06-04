@@ -172,8 +172,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             lastMessageId = statusMessage.id;
 
             if (data.payload) {
-                newCollabAreaContent = data.payload;
-                addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
+                // newCollabAreaContent = data.payload;
+                addPayloadHistory({ [lastMessageId]: data.payload });
             }
         }
 

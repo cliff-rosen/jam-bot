@@ -3,7 +3,7 @@ import { VariableRenderer } from './common/VariableRenderer';
 import Mission from './Mission';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
-import { ToolStep } from '@/types/workflow';
+import { ToolStep, Hop } from '@/types/workflow';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -131,7 +131,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     };
 
     const renderHopProposal = () => {
-        const hop = content.hop;
+        const hop = content?.hop as Hop | undefined;
+
         if (!hop) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
@@ -208,7 +209,11 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <button
-                            onClick={() => acceptHopProposal()}
+                            onClick={() => {
+                                if (hop) {
+                                    acceptHopProposal(hop);
+                                }
+                            }}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <CheckCircle className="w-4 h-4" />
@@ -221,7 +226,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     };
 
     const renderHopImplementationProposal = () => {
-        const hop = content?.mission?.current_hop;
+        const hop = content?.hop;
         if (!hop || !hop.is_resolved || !hop.steps) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">

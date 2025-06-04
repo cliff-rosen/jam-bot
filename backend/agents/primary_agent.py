@@ -531,7 +531,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         )
 
         # Route back to supervisor
-        next_node = "supervisor_node"
+        next_node = END
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
@@ -545,15 +545,18 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             hop_name = current_hop.name
             next_status = "ready for next hop" if not current_hop.is_final else "mission complete"
             
-            agent_response = AgentResponse(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_content,
-                status="hop_implementer_completed",
-                error=None,
-                debug=f"Hop implemented and executed: {hop_name}, {next_status}",
-                payload=serialize_state(State(**state_update))
-            )
+            agent_response_data = {
+                "token": response_message.content[0:100],
+                "response_text": parsed_response.response_content,
+                "status": "hop_implementer_completed",
+                "error": None,
+                "debug": f"Hop implemented and executed: {hop_name}, {next_status}",
+                "payload": {
+                    "hop": current_hop.model_dump(mode='json')
+                }
+            }
 
+            agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)

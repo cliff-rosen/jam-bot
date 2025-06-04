@@ -24,7 +24,7 @@ type JamBotAction =
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
-    | { type: 'ACCEPT_HOP_PROPOSAL' }
+    | { type: 'ACCEPT_HOP_PROPOSAL'; payload: Hop }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL' };
 
 const initialState: JamBotState = {
@@ -85,10 +85,15 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'ACCEPT_HOP_PROPOSAL':
+            const acceptedHop = action.payload;
+            const existingHops = Array.isArray(state.mission.hops) ? state.mission.hops : [];
             return {
                 ...state,
                 mission: {
                     ...state.mission,
+                    current_hop: acceptedHop,
+                    hops: [...existingHops, acceptedHop],
+                    current_hop_index: existingHops.length,
                     hop_status: HopStatus.HOP_READY_TO_RESOLVE
                 },
                 collabArea: {
@@ -121,7 +126,7 @@ const JamBotContext = createContext<{
     setCollabArea: (type: CollabAreaState['type'], content?: any) => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
-    acceptHopProposal: () => void;
+    acceptHopProposal: (hop: Hop) => void;
     acceptHopImplementationProposal: () => void;
 } | undefined>(undefined);
 
@@ -160,8 +165,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ACCEPT_MISSION_PROPOSAL' });
     }, []);
 
-    const acceptHopProposal = useCallback(() => {
-        dispatch({ type: 'ACCEPT_HOP_PROPOSAL' });
+    const acceptHopProposal = useCallback((hop: Hop) => {
+        dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: hop });
     }, []);
 
     const acceptHopImplementationProposal = useCallback(() => {
@@ -190,7 +195,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             lastMessageId = statusMessage.id;
 
             if (data.payload) {
-                // newCollabAreaContent = data.payload;
                 addPayloadHistory({ [lastMessageId]: data.payload });
             }
         }
@@ -208,29 +212,33 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             if (data.payload) {
                 newCollabAreaContent = data.payload;
 
-                // Check if this is a mission proposal (status was mission_specialist_completed)
                 const isMissionProposal = data.status === 'mission_specialist_completed' &&
-                    typeof data.payload === 'object' &&
-                    data.payload !== null &&
-                    'mission' in data.payload;
+                    typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
 
-                let isHopProposal = false; // for design proposals
+                let isHopProposal = false;
                 let isHopImplementationProposal = false;
 
-                if (data.status === 'hop_designer_completed') {
-                    isHopProposal = true;
-                }
-
-                if (data.status === 'hop_resolver_completed') {
+                if ((data.status === 'hop_designer_completed' || data.status === 'supervisor_routing_completed') &&
+                    typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop
+                ) {
+                    const hopPayload = data.payload.hop as Partial<Hop>;
+                    if (hopPayload.is_resolved === true) {
+                        isHopImplementationProposal = true;
+                    } else {
+                        isHopProposal = true;
+                    }
+                } else if (data.status === 'hop_implementer_completed' &&
+                    typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload &&
+                    data.payload.hop && typeof data.payload.hop === 'object'
+                ) {
                     isHopImplementationProposal = true;
                 }
 
-                // Set the collab area to the appropriate type
                 if (isMissionProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
-                } else if (isHopImplementationProposal) { // Check for implementation proposal first
+                } else if (isHopImplementationProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
-                } else if (isHopProposal) { // Then check for design proposal
+                } else if (isHopProposal) {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
                 } else {
                     dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
@@ -254,7 +262,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         let streamingContent = '';
 
         try {
-            // Filter out status messages before sending to backend
             const filteredMessages = state.currentMessages.filter(msg => msg.role !== MessageRole.STATUS);
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
@@ -267,12 +274,11 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             for await (const update of chatApi.streamMessage(chatRequest)) {
                 const lines = update.data.split('\n');
                 for (const line of lines) {
-                    if (!line.trim()) continue; // Skip empty lines
+                    if (!line.trim()) continue;
                     const data = getDataFromLine(line);
                     const token = processBotMessage(data);
                     if (token) {
                         streamingContent += token;
-                        // Update UI immediately after each token
                         updateStreamingMessage(streamingContent);
                         finalContent += token;
                     }

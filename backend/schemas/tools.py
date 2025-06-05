@@ -115,20 +115,57 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
                 print(f"Warning: Tool definition for '{tool_name_for_error}' is missing the required 'id' field in tools.json. Skipping this tool.")
                 continue
 
-            # Parse output schema
-            parsed_output_schema = []
-            for output_def in tool_def_json.get("output_schema", []):
-                parsed_output_schema.append(ToolOutputSchema(**output_def))
+            # Parse parameters
+            parameters = []
+            if "parameters" in tool_def_json:
+                for param_def in tool_def_json["parameters"]:
+                    parameters.append(ToolParameterSchema(**param_def))
+            elif "input_schema" in tool_def_json:
+                # Convert old format to new format
+                input_schema = tool_def_json["input_schema"]
+                if "properties" in input_schema:
+                    for param_name, param_schema in input_schema["properties"].items():
+                        parameters.append(ToolParameterSchema(
+                            name=param_name,
+                            type=param_schema.get("type", "string"),
+                            description=param_schema.get("description", ""),
+                            required=param_name in input_schema.get("required", []),
+                            default=param_schema.get("default"),
+                            enum=param_schema.get("enum"),
+                            schema=param_schema,
+                            example=param_schema.get("example")
+                        ))
             
-            # Create tool definition using id from JSON
+            # Parse outputs
+            outputs = []
+            if "outputs" in tool_def_json:
+                for output_def in tool_def_json["outputs"]:
+                    outputs.append(ToolOutputSchema(**output_def))
+            elif "output_schema" in tool_def_json:
+                # Convert old format to new format
+                for output_def in tool_def_json["output_schema"]:
+                    outputs.append(ToolOutputSchema(
+                        name=output_def.get("name", ""),
+                        type=output_def.get("type", "string"),
+                        description=output_def.get("description", ""),
+                        schema=output_def.get("schema"),
+                        required=output_def.get("required", True),
+                        example=output_def.get("example")
+                    ))
+            
+            # Create tool definition
             tool_definition = ToolDefinition(
                 id=tool_def_json["id"],
                 name=tool_def_json["name"],
                 description=tool_def_json["description"],
-                input_schema=tool_def_json["input_schema"],
-                output_schema=parsed_output_schema,
-                category=tool_def_json.get("category", "unknown"),
-                examples=tool_def_json.get("examples", None)
+                parameters=parameters,
+                outputs=outputs,
+                category=tool_def_json.get("category", ToolCategory.OTHER),
+                examples=tool_def_json.get("examples"),
+                error_schema=tool_def_json.get("error_schema"),
+                version=tool_def_json.get("version", "1.0.0"),
+                deprecated=tool_def_json.get("deprecated", False),
+                replacement_tool=tool_def_json.get("replacement_tool")
             )
             
             if tool_definition.id in tool_registry:
@@ -184,24 +221,26 @@ def format_tool_descriptions_for_mission_design() -> str:
         return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
-    for tool_id, tool_def in TOOL_REGISTRY.items(): # Iterate by tool_id
-        desc = f"### {tool_def.name} (ID: {tool_def.id})\n" # Display name and ID
+    for tool_id, tool_def in TOOL_REGISTRY.items():
+        desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
         desc += f"**Purpose**: {tool_def.description}\n"
         desc += f"**Category**: {tool_def.category}\n"
         
-        if "properties" in tool_def.input_schema:
-            key_inputs = []
-            for param_name, param_schema in tool_def.input_schema["properties"].items():
-                if param_name in tool_def.input_schema.get("required", []):
-                    if "enum" in param_schema:
-                        key_inputs.append(f"{param_name} (options: {', '.join(param_schema['enum'])})")
-            if key_inputs:
-                desc += f"**Key Capabilities**: {', '.join(key_inputs)}\n"
+        # Format key capabilities from parameters
+        key_inputs = []
+        for param in tool_def.parameters:
+            if param.required:
+                if param.enum:
+                    key_inputs.append(f"{param.name} (options: {', '.join(str(x) for x in param.enum)})")
+                else:
+                    key_inputs.append(param.name)
+        if key_inputs:
+            desc += f"**Key Capabilities**: {', '.join(key_inputs)}\n"
         
-        if tool_def.output_schema:
-            outputs = [output.name for output in tool_def.output_schema if output.required]
-            if outputs:
-                desc += f"**Produces**: {', '.join(outputs)}\n"
+        # Format outputs
+        outputs = [output.name for output in tool_def.outputs if output.required]
+        if outputs:
+            desc += f"**Produces**: {', '.join(outputs)}\n"
         
         desc += "\n"
         descriptions.append(desc)
@@ -215,15 +254,15 @@ def format_tool_descriptions_for_hop_design() -> str:
         return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
-    for tool_id, tool_def in TOOL_REGISTRY.items(): # Iterate by tool_id
-        desc = f"### {tool_def.name} (ID: {tool_def.id})\n" # Display name and ID
+    for tool_id, tool_def in TOOL_REGISTRY.items():
+        desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
         desc += f"**Purpose**: {tool_def.description}\n"
         desc += f"**Category**: {tool_def.category}\n"
         
-        if tool_def.output_schema:
-            outputs = [f"{out.name} ({out.type})" for out in tool_def.output_schema if out.required]
-            if outputs:
-                desc += f"**Outputs**: {', '.join(outputs)}\n"
+        # Format outputs with types
+        outputs = [f"{out.name} ({out.type})" for out in tool_def.outputs if out.required]
+        if outputs:
+            desc += f"**Outputs**: {', '.join(outputs)}\n"
         
         if tool_def.examples:
             desc += f"**Usage Pattern**: {tool_def.examples[0].get('description', 'See documentation')}\n"
@@ -240,28 +279,23 @@ def format_tool_descriptions_for_implementation() -> str:
         return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
     
     descriptions = []
-    for tool_id, tool_def in TOOL_REGISTRY.items(): # Iterate by tool_id
-        desc = f"### Tool Name: {tool_def.name} (ID: {tool_def.id})\n" # Display name and ID
+    for tool_id, tool_def in TOOL_REGISTRY.items():
+        desc = f"### Tool Name: {tool_def.name} (ID: {tool_def.id})\n"
         desc += f"Description: {tool_def.description}\n"
         
         desc += "Input Parameters:\n"
-        if "properties" in tool_def.input_schema:
-            for param_name, param_schema in tool_def.input_schema["properties"].items():
-                param_type = param_schema.get("type", "unknown")
-                param_desc = param_schema.get("description", "No description")
-                is_required = param_name in tool_def.input_schema.get("required", [])
-                
-                desc += f"  - {param_name} ({param_type}): {param_desc}"
-                if not is_required:
-                    default_val = param_schema.get("default", "None")
-                    desc += f" [Optional, default: {default_val}]"
-                desc += "\n"
-                
-                if "enum" in param_schema:
-                    desc += f"    Options: {', '.join(param_schema['enum'])}\n"
+        for param in tool_def.parameters:
+            desc += f"  - {param.name} ({param.type}): {param.description}"
+            if not param.required:
+                default_val = param.default if param.default is not None else "None"
+                desc += f" [Optional, default: {default_val}]"
+            desc += "\n"
+            
+            if param.enum:
+                desc += f"    Options: {', '.join(str(x) for x in param.enum)}\n"
         
         desc += "Outputs:\n"
-        for output in tool_def.output_schema:
+        for output in tool_def.outputs:
             desc += f"  - {output.name} ({output.type}): {output.description}"
             if not output.required:
                 desc += " [Optional]"

@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional, List, Union, Literal
 from datetime import datetime
 from enum import Enum
 from .asset import Asset
+from .tools import ToolDefinition, TOOL_REGISTRY
 
 
 class MissionStatus(str, Enum):

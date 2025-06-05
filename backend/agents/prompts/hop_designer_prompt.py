@@ -76,7 +76,10 @@ The system has these specific tools available for hop implementation:
 
 5. **Tool Awareness**: Consider the available tools. Can the proposed transformation be realistically achieved by a sequence of tool steps?
 
-6. **Summarization Pre-processing**: If the ultimate goal involves summarization of large data (e.g., many emails, long documents), and the input to *this hop* is that raw large data, this hop should focus on **extracting and condensing** that information into a smaller, focused dataset. The `summarize` tool has prompt size limitations; it cannot directly summarize thousands of raw emails. An `extract` or `map_reduce_rollup` step is often needed first to create a concise input for a *subsequent* summarization hop.
+6. **Schema Compatibility**: Ensure that:
+   - Input assets match tool parameter requirements
+   - Tool outputs match asset schema requirements
+   - Intermediate assets have proper schemas defined
 
 ## Tool-Specific Design Patterns
 
@@ -96,78 +99,94 @@ The system has these specific tools available for hop implementation:
 ## Response Formats
 
 **HOP_PROPOSAL**: Use when you can design a clear next step
+```json
+{{
+  "response_type": "HOP_PROPOSAL",
+  "response_content": "Explanation of the proposed hop",
+  "hop_proposal": {{
+    "name": "Hop Name",
+    "description": "What this hop accomplishes",
+    "input_mapping": {{
+      "logical_name": "asset_id_or_name"
+    }},
+    "output_asset": {{
+      "name": "Output asset name",
+      "description": "What this asset contains",
+      "type": "object | primitive | file | database_entity | markdown",
+      "subtype": "Specific format or schema",
+      "is_collection": false,
+      "collection_type": null,
+      "schema_description": "Expected structure/format"
+    }},
+    "output_mission_asset_id": "mission_output_id_if_final",
+    "is_final": false,
+    "rationale": "Why this is the right next step",
+    "alternative_approaches": [
+      "Other approaches considered"
+    ]
+  }},
+  "reasoning": "Detailed explanation of the design decisions"
+}}
 ```
-HOP_PROPOSAL:
-Next Hop: [Name of the hop]
-Purpose: [What this hop accomplishes]
 
-Tool Approach: [Which tool(s) this hop will likely use]
-
-Input Mapping:
-- [logical_name]: [asset_id or asset_name]
-  Example:
-  - search_criteria: mission_input_asset_1  # From mission inputs
-  - previous_results: hop_output_asset_2    # From previous hop
-
-Output:
-- Name: [Output asset name]
-- Type: [Asset type - MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown']
-- Description: [What this asset contains]
-- Schema: [Expected structure/format]
-
-Output Mission Asset: [mission_output_asset_id if final, or None]
-Is Final: [Yes/No - whether this produces the final deliverable]
-
-Rationale: [Why this is the right next step given available tools]
+**INTERVIEW_QUESTION**: Use when you need clarification
+```json
+{{
+  "response_type": "INTERVIEW_QUESTION",
+  "response_content": "To design the most effective next step, I need to understand [specific aspect].",
+  "reasoning": "This will help me [explain how the answer improves the hop design]"
+}}
 ```
 
 ## Asset Creation Guidelines
 
-### Collection Assets
-When creating assets that contain multiple items (arrays, lists, collections):
+### Asset Types and Schemas
+1. **Object Assets** (type: "object")
+   - Use for structured data, JSON objects, complex data structures
+   - Must include schema_description for validation
+   - Example schema: `{"field1": "string", "field2": "number"}`
 
-**CORRECT WAY**:
-```json
-{{
-  "name": "Weekly Email Activity Summary",
-  "type": "object",           // Use a valid AssetType, NOT "array"
-  "subtype": "json",
-  "is_collection": true,      // This makes it a collection
-  "collection_type": "array", // Specifies it's an array collection
-  "description": "Summary of email activity by day of the week",
-  "schema_description": "[{{ 'day_of_week': 'Monday', 'sent': 123, 'received': 150 }}, ...]"
-}}
-```
+2. **Collection Assets**
+   - Set `is_collection: true`
+   - Specify `collection_type: "array" | "map" | "set"`
+   - Include schema for collection items
+   - Example: `{"type": "object", "is_collection": true, "collection_type": "array"}`
 
-**WRONG WAY** ❌:
-```json
-{{
-  "type": "array"  // "array" is NOT a valid AssetType
-}}
-```
+3. **Primitive Assets** (type: "primitive")
+   - Use for simple values (strings, numbers, booleans)
+   - Specify subtype for validation
+   - Example: `{"type": "primitive", "subtype": "string"}`
 
-### Valid Asset Types
-- **file**: For document files, images, exports
-- **primitive**: For simple values (strings, numbers, booleans)
-- **object**: For structured data, JSON objects, complex data structures
-- **database_entity**: For database records or entities
-- **markdown**: For markdown-formatted text content
+4. **File Assets** (type: "file")
+   - Use for document files, images, exports
+   - Must specify valid file subtype
+   - Example: `{"type": "file", "subtype": "pdf"}`
 
-### Collection Examples
-1. **Array of objects**: `type: "object", is_collection: true, collection_type: "array"`
-2. **List of emails**: `type: "object", is_collection: true, collection_type: "array"`
-3. **Set of keywords**: `type: "primitive", is_collection: true, collection_type: "set"`
-4. **Map of categories**: `type: "object", is_collection: true, collection_type: "map"`
+5. **Database Entity Assets** (type: "database_entity")
+   - Use for database records or entities
+   - Include table name and query parameters
+   - Example: `{"type": "database_entity", "subtype": "user_record"}`
 
-**INTERVIEW_QUESTION**: Use when you need clarification
-```
-INTERVIEW_QUESTION:
-To design the most effective next step, I need to understand [specific aspect].
+6. **Markdown Assets** (type: "markdown")
+   - Use for markdown-formatted text content
+   - Example: `{"type": "markdown", "subtype": "report"}`
 
-[Targeted question]
+### Schema Validation Rules
+1. **Required Fields**:
+   - name: Descriptive name
+   - type: Valid asset type
+   - description: Clear purpose
+   - schema_description: Expected structure
 
-This will help me [explain how the answer improves the hop design].
-```
+2. **Collection Rules**:
+   - If is_collection: true, must specify collection_type
+   - Collection items must have defined schema
+   - Array items must be homogeneous
+
+3. **Type-Specific Rules**:
+   - File types must be valid file extensions
+   - Database entities need table specifications
+   - Objects need property definitions
 
 ## Hop Design Process
 1. Review the mission goal and success criteria
@@ -176,6 +195,10 @@ This will help me [explain how the answer improves the hop design].
 4. Consider which tools can bridge that gap effectively
 5. Design a hop that leverages appropriate tools
 6. Ensure the hop output is clearly defined and useful for next steps
+7. Validate schema compatibility between:
+   - Input assets and tool parameters
+   - Tool outputs and asset schemas
+   - Intermediate assets and next tool inputs
 
 ## Guidelines
 - Make hops atomic and focused on a single objective
@@ -185,6 +208,7 @@ This will help me [explain how the answer improves the hop design].
 - Prefer hops that leverage tool strengths (LLM analysis, aggregation, filtering)
 - Think about data flow between tools
 - Consider error cases and data quality validation
+- Validate schema compatibility at each step
 
 ## Current Context
 Mission: {mission}

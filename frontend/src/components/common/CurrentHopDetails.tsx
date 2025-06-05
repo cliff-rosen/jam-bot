@@ -30,7 +30,6 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
         <div className={`space-y-3 ${className}`}>
             {/* Header with toggle */}
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500">Current Hop</h3>
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center"

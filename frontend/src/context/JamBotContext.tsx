@@ -118,20 +118,16 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
-            // Get the implemented hop from the action payload
             const implementedHop = action.payload;
 
-            // Update the mission's current hop with the implemented version
             const updatedCurrentHop = {
                 ...state.mission.current_hop,
                 ...implementedHop,
-                // Ensure we keep the original hop structure
                 steps: implementedHop.steps || [],
                 is_resolved: true,
                 status: ExecutionStatus.PENDING
             };
 
-            // Also update the hop in the hops array if it exists
             const updatedHopsArray = [...state.mission.hops];
             const implCurrentHopIndex = state.mission.current_hop_index;
             if (implCurrentHopIndex < updatedHopsArray.length) {
@@ -153,7 +149,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const completeCurrentHopIndex = state.mission.current_hop_index;
             const isFinalHop = completedHop.is_final;
 
-            // Mark the completed hop in the hops array
             if (completeCurrentHopIndex < updatedHops.length) {
                 updatedHops[completeCurrentHopIndex] = {
                     ...completedHop,
@@ -166,19 +161,16 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 mission: {
                     ...state.mission,
                     hops: updatedHops,
-                    current_hop: undefined, // Clear current hop since it's now complete
-                    current_hop_index: completeCurrentHopIndex + 1, // Move to next hop
-                    // If it's the final hop, complete the mission; otherwise, ready for next hop
+                    current_hop: undefined,
+                    current_hop_index: completeCurrentHopIndex + 1,
                     mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status,
                     hop_status: isFinalHop ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN
                 }
             };
         case 'START_HOP_EXECUTION':
             const hopIdToStart = action.payload;
-            // Find the hop in the hops array and update it
             const updatedHopsForStart = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToStart) {
-                    // Update hop status and first step to running
                     const updatedSteps = hop.steps?.map((step, index) => {
                         if (index === 0) {
                             return { ...step, status: ExecutionStatus.RUNNING };
@@ -196,7 +188,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return hop;
             });
 
-            // Update current_hop if it matches the hop being started
             const updatedCurrentHopForStart = state.mission.current_hop?.id === hopIdToStart
                 ? {
                     ...state.mission.current_hop,
@@ -223,10 +214,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
         case 'COMPLETE_HOP_EXECUTION':
             const hopIdToComplete = action.payload;
 
-            // Find the hop in the hops array and update it
             const updatedHopsForComplete = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToComplete) {
-                    // Update hop status and all steps to completed
                     const updatedSteps = hop.steps?.map(step => ({
                         ...step,
                         status: ExecutionStatus.COMPLETED
@@ -241,7 +230,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return hop;
             });
 
-            // Find the completed hop to check if it's final
             const completedHopForExecution = updatedHopsForComplete.find(h => h.id === hopIdToComplete);
 
             if (!completedHopForExecution) {
@@ -249,23 +237,19 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return state;
             }
 
-            // Determine mission status updates based on whether this is the final hop
             let newMissionStatus = state.mission.mission_status;
             let newHopStatus: HopStatus;
             let newCurrentHop: Hop | undefined;
             let newCurrentHopIndex = state.mission.current_hop_index;
 
             if (completedHopForExecution.is_final) {
-                // Final hop completed - mission is complete
                 newMissionStatus = MissionStatus.COMPLETE;
                 newHopStatus = HopStatus.ALL_HOPS_COMPLETE;
                 newCurrentHop = undefined;
-                // Don't advance index for final hop
             } else {
-                // Non-final hop completed - ready for next hop design
                 newHopStatus = HopStatus.READY_TO_DESIGN;
-                newCurrentHop = undefined; // Clear current hop so next one can be designed
-                newCurrentHopIndex = state.mission.current_hop_index + 1; // Move to next hop index
+                newCurrentHop = undefined;
+                newCurrentHopIndex = state.mission.current_hop_index + 1;
             }
 
             console.log('Hop completion:', {
@@ -289,10 +273,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'FAIL_HOP_EXECUTION':
             const { hopId: hopIdToFail, error } = action.payload;
-            // Find the hop in the hops array and update it
             const updatedHopsForFail = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToFail) {
-                    // Update hop status and current step to failed
                     const updatedSteps = hop.steps?.map((step, index) => {
                         if (index === hop.current_step_index) {
                             return { ...step, status: ExecutionStatus.FAILED };
@@ -309,7 +291,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return hop;
             });
 
-            // Update current_hop if it matches the hop being failed
             const updatedCurrentHopForFail = state.mission.current_hop?.id === hopIdToFail
                 ? {
                     ...state.mission.current_hop,
@@ -329,15 +310,13 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     hops: updatedHopsForFail,
                     current_hop: updatedCurrentHopForFail,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE // Stay ready to execute for retry
+                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
                 }
             };
         case 'RETRY_HOP_EXECUTION':
             const hopIdToRetry = action.payload;
-            // Find the hop in the hops array and update it
             const updatedHopsForRetry = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToRetry) {
-                    // Update hop status and reset all steps to pending
                     const updatedSteps = hop.steps?.map(step => ({
                         ...step,
                         status: ExecutionStatus.PENDING
@@ -353,7 +332,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return hop;
             });
 
-            // Update current_hop if it matches the hop being retried
             const updatedCurrentHopForRetry = state.mission.current_hop?.id === hopIdToRetry
                 ? {
                     ...state.mission.current_hop,
@@ -435,14 +413,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const acceptHopProposal = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: hop });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
     }, []);
 
     const acceptHopImplementationProposal = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
     }, []);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
     }, []);
 
     const startHopExecution = useCallback((hopId: string) => {
@@ -491,7 +472,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        // add assistant message
         if (data.response_text) {
             const chatMessage: ChatMessage = {
                 id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -503,9 +483,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             lastMessageId = chatMessage.id;
         }
 
-        // handle payload
         if (data.payload) {
-            // first decipher payload type
             const isMissionProposal = data.status === 'mission_specialist_completed' &&
                 typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
             let isHopProposal = false;
@@ -526,18 +504,15 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
-            // Check if current collab area has hop-related content that should be preserved
             const currentCollabType = state.collabArea.type;
             const isCurrentHopRelated = ['hop', 'hop-proposal', 'hop-implementation-proposal'].includes(currentCollabType);
             const isNewHopRelated = isMissionProposal || isHopProposal || isHopImplementationProposal;
 
-            // then update state accordingly
             newCollabAreaContent = data.payload;
             if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
                 dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
             }
 
-            // Only update collab area if it's a new proposal or if current area is not hop-related
             if (isMissionProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
             } else if (isHopImplementationProposal) {
@@ -545,9 +520,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             } else if (isHopProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
             } else if (!isCurrentHopRelated) {
-                // Only set to default/object if current collab area is not hop-related
-                // This preserves hop content when other non-hop updates come in
-                // dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
             }
 
             if (lastMessageId) {

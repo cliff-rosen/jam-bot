@@ -570,21 +570,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
         return (
             <div className="h-full flex flex-col">
-                {/* Header */}
-                <div className="flex-shrink-0 px-6 pt-6 pb-3">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                            {liveHop.name}
-                        </h3>
-                        <button
-                            onClick={clearCollabArea}
-                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                            title="Close hop details"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto">

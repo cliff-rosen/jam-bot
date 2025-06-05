@@ -113,27 +113,27 @@ The system has these specific tools available for mission execution:
 - **File Assets** (type: "file")
   - Use for documents, images, exports
   - Must specify valid file subtype (pdf, doc, txt, etc.)
-  - Example: `{"type": "file", "subtype": "pdf", "description": "Resume document"}`
+  - Example: {{"type": "file", "subtype": "pdf", "description": "Resume document"}}
 
 - **Object Assets** (type: "object")
   - Use for structured data, JSON objects
   - Must include schema_description
-  - Example: `{"type": "object", "subtype": "json", "schema_description": "{\"field1\": \"string\", \"field2\": \"number\"}"}`
+  - Example: {{"type": "object", "subtype": "json", "schema_description": "{{\"field1\": \"string\", \"field2\": \"number\"}}"}}
 
 - **Database Entity Assets** (type: "database_entity")
   - Use for database records
   - Include table name and query parameters
-  - Example: `{"type": "database_entity", "subtype": "user_record"}`
+  - Example: {{"type": "database_entity", "subtype": "user_record"}}
 
 - **Markdown Assets** (type: "markdown")
   - Use for formatted text content
-  - Example: `{"type": "markdown", "subtype": "report"}`
+  - Example: {{"type": "markdown", "subtype": "report"}}
 
 ### 2. Configuration Assets (Settings)
 - **Primitive Assets** (type: "primitive")
   - Use for simple values (strings, numbers, booleans)
   - Must specify subtype for validation
-  - Example: `{"type": "primitive", "subtype": "string", "example_value": "AI News"}`
+  - Example: {{"type": "primitive", "subtype": "string", "example_value": "AI News"}}
 
 ### Collection Assets
 When creating assets that contain multiple items:
@@ -256,7 +256,15 @@ Based on the provided context, analyze what information is complete and what nee
         
         # Format available assets and mission using utility functions
         assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission)
+        
+        # Convert mission to dict and handle datetime serialization
+        mission_dict = mission.dict()
+        for field in ['created_at', 'updated_at']:
+            if field in mission_dict and mission_dict[field]:
+                mission_dict[field] = mission_dict[field].isoformat()
+        
+        # Format mission string with serialized dates
+        mission_str = format_mission(mission_dict)
 
         # Convert messages to langchain message format
         langchain_messages = format_langchain_messages(messages)

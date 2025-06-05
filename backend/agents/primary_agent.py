@@ -87,26 +87,12 @@ def serialize_state(state: State) -> dict:
             return {k: convert_datetime(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [convert_datetime(item) for item in obj]
+        elif hasattr(obj, 'model_dump'):
+            return convert_datetime(obj.model_dump())
         return obj
 
     state_dict = state.model_dump()
-    messages = state_dict.get("messages", [])
-    for message in messages:
-        message["timestamp"] = convert_datetime(message["timestamp"])
-        message["content"] = message["content"][0:100]
-    
-    mission_dict = state.mission.model_dump() if state.mission else None
-    if mission_dict:
-        mission_dict = convert_datetime(mission_dict)
-    
-    available_assets_dict = [asset.model_dump() for asset in state.available_assets] if state.available_assets else []
-    
-    return {
-        "messages": messages, 
-        "tool_params": state.tool_params,
-        "mission": mission_dict,
-        "available_assets": available_assets_dict
-    }
+    return convert_datetime(state_dict)
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Simplified supervisor node that routes based on mission and hop status"""
@@ -325,7 +311,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 "debug": error_traceback,
             })
         raise
-
 
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles hop designer operations"""

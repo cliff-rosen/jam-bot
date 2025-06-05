@@ -144,32 +144,32 @@ The system has these specific tools available for hop implementation:
 1. **Object Assets** (type: "object")
    - Use for structured data, JSON objects, complex data structures
    - Must include schema_description for validation
-   - Example schema: `{"field1": "string", "field2": "number"}`
+   - Example schema: `{{"field1": "string", "field2": "number"}}`
 
 2. **Collection Assets**
    - Set `is_collection: true`
    - Specify `collection_type: "array" | "map" | "set"`
    - Include schema for collection items
-   - Example: `{"type": "object", "is_collection": true, "collection_type": "array"}`
+   - Example: `{{"type": "object", "is_collection": true, "collection_type": "array"}}`
 
 3. **Primitive Assets** (type: "primitive")
    - Use for simple values (strings, numbers, booleans)
    - Specify subtype for validation
-   - Example: `{"type": "primitive", "subtype": "string"}`
+   - Example: `{{"type": "primitive", "subtype": "string"}}`
 
 4. **File Assets** (type: "file")
    - Use for document files, images, exports
    - Must specify valid file subtype
-   - Example: `{"type": "file", "subtype": "pdf"}`
+   - Example: `{{"type": "file", "subtype": "pdf"}}`
 
 5. **Database Entity Assets** (type: "database_entity")
    - Use for database records or entities
    - Include table name and query parameters
-   - Example: `{"type": "database_entity", "subtype": "user_record"}`
+   - Example: `{{"type": "database_entity", "subtype": "user_record"}}`
 
 6. **Markdown Assets** (type: "markdown")
    - Use for markdown-formatted text content
-   - Example: `{"type": "markdown", "subtype": "report"}`
+   - Example: `{{"type": "markdown", "subtype": "report"}}`
 
 ### Schema Validation Rules
 1. **Required Fields**:
@@ -237,9 +237,17 @@ Based on this context and the available tools, design the next hop that will mov
         
         # Format available assets and mission using utility functions
         assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission)
         
-        # Format completed hops
+        # Convert mission to dict and handle datetime serialization
+        mission_dict = mission.dict()
+        for field in ['created_at', 'updated_at']:
+            if field in mission_dict and mission_dict[field]:
+                mission_dict[field] = mission_dict[field].isoformat()
+        
+        # Format mission string with serialized dates
+        mission_str = format_mission(mission_dict)
+        
+        # Format completed hops with datetime serialization
         hops_str = "None" if not completed_hops else "\n".join([
             f"- {hop.name}: {hop.description}"
             for hop in completed_hops

@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission
@@ -73,30 +73,36 @@ def format_assets(assets: List[Dict[str, Any]]) -> str:
         for asset in assets
     ])
 
-def format_mission(mission: Mission, context_for_hop: bool = False) -> str:
+def format_mission(mission: Dict[str, Any], context_for_hop: bool = False) -> str:
     """
     Format a mission object into a readable string.
     
     Args:
-        mission: Mission object
+        mission: Mission dictionary (should be converted from Mission model using .dict())
         context_for_hop: If True, formats a concise version for hop-specific prompts.
         
     Returns:
         Formatted string representation of mission
     """
+
+    print("--------------------------------")
+    print("Mission name: ", mission["name"])
+    for key in list(mission.keys()):
+        print(f"  - {repr(key)}")
+
     if context_for_hop:
-        return f"""Mission Name: {mission.name}
-Overall Mission Goal (for context only): {mission.goal}
+        return f"""Mission Name: {mission["name"]}
+Overall Mission Goal (for context only): {mission["goal"]}
 Reminder: Your current task is to implement ONLY the specific hop provided to you, not the entire mission."""
     else:
         # Existing comprehensive formatting
-        inputs_str = "\n".join([f"  - {asset.name} (ID: {asset.id}): {asset.description}" for asset in mission.inputs])
-        outputs_str = "\n".join([f"  - {asset.name} (ID: {asset.id}): {asset.description}" for asset in mission.outputs])
-        success_criteria_str = "\n".join([f"  - {sc}" for sc in mission.success_criteria])
+        inputs_str = "\n".join([f"  - {asset['name']} (ID: {asset['id']}): {asset['description']}" for asset in mission["inputs"]])
+        outputs_str = "\n".join([f"  - {asset['name']} (ID: {asset['id']}): {asset['description']}" for asset in mission["outputs"]])
+        success_criteria_str = "\n".join([f"  - {sc}" for sc in mission["success_criteria"]])
         
-        return f"""Mission Name: {mission.name}
-Description: {mission.description}
-Goal: {mission.goal}
+        return f"""Mission Name: {mission["name"]}
+Description: {mission["description"]}
+Goal: {mission["goal"]}
 Success Criteria:
 {success_criteria_str}
 

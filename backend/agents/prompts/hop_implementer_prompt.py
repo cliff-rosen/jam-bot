@@ -280,7 +280,15 @@ Based on this context, create a detailed implementation plan for the current hop
         
         # Format available assets and mission
         assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission, context_for_hop=True)
+        
+        # Convert mission to dict and handle datetime serialization
+        mission_dict = mission.dict()
+        for field in ['created_at', 'updated_at']:
+            if field in mission_dict and mission_dict[field]:
+                mission_dict[field] = mission_dict[field].isoformat()
+        
+        # Format mission string with serialized dates
+        mission_str = format_mission(mission_dict, context_for_hop=True)
         
         # Format current hop
         hop_str = self._format_hop(current_hop)

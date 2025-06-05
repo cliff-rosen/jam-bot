@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
@@ -45,6 +45,7 @@ class AssetType(str, Enum):
     OBJECT = "object"
     DATABASE_ENTITY = "database_entity"  # For assets that represent database entities
     MARKDOWN = "markdown"
+    CONFIG = "config"
 
 class CollectionType(str, Enum):
     """Type of collection if asset is a collection"""
@@ -70,6 +71,28 @@ class AssetSubtype(str, Enum):
     PUBMED_ARTICLE = "pubmed_article"
     DAILY_NEWSLETTER_RECAP = "daily_newsletter_recap"  # For daily newsletter summary recaps
 
+class AssetSchema(BaseModel):
+    """Schema definition for asset content validation"""
+    type: str = Field(description="JSON Schema type (string, number, boolean, object, array)")
+    properties: Optional[Dict[str, Any]] = Field(default=None, description="Properties for object type")
+    items: Optional[Dict[str, Any]] = Field(default=None, description="Schema for array items")
+    required: Optional[List[str]] = Field(default=None, description="Required fields for object type")
+    additional_properties: bool = Field(default=True, description="Whether to allow additional properties")
+    description: Optional[str] = Field(default=None, description="Description of the schema")
+    examples: Optional[List[Any]] = Field(default=None, description="Example values that match this schema")
+
+class AssetMetadata(BaseModel):
+    """Enhanced metadata for assets"""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    creator: Optional[str] = None
+    version: int = Field(default=1)
+    tags: List[str] = Field(default_factory=list)
+    source_step: Optional[str] = None
+    content_type: Optional[str] = None
+    validation_status: Optional[str] = None
+    validation_errors: Optional[List[str]] = None
+
 class Asset(BaseModel):
     id: str
     name: str
@@ -79,8 +102,29 @@ class Asset(BaseModel):
     is_collection: bool = False
     collection_type: Optional[CollectionType] = None
     content: Optional[Any] = None
-    asset_metadata: Dict[str, Any] = Field(default_factory=dict)
+    schema: Optional[AssetSchema] = None
+    metadata: AssetMetadata = Field(default_factory=AssetMetadata)
     db_entity_metadata: Optional[DatabaseEntityMetadata] = None  # For database entity assets
+
+    @validator('content')
+    def validate_content_against_schema(cls, v, values):
+        """Validate content against schema if schema is defined"""
+        if 'schema' in values and values['schema'] and v is not None:
+            # TODO: Implement schema validation
+            # This would use a JSON Schema validator to ensure content matches schema
+            pass
+        return v
+
+    @validator('type', 'subtype')
+    def validate_type_compatibility(cls, v, values):
+        """Validate type and subtype compatibility"""
+        if 'type' in values and values['type'] == AssetType.FILE:
+            if 'subtype' in values and values['subtype']:
+                try:
+                    FileType(values['subtype'])
+                except ValueError:
+                    raise ValueError(f"Invalid file type: {values['subtype']}")
+        return v
 
     class Config:
         from_attributes = True

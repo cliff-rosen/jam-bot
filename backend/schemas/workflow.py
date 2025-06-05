@@ -54,7 +54,7 @@ class ToolStep(BaseModel):
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(
         description="Maps tool parameters to hop state assets or literals."
     )
-    result_mapping: Dict[str, AssetFieldMapping] = Field(
+    result_mapping: Dict[str, str] = Field(
         description="Maps tool outputs to hop state assets."
     )
     
@@ -62,6 +62,7 @@ class ToolStep(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if the tool execution failed")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    validation_errors: Optional[List[str]] = Field(default=None, description="Schema validation errors")
 
     @validator('created_at', 'updated_at', pre=True)
     def handle_empty_datetime(cls, v):
@@ -69,6 +70,80 @@ class ToolStep(BaseModel):
         if v == "" or v is None:
             return datetime.utcnow()
         return v
+
+    def validate_schema_compatibility(self, tool: ToolDefinition, hop_state: Dict[str, Asset]) -> List[str]:
+        """Validate schema compatibility between tool and assets"""
+        errors = []
+        
+        # Validate input parameters
+        for param_name, mapping in self.parameter_mapping.items():
+            if isinstance(mapping, AssetFieldMapping):
+                asset = hop_state.get(mapping.state_asset)
+                if not asset:
+                    errors.append(f"Asset {mapping.state_asset} not found in hop state")
+                    continue
+                
+                if not asset.schema:
+                    errors.append(f"Asset {mapping.state_asset} has no schema defined")
+                    continue
+                
+                param_schema = next((p for p in tool.parameters if p.name == param_name), None)
+                if not param_schema:
+                    errors.append(f"Parameter {param_name} not found in tool definition")
+                    continue
+                
+                # Validate asset schema against parameter requirements
+                param_errors = tool.validate_input_asset(asset.schema)
+                if param_errors:
+                    errors.extend([f"Parameter {param_name}: {e}" for e in param_errors])
+        
+        # Validate output mappings
+        for output_name, asset_name in self.result_mapping.items():
+            output_schema = next((o for o in tool.outputs if o.name == output_name), None)
+            if not output_schema:
+                errors.append(f"Output {output_name} not found in tool definition")
+                continue
+            
+            asset = hop_state.get(asset_name)
+            if not asset:
+                errors.append(f"Asset {asset_name} not found in hop state")
+                continue
+            
+            if not asset.schema:
+                errors.append(f"Asset {asset_name} has no schema defined")
+                continue
+            
+            # Validate tool output schema against asset requirements
+            output_errors = tool.validate_output_asset(asset.schema)
+            if output_errors:
+                errors.extend([f"Output {output_name}: {e}" for e in output_errors])
+        
+        return errors
+
+    def execute(self, hop_state: Dict[str, Asset]) -> List[str]:
+        """Execute the tool step and validate results"""
+        errors = []
+        
+        # Get tool definition
+        tool = TOOL_REGISTRY.get(self.tool_id)
+        if not tool:
+            errors.append(f"Tool {self.tool_id} not found in registry")
+            return errors
+        
+        # Validate schema compatibility before execution
+        validation_errors = self.validate_schema_compatibility(tool, hop_state)
+        if validation_errors:
+            errors.extend(validation_errors)
+            return errors
+        
+        # TODO: Implement actual tool execution
+        # This would:
+        # 1. Map input parameters from hop state
+        # 2. Execute the tool
+        # 3. Map outputs back to hop state
+        # 4. Validate output schemas
+        
+        return errors
 
 
 class Hop(BaseModel):

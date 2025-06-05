@@ -1,8 +1,21 @@
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field, validator
+from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 import json
 import os
+from .asset import AssetSchema
+
+
+class ToolParameterSchema(BaseModel):
+    """Defines the input parameter schema for a tool"""
+    name: str = Field(description="Parameter name")
+    type: str = Field(description="Data type (string, number, boolean, object, array)")
+    description: str = Field(description="Description of what this parameter is for")
+    required: bool = Field(default=True, description="Whether this parameter is required")
+    default: Optional[Any] = Field(default=None, description="Default value if not provided")
+    enum: Optional[List[Any]] = Field(default=None, description="Allowed values for this parameter")
+    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
+    example: Optional[Any] = Field(default=None, description="Example value")
 
 
 class ToolOutputSchema(BaseModel):
@@ -10,9 +23,20 @@ class ToolOutputSchema(BaseModel):
     name: str = Field(description="Output field name")
     type: str = Field(description="Data type (string, number, boolean, object, array)")
     description: str = Field(description="Description of what this output contains")
-    details_schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types if type is object or array")
+    schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
     required: bool = Field(default=True, description="Whether this output is always present")
     example: Optional[Any] = Field(default=None, description="Example value")
+
+
+class ToolCategory(str, Enum):
+    """Categories of tools"""
+    DATA_RETRIEVAL = "data_retrieval"
+    DATA_PROCESSING = "data_processing"
+    DATA_ANALYSIS = "data_analysis"
+    DATA_TRANSFORMATION = "data_transformation"
+    DATA_STORAGE = "data_storage"
+    DATA_VALIDATION = "data_validation"
+    OTHER = "other"
 
 
 class ToolDefinition(BaseModel):
@@ -20,10 +44,44 @@ class ToolDefinition(BaseModel):
     id: str = Field(description="Unique identifier for the tool, MUST be present in tools.json")
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
-    input_schema: Dict[str, Any] = Field(description="JSON schema for tool input parameters")
-    output_schema: List[ToolOutputSchema] = Field(description="Structured output schema definition")
-    category: str = Field(description="Category of tool (data_retrieval, processing, analysis, etc.)")
+    parameters: List[ToolParameterSchema] = Field(description="Structured input parameter definitions")
+    outputs: List[ToolOutputSchema] = Field(description="Structured output schema definitions")
+    category: ToolCategory = Field(description="Category of tool")
     examples: Optional[List[Dict[str, Any]]] = Field(default=None, description="Usage examples")
+    error_schema: Optional[Dict[str, Any]] = Field(default=None, description="Schema for error responses")
+    version: str = Field(default="1.0.0", description="Tool version")
+    deprecated: bool = Field(default=False, description="Whether this tool version is deprecated")
+    replacement_tool: Optional[str] = Field(default=None, description="ID of replacement tool if deprecated")
+
+    @validator('parameters')
+    def validate_parameter_names(cls, v):
+        """Ensure parameter names are unique"""
+        names = [p.name for p in v]
+        if len(names) != len(set(names)):
+            raise ValueError("Parameter names must be unique")
+        return v
+
+    @validator('outputs')
+    def validate_output_names(cls, v):
+        """Ensure output names are unique"""
+        names = [o.name for o in v]
+        if len(names) != len(set(names)):
+            raise ValueError("Output names must be unique")
+        return v
+
+    def validate_input_asset(self, asset_schema: AssetSchema) -> List[str]:
+        """Validate that an asset schema is compatible with this tool's input requirements"""
+        errors = []
+        # TODO: Implement schema compatibility validation
+        # This would check that the asset schema matches the tool's parameter requirements
+        return errors
+
+    def validate_output_asset(self, asset_schema: AssetSchema) -> List[str]:
+        """Validate that an asset schema is compatible with this tool's output structure"""
+        errors = []
+        # TODO: Implement schema compatibility validation
+        # This would check that the tool's output schema matches the asset's requirements
+        return errors
 
 
 # Tool registry - populated from tools.json, keyed by tool_id

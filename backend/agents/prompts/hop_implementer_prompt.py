@@ -73,8 +73,8 @@ There are **two distinct mapping layers**:
   - Asset reference: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
   - Literal value: {{"type": "literal", "value": "configuration_value"}}
 - **Result mapping**: Maps tool outputs to hop state assets
-  - Format: {{"tool_output_name": {{"type": "asset_field", "state_asset": "local_asset_name"}}}}
-  - Example: {{"emails": {{"type": "asset_field", "state_asset": "retrieved_emails"}}}}
+  - Format: {{"tool_output_name": "local_asset_name"}}
+  - Example: {{"emails": "retrieved_emails"}}
 
 Visual Flow:
 ```
@@ -82,6 +82,34 @@ Mission Assets → [Hop Input Mapping] → Hop State → [Tool Parameter Mapping
                                                                                       ↓
 Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Result Mapping] ← Tool Outputs
 ```
+
+## Asset Management
+
+### Creating Intermediate Assets
+When creating new assets in hop state:
+1. **Asset Types**:
+   - Use `OBJECT` for structured data (e.g., search results, extracted content)
+   - Use `COLLECTION` for lists/arrays of items
+   - Use `PRIMITIVE` for simple values (numbers, strings)
+   - Use `MARKDOWN` for formatted text content
+
+2. **Asset Naming**:
+   - Use descriptive names that reflect the content
+   - Prefix with step name for clarity (e.g., `step1_extracted_text`)
+   - Include data type hint (e.g., `_list`, `_array`, `_text`)
+
+3. **Asset Metadata**:
+   - Set `creator` to "hop_implementer"
+   - Add `source_step` to track which step created it
+   - Include `content_type` to specify data format
+
+### Asset Path Specification
+The `path` field in asset references specifies where to find data:
+- Use `"content"` for the entire asset content
+- Use `"content.field"` for specific fields
+- Use `"content.array[0]"` for array elements
+- Use `"content.nested.field"` for deep paths
+- Maximum depth: 3 levels (e.g., `content.data.items[0].field`)
 
 ## Parameter Mapping Rules for Tools
 
@@ -110,17 +138,20 @@ Use these three types for tool parameter mapping:
 1. **Analyze the hop requirements**
    - Review existing hop input/output mappings
    - Understand what transformation is needed between mapped assets
+   - Identify required intermediate assets
 
 2. **Design the tool chain**
    - Create tool steps that operate on hop's local state
    - Use appropriate parameter mappings (asset_field vs literal)
    - Ensure tool outputs populate hop state correctly
-   - IMPORTANT: Each tool step's result_mapping must use the AssetFieldMapping format
+   - Validate tool input/output schema compatibility
+   - Handle multiple outputs appropriately
 
 3. **Validate the design**
    - Verify hop input mapping provides necessary data to tool chain
    - Ensure tool chain produces data that hop output mapping can export
    - Check for potential failure points
+   - Verify schema compatibility between steps
 
 ## Response Format
 
@@ -143,7 +174,7 @@ Use these three types for tool parameter mapping:
           "param_name": {{"type": "asset_field", "state_asset": "asset_name"}}
         }},
         "result_mapping": {{
-          "tool_output": {{"type": "asset_field", "state_asset": "local_asset_name"}}
+          "tool_output": "local_asset_name"
         }}
       }}
     ]
@@ -154,9 +185,60 @@ Use these three types for tool parameter mapping:
   ],
   "resolution_failure": {{
     // Required for RESOLUTION_FAILED
-    "failure_type": "INSUFFICIENT_TOOLS | INVALID_ASSETS | UNREACHABLE_OUTPUT | OTHER",
+    "failure_type": "INSUFFICIENT_TOOLS | INVALID_ASSETS | UNREACHABLE_OUTPUT | INCOMPATIBLE_SCHEMAS | MISSING_DEPENDENCIES | OTHER",
     "specific_issues": ["Detailed list of why resolution failed"],
     "suggested_alternatives": ["Possible alternative approaches"]
+  }}
+}}
+```
+
+## Complete Example
+
+Here's a complete example of a hop implementation:
+
+```json
+{{
+  "response_type": "IMPLEMENTATION_PLAN",
+  "response_content": "Implementing email search and content extraction hop",
+  "hop": {{
+    "id": "email_analysis_hop",
+    "name": "Email Content Analysis",
+    "description": "Search emails and extract key content",
+    "input_mapping": {{
+      "search_criteria": "mission_search_criteria",
+      "email_credentials": "mission_email_creds"
+    }},
+    "output_mapping": {{
+      "analysis_results": "mission_analysis_output"
+    }},
+    "steps": [
+      {{
+        "id": "step1_email_search",
+        "tool_id": "email_search",
+        "description": "Search emails using criteria",
+        "parameter_mapping": {{
+          "query": {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.query"}},
+          "credentials": {{"type": "asset_field", "state_asset": "email_credentials"}},
+          "limit": {{"type": "literal", "value": 50}}
+        }},
+        "result_mapping": {{
+          "emails": "step1_emails_list",
+          "count": "step1_email_count"
+        }}
+      }},
+      {{
+        "id": "step2_content_extract",
+        "tool_id": "content_extractor",
+        "description": "Extract key content from emails",
+        "parameter_mapping": {{
+          "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}},
+          "extract_fields": {{"type": "literal", "value": ["subject", "body", "date"]}}
+        }},
+        "result_mapping": {{
+          "extracted_content": "step2_extracted_content"
+        }}
+      }}
+    ]
   }}
 }}
 ```

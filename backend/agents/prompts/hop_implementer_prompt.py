@@ -65,14 +65,14 @@ class HopImplementerPrompt(BasePrompt):
 There are **two distinct mapping layers**:
 
 ### 1. HOP MAPPINGS (Mission ↔ Hop State)
-- **Input mapping**: `{local_key: external_asset_id}` - Brings mission assets into hop's local workspace
-- **Output mapping**: `{local_key: external_asset_id}` - Exports hop results back to mission assets
+- **Input mapping**: `{{local_key: external_asset_id}}` - Brings mission assets into hop's local workspace
+- **Output mapping**: `{{local_key: external_asset_id}}` - Exports hop results back to mission assets
 
 ### 2. TOOL MAPPINGS (Hop State ↔ Tool I/O + Literals)
 - **Parameter mapping**: Maps hop state OR literals to tool input parameters
-  - Asset reference: `{"type": "asset_field", "state_asset": "local_asset", "path": "content.field"}`
-  - Literal value: `{"type": "literal", "value": "configuration_value"}`
-- **Output mapping**: `{"tool_output_name": "local_asset_name"}` - Maps tool outputs to hop state
+  - Asset reference: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
+  - Literal value: {{"type": "literal", "value": "configuration_value"}}
+- **Output mapping**: {{"tool_output_name": "local_asset_name"}} - Maps tool outputs to hop state
 
 Visual Flow:
 ```
@@ -86,16 +86,16 @@ Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Output Mapping] 
 Use these three types for tool parameter mapping:
 
 1. **LITERAL VALUES** - Tool-specific configuration
-   - Format: `{"type": "literal", "value": "actual_value"}`
+   - Format: {{"type": "literal", "value": "actual_value"}}
    - Use for: search queries, sort orders, limits, format options, boolean flags
-   - Examples: `"search for AI research"`, `"ascending"`, `50`, `["sentiment", "topics"]`
+   - Examples: "search for AI research", "ascending", 50, ["sentiment", "topics"]
 
 2. **ASSET REFERENCES** - Data from hop state
-   - Format: `{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}`
+   - Format: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
    - Use for: email collections, extracted data, computed results from previous steps
 
 3. **CONFIG ASSETS** - Configuration stored as assets
-   - Format: `{"type": "asset_field", "state_asset": "config_asset_name"}`
+   - Format: {{"type": "asset_field", "state_asset": "config_asset_name"}}
    - Use when referencing CONFIG type assets that contain configuration values
 
 ## Tool Chain Design Priorities
@@ -122,24 +122,24 @@ Use these three types for tool parameter mapping:
 ## Response Format
 
 ```json
-{
+{{
   "response_type": "IMPLEMENTATION_PLAN | CLARIFICATION_NEEDED | RESOLUTION_FAILED",
   "response_content": "Explanation of the implementation or why it failed",
-  "hop": {
+  "hop": {{
     // Complete hop object with populated "steps" array
     // Required for IMPLEMENTATION_PLAN
-  },
+  }},
   "missing_information": [
     // List of information needed to complete implementation
     // Required for CLARIFICATION_NEEDED
   ],
-  "resolution_failure": {
+  "resolution_failure": {{
     // Required for RESOLUTION_FAILED
     "failure_type": "INSUFFICIENT_TOOLS | INVALID_ASSETS | UNREACHABLE_OUTPUT | OTHER",
     "specific_issues": ["Detailed list of why resolution failed"],
     "suggested_alternatives": ["Possible alternative approaches"]
-  }
-}
+  }}
+}}
 ```
 
 Remember: Your job is to design the tool steps that transform the hop's local state. The hop's input/output mappings handle the mission asset flow.

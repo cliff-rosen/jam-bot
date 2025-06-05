@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
+from schemas.chat import Message, MessageRole
 from .base_prompt import BasePrompt
 from utils.message_formatter import format_assets, format_langchain_messages, format_messages_for_openai, format_mission
 

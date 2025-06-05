@@ -62,7 +62,7 @@ export interface ToolStep {
     description: string;
 
     // Asset mappings within hop state
-    parameter_mapping: Record<string, { state_asset: string; path: string } | { literal: any }>;
+    parameter_mapping: Record<string, { type: "literal"; value: any } | { type: "asset_field"; state_asset: string; path: string }>;
     result_mapping: Record<string, { state_asset: string; path: string }>;
 
     status: ExecutionStatus;

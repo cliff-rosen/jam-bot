@@ -166,15 +166,14 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                     <div className="ml-3 space-y-0.5">
                                                         <div className="text-xs font-medium text-gray-600">Inputs</div>
                                                         {Object.entries(step.parameter_mapping).map(([param, mapping]) => {
-                                                            const isLiteral = 'literal' in mapping;
-                                                            if (isLiteral) {
-                                                                const value = JSON.stringify(mapping.literal);
+                                                            if (mapping.type === "literal") {
                                                                 return (
                                                                     <div key={param} className="text-xs text-gray-500">
-                                                                        <span className="text-blue-600 dark:text-blue-400">{param}:</span> {value}
+                                                                        <span className="text-blue-600 dark:text-blue-400">{param}:</span>
+                                                                        <span className="ml-1">{mapping.value}</span>
                                                                     </div>
                                                                 );
-                                                            } else {
+                                                            } else if (mapping.type === "asset_field") {
                                                                 const asset = hop.state?.[mapping.state_asset];
                                                                 const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
                                                                 const tooltipText = [
@@ -197,6 +196,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                                     </div>
                                                                 );
                                                             }
+                                                            return null;
                                                         })}
                                                     </div>
                                                 )}

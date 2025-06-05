@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Literal
 from datetime import datetime
 from enum import Enum
 from .asset import Asset
@@ -31,13 +31,13 @@ class ExecutionStatus(str, Enum):
 
 
 class AssetFieldMapping(BaseModel):
-    type: str = Field(default="asset_field", const=True)
+    type: Literal["asset_field"] = "asset_field"
     state_asset: str
     path: Optional[str] = None
 
 
 class LiteralMapping(BaseModel):
-    type: str = Field(default="literal", const=True)
+    type: Literal["literal"] = "literal"
     value: Any
 
 

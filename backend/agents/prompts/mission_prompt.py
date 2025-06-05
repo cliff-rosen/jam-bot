@@ -98,36 +98,36 @@ These control HOW the mission operates, but are still modeled as simple AssetLit
 **Email Analysis Mission:**
 ```
 inputs: [
-  {
+  {{
     "name": "Email Folder Name",
     "type": "primitive", 
     "description": "Gmail folder to search for AI newsletters",
     "example_value": "AI News"
-  },
-  {
+  }},
+  {{
     "name": "Date Range", 
     "type": "primitive",
     "description": "Time period for email search",
     "example_value": "April 2024"
-  }
+  }}
 ]
 ```
 
 **Resume Analysis Mission:**  
 ```
 inputs: [
-  {
+  {{
     "name": "Resume Document",
     "type": "file",
     "description": "PDF or DOC file containing the resume to analyze",
     "required": true
-  },
-  {
+  }},
+  {{
     "name": "Analysis Focus",
     "type": "primitive", 
     "description": "What aspects to focus the analysis on",
     "example_value": "technical skills"
-  }
+  }}
 ]
 ```
 

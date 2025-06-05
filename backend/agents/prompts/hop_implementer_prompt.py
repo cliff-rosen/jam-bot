@@ -80,15 +80,15 @@ class HopImplementerPrompt(BasePrompt):
 
 - If a config value exists as a CONFIG asset in `hop.state`, reference it as an asset field in the parameter mapping:
   ```json
-  "parameter_mapping": {
-    "folder": { "type": "asset_field", "state_asset": "folder_config" }
-  }
+  "parameter_mapping": {{
+    "folder": {{ "type": "asset_field", "state_asset": "folder_config" }}
+  }}
   ```
 - Only use a literal value in the parameter mapping if there is **no** CONFIG asset in `hop.state` for that parameter:
   ```json
-  "parameter_mapping": {
-    "folder": { "type": "literal", "value": "AI News" }
-  }
+  "parameter_mapping": {{
+    "folder": {{ "type": "literal", "value": "AI News" }}
+  }}
   ```
 - **Do not** create CONFIG assets for tool-step-only, ephemeral config values—use literals for those.
 - Only create CONFIG assets for persistent, reusable config values (those that are user-supplied at the mission level, or needed by multiple steps in a hop).
@@ -101,17 +101,17 @@ class HopImplementerPrompt(BasePrompt):
 **Example:**
 If the hop state contains:
 ```
-"folder_config": {
+"folder_config": {{
   "id": "asset_123",
   "type": "config",
   "content": "AI News"
-}
+}}
 ```
 Then the tool parameter mapping should be:
 ```
-"parameter_mapping": {
-  "folder": { "type": "asset_field", "state_asset": "folder_config" }
-}
+"parameter_mapping": {{
+  "folder": {{ "type": "asset_field", "state_asset": "folder_config" }}
+}}
 ```
 
 ### CRITICAL: Parameter Mapping Types
@@ -121,18 +121,18 @@ Then the tool parameter mapping should be:
 1. **LITERAL VALUES** - Values created specifically for this tool call
    - Search queries, configuration options, static strings, numbers
    - These are NOT stored as assets - they're tool-specific values
-   - Format: `{"type": "literal", "value": "actual_value"}`
+   - Format: `{{"type": "literal", "value": "actual_value"}}`
    - Examples: `"search for AI news"`, `"ascending"`, `42`, `["field1", "field2"]`
 
 2. **ASSET REFERENCES** - Values that come from existing hop state/assets  
    - Data from previous tool steps, hop inputs, computed results
    - These reference actual assets in the hop's state
-   - Format: `{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}`
+   - Format: `{{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}`
    - Examples: Email collections, extracted data, processed results
 
 3. **CONFIG ASSETS** - Configuration parameters stored as assets of type CONFIG
    - When a parameter is mapped to a CONFIG asset, use its value as a literal
-   - Format: `{"type": "asset_field", "state_asset": "config_asset_name"}` but must be resolved to a literal value at execution time
+   - Format: `{{"type": "asset_field", "state_asset": "config_asset_name"}}` but must be resolved to a literal value at execution time
 
 **NEVER** create data assets for tool-specific configuration values like search strings, sort orders, or processing options! Use CONFIG assets instead.
 
@@ -372,10 +372,10 @@ Suppose a tool step needs a folder name:
 
 **Parameter Mapping Example:**
 ```json
-{
-  "folder": { "type": "asset_field", "state_asset": "folder_config" },
-  "threshold": { "type": "literal", "value": 0.8 }
-}
+{{
+  "folder": {{ "type": "asset_field", "state_asset": "folder_config" }},
+  "threshold": {{ "type": "literal", "value": 0.8 }}
+}}
 ```
 At execution, if `folder_config` is a CONFIG asset, its value is extracted and passed as a literal to the tool.
 

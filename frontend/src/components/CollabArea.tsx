@@ -573,7 +573,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
-                    <div className="px-6">
+                    <div className="px-8 pt-8">
                         <CurrentHopDetails hop={liveHop} className="" />
                     </div>
                 </div>
@@ -650,7 +650,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             <Mission className="flex-shrink-0" />
 
             {/* Header Section */}
-            <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
+            <div className="flex-shrink-0 px-6 py-3 border-b dark:border-gray-700">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {type === 'workflow' && 'Workflow'}
                     {type === 'document' && 'Document'}

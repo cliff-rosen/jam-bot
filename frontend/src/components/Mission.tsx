@@ -83,7 +83,7 @@ export default function Mission({
     return (
         <div className={`dark:bg-[#1e2330] ${className}`}>
             {/* Section Header */}
-            <div className="flex-shrink-0 px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-700/50 flex justify-between items-center">
+            <div className="flex-shrink-0 px-6 pt-4 pb-2 border-b border-gray-100 dark:border-gray-700/50 flex justify-between items-center">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mission</h2>
                 <div className="flex items-center gap-2">
                     {/* Action Buttons */}
@@ -125,7 +125,7 @@ export default function Mission({
             </div>
 
             {/* Compact Mission View */}
-            <div className="px-4 pt-3 pb-4 space-y-2">
+            <div className="px-6 pt-3 pb-4 space-y-2">
                 {/* First Line: Mission Name and Status */}
                 <div className="flex items-center justify-between">
                     <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -153,7 +153,7 @@ export default function Mission({
 
             {/* Expanded Details */}
             {isExpanded && (
-                <div className="px-4 pb-4 space-y-4 border-t border-gray-100 dark:border-gray-700/50 pt-4">
+                <div className="px-6 pb-4 space-y-4 border-t border-gray-100 dark:border-gray-700/50 pt-4">
                     {/* Inputs and Outputs */}
                     <div className="grid grid-cols-2 gap-4">
                         {/* Inputs Column */}

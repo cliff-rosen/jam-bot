@@ -19,6 +19,7 @@ type JamBotAction =
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
     | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
+    | { type: 'CLEAR_COLLAB_AREA' }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
@@ -114,10 +115,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     hops: [...existingHops, acceptedHop],
                     current_hop_index: existingHops.length,
                     hop_status: HopStatus.HOP_READY_TO_RESOLVE
-                },
-                collabArea: {
-                    type: 'default',
-                    content: null
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
@@ -148,10 +145,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     current_hop: updatedCurrentHop,
                     hops: updatedHopsArray,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
-                },
-                collabArea: {
-                    type: 'default',
-                    content: null
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE':
@@ -178,10 +171,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     // If it's the final hop, complete the mission; otherwise, ready for next hop
                     mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status,
                     hop_status: isFinalHop ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN
-                },
-                collabArea: {
-                    type: 'default',
-                    content: null
                 }
             };
         case 'START_HOP_EXECUTION':
@@ -386,6 +375,14 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
                 }
             };
+        case 'CLEAR_COLLAB_AREA':
+            return {
+                ...state,
+                collabArea: {
+                    type: 'default',
+                    content: null
+                }
+            };
         default:
             return state;
     }
@@ -406,6 +403,7 @@ const JamBotContext = createContext<{
     completeHopExecution: (hopId: string) => void;
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
+    clearCollabArea: () => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -463,6 +461,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'RETRY_HOP_EXECUTION', payload: hopId });
     }, []);
 
+    const clearCollabArea = useCallback(() => {
+        dispatch({ type: 'CLEAR_COLLAB_AREA' });
+    }, []);
+
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
 
@@ -503,7 +505,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         // handle payload
         if (data.payload) {
-            // first deciphher payload type
+            // first decipher payload type
             const isMissionProposal = data.status === 'mission_specialist_completed' &&
                 typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
             let isHopProposal = false;
@@ -524,28 +526,37 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
+            // Check if current collab area has hop-related content that should be preserved
+            const currentCollabType = state.collabArea.type;
+            const isCurrentHopRelated = ['hop', 'hop-proposal', 'hop-implementation-proposal'].includes(currentCollabType);
+            const isNewHopRelated = isMissionProposal || isHopProposal || isHopImplementationProposal;
+
             // then update state accordingly
             newCollabAreaContent = data.payload;
             if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
                 dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
             }
+
+            // Only update collab area if it's a new proposal or if current area is not hop-related
             if (isMissionProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
             } else if (isHopImplementationProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
             } else if (isHopProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
-            } else {
-                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
+            } else if (!isCurrentHopRelated) {
+                // Only set to default/object if current collab area is not hop-related
+                // This preserves hop content when other non-hop updates come in
+                // dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'object', content: newCollabAreaContent } });
             }
+
             if (lastMessageId) {
                 addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
             }
 
             return token;
-
         }
-    }, [addMessage, updateStreamingMessage, addPayloadHistory]);
+    }, [addMessage, updateStreamingMessage, addPayloadHistory, state.collabArea.type]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
         addMessage(message);
@@ -609,7 +620,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             startHopExecution,
             completeHopExecution,
             failHopExecution,
-            retryHopExecution
+            retryHopExecution,
+            clearCollabArea
         }}>
             {children}
         </JamBotContext.Provider>

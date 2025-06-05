@@ -149,46 +149,50 @@ export default function Mission({
                         {mission.description}
                     </div>
                 )}
-
-                {/* Third Line: Inputs and Outputs in Columns */}
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Inputs Column */}
-                    <div>
-                        <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                            Inputs ({mission.inputs?.length || 0})
-                        </h3>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {mission.inputs && mission.inputs.length > 0 ? (
-                                mission.inputs.map((input, idx) => (
-                                    <AssetDisplay key={input.id || idx} asset={input} />
-                                ))
-                            ) : (
-                                <div className="text-xs text-gray-400 italic">No inputs defined</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Outputs Column */}
-                    <div>
-                        <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                            Outputs ({mission.outputs?.length || 0})
-                        </h3>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {mission.outputs && mission.outputs.length > 0 ? (
-                                mission.outputs.map((output, idx) => (
-                                    <AssetDisplay key={output.id || idx} asset={output} />
-                                ))
-                            ) : (
-                                <div className="text-xs text-gray-400 italic">No outputs defined</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {/* Expanded Details */}
             {isExpanded && (
                 <div className="px-4 pb-4 space-y-4 border-t border-gray-100 dark:border-gray-700/50 pt-4">
+                    {/* Inputs and Outputs */}
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Inputs Column */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-2">
+                                Inputs ({mission.inputs?.length || 0})
+                            </h3>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {mission.inputs && mission.inputs.length > 0 ? (
+                                    mission.inputs.map((input, idx) => (
+                                        <AssetDisplay key={input.id || idx} asset={input} />
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-gray-400 italic bg-gray-50 dark:bg-[#23283a] rounded p-3">
+                                        No inputs defined
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Outputs Column */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-400 dark:text-gray-500 mb-2">
+                                Outputs ({mission.outputs?.length || 0})
+                            </h3>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {mission.outputs && mission.outputs.length > 0 ? (
+                                    mission.outputs.map((output, idx) => (
+                                        <AssetDisplay key={output.id || idx} asset={output} />
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-gray-400 italic bg-gray-50 dark:bg-[#23283a] rounded p-3">
+                                        No outputs defined
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Goal and Success Criteria */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>

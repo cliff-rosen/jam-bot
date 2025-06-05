@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { VariableRenderer } from './common/VariableRenderer';
 import Mission from './Mission';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
-import { CheckCircle, XCircle, Play, Square, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Play, Square, RotateCcw, X } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
-import { ToolStep, Hop, ExecutionStatus, HopStatus } from '@/types/workflow';
+import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -23,7 +23,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         startHopExecution,
         completeHopExecution,
         failHopExecution,
-        retryHopExecution
+        retryHopExecution,
+        clearCollabArea
     } = useJamBot();
 
     const handlePrevious = () => {
@@ -54,16 +55,22 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
+        // Check if mission has already been accepted (status is ACTIVE)
+        const isAlreadyAccepted = state.mission.mission_status === MissionStatus.ACTIVE;
+
         return (
             <div className="h-full overflow-auto">
                 <div className="p-6 space-y-6">
                     {/* Mission Proposal Header */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
                         <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                            Mission Proposal
+                            Mission Proposal {isAlreadyAccepted && <span className="text-sm font-normal">(Accepted)</span>}
                         </h3>
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                            Review the proposed mission details below. You can accept this proposal to activate the mission.
+                            {isAlreadyAccepted
+                                ? "This mission proposal has been accepted and is now active."
+                                : "Review the proposed mission details below. You can accept this proposal to activate the mission."
+                            }
                         </p>
                     </div>
 
@@ -126,16 +133,18 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                            onClick={() => acceptMissionProposal()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <CheckCircle className="w-4 h-4" />
-                            Accept Mission
-                        </button>
-                    </div>
+                    {/* Action Buttons - Only show if not already accepted */}
+                    {!isAlreadyAccepted && (
+                        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <button
+                                onClick={() => acceptMissionProposal()}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                Accept Mission
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -152,17 +161,37 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
+        // Check if this hop has already been accepted (exists in mission hops)
+        const isAlreadyAccepted = state.mission.hops.some(existingHop =>
+            existingHop.id === hop.id ||
+            (existingHop.name === hop.name && existingHop.description === hop.description)
+        );
+
         return (
             <div className="h-full overflow-auto">
                 <div className="p-6 space-y-6">
                     {/* Hop Proposal Header */}
                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
-                            Hop Proposal
-                        </h3>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                            Review the proposed hop details below. You can accept this proposal to proceed with implementation.
-                        </p>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+                                    Hop Proposal {isAlreadyAccepted && <span className="text-sm font-normal">(Accepted)</span>}
+                                </h3>
+                                <p className="text-sm text-green-700 dark:text-green-300">
+                                    {isAlreadyAccepted
+                                        ? "This hop proposal has been accepted and added to the mission."
+                                        : "Review the proposed hop details below. You can accept this proposal to proceed with implementation."
+                                    }
+                                </p>
+                            </div>
+                            <button
+                                onClick={clearCollabArea}
+                                className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 transition-colors"
+                                title="Close hop proposal"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Hop Details */}
@@ -217,20 +246,22 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                            onClick={() => {
-                                if (hop) {
-                                    acceptHopProposal(hop);
-                                }
-                            }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <CheckCircle className="w-4 h-4" />
-                            Accept Hop
-                        </button>
-                    </div>
+                    {/* Action Buttons - Only show if not already accepted */}
+                    {!isAlreadyAccepted && (
+                        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <button
+                                onClick={() => {
+                                    if (hop) {
+                                        acceptHopProposal(hop);
+                                    }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                Accept Hop
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -256,20 +287,37 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Use hopToRender for displaying details from this point onwards
-        // For example, to access name: hopToRender.name
+        // Check if this hop implementation has already been accepted
+        const isAlreadyAccepted = state.mission.hop_status === HopStatus.HOP_RUNNING ||
+            state.mission.hop_status === HopStatus.ALL_HOPS_COMPLETE ||
+            (state.mission.current_hop?.id === hopToRender.id &&
+                state.mission.current_hop?.status === ExecutionStatus.COMPLETED);
 
         return (
             <div className="h-full overflow-auto">
                 <div className="p-6 space-y-6">
                     {/* Hop Implementation Proposal Header */}
                     <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
-                            Hop Implementation Proposal
-                        </h3>
-                        <p className="text-sm text-purple-700 dark:text-purple-300">
-                            Review the resolved tool steps for the hop below. Choose "Accept" to prepare this hop for execution, or "Accept as Complete" to mark it as finished and move to the next hop (for testing purposes).
-                        </p>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
+                                    Hop Implementation Proposal {isAlreadyAccepted && <span className="text-sm font-normal">(Accepted)</span>}
+                                </h3>
+                                <p className="text-sm text-purple-700 dark:text-purple-300">
+                                    {isAlreadyAccepted
+                                        ? "This hop implementation has been accepted and is ready for execution."
+                                        : "Review the hop implementation details below. You can accept this implementation to mark the hop as complete."
+                                    }
+                                </p>
+                            </div>
+                            <button
+                                onClick={clearCollabArea}
+                                className="text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 transition-colors"
+                                title="Close hop implementation"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Hop Details using hopToRender */}
@@ -351,28 +399,32 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                            onClick={() => {
-                                if (hopToRender) {
-                                    acceptHopImplementationProposal(hopToRender as Hop);
-                                }
-                            }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <CheckCircle className="w-4 h-4" />
-                            Accept
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (hopToRender) {
-                                    acceptHopImplementationAsComplete(hopToRender as Hop);
-                                }
-                            }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <CheckCircle className="w-4 h-4" />
-                            Accept as Complete
-                        </button>
+                        {!isAlreadyAccepted && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        if (hopToRender) {
+                                            acceptHopImplementationProposal(hopToRender as Hop);
+                                        }
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                                >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Accept
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (hopToRender) {
+                                            acceptHopImplementationAsComplete(hopToRender as Hop);
+                                        }
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                                >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Accept as Complete
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -518,8 +570,25 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
         return (
             <div className="h-full flex flex-col">
+                {/* Header */}
+                <div className="flex-shrink-0 px-6 pt-6 pb-3">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            {liveHop.name}
+                        </h3>
+                        <button
+                            onClick={clearCollabArea}
+                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                            title="Close hop details"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
                 <div className="flex-1 overflow-auto">
-                    <div className="p-6">
+                    <div className="px-6">
                         <CurrentHopDetails hop={liveHop} className="" />
                     </div>
                 </div>

@@ -128,22 +128,22 @@ When creating assets that contain multiple items (arrays, lists, collections):
 
 **CORRECT WAY**:
 ```json
-{
+{{
   "name": "Weekly Email Activity Summary",
   "type": "object",           // Use a valid AssetType, NOT "array"
   "subtype": "json",
   "is_collection": true,      // This makes it a collection
   "collection_type": "array", // Specifies it's an array collection
   "description": "Summary of email activity by day of the week",
-  "schema_description": "[{ 'day_of_week': 'Monday', 'sent': 123, 'received': 150 }, ...]"
-}
+  "schema_description": "[{{ 'day_of_week': 'Monday', 'sent': 123, 'received': 150 }}, ...]"
+}}
 ```
 
 **WRONG WAY** ❌:
 ```json
-{
+{{
   "type": "array"  // "array" is NOT a valid AssetType
-}
+}}
 ```
 
 ### Valid Asset Types

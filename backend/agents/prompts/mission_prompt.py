@@ -17,10 +17,10 @@ class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
     name: str = Field(description="Name of the asset")
     description: str = Field(description="Clear description of what this asset contains")
-    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown'")
+    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown'. Do NOT use 'array' - use is_collection instead!")
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email')")
-    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items")
-    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true")
+    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
+    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
     required: bool = Field(default=True, description="Whether this asset is required for the mission")
     schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")

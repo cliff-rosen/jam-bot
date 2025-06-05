@@ -111,7 +111,7 @@ Input Mapping:
 
 Output:
 - Name: [Output asset name]
-- Type: [Asset type]
+- Type: [Asset type - MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown']
 - Description: [What this asset contains]
 - Schema: [Expected structure/format]
 
@@ -120,6 +120,44 @@ Is Final: [Yes/No - whether this produces the final deliverable]
 
 Rationale: [Why this is the right next step given available tools]
 ```
+
+## Asset Creation Guidelines
+
+### Collection Assets
+When creating assets that contain multiple items (arrays, lists, collections):
+
+**CORRECT WAY**:
+```json
+{
+  "name": "Weekly Email Activity Summary",
+  "type": "object",           // Use a valid AssetType, NOT "array"
+  "subtype": "json",
+  "is_collection": true,      // This makes it a collection
+  "collection_type": "array", // Specifies it's an array collection
+  "description": "Summary of email activity by day of the week",
+  "schema_description": "[{ 'day_of_week': 'Monday', 'sent': 123, 'received': 150 }, ...]"
+}
+```
+
+**WRONG WAY** ❌:
+```json
+{
+  "type": "array"  // "array" is NOT a valid AssetType
+}
+```
+
+### Valid Asset Types
+- **file**: For document files, images, exports
+- **primitive**: For simple values (strings, numbers, booleans)
+- **object**: For structured data, JSON objects, complex data structures
+- **database_entity**: For database records or entities
+- **markdown**: For markdown-formatted text content
+
+### Collection Examples
+1. **Array of objects**: `type: "object", is_collection: true, collection_type: "array"`
+2. **List of emails**: `type: "object", is_collection: true, collection_type: "array"`
+3. **Set of keywords**: `type: "primitive", is_collection: true, collection_type: "set"`
+4. **Map of categories**: `type: "object", is_collection: true, collection_type: "map"`
 
 **INTERVIEW_QUESTION**: Use when you need clarification
 ```

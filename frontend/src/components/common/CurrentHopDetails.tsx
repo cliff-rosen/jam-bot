@@ -148,21 +148,13 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                 <div className="space-y-2">
                                     {hop.steps.map((step, index) => {
                                         const stepStatus = getExecutionStatusDisplay(step.status);
-                                        const isCurrentStep = index === hop.current_step_index;
 
                                         return (
                                             <div key={step.id || index} className="border-l-2 border-gray-300 pl-3 space-y-1">
                                                 <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                                            {index + 1}. {step.tool_id}
-                                                        </span>
-                                                        {isCurrentStep && (
-                                                            <span className="px-1 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">
-                                                                Current
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                        {index + 1}. {step.tool_id}
+                                                    </span>
                                                     <span className={`${getStatusBadgeClass(stepStatus.color)} text-xs`}>
                                                         {stepStatus.text}
                                                     </span>
@@ -171,28 +163,70 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 <div className="text-xs text-gray-500">{step.description}</div>
 
                                                 {step.parameter_mapping && Object.keys(step.parameter_mapping).length > 0 && (
-                                                    <div className="space-y-0.5">
-                                                        <div className="text-xs font-medium text-gray-600">Parameters</div>
+                                                    <div className="ml-3 space-y-0.5">
+                                                        <div className="text-xs font-medium text-gray-600">Inputs</div>
                                                         {Object.entries(step.parameter_mapping).map(([param, mapping]) => {
                                                             const isLiteral = 'literal' in mapping;
-                                                            const value = isLiteral ? JSON.stringify(mapping.literal) : `${mapping.state_asset}`;
-                                                            return (
-                                                                <div key={param} className="text-xs text-gray-500">
-                                                                    <span className="text-blue-600 dark:text-blue-400">{param}:</span> {value}
-                                                                </div>
-                                                            );
+                                                            if (isLiteral) {
+                                                                const value = JSON.stringify(mapping.literal);
+                                                                return (
+                                                                    <div key={param} className="text-xs text-gray-500">
+                                                                        <span className="text-blue-600 dark:text-blue-400">{param}:</span> {value}
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                const asset = hop.state?.[mapping.state_asset];
+                                                                const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
+                                                                const tooltipText = [
+                                                                    `Parameter: ${param}`,
+                                                                    `Hop Variable: ${mapping.state_asset}`,
+                                                                    mapping.path ? `Path: ${mapping.path}` : null,
+                                                                    asset?.name ? `Asset Name: ${asset.name}` : null,
+                                                                    asset?.description ? `Description: ${asset.description}` : null
+                                                                ].filter(Boolean).join('\n');
+
+                                                                return (
+                                                                    <div key={param} className="text-xs text-gray-500">
+                                                                        <span className="text-blue-600 dark:text-blue-400">{param}:</span>
+                                                                        <span
+                                                                            className="ml-1 hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors"
+                                                                            title={tooltipText}
+                                                                        >
+                                                                            {asset?.name || 'Unknown Asset'}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            }
                                                         })}
                                                     </div>
                                                 )}
 
                                                 {step.result_mapping && Object.keys(step.result_mapping).length > 0 && (
-                                                    <div className="space-y-0.5">
-                                                        <div className="text-xs font-medium text-gray-600">Results</div>
-                                                        {Object.entries(step.result_mapping).map(([result, mapping]) => (
-                                                            <div key={result} className="text-xs text-gray-500">
-                                                                <span className="text-green-600 dark:text-green-400">{result}:</span> {mapping.state_asset}
-                                                            </div>
-                                                        ))}
+                                                    <div className="ml-3 space-y-0.5">
+                                                        <div className="text-xs font-medium text-gray-600">Outputs</div>
+                                                        {Object.entries(step.result_mapping).map(([result, mapping]) => {
+                                                            const asset = hop.state?.[mapping.state_asset];
+                                                            const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
+                                                            const tooltipText = [
+                                                                `Result: ${result}`,
+                                                                `Hop Variable: ${mapping.state_asset}`,
+                                                                mapping.path ? `Path: ${mapping.path}` : null,
+                                                                asset?.name ? `Asset Name: ${asset.name}` : null,
+                                                                asset?.description ? `Description: ${asset.description}` : null
+                                                            ].filter(Boolean).join('\n');
+
+                                                            return (
+                                                                <div key={result} className="text-xs text-gray-500">
+                                                                    <span className="text-green-600 dark:text-green-400">{result}:</span>
+                                                                    <span
+                                                                        className="ml-1 hover:text-green-600 dark:hover:text-green-400 cursor-help transition-colors"
+                                                                        title={tooltipText}
+                                                                    >
+                                                                        {assetName || 'Unknown Asset'}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
 

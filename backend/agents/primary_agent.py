@@ -366,8 +366,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
-        print("================================================")
-        print("Parsed hop design response:", parsed_response)
 
         if parsed_response.hop_proposal:
             # Convert hop proposal to Hop object

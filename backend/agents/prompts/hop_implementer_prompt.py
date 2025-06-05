@@ -68,17 +68,19 @@ There are **two distinct mapping layers**:
 - **Input mapping**: `{{local_key: external_asset_id}}` - Brings mission assets into hop's local workspace
 - **Output mapping**: `{{local_key: external_asset_id}}` - Exports hop results back to mission assets
 
-### 2. TOOL MAPPINGS (Hop State ↔ Tool I/O + Literals)
-- **Parameter mapping**: Maps hop state OR literals to tool input parameters
+### 2. TOOL MAPPINGS (Hop State ↔ Tool I/O)
+- **Parameter mapping**: Maps tool parameters to hop state assets or literals
   - Asset reference: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
   - Literal value: {{"type": "literal", "value": "configuration_value"}}
-- **Output mapping**: {{"tool_output_name": "local_asset_name"}} - Maps tool outputs to hop state
+- **Result mapping**: Maps tool outputs to hop state assets
+  - Format: {{"tool_output_name": {{"type": "asset_field", "state_asset": "local_asset_name"}}}}
+  - Example: {{"emails": {{"type": "asset_field", "state_asset": "retrieved_emails"}}}}
 
 Visual Flow:
 ```
 Mission Assets → [Hop Input Mapping] → Hop State → [Tool Parameter Mapping] → Tool Inputs
                                                                                       ↓
-Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Output Mapping] ← Tool Outputs
+Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Result Mapping] ← Tool Outputs
 ```
 
 ## Parameter Mapping Rules for Tools
@@ -113,6 +115,7 @@ Use these three types for tool parameter mapping:
    - Create tool steps that operate on hop's local state
    - Use appropriate parameter mappings (asset_field vs literal)
    - Ensure tool outputs populate hop state correctly
+   - IMPORTANT: Each tool step's result_mapping must use the AssetFieldMapping format
 
 3. **Validate the design**
    - Verify hop input mapping provides necessary data to tool chain
@@ -126,8 +129,24 @@ Use these three types for tool parameter mapping:
   "response_type": "IMPLEMENTATION_PLAN | CLARIFICATION_NEEDED | RESOLUTION_FAILED",
   "response_content": "Explanation of the implementation or why it failed",
   "hop": {{
-    // Complete hop object with populated "steps" array
-    // Required for IMPLEMENTATION_PLAN
+    "id": "unique_hop_id",
+    "name": "Hop Name",
+    "description": "Hop description",
+    "input_mapping": {{"local_key": "external_asset_id"}},
+    "output_mapping": {{"local_key": "external_asset_id"}},
+    "steps": [
+      {{
+        "id": "step_id",
+        "tool_id": "tool_name",
+        "description": "Step description",
+        "parameter_mapping": {{
+          "param_name": {{"type": "asset_field", "state_asset": "asset_name"}}
+        }},
+        "result_mapping": {{
+          "tool_output": {{"type": "asset_field", "state_asset": "local_asset_name"}}
+        }}
+      }}
+    ]
   }},
   "missing_information": [
     // List of information needed to complete implementation

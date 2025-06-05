@@ -533,7 +533,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
             mission=state.mission,
-            current_hop=current_hop,  # Use the found hop
+            current_hop=current_hop,
             available_assets=available_assets
         )
         
@@ -566,7 +566,44 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
 
-        if parsed_response.hop:
+        # Handle different response types
+        if parsed_response.response_type == "RESOLUTION_FAILED":
+            # Update hop status to indicate failure
+            current_hop.status = ExecutionStatus.FAILED
+            current_hop.error = parsed_response.resolution_failure.get("specific_issues", ["Unknown failure"])[0]
+            
+            # Set mission hop status to ready for next hop design
+            state.mission.hop_status = HopStatus.READY_TO_DESIGN
+            
+            # Create error message
+            error_details = {
+                "failure_type": parsed_response.resolution_failure.get("failure_type", "OTHER"),
+                "specific_issues": parsed_response.resolution_failure.get("specific_issues", []),
+                "suggested_alternatives": parsed_response.resolution_failure.get("suggested_alternatives", [])
+            }
+            
+            response_message = Message(
+                id=str(uuid.uuid4()),
+                role=MessageRole.ASSISTANT,
+                content=f"Failed to implement hop '{current_hop.name}': {parsed_response.response_content}\n\nFailure Details: {json.dumps(error_details, indent=2)}",
+                timestamp=datetime.utcnow().isoformat()
+            )
+            
+        elif parsed_response.response_type == "CLARIFICATION_NEEDED":
+            # Keep hop in current state but mark as needing clarification
+            current_hop.status = ExecutionStatus.PENDING
+            state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
+            
+            # Create clarification message
+            missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
+            response_message = Message(
+                id=str(uuid.uuid4()),
+                role=MessageRole.ASSISTANT,
+                content=f"Need clarification to implement hop '{current_hop.name}':\n\n{parsed_response.response_content}\n\nMissing Information:\n{missing_info}",
+                timestamp=datetime.utcnow().isoformat()
+            )
+            
+        elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
             # Update the current hop with the populated steps
             updated_hop = parsed_response.hop
             
@@ -578,15 +615,17 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             # Update the timestamp
             current_hop.updated_at = datetime.utcnow()
             
-            # Set hop status to ready to execute - that's where implementer's job ends
+            # Set hop status to ready to execute
             state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
-
-        response_message = Message(
-            id=str(uuid.uuid4()),
-            role=MessageRole.ASSISTANT,
-            content=parsed_response.response_content,
-            timestamp=datetime.utcnow().isoformat()
-        )
+            
+            response_message = Message(
+                id=str(uuid.uuid4()),
+                role=MessageRole.ASSISTANT,
+                content=parsed_response.response_content,
+                timestamp=datetime.utcnow().isoformat()
+            )
+        else:
+            raise ValueError(f"Invalid response type: {parsed_response.response_type}")
 
         # Route back to supervisor
         next_node = END
@@ -607,8 +646,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "token": response_message.content[0:100],
                 "response_text": parsed_response.response_content,
                 "status": "hop_implementer_completed",
-                "error": None,
-                "debug": f"Hop implemented and executed: {hop_name}, {next_status}",
+                "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
+                "debug": f"Hop implementation status: {current_hop.status}, {next_status}",
                 "payload": {
                     "hop": current_hop.model_dump(mode='json')
                 }

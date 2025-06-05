@@ -24,14 +24,14 @@ class AssetLite(BaseModel):
     required: bool = Field(default=True, description="Whether this asset is required for the mission")
     schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
-    
+
 class MissionProposal(BaseModel):
     """Structure for a proposed mission"""
     name: str = Field(description="Name of the mission (2-8 words)")
     description: str = Field(description="One sentence describing what the mission accomplishes")
     goal: str = Field(description="The main goal of the mission")
     success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
-    inputs: List[AssetLite] = Field(description="Input assets required for the mission")
+    inputs: List[AssetLite] = Field(description="Input assets required for the mission (both data assets and configuration parameters)")
     outputs: List[AssetLite] = Field(description="Output assets produced by the mission")
     scope: str = Field(description="What is explicitly included/excluded in the mission")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
@@ -72,46 +72,66 @@ When validating mission feasibility, consider these specific capabilities:
 
 Consider these actual tool capabilities when assessing mission feasibility and designing input/output assets.
 
-## Understanding Input Assets
-When defining a mission, ALL inputs should be represented as assets. Common input asset types include:
+## Understanding Mission Inputs
 
-### 1. Query/Question Assets
-- The primary question or query driving the mission
-- Type: Usually PRIMITIVE or OBJECT
-- Example: "What are the top AI breakthroughs in healthcare this month?"
+When defining a mission, recognize that inputs fall into two conceptual categories, but all are modeled as AssetLite objects:
 
-### 2. Configuration Parameter Assets
-- Settings that control how the mission executes
-- Type: PRIMITIVE or OBJECT
-- Examples:
-  - Location parameters (city, radius, coordinates)
-  - Filter criteria (ratings, price range, categories)
-  - Time constraints (date ranges, deadlines)
-  - Quality thresholds (minimum confidence, accuracy levels)
+### 1. Data Assets (Real Content)
+These are actual files, documents, or datasets that contain information to be processed:
+- **Resume files** → AssetLite with type="file" (contains actual resume content)
+- **Email collections** → AssetLite with type="object" (contains actual email data)  
+- **Documents to analyze** → AssetLite with type="file" or "markdown" (contains text content)
+- **Datasets or databases** → AssetLite with type="object" (contains structured data)
+- **Reference materials** → AssetLite with type="file" (contains comparison data)
 
-### 3. Reference Data Assets
-- Existing data to use as context or for comparison
-- Type: Can be any type (FILE, OBJECT, DATABASE_ENTITY)
-- Examples:
-  - Previous reports for trend analysis
-  - Benchmark datasets
-  - Template documents
+### 2. Configuration Parameters (Settings)
+These control HOW the mission operates, but are still modeled as simple AssetLite objects:
+- **Email folder names** → AssetLite with type="primitive" (value: "AI News", "INBOX")
+- **Date ranges** → AssetLite with type="primitive" (value: "April 2024", "last 30 days")  
+- **Search criteria** → AssetLite with type="primitive" (value: "new model capabilities")
+- **Output formats** → AssetLite with type="primitive" (value: "PDF", "JSON", "markdown")
+- **Quality thresholds** → AssetLite with type="primitive" (value: minimum confidence scores)
+- **Processing preferences** → AssetLite with type="primitive" (value: sort order, filters)
 
-### 4. Constraint/Filter Assets
-- Rules and boundaries for the mission
-- Type: Usually OBJECT
-- Examples:
-  - Inclusion/exclusion lists
-  - Regulatory compliance rules
-  - Budget limitations
+### Examples:
 
-### 5. Processing Instruction Assets
-- Specific methods or approaches to use
-- Type: PRIMITIVE or OBJECT
-- Examples:
-  - Analysis methodology preferences
-  - Output format specifications
-  - Workflow preferences
+**Email Analysis Mission:**
+```
+inputs: [
+  {
+    "name": "Email Folder Name",
+    "type": "primitive", 
+    "description": "Gmail folder to search for AI newsletters",
+    "example_value": "AI News"
+  },
+  {
+    "name": "Date Range", 
+    "type": "primitive",
+    "description": "Time period for email search",
+    "example_value": "April 2024"
+  }
+]
+```
+
+**Resume Analysis Mission:**  
+```
+inputs: [
+  {
+    "name": "Resume Document",
+    "type": "file",
+    "description": "PDF or DOC file containing the resume to analyze",
+    "required": true
+  },
+  {
+    "name": "Analysis Focus",
+    "type": "primitive", 
+    "description": "What aspects to focus the analysis on",
+    "example_value": "technical skills"
+  }
+]
+```
+
+**Key Insight:** While conceptually different (content vs configuration), both are modeled as AssetLite objects. The distinction matters for tool implementation - content assets become hop state, while configuration parameters become literal values in tool calls.
 
 ## Mission Validation Requirements
 Before proposing any mission, ensure it meets these essential conditions:

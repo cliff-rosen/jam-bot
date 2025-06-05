@@ -30,6 +30,20 @@ class ExecutionStatus(str, Enum):
     FAILED = "failed"
 
 
+class AssetFieldMapping(BaseModel):
+    type: str = Field(default="asset_field", const=True)
+    state_asset: str
+    path: Optional[str] = None
+
+
+class LiteralMapping(BaseModel):
+    type: str = Field(default="literal", const=True)
+    value: Any
+
+
+ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
+
+
 class ToolStep(BaseModel):
     """Represents an atomic unit of work - a single tool execution within a hop"""
     id: str = Field(description="Unique identifier for the tool step")
@@ -37,11 +51,11 @@ class ToolStep(BaseModel):
     description: str = Field(description="Description of what this tool step accomplishes")
     
     # Asset mappings within hop state
-    parameter_mapping: Dict[str, Dict[str, Any]] = Field(
-        description="Maps tool parameters to hop state assets. Format: {tool_param: {'state_asset': local_key, 'path': '...'}}"
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(
+        description="Maps tool parameters to hop state assets or literals."
     )
-    result_mapping: Dict[str, Dict[str, Any]] = Field(
-        description="Maps tool outputs to hop state assets. Format: {tool_output: {'state_asset': local_key, 'path': '...'}}"
+    result_mapping: Dict[str, AssetFieldMapping] = Field(
+        description="Maps tool outputs to hop state assets."
     )
     
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)

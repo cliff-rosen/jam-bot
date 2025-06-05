@@ -76,6 +76,66 @@ class HopImplementerPrompt(BasePrompt):
 
 ## Asset Mapping Instructions
 
+### CONFIG Assets (Configuration Parameters)
+
+- If a config value exists as a CONFIG asset in `hop.state`, reference it as an asset field in the parameter mapping:
+  ```json
+  "parameter_mapping": {
+    "folder": { "type": "asset_field", "state_asset": "folder_config" }
+  }
+  ```
+- Only use a literal value in the parameter mapping if there is **no** CONFIG asset in `hop.state` for that parameter:
+  ```json
+  "parameter_mapping": {
+    "folder": { "type": "literal", "value": "AI News" }
+  }
+  ```
+- **Do not** create CONFIG assets for tool-step-only, ephemeral config values—use literals for those.
+- Only create CONFIG assets for persistent, reusable config values (those that are user-supplied at the mission level, or needed by multiple steps in a hop).
+
+**Summary:**
+- Reference CONFIG assets as asset fields if present in hop.state.
+- Use literals only for ephemeral, tool-step-only config values.
+- Never create unnecessary CONFIG assets for one-off tool parameters.
+
+**Example:**
+If the hop state contains:
+```
+"folder_config": {
+  "id": "asset_123",
+  "type": "config",
+  "content": "AI News"
+}
+```
+Then the tool parameter mapping should be:
+```
+"parameter_mapping": {
+  "folder": { "type": "asset_field", "state_asset": "folder_config" }
+}
+```
+
+### CRITICAL: Parameter Mapping Types
+
+**There are exactly THREE types of parameter values:**
+
+1. **LITERAL VALUES** - Values created specifically for this tool call
+   - Search queries, configuration options, static strings, numbers
+   - These are NOT stored as assets - they're tool-specific values
+   - Format: `{"type": "literal", "value": "actual_value"}`
+   - Examples: `"search for AI news"`, `"ascending"`, `42`, `["field1", "field2"]`
+
+2. **ASSET REFERENCES** - Values that come from existing hop state/assets  
+   - Data from previous tool steps, hop inputs, computed results
+   - These reference actual assets in the hop's state
+   - Format: `{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}`
+   - Examples: Email collections, extracted data, processed results
+
+3. **CONFIG ASSETS** - Configuration parameters stored as assets of type CONFIG
+   - When a parameter is mapped to a CONFIG asset, use its value as a literal
+   - Format: `{"type": "asset_field", "state_asset": "config_asset_name"}` but must be resolved to a literal value at execution time
+
+**NEVER** create data assets for tool-specific configuration values like search strings, sort orders, or processing options! Use CONFIG assets instead.
+
 ### Input Mapping Flow:
 1. The hop has `input_mapping` that maps logical names to asset IDs
    Example: {{"email_criteria": "asset_123", "date_range": "asset_456"}}
@@ -251,6 +311,75 @@ To implement this hop, I need clarification on:
 
 Please provide these details so I can create a complete implementation.
 ```
+
+## Implementation Process
+1. **Apply Resolution Methodology**: Use the Input→Output analysis process above
+2. **Start with the simplest solution**: Can 1 tool do this? If yes, use 1 tool!
+3. **If multi-tool needed**: Chain tools step-by-step, each getting closer to the goal
+4. **Configure each tool step**: Map inputs/outputs using the hop's asset mappings
+5. **Validate the chain**: Ensure the tool sequence actually reaches the final output
+6. **Add error handling**: Consider what could go wrong at each step
+
+## Guidelines
+- Use exact paths to extract values from input assets
+- Chain tools when needed for complex transformations
+- Consider rate limits and performance
+- Handle missing or invalid data gracefully
+- Ensure outputs match the expected asset structure
+- Think about idempotency and retries
+
+## Current Context
+IMPORTANT: Your primary focus is to generate a plan for the "Current Hop" ONLY. Use the "Mission" and "Available Assets" for context and to understand how the hop fits into the larger picture, but do NOT attempt to implement the entire mission.
+
+Mission: {mission}
+Current Hop: {current_hop}
+Available Assets: {available_assets}
+
+Based on this context, create a detailed implementation plan for the current hop.
+
+## CONFIG Parameter Handling (Mission, Hop, and Tool Step Levels)
+
+When a tool step requires a configuration parameter (e.g., folder name, threshold, search string), follow these rules:
+
+### 1. Mission-Level Config Parameters
+- If the config parameter is supplied by the user at mission creation, it MUST be stored as a CONFIG asset in `mission.state`.
+- When designing a hop that needs this config, copy the CONFIG asset from `mission.state` to `hop.state` (using the same or a new logical key).
+- In the tool step's parameter mapping, reference the CONFIG asset in `hop.state` and extract its value as a literal for the tool call.
+
+### 2. Hop-Level Config Parameters
+- If a config parameter is required for a hop (not present in `mission.state`), create a CONFIG asset in `hop.state` with the required value.
+- In the tool step's parameter mapping, reference this CONFIG asset and extract its value as a literal for the tool call.
+
+### 3. Tool Step–Only Config Parameters
+- If a config parameter is only needed for a single tool step and is not present in `hop.state` or `mission.state`, use a literal value directly in the parameter mapping. No asset is created.
+
+### 4. Data Assets
+- Data assets (files, objects, etc.) are always referenced as asset fields in parameter mapping, never as literals.
+
+#### Summary Table
+| Scenario                                 | Storage Location         | Mapping in Tool Step                |
+|-------------------------------------------|-------------------------|-------------------------------------|
+| 1. Mission-level config param             | `mission.state` (CONFIG asset) → copy to `hop.state` | Reference asset in hop param mapping; extract value as literal |
+| 2. Hop-level config param                 | `hop.state` (CONFIG asset)     | Reference asset in tool param mapping; extract value as literal |
+| 3. Tool-step-only config param (literal)  | None (no asset)         | Directly as a literal in parameter mapping |
+| 4. Data asset                             | `hop.state` (data asset) | Reference as asset field in parameter mapping |
+
+### Example
+Suppose a tool step needs a folder name:
+- If the folder name was supplied at mission creation, it is a CONFIG asset in `mission.state`. Copy it to `hop.state` as needed.
+- If the folder name is only needed for this hop, create a CONFIG asset in `hop.state`.
+- If the folder name is only needed for this tool step, use a literal in the parameter mapping.
+
+**Parameter Mapping Example:**
+```json
+{
+  "folder": { "type": "asset_field", "state_asset": "folder_config" },
+  "threshold": { "type": "literal", "value": 0.8 }
+}
+```
+At execution, if `folder_config` is a CONFIG asset, its value is extracted and passed as a literal to the tool.
+
+**NEVER** create data assets for tool-specific configuration values like search strings, sort orders, or processing options! Use CONFIG assets for persistent config, and literals for ephemeral tool-step config.
 
 ## Implementation Process
 1. **Apply Resolution Methodology**: Use the Input→Output analysis process above

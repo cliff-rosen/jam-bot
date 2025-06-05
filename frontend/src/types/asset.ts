@@ -3,7 +3,8 @@ export enum AssetType {
     PRIMITIVE = "primitive",
     OBJECT = "object",
     DATABASE_ENTITY = "database_entity",
-    MARKDOWN = "markdown"
+    MARKDOWN = "markdown",
+    CONFIG = "config"
 }
 
 export enum CollectionType {

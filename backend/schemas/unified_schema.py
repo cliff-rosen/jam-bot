@@ -14,6 +14,9 @@ CustomType = Literal['email', 'webpage', 'search_result', 'pubmed_article', 'new
 ComplexType = Literal['object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']  # Added 'markdown', 'config' for backend compatibility
 ValueType = Union[PrimitiveType, ComplexType]
 
+# Asset role in the workflow/mission context
+AssetRole = Literal['input', 'output', 'intermediate']
+
 class SchemaType(BaseModel):
     """Schema definition that works for both assets and tool parameters/outputs"""
     type: ValueType
@@ -48,6 +51,7 @@ class Asset(SchemaEntity):
     subtype: Optional[str] = None  # Allow any string for flexibility like the old schema
     is_collection: bool = False
     collection_type: Optional[Literal['array', 'map', 'set', 'null']] = None
+    role: Optional[AssetRole] = None  # Role of this asset in the workflow (input, output, or intermediate/WIP)
     asset_metadata: AssetMetadata = Field(default_factory=AssetMetadata)
 
 class ToolParameter(SchemaEntity):

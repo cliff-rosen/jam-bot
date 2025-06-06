@@ -5,6 +5,9 @@ export type CustomType = 'email' | 'webpage' | 'search_result' | 'pubmed_article
 export type ComplexType = 'object' | 'file' | 'database_entity' | CustomType;
 export type ValueType = PrimitiveType | ComplexType;
 
+// Asset role in the workflow/mission context
+export type AssetRole = 'input' | 'output' | 'intermediate';
+
 export interface SchemaType {
     type: ValueType;
     description?: string;
@@ -27,6 +30,7 @@ export interface Asset extends SchemaEntity {
     subtype?: CustomType;
     is_collection: boolean;
     collection_type?: 'array' | 'map' | 'set' | 'null';
+    role?: AssetRole;  // Role of this asset in the workflow (input, output, or intermediate/WIP)
     asset_metadata: {
         createdAt: string;
         updatedAt: string;

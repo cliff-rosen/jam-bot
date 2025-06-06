@@ -102,6 +102,7 @@ class AssetService:
             subtype=model.subtype,
             is_collection=model.is_collection or False,
             collection_type=model.collection_type or 'null',
+            role=model.role,  # Include the role field
             asset_metadata=asset_metadata  # Use unified metadata structure
         )
 

@@ -21,6 +21,7 @@ class AssetLite(BaseModel):
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email')")
     is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
     collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
+    role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data, 'output' for final results, 'intermediate' for work-in-progress")
     required: bool = Field(default=True, description="Whether this asset is required for the mission")
     schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
@@ -82,6 +83,7 @@ The system has these specific tools available for mission execution:
       "subtype": "Specific format or schema",
       "is_collection": false,
       "collection_type": null,
+      "role": "input",
       "required": true,
       "schema_description": "Expected structure/format",
       "example_value": "Example of what the asset value might look like"
@@ -95,6 +97,7 @@ The system has these specific tools available for mission execution:
       "subtype": "Specific format or schema",
       "is_collection": false,
       "collection_type": null,
+      "role": "output",
       "required": true,
       "schema_description": "Expected structure/format",
       "example_value": "Example of what the asset value might look like"
@@ -109,31 +112,36 @@ The system has these specific tools available for mission execution:
 
 ## Asset Types and Schemas
 
+### Asset Roles
+- **input**: Assets provided by the user or system as starting data
+- **output**: Final results produced by the mission
+- **intermediate**: Work-in-progress assets created during mission execution
+
 ### 1. Data Assets (Content)
 - **File Assets** (type: "file")
   - Use for documents, images, exports
   - Must specify valid file subtype (pdf, doc, txt, etc.)
-  - Example: {{"type": "file", "subtype": "pdf", "description": "Resume document"}}
+  - Example: {{"type": "file", "subtype": "pdf", "role": "input", "description": "Resume document"}}
 
 - **Object Assets** (type: "object")
   - Use for structured data, JSON objects
   - Must include schema_description
-  - Example: {{"type": "object", "subtype": "json", "schema_description": "{{\"field1\": \"string\", \"field2\": \"number\"}}"}}
+  - Example: {{"type": "object", "subtype": "json", "role": "intermediate", "schema_description": "{{\"field1\": \"string\", \"field2\": \"number\"}}"}}
 
 - **Database Entity Assets** (type: "database_entity")
   - Use for database records
   - Include table name and query parameters
-  - Example: {{"type": "database_entity", "subtype": "user_record"}}
+  - Example: {{"type": "database_entity", "subtype": "user_record", "role": "output"}}
 
 - **Markdown Assets** (type: "markdown")
   - Use for formatted text content
-  - Example: {{"type": "markdown", "subtype": "report"}}
+  - Example: {{"type": "markdown", "subtype": "report", "role": "output"}}
 
 ### 2. Configuration Assets (Settings)
 - **Primitive Assets** (type: "primitive")
   - Use for simple values (strings, numbers, booleans)
   - Must specify subtype for validation
-  - Example: {{"type": "primitive", "subtype": "string", "example_value": "AI News"}}
+  - Example: {{"type": "primitive", "subtype": "string", "role": "input", "example_value": "AI News"}}
 
 ### Collection Assets
 When creating assets that contain multiple items:
@@ -143,6 +151,7 @@ When creating assets that contain multiple items:
   "type": "object",  // Base type for the items
   "is_collection": true,
   "collection_type": "array | map | set",
+  "role": "input | output | intermediate",
   "schema_description": "Schema for individual items"
 }}
 ```
@@ -153,6 +162,7 @@ When creating assets that contain multiple items:
    - name: Descriptive name
    - type: Valid asset type
    - description: Clear purpose
+   - role: Asset's role in workflow
    - schema_description: Expected structure
 
 2. **Type-Specific Rules**:
@@ -165,6 +175,11 @@ When creating assets that contain multiple items:
    - If is_collection: true, must specify collection_type
    - Collection items must have defined schema
    - Array items must be homogeneous
+
+4. **Role Rules**:
+   - Input assets: User-provided or system-provided starting data
+   - Output assets: Final deliverables from the mission
+   - Intermediate assets: Temporary/work-in-progress assets during execution
 
 ## Response Formats
 
@@ -186,6 +201,7 @@ When creating assets that contain multiple items:
         "name": "Input Name",
         "type": "object",
         "description": "Input description",
+        "role": "input",
         "schema_description": "Input schema"
       }}
     ],
@@ -194,6 +210,7 @@ When creating assets that contain multiple items:
         "name": "Output Name",
         "type": "object",
         "description": "Output description",
+        "role": "output",
         "schema_description": "Output schema"
       }}
     ],
@@ -218,9 +235,11 @@ When creating assets that contain multiple items:
    - Make success criteria specific and measurable
    - Ensure all required inputs are available
    - Define clear output formats and schemas
+   - Use appropriate asset roles to clarify data flow
 
 2. **Asset Design**:
    - Use appropriate asset types for each purpose
+   - Set correct role (input/output/intermediate) for each asset
    - Provide clear schema descriptions
    - Include example values where helpful
    - Validate schema compatibility

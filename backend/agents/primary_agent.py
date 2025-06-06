@@ -57,6 +57,7 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
         collection_type=asset_lite.collection_type.value if hasattr(asset_lite.collection_type, 'value') else str(asset_lite.collection_type) if asset_lite.collection_type else 'null',
+        role=asset_lite.role,  # Include the role field
         asset_metadata={
             'createdAt': current_time.isoformat(),
             'updatedAt': current_time.isoformat(),

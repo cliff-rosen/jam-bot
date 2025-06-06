@@ -6,16 +6,12 @@ interface AssetLibraryPanelProps {
     assets: Asset[];
     onAssetSelect: (asset: Asset) => void;
     selectedAssetId?: string;
-    inputAssetIds: string[];
-    outputAssetIds: string[];
 }
 
 const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
     assets,
     onAssetSelect,
     selectedAssetId,
-    inputAssetIds = [],
-    outputAssetIds = [],
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
@@ -33,10 +29,11 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
         });
     };
 
+    // Use the new role property for categorization
     const categorizedAssets = {
-        inputs: assets.filter(asset => inputAssetIds.includes(asset.id)),
-        outputs: assets.filter(asset => outputAssetIds.includes(asset.id)),
-        wips: assets.filter(asset => !inputAssetIds.includes(asset.id) && !outputAssetIds.includes(asset.id)),
+        inputs: assets.filter(asset => asset.role === 'input'),
+        outputs: assets.filter(asset => asset.role === 'output'),
+        wips: assets.filter(asset => asset.role === 'intermediate' || (!asset.role && asset.role !== 'input' && asset.role !== 'output')), // Fallback for assets without role
     };
 
     const filteredInputAssets = applyFilters(categorizedAssets.inputs);
@@ -158,6 +155,15 @@ const AssetCard: React.FC<{ asset: Asset; onAssetSelect: (asset: Asset) => void;
             <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
                 {asset.schema.type?.toUpperCase() || 'UNKNOWN'}
             </div>
+            {/* Show role badge */}
+            {asset.role && (
+                <div className={`text-[10px] px-2 py-0.5 rounded w-fit border ${asset.role === 'input' ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                    asset.role === 'output' ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' :
+                        'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                    }`}>
+                    {asset.role}
+                </div>
+            )}
             {asset.asset_metadata?.token_count !== undefined && (
                 <div className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 w-fit border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                     {asset.asset_metadata.token_count} tokens

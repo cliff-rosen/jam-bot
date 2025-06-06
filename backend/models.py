@@ -57,6 +57,7 @@ class Asset(Base):
     subtype = Column(String(255), nullable=True)
     is_collection = Column(Boolean, default=False)
     collection_type = Column(Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
+    role = Column(String(50), nullable=True)  # Role of asset in workflow: input, output, intermediate
     content = Column(JSON, nullable=True)
     asset_metadata = Column(JSON, nullable=False, default=dict)
     db_entity_metadata = Column(JSON, nullable=True)

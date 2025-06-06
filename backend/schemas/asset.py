@@ -9,10 +9,10 @@ from datetime import datetime
 from enum import Enum
 
 # Primary exports from unified schema
-from .unified_schema import Asset, SchemaType, AssetMetadata
+from .unified_schema import Asset, SchemaType, AssetMetadata, AssetRole
 
 # Re-export the unified types as primary interfaces
-__all__ = ['Asset', 'SchemaType', 'AssetMetadata', 'DatabaseEntityMetadata', 'CreateAssetRequest', 
+__all__ = ['Asset', 'SchemaType', 'AssetMetadata', 'AssetRole', 'DatabaseEntityMetadata', 'CreateAssetRequest', 
            'AssetType', 'CollectionType', 'FileType', 'AssetSubtype', 'DAILY_NEWSLETTER_RECAP_ASSET']
 
 # Backend-specific enums (these are used by database models and API)
@@ -93,6 +93,7 @@ class CreateAssetRequest(BaseModel):
     subtype: Optional[str] = None
     is_collection: bool = False
     collection_type: Optional[CollectionType] = None
+    role: Optional[AssetRole] = None  # Role of asset in workflow
     content: Optional[Any] = None
     asset_metadata: Optional[Dict[str, Any]] = None
 

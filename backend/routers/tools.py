@@ -5,11 +5,11 @@ import json
 import logging
 from database import get_db
 
-from services.auth_service import validate_token
-from services.email_tool_handlers import handle_email_search
-
 from schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
 from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY
+
+from services.auth_service import validate_token
+from services.email_tool_handlers import handle_email_search
 
 logger = logging.getLogger(__name__)
 

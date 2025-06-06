@@ -3,7 +3,6 @@ from typing import Dict, Any, List, Optional, Union, Callable, Awaitable
 from enum import Enum
 import json
 import os
-from .asset import AssetSchema
 from .shared_types import ToolDefinition, ToolParameter, ToolOutput, TOOL_REGISTRY, ToolStep
 
 

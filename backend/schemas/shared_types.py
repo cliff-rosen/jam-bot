@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union, Literal, Callable, Awaitable
 from datetime import datetime
 from enum import Enum
-from .asset import AssetType, CollectionType
+from .asset import Asset
 
 class ExecutionStatus(str, Enum):
     """Status of tool execution"""

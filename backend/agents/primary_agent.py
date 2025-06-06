@@ -260,7 +260,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             for asset in state.mission.outputs:
                 state.mission.state[asset.id] = asset
 
-            print(f"DEBUG: Mission state: {state.mission.state}")
+            # print(f"DEBUG: Mission state: {state.mission.state}")
 
         response_message = Message(
             id=str(uuid.uuid4()),

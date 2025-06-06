@@ -4,8 +4,8 @@ from datetime import datetime
 from services.email_service import EmailService
 
 from schemas.workflow import ToolStep, Asset
-from schemas.tools import register_tool_handler, ToolExecutionHandler
-from schemas.tools import AssetFieldMapping, LiteralMapping
+from schemas.tool_utils import register_tool_handler, ToolExecutionHandler
+from schemas.asset import AssetFieldMapping, LiteralMapping
 
 from utils.asset_utils import get_nested_value
 

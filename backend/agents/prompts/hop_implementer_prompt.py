@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, validator
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message
 from schemas.workflow import Mission, Asset, Hop, ToolStep
-from schemas.tools import TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
+from schemas.tool_utils import TOOL_REGISTRY, get_tool_definition, get_available_tools, format_tool_descriptions_for_implementation
 from .base_prompt import BasePrompt
 from utils.message_formatter import format_mission, format_assets, format_langchain_messages, format_messages_for_openai
 import json

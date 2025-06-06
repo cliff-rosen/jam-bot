@@ -4,7 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
 from schemas.workflow import Mission, Asset
 from schemas.asset import AssetType, CollectionType
-from schemas.tools import TOOL_REGISTRY, get_available_tools, get_tools_by_category, format_tool_descriptions_for_mission_design
+from schemas.tool_utils import TOOL_REGISTRY, get_available_tools, get_tools_by_category, format_tool_descriptions_for_mission_design
 from .base_prompt import BasePrompt
 from utils.message_formatter import (
     format_langchain_messages,

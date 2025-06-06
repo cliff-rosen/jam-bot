@@ -374,7 +374,8 @@ class ToolStep(BaseModel):
 
     async def execute(self, hop_state: Dict[str, 'Asset']) -> List[str]:
         """Execute the tool step and validate results"""
-        print(f"execute running for tool {self.tool_id}")
+        print(f"step.execute() running for tool {self.tool_id}")
+        print(f"hop_state: {hop_state}")
         errors = []
         
         # Get tool from the local registry

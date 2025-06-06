@@ -41,7 +41,7 @@ async def execute_tool(
         Dict containing execution results and any errors
     """
     print("--------------------------------")
-    print(f"Executing tool: {tool_id}")
+    print(f"/execute/ endpoint hit for tool: {tool_id}")
     # print(f"Step: {step}")
 
     # Validate tool exists

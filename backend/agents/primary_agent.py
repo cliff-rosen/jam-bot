@@ -136,8 +136,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             
             elif state.mission.hop_status == HopStatus.HOP_READY_TO_EXECUTE:
                 # TODO: Route to hop executor when available
-                next_node = END
-                routing_message = "Hop is configured and ready to execute."
+                next_node = "hop_implementer_node"
+                routing_message = "Hop is configured and ready to execute. The user has questions or comments though"
             
             elif state.mission.hop_status == HopStatus.HOP_RUNNING:
                 # TODO: Route to hop executor for status updates

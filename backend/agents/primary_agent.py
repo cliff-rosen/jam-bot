@@ -537,7 +537,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
-
+        
         # Handle different response types
         if parsed_response.response_type == "RESOLUTION_FAILED":
             # Update hop status to indicate failure
@@ -598,7 +598,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             )
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
-
+        
         # Route back to supervisor
         next_node = END
 
@@ -606,8 +606,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "tool_params": {},
-            "next_node": next_node,
-            "available_assets": state.available_assets
+            "next_node": next_node
         }
 
         if writer:
@@ -624,7 +623,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                     "hop": current_hop.model_dump(mode='json')
                 }
             }
-
+            
             agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 

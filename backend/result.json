@@ -1,178 +1,184 @@
 {
-    "messages": [
+    "id": "default-01",
+    "name": "AI Newsletter Summarization for April",
+    "description": "Summarizes AI newsletters from April focusing on new model capabilities and orchestration tools.",
+    "goal": "To provide an executive summary of AI advancements in models and orchestration tools from April newsletters.",
+    "success_criteria": [
+        "Retrieve newsletters from 'AI News' folder in Gmail for April.",
+        "Summarize content related to new model capabilities and orchestration tools.",
+        "Produce an executive summary in markdown format."
+    ],
+    "inputs": [
         {
-            "id": "1749165301760",
-            "role": "user",
-            "content": "i need to summarize all the ai newsletters in the google email folder called \"ai news\". scope is month of april and all stories related to new model capabilities and new orchestration tools and frameworks. output as exec summary with bullets in markdown, i have the gmail credentials. no further clarificatio should be necessary to define this mission",
-            "timestamp": "2025-06-05T23:15:01.760Z"
+            "id": "ceb70c5f-feca-4fba-a9ca-3648c011311d",
+            "name": "AI Newsletters Email Data",
+            "description": "Emails from the 'AI News' Gmail folder containing newsletters for the month of April.",
+            "type": "object",
+            "subtype": "email",
+            "is_collection": true,
+            "collection_type": "array",
+            "content": {
+                "from": "newsletter@example.com",
+                "subject": "AI Innovations April Edition",
+                "date": "2023-04-15",
+                "body": "This month's highlights include..."
+            },
+            "schema": null,
+            "metadata": {
+                "created_at": "2025-06-06T02:09:31.061787",
+                "updated_at": "2025-06-06T02:09:31.061787",
+                "creator": "mission_specialist",
+                "version": 1,
+                "tags": [],
+                "source_step": "mission_proposal",
+                "content_type": null,
+                "validation_status": null,
+                "validation_errors": null
+            },
+            "db_entity_metadata": null
         },
         {
-            "id": "assistant_1749165301782_zl3hzsbbg",
-            "role": "assistant",
-            "content": "Mission is pending. Routing to mission specialist to define or refine the mission.",
-            "timestamp": "2025-06-05T23:15:01.782Z"
-        },
-        {
-            "id": "assistant_1749165311792_axuagcmxj",
-            "role": "assistant",
-            "content": "This mission involves summarizing AI newsletters related to specific topics from emails within a designated Gmail folder.",
-            "timestamp": "2025-06-05T23:15:11.792Z"
-        },
-        {
-            "id": "1749165332839",
-            "role": "user",
-            "content": "ok",
-            "timestamp": "2025-06-05T23:15:32.839Z"
+            "id": "729a35c5-58eb-40f5-be8d-a736eac04408",
+            "name": "Summarization Mandate",
+            "description": "Guidelines for what content to include in the summary, focusing on models and orchestration tools.",
+            "type": "primitive",
+            "subtype": "string",
+            "is_collection": false,
+            "collection_type": null,
+            "content": "Include stories about new model capabilities and new orchestration frameworks only.",
+            "schema": null,
+            "metadata": {
+                "created_at": "2025-06-06T02:09:31.061787",
+                "updated_at": "2025-06-06T02:09:31.061787",
+                "creator": "mission_specialist",
+                "version": 1,
+                "tags": [],
+                "source_step": "mission_proposal",
+                "content_type": null,
+                "validation_status": null,
+                "validation_errors": null
+            },
+            "db_entity_metadata": null
         }
     ],
-    "payload": {
-        "mission": {
-            "id": "default-01",
-            "name": "Summarize AI Newsletter Emails",
-            "description": "Extract and summarize AI newsletters focused on new model capabilities and orchestration tools from emails in the specified Gmail folder for April.",
-            "goal": "To produce an executive summary of AI developments in model capabilities and orchestration tools, sourced from newsletters received in April.",
-            "success_criteria": [
-                "Emails from the 'AI News' folder are retrieved and filtered by date (April) and topic (model capabilities and orchestration tools).",
-                "Relevant content is accurately extracted and summarized into a concise markdown document.",
-                "The summary provides clear bullet points on key developments in the specified areas."
-            ],
-            "inputs": [
+    "outputs": [
+        {
+            "id": "23debff0-90fb-45e4-84ca-611493fdd932",
+            "name": "Executive Summary",
+            "description": "A markdown document summarizing the relevant AI newsletter content.",
+            "type": "markdown",
+            "subtype": "report",
+            "is_collection": false,
+            "collection_type": null,
+            "content": "- New model XYZ released with capabilities...\n- Introduction of new tool ABC for model orchestration...",
+            "schema": null,
+            "metadata": {
+                "created_at": "2025-06-06T02:09:31.061787",
+                "updated_at": "2025-06-06T02:09:31.061787",
+                "creator": "mission_specialist",
+                "version": 1,
+                "tags": [],
+                "source_step": "mission_proposal",
+                "content_type": null,
+                "validation_status": null,
+                "validation_errors": null
+            },
+            "db_entity_metadata": null
+        }
+    ],
+    "state": {
+        "hop_search_ai_newsletters_for_april_a5dedd7a_output": {
+            "id": "hop_search_ai_newsletters_for_april_a5dedd7a_output",
+            "name": "April AI Newsletters",
+            "description": "Collection of AI newsletters retrieved from the 'AI News' folder for the month of April.",
+            "type": "object",
+            "subtype": "email",
+            "is_collection": true,
+            "collection_type": "array",
+            "content": [
                 {
-                    "id": "810f5b0e-9164-4abb-ba80-60ef78f2da40",
-                    "name": "Google Email Credentials",
-                    "description": "Credentials required to access the Gmail account and fetch emails.",
-                    "type": "primitive",
-                    "subtype": "credentials",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "OAuth credentials for Gmail API access",
-                    "schema": null,
-                    "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
-                        "version": 1,
-                        "tags": [],
-                        "source_step": null,
-                        "content_type": null,
-                        "validation_status": null,
-                        "validation_errors": null
-                    },
-                    "db_entity_metadata": null
-                },
-                {
-                    "id": "a2e295c6-b24c-41dd-9192-df02ca5b00fc",
-                    "name": "AI News Email Folder",
-                    "description": "Folder in Gmail containing AI newsletters to be reviewed.",
-                    "type": "primitive",
-                    "subtype": "string",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "AI News",
-                    "schema": null,
-                    "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
-                        "version": 1,
-                        "tags": [],
-                        "source_step": null,
-                        "content_type": null,
-                        "validation_status": null,
-                        "validation_errors": null
-                    },
-                    "db_entity_metadata": null
+                    "subject": "AI Innovations in April",
+                    "body": "Lots of new stuff in AI this month...",
+                    "received_date": "2023-04-01",
+                    "sender": "ai.news@example.com"
                 }
             ],
-            "outputs": [
-                {
-                    "id": "a6e5fb50-841d-47d3-bbab-1948442538c7",
-                    "name": "Executive Summary",
-                    "description": "A markdown file containing a summarized report of key AI developments.",
-                    "type": "file",
-                    "subtype": "markdown",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "## Executive Summary\n- New Model Capabilities...\n- New Orchestration Tools...",
-                    "schema": null,
-                    "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
-                        "version": 1,
-                        "tags": [],
-                        "source_step": null,
-                        "content_type": null,
-                        "validation_status": null,
-                        "validation_errors": null
-                    },
-                    "db_entity_metadata": null
-                }
-            ],
+            "schema": null,
+            "metadata": {
+                "created_at": "2025-06-06T02:09:51.284088",
+                "updated_at": "2025-06-06T02:09:51.284088",
+                "creator": "mission_specialist",
+                "version": 1,
+                "tags": [],
+                "source_step": "mission_proposal",
+                "content_type": null,
+                "validation_status": null,
+                "validation_errors": null
+            },
+            "db_entity_metadata": null
+        }
+    },
+    "hops": [
+        {
+            "id": "a29a1909-a122-429b-b6b9-f0da16a616df",
+            "name": "Search AI Newsletters for April",
+            "description": "Retrieve all AI newsletters from the 'AI News' folder in Gmail for the month of April.",
+            "input_mapping": {
+                "logical_name": "ceb70c5f-feca-4fba-a9ca-3648c011311d"
+            },
             "state": {
-                "810f5b0e-9164-4abb-ba80-60ef78f2da40": {
-                    "id": "810f5b0e-9164-4abb-ba80-60ef78f2da40",
-                    "name": "Google Email Credentials",
-                    "description": "Credentials required to access the Gmail account and fetch emails.",
-                    "type": "primitive",
-                    "subtype": "credentials",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "OAuth credentials for Gmail API access",
+                "logical_name": {
+                    "id": "ceb70c5f-feca-4fba-a9ca-3648c011311d",
+                    "name": "AI Newsletters Email Data",
+                    "description": "Emails from the 'AI News' Gmail folder containing newsletters for the month of April.",
+                    "type": "object",
+                    "subtype": "email",
+                    "is_collection": true,
+                    "collection_type": "array",
+                    "content": {
+                        "from": "newsletter@example.com",
+                        "subject": "AI Innovations April Edition",
+                        "date": "2023-04-15",
+                        "body": "This month's highlights include..."
+                    },
                     "schema": null,
                     "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
+                        "created_at": "2025-06-06T02:09:31.061787",
+                        "updated_at": "2025-06-06T02:09:31.061787",
+                        "creator": "mission_specialist",
                         "version": 1,
                         "tags": [],
-                        "source_step": null,
+                        "source_step": "mission_proposal",
                         "content_type": null,
                         "validation_status": null,
                         "validation_errors": null
                     },
                     "db_entity_metadata": null
                 },
-                "a2e295c6-b24c-41dd-9192-df02ca5b00fc": {
-                    "id": "a2e295c6-b24c-41dd-9192-df02ca5b00fc",
-                    "name": "AI News Email Folder",
-                    "description": "Folder in Gmail containing AI newsletters to be reviewed.",
-                    "type": "primitive",
-                    "subtype": "string",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "AI News",
+                "April AI Newsletters": {
+                    "id": "hop_search_ai_newsletters_for_april_a5dedd7a_output",
+                    "name": "April AI Newsletters",
+                    "description": "Collection of AI newsletters retrieved from the 'AI News' folder for the month of April.",
+                    "type": "object",
+                    "subtype": "email",
+                    "is_collection": true,
+                    "collection_type": "array",
+                    "content": [
+                        {
+                            "subject": "AI Innovations in April",
+                            "body": "Lots of new stuff in AI this month...",
+                            "received_date": "2023-04-01",
+                            "sender": "ai.news@example.com"
+                        }
+                    ],
                     "schema": null,
                     "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
+                        "created_at": "2025-06-06T02:09:51.284088",
+                        "updated_at": "2025-06-06T02:09:51.284088",
+                        "creator": "mission_specialist",
                         "version": 1,
                         "tags": [],
-                        "source_step": null,
-                        "content_type": null,
-                        "validation_status": null,
-                        "validation_errors": null
-                    },
-                    "db_entity_metadata": null
-                },
-                "a6e5fb50-841d-47d3-bbab-1948442538c7": {
-                    "id": "a6e5fb50-841d-47d3-bbab-1948442538c7",
-                    "name": "Executive Summary",
-                    "description": "A markdown file containing a summarized report of key AI developments.",
-                    "type": "file",
-                    "subtype": "markdown",
-                    "is_collection": false,
-                    "collection_type": null,
-                    "content": "## Executive Summary\n- New Model Capabilities...\n- New Orchestration Tools...",
-                    "schema": null,
-                    "metadata": {
-                        "created_at": "2025-06-05T23:15:11.789027",
-                        "updated_at": "2025-06-05T23:15:11.789027",
-                        "creator": null,
-                        "version": 1,
-                        "tags": [],
-                        "source_step": null,
+                        "source_step": "mission_proposal",
                         "content_type": null,
                         "validation_status": null,
                         "validation_errors": null
@@ -180,85 +186,51 @@
                     "db_entity_metadata": null
                 }
             },
-            "hops": [],
-            "current_hop": null,
-            "current_hop_index": 0,
-            "mission_status": "active",
-            "hop_status": "ready_to_design",
-            "metadata": {},
-            "created_at": "2025-06-05T23:15:11.789027",
-            "updated_at": "2025-06-05T23:15:11.789027"
-        },
-        "assets": [
-            {
-                "id": "810f5b0e-9164-4abb-ba80-60ef78f2da40",
-                "name": "Google Email Credentials",
-                "description": "Credentials required to access the Gmail account and fetch emails.",
-                "type": "primitive",
-                "subtype": "credentials",
-                "is_collection": false,
-                "collection_type": null,
-                "content": "OAuth credentials for Gmail API access",
-                "schema": null,
-                "metadata": {
-                    "created_at": "2025-06-05T23:15:11.789027",
-                    "updated_at": "2025-06-05T23:15:11.789027",
-                    "creator": null,
-                    "version": 1,
-                    "tags": [],
-                    "source_step": null,
-                    "content_type": null,
-                    "validation_status": null,
-                    "validation_errors": null
-                },
-                "db_entity_metadata": null
+            "output_mapping": {
+                "April AI Newsletters": "hop_search_ai_newsletters_for_april_a5dedd7a_output"
             },
-            {
-                "id": "a2e295c6-b24c-41dd-9192-df02ca5b00fc",
-                "name": "AI News Email Folder",
-                "description": "Folder in Gmail containing AI newsletters to be reviewed.",
-                "type": "primitive",
-                "subtype": "string",
-                "is_collection": false,
-                "collection_type": null,
-                "content": "AI News",
-                "schema": null,
-                "metadata": {
-                    "created_at": "2025-06-05T23:15:11.789027",
-                    "updated_at": "2025-06-05T23:15:11.789027",
-                    "creator": null,
-                    "version": 1,
-                    "tags": [],
-                    "source_step": null,
-                    "content_type": null,
-                    "validation_status": null,
+            "steps": [
+                {
+                    "id": "step1_email_search",
+                    "tool_id": "email_search",
+                    "description": "Search AI newsletters from \"AI News\" folder for April",
+                    "parameter_mapping": {
+                        "query": {
+                            "type": "literal",
+                            "value": "label:ai-news after:2024/04/01 before:2024/05/01"
+                        },
+                        "folder": {
+                            "type": "literal",
+                            "value": "AI News"
+                        },
+                        "limit": {
+                            "type": "literal",
+                            "value": 100
+                        }
+                    },
+                    "result_mapping": {
+                        "emails": "april_ai_newsletters",
+                        "count": "retrieved_email_count"
+                    },
+                    "status": "pending",
+                    "error": null,
+                    "created_at": "2025-06-06T02:10:28.162504",
+                    "updated_at": "2025-06-06T02:10:28.162504",
                     "validation_errors": null
-                },
-                "db_entity_metadata": null
-            },
-            {
-                "id": "a6e5fb50-841d-47d3-bbab-1948442538c7",
-                "name": "Executive Summary",
-                "description": "A markdown file containing a summarized report of key AI developments.",
-                "type": "file",
-                "subtype": "markdown",
-                "is_collection": false,
-                "collection_type": null,
-                "content": "## Executive Summary\n- New Model Capabilities...\n- New Orchestration Tools...",
-                "schema": null,
-                "metadata": {
-                    "created_at": "2025-06-05T23:15:11.789027",
-                    "updated_at": "2025-06-05T23:15:11.789027",
-                    "creator": null,
-                    "version": 1,
-                    "tags": [],
-                    "source_step": null,
-                    "content_type": null,
-                    "validation_status": null,
-                    "validation_errors": null
-                },
-                "db_entity_metadata": null
-            }
-        ]
-    }
+                }
+            ],
+            "status": "pending",
+            "is_resolved": true,
+            "is_final": false,
+            "current_step_index": 0,
+            "created_at": "2025-06-06T02:09:51.284088",
+            "updated_at": "2025-06-06T02:10:28.162504"
+        }
+    ],
+    "current_hop_index": 0,
+    "mission_status": "active",
+    "hop_status": "hop_ready_to_execute",
+    "metadata": {},
+    "created_at": "2025-06-06T02:09:31.061787",
+    "updated_at": "2025-06-06T02:09:31.061787"
 }

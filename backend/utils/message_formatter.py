@@ -56,20 +56,14 @@ def format_langchain_messages(messages: List[Message]) -> List[Any]:
     return langchain_messages
 
 def format_assets(assets: List[Dict[str, Any]]) -> str:
-    """
-    Format a list of assets into a readable string.
-    
-    Args:
-        assets: List of asset dictionaries
-        
-    Returns:
-        Formatted string representation of assets
-    """
+    """Format a list of assets into a string representation"""
     if not assets:
         return "No assets available"
-        
+    
     return "\n".join([
-        f"- {asset.get('name', 'Unnamed')} (ID: {asset.get('id', 'unknown')}): {asset.get('description', 'No description')}"
+        f"- {asset.name if hasattr(asset, 'name') else asset.get('name', 'Unnamed')} "
+        f"(ID: {asset.id if hasattr(asset, 'id') else asset.get('id', 'unknown')}): "
+        f"{asset.description if hasattr(asset, 'description') else asset.get('description', 'No description')}"
         for asset in assets
     ])
 

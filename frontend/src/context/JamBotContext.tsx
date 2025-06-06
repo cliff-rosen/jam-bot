@@ -541,7 +541,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 messages: [...filteredMessages, message],
                 payload: {
                     mission: state.mission,
-                    assets: Object.values(state.mission.state || {})
                 }
             };
 

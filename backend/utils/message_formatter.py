@@ -85,11 +85,6 @@ def format_mission(mission: Dict[str, Any], context_for_hop: bool = False) -> st
         Formatted string representation of mission
     """
 
-    print("--------------------------------")
-    print("Mission name: ", mission["name"])
-    for key in list(mission.keys()):
-        print(f"  - {repr(key)}")
-
     if context_for_hop:
         return f"""Mission Name: {mission["name"]}
 Overall Mission Goal (for context only): {mission["goal"]}

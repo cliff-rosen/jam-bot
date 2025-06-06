@@ -33,8 +33,7 @@ export type AssetReference = {
 export interface ChatRequest {
     messages: ChatMessage[];
     payload?: {
-        assets?: Asset[];
-        mission?: Mission;
+s        mission?: Mission;
     };
 }
 

@@ -15,7 +15,7 @@ from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from schemas.asset import Asset
+from schemas.asset import Asset, AssetMetadata
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
@@ -49,25 +49,20 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
         is_collection=asset_lite.is_collection,
         collection_type=asset_lite.collection_type,
         content=asset_lite.example_value,  # Use example as initial content
-        asset_metadata={
-            "created_at": current_time.isoformat(),
-            "updated_at": current_time.isoformat(),
-            "creator": "mission_specialist",
-            "tags": [],
-            "agent_associations": [],
-            "version": 1,
-            "token_count": 0,
-            "required": asset_lite.required,
-            "schema_description": asset_lite.schema_description,
-            "source": "mission_proposal"
-        }
+        metadata=AssetMetadata(
+            created_at=current_time,
+            updated_at=current_time,
+            creator="mission_specialist",
+            tags=[],
+            version=1,
+            source_step="mission_proposal"
+        )
     )
 
 class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
-    available_assets: List[Asset] = []
     tool_params: Dict[str, Any] = {}
     next_node: str
   
@@ -170,8 +165,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "next_node": next_node,
-            "tool_params": state.tool_params,
-            "available_assets": state.available_assets
+            "tool_params": state.tool_params
         }
 
         # Stream response and return command
@@ -277,7 +271,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "available_assets": state.available_assets
         }
 
         if writer:

@@ -35,14 +35,10 @@ async def chat_stream(chat_request: ChatRequest):
             mission_dict = chat_request.payload.get("mission", {})
             mission = Mission(**mission_dict) if mission_dict else None
             
-            # Get available assets from payload
-            available_assets = chat_request.payload.get("assets", [])
-            
             # Initialize state with all messages
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
-                available_assets=available_assets,
                 tool_params={},
                 next_node="supervisor_node",
             )

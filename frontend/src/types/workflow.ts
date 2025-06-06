@@ -1,4 +1,7 @@
-import { Asset, AssetType } from './asset';
+import { Asset, SchemaType, ToolDefinition, ToolParameter, ToolOutput } from './schema';
+
+// Re-export the unified types as the primary interfaces
+export type { Asset, SchemaType, ToolDefinition, ToolParameter, ToolOutput } from './schema';
 
 export enum MissionStatus {
     PENDING = "pending", // Mission proposed but not yet approved by user
@@ -35,6 +38,8 @@ export enum ExecutionStatus {
     FAILED = "failed"
 }
 
+// DEPRECATED: StateVariable system - replaced by unified Asset schema
+/** @deprecated Use unified Asset from './schema' instead. This will be removed in a future version. */
 export enum StateVariableType {
     ASSET = "asset", // References an asset
     PRIMITIVE = "primitive", // Basic type (string, number, boolean)
@@ -42,6 +47,7 @@ export enum StateVariableType {
     COLLECTION = "collection" // Array or map of other types
 }
 
+/** @deprecated Use unified Asset from './schema' instead. This will be removed in a future version. */
 export interface StateVariable {
     id: string;
     name: string;
@@ -54,6 +60,18 @@ export interface StateVariable {
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
+}
+
+// Updated interfaces using unified schema
+export interface AssetFieldMapping {
+    type: "asset_field";
+    state_asset: string;
+    path?: string;
+}
+
+export interface LiteralMapping {
+    type: "literal";
+    value: any;
 }
 
 export interface ToolStep {
@@ -74,7 +92,7 @@ export interface Hop {
     name: string;
     description: string;
     input_mapping: Record<string, string>;
-    state: Record<string, Asset>;
+    state: Record<string, Asset>; // Using unified Asset type
     output_mapping: Record<string, string>;
     steps: ToolStep[];
     status: ExecutionStatus;
@@ -92,9 +110,9 @@ export interface Mission {
     description: string;
     goal: string;
     success_criteria: string[];
-    inputs: Asset[];
-    outputs: Asset[];
-    state: Record<string, Asset>;
+    inputs: Asset[]; // Using unified Asset type
+    outputs: Asset[]; // Using unified Asset type
+    state: Record<string, Asset>; // Using unified Asset type
     hops: Hop[];
     current_hop?: Hop;
     current_hop_index: number;
@@ -134,9 +152,13 @@ export const defaultMission2: Mission = {
             id: "input-topic-areas",
             name: "Topic Areas",
             description: "The topic areas to focus on.",
-            type: AssetType.PRIMITIVE,
+            schema: {
+                type: "string",
+                description: "The topic areas to focus on.",
+                is_array: false
+            },
+            value: null,
             is_collection: false,
-            content: null,
             asset_metadata: {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -153,9 +175,13 @@ export const defaultMission2: Mission = {
             id: "output-report",
             name: "Report",
             description: "The generated AI news summary report.",
-            type: AssetType.FILE,
+            schema: {
+                type: "file",
+                description: "The generated AI news summary report.",
+                is_array: false
+            },
+            value: null,
             is_collection: false,
-            content: null,
             asset_metadata: {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -175,15 +201,4 @@ export const defaultMission2: Mission = {
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
-}
-
-export interface AssetFieldMapping {
-    type: "asset_field";
-    state_asset: string;
-    path?: string;
-}
-
-export interface LiteralMapping {
-    type: "literal";
-    value: any;
 }

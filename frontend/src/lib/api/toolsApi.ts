@@ -1,29 +1,6 @@
 import { api } from './index';
 import { ToolStep } from '../../types/workflow';
-import { Asset } from '../../types/asset';
-
-export interface ToolDefinition {
-    id: string;
-    name: string;
-    description: string;
-    category: string;
-    input_schema: {
-        type: string;
-        properties: Record<string, any>;
-        required?: string[];
-    };
-    output_schema: Array<{
-        name: string;
-        type: string;
-        description: string;
-        required: boolean;
-        schema?: Record<string, any>;
-    }>;
-    examples?: Array<{
-        description: string;
-        input: Record<string, any>;
-    }>;
-}
+import { Asset, ToolDefinition } from '../../types/schema';
 
 export interface ToolExecutionResult {
     success: boolean;

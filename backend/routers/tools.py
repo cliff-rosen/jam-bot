@@ -1,13 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
+from ..database import get_db
+from ..auth import validate_token
+from ..schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
+from ..schemas.tools import TOOL_REGISTRY, ToolStep, ExecutionStatus
+from ..services.tool_executor import ToolExecutor
+import json
+import logging
 
-from services.auth_service import validate_token
-from schemas.workflow import ToolStep, Asset
-from schemas.tools import TOOL_REGISTRY
-from database import get_db
+logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/tools", tags=["tools"])
+router = APIRouter(
+    prefix="/tools",
+    tags=["tools"],
+    dependencies=[Depends(validate_token)]
+)
 
 @router.post("/execute/{tool_id}")
 async def execute_tool(
@@ -23,7 +31,7 @@ async def execute_tool(
     Args:
         tool_id: ID of the tool to execute
         step: Tool step configuration
-        hop_state: Current state of the hop
+        hop_state: Current state of the hop (unified Asset format)
         user: Authenticated user
         db: Database session
         
@@ -47,29 +55,57 @@ async def execute_tool(
         "tool_results": tool_results
     }
 
-@router.get("/available")
+@router.get("/available", response_model=Dict[str, List[ToolDefinition]])
 async def get_available_tools(
     user = Depends(validate_token)
 ):
     """
-    Get list of available tools and their definitions
+    Get list of available tools and their definitions using unified schema format
     
     Args:
         user: Authenticated user
         
     Returns:
-        List of tool definitions
+        List of unified tool definitions
     """
-    return {
-        "tools": [
-            {
-                "id": tool.id,
-                "name": tool.name,
-                "description": tool.description,
-                "category": tool.category,
-                "parameters": [p.dict() for p in tool.parameters],
-                "outputs": [o.dict() for o in tool.outputs]
-            }
-            for tool in TOOL_REGISTRY.values()
-        ]
-    } 
+    unified_tools = []
+    for tool in TOOL_REGISTRY.values():
+        # Convert to unified ToolDefinition format
+        unified_tool = ToolDefinition(
+            id=tool.id,
+            name=tool.name,
+            description=tool.description,
+            category=tool.category,
+            parameters=[
+                ToolParameter(
+                    id=f"{tool.id}_{param.name}",
+                    name=param.name,
+                    description=param.description,
+                    schema=SchemaType(
+                        type=param.schema.get('type', 'object') if param.schema else 'object',
+                        description=param.description,
+                        is_array=param.schema.get('is_array', False) if param.schema else False,
+                        fields=param.schema.get('fields') if param.schema else None
+                    ),
+                    required=param.required,
+                    default=param.schema.get('default') if param.schema else None
+                ) for param in tool.parameters
+            ],
+            outputs=[
+                ToolOutput(
+                    id=f"{tool.id}_{output.name}",
+                    name=output.name,
+                    description=output.description,
+                    schema=SchemaType(
+                        type=output.schema.get('type', 'object') if output.schema else 'object',
+                        description=output.description,
+                        is_array=output.schema.get('is_array', False) if output.schema else False,
+                        fields=output.schema.get('fields') if output.schema else None
+                    )
+                ) for output in tool.outputs
+            ],
+            examples=tool.examples
+        )
+        unified_tools.append(unified_tool)
+    
+    return {"tools": unified_tools} 

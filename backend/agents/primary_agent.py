@@ -243,15 +243,19 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission.goal = parsed_response.mission_proposal.goal
             state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
             
-            # Convert AssetLite objects to full Asset objects
-            state.mission.inputs = [
-                convert_asset_lite_to_asset(asset_lite) 
-                for asset_lite in parsed_response.mission_proposal.inputs
-            ]
-            state.mission.outputs = [
-                convert_asset_lite_to_asset(asset_lite) 
-                for asset_lite in parsed_response.mission_proposal.outputs
-            ]
+            # Convert AssetLite objects to full Asset objects with explicit roles
+            state.mission.inputs = []
+            for asset_lite in parsed_response.mission_proposal.inputs:
+                asset = convert_asset_lite_to_asset(asset_lite) 
+                asset.role = 'input'  # Explicitly set as input
+                state.mission.inputs.append(asset)
+            
+            state.mission.outputs = []
+            for asset_lite in parsed_response.mission_proposal.outputs:
+                asset = convert_asset_lite_to_asset(asset_lite)
+                asset.role = 'output'  # Explicitly set as output
+                state.mission.outputs.append(asset)
+            
             # print(f"DEBUG: Mission inputs: {state.mission.inputs}")
 
             current_time = datetime.utcnow()
@@ -426,8 +430,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 # Convert AssetLite to Asset
                 new_wip_asset = convert_asset_lite_to_asset(output_asset_lite)
                 
-                # Override ID and update metadata for this WIP asset
+                # Override ID and set role for this WIP asset
                 new_wip_asset.id = generated_wip_asset_id 
+                new_wip_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
                 
                 # Ensure mission.state exists (it should, if mission was initialized)
                 if state.mission.state is None: # Defensive check

@@ -69,11 +69,20 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                 )}
 
                 {/* Metadata Section */}
-                <div className="mb-4 space-y-2">
+                <div className="mb-4">
                     <div className="flex items-center gap-2">
                         <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
                             {displayAsset.schema.type?.toUpperCase() || 'UNKNOWN'}
                         </div>
+                        {/* Show role badge */}
+                        {displayAsset.role && (
+                            <div className={`text-[10px] px-2 py-0.5 rounded w-fit border ${displayAsset.role === 'input' ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                                displayAsset.role === 'output' ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' :
+                                    'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                                }`}>
+                                {displayAsset.role}
+                            </div>
+                        )}
                         {displayAsset.asset_metadata?.token_count !== undefined && (
                             <div className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 w-fit border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                                 {displayAsset.asset_metadata.token_count} tokens

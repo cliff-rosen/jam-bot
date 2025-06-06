@@ -87,18 +87,36 @@ Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Result Mapping] 
 
 ### Creating Intermediate Assets
 When creating new assets in hop state:
-1. **Asset Types**:
-   - Use `OBJECT` for structured data (e.g., search results, extracted content)
-   - Use `COLLECTION` for lists/arrays of items
-   - Use `CONFIG` for configuration values (credentials, settings, parameters)
-   - Use `MARKDOWN` for formatted text content
+1. **Asset Types** (from unified_schema):
+   - **Primitive**: `string`, `number`, `boolean`, `primitive`
+   - **Complex**: `object`, `file`, `database_entity`, `markdown`, `config`
+   - **Custom**: `email`, `webpage`, `search_result`, `pubmed_article`, `newsletter`, `daily_newsletter_recap`
 
-2. **Asset Naming**:
+2. **Collection Assets Structure**:
+   - **Schema level**: Use `"is_array": true` in the schema for array collections
+   - **Asset level**: Use `"is_collection": true` and `"collection_type": "array"` on the asset
+   - **Example collection asset**:
+     ```json
+     {{
+       "schema": {{
+         "type": "object",
+         "is_array": true,
+         "fields": {{
+           "sender": {{"type": "string"}},
+           "subject": {{"type": "string"}}
+         }}
+       }},
+       "is_collection": true,
+       "collection_type": "array"
+     }}
+     ```
+
+3. **Asset Naming**:
    - Use descriptive names that reflect the content
    - Prefix with step name for clarity (e.g., `step1_extracted_text`)
    - Include data type hint (e.g., `_list`, `_array`, `_text`)
 
-3. **Asset Metadata**:
+4. **Asset Metadata**:
    - Set `creator` to "hop_implementer"
    - Add `source_step` to track which step created it
    - Include `content_type` to specify data format
@@ -238,10 +256,73 @@ Here's a complete example of a hop implementation:
           "extracted_content": "step2_extracted_content"
         }}
       }}
-    ]
+    ],
+    "state": {{
+      "step1_emails_list": {{
+        "id": "step1_emails_list",
+        "name": "EmailsList",
+        "description": "List of emails from search",
+        "schema": {{
+          "type": "object",
+          "is_array": true,
+          "fields": {{
+            "sender": {{"type": "string"}},
+            "subject": {{"type": "string"}},
+            "body": {{"type": "string"}},
+            "date": {{"type": "string"}}
+          }}
+        }},
+        "value": null,
+        "subtype": null,
+        "is_collection": true,
+        "collection_type": "array",
+        "role": "intermediate",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }},
+      "step2_extracted_content": {{
+        "id": "step2_extracted_content", 
+        "name": "ExtractedContent",
+        "description": "Extracted key information from emails",
+        "schema": {{
+          "type": "object",
+          "is_array": true,
+          "fields": {{
+            "sender": {{"type": "string"}},
+            "subject": {{"type": "string"}},
+            "body": {{"type": "string"}},
+            "date": {{"type": "string"}}
+          }}
+        }},
+        "value": null,
+        "subtype": null,
+        "is_collection": true,
+        "collection_type": "array",
+        "role": "intermediate",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }}
+    }}
   }}
 }}
 ```
+
+## CRITICAL ASSET TYPE RULES (from unified_schema):
+- ✅ **Valid schema types**: `string`, `number`, `boolean`, `primitive`, `object`, `file`, `database_entity`, `markdown`, `config`, `email`, `webpage`, `search_result`, `pubmed_article`, `newsletter`, `daily_newsletter_recap`
+- ❌ **INVALID**: `collection`, `array`, `list` - these are NOT valid schema types!
+- ✅ **For collections**: Use valid base type + `"is_array": true` in schema + `"is_collection": true` in asset
+- ✅ **Schema structure**: `schema.type` = base type, `schema.is_array` = true for arrays
+- ✅ **Asset structure**: `is_collection` = true, `collection_type` = "array"/"map"/"set"
 
 Remember: Your job is to design the tool steps that transform the hop's local state. The hop's input/output mappings handle the mission asset flow.
 

@@ -113,7 +113,7 @@ The system has these specific tools available for hop implementation:
     "output_asset": {{
       "name": "Output asset name",
       "description": "What this asset contains",
-      "type": "object | primitive | file | database_entity | markdown",
+      "type": "object | config | file | database_entity | markdown",
       "subtype": "Specific format or schema",
       "is_collection": false,
       "collection_type": null,
@@ -141,6 +141,27 @@ The system has these specific tools available for hop implementation:
 
 ## Asset Creation Guidelines
 
+**IMPORTANT**: When designing hops, understand the difference between data assets:
+
+- **User-Provided Data Assets** (Available as INPUTS)
+  - Files uploaded by the user (documents, images, etc.)
+  - Data manually entered or pasted by the user
+  - Any content the user directly provides to the system
+  - These are available as inputs and can be referenced directly
+
+- **External Data Assets** (Must be RETRIEVED by hops)
+  - Data from Gmail, Outlook, or other email services
+  - Social media posts, tweets, LinkedIn data  
+  - Database records from external systems
+  - API responses from third-party services
+  - Web scraping results
+  - These require hops to retrieve them using CONFIG assets for access
+
+**Design Implications**:
+- If mission needs Gmail data, first hop should retrieve it using Gmail credentials (config input)
+- If mission needs web data, first hop should scrape/fetch it using URL/API keys (config input)
+- Don't assume external data is magically available - design retrieval hops first
+
 ### Asset Types and Schemas
 1. **Object Assets** (type: "object")
    - Use for structured data, JSON objects, complex data structures
@@ -153,10 +174,10 @@ The system has these specific tools available for hop implementation:
    - Include schema for collection items
    - Example: `{{"type": "object", "is_collection": true, "collection_type": "array"}}`
 
-3. **Primitive Assets** (type: "primitive")
-   - Use for simple values (strings, numbers, booleans)
-   - Specify subtype for validation
-   - Example: `{{"type": "primitive", "subtype": "string"}}`
+3. **Config Assets** (type: "config")
+   - Use for configuration values, settings, credentials
+   - Specify subtype for validation (string, number, boolean, oauth_token, etc.)
+   - Example: {{"type": "config", "subtype": "oauth_token"}}
 
 4. **File Assets** (type: "file")
    - Use for document files, images, exports

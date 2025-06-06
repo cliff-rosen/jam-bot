@@ -23,7 +23,7 @@ from config.settings import settings
 from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
-from utils.prompt_logger import log_hop_implementer_prompt
+from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -220,6 +220,17 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             messages=state.messages,
             mission=state.mission,
         )
+
+        # Log the exact prompt messages being sent to OpenAI
+        try:
+            log_file_path = log_prompt_messages(
+                messages=formatted_messages,
+                prompt_type="mission_specialist"
+            )
+            print(f"MissionSpecialist prompt messages logged to: {log_file_path}")
+        except Exception as log_error:
+            print(f"Warning: Failed to log mission specialist prompt: {log_error}")
+            
         schema = prompt.get_schema()
 
         response = await client.chat.completions.create(

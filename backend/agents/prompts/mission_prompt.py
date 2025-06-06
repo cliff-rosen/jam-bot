@@ -79,7 +79,7 @@ The system has these specific tools available for mission execution:
     {{
       "name": "Input Asset Name",
       "description": "Clear description of what this asset contains",
-      "type": "file | primitive | object | database_entity | markdown",
+      "type": "file | config | object | database_entity | markdown",
       "subtype": "Specific format or schema",
       "is_collection": false,
       "collection_type": null,
@@ -93,7 +93,7 @@ The system has these specific tools available for mission execution:
     {{
       "name": "Output Asset Name",
       "description": "Clear description of what this asset contains",
-      "type": "file | primitive | object | database_entity | markdown",
+      "type": "file | config | object | database_entity | markdown",
       "subtype": "Specific format or schema",
       "is_collection": false,
       "collection_type": null,
@@ -118,30 +118,100 @@ The system has these specific tools available for mission execution:
 - **intermediate**: Work-in-progress assets created during mission execution
 
 ### 1. Data Assets (Content)
+
+**CRITICAL RULE**: Only data that the user directly provides can be mission inputs!
+
+- **User-Provided Data Assets** (TRUE INPUTS - role: "input")
+  - Files uploaded by the user (documents, images, etc.)
+  - Text manually entered or pasted by the user
+  - Data the user physically provides to the system
+  - Configuration values the user enters (credentials, API keys, etc.)
+  - These are legitimate INPUT assets with role: "input"
+
+- **External Data Assets** (NEVER INPUTS - role: "intermediate")
+  - ❌ NEVER make these mission inputs - they must be retrieved by hops:
+    - Emails from Gmail, Outlook, or any email service
+    - Social media posts, tweets, LinkedIn data
+    - Database records from external systems
+    - API responses from third-party services
+    - Web scraping results
+    - Search results from any source
+    - Newsletter content from external sources
+  - These should be INTERMEDIATE assets (role: "intermediate") that get retrieved by hops
+  - The actual INPUT should be the CONFIG asset with access credentials/parameters
+
+**WRONG vs RIGHT Examples**:
+
+❌ **WRONG** - Treating external data as direct input:
+```json
+{{
+  "name": "AI News Emails",
+  "type": "object",
+  "role": "input",  // ❌ WRONG - emails must be retrieved, not directly provided
+  "description": "AI-related newsletter emails from Gmail"
+}}
+```
+
+✅ **CORRECT** - Config input + intermediate data:
+```json
+// Mission input (what user provides)
+{{
+  "name": "Gmail Credentials",
+  "type": "config",
+  "subtype": "oauth_token",
+  "role": "input",
+  "description": "OAuth credentials for Gmail access"
+}},
+// NOT a mission input - will be created by retrieval hop
+{{
+  "name": "Retrieved AI News Emails",
+  "type": "object",
+  "subtype": "email_collection",
+  "role": "intermediate",
+  "description": "AI newsletter emails retrieved from Gmail folder by hop"
+}}
+```
+
+**Key Questions to Ask Yourself**:
+1. "Can the user directly upload or provide this data?" → If YES, it can be an input
+2. "Does this data need to be fetched from an external system?" → If YES, it's intermediate
+3. "Would we need credentials/API access to get this data?" → If YES, the credentials are input, the data is intermediate
+
+**Common Mistakes to Avoid**:
+- ❌ Making "emails from Gmail" a mission input
+- ❌ Making "tweets about AI" a mission input  
+- ❌ Making "LinkedIn posts" a mission input
+- ❌ Making "search results" a mission input
+- ❌ Making "newsletter content" a mission input
+- ✅ Make the access credentials/search terms the inputs instead
+
 - **File Assets** (type: "file")
-  - Use for documents, images, exports
+  - Use for documents, images, exports that users upload directly
   - Must specify valid file subtype (pdf, doc, txt, etc.)
   - Example: {{"type": "file", "subtype": "pdf", "role": "input", "description": "Resume document"}}
 
 - **Object Assets** (type: "object")
   - Use for structured data, JSON objects
+  - Can be user-provided (input) or retrieved/generated (intermediate/output)
   - Must include schema_description
-  - Example: {{"type": "object", "subtype": "json", "role": "intermediate", "schema_description": "{{\"field1\": \"string\", \"field2\": \"number\"}}"}}
+  - Example: {{"type": "object", "subtype": "json", "role": "intermediate", "schema_description": "{{\\\"field1\\\": \\\"string\\\", \\\"field2\\\": \\\"number\\\"}}"}}
 
 - **Database Entity Assets** (type: "database_entity")
   - Use for database records
+  - Usually intermediate or output assets (retrieved by hops)
   - Include table name and query parameters
   - Example: {{"type": "database_entity", "subtype": "user_record", "role": "output"}}
 
 - **Markdown Assets** (type: "markdown")
   - Use for formatted text content
+  - Can be user-provided or generated
   - Example: {{"type": "markdown", "subtype": "report", "role": "output"}}
 
 ### 2. Configuration Assets (Settings)
-- **Primitive Assets** (type: "primitive")
-  - Use for simple values (strings, numbers, booleans)
-  - Must specify subtype for validation
-  - Example: {{"type": "primitive", "subtype": "string", "role": "input", "example_value": "AI News"}}
+- **Config Assets** (type: "config")
+  - Use for configuration values, settings, parameters
+  - Must specify subtype for validation (string, number, boolean, etc.)
+  - Example: {{"type": "config", "subtype": "string", "role": "input", "example_value": "AI News"}}
 
 ### Collection Assets
 When creating assets that contain multiple items:
@@ -168,7 +238,7 @@ When creating assets that contain multiple items:
 2. **Type-Specific Rules**:
    - File types must be valid file extensions
    - Objects need property definitions
-   - Primitives need subtype specification
+   - Config assets need subtype specification
    - Collections need item schema
 
 3. **Collection Rules**:
@@ -237,14 +307,26 @@ When creating assets that contain multiple items:
    - Define clear output formats and schemas
    - Use appropriate asset roles to clarify data flow
 
-2. **Asset Design**:
-   - Use appropriate asset types for each purpose
+2. **Asset Design** (CRITICAL):
+   - **NEVER make external data a mission input** - this is the most common mistake
+   - Only user-provided or user-entered data can be mission inputs
+   - External data (emails, social posts, API data) must be intermediate assets retrieved by hops
+   - Use CONFIG type for configuration parameters and settings
    - Set correct role (input/output/intermediate) for each asset
    - Provide clear schema descriptions
    - Include example values where helpful
    - Validate schema compatibility
 
-3. **Tool Compatibility**:
+3. **Input Asset Rules** (MUST FOLLOW):
+   - ✅ User uploads a file → mission input
+   - ✅ User enters credentials → mission input (CONFIG type)
+   - ✅ User provides search terms → mission input (CONFIG type)
+   - ❌ Gmail emails → NOT mission input (intermediate asset from hop)
+   - ❌ Social media data → NOT mission input (intermediate asset from hop)
+   - ❌ API responses → NOT mission input (intermediate asset from hop)
+   - ❌ Web scraping results → NOT mission input (intermediate asset from hop)
+
+4. **Tool Compatibility**:
    - Verify tools can handle input formats
    - Ensure tools can produce required outputs
    - Consider data flow between tools

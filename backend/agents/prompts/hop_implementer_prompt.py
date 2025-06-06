@@ -90,7 +90,7 @@ When creating new assets in hop state:
 1. **Asset Types**:
    - Use `OBJECT` for structured data (e.g., search results, extracted content)
    - Use `COLLECTION` for lists/arrays of items
-   - Use `PRIMITIVE` for simple values (numbers, strings)
+   - Use `CONFIG` for configuration values (credentials, settings, parameters)
    - Use `MARKDOWN` for formatted text content
 
 2. **Asset Naming**:

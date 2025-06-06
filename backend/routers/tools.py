@@ -38,13 +38,13 @@ async def execute_tool(
         )
     
     # Execute the tool step
-    errors = await step.execute(hop_state)
+    tool_results = await step.execute(hop_state)
     
     # Return results
     return {
-        "success": len(errors) == 0,
-        "errors": errors,
-        "hop_state": hop_state
+        "success": True,
+        "errors": [],
+        "tool_results": tool_results
     }
 
 @router.get("/available")

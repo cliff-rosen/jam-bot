@@ -37,7 +37,18 @@ async def handle_email_search(step: ToolStep, hop_state: Dict[str, Asset]) -> Di
     }
     
     # Call endpoint
-    response = await email_service.get_messages_and_store(**endpoint_params)
+    # response = await email_service.get_messages_and_store(**endpoint_params)
+    fake_response = {"messages": [], "stored_ids": [], "error": None}
+    fake_response["messages"] = [
+        {
+            "id": "1234567890",
+            "subject": "Test Email",
+            "from": "test@example.com",
+            "date": "2023-01-01",
+            "body": "This is a test email"
+        }
+    ]
+    response = fake_response
     
     # Return results in format expected by tool
     return {

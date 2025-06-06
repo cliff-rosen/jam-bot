@@ -1,24 +1,68 @@
 import React, { useState } from 'react';
 import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Asset } from '@/types/asset';
+import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
+import { toolsApi } from '@/lib/api/toolsApi';
 
 interface CurrentHopDetailsProps {
     hop: Hop;
     className?: string;
+    onHopUpdate?: (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => void;
 }
 
 export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     hop,
-    className = ''
+    className = '',
+    onHopUpdate
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showSteps, setShowSteps] = useState(true);
     const [showAssets, setShowAssets] = useState(false);
+    const [executingStepId, setExecutingStepId] = useState<string | null>(null);
+    const [executionError, setExecutionError] = useState<string | null>(null);
 
     const statusDisplay = getExecutionStatusDisplay(hop.status);
     const completedSteps = hop.steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.steps?.length || 0;
+
+    const executeToolStep = async (step: ToolStep) => {
+        if (!onHopUpdate) return;
+
+        setExecutingStepId(step.id);
+        setExecutionError(null);
+
+        try {
+            const result = await toolsApi.executeTool(step.tool_id, step, hop.state);
+
+            if (result.success) {
+                // Update hop state with execution results
+                const updatedHop = {
+                    ...hop,
+                    state: result.hop_state
+                };
+
+                // Check if any updated assets are mapped to mission outputs
+                const updatedMissionOutputs = new Map<string, Asset>();
+                for (const [hopAssetKey, asset] of Object.entries(result.hop_state)) {
+                    // If this hop asset is mapped to a mission output
+                    const missionOutputId = hop.output_mapping[hopAssetKey];
+                    if (missionOutputId) {
+                        updatedMissionOutputs.set(missionOutputId, asset);
+                    }
+                }
+
+                // Call onHopUpdate with both hop and mission updates
+                onHopUpdate(updatedHop, updatedMissionOutputs);
+            } else {
+                setExecutionError(result.errors.join('\n'));
+            }
+        } catch (error) {
+            setExecutionError(error instanceof Error ? error.message : 'Failed to execute tool step');
+        } finally {
+            setExecutingStepId(null);
+        }
+    };
 
     return (
         <div className={`space-y-4 mb-8 ${className}`}>
@@ -155,9 +199,28 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                                         {index + 1}. {step.tool_id}
                                                     </span>
-                                                    <span className={`${getStatusBadgeClass(stepStatus.color)} text-xs`}>
-                                                        {stepStatus.text}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        {step.status !== ExecutionStatus.COMPLETED && onHopUpdate && (
+                                                            <button
+                                                                onClick={() => executeToolStep(step)}
+                                                                disabled={executingStepId === step.id}
+                                                                className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${executingStepId === step.id
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                                                    }`}
+                                                            >
+                                                                {executingStepId === step.id ? (
+                                                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                                ) : (
+                                                                    <Play className="w-3 h-3" />
+                                                                )}
+                                                                Execute
+                                                            </button>
+                                                        )}
+                                                        <span className={`${getStatusBadgeClass(stepStatus.color)} text-xs`}>
+                                                            {stepStatus.text}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 <div className="text-xs text-gray-500">{step.description}</div>
@@ -204,13 +267,12 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 {step.result_mapping && Object.keys(step.result_mapping).length > 0 && (
                                                     <div className="ml-3 space-y-0.5">
                                                         <div className="text-xs font-medium text-gray-600">Outputs</div>
-                                                        {Object.entries(step.result_mapping).map(([result, mapping]) => {
-                                                            const asset = hop.state?.[mapping.state_asset];
-                                                            const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
+                                                        {Object.entries(step.result_mapping).map(([result, assetId]) => {
+                                                            const asset = hop.state?.[assetId];
+                                                            const assetName = asset?.name || `${assetId} (name not available)`;
                                                             const tooltipText = [
                                                                 `Result: ${result}`,
-                                                                `Hop Variable: ${mapping.state_asset}`,
-                                                                mapping.path ? `Path: ${mapping.path}` : null,
+                                                                `Hop Variable: ${assetId}`,
                                                                 asset?.name ? `Asset Name: ${asset.name}` : null,
                                                                 asset?.description ? `Description: ${asset.description}` : null
                                                             ].filter(Boolean).join('\n');
@@ -233,6 +295,12 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 {step.error && (
                                                     <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-1 rounded">
                                                         Error: {step.error}
+                                                    </div>
+                                                )}
+
+                                                {executionError && executingStepId === step.id && (
+                                                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-1 rounded mt-1">
+                                                        {executionError}
                                                     </div>
                                                 )}
                                             </div>

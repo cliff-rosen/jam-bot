@@ -60,36 +60,27 @@ export interface ToolStep {
     id: string;
     tool_id: string;
     description: string;
-
-    // Asset mappings within hop state
-    parameter_mapping: Record<string, { type: "literal"; value: any } | { type: "asset_field"; state_asset: string; path: string }>;
-    result_mapping: Record<string, { state_asset: string; path: string }>;
-
+    parameter_mapping: Record<string, AssetFieldMapping | LiteralMapping>;
+    result_mapping: Record<string, string>;
     status: ExecutionStatus;
     error?: string;
     created_at: string;
     updated_at: string;
+    validation_errors?: string[];
 }
 
 export interface Hop {
     id: string;
     name: string;
     description: string;
-
-    // Asset mappings
-    input_mapping: Record<string, string>; // {local_key: external_asset_id}
-    state: Record<string, Asset>; // Local asset workspace
-    output_mapping: Record<string, string>; // {local_key: external_asset_id}
-
-    // Tool chain (populated during resolution)
-    steps: ToolStep[]; // Ordered list of tool executions
-
-    // Status tracking
-    status: ExecutionStatus; // Individual hop execution status
-    is_resolved: boolean; // Whether the hop has been configured with tools
-    is_final: boolean; // Whether this produces the final deliverable
+    input_mapping: Record<string, string>;
+    state: Record<string, Asset>;
+    output_mapping: Record<string, string>;
+    steps: ToolStep[];
+    status: ExecutionStatus;
+    is_resolved: boolean;
+    is_final: boolean;
     current_step_index: number;
-
     created_at: string;
     updated_at: string;
 }
@@ -100,20 +91,14 @@ export interface Mission {
     description: string;
     goal: string;
     success_criteria: string[];
-
-    // Assets
     inputs: Asset[];
     outputs: Asset[];
-    state: Record<string, Asset>; // All assets available (inputs + hop outputs)
-
-    // Execution
-    hops: Hop[]; // Sequence of hops to execute
-    current_hop?: Hop; // Current hop being designed or executed
+    state: Record<string, Asset>;
+    hops: Hop[];
+    current_hop?: Hop;
     current_hop_index: number;
-
-    // Status tracking
-    mission_status: MissionStatus; // Overall mission status
-    hop_status?: HopStatus; // Hop workflow status (only when mission is active)
+    mission_status: MissionStatus;
+    hop_status?: HopStatus;
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
@@ -189,4 +174,15 @@ export const defaultMission2: Mission = {
     metadata: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
+}
+
+export interface AssetFieldMapping {
+    type: "asset_field";
+    state_asset: string;
+    path?: string;
+}
+
+export interface LiteralMapping {
+    type: "literal";
+    value: any;
 }

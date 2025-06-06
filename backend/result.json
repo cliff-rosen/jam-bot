@@ -24,17 +24,6 @@
                 "body": "This month's highlights include..."
             },
             "schema": null,
-            "metadata": {
-                "created_at": "2025-06-06T02:09:31.061787",
-                "updated_at": "2025-06-06T02:09:31.061787",
-                "creator": "mission_specialist",
-                "version": 1,
-                "tags": [],
-                "source_step": "mission_proposal",
-                "content_type": null,
-                "validation_status": null,
-                "validation_errors": null
-            },
             "db_entity_metadata": null
         },
         {
@@ -47,17 +36,6 @@
             "collection_type": null,
             "content": "Include stories about new model capabilities and new orchestration frameworks only.",
             "schema": null,
-            "metadata": {
-                "created_at": "2025-06-06T02:09:31.061787",
-                "updated_at": "2025-06-06T02:09:31.061787",
-                "creator": "mission_specialist",
-                "version": 1,
-                "tags": [],
-                "source_step": "mission_proposal",
-                "content_type": null,
-                "validation_status": null,
-                "validation_errors": null
-            },
             "db_entity_metadata": null
         }
     ],
@@ -72,17 +50,6 @@
             "collection_type": null,
             "content": "- New model XYZ released with capabilities...\n- Introduction of new tool ABC for model orchestration...",
             "schema": null,
-            "metadata": {
-                "created_at": "2025-06-06T02:09:31.061787",
-                "updated_at": "2025-06-06T02:09:31.061787",
-                "creator": "mission_specialist",
-                "version": 1,
-                "tags": [],
-                "source_step": "mission_proposal",
-                "content_type": null,
-                "validation_status": null,
-                "validation_errors": null
-            },
             "db_entity_metadata": null
         }
     ],
@@ -104,17 +71,6 @@
                 }
             ],
             "schema": null,
-            "metadata": {
-                "created_at": "2025-06-06T02:09:51.284088",
-                "updated_at": "2025-06-06T02:09:51.284088",
-                "creator": "mission_specialist",
-                "version": 1,
-                "tags": [],
-                "source_step": "mission_proposal",
-                "content_type": null,
-                "validation_status": null,
-                "validation_errors": null
-            },
             "db_entity_metadata": null
         }
     },
@@ -142,17 +98,6 @@
                         "body": "This month's highlights include..."
                     },
                     "schema": null,
-                    "metadata": {
-                        "created_at": "2025-06-06T02:09:31.061787",
-                        "updated_at": "2025-06-06T02:09:31.061787",
-                        "creator": "mission_specialist",
-                        "version": 1,
-                        "tags": [],
-                        "source_step": "mission_proposal",
-                        "content_type": null,
-                        "validation_status": null,
-                        "validation_errors": null
-                    },
                     "db_entity_metadata": null
                 },
                 "April AI Newsletters": {
@@ -230,7 +175,4 @@
     "current_hop_index": 0,
     "mission_status": "active",
     "hop_status": "hop_ready_to_execute",
-    "metadata": {},
-    "created_at": "2025-06-06T02:09:31.061787",
-    "updated_at": "2025-06-06T02:09:31.061787"
 }

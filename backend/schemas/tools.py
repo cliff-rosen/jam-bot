@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field, validator
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Callable, Awaitable
 from enum import Enum
 import json
 import os
 from .asset import AssetSchema
+from .shared_types import ToolStep, Asset
 
 
 class ToolParameterSchema(BaseModel):
@@ -39,6 +40,12 @@ class ToolCategory(str, Enum):
     OTHER = "other"
 
 
+class ToolExecutionHandler(BaseModel):
+    """Handler for executing a tool"""
+    handler: Callable[[ToolStep, Dict[str, Asset]], Awaitable[Dict[str, Any]]]
+    description: str
+
+
 class ToolDefinition(BaseModel):
     """Complete definition of a pure function tool loaded from tools.json"""
     id: str = Field(description="Unique identifier for the tool, MUST be present in tools.json")
@@ -52,6 +59,7 @@ class ToolDefinition(BaseModel):
     version: str = Field(default="1.0.0", description="Tool version")
     deprecated: bool = Field(default=False, description="Whether this tool version is deprecated")
     replacement_tool: Optional[str] = Field(default=None, description="ID of replacement tool if deprecated")
+    execution_handler: Optional[ToolExecutionHandler] = None
 
     @validator('parameters')
     def validate_parameter_names(cls, v):
@@ -307,6 +315,18 @@ def format_tool_descriptions_for_implementation() -> str:
         descriptions.append(desc)
     
     return "\n".join(descriptions)
+
+
+def register_tool_handler(tool_id: str, handler: ToolExecutionHandler):
+    """Register a handler for a specific tool"""
+    if tool_id not in TOOL_REGISTRY:
+        raise ValueError(f"No tool definition found for {tool_id}")
+    TOOL_REGISTRY[tool_id].execution_handler = handler
+
+
+def get_tool(tool_id: str) -> Optional[ToolDefinition]:
+    """Get a tool by ID"""
+    return TOOL_REGISTRY.get(tool_id)
 
 
 # Load tools on module import

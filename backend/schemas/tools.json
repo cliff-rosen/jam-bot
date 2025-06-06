@@ -10,11 +10,11 @@
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Gmail search query (e.g., 'from:user@example.com label:important')"
+                        "description": "Gmail search query (e.g., 'from:user@example.com label:important'). Will be split into terms."
                     },
                     "folder": {
                         "type": "string",
-                        "description": "Gmail folder/label to search in",
+                        "description": "Gmail folder/label to search in. Will be converted to a list.",
                         "default": "INBOX"
                     },
                     "date_range": {
@@ -33,9 +33,19 @@
                     "limit": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 1000,
+                        "maximum": 500,
                         "default": 100,
-                        "description": "Maximum number of emails to retrieve"
+                        "description": "Maximum number of emails to retrieve (capped at 500)"
+                    },
+                    "include_attachments": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Whether to include attachment data in the response"
+                    },
+                    "include_metadata": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Whether to include message metadata in the response"
                     }
                 },
                 "required": []

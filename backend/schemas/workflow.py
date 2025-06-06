@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from .asset import Asset
 from .tools import ToolDefinition, TOOL_REGISTRY
+from .shared_types import ToolStep, ExecutionStatus, AssetFieldMapping, LiteralMapping, ParameterMappingValue, Asset
 
 
 class MissionStatus(str, Enum):
@@ -21,28 +22,6 @@ class HopStatus(str, Enum):
     HOP_READY_TO_EXECUTE = "hop_ready_to_execute"  # Hop resolved with tools, ready to run
     HOP_RUNNING = "hop_running"              # Hop is executing
     ALL_HOPS_COMPLETE = "all_hops_complete"  # No more hops needed
-
-
-class ExecutionStatus(str, Enum):
-    """Status of tool execution"""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-class AssetFieldMapping(BaseModel):
-    type: Literal["asset_field"] = "asset_field"
-    state_asset: str
-    path: Optional[str] = None
-
-
-class LiteralMapping(BaseModel):
-    type: Literal["literal"] = "literal"
-    value: Any
-
-
-ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
 
 
 class ToolStep(BaseModel):
@@ -121,14 +100,18 @@ class ToolStep(BaseModel):
         
         return errors
 
-    def execute(self, hop_state: Dict[str, Asset]) -> List[str]:
+    async def execute(self, hop_state: Dict[str, Asset]) -> List[str]:
         """Execute the tool step and validate results"""
         errors = []
         
-        # Get tool definition
+        # Get tool
         tool = TOOL_REGISTRY.get(self.tool_id)
         if not tool:
-            errors.append(f"Tool {self.tool_id} not found in registry")
+            errors.append(f"Tool {self.tool_id} not found")
+            return errors
+        
+        if not tool.execution_handler:
+            errors.append(f"No execution handler registered for tool {self.tool_id}")
             return errors
         
         # Validate schema compatibility before execution
@@ -137,14 +120,23 @@ class ToolStep(BaseModel):
             errors.extend(validation_errors)
             return errors
         
-        # TODO: Implement actual tool execution
-        # This would:
-        # 1. Map input parameters from hop state
-        # 2. Execute the tool
-        # 3. Map outputs back to hop state
-        # 4. Validate output schemas
-        
-        return errors
+        try:
+            # Execute tool
+            results = await tool.execution_handler.handler(self, hop_state)
+            
+            # Map results back to hop state
+            for output_name, asset_name in self.result_mapping.items():
+                if output_name in results:
+                    hop_state[asset_name] = Asset(
+                        content=results[output_name],
+                        schema=tool.outputs[0].schema
+                    )
+            
+            return errors
+            
+        except Exception as e:
+            errors.append(f"Tool execution failed: {str(e)}")
+            return errors
 
 
 class Hop(BaseModel):

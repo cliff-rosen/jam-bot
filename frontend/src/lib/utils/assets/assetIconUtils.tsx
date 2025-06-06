@@ -1,10 +1,9 @@
-import { AssetType } from '../../../types/asset';
 import { DocumentIcon, DocumentTextIcon, ListBulletIcon, TableCellsIcon, PhotoIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { getAssetColor } from './assetUtils';
 
-export const getAssetIcon = (type: AssetType, subtype?: string) => {
+export const getAssetIcon = (type: string, subtype?: string) => {
     switch (type) {
-        case AssetType.FILE:
+        case 'file':
             // File type icons based on subtype
             switch (subtype?.toLowerCase()) {
                 case 'pdf':
@@ -29,9 +28,11 @@ export const getAssetIcon = (type: AssetType, subtype?: string) => {
                 default:
                     return <DocumentIcon className={`h-6 w-6 ${getAssetColor(type, subtype)}`} />;
             }
-        case AssetType.PRIMITIVE:
+        case 'string':
             return <DocumentTextIcon className={`h-6 w-6 ${getAssetColor(type, subtype)}`} />;
-        case AssetType.OBJECT:
+        case 'object':
+            return <TableCellsIcon className={`h-6 w-6 ${getAssetColor(type, subtype)}`} />;
+        case 'database_entity':
             return <TableCellsIcon className={`h-6 w-6 ${getAssetColor(type, subtype)}`} />;
         default:
             return <DocumentIcon className={`h-6 w-6 ${getAssetColor(type, subtype)}`} />;

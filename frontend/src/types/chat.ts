@@ -1,4 +1,3 @@
-import { Asset, AssetType } from '@/types/asset';
 import { Mission } from '@/types/workflow';
 
 export enum MessageRole {
@@ -25,7 +24,7 @@ export type AssetReference = {
     id: string;
     name: string;
     description: string;
-    type: AssetType;
+    type: string;
     subtype?: string;
     metadata?: Record<string, any>;
 }
@@ -33,7 +32,7 @@ export type AssetReference = {
 export interface ChatRequest {
     messages: ChatMessage[];
     payload?: {
-s        mission?: Mission;
+        mission?: Mission;
     };
 }
 

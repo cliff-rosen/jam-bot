@@ -159,6 +159,7 @@ export const defaultMission2: Mission = {
             },
             value: null,
             is_collection: false,
+            collection_type: 'null',
             asset_metadata: {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -167,7 +168,7 @@ export const defaultMission2: Mission = {
                 agent_associations: [],
                 version: 1,
                 token_count: 0
-            },
+            }
         }
     ],
     outputs: [
@@ -182,6 +183,7 @@ export const defaultMission2: Mission = {
             },
             value: null,
             is_collection: false,
+            collection_type: 'null',
             asset_metadata: {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -190,7 +192,7 @@ export const defaultMission2: Mission = {
                 agent_associations: [],
                 version: 1,
                 token_count: 0
-            },
+            }
         }
     ],
     state: {},

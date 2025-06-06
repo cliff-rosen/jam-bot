@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Asset, AssetType, CollectionType } from '@/types/asset';
+import { Asset } from '@/types/schema';
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface AssetLibraryPanelProps {
@@ -18,7 +18,7 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
     outputAssetIds = [],
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterType, setFilterType] = useState<AssetType | 'all'>('all');
+    const [filterType, setFilterType] = useState<string>('all');
 
     const applyFilters = (assetsToFilter: Asset[]): Asset[] => {
         return assetsToFilter.filter(asset => {
@@ -28,7 +28,7 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
             const matchesSearch = assetName.toLowerCase().includes(searchLower) ||
                 assetDescription.toLowerCase().includes(searchLower);
-            const matchesType = filterType === 'all' || asset.type === filterType;
+            const matchesType = filterType === 'all' || asset.schema.type === filterType;
             return matchesSearch && matchesType;
         });
     };
@@ -68,19 +68,23 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                 </div>
+
                 <div className="flex items-center space-x-2">
                     <FunnelIcon className="h-5 w-5 text-gray-400" />
                     <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as AssetType | 'all')}
+                        onChange={(e) => setFilterType(e.target.value)}
                         className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 
                                  bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                         <option value="all">All Types</option>
-                        <option value={AssetType.FILE}>Files</option>
-                        <option value={AssetType.PRIMITIVE}>Primitives</option>
-                        <option value={AssetType.OBJECT}>Objects</option>
+                        <option value="file">Files</option>
+                        <option value="string">Primitives</option>
+                        <option value="object">Objects</option>
+                        <option value="database_entity">Database Entities</option>
+                        <option value="email">Emails</option>
+                        <option value="webpage">Web Pages</option>
                     </select>
                 </div>
             </div>
@@ -152,7 +156,7 @@ const AssetCard: React.FC<{ asset: Asset; onAssetSelect: (asset: Asset) => void;
         <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description || 'No description'}</div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                {asset.type?.toUpperCase() || 'UNKNOWN'}
+                {asset.schema.type?.toUpperCase() || 'UNKNOWN'}
             </div>
             {asset.asset_metadata?.token_count !== undefined && (
                 <div className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 w-fit border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">

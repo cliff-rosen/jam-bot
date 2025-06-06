@@ -1,34 +1,41 @@
-import { AssetType, Asset } from '@/types/asset';
+import { Asset } from '../../../types/schema';
 
-export const getAssetColor = (type: AssetType, subtype?: string) => {
+export const getAssetColor = (type: string, subtype?: string) => {
     switch (type) {
-        case AssetType.FILE:
+        case 'file':
             // File type colors based on subtype
             switch (subtype?.toLowerCase()) {
                 case 'pdf':
-                    return 'text-red-500';
+                    return 'text-red-600';
                 case 'doc':
                 case 'docx':
-                    return 'text-blue-500';
+                    return 'text-blue-600';
                 case 'txt':
-                    return 'text-gray-500';
+                    return 'text-gray-600';
                 case 'csv':
                 case 'json':
-                    return 'text-green-500';
+                    return 'text-green-600';
                 case 'png':
                 case 'jpg':
                 case 'jpeg':
                 case 'gif':
-                    return 'text-purple-500';
+                    return 'text-purple-600';
+                case 'mp3':
+                case 'wav':
+                    return 'text-orange-600';
+                case 'mp4':
+                    return 'text-pink-600';
                 default:
-                    return 'text-gray-400';
+                    return 'text-gray-600';
             }
-        case AssetType.PRIMITIVE:
-            return 'text-yellow-500';
-        case AssetType.OBJECT:
-            return 'text-indigo-500';
+        case 'string':
+            return 'text-gray-600';
+        case 'object':
+            return 'text-green-600';
+        case 'database_entity':
+            return 'text-blue-600';
         default:
-            return 'text-gray-400';
+            return 'text-gray-600';
     }
 };
 
@@ -37,6 +44,7 @@ export const getFileType = (file: File): string => {
     return extension || 'unknown';
 };
 
+// Helper function to get content from an asset with null safety
 // content can be primitive, object, or array
 // if object, return object[dataType]
 // if array, return array
@@ -44,20 +52,20 @@ export const getFileType = (file: File): string => {
 // if null or undefined, return null
 export const getAssetContent = (asset: Asset) => {
     // Handle null/undefined content
-    if (!asset.content) {
+    if (!asset.value) {
         return null;
     }
 
-    // If content is a primitive (string, number, etc.), return it directly
-    if (typeof asset.content !== 'object') {
-        return asset.content;
+    // If value is a primitive (string, number, etc.), return it directly
+    if (typeof asset.value !== 'object') {
+        return asset.value;
     }
 
-    // If content is an object and has a property matching the subtype, return that property
-    if (asset.subtype && Object.keys(asset.content).includes(asset.subtype)) {
-        return asset.content[asset.subtype];
+    // If value is an object and has a property matching the subtype, return that property
+    if (asset.subtype && Object.keys(asset.value).includes(asset.subtype)) {
+        return asset.value[asset.subtype];
     }
 
-    // If content is an object but doesn't have a matching subtype property, return the whole object
-    return asset.content;
+    // If value is an object but doesn't have a matching subtype property, return the whole object
+    return asset.value;
 }; 

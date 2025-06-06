@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Asset } from '@/types/asset';
+import { Asset } from '@/types/schema';
 import AssetLibraryPanel from './AssetLibraryPanel';
 import AssetInspectorPanel from './AssetInspectorPanel';
 import { useJamBot } from '@/context/JamBotContext';

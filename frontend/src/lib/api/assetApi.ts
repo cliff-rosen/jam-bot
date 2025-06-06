@@ -1,24 +1,91 @@
-import { Asset, AssetType, CollectionType, AssetWithPersistence } from '@/types/asset';
+import { Asset } from '@/types/asset';
 import { api } from '@/lib/api';
 
-// Type for creating an asset
+// Asset persistence information for tracking database state
+interface AssetPersistence {
+    isInDb: boolean;
+    dbId?: string;
+    isDirty?: boolean;
+    lastSyncedAt?: string;
+    version?: number;
+}
+
+// Asset with persistence information
+interface AssetWithPersistence extends Asset {
+    persistence: AssetPersistence;
+}
+
+// Type for creating an asset - using string types for API compatibility
 interface CreateAssetParams {
-    type: AssetType;
+    type: string; // legacy API still uses string types
     subtype?: string;
     is_collection?: boolean;
-    collection_type?: CollectionType;
+    collection_type?: string; // 'array' | 'map' | 'set' | 'null'
     content?: any;
     metadata?: Record<string, any>;
 }
 
-// Type for updating an asset
+// Type for updating an asset - using string types for API compatibility  
 interface UpdateAssetParams {
-    type?: AssetType;
+    type?: string; // legacy API still uses string types
     subtype?: string;
     is_collection?: boolean;
-    collection_type?: CollectionType;
+    collection_type?: string; // 'array' | 'map' | 'set' | 'null'
     content?: any;
     metadata?: Record<string, any>;
+}
+
+// Helper function to convert API response to unified Asset format
+function convertToUnifiedAsset(apiAsset: any): Asset {
+    return {
+        id: apiAsset.id,
+        name: apiAsset.name,
+        description: apiAsset.description || '',
+        schema: {
+            type: mapLegacyTypeToValueType(apiAsset.type),
+            description: apiAsset.description,
+            is_array: apiAsset.is_collection || false,
+            fields: undefined // TODO: Could extract from content structure
+        },
+        value: apiAsset.content,
+        subtype: mapLegacySubtype(apiAsset.subtype),
+        is_collection: apiAsset.is_collection || false,
+        collection_type: apiAsset.collection_type || 'null',
+        asset_metadata: apiAsset.asset_metadata || {
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            creator: null,
+            tags: [],
+            agent_associations: [],
+            version: 1,
+            token_count: 0
+        }
+    };
+}
+
+// Helper to map legacy AssetType to unified ValueType
+function mapLegacyTypeToValueType(legacyType: string): any {
+    const mapping: Record<string, string> = {
+        'file': 'file',
+        'primitive': 'string',
+        'object': 'object',
+        'database_entity': 'database_entity',
+        'markdown': 'string',
+        'config': 'object'
+    };
+    return mapping[legacyType] || 'object';
+}
+
+// Helper to map legacy subtype to unified CustomType
+function mapLegacySubtype(subtype: string): any {
+    const mapping: Record<string, string> = {
+        'email': 'email',
+        'newsletter': 'newsletter',
+        'search_result': 'search_result',
+        'web_page': 'webpage',
+        'pubmed_article': 'pubmed_article'
+    };
+    return mapping[subtype] || undefined;
 }
 
 export const assetApi = {
@@ -26,7 +93,7 @@ export const assetApi = {
     async getAssets(): Promise<AssetWithPersistence[]> {
         const response = await api.get('/api/assets');
         return response.data.map((asset: any) => ({
-            ...asset,
+            ...convertToUnifiedAsset(asset),
             persistence: {
                 isInDb: true,
                 dbId: asset.id,
@@ -41,7 +108,7 @@ export const assetApi = {
     async getAsset(id: string): Promise<AssetWithPersistence> {
         const response = await api.get(`/api/assets/${id}/details`);
         return {
-            ...response.data,
+            ...convertToUnifiedAsset(response.data),
             persistence: {
                 isInDb: true,
                 dbId: response.data.id,
@@ -56,7 +123,7 @@ export const assetApi = {
     async getAssetDetails(id: string): Promise<AssetWithPersistence> {
         const response = await api.get(`/api/assets/${id}/details`);
         return {
-            ...response.data,
+            ...convertToUnifiedAsset(response.data),
             persistence: {
                 isInDb: true,
                 dbId: response.data.id,
@@ -71,7 +138,7 @@ export const assetApi = {
     async createAsset(params: CreateAssetParams): Promise<AssetWithPersistence> {
         const response = await api.post('/api/assets', params);
         return {
-            ...response.data,
+            ...convertToUnifiedAsset(response.data),
             persistence: {
                 isInDb: true,
                 dbId: response.data.id,
@@ -86,7 +153,7 @@ export const assetApi = {
     async updateAsset(id: string, updates: UpdateAssetParams): Promise<AssetWithPersistence> {
         const response = await api.put(`/api/assets/${id}`, updates);
         return {
-            ...response.data,
+            ...convertToUnifiedAsset(response.data),
             persistence: {
                 isInDb: true,
                 dbId: response.data.id,
@@ -123,17 +190,7 @@ export const assetApi = {
             },
         });
 
-        // Add persistence info to response
-        return {
-            ...response.data,
-            persistence: {
-                isInDb: true,
-                dbId: response.data.asset_id,
-                isDirty: false,
-                lastSyncedAt: new Date().toISOString(),
-                version: 1
-            }
-        };
+        return convertToUnifiedAsset(response.data);
     },
 
     // Download a file asset

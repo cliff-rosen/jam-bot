@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from ..database import get_db
-from ..auth import validate_token
-from ..schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
-from ..schemas.tools import TOOL_REGISTRY, ToolStep, ExecutionStatus
-from ..services.tool_executor import ToolExecutor
 import json
 import logging
+from database import get_db
+
+from services.auth_service import validate_token
+
+from schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
+from schemas.tools import TOOL_REGISTRY, ToolStep, ExecutionStatus
 
 logger = logging.getLogger(__name__)
 

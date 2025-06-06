@@ -1,5 +1,5 @@
 import React from 'react';
-import { Asset } from '@/types/asset';
+import { Asset } from '@/types/schema';
 
 interface MissionStateTableProps {
     state: Record<string, Asset>;
@@ -61,14 +61,14 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                             </td>
                             <td className="py-2 px-2">
                                 <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                                    {asset.type || 'unknown'}
+                                    {asset.schema.type || 'unknown'}
                                 </span>
                             </td>
                             <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
                                 {truncateContent(asset.description, 40)}
                             </td>
                             <td className="py-2 px-2 text-gray-600 dark:text-gray-400 font-mono">
-                                {truncateContent(asset.content, 30)}
+                                {truncateContent(asset.value, 30)}
                             </td>
                             <td className="py-2 px-2">
                                 {asset.asset_metadata?.version ? (

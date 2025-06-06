@@ -392,11 +392,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 
                 # Override ID and update metadata for this WIP asset
                 new_wip_asset.id = generated_wip_asset_id 
-                new_wip_asset.asset_metadata["source"] = "hop_generated_wip"
-                new_wip_asset.asset_metadata["creator"] = "hop_designer_wip"
-                current_time_iso = datetime.utcnow().isoformat()
-                new_wip_asset.asset_metadata["created_at"] = current_time_iso
-                new_wip_asset.asset_metadata["updated_at"] = current_time_iso
                 
                 # Ensure mission.state exists (it should, if mission was initialized)
                 if state.mission.state is None: # Defensive check
@@ -444,7 +439,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "tool_params": {},
             "next_node": next_node,
-            "available_assets": state.available_assets
         }
 
         if writer:

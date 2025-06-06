@@ -53,7 +53,7 @@ def load_tools_from_file() -> Dict[str, ToolDefinition]:
         print(f"Loading tools from {file_path}")
         with open(file_path, 'r') as f:
             tools_data = json.load(f)
-        print(f"Successfully loaded tools.json with {len(tools_data.get('tools', []))} tools")
+        # print(f"Successfully loaded tools.json with {len(tools_data.get('tools', []))} tools")
         return _parse_tools_response(tools_data)
     except FileNotFoundError:
         print(f"Tool definitions file not found: {file_path}")
@@ -157,12 +157,6 @@ def refresh_tool_registry():
     print("Refreshing tool registry...")
     TOOL_REGISTRY = load_tools_from_file()
     print(f"Loaded {len(TOOL_REGISTRY)} tool definitions, keyed by tool_id.")
-    if not TOOL_REGISTRY:
-        print("WARNING: No tools were loaded! This will prevent hop implementation from working.")
-    else:
-        print("Available tools:")
-        for tool_id, tool in TOOL_REGISTRY.items():
-            print(f"- {tool.name} (ID: {tool_id})")
 
 
 def get_tool_definition(tool_id: str) -> Optional[ToolDefinition]:

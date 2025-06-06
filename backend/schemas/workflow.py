@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union, Literal
 from datetime import datetime
 from enum import Enum
-from .asset import Asset
+from .unified_schema import Asset
 from .tools import ToolStep, ExecutionStatus
 
 

@@ -8,10 +8,10 @@ from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
 
-# Type definitions matching frontend
-PrimitiveType = Literal['string', 'number', 'boolean']
+# Type definitions matching frontend and backend compatibility
+PrimitiveType = Literal['string', 'number', 'boolean', 'primitive']  # Added 'primitive' for backend compatibility
 CustomType = Literal['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
-ComplexType = Literal['object', 'file', 'database_entity', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
+ComplexType = Literal['object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']  # Added 'markdown', 'config' for backend compatibility
 ValueType = Union[PrimitiveType, ComplexType]
 
 class SchemaType(BaseModel):
@@ -45,7 +45,7 @@ class Asset(SchemaEntity):
     """Assets extend SchemaEntity with actual value"""
     value: Optional[Any] = None  # the actual data content
     # Asset-specific metadata
-    subtype: Optional[CustomType] = None
+    subtype: Optional[str] = None  # Allow any string for flexibility like the old schema
     is_collection: bool = False
     collection_type: Optional[Literal['array', 'map', 'set', 'null']] = None
     asset_metadata: AssetMetadata = Field(default_factory=AssetMetadata)

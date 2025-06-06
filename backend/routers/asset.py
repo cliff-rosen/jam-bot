@@ -53,51 +53,15 @@ async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dic
     Get detailed information about an asset, including its content.
     For database entity assets, this will fetch the content from the database.
     """
-    # Get the asset from the database
-    asset = db.query(AssetModel).filter(AssetModel.id == asset_id).first()
+    # Use AssetService to get the asset with unified schema format
+    asset_service = AssetService(db)
+    asset = asset_service.get_asset_with_details(asset_id)
+    
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     
-    # If it's a database entity and content needs to be fetched
-    if asset.type == "database_entity" and asset.db_entity_metadata:
-        try:
-            # Parse the metadata
-            metadata = DatabaseEntityMetadata(**asset.db_entity_metadata)
-            
-            # If content is not stored directly, fetch it
-            if not metadata.is_direct_content:
-                db_service = DatabaseEntityService(db)
-                content = db_service.fetch_entities(metadata)
-                
-                # Return the asset with fetched content
-                return {
-                    "id": asset.id,
-                    "name": asset.name,
-                    "description": asset.description,
-                    "type": asset.type,
-                    "subtype": asset.subtype,
-                    "is_collection": asset.is_collection,
-                    "collection_type": asset.collection_type,
-                    "content": content,
-                    "asset_metadata": asset.asset_metadata,
-                    "db_entity_metadata": asset.db_entity_metadata
-                }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching asset content: {str(e)}")
-    
-    # For non-database entities or those with direct content, return as is
-    return {
-        "id": asset.id,
-        "name": asset.name,
-        "description": asset.description,
-        "type": asset.type,
-        "subtype": asset.subtype,
-        "is_collection": asset.is_collection,
-        "collection_type": asset.collection_type,
-        "content": asset.content,
-        "asset_metadata": asset.asset_metadata,
-        "db_entity_metadata": asset.db_entity_metadata
-    }
+    # Return the unified asset format
+    return asset.model_dump(mode='json')
 
 @router.get("/", response_model=List[Asset])
 async def get_user_assets(

@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from models import Asset as AssetModel
 from schemas.asset import Asset, CollectionType, DatabaseEntityMetadata
+from schemas.unified_schema import SchemaType, AssetMetadata
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
@@ -22,9 +23,11 @@ class AssetService:
         asset = self._model_to_schema(asset_model)
 
         # If this is a database entity asset, fetch its content using DatabaseEntityService
-        if asset.type == "database_entity" and asset.db_entity_metadata:
-            content = self.db_entity_service.fetch_entities(asset.db_entity_metadata)
-            asset.content = content
+        if asset.schema.type == "database_entity" and hasattr(asset_model, 'db_entity_metadata') and asset_model.db_entity_metadata:
+            # Create DatabaseEntityMetadata from the model data
+            db_metadata = DatabaseEntityMetadata(**asset_model.db_entity_metadata)
+            content = self.db_entity_service.fetch_entities(db_metadata)
+            asset.value = content
 
         return asset
 
@@ -44,26 +47,62 @@ class AssetService:
             return len(self.tokenizer.encode(str(content)))
 
     def _model_to_schema(self, model: AssetModel) -> Asset:
-        """Convert database model to schema"""
+        """Convert database model to unified Asset schema"""
         content = model.content
         # if content is a string then truncate it to 1000 characters
         if isinstance(content, str):
             content = content
 
         # Ensure metadata is a dictionary
-        metadata = model.asset_metadata if isinstance(model.asset_metadata, dict) else {}
+        metadata_dict = model.asset_metadata if isinstance(model.asset_metadata, dict) else {}
+        
+        # Create unified schema type
+        schema = SchemaType(
+            type=model.type,
+            description=model.description,
+            is_array=model.is_collection or False,
+            fields=None  # TODO: Could extract from content structure
+        )
+        
+        # Create unified asset metadata
+        def parse_datetime(date_value, default=None):
+            """Parse datetime from various formats"""
+            if default is None:
+                default = datetime.utcnow()
+            
+            if isinstance(date_value, datetime):
+                return date_value
+            elif isinstance(date_value, str):
+                try:
+                    return datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+                except ValueError:
+                    try:
+                        return datetime.fromisoformat(date_value)
+                    except ValueError:
+                        return default
+            else:
+                return default
+        
+        asset_metadata = AssetMetadata(
+            created_at=parse_datetime(metadata_dict.get('createdAt')),
+            updated_at=parse_datetime(metadata_dict.get('updatedAt')),
+            creator=metadata_dict.get('creator'),
+            tags=metadata_dict.get('tags', []),
+            agent_associations=metadata_dict.get('agent_associations', []),
+            version=metadata_dict.get('version', 1),
+            token_count=metadata_dict.get('token_count', 0)
+        )
         
         return Asset(
             id=str(model.id),
             name=model.name,
-            description=model.description,
-            type=model.type,
+            description=model.description or "",
+            schema=schema,  # Use unified schema structure
+            value=content,  # Use unified field name
             subtype=model.subtype,
-            db_entity_metadata=model.db_entity_metadata,
-            is_collection=model.is_collection,
-            collection_type=model.collection_type,
-            content=content,
-            asset_metadata=metadata
+            is_collection=model.is_collection or False,
+            collection_type=model.collection_type or 'null',
+            asset_metadata=asset_metadata  # Use unified metadata structure
         )
 
     def create_asset(

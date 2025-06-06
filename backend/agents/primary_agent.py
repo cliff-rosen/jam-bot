@@ -15,7 +15,7 @@ from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from schemas.asset import Asset, AssetMetadata
+from schemas.unified_schema import Asset, SchemaType
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
@@ -37,26 +37,35 @@ You are a helpful assistant named Jack that can answer question.
 """
 
 def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
-    """Convert an AssetLite object to a full Asset object"""
+    """Convert an AssetLite object to a full Asset object with unified schema"""
     current_time = datetime.utcnow()
+    
+    # Create the unified schema
+    unified_schema = SchemaType(
+        type=asset_lite.type.value if hasattr(asset_lite.type, 'value') else str(asset_lite.type),
+        description=asset_lite.schema_description or asset_lite.description,
+        is_array=asset_lite.is_collection,
+        fields=None  # TODO: Could extract fields from schema_description or example_value if structured
+    )
     
     asset_to_return = Asset(
         id=str(uuid.uuid4()),  # Generate new ID
         name=asset_lite.name,
         description=asset_lite.description,
-        type=asset_lite.type,
+        schema=unified_schema,  # Add the unified schema
+        value=asset_lite.example_value,  # Use example as initial content (renamed from content to value)
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
-        collection_type=asset_lite.collection_type,
-        content=asset_lite.example_value,  # Use example as initial content
-        metadata=AssetMetadata(
-            created_at=current_time,
-            updated_at=current_time,
-            creator="mission_specialist",
-            tags=[],
-            version=1,
-            source_step="mission_proposal"
-        )
+        collection_type=asset_lite.collection_type.value if hasattr(asset_lite.collection_type, 'value') else str(asset_lite.collection_type) if asset_lite.collection_type else 'null',
+        asset_metadata={
+            'createdAt': current_time.isoformat(),
+            'updatedAt': current_time.isoformat(),
+            'creator': 'mission_specialist',
+            'tags': [],
+            'agent_associations': [],
+            'version': 1,
+            'token_count': 0
+        }
     )
 
     return asset_to_return
@@ -303,7 +312,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             payload = {
                 "mission": mission_dict
             }
-            print(f"DEBUG: Mission specialist payload: {payload}")
+            # print(f"DEBUG: Mission specialist payload: {payload}")
             agent_response_data = {
                 "token": response_message.content[0:100],
                 "response_text": parsed_response.response_content,

@@ -248,12 +248,12 @@ Based on this context and the available tools, design the next hop that will mov
                 'name': asset.name,
                 'id': asset.id,
                 'description': asset.description,
-                'type': asset.type,
+                'type': asset.schema.type,
                 'subtype': asset.subtype,
                 'is_collection': asset.is_collection,
                 'collection_type': asset.collection_type,
-                'content': asset.content,
-                'metadata': asset.metadata.model_dump(mode='json') if asset.metadata else {}
+                'content': asset.value,
+                'metadata': asset.asset_metadata.model_dump(mode='json') if asset.asset_metadata else {}
             }
             for asset in mission.inputs
         ]
@@ -263,12 +263,12 @@ Based on this context and the available tools, design the next hop that will mov
                 'name': asset.name,
                 'id': asset.id,
                 'description': asset.description,
-                'type': asset.type,
+                'type': asset.schema.type,
                 'subtype': asset.subtype,
                 'is_collection': asset.is_collection,
                 'collection_type': asset.collection_type,
-                'content': asset.content,
-                'metadata': asset.metadata.model_dump(mode='json') if asset.metadata else {}
+                'content': asset.value,
+                'metadata': asset.asset_metadata.model_dump(mode='json') if asset.asset_metadata else {}
             }
             for asset in mission.outputs
         ]

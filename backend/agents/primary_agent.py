@@ -40,7 +40,7 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
     """Convert an AssetLite object to a full Asset object"""
     current_time = datetime.utcnow()
     
-    return Asset(
+    asset_to_return = Asset(
         id=str(uuid.uuid4()),  # Generate new ID
         name=asset_lite.name,
         description=asset_lite.description,
@@ -58,6 +58,8 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
             source_step="mission_proposal"
         )
     )
+
+    return asset_to_return
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -240,6 +242,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 convert_asset_lite_to_asset(asset_lite) 
                 for asset_lite in parsed_response.mission_proposal.outputs
             ]
+            # print(f"DEBUG: Mission inputs: {state.mission.inputs}")
 
             current_time = datetime.utcnow()
             state.mission.created_at = current_time
@@ -256,6 +259,8 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             # Also initialize mission state with output assets
             for asset in state.mission.outputs:
                 state.mission.state[asset.id] = asset
+
+            print(f"DEBUG: Mission state: {state.mission.state}")
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -275,18 +280,39 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         if writer:
             # Prepare the AgentResponse
+            # First convert all assets in state to their dict representation
+            serialized_state = {
+                asset_id: asset.model_dump(mode='json')
+                for asset_id, asset in state.mission.state.items()
+            }
+            
+            # Create a copy of the mission and update its state with serialized assets
+            mission_dict = state.mission.model_dump(mode='json')
+            mission_dict['state'] = serialized_state
+            
+            # Also ensure inputs and outputs are properly serialized using the same format as state
+            mission_dict['inputs'] = [
+                asset.model_dump(mode='json')
+                for asset in state.mission.inputs
+            ]
+            mission_dict['outputs'] = [
+                asset.model_dump(mode='json')
+                for asset in state.mission.outputs
+            ]
+            
+            payload = {
+                "mission": mission_dict
+            }
+            print(f"DEBUG: Mission specialist payload: {payload}")
             agent_response_data = {
                 "token": response_message.content[0:100],
                 "response_text": parsed_response.response_content,
                 "status": "mission_specialist_completed",
-                "payload": {
-                    "mission": state.mission.model_dump(mode='json')
-                },
+                "payload": payload,
                 "error": None,
                 "debug": serialize_state(State(**state_update))
             }
 
-            
             agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 
@@ -320,7 +346,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         prompt = HopDesignerPrompt()
         
         # Convert mission state assets to list format for the prompt
-        available_assets = [asset.model_dump() for asset in state.mission.state.values()] if state.mission else []
+        available_assets = [asset.model_dump(mode='json') for asset in state.mission.state.values()] if state.mission else []
         
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
@@ -442,7 +468,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         }
 
         if writer:
-
             agent_response_data = {
                 "token": response_message.content[0:100],
                 "response_text": parsed_response.response_content,
@@ -451,7 +476,21 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 "debug": f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
                 "payload": {
                     "hop": new_hop.model_dump(mode='json'),
-                    "mission": state.mission.model_dump(mode='json')
+                    "mission": {
+                        **state.mission.model_dump(mode='json'),
+                        "state": {
+                            asset_id: asset.model_dump(mode='json')
+                            for asset_id, asset in state.mission.state.items()
+                        },
+                        "inputs": [
+                            asset.model_dump(mode='json')
+                            for asset in state.mission.inputs
+                        ],
+                        "outputs": [
+                            asset.model_dump(mode='json')
+                            for asset in state.mission.outputs
+                        ]
+                    }
                 }
             }
 
@@ -620,7 +659,28 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
                 "debug": f"Hop implementation status: {current_hop.status}, {next_status}",
                 "payload": {
-                    "hop": current_hop.model_dump(mode='json')
+                    "hop": {
+                        **current_hop.model_dump(mode='json'),
+                        "state": {
+                            asset_id: asset.model_dump(mode='json')
+                            for asset_id, asset in current_hop.state.items()
+                        }
+                    },
+                    "mission": {
+                        **state.mission.model_dump(mode='json'),
+                        "state": {
+                            asset_id: asset.model_dump(mode='json')
+                            for asset_id, asset in state.mission.state.items()
+                        },
+                        "inputs": [
+                            asset.model_dump(mode='json')
+                            for asset in state.mission.inputs
+                        ],
+                        "outputs": [
+                            asset.model_dump(mode='json')
+                            for asset in state.mission.outputs
+                        ]
+                    }
                 }
             }
             

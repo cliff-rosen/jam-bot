@@ -4,7 +4,7 @@ from enum import Enum
 import json
 import os
 from .asset import AssetSchema
-from .shared_types import ToolStep, Asset
+from .shared_types import ToolDefinition, ToolParameter, ToolOutput, TOOL_REGISTRY, ToolStep
 
 
 class ToolParameterSchema(BaseModel):
@@ -42,58 +42,8 @@ class ToolCategory(str, Enum):
 
 class ToolExecutionHandler(BaseModel):
     """Handler for executing a tool"""
-    handler: Callable[[ToolStep, Dict[str, Asset]], Awaitable[Dict[str, Any]]]
+    handler: Callable[[ToolStep, Dict[str, Any]], Awaitable[Dict[str, Any]]]
     description: str
-
-
-class ToolDefinition(BaseModel):
-    """Complete definition of a pure function tool loaded from tools.json"""
-    id: str = Field(description="Unique identifier for the tool, MUST be present in tools.json")
-    name: str = Field(description="Name of the tool")
-    description: str = Field(description="Description of what the tool does")
-    parameters: List[ToolParameterSchema] = Field(description="Structured input parameter definitions")
-    outputs: List[ToolOutputSchema] = Field(description="Structured output schema definitions")
-    category: ToolCategory = Field(description="Category of tool")
-    examples: Optional[List[Dict[str, Any]]] = Field(default=None, description="Usage examples")
-    error_schema: Optional[Dict[str, Any]] = Field(default=None, description="Schema for error responses")
-    version: str = Field(default="1.0.0", description="Tool version")
-    deprecated: bool = Field(default=False, description="Whether this tool version is deprecated")
-    replacement_tool: Optional[str] = Field(default=None, description="ID of replacement tool if deprecated")
-    execution_handler: Optional[ToolExecutionHandler] = None
-
-    @validator('parameters')
-    def validate_parameter_names(cls, v):
-        """Ensure parameter names are unique"""
-        names = [p.name for p in v]
-        if len(names) != len(set(names)):
-            raise ValueError("Parameter names must be unique")
-        return v
-
-    @validator('outputs')
-    def validate_output_names(cls, v):
-        """Ensure output names are unique"""
-        names = [o.name for o in v]
-        if len(names) != len(set(names)):
-            raise ValueError("Output names must be unique")
-        return v
-
-    def validate_input_asset(self, asset_schema: AssetSchema) -> List[str]:
-        """Validate that an asset schema is compatible with this tool's input requirements"""
-        errors = []
-        # TODO: Implement schema compatibility validation
-        # This would check that the asset schema matches the tool's parameter requirements
-        return errors
-
-    def validate_output_asset(self, asset_schema: AssetSchema) -> List[str]:
-        """Validate that an asset schema is compatible with this tool's output structure"""
-        errors = []
-        # TODO: Implement schema compatibility validation
-        # This would check that the tool's output schema matches the asset's requirements
-        return errors
-
-
-# Tool registry - populated from tools.json, keyed by tool_id
-TOOL_REGISTRY: Dict[str, ToolDefinition] = {}
 
 
 def load_tools_from_file() -> Dict[str, ToolDefinition]:

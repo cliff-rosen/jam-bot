@@ -282,10 +282,13 @@ Based on this context, create a detailed implementation plan for the current hop
         assets_str = format_assets(available_assets)
         
         # Convert mission to dict and handle datetime serialization
-        mission_dict = mission.dict()
-        for field in ['created_at', 'updated_at']:
-            if field in mission_dict and mission_dict[field]:
-                mission_dict[field] = mission_dict[field].isoformat()
+        mission_dict = mission.model_dump(mode='json')
+        mission_dict['inputs'] = [asset.model_dump(mode='json') for asset in mission.inputs]
+        mission_dict['outputs'] = [asset.model_dump(mode='json') for asset in mission.outputs]
+        mission_dict['state'] = {
+            asset_id: asset.model_dump(mode='json')
+            for asset_id, asset in mission.state.items()
+        }
         
         # Format mission string with serialized dates
         mission_str = format_mission(mission_dict, context_for_hop=True)

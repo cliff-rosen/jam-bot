@@ -2,7 +2,8 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from schemas.chat import Message, MessageRole
-from schemas.workflow import Mission, Asset, Hop
+from schemas.workflow import Mission, Hop
+from schemas.asset import Asset, AssetType, CollectionType
 from schemas.tools import format_tool_descriptions_for_hop_design
 from .base_prompt import BasePrompt
 from .mission_prompt import AssetLite
@@ -239,10 +240,38 @@ Based on this context and the available tools, design the next hop that will mov
         assets_str = format_assets(available_assets)
         
         # Convert mission to dict and handle datetime serialization
-        mission_dict = mission.dict()
-        for field in ['created_at', 'updated_at']:
-            if field in mission_dict and mission_dict[field]:
-                mission_dict[field] = mission_dict[field].isoformat()
+        mission_dict = mission.model_dump(mode='json')
+        
+        # Ensure inputs and outputs are properly serialized with required fields
+        mission_dict['inputs'] = [
+            {
+                'name': asset.name,
+                'id': asset.id,
+                'description': asset.description,
+                'type': asset.type,
+                'subtype': asset.subtype,
+                'is_collection': asset.is_collection,
+                'collection_type': asset.collection_type,
+                'content': asset.content,
+                'metadata': asset.metadata.model_dump(mode='json') if asset.metadata else {}
+            }
+            for asset in mission.inputs
+        ]
+        
+        mission_dict['outputs'] = [
+            {
+                'name': asset.name,
+                'id': asset.id,
+                'description': asset.description,
+                'type': asset.type,
+                'subtype': asset.subtype,
+                'is_collection': asset.is_collection,
+                'collection_type': asset.collection_type,
+                'content': asset.content,
+                'metadata': asset.metadata.model_dump(mode='json') if asset.metadata else {}
+            }
+            for asset in mission.outputs
+        ]
         
         # Format mission string with serialized dates
         mission_str = format_mission(mission_dict)

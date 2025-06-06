@@ -80,6 +80,7 @@ export interface Hop {
     status: ExecutionStatus;
     is_resolved: boolean;
     is_final: boolean;
+    error?: string;
     current_step_index: number;
     created_at: string;
     updated_at: string;

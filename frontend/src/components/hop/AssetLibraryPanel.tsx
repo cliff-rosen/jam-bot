@@ -22,8 +22,12 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     const applyFilters = (assetsToFilter: Asset[]): Asset[] => {
         return assetsToFilter.filter(asset => {
-            const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (asset.description && asset.description.toLowerCase().includes(searchQuery.toLowerCase()));
+            const assetName = asset.name || '';
+            const assetDescription = asset.description || '';
+            const searchLower = searchQuery.toLowerCase();
+
+            const matchesSearch = assetName.toLowerCase().includes(searchLower) ||
+                assetDescription.toLowerCase().includes(searchLower);
             const matchesType = filterType === 'all' || asset.type === filterType;
             return matchesSearch && matchesType;
         });

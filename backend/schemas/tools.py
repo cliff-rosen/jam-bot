@@ -51,14 +51,21 @@ def load_tools_from_file() -> Dict[str, ToolDefinition]:
     file_path = os.path.join(os.path.dirname(__file__), "tools.json")
     
     try:
+        print(f"Loading tools from {file_path}")
         with open(file_path, 'r') as f:
             tools_data = json.load(f)
+        print(f"Successfully loaded tools.json with {len(tools_data.get('tools', []))} tools")
         return _parse_tools_response(tools_data)
     except FileNotFoundError:
         print(f"Tool definitions file not found: {file_path}")
         return {}
+    except json.JSONDecodeError as e:
+        print(f"Error parsing tools.json: {e}")
+        return {}
     except Exception as e:
         print(f"Error loading tool definitions: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return {}
 
 
@@ -77,38 +84,44 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
             parameters = []
             if "parameters" in tool_def_json:
                 for param_def in tool_def_json["parameters"]:
-                    parameters.append(ToolParameterSchema(**param_def))
+                    # Convert ToolParameterSchema to ToolParameter
+                    param_schema = ToolParameterSchema(**param_def)
+                    parameters.append(ToolParameter(
+                        name=param_schema.name,
+                        description=param_schema.description,
+                        required=param_schema.required,
+                        schema=param_schema.schema
+                    ))
             elif "input_schema" in tool_def_json:
                 # Convert old format to new format
                 input_schema = tool_def_json["input_schema"]
                 if "properties" in input_schema:
                     for param_name, param_schema in input_schema["properties"].items():
-                        parameters.append(ToolParameterSchema(
+                        parameters.append(ToolParameter(
                             name=param_name,
-                            type=param_schema.get("type", "string"),
                             description=param_schema.get("description", ""),
                             required=param_name in input_schema.get("required", []),
-                            default=param_schema.get("default"),
-                            enum=param_schema.get("enum"),
-                            schema=param_schema,
-                            example=param_schema.get("example")
+                            schema=param_schema
                         ))
             
             # Parse outputs
             outputs = []
             if "outputs" in tool_def_json:
                 for output_def in tool_def_json["outputs"]:
-                    outputs.append(ToolOutputSchema(**output_def))
+                    # Convert ToolOutputSchema to ToolOutput
+                    output_schema = ToolOutputSchema(**output_def)
+                    outputs.append(ToolOutput(
+                        name=output_schema.name,
+                        description=output_schema.description,
+                        schema=output_schema.schema
+                    ))
             elif "output_schema" in tool_def_json:
                 # Convert old format to new format
                 for output_def in tool_def_json["output_schema"]:
-                    outputs.append(ToolOutputSchema(
+                    outputs.append(ToolOutput(
                         name=output_def.get("name", ""),
-                        type=output_def.get("type", "string"),
                         description=output_def.get("description", ""),
-                        schema=output_def.get("schema"),
-                        required=output_def.get("required", True),
-                        example=output_def.get("example")
+                        schema=output_def.get("schema")
                     ))
             
             # Create tool definition
@@ -133,6 +146,8 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
         except Exception as e:
             tool_name_for_error = tool_def_json.get('name', tool_def_json.get('id', 'unknown tool'))
             print(f"Error parsing tool definition for '{tool_name_for_error}': {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
     
     return tool_registry
 
@@ -140,8 +155,15 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
 def refresh_tool_registry():
     """Refresh the global tool registry from tools.json"""
     global TOOL_REGISTRY
+    print("Refreshing tool registry...")
     TOOL_REGISTRY = load_tools_from_file()
     print(f"Loaded {len(TOOL_REGISTRY)} tool definitions, keyed by tool_id.")
+    if not TOOL_REGISTRY:
+        print("WARNING: No tools were loaded! This will prevent hop implementation from working.")
+    else:
+        print("Available tools:")
+        for tool_id, tool in TOOL_REGISTRY.items():
+            print(f"- {tool.name} (ID: {tool_id})")
 
 
 def get_tool_definition(tool_id: str) -> Optional[ToolDefinition]:
@@ -188,15 +210,12 @@ def format_tool_descriptions_for_mission_design() -> str:
         key_inputs = []
         for param in tool_def.parameters:
             if param.required:
-                if param.enum:
-                    key_inputs.append(f"{param.name} (options: {', '.join(str(x) for x in param.enum)})")
-                else:
-                    key_inputs.append(param.name)
+                key_inputs.append(param.name)
         if key_inputs:
             desc += f"**Key Capabilities**: {', '.join(key_inputs)}\n"
         
-        # Format outputs
-        outputs = [output.name for output in tool_def.outputs if output.required]
+        # Format outputs - all outputs are considered required in our simplified model
+        outputs = [output.name for output in tool_def.outputs]
         if outputs:
             desc += f"**Produces**: {', '.join(outputs)}\n"
         
@@ -217,13 +236,13 @@ def format_tool_descriptions_for_hop_design() -> str:
         desc += f"**Purpose**: {tool_def.description}\n"
         desc += f"**Category**: {tool_def.category}\n"
         
-        # Format outputs with types
-        outputs = [f"{out.name} ({out.type})" for out in tool_def.outputs if out.required]
+        # Format outputs with types from schema
+        outputs = []
+        for output in tool_def.outputs:
+            output_type = output.schema.get("type", "object") if output.schema else "object"
+            outputs.append(f"{output.name} ({output_type})")
         if outputs:
             desc += f"**Outputs**: {', '.join(outputs)}\n"
-        
-        if tool_def.examples:
-            desc += f"**Usage Pattern**: {tool_def.examples[0].get('description', 'See documentation')}\n"
         
         desc += "\n"
         descriptions.append(desc)
@@ -243,23 +262,16 @@ def format_tool_descriptions_for_implementation() -> str:
         
         desc += "Input Parameters:\n"
         for param in tool_def.parameters:
-            desc += f"  - {param.name} ({param.type}): {param.description}"
+            param_type = param.schema.get("type", "object") if param.schema else "object"
+            desc += f"  - {param.name} ({param_type}): {param.description}"
             if not param.required:
-                default_val = param.default if param.default is not None else "None"
-                desc += f" [Optional, default: {default_val}]"
+                desc += " [Optional]"
             desc += "\n"
-            
-            if param.enum:
-                desc += f"    Options: {', '.join(str(x) for x in param.enum)}\n"
         
         desc += "Outputs:\n"
         for output in tool_def.outputs:
-            desc += f"  - {output.name} ({output.type}): {output.description}"
-            if not output.required:
-                desc += " [Optional]"
-            desc += "\n"
-            if output.example:
-                desc += f"    Example: {output.example}\n"
+            output_type = output.schema.get("type", "object") if output.schema else "object"
+            desc += f"  - {output.name} ({output_type}): {output.description}\n"
         
         desc += "\n"
         descriptions.append(desc)

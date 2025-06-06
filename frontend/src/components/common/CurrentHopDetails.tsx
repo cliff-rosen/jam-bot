@@ -230,10 +230,15 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                         <div className="text-xs font-medium text-gray-600">Inputs</div>
                                                         {Object.entries(step.parameter_mapping).map(([param, mapping]) => {
                                                             if (mapping.type === "literal") {
+                                                                // Handle date range objects
+                                                                let displayValue = mapping.value;
+                                                                if (mapping.value && typeof mapping.value === 'object' && 'start_date' in mapping.value && 'end_date' in mapping.value) {
+                                                                    displayValue = `${mapping.value.start_date} to ${mapping.value.end_date}`;
+                                                                }
                                                                 return (
                                                                     <div key={param} className="text-xs text-gray-500">
                                                                         <span className="text-blue-600 dark:text-blue-400">{param}:</span>
-                                                                        <span className="ml-1">{mapping.value}</span>
+                                                                        <span className="ml-1">{displayValue}</span>
                                                                     </div>
                                                                 );
                                                             } else if (mapping.type === "asset_field") {

@@ -201,7 +201,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                         {index + 1}. {step.tool_id}
                                                     </span>
                                                     <div className="flex items-center gap-2">
-                                                        {step.status !== ExecutionStatus.COMPLETED && onHopUpdate && (
+                                                        {step.status !== ExecutionStatus.COMPLETED && (
                                                             <button
                                                                 onClick={() => executeToolStep(step)}
                                                                 disabled={executingStepId === step.id}

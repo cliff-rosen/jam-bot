@@ -8,7 +8,7 @@ from database import get_db
 from services.auth_service import validate_token
 
 from schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
-from schemas.tools import TOOL_REGISTRY, ToolStep, ExecutionStatus
+from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -39,21 +39,36 @@ async def execute_tool(
     Returns:
         Dict containing execution results and any errors
     """
+    print("--------------------------------")
+    print(f"Executing tool: {tool_id}")
+    # print(f"Step: {step}")
+
     # Validate tool exists
     if tool_id not in TOOL_REGISTRY:
+        print(f"Tool {tool_id} not found")
+        print(f"Tool registry: {TOOL_REGISTRY}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tool {tool_id} not found"
         )
     
     # Execute the tool step
-    tool_results = await step.execute(hop_state)
+    try:    
+        tool_results = await step.execute(hop_state)
+        print(f"Tool results: {tool_results}")
+    except Exception as e:
+        print(f"Error executing tool: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error executing tool: {e}"
+        )
     
-    # Return results
+    # Return results including the updated hop state
     return {
         "success": True,
         "errors": [],
-        "tool_results": tool_results
+        "tool_results": tool_results,
+        "hop_state": hop_state
     }
 
 @router.get("/available", response_model=Dict[str, List[ToolDefinition]])
@@ -105,7 +120,7 @@ async def get_available_tools(
                     )
                 ) for output in tool.outputs
             ],
-            examples=tool.examples
+            examples=getattr(tool, 'examples', None)
         )
         unified_tools.append(unified_tool)
     

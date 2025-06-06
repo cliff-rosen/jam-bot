@@ -31,7 +31,7 @@
                         }
                     },
                     "limit": {
-                        "type": "integer",
+                        "type": "number",
                         "minimum": 1,
                         "maximum": 500,
                         "default": 100,
@@ -53,11 +53,13 @@
             "output_schema": [
                 {
                     "name": "emails",
-                    "type": "array",
+                    "type": "object",
+                    "is_array": true,
                     "description": "List of retrieved emails",
                     "required": true,
                     "details_schema": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -78,10 +80,8 @@
                                     "format": "date-time"
                                 },
                                 "labels": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
+                                    "type": "string",
+                                    "is_array": true
                                 }
                             }
                         }
@@ -102,7 +102,7 @@
                 },
                 {
                     "name": "count",
-                    "type": "integer",
+                    "type": "number",
                     "description": "Number of emails retrieved",
                     "required": true,
                     "example": 25
@@ -131,7 +131,8 @@
                 "type": "object",
                 "properties": {
                     "items": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "description": "List of items to process",
                         "items": {
                             "type": "object"
@@ -142,10 +143,8 @@
                         "description": "Function or prompt describing what to extract (e.g., 'extract sentiment and key topics')"
                     },
                     "extraction_fields": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
+                        "type": "string",
+                        "is_array": true,
                         "description": "List of field names to extract (e.g., ['sentiment', 'topics', 'priority'])"
                     },
                     "batch_process": {
@@ -163,11 +162,13 @@
             "output_schema": [
                 {
                     "name": "extractions",
-                    "type": "array",
+                    "type": "object",
+                    "is_array": true,
                     "description": "List of item ID and extraction pairs",
                     "required": true,
                     "details_schema": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -210,13 +211,13 @@
                         "type": "object",
                         "properties": {
                             "total_processed": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "successful": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "failed": {
-                                "type": "integer"
+                                "type": "number"
                             }
                         }
                     },
@@ -258,14 +259,16 @@
                 "type": "object",
                 "properties": {
                     "items": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "description": "List of items to update",
                         "items": {
                             "type": "object"
                         }
                     },
                     "updates": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -280,7 +283,8 @@
                         "description": "List of updates to apply to specific items"
                     },
                     "augmentation_rules": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -306,11 +310,13 @@
             "output_schema": [
                 {
                     "name": "updated_items",
-                    "type": "array",
+                    "type": "object",
+                    "is_array": true,
                     "description": "Items with updates and augmentations applied",
                     "required": true,
                     "details_schema": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object"
                         }
@@ -337,13 +343,13 @@
                         "type": "object",
                         "properties": {
                             "items_updated": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "items_augmented": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "errors": {
-                                "type": "integer"
+                                "type": "number"
                             }
                         }
                     },
@@ -398,7 +404,8 @@
                 "type": "object",
                 "properties": {
                     "items": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "description": "List of objects to group",
                         "items": {
                             "type": "object"
@@ -441,11 +448,13 @@
             "output_schema": [
                 {
                     "name": "grouped_results",
-                    "type": "array",
+                    "type": "object",
+                    "is_array": true,
                     "description": "Aggregated results for each group",
                     "required": true,
                     "details_schema": {
-                        "type": "array",
+                        "type": "object",
+                        "is_array": true,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -485,10 +494,10 @@
                         "type": "object",
                         "properties": {
                             "total_groups": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "total_items_processed": {
-                                "type": "integer"
+                                "type": "number"
                             },
                             "avg_group_size": {
                                 "type": "number"
@@ -568,10 +577,8 @@
                         "description": "Target length of the summary"
                     },
                     "focus_areas": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
+                        "type": "string",
+                        "is_array": true,
                         "description": "Specific areas to focus on in the summary"
                     }
                 },
@@ -596,16 +603,12 @@
                                 "type": "string"
                             },
                             "key_points": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
+                                "type": "string",
+                                "is_array": true
                             },
                             "recommendations": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
+                                "type": "string",
+                                "is_array": true
                             },
                             "metadata": {
                                 "type": "object",
@@ -614,7 +617,7 @@
                                         "type": "string"
                                     },
                                     "word_count": {
-                                        "type": "integer"
+                                        "type": "number"
                                     },
                                     "created_at": {
                                         "type": "string",

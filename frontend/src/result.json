@@ -1,0 +1,121 @@
+{
+    "step": {
+        "id": "step1_email_search",
+        "tool_id": "email_search",
+        "description": "Search for emails in the 'ai news' folder for the month of April.",
+        "parameter_mapping": {
+            "folder": {
+                "type": "asset_field",
+                "state_asset": "AI News Email Folder",
+                "path": "content.folder"
+            },
+            "date_range": {
+                "type": "asset_field",
+                "state_asset": "Date Range",
+                "path": "content"
+            },
+            "limit": {
+                "type": "literal",
+                "value": 500
+            },
+            "include_attachments": {
+                "type": "literal",
+                "value": false
+            },
+            "include_metadata": {
+                "type": "literal",
+                "value": true
+            }
+        },
+        "result_mapping": {
+            "emails": "april_ai_news_emails_list",
+            "count": "april_ai_news_email_count"
+        },
+        "status": "pending",
+        "error": null,
+        "created_at": "2025-06-06T18:58:00.761656",
+        "updated_at": "2025-06-06T18:58:00.761656",
+        "validation_errors": null
+    },
+    "hop_state": {
+        "folder_id": {
+            "id": "8516ded1-8b2d-47b6-b53e-f82350464d89",
+            "name": "AI News Email Folder",
+            "description": "Emails from the 'ai news' folder in Gmail for April.",
+            "schema": {
+                "type": "object",
+                "description": "{'subject': 'string','date': 'YYYY-MM-DD','body': 'string'}",
+                "is_array": true,
+                "fields": null
+            },
+            "value": {
+                "subject": "AI Weekly Highlights",
+                "date": "2023-04-15",
+                "body": "Details of new AI models and tools..."
+            },
+            "subtype": "email",
+            "is_collection": true,
+            "collection_type": "array",
+            "role": "input",
+            "asset_metadata": {
+                "created_at": "2025-06-06T18:57:55.532212",
+                "updated_at": "2025-06-06T18:57:55.532212",
+                "creator": "mission_specialist",
+                "tags": [],
+                "agent_associations": [],
+                "version": 1,
+                "token_count": 0
+            }
+        },
+        "date_range": {
+            "id": "83798214-5a32-426d-9d14-5b907fdbb816",
+            "name": "Date Range",
+            "description": "Date range for filtering emails.",
+            "schema": {
+                "type": "primitive",
+                "description": "String in YYYY-MM-DD format",
+                "is_array": false,
+                "fields": null
+            },
+            "value": "2023-04-01 to 2023-04-30",
+            "subtype": "date",
+            "is_collection": false,
+            "collection_type": "null",
+            "role": "input",
+            "asset_metadata": {
+                "created_at": "2025-06-06T18:57:55.532212",
+                "updated_at": "2025-06-06T18:57:55.532212",
+                "creator": "mission_specialist",
+                "tags": [],
+                "agent_associations": [],
+                "version": 1,
+                "token_count": 0
+            }
+        },
+        "April AI News Emails": {
+            "id": "hop_retrieve_april_ai_news_emails_ab5e0b1f_output",
+            "name": "April AI News Emails",
+            "description": "Emails retrieved from the 'ai news' folder for April, containing potential information on AI developments.",
+            "schema": {
+                "type": "object",
+                "description": "A list of email objects each with fields for content, date, and subject.",
+                "is_array": true,
+                "fields": null
+            },
+            "value": null,
+            "subtype": "email",
+            "is_collection": true,
+            "collection_type": "array",
+            "role": "intermediate",
+            "asset_metadata": {
+                "created_at": "2025-06-06T18:57:55.532212",
+                "updated_at": "2025-06-06T18:57:55.532212",
+                "creator": "mission_specialist",
+                "tags": [],
+                "agent_associations": [],
+                "version": 1,
+                "token_count": 0
+            }
+        }
+    }
+}

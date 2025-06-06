@@ -13,6 +13,9 @@ email_service = EmailService()
 
 async def handle_email_search(step: ToolStep, hop_state: Dict[str, Asset]) -> Dict[str, Any]:
     """Handle execution of the email_search tool"""
+
+    print(f"handle_email_search: {step}")
+
     # Map parameters from hop state
     params = {}
     for param_name, mapping in step.parameter_mapping.items():

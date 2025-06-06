@@ -28,13 +28,12 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
 
     const executeToolStep = async (step: ToolStep) => {
         console.log("Executing tool step:", step);
-        if (!onHopUpdate) return;
-
         setExecutingStepId(step.id);
         setExecutionError(null);
 
         try {
             const result = await toolsApi.executeTool(step.tool_id, step, hop.state);
+            console.log("Result:", result);
 
             if (result.success) {
                 // Update hop state with execution results
@@ -54,11 +53,14 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                 }
 
                 // Call onHopUpdate with both hop and mission updates
-                onHopUpdate(updatedHop, updatedMissionOutputs);
+                if (onHopUpdate) {
+                    onHopUpdate(updatedHop, updatedMissionOutputs);
+                }
             } else {
                 setExecutionError(result.errors.join('\n'));
             }
         } catch (error) {
+            console.error("Error executing tool step:", error);
             setExecutionError(error instanceof Error ? error.message : 'Failed to execute tool step');
         } finally {
             setExecutingStepId(null);
@@ -128,7 +130,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.type ? `Type: ${asset.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema ? `Type: ${asset.schema.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -157,7 +159,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.type ? `Type: ${asset.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema ? `Type: ${asset.schema.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -340,7 +342,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 <span className="text-blue-600 dark:text-blue-400">{key}:</span> {asset.name}
                                             </div>
                                             <div className="text-gray-500 ml-2">
-                                                {asset.type}{asset.is_collection ? ` (${asset.collection_type})` : ''}
+                                                {asset.schema?.type}{asset.is_collection ? ` (${asset.collection_type})` : ''}
                                             </div>
                                         </div>
                                     ))}

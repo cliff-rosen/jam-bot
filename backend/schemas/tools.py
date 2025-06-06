@@ -291,6 +291,7 @@ def format_tool_descriptions_for_implementation() -> str:
 
 def register_tool_handler(tool_id: str, handler: ToolExecutionHandler):
     """Register a handler for a specific tool"""
+    print(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:
         raise ValueError(f"No tool definition found for {tool_id}")
     TOOL_REGISTRY[tool_id].execution_handler = handler
@@ -378,6 +379,8 @@ class ToolStep(BaseModel):
         # Get tool from the local registry
         tool = TOOL_REGISTRY.get(self.tool_id)
         if not tool:
+            print(f"Tool {self.tool_id} not found")
+            print(f"Tool registry: {TOOL_REGISTRY}")
             errors.append(f"Tool {self.tool_id} not found")
             return errors
         

@@ -27,6 +27,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const totalSteps = hop.steps?.length || 0;
 
     const executeToolStep = async (step: ToolStep) => {
+        console.log("Executing tool step:", step);
         if (!onHopUpdate) return;
 
         setExecutingStepId(step.id);

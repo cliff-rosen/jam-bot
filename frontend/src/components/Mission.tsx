@@ -26,12 +26,14 @@ const AssetDisplay: React.FC<AssetDisplayProps> = ({ asset }) => {
                 <div className="text-gray-600 dark:text-gray-300">{asset.description}</div>
             )}
             <div className="flex flex-wrap gap-1 text-xs">
+                {/* @ts-ignore legacy field */}
                 <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                    {asset.type}
+                    {(asset as any).type}
                 </span>
-                {asset.subtype && (
+                {/* @ts-ignore legacy field */}
+                {(asset as any).subtype && (
                     <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">
-                        {asset.subtype}
+                        {(asset as any).subtype}
                     </span>
                 )}
                 {asset.is_collection && (

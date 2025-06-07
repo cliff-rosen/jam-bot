@@ -1,5 +1,6 @@
 from typing import Annotated, Dict, Any, AsyncIterator, List, Optional, Iterator, TypedDict, Callable, Union
 import json
+import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
 from serpapi import GoogleSearch
 import uuid
@@ -482,7 +483,15 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 for local_input_name, mission_asset_id in new_hop.input_mapping.items():
                     canonical_local_key = canonical_key(local_input_name)
                     if mission_asset_id in state.mission.state:
-                        new_hop.state[canonical_local_key] = state.mission.state[mission_asset_id]
+                        # Deep-copy the mission asset so that modifications inside the hop do NOT
+                        # mutate the original asset attached to the parent mission. We also
+                        # update the asset's `id` so that it matches the local key used to store
+                        # it in `hop.state`. This guarantees `asset.id == key` for every entry in
+                        # the hop state as intended.
+                        asset_copy = copy.deepcopy(state.mission.state[mission_asset_id])
+                        asset_copy.id = canonical_local_key
+
+                        new_hop.state[canonical_local_key] = asset_copy
                     else:
                         print(f"ERROR: [Hop Designer] Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
                         # Potentially raise an error or mark mission as invalid
@@ -493,7 +502,12 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 for local_output_name, output_asset_id_in_mission_state in new_hop.output_mapping.items():
                     canonical_output_key = canonical_key(local_output_name)
                     if output_asset_id_in_mission_state in state.mission.state:
-                        new_hop.state[canonical_output_key] = state.mission.state[output_asset_id_in_mission_state]
+                        # Use a detached copy for the same reasons as inputs (avoid accidental
+                        # mutation + maintain key/id alignment).
+                        asset_copy = copy.deepcopy(state.mission.state[output_asset_id_in_mission_state])
+                        asset_copy.id = canonical_output_key
+
+                        new_hop.state[canonical_output_key] = asset_copy
                     else:
                         print(f"ERROR: [Hop Designer] Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
                         # Potentially raise an error or mark mission as invalid

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Asset } from '@/types/schema';
+import { Asset, AssetStatus } from '@/types/schema';
+import { getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionStateTableProps {
     state: Record<string, Asset>;
@@ -21,21 +22,22 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
         );
     }
 
-    // Helper function to truncate content
-    const truncateContent = (content: any, maxLength: number = 50): string => {
-        if (content === null || content === undefined) return 'N/A';
-
-        let displayText: string;
-        if (typeof content === 'string') {
-            displayText = content;
-        } else if (typeof content === 'object') {
-            displayText = JSON.stringify(content);
-        } else {
-            displayText = String(content);
+    // Helper to get badge color for asset status
+    const getAssetStatusColor = (status: AssetStatus): string => {
+        switch (status) {
+            case AssetStatus.PENDING:
+                return 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
+            case AssetStatus.IN_PROGRESS:
+                return 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+            case AssetStatus.READY:
+                return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
+            case AssetStatus.ERROR:
+                return 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
+            case AssetStatus.EXPIRED:
+                return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
+            default:
+                return 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700';
         }
-
-        if (displayText.length <= maxLength) return displayText;
-        return displayText.substring(0, maxLength) + '...';
     };
 
     return (
@@ -44,9 +46,8 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                 <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-600">
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Name</th>
+                        <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">ID</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Type</th>
-                        <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Description</th>
-                        <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Content</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Status</th>
                     </tr>
                 </thead>
@@ -59,25 +60,18 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                             <td className="py-2 px-2 text-gray-900 dark:text-gray-100 font-medium">
                                 {asset.name || 'Unnamed'}
                             </td>
+                            <td className="py-2 px-2 text-gray-700 dark:text-gray-300 font-mono">
+                                {asset.id?.slice(-8)}
+                            </td>
                             <td className="py-2 px-2">
                                 <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                                     {asset.schema.type || 'unknown'}
                                 </span>
                             </td>
-                            <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
-                                {truncateContent(asset.description, 40)}
-                            </td>
-                            <td className="py-2 px-2 text-gray-600 dark:text-gray-400 font-mono">
-                                {truncateContent(asset.value, 30)}
-                            </td>
                             <td className="py-2 px-2">
-                                {asset.asset_metadata?.version ? (
-                                    <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                                        v{asset.asset_metadata.version}
-                                    </span>
-                                ) : (
-                                    <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
-                                )}
+                                <span className={getStatusBadgeClass(getAssetStatusColor(asset.status))}>
+                                    {asset.status.toUpperCase()}
+                                </span>
                             </td>
                         </tr>
                     ))}

@@ -177,6 +177,13 @@ export function checkMissionReady(inputAssets: Asset[]): { ready: boolean; messa
     }
 }
 
+// Utility to canonicalize asset keys (mirrors backend logic)
+export function canonicalKey(name: string): string {
+    return name.trim().toLowerCase()
+        .replace(/[\s\-]+/g, '_') // replace spaces/hyphens with underscore
+        .replace(/[^a-z0-9_]/g, ''); // strip non-alphanumeric/underscore
+}
+
 export function markHopOutputsReady(
     hopState: Record<string, Asset>,
     outputMapping: Record<string, string>,
@@ -186,7 +193,7 @@ export function markHopOutputsReady(
     /**
      * Mark hop output assets as ready when hop completes successfully
      * 
-     * @param hopState - The hop's local asset state
+     * @param hopState - The hop's local asset state (keys should already be canonical)
      * @param outputMapping - Maps hop local asset names to mission asset IDs
      * @param missionState - The mission's global asset state to update
      * @param updatedBy - Who is marking the assets as ready
@@ -195,8 +202,11 @@ export function markHopOutputsReady(
     const markedReady: string[] = [];
 
     for (const [hopLocalName, missionAssetId] of Object.entries(outputMapping)) {
+        // Canonicalize the key to ensure matching regardless of formatting discrepancies
+        const canonicalLocalName = canonicalKey(hopLocalName);
+
         // Get the asset from hop's local state
-        const hopAsset = hopState[hopLocalName];
+        const hopAsset = hopState[canonicalLocalName];
         if (hopAsset && hopAsset.status === AssetStatus.READY) {
             // Find the corresponding asset in mission state
             const missionAsset = missionState[missionAssetId];

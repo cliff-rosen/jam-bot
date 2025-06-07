@@ -24,6 +24,7 @@ from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefini
 from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
+from utils.string_utils import canonical_key
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -413,6 +414,12 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Convert hop proposal to Hop object
             hop_proposal = parsed_response.hop_proposal
             
+            # Canonicalize input mapping keys to ensure consistency
+            canonical_input_mapping = {
+                canonical_key(local_name): asset_id
+                for local_name, asset_id in hop_proposal.input_mapping.items()
+            }
+
             # Create output mapping based on whether this is a final hop
             output_mapping = {}
             generated_wip_asset_id = None # To store the ID if it's a new WIP asset
@@ -420,7 +427,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             if hop_proposal.is_final and hop_proposal.output_mission_asset_id:
                 # For final hops, map to mission output
                 if hop_proposal.output_asset: # Ensure output_asset exists before trying to use its name
-                    output_mapping[hop_proposal.output_asset.name] = hop_proposal.output_mission_asset_id
+                    output_mapping[canonical_key(hop_proposal.output_asset.name)] = hop_proposal.output_mission_asset_id
                 else:
                     # This case should ideally not happen if a final hop always has a defined output
                     print(f"Warning: Hop '{hop_proposal.name}' is final but has no output_asset defined for mapping.")
@@ -430,7 +437,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     # Sanitize name for use in ID and make it more unique
                     sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
                     generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
-                    output_mapping[hop_proposal.output_asset.name] = generated_wip_asset_id
+                    output_mapping[canonical_key(hop_proposal.output_asset.name)] = generated_wip_asset_id
                 else:
                     # This case implies a non-final hop without a defined output.
                     print(f"Warning: Hop '{hop_proposal.name}' is not final but has no output_asset defined to generate a WIP asset from or map.")
@@ -439,7 +446,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 id=str(uuid.uuid4()),
                 name=hop_proposal.name,
                 description=hop_proposal.description,
-                input_mapping=hop_proposal.input_mapping,
+                input_mapping=canonical_input_mapping,
                 output_mapping=output_mapping, # Contains the correct ID for WIP or final
                 is_final=hop_proposal.is_final,
                 status=ExecutionStatus.PENDING,
@@ -473,8 +480,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # 1. Populate hop.state with input assets
             if state.mission and state.mission.state and new_hop.input_mapping:
                 for local_input_name, mission_asset_id in new_hop.input_mapping.items():
+                    canonical_local_key = canonical_key(local_input_name)
                     if mission_asset_id in state.mission.state:
-                        new_hop.state[local_input_name] = state.mission.state[mission_asset_id]
+                        new_hop.state[canonical_local_key] = state.mission.state[mission_asset_id]
                     else:
                         print(f"ERROR: [Hop Designer] Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
                         # Potentially raise an error or mark mission as invalid
@@ -483,8 +491,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # The output_asset_id_in_mission_state is either a mission_output_id or the generated_wip_asset_id
             if state.mission and state.mission.state and new_hop.output_mapping:
                 for local_output_name, output_asset_id_in_mission_state in new_hop.output_mapping.items():
+                    canonical_output_key = canonical_key(local_output_name)
                     if output_asset_id_in_mission_state in state.mission.state:
-                        new_hop.state[local_output_name] = state.mission.state[output_asset_id_in_mission_state]
+                        new_hop.state[canonical_output_key] = state.mission.state[output_asset_id_in_mission_state]
                     else:
                         print(f"ERROR: [Hop Designer] Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
                         # Potentially raise an error or mark mission as invalid

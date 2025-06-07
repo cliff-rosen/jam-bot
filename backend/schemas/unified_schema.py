@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
+from utils.string_utils import canonical_key
 
 # Type definitions matching frontend and backend compatibility
 PrimitiveType = Literal['string', 'number', 'boolean', 'primitive']  # Added 'primitive' for backend compatibility
@@ -188,8 +189,11 @@ def mark_hop_outputs_ready(hop_state: Dict[str, Asset], output_mapping: Dict[str
     marked_ready = []
     
     for hop_local_name, mission_asset_id in output_mapping.items():
+        # Ensure consistent key format (canonical)
+        canonical_local_name = canonical_key(hop_local_name)
+        
         # Get the asset from hop's local state
-        hop_asset = hop_state.get(hop_local_name)
+        hop_asset = hop_state.get(canonical_local_name)
         if hop_asset and hop_asset.status == AssetStatus.READY:
             # Find the corresponding asset in mission state
             mission_asset = mission_state.get(mission_asset_id)

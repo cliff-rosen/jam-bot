@@ -31,7 +31,7 @@ from datetime import datetime
 from enum import Enum
 import json
 import os
-from .asset import Asset
+from .unified_schema import SchemaEntity, Asset, SchemaType
 
 class ExecutionStatus(str, Enum):
     """Status of tool execution"""
@@ -63,18 +63,15 @@ class ExternalSystemInfo(BaseModel):
     documentation_url: Optional[str] = None
     rate_limits: Optional[Dict[str, Any]] = None
 
-class ToolParameter(BaseModel):
-    """Parameter definition for a tool"""
-    name: str
-    description: str
+class ToolParameter(SchemaEntity):
+    """Parameter definition for a tool - extends SchemaEntity for unified schema system"""
     required: bool = True
-    schema: Optional[Dict[str, Any]] = None
+    # id, name, description, schema inherited from SchemaEntity
 
-class ToolOutput(BaseModel):
-    """Output definition for a tool"""
-    name: str
-    description: str
-    schema: Optional[Dict[str, Any]] = None
+class ToolOutput(SchemaEntity):
+    """Output definition for a tool - extends SchemaEntity for unified schema system"""
+    # id, name, description, schema inherited from SchemaEntity
+    pass
 
 class ToolDefinition(BaseModel):
     """Definition of a tool that can be used in a hop"""
@@ -90,14 +87,14 @@ class ToolDefinition(BaseModel):
     
     execution_handler: Optional[Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = Field(default=None, exclude=True)
 
-    def validate_input_asset(self, asset_schema: Dict[str, Any]) -> List[str]:
+    def validate_input_asset(self, asset_schema: SchemaType) -> List[str]:
         """Validate that an asset schema is compatible with this tool's input requirements"""
-        # TODO: Implement schema validation
+        # TODO: Implement schema validation using SchemaType
         return []
 
-    def validate_output_asset(self, asset_schema: Dict[str, Any]) -> List[str]:
+    def validate_output_asset(self, asset_schema: SchemaType) -> List[str]:
         """Validate that an asset schema is compatible with this tool's output requirements"""
-        # TODO: Implement schema validation
+        # TODO: Implement schema validation using SchemaType
         return []
     
     def accesses_external_system(self) -> bool:
@@ -169,27 +166,49 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
                 print(f"Warning: Tool definition for '{tool_name_for_error}' is missing the required 'id' field in tools.json. Skipping this tool.")
                 continue
 
+            tool_id = tool_def_json["id"]
+
             # Parse parameters
             parameters = []
             if "parameters" in tool_def_json:
                 for param_def in tool_def_json["parameters"]:
                     param_schema = ToolParameterSchema(**param_def)
+                    # Generate ID for parameter: tool_id.param_name
+                    param_id = f"{tool_id}.{param_schema.name}"
+                    # Convert schema to SchemaType format
+                    schema_type = SchemaType(
+                        type=param_schema.schema.get("type", "object") if param_schema.schema else "object",
+                        description=param_schema.schema.get("description") if param_schema.schema else None,
+                        is_array=param_schema.schema.get("is_array", False) if param_schema.schema else False,
+                        fields=param_schema.schema.get("fields") if param_schema.schema else None
+                    )
                     parameters.append(ToolParameter(
+                        id=param_id,
                         name=param_schema.name,
                         description=param_schema.description,
-                        required=param_schema.required,
-                        schema=param_schema.schema
+                        schema=schema_type,
+                        required=param_schema.required
                     ))
             elif "input_schema" in tool_def_json:
                 # Convert old format to new format
                 input_schema = tool_def_json["input_schema"]
                 if "properties" in input_schema:
                     for param_name, param_schema in input_schema["properties"].items():
+                        # Generate ID for parameter: tool_id.param_name
+                        param_id = f"{tool_id}.{param_name}"
+                        # Convert schema to SchemaType format
+                        schema_type = SchemaType(
+                            type=param_schema.get("type", "object"),
+                            description=param_schema.get("description"),
+                            is_array=param_schema.get("is_array", False),
+                            fields=param_schema.get("fields")
+                        )
                         parameters.append(ToolParameter(
+                            id=param_id,
                             name=param_name,
                             description=param_schema.get("description", ""),
-                            required=param_name in input_schema.get("required", []),
-                            schema=param_schema
+                            schema=schema_type,
+                            required=param_name in input_schema.get("required", [])
                         ))
             
             # Parse outputs
@@ -197,23 +216,45 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, ToolDefinitio
             if "outputs" in tool_def_json:
                 for output_def in tool_def_json["outputs"]:
                     output_schema = ToolOutputSchema(**output_def)
+                    # Generate ID for output: tool_id.output_name
+                    output_id = f"{tool_id}.{output_schema.name}"
+                    # Convert schema to SchemaType format
+                    schema_type = SchemaType(
+                        type=output_schema.schema.get("type", "object") if output_schema.schema else "object",
+                        description=output_schema.schema.get("description") if output_schema.schema else None,
+                        is_array=output_schema.schema.get("is_array", False) if output_schema.schema else False,
+                        fields=output_schema.schema.get("fields") if output_schema.schema else None
+                    )
                     outputs.append(ToolOutput(
+                        id=output_id,
                         name=output_schema.name,
                         description=output_schema.description,
-                        schema=output_schema.schema
+                        schema=schema_type
                     ))
             elif "output_schema" in tool_def_json:
                 # Convert old format to new format
                 for output_def in tool_def_json["output_schema"]:
+                    output_name = output_def.get("name", "")
+                    # Generate ID for output: tool_id.output_name
+                    output_id = f"{tool_id}.{output_name}"
+                    # Convert schema to SchemaType format
+                    output_schema_dict = output_def.get("schema", {})
+                    schema_type = SchemaType(
+                        type=output_schema_dict.get("type", "object"),
+                        description=output_schema_dict.get("description"),
+                        is_array=output_schema_dict.get("is_array", False),
+                        fields=output_schema_dict.get("fields")
+                    )
                     outputs.append(ToolOutput(
-                        name=output_def.get("name", ""),
+                        id=output_id,
+                        name=output_name,
                         description=output_def.get("description", ""),
-                        schema=output_def.get("schema")
+                        schema=schema_type
                     ))
             
             # Create tool definition
             tool_definition = ToolDefinition(
-                id=tool_def_json["id"],
+                id=tool_id,
                 name=tool_def_json["name"],
                 description=tool_def_json["description"],
                 parameters=parameters,
@@ -302,7 +343,7 @@ def format_tool_descriptions_for_hop_design() -> str:
         # Format outputs with types from schema
         outputs = []
         for output in tool_def.outputs:
-            output_type = output.schema.get("type", "object") if output.schema else "object"
+            output_type = output.schema.type if output.schema else "object"
             outputs.append(f"{output.name} ({output_type})")
         if outputs:
             desc += f"**Outputs**: {', '.join(outputs)}\n"
@@ -324,7 +365,7 @@ def format_tool_descriptions_for_implementation() -> str:
         
         desc += "Input Parameters:\n"
         for param in tool_def.parameters:
-            param_type = param.schema.get("type", "object") if param.schema else "object"
+            param_type = param.schema.type if param.schema else "object"
             desc += f"  - {param.name} ({param_type}): {param.description}"
             if not param.required:
                 desc += " [Optional]"
@@ -332,7 +373,7 @@ def format_tool_descriptions_for_implementation() -> str:
         
         desc += "Outputs:\n"
         for output in tool_def.outputs:
-            output_type = output.schema.get("type", "object") if output.schema else "object"
+            output_type = output.schema.type if output.schema else "object"
             desc += f"  - {output.name} ({output_type}): {output.description}\n"
         
         desc += "\n"

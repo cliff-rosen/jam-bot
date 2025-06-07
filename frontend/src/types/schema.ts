@@ -72,19 +72,15 @@ export interface ExternalSystemInfo {
     rate_limits?: Record<string, any>;
 }
 
-// Tool parameters - matches backend tools.py structure (no inheritance to avoid conflicts)
-export interface ToolParameter {
-    name: string;
-    description: string;
+// Tool parameters - extend SchemaEntity for unified schema system
+export interface ToolParameter extends SchemaEntity {
     required: boolean;
-    schema?: Record<string, any>;
+    // schema inherited from SchemaEntity as SchemaType instead of Record<string, any>
 }
 
-// Tool outputs - matches backend tools.py structure (no inheritance to avoid conflicts)
-export interface ToolOutput {
-    name: string;
-    description: string;
-    schema?: Record<string, any>;
+// Tool outputs - extend SchemaEntity for unified schema system  
+export interface ToolOutput extends SchemaEntity {
+    // All fields inherited from SchemaEntity (id, name, description, schema)
 }
 
 // Tool definition - matches backend tools.py structure exactly

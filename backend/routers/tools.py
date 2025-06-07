@@ -5,8 +5,9 @@ import json
 import logging
 from database import get_db
 
-from schemas.unified_schema import ToolDefinition, Asset, ToolParameter, ToolOutput, SchemaType
-from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY
+# Import from unified schema for Asset, but ToolDefinition now comes from tools.py
+from schemas.unified_schema import Asset
+from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY, ToolDefinition
 
 from services.auth_service import validate_token
 from services.email_tool_handlers import handle_email_search
@@ -77,52 +78,12 @@ async def get_available_tools(
     user = Depends(validate_token)
 ):
     """
-    Get list of available tools and their definitions using unified schema format
+    Get list of available tools and their definitions
     
     Args:
         user: Authenticated user
         
     Returns:
-        List of unified tool definitions
+        List of tool definitions (no conversion needed since we use same schema)
     """
-    unified_tools = []
-    for tool in TOOL_REGISTRY.values():
-        # Convert to unified ToolDefinition format
-        unified_tool = ToolDefinition(
-            id=tool.id,
-            name=tool.name,
-            description=tool.description,
-            category=tool.category,
-            parameters=[
-                ToolParameter(
-                    id=f"{tool.id}_{param.name}",
-                    name=param.name,
-                    description=param.description,
-                    schema=SchemaType(
-                        type=param.schema.get('type', 'object') if param.schema else 'object',
-                        description=param.description,
-                        is_array=param.schema.get('is_array', False) if param.schema else False,
-                        fields=param.schema.get('fields') if param.schema else None
-                    ),
-                    required=param.required,
-                    default=param.schema.get('default') if param.schema else None
-                ) for param in tool.parameters
-            ],
-            outputs=[
-                ToolOutput(
-                    id=f"{tool.id}_{output.name}",
-                    name=output.name,
-                    description=output.description,
-                    schema=SchemaType(
-                        type=output.schema.get('type', 'object') if output.schema else 'object',
-                        description=output.description,
-                        is_array=output.schema.get('is_array', False) if output.schema else False,
-                        fields=output.schema.get('fields') if output.schema else None
-                    )
-                ) for output in tool.outputs
-            ],
-            examples=getattr(tool, 'examples', None)
-        )
-        unified_tools.append(unified_tool)
-    
-    return {"tools": unified_tools} 
+    return {"tools": list(TOOL_REGISTRY.values())} 

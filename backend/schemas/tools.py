@@ -61,7 +61,7 @@ class ToolDefinition(BaseModel):
     # External system integration (only for tools that access external systems)
     external_system: Optional[ExternalSystemInfo] = Field(default=None, description="External system this tool accesses")
     
-    execution_handler: Optional[Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
+    execution_handler: Optional[Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = Field(default=None, exclude=True)
 
     def validate_input_asset(self, asset_schema: Dict[str, Any]) -> List[str]:
         """Validate that an asset schema is compatible with this tool's input requirements"""

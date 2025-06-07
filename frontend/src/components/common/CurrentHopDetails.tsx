@@ -233,10 +233,21 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                         <div className="text-xs font-medium text-gray-600">Inputs</div>
                                                         {Object.entries(step.parameter_mapping).map(([param, mapping]) => {
                                                             if (mapping.type === "literal") {
-                                                                // Handle date range objects
+                                                                // Handle date range objects and other object types
                                                                 let displayValue = mapping.value;
-                                                                if (mapping.value && typeof mapping.value === 'object' && 'start_date' in mapping.value && 'end_date' in mapping.value) {
-                                                                    displayValue = `${mapping.value.start_date} to ${mapping.value.end_date}`;
+                                                                if (mapping.value && typeof mapping.value === 'object') {
+                                                                    // Check for date range with start_date/end_date
+                                                                    if ('start_date' in mapping.value && 'end_date' in mapping.value) {
+                                                                        displayValue = `${mapping.value.start_date} to ${mapping.value.end_date}`;
+                                                                    }
+                                                                    // Check for date range with start/end
+                                                                    else if ('start' in mapping.value && 'end' in mapping.value) {
+                                                                        displayValue = `${mapping.value.start} to ${mapping.value.end}`;
+                                                                    }
+                                                                    // Fallback for any other object - convert to JSON string
+                                                                    else {
+                                                                        displayValue = JSON.stringify(mapping.value);
+                                                                    }
                                                                 }
                                                                 return (
                                                                     <div key={param} className="text-xs text-gray-500">

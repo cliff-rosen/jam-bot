@@ -101,31 +101,25 @@ class Asset(SchemaEntity):
         """Check if asset needs user attention (error or expired)"""
         return self.status in [AssetStatus.ERROR, AssetStatus.EXPIRED]
 
-class ToolParameter(SchemaEntity):
-    """Tool parameters - schema definition only"""
-    required: bool = True
-    default: Optional[Any] = None
-    examples: Optional[List[Any]] = None
-
-class ToolOutput(SchemaEntity):
-    """Tool outputs - schema definition only"""
-    examples: Optional[List[Any]] = None
-
-class ToolExample(BaseModel):
-    """Example for tool usage"""
-    description: str
-    input: Dict[str, Any]
-    output: Dict[str, Any]
-
-class ToolDefinition(BaseModel):
-    """Tool definition using unified schema"""
-    id: str
-    name: str
-    description: str
-    category: str
-    parameters: List[ToolParameter]
-    outputs: List[ToolOutput]
-    examples: Optional[List[ToolExample]] = None
+# Import tool definitions from the canonical source to avoid duplication
+# This eliminates the need for multiple ToolDefinition classes
+try:
+    from .tools import (
+        ToolDefinition, 
+        ToolParameter, 
+        ToolOutput, 
+        ExternalSystemInfo,
+        ToolExample
+    )
+except ImportError:
+    # Fallback for when tools.py is not available
+    print("Warning: Could not import tool definitions from tools.py")
+    
+    class ToolExample(BaseModel):
+        """Example for tool usage"""
+        description: str
+        input: Dict[str, Any]
+        output: Dict[str, Any]
 
 # Utility functions for schema operations
 def is_compatible_schema(source_schema: SchemaType, target_schema: SchemaType) -> bool:

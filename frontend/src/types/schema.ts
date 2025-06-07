@@ -24,7 +24,7 @@ export interface SchemaType {
     fields?: Record<string, SchemaType>;  // for nested objects
 }
 
-// Base schema entity - shared by assets and tool params/outputs
+// Base schema entity - shared by assets
 export interface SchemaEntity {
     id: string;
     name: string;
@@ -59,19 +59,35 @@ export interface Asset extends SchemaEntity {
     };
 }
 
-// Tool parameters - schema definition only
-export interface ToolParameter extends SchemaEntity {
-    required?: boolean;
-    default?: any;
-    examples?: any[];
+// External system information (matches backend)
+export interface ExternalSystemInfo {
+    id: string;
+    name: string;
+    description: string;
+    type: 'messaging' | 'database' | 'storage' | 'web' | 'social' | 'file_system';
+    connection_schema: Record<string, any>;
+    capabilities: string[];
+    base_url?: string;
+    documentation_url?: string;
+    rate_limits?: Record<string, any>;
 }
 
-// Tool outputs - schema definition only  
-export interface ToolOutput extends SchemaEntity {
-    examples?: any[];
+// Tool parameters - matches backend tools.py structure (no inheritance to avoid conflicts)
+export interface ToolParameter {
+    name: string;
+    description: string;
+    required: boolean;
+    schema?: Record<string, any>;
 }
 
-// Tool definition using unified schema
+// Tool outputs - matches backend tools.py structure (no inheritance to avoid conflicts)
+export interface ToolOutput {
+    name: string;
+    description: string;
+    schema?: Record<string, any>;
+}
+
+// Tool definition - matches backend tools.py structure exactly
 export interface ToolDefinition {
     id: string;
     name: string;
@@ -84,6 +100,29 @@ export interface ToolDefinition {
         input: Record<string, any>;
         output: Record<string, any>;
     }>;
+
+    // External system integration (matches backend)
+    external_system?: ExternalSystemInfo;
+
+    // Legacy support for required_resources (used in mission prompt)
+    required_resources?: string[];
+
+    // Execution handler (present in backend but not used in frontend)
+    execution_handler?: any;
+}
+
+// Tool definition utility functions
+export function toolAccessesExternalSystem(tool: ToolDefinition): boolean {
+    return tool.external_system !== undefined || (tool.required_resources !== undefined && tool.required_resources.length > 0);
+}
+
+export function getToolExternalSystemId(tool: ToolDefinition): string | undefined {
+    if (tool.external_system) {
+        return tool.external_system.id;
+    } else if (tool.required_resources && tool.required_resources.length > 0) {
+        return tool.required_resources[0]; // Return first resource for legacy compatibility
+    }
+    return undefined;
 }
 
 // Utility functions for schema operations

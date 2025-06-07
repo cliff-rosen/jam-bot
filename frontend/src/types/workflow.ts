@@ -74,12 +74,16 @@ export interface LiteralMapping {
     value: any;
 }
 
+export interface DiscardMapping {
+    type: "discard";
+}
+
 export interface ToolStep {
     id: string;
     tool_id: string;
     description: string;
     parameter_mapping: Record<string, AssetFieldMapping | LiteralMapping>;
-    result_mapping: Record<string, string>;
+    result_mapping: Record<string, AssetFieldMapping | DiscardMapping>;
     status: ExecutionStatus;
     error?: string;
     created_at: string;

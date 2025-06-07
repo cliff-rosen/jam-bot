@@ -72,18 +72,21 @@ There are **two distinct mapping layers**:
 - **Parameter mapping**: Maps tool parameter names to their data sources
   - Format: `{{tool_param_name: data_source}}`
   - Direction: **tool_param ← asset** (tool gets value FROM asset)
-  - Asset reference: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
-  - Literal value: {{"type": "literal", "value": "configuration_value"}}
-- **Result mapping**: Maps tool output names to hop asset destinations  
-  - Format: `{{tool_output_name: hop_asset_name}}`
-  - Direction: **tool_output → asset** (tool puts value TO asset)
-  - Example: {{"emails": "retrieved_emails", "count": "email_count"}}
+  - Asset channel: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
+  - Literal channel: {{"type": "literal", "value": "configuration_value"}}
+- **Result mapping**: Maps tool output names to their destinations  
+  - Format: `{{tool_output_name: destination}}`
+  - Direction: **tool_output → destination** (tool puts value TO destination)
+  - Asset channel: {{"type": "asset_field", "state_asset": "asset_name"}}
+  - Discard channel: {{"type": "discard"}} (output ignored/discarded)
+  - **REQUIREMENT**: At least one tool output must be mapped (can mix asset and discard)
 
 Visual Flow:
 ```
 Mission Assets → [Hop Input Mapping] → Hop State → [Tool Parameter Mapping] → Tool Inputs
-                                                                                      ↓
+                                                        ↓ literal values      ↓
 Mission Assets ← [Hop Output Mapping] ← Hop State ← [Tool Result Mapping] ← Tool Outputs
+                                           ↑ discarded outputs             ↑
 ```
 
 ## Asset Management
@@ -253,8 +256,8 @@ Here's a complete example of a hop implementation:
           "limit": {{"type": "literal", "value": 50}}
         }},
         "result_mapping": {{
-          "emails": "step1_emails_list",
-          "count": "step1_email_count"
+          "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}},
+          "count": {{"type": "discard"}}
         }}
       }},
       {{
@@ -266,7 +269,7 @@ Here's a complete example of a hop implementation:
           "extract_fields": {{"type": "literal", "value": ["subject", "body", "date"]}}
         }},
         "result_mapping": {{
-          "extracted_content": "analysis_results"
+          "extracted_content": {{"type": "asset_field", "state_asset": "analysis_results"}}
         }}
       }}
     ],
@@ -332,25 +335,6 @@ Here's a complete example of a hop implementation:
         "subtype": null,
         "is_collection": true,
         "collection_type": "array",
-        "role": "intermediate",
-        "asset_metadata": {{
-          "creator": "hop_implementer",
-          "tags": [],
-          "agent_associations": [],
-          "version": 1,
-          "token_count": 0
-        }}
-      }},
-      "step1_email_count": {{
-        "id": "step1_email_count",
-        "name": "Email Count",
-        "description": "Number of emails retrieved",
-        "schema": {{
-          "type": "number",
-          "is_array": false
-        }},
-        "value": null,
-        "is_collection": false,
         "role": "intermediate",
         "asset_metadata": {{
           "creator": "hop_implementer",

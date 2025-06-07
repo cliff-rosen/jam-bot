@@ -49,7 +49,11 @@ class LiteralMapping(BaseModel):
     type: Literal["literal"] = "literal"
     value: Any
 
+class DiscardMapping(BaseModel):
+    type: Literal["discard"] = "discard"
+
 ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
+ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
 
 class ExternalSystemInfo(BaseModel):
     """Information about external system a tool accesses"""
@@ -401,8 +405,8 @@ class ToolStep(BaseModel):
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(
         description="Maps tool parameter names to their data sources. Format: {tool_param_name: asset_reference}. Direction: tool_param ← asset (tool gets value FROM asset)."
     )
-    result_mapping: Dict[str, str] = Field(
-        description="Maps tool output names to hop asset destinations. Format: {tool_output_name: hop_asset_name}. Direction: tool_output → asset (tool puts value TO asset)."
+    result_mapping: Dict[str, ResultMappingValue] = Field(
+        description="Maps tool output names to hop asset destinations. Format: {tool_output_name: asset_reference}. Direction: tool_output → asset (tool puts value TO asset)."
     )
     
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
@@ -457,25 +461,34 @@ class ToolStep(BaseModel):
                     errors.extend([f"Tool parameter {tool_param_name}: {e}" for e in param_errors])
         
         # Validate output mappings: tool output puts value TO hop asset
-        for tool_output_name, destination_asset_name in self.result_mapping.items():
-            output_schema = next((o for o in tool.outputs if o.name == tool_output_name), None)
-            if not output_schema:
-                errors.append(f"Tool output {tool_output_name} not found in tool definition")
-                continue
-            
-            destination_asset = hop_state.get(destination_asset_name)
-            if not destination_asset:
-                errors.append(f"Destination asset {destination_asset_name} for tool output {tool_output_name} not found in hop state")
-                continue
-            
-            if not destination_asset.schema:
-                errors.append(f"Destination asset {destination_asset_name} for tool output {tool_output_name} has no schema defined")
-                continue
-            
-            # Validate tool output schema against asset requirements
-            output_errors = tool.validate_output_asset(destination_asset.schema)
-            if output_errors:
-                errors.extend([f"Tool output {tool_output_name}: {e}" for e in output_errors])
+        # NOTE: Output mapping is OPTIONAL - only validate outputs that are actually mapped
+        # At least one output should be mapped, but not necessarily all outputs
+        if not self.result_mapping:
+            errors.append(f"At least one tool output must be mapped in result_mapping")
+        else:
+            for tool_output_name, mapping in self.result_mapping.items():
+                output_schema = next((o for o in tool.outputs if o.name == tool_output_name), None)
+                if not output_schema:
+                    errors.append(f"Tool output {tool_output_name} not found in tool definition")
+                    continue
+                
+                if isinstance(mapping, AssetFieldMapping):
+                    destination_asset = hop_state.get(mapping.state_asset)
+                    if not destination_asset:
+                        errors.append(f"Destination asset {mapping.state_asset} for tool output {tool_output_name} not found in hop state")
+                        continue
+                    
+                    if not destination_asset.schema:
+                        errors.append(f"Destination asset {mapping.state_asset} for tool output {tool_output_name} has no schema defined")
+                        continue
+                    
+                    # Validate tool output schema against asset requirements
+                    output_errors = tool.validate_output_asset(destination_asset.schema)
+                    if output_errors:
+                        errors.extend([f"Tool output {tool_output_name}: {e}" for e in output_errors])
+                elif isinstance(mapping, DiscardMapping):
+                    # DiscardMapping requires no validation - output is intentionally discarded
+                    pass  # No action needed - output is discarded
         
         return errors
 
@@ -508,13 +521,18 @@ class ToolStep(BaseModel):
             # Execute tool
             results = await tool.execution_handler.handler(self, hop_state)
             
-            # Map tool outputs TO hop state assets (tool_output → asset)
-            for tool_output_name, destination_asset_name in self.result_mapping.items():
-                if tool_output_name in results:
-                    hop_state[destination_asset_name] = Asset(
-                        content=results[tool_output_name],
-                        schema=tool.outputs[0].schema
-                    )
+            # Map tool outputs TO hop state assets (tool_output → asset) or discard
+            for tool_output_name, mapping in self.result_mapping.items():
+                if isinstance(mapping, AssetFieldMapping):
+                    # Asset channel: put output TO asset
+                    if tool_output_name in results:
+                        hop_state[mapping.state_asset] = Asset(
+                            content=results[tool_output_name],
+                            schema=tool.outputs[0].schema
+                        )
+                elif isinstance(mapping, DiscardMapping):
+                    # Discard channel: output is intentionally ignored
+                    pass  # No action needed - output is discarded
             
             return errors
             

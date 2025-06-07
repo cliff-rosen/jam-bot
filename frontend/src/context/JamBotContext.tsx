@@ -1,10 +1,11 @@
-import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, MissionStatus, HopStatus, defaultMission, Hop, ExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
-import { Asset, AssetType } from '@/types/asset';
+import { Asset } from '@/types/asset';
+import { markHopOutputsReady } from '@/types/schema';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -237,6 +238,21 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 return state;
             }
 
+            // Mark hop output assets as ready when hop completes successfully
+            const updatedMissionState = { ...state.mission.state };
+            if (completedHopForExecution.output_mapping && completedHopForExecution.state) {
+                const markedReady = markHopOutputsReady(
+                    completedHopForExecution.state,
+                    completedHopForExecution.output_mapping,
+                    updatedMissionState,
+                    "hop_execution"
+                );
+
+                if (markedReady.length > 0) {
+                    console.log(`Hop '${completedHopForExecution.name}' completion marked ${markedReady.length} assets as ready: ${markedReady.join(', ')}`);
+                }
+            }
+
             let newMissionStatus = state.mission.mission_status;
             let newHopStatus: HopStatus;
             let newCurrentHop: Hop | undefined;
@@ -264,6 +280,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: {
                     ...state.mission,
+                    state: updatedMissionState, // Include updated mission state with ready assets
                     hops: updatedHopsForComplete,
                     current_hop: newCurrentHop,
                     current_hop_index: newCurrentHopIndex,

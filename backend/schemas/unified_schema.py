@@ -17,6 +17,15 @@ ValueType = Union[PrimitiveType, ComplexType]
 # Asset role in the workflow/mission context
 AssetRole = Literal['input', 'output', 'intermediate']
 
+# Asset status in the execution lifecycle
+class AssetStatus(str, Enum):
+    """Status of an asset in the execution lifecycle"""
+    PENDING = "pending"           # Asset defined but not yet available/provided
+    IN_PROGRESS = "in_progress"   # Asset is currently being created/processed
+    READY = "ready"               # Asset is available and ready to use
+    ERROR = "error"               # Asset creation/provision failed
+    EXPIRED = "expired"           # Asset (like credentials) has expired
+
 class SchemaType(BaseModel):
     """Schema definition that works for both assets and tool parameters/outputs"""
     type: ValueType
@@ -45,14 +54,52 @@ class AssetMetadata(BaseModel):
         allow_population_by_field_name = True
 
 class Asset(SchemaEntity):
-    """Assets extend SchemaEntity with actual value"""
+    """Assets extend SchemaEntity with actual value and status tracking"""
     value: Optional[Any] = None  # the actual data content
+    status: AssetStatus = Field(default=AssetStatus.PENDING, description="Current status of the asset")
+    
     # Asset-specific metadata
     subtype: Optional[str] = None  # Allow any string for flexibility like the old schema
     is_collection: bool = False
     collection_type: Optional[Literal['array', 'map', 'set', 'null']] = None
     role: Optional[AssetRole] = None  # Role of this asset in the workflow (input, output, or intermediate/WIP)
+    
+    # Status-related fields
+    error_message: Optional[str] = Field(default=None, description="Error message if status is ERROR")
+    last_updated_by: Optional[str] = Field(default=None, description="Who/what last updated this asset")
+    ready_at: Optional[datetime] = Field(default=None, description="When the asset became ready")
+    
     asset_metadata: AssetMetadata = Field(default_factory=AssetMetadata)
+
+    def mark_ready(self, updated_by: Optional[str] = None) -> None:
+        """Mark asset as ready and set timestamp"""
+        self.status = AssetStatus.READY
+        self.ready_at = datetime.utcnow()
+        self.last_updated_by = updated_by
+        self.error_message = None
+        self.asset_metadata.updated_at = datetime.utcnow()
+
+    def mark_error(self, error_message: str, updated_by: Optional[str] = None) -> None:
+        """Mark asset as error with message"""
+        self.status = AssetStatus.ERROR
+        self.error_message = error_message
+        self.last_updated_by = updated_by
+        self.asset_metadata.updated_at = datetime.utcnow()
+
+    def mark_in_progress(self, updated_by: Optional[str] = None) -> None:
+        """Mark asset as being worked on"""
+        self.status = AssetStatus.IN_PROGRESS
+        self.last_updated_by = updated_by
+        self.error_message = None
+        self.asset_metadata.updated_at = datetime.utcnow()
+
+    def is_available(self) -> bool:
+        """Check if asset is ready to use"""
+        return self.status == AssetStatus.READY
+
+    def needs_attention(self) -> bool:
+        """Check if asset needs user attention (error or expired)"""
+        return self.status in [AssetStatus.ERROR, AssetStatus.EXPIRED]
 
 class ToolParameter(SchemaEntity):
     """Tool parameters - schema definition only"""
@@ -106,6 +153,61 @@ def is_primitive_type(type_value: ValueType) -> bool:
     """Check if type is a primitive type"""
     primitive_types = ['string', 'number', 'boolean']
     return type_value in primitive_types
+
+# Asset status utility functions
+def get_pending_assets(assets: List[Asset]) -> List[Asset]:
+    """Get all assets that are still pending"""
+    return [asset for asset in assets if asset.status == AssetStatus.PENDING]
+
+def get_ready_assets(assets: List[Asset]) -> List[Asset]:
+    """Get all assets that are ready"""
+    return [asset for asset in assets if asset.status == AssetStatus.READY]
+
+def get_failed_assets(assets: List[Asset]) -> List[Asset]:
+    """Get all assets that have errors"""
+    return [asset for asset in assets if asset.status == AssetStatus.ERROR]
+
+def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
+    """Check if all input assets are ready for mission execution"""
+    pending_inputs = [asset.name for asset in input_assets if asset.status != AssetStatus.READY]
+    failed_inputs = [asset.name for asset in input_assets if asset.status == AssetStatus.ERROR]
+    
+    if failed_inputs:
+        return False, [f"Failed inputs that need attention: {', '.join(failed_inputs)}"]
+    elif pending_inputs:
+        return False, [f"Pending inputs from user: {', '.join(pending_inputs)}"]
+    else:
+        return True, []
+
+def mark_hop_outputs_ready(hop_state: Dict[str, Asset], output_mapping: Dict[str, str], mission_state: Dict[str, Asset], updated_by: str = "hop_execution") -> List[str]:
+    """Mark hop output assets as ready when hop completes successfully
+    
+    Args:
+        hop_state: The hop's local asset state
+        output_mapping: Maps hop local asset names to mission asset IDs
+        mission_state: The mission's global asset state to update
+        updated_by: Who is marking the assets as ready
+        
+    Returns:
+        List of asset names that were marked as ready
+    """
+    marked_ready = []
+    
+    for hop_local_name, mission_asset_id in output_mapping.items():
+        # Get the asset from hop's local state
+        hop_asset = hop_state.get(hop_local_name)
+        if hop_asset and hop_asset.status == AssetStatus.READY:
+            # Find the corresponding asset in mission state
+            mission_asset = mission_state.get(mission_asset_id)
+            if mission_asset:
+                # Mark the mission asset as ready
+                mission_asset.mark_ready(updated_by=updated_by)
+                # Copy the value from hop asset to mission asset
+                mission_asset.value = hop_asset.value
+                marked_ready.append(mission_asset.name)
+                print(f"Marked mission asset '{mission_asset.name}' as ready from hop output")
+    
+    return marked_ready
 
 # Update forward references
 SchemaType.model_rebuild() 

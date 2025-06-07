@@ -15,7 +15,7 @@ from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from schemas.unified_schema import Asset, SchemaType
+from schemas.unified_schema import Asset, SchemaType, AssetStatus, check_mission_ready
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
@@ -48,12 +48,24 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
         fields=None  # TODO: Could extract fields from schema_description or example_value if structured
     )
     
+    # Determine initial status based on role
+    if asset_lite.role == 'input':
+        # Input assets start as pending until user provides them
+        initial_status = AssetStatus.PENDING
+    elif asset_lite.role == 'output':
+        # Output assets start as pending until generated
+        initial_status = AssetStatus.PENDING
+    else:
+        # Intermediate assets start as pending until created by hops
+        initial_status = AssetStatus.PENDING
+    
     asset_to_return = Asset(
         id=str(uuid.uuid4()),  # Generate new ID
         name=asset_lite.name,
         description=asset_lite.description,
         schema=unified_schema,  # Add the unified schema
         value=asset_lite.example_value,  # Use example as initial content (renamed from content to value)
+        status=initial_status,  # Set appropriate initial status
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
         collection_type=asset_lite.collection_type.value if hasattr(asset_lite.collection_type, 'value') else str(asset_lite.collection_type) if asset_lite.collection_type else 'null',

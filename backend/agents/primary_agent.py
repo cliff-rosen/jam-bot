@@ -26,6 +26,7 @@ from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignRespo
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
+from schemas.tools import TOOL_REGISTRY
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -677,26 +678,44 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             )
             
         elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
-            # Update the current hop with the populated steps
-            updated_hop = parsed_response.hop
-            
-            # Copy the tool steps to the current hop
-            current_hop.steps = updated_hop.steps
-            current_hop.is_resolved = True
-            current_hop.status = ExecutionStatus.PENDING
-            
-            # Update the timestamp
-            current_hop.updated_at = datetime.utcnow()
-            
-            # Set hop status to ready to execute
-            state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
-            
-            response_message = Message(
-                id=str(uuid.uuid4()),
-                role=MessageRole.ASSISTANT,
-                content=parsed_response.response_content,
-                timestamp=datetime.utcnow().isoformat()
-            )
+            # Validate the returned plan
+            validation_errors = validate_tool_chain(parsed_response.hop.steps, current_hop.state)
+
+            if validation_errors:
+                # Bounce back for clarification with concise error list
+                current_hop.status = ExecutionStatus.PENDING
+                state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
+
+                formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
+
+                response_message = Message(
+                    id=str(uuid.uuid4()),
+                    role=MessageRole.ASSISTANT,
+                    content=(
+                        "The proposed implementation plan has validation issues:\n\n" +
+                        formatted_errors + "\n\n" +
+                        "Please revise the plan so every state_asset reference exists in hop.state "
+                        "or create the corresponding Asset before it is used."
+                    ),
+                    timestamp=datetime.utcnow().isoformat()
+                )
+            else:
+                # Accept the plan
+                updated_hop = parsed_response.hop
+
+                current_hop.steps = updated_hop.steps
+                current_hop.is_resolved = True
+                current_hop.status = ExecutionStatus.PENDING
+                current_hop.updated_at = datetime.utcnow()
+
+                state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
+
+                response_message = Message(
+                    id=str(uuid.uuid4()),
+                    role=MessageRole.ASSISTANT,
+                    content=parsed_response.response_content,
+                    timestamp=datetime.utcnow().isoformat()
+                )
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
         
@@ -864,3 +883,26 @@ graph_builder.add_edge(START, "supervisor_node")
 # Compile the graph with streaming support
 compiled = graph_builder.compile()
 graph = compiled 
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> List[str]:
+    """Validate the tool chain returned by the Hop-Implementer.
+
+    Ensures that every tool step references existing assets (or creates them first)
+    and that schemas are compatible according to each tool's own validation logic.
+    Returns a flat list of validation-error strings (empty list means no errors).
+    """
+    errors: List[str] = []
+
+    for step in steps:
+        tool_def = TOOL_REGISTRY.get(step.tool_id)
+        if not tool_def:
+            errors.append(f"Tool definition not found for tool_id '{step.tool_id}'")
+            continue
+
+        errors.extend(step.validate_schema_compatibility(tool_def, hop_state))
+
+    return errors 

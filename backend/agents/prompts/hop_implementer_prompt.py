@@ -167,6 +167,11 @@ Use these three types for tool parameter mapping:
 2. **Simplicity** - Minimize steps (target 1-5, max ~12)
 3. **Efficiency** - Avoid unnecessary data transformations
 
+### 🔴 CRITICAL CONSISTENCY RULES (must be satisfied)
+1. Every `state_asset` reference used in `parameter_mapping` **and** `result_mapping` **MUST** already exist as a key in `hop.state` **unless** your plan also includes creating a new `Asset` object in `hop.state` with that exact key *before* it is referenced.
+2. If you create a brand-new asset, its `id` **must exactly match** the key you use in mappings.
+3. Validation will reject an implementation plan that references unknown `state_asset` keys.
+
 ## Task Instructions
 
 1. **Analyze the hop requirements**

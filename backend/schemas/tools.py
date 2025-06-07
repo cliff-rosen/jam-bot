@@ -1,3 +1,30 @@
+"""
+Tool Step Execution Schema
+
+This module defines the ToolStep class and related mappings for executing tools within hops.
+
+## Mapping Directions (IMPORTANT):
+
+### Parameter Mapping: {tool_param_name: data_source}
+- **Direction**: tool_param ← asset (tool gets value FROM asset)
+- **Purpose**: Maps tool parameter names to their data sources
+- **Format**: {"param_name": {"type": "asset_field", "state_asset": "asset_name"}}
+- **Example**: {"query": {"type": "asset_field", "state_asset": "search_criteria"}}
+- **Meaning**: Tool parameter 'query' gets its value FROM hop asset 'search_criteria'
+
+### Result Mapping: {tool_output_name: hop_asset_name}  
+- **Direction**: tool_output → asset (tool puts value TO asset)
+- **Purpose**: Maps tool output names to hop asset destinations
+- **Format**: {"output_name": "destination_asset_name"}
+- **Example**: {"emails": "retrieved_emails", "count": "email_count"}
+- **Meaning**: Tool output 'emails' puts its value TO hop asset 'retrieved_emails'
+
+## Validation:
+- All assets referenced in parameter_mapping must exist in hop_state
+- All assets referenced in result_mapping must exist in hop_state
+- Tool parameters and outputs must match tool definition
+"""
+
 from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union, Literal, Callable, Awaitable
 from datetime import datetime
@@ -331,10 +358,10 @@ class ToolStep(BaseModel):
     
     # Asset mappings within hop state
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(
-        description="Maps tool parameters to hop state assets or literals."
+        description="Maps tool parameter names to their data sources. Format: {tool_param_name: asset_reference}. Direction: tool_param ← asset (tool gets value FROM asset)."
     )
     result_mapping: Dict[str, str] = Field(
-        description="Maps tool outputs to hop state assets."
+        description="Maps tool output names to hop asset destinations. Format: {tool_output_name: hop_asset_name}. Direction: tool_output → asset (tool puts value TO asset)."
     )
     
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
@@ -366,48 +393,48 @@ class ToolStep(BaseModel):
             if not connection_asset:
                 errors.append(f"External system connection asset {self.external_system_connection_asset} not found in hop state")
         
-        # Validate input parameters
-        for param_name, mapping in self.parameter_mapping.items():
+        # Validate input parameters: tool parameter gets value FROM hop asset
+        for tool_param_name, mapping in self.parameter_mapping.items():
             if isinstance(mapping, AssetFieldMapping):
-                asset = hop_state.get(mapping.state_asset)
-                if not asset:
-                    errors.append(f"Asset {mapping.state_asset} not found in hop state")
+                source_asset = hop_state.get(mapping.state_asset)
+                if not source_asset:
+                    errors.append(f"Source asset {mapping.state_asset} for tool parameter {tool_param_name} not found in hop state")
                     continue
                 
-                if not asset.schema:
-                    errors.append(f"Asset {mapping.state_asset} has no schema defined")
+                if not source_asset.schema:
+                    errors.append(f"Source asset {mapping.state_asset} for tool parameter {tool_param_name} has no schema defined")
                     continue
                 
-                param_schema = next((p for p in tool.parameters if p.name == param_name), None)
+                param_schema = next((p for p in tool.parameters if p.name == tool_param_name), None)
                 if not param_schema:
-                    errors.append(f"Parameter {param_name} not found in tool definition")
+                    errors.append(f"Tool parameter {tool_param_name} not found in tool definition")
                     continue
                 
                 # Validate asset schema against parameter requirements
-                param_errors = tool.validate_input_asset(asset.schema)
+                param_errors = tool.validate_input_asset(source_asset.schema)
                 if param_errors:
-                    errors.extend([f"Parameter {param_name}: {e}" for e in param_errors])
+                    errors.extend([f"Tool parameter {tool_param_name}: {e}" for e in param_errors])
         
-        # Validate output mappings
-        for output_name, asset_name in self.result_mapping.items():
-            output_schema = next((o for o in tool.outputs if o.name == output_name), None)
+        # Validate output mappings: tool output puts value TO hop asset
+        for tool_output_name, destination_asset_name in self.result_mapping.items():
+            output_schema = next((o for o in tool.outputs if o.name == tool_output_name), None)
             if not output_schema:
-                errors.append(f"Output {output_name} not found in tool definition")
+                errors.append(f"Tool output {tool_output_name} not found in tool definition")
                 continue
             
-            asset = hop_state.get(asset_name)
-            if not asset:
-                errors.append(f"Asset {asset_name} not found in hop state")
+            destination_asset = hop_state.get(destination_asset_name)
+            if not destination_asset:
+                errors.append(f"Destination asset {destination_asset_name} for tool output {tool_output_name} not found in hop state")
                 continue
             
-            if not asset.schema:
-                errors.append(f"Asset {asset_name} has no schema defined")
+            if not destination_asset.schema:
+                errors.append(f"Destination asset {destination_asset_name} for tool output {tool_output_name} has no schema defined")
                 continue
             
             # Validate tool output schema against asset requirements
-            output_errors = tool.validate_output_asset(asset.schema)
+            output_errors = tool.validate_output_asset(destination_asset.schema)
             if output_errors:
-                errors.extend([f"Output {output_name}: {e}" for e in output_errors])
+                errors.extend([f"Tool output {tool_output_name}: {e}" for e in output_errors])
         
         return errors
 
@@ -440,11 +467,11 @@ class ToolStep(BaseModel):
             # Execute tool
             results = await tool.execution_handler.handler(self, hop_state)
             
-            # Map results back to hop state
-            for output_name, asset_name in self.result_mapping.items():
-                if output_name in results:
-                    hop_state[asset_name] = Asset(
-                        content=results[output_name],
+            # Map tool outputs TO hop state assets (tool_output → asset)
+            for tool_output_name, destination_asset_name in self.result_mapping.items():
+                if tool_output_name in results:
+                    hop_state[destination_asset_name] = Asset(
+                        content=results[tool_output_name],
                         schema=tool.outputs[0].schema
                     )
             
@@ -452,7 +479,7 @@ class ToolStep(BaseModel):
             
         except Exception as e:
             errors.append(f"Tool execution failed: {str(e)}")
-            return errors 
+            return errors
 
 # Load tools when module is imported
 try:

@@ -33,7 +33,9 @@ async def execute_tool(
     
     Args:
         tool_id: ID of the tool to execute
-        step: Tool step configuration
+        step: Tool step configuration with mappings:
+              - parameter_mapping: {tool_param_name: data_source} - tool gets value FROM source
+              - result_mapping: {tool_output_name: hop_asset_name} - tool puts value TO asset
         hop_state: Current state of the hop (unified Asset format)
         user: Authenticated user
         db: Database session

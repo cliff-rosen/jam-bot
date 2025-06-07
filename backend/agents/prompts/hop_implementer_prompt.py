@@ -69,12 +69,15 @@ There are **two distinct mapping layers**:
 - **Output mapping**: `{{local_key: external_asset_id}}` - Exports hop results back to mission assets
 
 ### 2. TOOL MAPPINGS (Hop State ↔ Tool I/O)
-- **Parameter mapping**: Maps tool parameters to hop state assets or literals
+- **Parameter mapping**: Maps tool parameter names to their data sources
+  - Format: `{{tool_param_name: data_source}}`
+  - Direction: **tool_param ← asset** (tool gets value FROM asset)
   - Asset reference: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
   - Literal value: {{"type": "literal", "value": "configuration_value"}}
-- **Result mapping**: Maps tool outputs to hop state assets
-  - Format: {{"tool_output_name": "local_asset_name"}}
-  - Example: {{"emails": "retrieved_emails"}}
+- **Result mapping**: Maps tool output names to hop asset destinations  
+  - Format: `{{tool_output_name: hop_asset_name}}`
+  - Direction: **tool_output → asset** (tool puts value TO asset)
+  - Example: {{"emails": "retrieved_emails", "count": "email_count"}}
 
 Visual Flow:
 ```
@@ -131,20 +134,30 @@ The `path` field in asset references specifies where to find data:
 
 ## Parameter Mapping Rules for Tools
 
+**Direction**: Tool parameters get their values FROM assets or literals.
+Format: `{{tool_param_name: data_source}}`
+
 Use these three types for tool parameter mapping:
 
 1. **LITERAL VALUES** - Tool-specific configuration
    - Format: {{"type": "literal", "value": "actual_value"}}
    - Use for: search queries, sort orders, limits, format options, boolean flags
-   - Examples: "search for AI research", "ascending", 50, ["sentiment", "topics"]
+   - Examples: 
+     - "query": {{"type": "literal", "value": "search for AI research"}}
+     - "limit": {{"type": "literal", "value": 50}}
+     - "sort_order": {{"type": "literal", "value": "ascending"}}
 
 2. **ASSET REFERENCES** - Data from hop state
    - Format: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
    - Use for: email collections, extracted data, computed results from previous steps
+   - Examples:
+     - "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}}
+     - "search_criteria": {{"type": "asset_field", "state_asset": "search_params", "path": "content.query"}}
 
 3. **CONFIG ASSETS** - Configuration stored as assets
    - Format: {{"type": "asset_field", "state_asset": "config_asset_name"}}
    - Use when referencing CONFIG type assets that contain configuration values
+   - Example: "credentials": {{"type": "asset_field", "state_asset": "gmail_credentials"}}
 
 ## Tool Chain Design Priorities
 1. **Success likelihood** - Choose reliable tool combinations
@@ -236,7 +249,7 @@ Here's a complete example of a hop implementation:
         "description": "Search emails using criteria",
         "parameter_mapping": {{
           "query": {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.query"}},
-          "credentials": {{"type": "asset_field", "state_asset": "email_credentials"}},
+          "resource_connection": {{"type": "asset_field", "state_asset": "email_credentials"}},
           "limit": {{"type": "literal", "value": 50}}
         }},
         "result_mapping": {{
@@ -253,11 +266,54 @@ Here's a complete example of a hop implementation:
           "extract_fields": {{"type": "literal", "value": ["subject", "body", "date"]}}
         }},
         "result_mapping": {{
-          "extracted_content": "step2_extracted_content"
+          "extracted_content": "analysis_results"
         }}
       }}
     ],
     "state": {{
+      "search_criteria": {{
+        "id": "search_criteria",
+        "name": "Search Criteria",
+        "description": "Email search parameters",
+        "schema": {{
+          "type": "object",
+          "is_array": false,
+          "fields": {{
+            "query": {{"type": "string"}},
+            "date_range": {{"type": "object"}}
+          }}
+        }},
+        "value": null,
+        "is_collection": false,
+        "role": "input",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }},
+      "email_credentials": {{
+        "id": "email_credentials",
+        "name": "Email Credentials",
+        "description": "OAuth credentials for email access",
+        "schema": {{
+          "type": "config",
+          "is_array": false
+        }},
+        "value": null,
+        "subtype": "oauth_token",
+        "is_collection": false,
+        "role": "input",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }},
       "step1_emails_list": {{
         "id": "step1_emails_list",
         "name": "EmailsList",
@@ -285,10 +341,29 @@ Here's a complete example of a hop implementation:
           "token_count": 0
         }}
       }},
-      "step2_extracted_content": {{
-        "id": "step2_extracted_content", 
-        "name": "ExtractedContent",
-        "description": "Extracted key information from emails",
+      "step1_email_count": {{
+        "id": "step1_email_count",
+        "name": "Email Count",
+        "description": "Number of emails retrieved",
+        "schema": {{
+          "type": "number",
+          "is_array": false
+        }},
+        "value": null,
+        "is_collection": false,
+        "role": "intermediate",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }},
+      "analysis_results": {{
+        "id": "analysis_results", 
+        "name": "Analysis Results",
+        "description": "Extracted and analyzed email content",
         "schema": {{
           "type": "object",
           "is_array": true,
@@ -303,7 +378,7 @@ Here's a complete example of a hop implementation:
         "subtype": null,
         "is_collection": true,
         "collection_type": "array",
-        "role": "intermediate",
+        "role": "output",
         "asset_metadata": {{
           "creator": "hop_implementer",
           "tags": [],

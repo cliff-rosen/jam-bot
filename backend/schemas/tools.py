@@ -24,6 +24,18 @@ class LiteralMapping(BaseModel):
 
 ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
 
+class ExternalSystemInfo(BaseModel):
+    """Information about external system a tool accesses"""
+    id: str = Field(description="Unique identifier for the external system")
+    name: str = Field(description="Human-readable name")
+    description: str = Field(description="What this system provides access to")
+    type: Literal['messaging', 'database', 'storage', 'web', 'social', 'file_system'] = Field(description="Category of external system")
+    connection_schema: Dict[str, Any] = Field(description="Schema for connection credentials/config")
+    capabilities: List[str] = Field(description="What operations are supported")
+    base_url: Optional[str] = None
+    documentation_url: Optional[str] = None
+    rate_limits: Optional[Dict[str, Any]] = None
+
 class ToolParameter(BaseModel):
     """Parameter definition for a tool"""
     name: str
@@ -45,6 +57,10 @@ class ToolDefinition(BaseModel):
     category: str
     parameters: List[ToolParameter]
     outputs: List[ToolOutput]
+    
+    # External system integration (only for tools that access external systems)
+    external_system: Optional[ExternalSystemInfo] = Field(default=None, description="External system this tool accesses")
+    
     execution_handler: Optional[Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
 
     def validate_input_asset(self, asset_schema: Dict[str, Any]) -> List[str]:
@@ -56,6 +72,14 @@ class ToolDefinition(BaseModel):
         """Validate that an asset schema is compatible with this tool's output requirements"""
         # TODO: Implement schema validation
         return []
+    
+    def accesses_external_system(self) -> bool:
+        """Check if this tool accesses an external system"""
+        return self.external_system is not None
+    
+    def get_external_system_id(self) -> Optional[str]:
+        """Get the external system ID if this tool accesses one"""
+        return self.external_system.id if self.external_system else None
 
 # Global registry of available tools
 TOOL_REGISTRY: Dict[str, ToolDefinition] = {}
@@ -302,6 +326,9 @@ class ToolStep(BaseModel):
     tool_id: str = Field(description="Identifier of the tool to execute")
     description: str = Field(description="Description of what this tool step accomplishes")
     
+    # External system integration (only for tools that access external systems)
+    external_system_connection_asset: Optional[str] = Field(default=None, description="Asset containing connection credentials for external system")
+    
     # Asset mappings within hop state
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(
         description="Maps tool parameters to hop state assets or literals."
@@ -326,6 +353,18 @@ class ToolStep(BaseModel):
     def validate_schema_compatibility(self, tool: ToolDefinition, hop_state: Dict[str, 'Asset']) -> List[str]:
         """Validate schema compatibility between tool and assets"""
         errors = []
+        
+        # Validate external system access if tool requires it
+        if tool.accesses_external_system() and not self.external_system_connection_asset:
+            errors.append(f"Tool {tool.id} requires external system connection but none specified")
+        elif self.external_system_connection_asset and not tool.accesses_external_system():
+            errors.append(f"Tool {tool.id} does not access external systems but connection specified")
+        
+        # Validate connection asset if external system specified
+        if self.external_system_connection_asset:
+            connection_asset = hop_state.get(self.external_system_connection_asset)
+            if not connection_asset:
+                errors.append(f"External system connection asset {self.external_system_connection_asset} not found in hop state")
         
         # Validate input parameters
         for param_name, mapping in self.parameter_mapping.items():

@@ -65,7 +65,8 @@ def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
             'tags': [],
             'agent_associations': [],
             'version': 1,
-            'token_count': 0
+            'token_count': 0,
+            'external_system_for': asset_lite.external_system_for  # Add external system reference
         }
     )
 

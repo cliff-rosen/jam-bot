@@ -5,9 +5,20 @@
             "name": "email_search",
             "description": "Search and retrieve emails from Gmail with filtering capabilities",
             "category": "data_retrieval",
+            "required_resources": [
+                "gmail"
+            ],
+            "supported_resources": [
+                "gmail"
+            ],
             "input_schema": {
                 "type": "object",
                 "properties": {
+                    "resource_connection": {
+                        "type": "object",
+                        "description": "Gmail OAuth credentials (access_token, refresh_token, etc.)",
+                        "required": true
+                    },
                     "query": {
                         "type": "string",
                         "description": "Gmail search query (e.g., 'from:user@example.com label:important'). Will be split into terms."
@@ -48,7 +59,9 @@
                         "description": "Whether to include message metadata in the response"
                     }
                 },
-                "required": []
+                "required": [
+                    "resource_connection"
+                ]
             },
             "output_schema": [
                 {

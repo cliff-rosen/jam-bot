@@ -17,12 +17,13 @@ class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
     name: str = Field(description="Name of the asset")
     description: str = Field(description="Clear description of what this asset contains")
-    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown'. Do NOT use 'array' - use is_collection instead!")
-    subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email')")
+    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown', 'config'. Use 'config' for external system credentials!")
+    subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
     is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
     collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
-    role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data, 'output' for final results, 'intermediate' for work-in-progress")
+    role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data/credentials, 'output' for final results, 'intermediate' for data retrieved from external systems")
     required: bool = Field(default=True, description="Whether this asset is required for the mission")
+    external_system_for: Optional[str] = Field(default=None, description="If this is an external system credential asset, which system it provides access to")
     schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
 
@@ -32,7 +33,7 @@ class MissionProposal(BaseModel):
     description: str = Field(description="One sentence describing what the mission accomplishes")
     goal: str = Field(description="The main goal of the mission")
     success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
-    inputs: List[AssetLite] = Field(description="Input assets required for the mission (both data assets and configuration parameters)")
+    inputs: List[AssetLite] = Field(description="Input assets required for the mission (user data + external system credentials)")
     outputs: List[AssetLite] = Field(description="Output assets produced by the mission")
     scope: str = Field(description="What is explicitly included/excluded in the mission")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
@@ -85,6 +86,7 @@ The system has these specific tools available for mission execution:
       "collection_type": null,
       "role": "input",
       "required": true,
+      "external_system_for": "external_system_id if this is credentials",
       "schema_description": "Expected structure/format",
       "example_value": "Example of what the asset value might look like"
     }}
@@ -110,146 +112,110 @@ The system has these specific tools available for mission execution:
 }}
 ```
 
-## Asset Types and Schemas
+## Asset Types and Roles - SIMPLIFIED WITH EXTERNAL SYSTEMS
 
-### Asset Roles
-- **input**: Assets provided by the user or system as starting data
-- **output**: Final results produced by the mission
-- **intermediate**: Work-in-progress assets created during mission execution
+### 1. Mission Inputs (role: "input")
+Mission inputs are **ONLY** things the user directly provides:
 
-### 1. Data Assets (Content)
+- **User Data Assets**: Files, text, or data the user uploads/enters
+  - Documents, images, CSV files user uploads
+  - Text content user pastes or types
+  - Configuration values user specifies
 
-**CRITICAL RULE**: Only data that the user directly provides can be mission inputs!
+- **External System Credential Assets** (type: "config"): Access credentials for external systems
+  - OAuth tokens for Gmail, Dropbox, etc.
+  - API keys for PubMed, web search, etc.
+  - Database connection strings
+  - Must specify `external_system_for` field with external system identifier
 
-- **User-Provided Data Assets** (TRUE INPUTS - role: "input")
-  - Files uploaded by the user (documents, images, etc.)
-  - Text manually entered or pasted by the user
-  - Data the user physically provides to the system
-  - Configuration values the user enters (credentials, API keys, etc.)
-  - These are legitimate INPUT assets with role: "input"
-
-- **External Data Assets** (NEVER INPUTS - role: "intermediate")
-  - ❌ NEVER make these mission inputs - they must be retrieved by hops:
-    - Emails from Gmail, Outlook, or any email service
-    - Social media posts, tweets, LinkedIn data
-    - Database records from external systems
-    - API responses from third-party services
-    - Web scraping results
-    - Search results from any source
-    - Newsletter content from external sources
-  - These should be INTERMEDIATE assets (role: "intermediate") that get retrieved by hops
-  - The actual INPUT should be the CONFIG asset with access credentials/parameters
-
-**WRONG vs RIGHT Examples**:
-
-❌ **WRONG** - Treating external data as direct input:
+**Examples of Valid Mission Inputs**:
 ```json
+// User uploads a file
 {{
-  "name": "AI News Emails",
-  "type": "object",
-  "role": "input",  // ❌ WRONG - emails must be retrieved, not directly provided
-  "description": "AI-related newsletter emails from Gmail"
+  "name": "Research Papers",
+  "type": "file",
+  "subtype": "pdf",
+  "role": "input",
+  "description": "PDF files uploaded by user"
 }}
-```
 
-✅ **CORRECT** - Config input + intermediate data:
-```json
-// Mission input (what user provides)
+// User provides Gmail access
 {{
   "name": "Gmail Credentials",
-  "type": "config",
+  "type": "config", 
   "subtype": "oauth_token",
   "role": "input",
-  "description": "OAuth credentials for Gmail access"
-}},
-// NOT a mission input - will be created by retrieval hop
+  "external_system_for": "gmail",
+  "description": "OAuth token for Gmail access"
+}}
+
+// User specifies search terms
 {{
-  "name": "Retrieved AI News Emails",
-  "type": "object",
-  "subtype": "email_collection",
-  "role": "intermediate",
-  "description": "AI newsletter emails retrieved from Gmail folder by hop"
+  "name": "Search Keywords",
+  "type": "config",
+  "subtype": "string",
+  "role": "input", 
+  "description": "Keywords to search for"
 }}
 ```
 
-**Key Questions to Ask Yourself**:
-1. "Can the user directly upload or provide this data?" → If YES, it can be an input
-2. "Does this data need to be fetched from an external system?" → If YES, it's intermediate
-3. "Would we need credentials/API access to get this data?" → If YES, the credentials are input, the data is intermediate
+### 2. External Data (role: "intermediate")
+External data is **NEVER** a mission input - it's retrieved by tools during execution:
 
-**Common Mistakes to Avoid**:
-- ❌ Making "emails from Gmail" a mission input
-- ❌ Making "tweets about AI" a mission input  
-- ❌ Making "LinkedIn posts" a mission input
-- ❌ Making "search results" a mission input
-- ❌ Making "newsletter content" a mission input
-- ✅ Make the access credentials/search terms the inputs instead
+- Emails from Gmail → Retrieved by email tools using Gmail credentials
+- Research articles from PubMed → Retrieved by search tools using PubMed access
+- Files from Dropbox → Retrieved by file tools using Dropbox credentials
+- Web search results → Retrieved by web search tools
 
-- **File Assets** (type: "file")
-  - Use for documents, images, exports that users upload directly
-  - Must specify valid file subtype (pdf, doc, txt, etc.)
-  - Example: {{"type": "file", "subtype": "pdf", "role": "input", "description": "Resume document"}}
+**These are intermediate assets created during mission execution.**
 
-- **Object Assets** (type: "object")
-  - Use for structured data, JSON objects
-  - Can be user-provided (input) or retrieved/generated (intermediate/output)
-  - Must include schema_description
-  - Example: {{"type": "object", "subtype": "json", "role": "intermediate", "schema_description": "{{\\\"field1\\\": \\\"string\\\", \\\"field2\\\": \\\"number\\\"}}"}}
+### 3. Mission Outputs (role: "output")
+Final deliverables produced by the mission - reports, summaries, processed data, etc.
 
-- **Database Entity Assets** (type: "database_entity")
-  - Use for database records
-  - Usually intermediate or output assets (retrieved by hops)
-  - Include table name and query parameters
-  - Example: {{"type": "database_entity", "subtype": "user_record", "role": "output"}}
+### External System Integration Rules
 
-- **Markdown Assets** (type: "markdown")
-  - Use for formatted text content
-  - Can be user-provided or generated
-  - Example: {{"type": "markdown", "subtype": "report", "role": "output"}}
+1. **If mission needs external data** → Add external system credentials as input, external data as intermediate
+2. **External system credentials are config assets** → Always type: "config", role: "input", external_system_for: "system_id"
+3. **External data assets** → Always role: "intermediate", never "input"
+4. **Tools access external systems** → Using credentials from mission inputs
 
-### 2. Configuration Assets (Settings)
-- **Config Assets** (type: "config")
-  - Use for configuration values, settings, parameters
-  - Must specify subtype for validation (string, number, boolean, etc.)
-  - Example: {{"type": "config", "subtype": "string", "role": "input", "example_value": "AI News"}}
+**External System-Based Example**:
+```json
+// MISSION INPUTS (what user provides)
+{{
+  "name": "Gmail OAuth Token",
+  "type": "config",
+  "subtype": "oauth_token", 
+  "role": "input",
+  "external_system_for": "gmail",
+  "description": "OAuth credentials for Gmail access"
+}},
+{{
+  "name": "Newsletter Keywords",
+  "type": "config",
+  "subtype": "string",
+  "role": "input",
+  "description": "Keywords to identify AI newsletters"
+}}
+
+// NOT MISSION INPUTS - These are intermediate assets retrieved by tools:
+// - "AI Newsletter Emails" (retrieved from Gmail using credentials)
+// - "Extracted Article URLs" (extracted from emails by tools)
+// - "Article Content" (retrieved from web using URLs)
+```
 
 ### Collection Assets
 When creating assets that contain multiple items:
 ```json
 {{
   "name": "Collection Asset Name",
-  "type": "object",  // Base type for the items
+  "type": "object",
   "is_collection": true,
   "collection_type": "array | map | set",
   "role": "input | output | intermediate",
   "schema_description": "Schema for individual items"
 }}
 ```
-
-## Schema Validation Rules
-
-1. **Required Fields**:
-   - name: Descriptive name
-   - type: Valid asset type
-   - description: Clear purpose
-   - role: Asset's role in workflow
-   - schema_description: Expected structure
-
-2. **Type-Specific Rules**:
-   - File types must be valid file extensions
-   - Objects need property definitions
-   - Config assets need subtype specification
-   - Collections need item schema
-
-3. **Collection Rules**:
-   - If is_collection: true, must specify collection_type
-   - Collection items must have defined schema
-   - Array items must be homogeneous
-
-4. **Role Rules**:
-   - Input assets: User-provided or system-provided starting data
-   - Output assets: Final deliverables from the mission
-   - Intermediate assets: Temporary/work-in-progress assets during execution
 
 ## Response Formats
 
@@ -269,15 +235,16 @@ When creating assets that contain multiple items:
     "inputs": [
       {{
         "name": "Input Name",
-        "type": "object",
+        "type": "config",
         "description": "Input description",
         "role": "input",
+        "external_system_for": "external_system_id",
         "schema_description": "Input schema"
       }}
     ],
     "outputs": [
       {{
-        "name": "Output Name",
+        "name": "Output Name", 
         "type": "object",
         "description": "Output description",
         "role": "output",
@@ -294,41 +261,34 @@ When creating assets that contain multiple items:
 ```json
 {{
   "response_type": "INTERVIEW_QUESTION",
-  "response_content": "To create an effective mission plan, I need to understand [specific aspect].",
-  "reasoning": "This will help me [explain how the answer improves the mission plan]"
+  "response_content": "To create an effective mission plan, I need to understand [specific aspect]."
 }}
 ```
 
 ## Guidelines
+
 1. **Mission Design**:
    - Keep mission scope focused and achievable
    - Make success criteria specific and measurable
-   - Ensure all required inputs are available
+   - Ensure required external systems are available
    - Define clear output formats and schemas
-   - Use appropriate asset roles to clarify data flow
 
-2. **Asset Design** (CRITICAL):
-   - **NEVER make external data a mission input** - this is the most common mistake
-   - Only user-provided or user-entered data can be mission inputs
-   - External data (emails, social posts, API data) must be intermediate assets retrieved by hops
-   - Use CONFIG type for configuration parameters and settings
-   - Set correct role (input/output/intermediate) for each asset
-   - Provide clear schema descriptions
-   - Include example values where helpful
-   - Validate schema compatibility
+2. **Input Asset Rules** (SIMPLIFIED):
+   - ✅ User uploads/provides data → mission input
+   - ✅ User provides external system credentials → mission input (type: "config", external_system_for: "system_id")
+   - ❌ External data (emails, articles, social posts) → NOT mission input (intermediate asset)
+   - ❌ API responses → NOT mission input (intermediate asset)
 
-3. **Input Asset Rules** (MUST FOLLOW):
-   - ✅ User uploads a file → mission input
-   - ✅ User enters credentials → mission input (CONFIG type)
-   - ✅ User provides search terms → mission input (CONFIG type)
-   - ❌ Gmail emails → NOT mission input (intermediate asset from hop)
-   - ❌ Social media data → NOT mission input (intermediate asset from hop)
-   - ❌ API responses → NOT mission input (intermediate asset from hop)
-   - ❌ Web scraping results → NOT mission input (intermediate asset from hop)
+3. **External System Integration**:
+   - Look at tool descriptions to see which external systems are available
+   - Identify which external systems mission needs based on required tools
+   - Add credential assets for each required external system
+   - External data becomes intermediate assets retrieved by tools
+   - Tools use external systems with provided credentials
 
 4. **Tool Compatibility**:
    - Verify tools can handle input formats
-   - Ensure tools can produce required outputs
+   - Ensure tools can access required external systems
    - Consider data flow between tools
    - Plan for error handling
 
@@ -336,7 +296,7 @@ When creating assets that contain multiple items:
 Mission Context: {mission}
 Available Assets: {available_assets}
 
-Based on the provided context, analyze what information is complete and what needs clarification to create an effective mission plan."""
+Based on the provided context, analyze what information is complete and what needs clarification to create an effective mission plan using available tools."""
 
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Return a ChatPromptTemplate for mission definition"""
@@ -352,8 +312,8 @@ Based on the provided context, analyze what information is complete and what nee
         available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Get formatted messages for the prompt"""
-        # Format tool descriptions
-        tool_descriptions = format_tool_descriptions_for_mission_design()
+        # Format tool descriptions with integrated external system information
+        tool_descriptions = self._format_tool_descriptions_with_external_systems()
         
         # Format available assets and mission using utility functions
         assets_str = format_assets(available_assets)
@@ -385,4 +345,44 @@ Based on the provided context, analyze what information is complete and what nee
 
         # Convert langchain messages to OpenAI format
         return format_messages_for_openai(formatted_messages)
+    
+    def _format_tool_descriptions_with_external_systems(self) -> str:
+        """Format tool descriptions with integrated external system information"""
+        if not TOOL_REGISTRY:
+            return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
+        
+        descriptions = []
+        for tool_id, tool_def in TOOL_REGISTRY.items():
+            desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
+            desc += f"**Purpose**: {tool_def.description}\n"
+            desc += f"**Category**: {tool_def.category}\n"
+            
+            # Show external system requirements if any
+            if hasattr(tool_def, 'required_resources') and tool_def.required_resources:
+                # Legacy format support
+                systems = ', '.join(tool_def.required_resources)
+                desc += f"**Requires External System**: {systems} (needs credentials)\n"
+            elif hasattr(tool_def, 'external_system') and tool_def.external_system:
+                # New format support
+                desc += f"**Requires External System**: {tool_def.external_system.name} (needs credentials)\n"
+            else:
+                desc += f"**External System**: None (processes data directly)\n"
+            
+            # Format key capabilities from parameters
+            key_inputs = []
+            for param in tool_def.parameters:
+                if param.required and param.name != 'resource_connection':
+                    key_inputs.append(param.name)
+            if key_inputs:
+                desc += f"**Key Parameters**: {', '.join(key_inputs)}\n"
+            
+            # Format outputs
+            outputs = [output.name for output in tool_def.outputs]
+            if outputs:
+                desc += f"**Produces**: {', '.join(outputs)}\n"
+            
+            desc += "\n"
+            descriptions.append(desc)
+        
+        return "\n".join(descriptions)
     

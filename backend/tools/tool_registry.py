@@ -28,7 +28,7 @@ TOOL_REGISTRY: Dict[str, "ToolDefinition"] = {}
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
+def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
     """Parse the JSON definition of all tools into ToolDefinition objects."""
     # Import lazily to dodge circular deps
     from schemas.tools import (
@@ -191,7 +191,7 @@ def load_tools_from_file() -> Dict[str, "ToolDefinition"]:
         print(f"Loading tools from {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             tools_data = json.load(f)
-        return _parse_tools_response(tools_data)
+        return _parse_tools_json(tools_data)
     except FileNotFoundError:
         print(f"Tool definitions file not found: {file_path}")
         return {}

@@ -136,7 +136,7 @@ class ToolOutputSchema(BaseModel):
     example: Optional[Any] = Field(default=None, description="Example value")
 
 # import registry after schemas are declared to avoid circular import
-from .tool_registry import TOOL_REGISTRY  # noqa: E402
+from tools.tool_registry import TOOL_REGISTRY  # noqa: E402
 
 class ToolStep(BaseModel):
     """Represents an atomic unit of work - a single tool execution within a hop"""

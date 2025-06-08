@@ -8,12 +8,12 @@ from database import get_db
 # Import from unified schema for Asset, but ToolDefinition now comes from tools.py
 from schemas.unified_schema import Asset
 from schemas.tools import ToolStep, ExecutionStatus, ToolDefinition
-from schemas.tool_registry import TOOL_REGISTRY
+from tools.tool_registry import TOOL_REGISTRY
 
 from services.auth_service import validate_token
 
 # include all tool handlers so that they are registered
-from tool_handlers import *
+from tools import *
 
 logger = logging.getLogger(__name__)
 

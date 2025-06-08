@@ -7,7 +7,16 @@ from sqlalchemy.sql import text
 from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
 from uuid import uuid4
 import json
-from schemas.asset import AssetType, CollectionType
+from enum import Enum as PyEnum
+
+# Define enums directly in models to break circular dependency
+class CollectionType(str, PyEnum):
+    """Type of collection if asset is a collection"""
+
+    ARRAY = "array"
+    MAP = "map"
+    SET = "set"
+    NONE = "null"
 
 Base = declarative_base()
 
@@ -56,7 +65,10 @@ class Asset(Base):
     type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
     is_collection = Column(Boolean, default=False)
-    collection_type = Column(Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
+    collection_type = Column(
+        Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True,
+    )
     role = Column(String(50), nullable=True)  # Role of asset in workflow: input, output, intermediate
     content = Column(JSON, nullable=True)
     asset_metadata = Column(JSON, nullable=False, default=dict)

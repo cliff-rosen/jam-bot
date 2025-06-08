@@ -1,10 +1,12 @@
 """
-Centralised Tool Registry
+Centralised Tool Registry (moved to *backend/tools*).
 
-This module owns the global TOOL_REGISTRY instance and all helper utilities for
-loading, refreshing and querying tool definitions.  It was extracted out of
-`schemas/tools.py` to keep that file focused purely on schema definitions while
-allowing the registry logic to evolve independently.
+This module owns the global *TOOL_REGISTRY* instance and all helper utilities
+for loading, refreshing and querying tool definitions.
+
+It was migrated from *schemas/tool_registry.py* to this location so that all
+runtime-facing code can simply use the canonical import path
+`tools.tool_registry`.
 """
 
 from __future__ import annotations
@@ -14,7 +16,8 @@ import os
 from typing import Any, Dict, List, Optional
 
 # NOTE: We import inside functions (rather than at module top-level) to avoid
-# circular import issues between this module and `schemas/tools.py`.
+# circular import issues between this module and *schemas/tools.py* (which
+# still contains the dataclasses for ToolDefinition etc.).
 
 # ---------------------------------------------------------------------------
 # Global registry – keeps all ToolDefinition objects keyed by their tool_id
@@ -27,15 +30,15 @@ TOOL_REGISTRY: Dict[str, "ToolDefinition"] = {}
 
 def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
     """Parse the JSON definition of all tools into ToolDefinition objects."""
-    # Local imports to avoid circular dependencies with `tools.py`
-    from .tools import (
+    # Import lazily to dodge circular deps
+    from schemas.tools import (
         ToolDefinition,
         ToolParameter,
         ToolOutput,
         ToolParameterSchema,
         ToolOutputSchema,
     )
-    from .unified_schema import SchemaType
+    from schemas.unified_schema import SchemaType
 
     tool_registry: Dict[str, ToolDefinition] = {}
 
@@ -171,9 +174,19 @@ def _parse_tools_response(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefiniti
 # Public API
 # ---------------------------------------------------------------------------
 
+def _default_tools_json_path() -> str:
+    """Return the path to *tools.json* – first look in this package, then fallback to schemas."""
+    local_path = os.path.join(os.path.dirname(__file__), "tools.json")
+    if os.path.exists(local_path):
+        return local_path
+
+    # Fallback to original location to preserve compatibility until file is moved
+    return os.path.join(os.path.dirname(__file__), "..", "schemas", "tools.json")
+
+
 def load_tools_from_file() -> Dict[str, "ToolDefinition"]:
-    """Load tool definitions from the sibling *tools.json* file."""
-    file_path = os.path.join(os.path.dirname(__file__), "tools.json")
+    """Load tool definitions from *tools.json*."""
+    file_path = _default_tools_json_path()
     try:
         print(f"Loading tools from {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
@@ -295,7 +308,7 @@ def format_tool_descriptions_for_implementation() -> str:
 
 def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None:
     """Attach an execution *handler* to an already-defined tool."""
-    from .tool_handler_schema import ToolExecutionHandler  # local import to avoid circularity
+    from schemas.tool_handler_schema import ToolExecutionHandler  # local import to avoid circularity
 
     print(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:

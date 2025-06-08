@@ -6,10 +6,10 @@ email data (currently Gmail search).
 
 from __future__ import annotations
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 from services.email_service import EmailService
-from schemas.tool_registry import register_tool_handler
+from tools.tool_registry import register_tool_handler  # Updated import path
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 
 # Singleton service instance – reuse HTTP connections etc.
@@ -44,9 +44,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         "date_range": params.get("date_range"),
     }
 
-    # For now we stub out the actual API call to keep the handler self-contained.
-    # Replace the following block with a real call to email_service when wiring
-    # up external credentials + OAuth flow.
+    # Stubbed response – replace with real call to `email_service` once credentials flow is wired up.
     fake_response: Dict[str, Any] = {
         "messages": [
             {

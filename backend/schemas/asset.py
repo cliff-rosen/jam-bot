@@ -60,12 +60,8 @@ class AssetType(str, Enum):
     MARKDOWN = "markdown"
     CONFIG = "config"
 
-class CollectionType(str, Enum):
-    """Type of collection if asset is a collection - kept for backend API compatibility"""
-    ARRAY = "array"
-    MAP = "map"
-    SET = "set"
-    NONE = "null"
+# Import from models to use the canonical enum definition
+from models import CollectionType
 
 class AssetSubtype(str, Enum):
     """Specific format or schema of the asset - kept for backend API compatibility"""

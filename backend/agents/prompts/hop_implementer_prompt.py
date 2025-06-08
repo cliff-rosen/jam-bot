@@ -75,7 +75,7 @@ There are **two distinct mapping layers**:
   - Asset channel: {{"type": "asset_field", "state_asset": "asset_name", "path": "content.field"}}
   - Literal channel: {{"type": "literal", "value": "configuration_value"}}
 - **Result mapping**: Maps tool output names to their destinations  
-  - Format: `{{tool_output_name: destination}}`
+  - Format: `{{tool_output_name: destination_mapping}}`
   - Direction: **tool_output → destination** (tool puts value TO destination)
   - Asset channel: {{"type": "asset_field", "state_asset": "asset_name"}}
   - Discard channel: {{"type": "discard"}} (output ignored/discarded)
@@ -213,7 +213,10 @@ Use these three types for tool parameter mapping:
           "param_name": {{"type": "asset_field", "state_asset": "asset_name"}}
         }},
         "result_mapping": {{
-          "tool_output": "local_asset_name"
+          "tool_output": {{
+            "type": "asset_field",
+            "state_asset": "local_asset_name"
+          }}
         }}
       }}
     ]

@@ -48,6 +48,7 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Name</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">ID</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Type</th>
+                        <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Role</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-600 dark:text-gray-400">Status</th>
                     </tr>
                 </thead>
@@ -67,6 +68,9 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                                 <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                                     {asset.schema.type || 'unknown'}
                                 </span>
+                            </td>
+                            <td className="py-2 px-2 text-gray-700 dark:text-gray-300 capitalize">
+                                {asset.role || '—'}
                             </td>
                             <td className="py-2 px-2">
                                 <span className={getStatusBadgeClass(getAssetStatusColor(asset.status))}>

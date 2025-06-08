@@ -34,13 +34,8 @@ import os
 from .unified_schema import SchemaEntity, Asset, SchemaType
 from .tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 
-# ---------------------------------------------------------------------------
-# Import the central registry **read-only** so that ToolStep can look up
-# definitions at runtime.  All public registry helpers live exclusively in
-# `schemas.tool_registry`.
-# ---------------------------------------------------------------------------
-from .tool_registry import TOOL_REGISTRY  # pylint: disable=wrong-import-position
-
+# NOTE: we must NOT import tool_registry until after ToolDefinition & related
+# schema classes are declared (otherwise tool_registry -> tools circular import).
 
 class ExecutionStatus(str, Enum):
     """Status of tool execution"""
@@ -140,6 +135,8 @@ class ToolOutputSchema(BaseModel):
     required: bool = Field(default=True, description="Whether this output is always present")
     example: Optional[Any] = Field(default=None, description="Example value")
 
+# import registry after schemas are declared to avoid circular import
+from .tool_registry import TOOL_REGISTRY  # noqa: E402
 
 class ToolStep(BaseModel):
     """Represents an atomic unit of work - a single tool execution within a hop"""

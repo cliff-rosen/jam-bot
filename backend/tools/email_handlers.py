@@ -31,6 +31,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         • emails – List[dict]
         • count  – int
     """
+    print("handle_email_search executing")
 
     params = input.params
 

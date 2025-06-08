@@ -305,12 +305,14 @@ class ToolStep(BaseModel):
             return errors
 
         # Validate schema compatibility first (makes sure asset schemas make sense)
+        print("Validating schema compatibility")
         validation_errors = self.validate_schema_compatibility(tool, hop_state)
         if validation_errors:
             errors.extend(validation_errors)
             return errors
 
         # Build concrete input parameters for the tool
+        print("Building tool inputs")
         params, connection_value, param_errors = self._build_tool_inputs(tool, hop_state)
         if param_errors:
             errors.extend(param_errors)
@@ -324,7 +326,10 @@ class ToolStep(BaseModel):
 
         try:
             # Actually execute the handler
+            print("Executing tool")
             results = await tool.execution_handler.handler(execution_input)
+            print("RESULTS", results)
+            print("RESULT MAPPING", self.result_mapping)
 
             # Map handler results back onto hop state according to result_mapping
             for tool_output_name, mapping in self.result_mapping.items():

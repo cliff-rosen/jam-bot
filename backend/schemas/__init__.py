@@ -40,6 +40,13 @@ from .workflow import (
     ToolStep
 )
 
+# Tool handler schema (kept in schemas package to avoid circular deps)
+from .tool_handler_schema import (
+    ToolExecutionInput,
+    ToolExecutionResult,
+    ToolExecutionHandler,
+)
+
 __all__ = [
     # Auth schemas
     'UserBase',
@@ -71,5 +78,10 @@ __all__ = [
     'HopStatus', 
     'ExecutionStatus',
     'Hop',
-    'ToolStep'
+    'ToolStep',
+
+    # Tool handler schemas
+    'ToolExecutionInput',
+    'ToolExecutionResult',
+    'ToolExecutionHandler',
 ]  

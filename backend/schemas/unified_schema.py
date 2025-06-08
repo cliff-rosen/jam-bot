@@ -3,7 +3,7 @@ Unified Schema System for Assets, Tool Parameters, and Tool Outputs
 Backend Python equivalent of frontend/src/types/schema.ts
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
@@ -51,8 +51,8 @@ class AssetMetadata(BaseModel):
     version: int = Field(default=1)
     token_count: int = Field(default=0)
 
-    class Config:
-        allow_population_by_field_name = True
+    # Pydantic v2 configuration: allow population using field aliases
+    model_config = ConfigDict(populate_by_name=True)
 
 class Asset(SchemaEntity):
     """Assets extend SchemaEntity with actual value and status tracking"""
@@ -109,8 +109,7 @@ try:
         ToolDefinition, 
         ToolParameter, 
         ToolOutput, 
-        ExternalSystemInfo,
-        ToolExample
+        ExternalSystemInfo
     )
 except ImportError:
     # Fallback for when tools.py is not available

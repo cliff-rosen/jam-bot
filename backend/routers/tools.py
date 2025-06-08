@@ -12,7 +12,7 @@ from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY, ToolDefiniti
 from services.auth_service import validate_token
 
 # include all tool handlers so that they are registered
-from services.email_tool_handlers import handle_email_search
+from tool_handlers import *
 
 logger = logging.getLogger(__name__)
 

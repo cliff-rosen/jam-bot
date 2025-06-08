@@ -32,6 +32,7 @@ from enum import Enum
 import json
 import os
 from .unified_schema import SchemaEntity, Asset, SchemaType
+from .tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 
 class ExecutionStatus(str, Enum):
     """Status of tool execution"""
@@ -89,7 +90,8 @@ class ToolDefinition(BaseModel):
     # External system integration (only for tools that access external systems)
     external_system: Optional[ExternalSystemInfo] = Field(default=None, description="External system this tool accesses")
     
-    execution_handler: Optional[Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = Field(default=None, exclude=True)
+    # Updated to hold a ToolExecutionHandler wrapper instead of a raw callable
+    execution_handler: Optional[ToolExecutionHandler] = Field(default=None, exclude=True)
 
     def validate_input_asset(self, asset_schema: SchemaType) -> List[str]:
         """Validate that an asset schema is compatible with this tool's input requirements"""
@@ -132,11 +134,6 @@ class ToolOutputSchema(BaseModel):
     schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON schema for complex types")
     required: bool = Field(default=True, description="Whether this output is always present")
     example: Optional[Any] = Field(default=None, description="Example value")
-
-class ToolExecutionHandler(BaseModel):
-    """Handler for executing a tool"""
-    handler: Callable[[Any, Dict[str, Any]], Awaitable[Dict[str, Any]]]
-    description: str
 
 def load_tools_from_file() -> Dict[str, ToolDefinition]:
     """Load tool definitions from tools.json in schemas folder"""
@@ -492,50 +489,128 @@ class ToolStep(BaseModel):
         
         return errors
 
+    def _build_tool_inputs(self, tool: ToolDefinition, hop_state: Dict[str, 'Asset']) -> tuple[Dict[str, Any], Optional[Any], List[str]]:
+        """Resolve parameter mappings into concrete values to feed into the tool.
+
+        Returns a tuple of (params_dict, connection_value, error_list)."""
+        params: Dict[str, Any] = {}
+        errors: List[str] = []
+
+        # Resolve each declared parameter in the tool definition
+        for param in tool.parameters:
+            mapping = self.parameter_mapping.get(param.name)
+
+            # Parameter might be optional and unmapped
+            if mapping is None:
+                if param.required:
+                    errors.append(f"Required parameter '{param.name}' has no mapping defined")
+                continue
+
+            # Asset field mapping -> fetch value from hop state asset
+            if isinstance(mapping, AssetFieldMapping):
+                asset = hop_state.get(mapping.state_asset)
+                if not asset:
+                    errors.append(f"Asset '{mapping.state_asset}' for parameter '{param.name}' not found in hop state")
+                    continue
+
+                # Ensure asset has a value ready
+                if asset.value is None:
+                    errors.append(f"Asset '{mapping.state_asset}' for parameter '{param.name}' has no value")
+                    continue
+
+                params[param.name] = asset.value
+
+            # Literal mapping -> take value directly
+            elif isinstance(mapping, LiteralMapping):
+                params[param.name] = mapping.value
+
+            else:
+                errors.append(f"Unsupported mapping type for parameter '{param.name}'")
+
+        # Resolve external connection if needed
+        connection_value = None
+        if self.external_system_connection_asset:
+            connection_asset = hop_state.get(self.external_system_connection_asset)
+            if connection_asset:
+                connection_value = connection_asset.value
+            else:
+                errors.append(f"Connection asset '{self.external_system_connection_asset}' not found in hop state")
+
+        return params, connection_value, errors
+
     async def execute(self, hop_state: Dict[str, 'Asset']) -> List[str]:
         """Execute the tool step and validate results"""
+        print("--------------------------------")
         print(f"step.execute() running for tool {self.tool_id}")
-        print(f"hop_state: {hop_state}")
-        errors = []
-        
-        # Get tool from the local registry
+
+        errors: List[str] = []
+
+        # Retrieve tool definition
         tool = TOOL_REGISTRY.get(self.tool_id)
         if not tool:
-            print(f"Tool {self.tool_id} not found")
-            print(f"Tool registry: {TOOL_REGISTRY}")
-            errors.append(f"Tool {self.tool_id} not found")
+            errors.append(f"Tool '{self.tool_id}' not found")
             return errors
-        
+
         if not tool.execution_handler:
-            errors.append(f"No execution handler registered for tool {self.tool_id}")
+            errors.append(f"No execution handler registered for tool '{self.tool_id}'")
             return errors
-        
-        # Validate schema compatibility before execution
+
+        # Validate schema compatibility first (makes sure asset schemas make sense)
         validation_errors = self.validate_schema_compatibility(tool, hop_state)
         if validation_errors:
-            print(f"Validation errors: {validation_errors}")
             errors.extend(validation_errors)
             return errors
-        
+
+        # Build concrete input parameters for the tool
+        params, connection_value, param_errors = self._build_tool_inputs(tool, hop_state)
+        if param_errors:
+            errors.extend(param_errors)
+            return errors
+
+        execution_input = ToolExecutionInput(
+            params=params,
+            connection=connection_value,
+            step_id=self.id,
+        )
+
         try:
-            # Execute tool
-            results = await tool.execution_handler.handler(self, hop_state)
-            
-            # Map tool outputs TO hop state assets (tool_output → asset) or discard
+            # Actually execute the handler
+            results = await tool.execution_handler.handler(execution_input)
+
+            # Map handler results back onto hop state according to result_mapping
             for tool_output_name, mapping in self.result_mapping.items():
                 if isinstance(mapping, AssetFieldMapping):
-                    # Asset channel: put output TO asset
-                    if tool_output_name in results:
-                        hop_state[mapping.state_asset] = Asset(
-                            content=results[tool_output_name],
-                            schema=tool.outputs[0].schema
+                    # Only process if tool produced this output
+                    if tool_output_name not in results:
+                        continue
+
+                    destination_key = mapping.state_asset
+
+                    # Retrieve or create destination asset in hop state
+                    destination_asset = hop_state.get(destination_key)
+
+                    if not destination_asset:
+                        # If destination asset missing, fabricate a minimal one so downstream logic works
+                        output_schema = next((o.schema for o in tool.outputs if o.name == tool_output_name), None)
+                        destination_asset = Asset(
+                            id=f"{self.id}.{destination_key}",
+                            name=destination_key,
+                            description=f"Asset generated by tool '{self.tool_id}' output '{tool_output_name}'",
+                            schema=output_schema or SchemaType(type="object", is_array=False),
+                            value=None,
                         )
-                elif isinstance(mapping, DiscardMapping):
-                    # Discard channel: output is intentionally ignored
-                    pass  # No action needed - output is discarded
-            
+
+                    # Update asset value and mark ready
+                    destination_asset.value = results[tool_output_name]
+                    destination_asset.mark_ready(updated_by=self.tool_id)
+
+                    # Persist back to hop state
+                    hop_state[destination_key] = destination_asset
+
+                # Discard mapping explicitly ignored
+
             return errors
-            
+
         except Exception as e:
             errors.append(f"Tool execution failed: {str(e)}")
             return errors
@@ -545,4 +620,11 @@ try:
     refresh_tool_registry()
 except Exception as e:
     print(f"Failed to load tools on import: {e}")
-    TOOL_REGISTRY = {} 
+    TOOL_REGISTRY = {}
+
+# Rebuild ToolDefinition to resolve forward refs to ToolExecutionHandler (Pydantic v2)
+try:
+    ToolDefinition.model_rebuild()
+except AttributeError:
+    # Fallback for Pydantic v1
+    ToolDefinition.update_forward_refs() 

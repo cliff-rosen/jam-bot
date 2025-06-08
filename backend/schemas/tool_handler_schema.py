@@ -1,0 +1,41 @@
+"""Schema definitions and base wrapper for backend tool handlers.
+
+Placing these models in the `schemas` package keeps *all* shared/serialisable
+objects in a single place, while the `tool_handlers` package remains dedicated
+purely to implementation code.
+"""
+
+from __future__ import annotations
+
+from typing import Awaitable, Callable, Dict, Any, Optional
+from pydantic import BaseModel, Field
+
+__all__ = [
+    "ToolExecutionInput",
+    "ToolExecutionResult",
+    "ToolExecutionHandler",
+]
+
+
+class ToolExecutionInput(BaseModel):
+    """Input payload delivered to every tool handler."""
+
+    params: Dict[str, Any] = Field(default_factory=dict)
+    connection: Optional[Any] = None
+    step_id: Optional[str] = None
+
+
+class ToolExecutionResult(BaseModel):
+    """Typed wrapper around handler output (optional to use)."""
+
+    outputs: Dict[str, Any] = Field(default_factory=dict)
+
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:  # pragma: no cover
+        return self.outputs
+
+
+class ToolExecutionHandler(BaseModel):
+    """Metadata + async callable that performs the work."""
+
+    handler: Callable[[ToolExecutionInput], Awaitable[Dict[str, Any]]]
+    description: str 

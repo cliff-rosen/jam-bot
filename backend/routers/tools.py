@@ -7,7 +7,8 @@ from database import get_db
 
 # Import from unified schema for Asset, but ToolDefinition now comes from tools.py
 from schemas.unified_schema import Asset
-from schemas.tools import ToolStep, ExecutionStatus, TOOL_REGISTRY, ToolDefinition
+from schemas.tools import ToolStep, ExecutionStatus, ToolDefinition
+from schemas.tool_registry import TOOL_REGISTRY
 
 from services.auth_service import validate_token
 

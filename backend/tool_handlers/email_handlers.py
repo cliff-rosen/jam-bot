@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Dict, Any, List, Optional
 
 from services.email_service import EmailService
-from schemas.tools import register_tool_handler
+from schemas.tool_registry import register_tool_handler
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 
 # Singleton service instance – reuse HTTP connections etc.

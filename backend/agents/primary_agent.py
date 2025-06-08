@@ -26,7 +26,7 @@ from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignRespo
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
-from schemas.tools import TOOL_REGISTRY
+from schemas.tool_registry import TOOL_REGISTRY
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY

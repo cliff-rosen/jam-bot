@@ -1,6 +1,6 @@
 import asyncio
 from config.settings import settings
-from schemas.tools import get_available_tools
+from schemas.tool_registry import get_available_tools
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY

@@ -1,4 +1,4 @@
-from schemas.tools import TOOL_REGISTRY
+from schemas.tool_registry import TOOL_REGISTRY
 
 print("=== TOOL REGISTRY STATUS ===")
 print(f"Total tools loaded: {len(TOOL_REGISTRY)}")
@@ -18,7 +18,7 @@ if email_search_tool:
 
 print("\n=== IMPORTING EMAIL TOOL HANDLERS ===")
 try:
-    import services.email_tool_handlers
+    from tool_handlers import email_tool_handlers
     print("Email tool handlers imported successfully")
     
     # Check again after import

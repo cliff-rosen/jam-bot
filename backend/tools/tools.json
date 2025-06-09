@@ -70,7 +70,7 @@
                     "is_array": true,
                     "description": "List of retrieved emails",
                     "required": true,
-                    "details_schema": {
+                    "schema": {
                         "type": "object",
                         "is_array": true,
                         "items": {
@@ -79,22 +79,31 @@
                                 "id": {
                                     "type": "string"
                                 },
+                                "date": {
+                                    "type": "string"
+                                },
+                                "from": {
+                                    "type": "string"
+                                },
+                                "to": {
+                                    "type": "string"
+                                },
                                 "subject": {
                                     "type": "string"
                                 },
                                 "body": {
+                                    "type": "object",
+                                    "properties": {
+                                        "html": {
+                                            "type": "string"
+                                        },
+                                        "plain": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "snippet": {
                                     "type": "string"
-                                },
-                                "sender": {
-                                    "type": "string"
-                                },
-                                "timestamp": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                },
-                                "labels": {
-                                    "type": "string",
-                                    "is_array": true
                                 }
                             }
                         }
@@ -102,14 +111,15 @@
                     "example": [
                         {
                             "id": "email_123",
+                            "date": "1705321800000",
+                            "from": "manager@company.com",
+                            "to": "user@company.com",
                             "subject": "Q3 Results Meeting",
-                            "body": "Please join us for the quarterly review...",
-                            "sender": "manager@company.com",
-                            "timestamp": "2024-01-15T10:30:00Z",
-                            "labels": [
-                                "work",
-                                "important"
-                            ]
+                            "body": {
+                                "html": "<p>Please join us for the quarterly review...</p>",
+                                "plain": "Please join us for the quarterly review..."
+                            },
+                            "snippet": "Please join us for the quarterly review..."
                         }
                     ]
                 },
@@ -118,7 +128,30 @@
                     "type": "number",
                     "description": "Number of emails retrieved",
                     "required": true,
-                    "example": 25
+                    "example": 25,
+                    "schema": {
+                        "type": "number"
+                    }
+                },
+                {
+                    "name": "stored_ids",
+                    "type": "object",
+                    "is_array": true,
+                    "description": "List of IDs of successfully stored newsletters",
+                    "required": false,
+                    "schema": {
+                        "type": "number",
+                        "is_array": true
+                    }
+                },
+                {
+                    "name": "error",
+                    "type": "string",
+                    "description": "Error message if storage failed (null if successful)",
+                    "required": false,
+                    "schema": {
+                        "type": "string"
+                    }
                 }
             ],
             "examples": [

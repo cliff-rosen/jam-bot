@@ -45,7 +45,8 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         "date_range": params.get("date_range"),
     }
 
-    # Stubbed response – replace with real call to `email_service` once credentials flow is wired up.
+    # Call the EmailService to get messages and count
+    # response = await email_service.get_messages_and_store(**endpoint_params)
     fake_response: Dict[str, Any] = {
         "messages": [
             {
@@ -55,15 +56,18 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
                 "date": "2023-01-01",
                 "body": "This is a test email",
             }
-        ]
+        ],
+        "count": 1,
+        "stored_ids": [],
+        "error": None
     }
+    response = fake_response
 
-    response = fake_response  # await email_service.get_messages_and_store(**endpoint_params)
-
-    emails: List[Dict[str, Any]] = response["messages"]
     return {
-        "emails": emails,
-        "count": len(emails),
+        "emails": response.get("messages", []),
+        "count": response.get("count", 0),
+        "stored_ids": response.get("stored_ids", []),
+        "error": response.get("error"),
     }
 
 

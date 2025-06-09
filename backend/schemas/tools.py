@@ -287,8 +287,13 @@ class ToolStep(BaseModel):
 
         return params, connection_value, errors
 
-    async def execute(self, hop_state: Dict[str, 'Asset']) -> List[str]:
-        """Execute the tool step and validate results"""
+    async def execute(self, hop_state: Dict[str, 'Asset']) -> tuple[List[str], Optional[Dict[str, Any]]]:
+        """Execute the tool step and validate results.
+
+        Returns a tuple containing:
+        - A list of error strings.
+        - The raw results dictionary from the tool execution, or None if execution failed.
+        """
         print("--------------------------------")
         print(f"step.execute() running for tool {self.tool_id}")
 
@@ -298,25 +303,25 @@ class ToolStep(BaseModel):
         tool = TOOL_REGISTRY.get(self.tool_id)
         if not tool:
             errors.append(f"Tool '{self.tool_id}' not found")
-            return errors
+            return errors, None
 
         if not tool.execution_handler:
             errors.append(f"No execution handler registered for tool '{self.tool_id}'")
-            return errors
+            return errors, None
 
         # Validate schema compatibility first (makes sure asset schemas make sense)
         print("Validating schema compatibility")
         validation_errors = self.validate_schema_compatibility(tool, hop_state)
         if validation_errors:
             errors.extend(validation_errors)
-            return errors
+            return errors, None
 
         # Build concrete input parameters for the tool
         print("Building tool inputs")
         params, connection_value, param_errors = self._build_tool_inputs(tool, hop_state)
         if param_errors:
             errors.extend(param_errors)
-            return errors
+            return errors, None
 
         execution_input = ToolExecutionInput(
             params=params,
@@ -328,8 +333,8 @@ class ToolStep(BaseModel):
             # Actually execute the handler
             print("Executing tool")
             results = await tool.execution_handler.handler(execution_input)
-            print("RESULTS", results)
-            print("RESULT MAPPING", self.result_mapping)
+            print("Results", results)
+            print("Result mapping", self.result_mapping)
 
             # Map handler results back onto hop state according to result_mapping
             for tool_output_name, mapping in self.result_mapping.items():
@@ -363,11 +368,11 @@ class ToolStep(BaseModel):
 
                 # Discard mapping explicitly ignored
 
-            return errors
+            return errors, results
 
         except Exception as e:
             errors.append(f"Tool execution failed: {str(e)}")
-            return errors
+            return errors, None
 
 # Rebuild ToolDefinition to resolve forward refs to ToolExecutionHandler (Pydantic v2)
 try:

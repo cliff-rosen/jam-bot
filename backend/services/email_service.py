@@ -280,7 +280,7 @@ class EmailService:
         include_metadata: bool = True,
         db: Optional[Session] = None,
         save_to_newsletters: bool = False
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
         Get messages from specified folders
         
@@ -295,7 +295,9 @@ class EmailService:
             save_to_newsletters: Whether to save messages to newsletters table
             
         Returns:
-            List of message objects
+            A dictionary containing:
+            - messages: List of message objects
+            - count: Number of messages retrieved
         """
         try:
             logger.info(f"Starting get_messages with params: folders={folders}, date_range={date_range}, query_terms={query_terms}, max_results={max_results}")
@@ -343,7 +345,10 @@ class EmailService:
                     continue
                 
             logger.info(f"Successfully fetched {len(detailed_messages)} detailed messages")
-            return detailed_messages
+            return {
+                'messages': detailed_messages,
+                'count': len(detailed_messages)
+            }
             
         except HttpError as e:
             logger.error(f"Gmail API error getting messages: {str(e)}", exc_info=True)
@@ -431,12 +436,13 @@ class EmailService:
         Returns:
             Dictionary containing:
             - messages: List of fetched message objects
+            - count: Number of messages retrieved
             - stored_ids: List of IDs of successfully stored newsletters
             - error: Error message if storage failed (None if successful)
         """
         try:
             # First get the messages
-            messages = await self.get_messages(
+            result = await self.get_messages(
                 folders=folders,
                 date_range=date_range,
                 query_terms=query_terms,
@@ -445,12 +451,15 @@ class EmailService:
                 include_metadata=include_metadata,
                 db=db
             )
+            messages = result.get('messages', [])
+            count = result.get('count', 0)
             
             # Then store them
             try:
                 stored_ids = await self.store_messages_to_newsletters(messages, db)
                 return {
                     'messages': messages,
+                    'count': count,
                     'stored_ids': stored_ids,
                     'error': None
                 }
@@ -458,6 +467,7 @@ class EmailService:
                 logger.error(f"Error storing messages to newsletters: {str(e)}")
                 return {
                     'messages': messages,
+                    'count': count,
                     'stored_ids': [],
                     'error': str(e)
                 }

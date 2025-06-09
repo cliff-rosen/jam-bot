@@ -358,13 +358,10 @@ Based on the provided context, analyze what information is complete and what nee
             desc += f"**Category**: {tool_def.category}\n"
             
             # Show external system requirements if any
-            if hasattr(tool_def, 'required_resources') and tool_def.required_resources:
-                # Legacy format support
-                systems = ', '.join(tool_def.required_resources)
-                desc += f"**Requires External System**: {systems} (needs credentials)\n"
-            elif hasattr(tool_def, 'external_system') and tool_def.external_system:
-                # New format support
+            if tool_def.external_system:
                 desc += f"**Requires External System**: {tool_def.external_system.name} (needs credentials)\n"
+                desc += f"**System Type**: {tool_def.external_system.type}\n"
+                desc += f"**Capabilities**: {', '.join(tool_def.external_system.capabilities)}\n"
             else:
                 desc += f"**External System**: None (processes data directly)\n"
             

@@ -5,30 +5,99 @@
             "name": "email_search",
             "description": "Search and retrieve emails from Gmail with filtering capabilities",
             "category": "data_retrieval",
-            "required_resources": [
-                "gmail"
-            ],
-            "supported_resources": [
-                "gmail"
-            ],
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "resource_connection": {
+            "external_system": {
+                "id": "gmail",
+                "name": "Gmail",
+                "description": "Gmail email service",
+                "type": "messaging",
+                "connection_schema": {
+                    "type": "object",
+                    "properties": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "OAuth access token"
+                        },
+                        "refresh_token": {
+                            "type": "string",
+                            "description": "OAuth refresh token"
+                        },
+                        "token_type": {
+                            "type": "string",
+                            "description": "Token type (usually 'Bearer')"
+                        },
+                        "expires_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Token expiration timestamp"
+                        }
+                    },
+                    "required": [
+                        "access_token",
+                        "refresh_token",
+                        "token_type"
+                    ]
+                },
+                "capabilities": [
+                    "search_emails",
+                    "read_emails",
+                    "list_labels"
+                ],
+                "base_url": "https://gmail.googleapis.com",
+                "documentation_url": "https://developers.google.com/gmail/api/reference/rest/v1"
+            },
+            "parameters": [
+                {
+                    "name": "gmail_connection",
+                    "type": "object",
+                    "description": "Gmail OAuth credentials",
+                    "required": true,
+                    "schema": {
                         "type": "object",
-                        "description": "Gmail OAuth credentials (access_token, refresh_token, etc.)",
-                        "required": true
-                    },
-                    "query": {
-                        "type": "string",
-                        "description": "Gmail search query (e.g., 'from:user@example.com label:important'). Will be split into terms."
-                    },
-                    "folder": {
-                        "type": "string",
-                        "description": "Gmail folder/label to search in. Will be converted to a list.",
-                        "default": "INBOX"
-                    },
-                    "date_range": {
+                        "properties": {
+                            "access_token": {
+                                "type": "string",
+                                "description": "OAuth access token"
+                            },
+                            "refresh_token": {
+                                "type": "string",
+                                "description": "OAuth refresh token"
+                            },
+                            "token_type": {
+                                "type": "string",
+                                "description": "Token type (usually 'Bearer')"
+                            },
+                            "expires_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "Token expiration timestamp"
+                            }
+                        },
+                        "required": [
+                            "access_token",
+                            "refresh_token",
+                            "token_type"
+                        ]
+                    }
+                },
+                {
+                    "name": "query",
+                    "type": "string",
+                    "description": "Gmail search query (e.g., 'from:user@example.com label:important'). Will be split into terms.",
+                    "required": true
+                },
+                {
+                    "name": "folder",
+                    "type": "string",
+                    "description": "Gmail folder/label to search in. Will be converted to a list.",
+                    "required": false,
+                    "default": "INBOX"
+                },
+                {
+                    "name": "date_range",
+                    "type": "object",
+                    "description": "Date range to search within",
+                    "required": false,
+                    "schema": {
                         "type": "object",
                         "properties": {
                             "start_date": {
@@ -40,130 +109,61 @@
                                 "format": "date"
                             }
                         }
-                    },
-                    "limit": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 500,
-                        "default": 100,
-                        "description": "Maximum number of emails to retrieve (capped at 500)"
-                    },
-                    "include_attachments": {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Whether to include attachment data in the response"
-                    },
-                    "include_metadata": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Whether to include message metadata in the response"
                     }
-                },
-                "required": [
-                    "resource_connection"
-                ]
-            },
-            "output_schema": [
+                }
+            ],
+            "outputs": [
                 {
                     "name": "emails",
-                    "type": "object",
-                    "is_array": true,
-                    "description": "List of retrieved emails",
+                    "type": "array",
+                    "description": "List of matching emails",
                     "required": true,
                     "schema": {
-                        "type": "object",
-                        "is_array": true,
+                        "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "description": "Email ID"
                                 },
-                                "date": {
-                                    "type": "string"
-                                },
-                                "from": {
-                                    "type": "string"
-                                },
-                                "to": {
-                                    "type": "string"
+                                "thread_id": {
+                                    "type": "string",
+                                    "description": "Thread ID"
                                 },
                                 "subject": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "description": "Email subject"
                                 },
-                                "body": {
-                                    "type": "object",
-                                    "properties": {
-                                        "html": {
-                                            "type": "string"
-                                        },
-                                        "plain": {
-                                            "type": "string"
-                                        }
-                                    }
+                                "from": {
+                                    "type": "string",
+                                    "description": "Sender email"
+                                },
+                                "to": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Recipient emails"
+                                },
+                                "date": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "description": "Email date"
                                 },
                                 "snippet": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "description": "Email preview"
+                                },
+                                "labels": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Email labels"
                                 }
                             }
                         }
-                    },
-                    "example": [
-                        {
-                            "id": "email_123",
-                            "date": "1705321800000",
-                            "from": "manager@company.com",
-                            "to": "user@company.com",
-                            "subject": "Q3 Results Meeting",
-                            "body": {
-                                "html": "<p>Please join us for the quarterly review...</p>",
-                                "plain": "Please join us for the quarterly review..."
-                            },
-                            "snippet": "Please join us for the quarterly review..."
-                        }
-                    ]
-                },
-                {
-                    "name": "count",
-                    "type": "number",
-                    "description": "Number of emails retrieved",
-                    "required": true,
-                    "example": 25,
-                    "schema": {
-                        "type": "number"
-                    }
-                },
-                {
-                    "name": "stored_ids",
-                    "type": "object",
-                    "is_array": true,
-                    "description": "List of IDs of successfully stored newsletters",
-                    "required": false,
-                    "schema": {
-                        "type": "number",
-                        "is_array": true
-                    }
-                },
-                {
-                    "name": "error",
-                    "type": "string",
-                    "description": "Error message if storage failed (null if successful)",
-                    "required": false,
-                    "schema": {
-                        "type": "string"
-                    }
-                }
-            ],
-            "examples": [
-                {
-                    "description": "Search for important emails from last month",
-                    "input": {
-                        "query": "label:important",
-                        "date_range": {
-                            "start_date": "2024-01-01",
-                            "end_date": "2024-01-31"
-                        },
-                        "limit": 50
                     }
                 }
             ]

@@ -114,6 +114,17 @@ class ToolDefinition(BaseModel):
         """Get the external system ID if this tool accesses one"""
         return self.external_system.id if self.external_system else None
 
+    def get_connection_parameter_name(self) -> Optional[str]:
+        """Get the name of the parameter that accepts the connection credentials"""
+        # Look for a parameter that matches the external system's connection schema
+        if not self.external_system:
+            return None
+            
+        for param in self.parameters:
+            if param.name == 'resource_connection' or param.name == f"{self.external_system.id}_connection":
+                return param.name
+        return None
+
 # Tool loading functionality
 class ToolParameterSchema(BaseModel):
     """Defines the input parameter schema for a tool"""

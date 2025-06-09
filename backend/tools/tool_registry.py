@@ -37,6 +37,7 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
         ToolOutput,
         ToolParameterSchema,
         ToolOutputSchema,
+        ExternalSystemInfo,
     )
     from schemas.unified_schema import SchemaType
 
@@ -142,6 +143,13 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                     )
 
             # ------------------------------------------------------------------
+            # External System
+            # ------------------------------------------------------------------
+            external_system = None
+            if "external_system" in tool_def_json:
+                external_system = ExternalSystemInfo(**tool_def_json["external_system"])
+
+            # ------------------------------------------------------------------
             # Assemble the ToolDefinition
             # ------------------------------------------------------------------
             tool_definition = ToolDefinition(
@@ -152,6 +160,7 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                 outputs=outputs,
                 category=tool_def_json.get("category", "other"),
                 examples=tool_def_json.get("examples"),
+                external_system=external_system,
             )
 
             if tool_definition.id in tool_registry:

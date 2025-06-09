@@ -101,25 +101,30 @@ export interface ToolDefinition {
     // External system integration (matches backend)
     external_system?: ExternalSystemInfo;
 
-    // Legacy support for required_resources (used in mission prompt)
-    required_resources?: string[];
-
     // Execution handler (present in backend but not used in frontend)
     execution_handler?: any;
 }
 
 // Tool definition utility functions
 export function toolAccessesExternalSystem(tool: ToolDefinition): boolean {
-    return tool.external_system !== undefined || (tool.required_resources !== undefined && tool.required_resources.length > 0);
+    return tool.external_system !== undefined;
 }
 
 export function getToolExternalSystemId(tool: ToolDefinition): string | undefined {
-    if (tool.external_system) {
-        return tool.external_system.id;
-    } else if (tool.required_resources && tool.required_resources.length > 0) {
-        return tool.required_resources[0]; // Return first resource for legacy compatibility
+    return tool.external_system?.id;
+}
+
+export function getToolConnectionParameterName(tool: ToolDefinition): string | undefined {
+    if (!tool.external_system) {
+        return undefined;
     }
-    return undefined;
+
+    // Look for a parameter that matches the external system's connection schema
+    const param = tool.parameters.find(p =>
+        p.name === 'resource_connection' ||
+        p.name === `${tool.external_system!.id}_connection`
+    );
+    return param?.name;
 }
 
 // Utility functions for schema operations

@@ -24,7 +24,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         completeHopExecution,
         failHopExecution,
         retryHopExecution,
-        clearCollabArea
+        clearCollabArea,
+        setCollabArea,
+        updateHopState
     } = useJamBot();
 
     const handlePrevious = () => {
@@ -35,6 +37,10 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         if (Array.isArray(content)) {
             setCurrentIndex(prev => Math.min(content.length - 1, prev + 1));
         }
+    };
+
+    const handleHopUpdate = (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
+        updateHopState(updatedHop, updatedMissionOutputs);
     };
 
     const renderObject = () => {
@@ -570,11 +576,10 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
         return (
             <div className="h-full flex flex-col">
-
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                     <div className="px-8 pt-8">
-                        <CurrentHopDetails hop={liveHop} className="" />
+                        <CurrentHopDetails hop={liveHop} className="" onHopUpdate={handleHopUpdate} />
                     </div>
                 </div>
 

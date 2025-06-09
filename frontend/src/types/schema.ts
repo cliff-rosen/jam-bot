@@ -81,6 +81,7 @@ export interface ToolParameter extends SchemaEntity {
 // Tool outputs - extend SchemaEntity for unified schema system  
 export interface ToolOutput extends SchemaEntity {
     // All fields inherited from SchemaEntity (id, name, description, schema)
+    required: boolean;
 }
 
 // Tool definition - matches backend tools.py structure exactly

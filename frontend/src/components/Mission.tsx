@@ -3,7 +3,7 @@ import { useJamBot } from '@/context/JamBotContext';
 import { MissionStateTable } from './common/MissionStateTable';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { FileText, ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { HopStatus, MissionStatus } from '@/types/workflow';
+import { HopStatus, MissionStatus, Hop } from '@/types/workflow';
 import { getMissionStatusDisplay, getHopStatusDisplay, getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 import { Asset } from '@/types/asset';
 
@@ -51,7 +51,8 @@ export default function Mission({
 }: MissionProps) {
     const {
         state,
-        setCollabArea
+        setCollabArea,
+        updateHopState
     } = useJamBot();
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -72,6 +73,10 @@ export default function Mission({
         current_hop: undefined,
         metadata: {},
         state: {}
+    };
+
+    const handleHopUpdate = (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
+        updateHopState(updatedHop, updatedMissionOutputs);
     };
 
     const hasPendingProposal = state.collabArea.type === 'mission-proposal' && mission.mission_status === MissionStatus.PENDING;
@@ -270,6 +275,7 @@ export default function Mission({
                             <CurrentHopDetails
                                 hop={mission.current_hop || mission.hops[mission.current_hop_index - 1]}
                                 className="bg-gray-50 dark:bg-[#23283a] rounded p-3"
+                                onHopUpdate={handleHopUpdate}
                             />
                         </div>
                     )}

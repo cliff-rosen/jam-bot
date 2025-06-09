@@ -30,7 +30,8 @@ type JamBotAction =
     | { type: 'START_HOP_EXECUTION'; payload: string }
     | { type: 'COMPLETE_HOP_EXECUTION'; payload: string }
     | { type: 'FAIL_HOP_EXECUTION'; payload: { hopId: string; error: string } }
-    | { type: 'RETRY_HOP_EXECUTION'; payload: string };
+    | { type: 'RETRY_HOP_EXECUTION'; payload: string }
+    | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; missionOutputs: Map<string, Asset> } };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -378,6 +379,34 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     content: null
                 }
             };
+        case 'UPDATE_HOP_STATE':
+            const { hop: updatedHop, missionOutputs } = action.payload;
+
+            // Update the hop in the hops array
+            const stateUpdatedHops = state.mission.hops.map(h =>
+                h.id === updatedHop.id ? updatedHop : h
+            );
+
+            // Update current_hop if it matches
+            const stateUpdatedCurrentHop = state.mission.current_hop?.id === updatedHop.id
+                ? updatedHop
+                : state.mission.current_hop;
+
+            // Update mission state with any new outputs
+            const stateUpdatedMissionState = { ...state.mission.state };
+            missionOutputs.forEach((asset, missionOutputId) => {
+                stateUpdatedMissionState[missionOutputId] = asset;
+            });
+
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    hops: stateUpdatedHops,
+                    current_hop: stateUpdatedCurrentHop,
+                    state: stateUpdatedMissionState
+                }
+            };
         default:
             return state;
     }
@@ -399,6 +428,7 @@ const JamBotContext = createContext<{
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
     clearCollabArea: () => void;
+    updateHopState: (hop: Hop, missionOutputs: Map<string, Asset>) => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -461,6 +491,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const clearCollabArea = useCallback(() => {
         dispatch({ type: 'CLEAR_COLLAB_AREA' });
+    }, []);
+
+    const updateHopState = useCallback((hop: Hop, missionOutputs: Map<string, Asset>) => {
+        dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop, missionOutputs } });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -609,7 +643,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             completeHopExecution,
             failHopExecution,
             retryHopExecution,
-            clearCollabArea
+            clearCollabArea,
+            updateHopState
         }}>
             {children}
         </JamBotContext.Provider>

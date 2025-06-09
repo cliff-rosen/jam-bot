@@ -79,7 +79,7 @@ class ToolParameter(SchemaEntity):
 class ToolOutput(SchemaEntity):
     """Output definition for a tool - extends SchemaEntity for unified schema system"""
     # id, name, description, schema inherited from SchemaEntity
-    pass
+    required: bool = True
 
 class ToolDefinition(BaseModel):
     """Definition of a tool that can be used in a hop"""
@@ -335,6 +335,15 @@ class ToolStep(BaseModel):
             results = await tool.execution_handler.handler(execution_input)
             print("Results", results)
             print("Result mapping", self.result_mapping)
+
+            # Validate that all required tool outputs are present in the results
+            for tool_output in tool.outputs:
+                if tool_output.required and tool_output.name not in results:
+                    errors.append(f"Required tool output '{tool_output.name}' not found in results from tool '{self.tool_id}'")
+
+            # If required outputs are missing, we can't proceed with mapping.
+            if errors:
+                return errors, None
 
             # Map handler results back onto hop state according to result_mapping
             for tool_output_name, mapping in self.result_mapping.items():

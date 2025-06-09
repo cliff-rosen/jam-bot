@@ -60,6 +60,20 @@ class HopImplementerPrompt(BasePrompt):
         
         self.system_message = """You are an expert system designer tasked with resolving a hop by creating an optimal chain of tool steps. Your goal is to transform the hop's input assets into the desired output assets using the available tools.
 
+## CRITICAL REQUIREMENT
+When providing an IMPLEMENTATION_PLAN response, you MUST:
+1. Set response_type to "IMPLEMENTATION_PLAN"
+2. Include a complete hop object with:
+   - All existing fields (id, name, description, mappings)
+   - A populated steps array containing the tool steps to execute
+   - Any necessary intermediate assets in the state object
+3. Each step in the steps array must include:
+   - id: Unique identifier for the step
+   - tool_id: ID of the tool to use
+   - description: What this step accomplishes
+   - parameter_mapping: Maps tool parameters to data sources
+   - result_mapping: Maps tool outputs to destinations
+
 ## Asset Flow Architecture
 
 There are **two distinct mapping layers**:
@@ -206,20 +220,45 @@ Use these three types for tool parameter mapping:
     "output_mapping": {{"local_key": "external_asset_id"}},
     "steps": [
       {{
-        "id": "step_id",
-        "tool_id": "tool_name",
-        "description": "Step description",
+        "id": "step1_search",
+        "tool_id": "email_search",
+        "description": "Search emails using criteria",
         "parameter_mapping": {{
-          "param_name": {{"type": "asset_field", "state_asset": "asset_name"}}
+          "query": {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.query"}},
+          "resource_connection": {{"type": "asset_field", "state_asset": "email_credentials"}},
+          "limit": {{"type": "literal", "value": 50}}
         }},
         "result_mapping": {{
-          "tool_output": {{
-            "type": "asset_field",
-            "state_asset": "local_asset_name"
-          }}
+          "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}},
+          "count": {{"type": "discard"}}
         }}
       }}
-    ]
+    ],
+    "state": {{
+      "search_criteria": {{
+        "id": "search_criteria",
+        "name": "Search Criteria",
+        "description": "Email search parameters",
+        "schema": {{
+          "type": "object",
+          "is_array": false,
+          "fields": {{
+            "query": {{"type": "string"}},
+            "date_range": {{"type": "object"}}
+          }}
+        }},
+        "value": null,
+        "is_collection": false,
+        "role": "input",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "tags": [],
+          "agent_associations": [],
+          "version": 1,
+          "token_count": 0
+        }}
+      }}
+    }}
   }},
   "missing_information": [
     // List of information needed to complete implementation

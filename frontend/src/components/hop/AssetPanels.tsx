@@ -14,8 +14,6 @@ const AssetPanels: React.FC<AssetPanelsProps> = (/*{ assets }*/) => {
 
     const missionAssets = Object.values(jamBotState.mission.state || {});
 
-    console.log("AssetPanels starting");
-
     return (
         <div className="flex h-full w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-l border-gray-200 dark:border-gray-700">
             {/* Asset Library Panel - Fixed width */}

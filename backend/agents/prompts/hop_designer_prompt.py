@@ -20,9 +20,9 @@ class HopProposal(BaseModel):
     name: str = Field(description="Name of the hop (e.g., 'Extract Email Data', 'Generate Summary Report')")
     description: str = Field(description="Clear description of what this hop accomplishes")
     
-    # Maps logical input names to asset IDs/names
+    # Maps logical input names to mission state asset IDs
     input_mapping: Dict[str, str] = Field(
-        description="Maps logical input parameter names to existing asset IDs or names"
+        description="Maps local hop state keys to mission state asset IDs. Format: {local_key: mission_asset_id}. Values MUST be valid asset IDs from mission.state. The local_key becomes the key in hop.state where the asset will be copied."
     )
     
     output_asset: AssetLite = Field(description="The asset that will be produced by this hop")
@@ -73,7 +73,11 @@ The system has these specific tools available for hop implementation:
 
 3. **Cohesive Goal**: Each hop should have a single, clear, and cohesive goal. What one specific outcome does this hop achieve?
 
-4. **Input/Output Focus**: Clearly define the input assets the hop consumes and the specific output asset it produces. The output of this hop becomes a potential input for the next.
+4. **Input/Output Focus**: 
+   - Input mapping MUST use EXACT asset IDs from mission.state
+   - NEVER use asset names or values in input_mapping
+   - Example: `"input_mapping": {{"email_credentials": "ed4dff20-269e-403b-a203-72e251a51dc1"}}`
+   - The output of this hop becomes a potential input for the next
 
 5. **Tool Awareness**: Consider the available tools. Can the proposed transformation be realistically achieved by a sequence of tool steps?
 
@@ -81,6 +85,40 @@ The system has these specific tools available for hop implementation:
    - Input assets match tool parameter requirements
    - Tool outputs match asset schema requirements
    - Intermediate assets have proper schemas defined
+
+## CRITICAL: Asset ID Rules
+
+### Mission State vs Hop State
+1. **Mission State Assets**:
+   - Live in `mission.state`
+   - Have unique IDs (e.g., "ed4dff20-269e-403b-a203-72e251a51dc1")
+   - Referenced in input_mapping VALUES
+   - Example: `"input_mapping": {{"local_key": "mission_asset_id"}}`
+
+2. **Hop State Assets**:
+   - Live in `hop.state`
+   - Keys are defined by input_mapping and tool steps
+   - Referenced in input_mapping KEYS
+   - Example: `"input_mapping": {{"local_key": "mission_asset_id"}}`
+
+### Input Mapping Rules
+1. **ALWAYS use mission state asset IDs**: The input_mapping values must be EXACT asset IDs from mission.state
+2. **NEVER use asset names**: Do not use asset names or values in the mapping
+3. **Verify existence**: Only map to assets that exist in mission.state
+4. **Example correct mapping**:
+   ```json
+   "input_mapping": {{
+     "email_credentials": "ed4dff20-269e-403b-a203-72e251a51dc1",  // mission state asset ID
+     "search_criteria": "fb787172-4958-4c42-90d1-a01951338cec"     // mission state asset ID
+   }}
+   ```
+5. **Example incorrect mapping** (DO NOT DO THIS):
+   ```json
+   "input_mapping": {{
+     "email_folder": "AI News",  // WRONG: Using asset name/value
+     "oauth_token": "Gmail OAuth Token"  // WRONG: Using asset name/value
+   }}
+   ```
 
 ## Tool-Specific Design Patterns
 

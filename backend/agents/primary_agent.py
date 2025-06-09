@@ -639,7 +639,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         
         response_text = response.choices[0].message.content
         parsed_response = prompt.parse_response(response_text)
-        
+        # pretty print the parsed response
+        print(parsed_response.model_dump_json(indent=2))
+
         # Handle different response types
         if parsed_response.response_type == "RESOLUTION_FAILED":
             # Update hop status to indicate failure

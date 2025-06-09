@@ -29,17 +29,24 @@ class Hop(BaseModel):
     A hop may be atomic (single tool) or composite (multiple tools).
     
     Asset Flow:
-    1. Input Mapping: External assets → Hop local state
-       - Example: {"search_criteria": "mission_asset_123"}
-       - Copies/references external assets into hop's state
+    1. Input Mapping: Mission State → Hop State
+       - Maps mission state asset IDs to local hop state keys
+       - Example: {"search_criteria": "mission_asset_123"} means:
+         * "mission_asset_123" is the ID in mission.state
+         * "search_criteria" is the key in hop.state where the asset will be copied
+       - Values MUST be valid asset IDs from mission.state
+       - Keys become the local state keys in hop.state
     
     2. Tool Execution: Tools operate on hop's local state
        - Each tool step reads from and writes to the local state
        - Intermediate results stay within the hop
+       - Tools reference assets by their local state keys (e.g., "search_criteria")
     
-    3. Output Mapping: Hop local state → External assets
-       - Example: {"results": "mission_output_asset_456"}
-       - Maps local assets back to mission state or output assets
+    3. Output Mapping: Hop State → Mission State
+       - Maps local hop state keys to mission state asset IDs
+       - Example: {"results": "mission_output_456"} means:
+         * "results" is the key in hop.state containing the output
+         * "mission_output_456" is the ID in mission.state where it will be stored
     """
     id: str = Field(description="Unique identifier for the hop")
     name: str = Field(description="Name of the hop")
@@ -47,15 +54,15 @@ class Hop(BaseModel):
     
     # Asset mappings
     input_mapping: Dict[str, str] = Field(
-        description="Maps local state keys to external asset IDs. Format: {local_key: external_asset_id}"
+        description="Maps local hop state keys to mission state asset IDs. Format: {local_key: mission_asset_id}. Values MUST be valid asset IDs from mission.state. The local_key becomes the key in hop.state."
     )
     state: Dict[str, Asset] = Field(
         default_factory=dict,
-        description="Local asset workspace for this hop"
+        description="Local asset workspace for this hop. Keys are defined by input_mapping and tool steps."
     )
     output_mapping: Dict[str, str] = Field(
         default_factory=dict,
-        description="Maps local state keys to external asset IDs. Format: {local_key: external_asset_id}"
+        description="Maps local hop state keys to mission state asset IDs. Format: {local_key: mission_asset_id}. The local_key must exist in hop.state."
     )
     
     # Tool chain (populated during resolution)
@@ -79,6 +86,54 @@ class Hop(BaseModel):
         """Handle empty datetime strings from LLM responses"""
         if v == "" or v is None:
             return datetime.utcnow()
+        return v
+
+    @validator('input_mapping')
+    def validate_input_mapping_asset_ids(cls, v, values, **kwargs):
+        """Validate that input mapping values are valid asset IDs in mission state"""
+        if not v:
+            return v
+            
+        # Check if we have access to mission state
+        mission_state = kwargs.get('mission_state')
+        if not mission_state:
+            return v
+            
+        # Validate each asset ID exists in mission state
+        invalid_ids = []
+        for local_key, mission_asset_id in v.items():
+            if mission_asset_id not in mission_state:
+                invalid_ids.append(f"{local_key}: {mission_asset_id}")
+                
+        if invalid_ids:
+            raise ValueError(
+                f"Input mapping contains invalid mission state asset IDs: {', '.join(invalid_ids)}"
+            )
+            
+        return v
+
+    @validator('output_mapping')
+    def validate_output_mapping_local_keys(cls, v, values, **kwargs):
+        """Validate that output mapping keys exist in hop state"""
+        if not v:
+            return v
+            
+        # Get the hop state
+        hop_state = values.get('state', {})
+        if not hop_state:
+            return v
+            
+        # Validate each local key exists in hop state
+        invalid_keys = []
+        for local_key, mission_asset_id in v.items():
+            if local_key not in hop_state:
+                invalid_keys.append(f"{local_key} (maps to mission asset {mission_asset_id})")
+                
+        if invalid_keys:
+            raise ValueError(
+                f"Output mapping references local keys that don't exist in hop state: {', '.join(invalid_keys)}"
+            )
+            
         return v
 
 

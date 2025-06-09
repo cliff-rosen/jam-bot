@@ -30,7 +30,7 @@ const JamBotPage: React.FC = () => {
             {/* Asset Panels - Flexible width */}
             <div className="flex-1 h-full min-w-[500px] bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900">
                 <div className="h-full mx-4 my-2 rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
-                    <AssetPanels assets={Object.values(mission.state || {})} />
+                    <AssetPanels />
                 </div>
             </div>
         </div>

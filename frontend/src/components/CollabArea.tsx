@@ -467,17 +467,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             const isCurrentHop = state.mission.current_hop?.id === liveHop.id;
             const missionHopStatus = state.mission.hop_status;
 
-            console.log('Action buttons debug:', {
-                hopId: liveHop.id,
-                hopName: liveHop.name,
-                hopStatus: liveHop.status,
-                missionHopStatus,
-                isCurrentHop,
-                isFinal: liveHop.is_final,
-                isResolved: liveHop.is_resolved,
-                stepsLength: liveHop.steps?.length || 0
-            });
-
             // Action buttons based on backend workflow status AND hop execution status
             if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {
                 // Hop is ready to execute according to backend workflow

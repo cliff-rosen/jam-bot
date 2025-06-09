@@ -3,6 +3,7 @@ import { Asset } from '@/types/schema';
 import { getAssetIcon } from '@/lib/utils/assets/assetIconUtils';
 import { assetApi } from '@/lib/api/assetApi';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
+import { useJamBot } from '@/context/JamBotContext';
 
 interface AssetInspectorPanelProps {
     asset?: Asset;
@@ -12,17 +13,24 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
     const [detailedAsset, setDetailedAsset] = useState<Asset | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { state: jamBotState } = useJamBot();
+
+    // Get the latest asset state from either mission state or current hop state
+    const latestAsset = asset ? (
+        jamBotState.mission.state[asset.id] || // Check mission state first
+        (jamBotState.mission.current_hop?.state?.[asset.id]) // Then check current hop state
+    ) : undefined;
 
     useEffect(() => {
         const fetchAssetDetails = async () => {
-            if (!asset) return;
+            if (!latestAsset) return;
 
             // Only fetch details for database entity assets
-            if (asset.schema.type === 'database_entity' && !asset.value) {
+            if (latestAsset.schema.type === 'database_entity' && !latestAsset.value) {
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await assetApi.getAssetDetails(asset.id);
+                    const response = await assetApi.getAssetDetails(latestAsset.id);
                     setDetailedAsset(response);
                 } catch (err) {
                     setError('Failed to fetch asset details');
@@ -31,14 +39,14 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                     setLoading(false);
                 }
             } else {
-                setDetailedAsset(asset);
+                setDetailedAsset(latestAsset);
             }
         };
 
         fetchAssetDetails();
-    }, [asset]);
+    }, [latestAsset]);
 
-    if (!asset) {
+    if (!latestAsset) {
         return (
             <div className="h-full flex items-center justify-center bg-white dark:bg-gray-800">
                 <p className="text-gray-500 dark:text-gray-400">Select an asset to view its details</p>
@@ -46,7 +54,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
         );
     }
 
-    const displayAsset = detailedAsset || asset;
+    const displayAsset = detailedAsset || latestAsset;
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">

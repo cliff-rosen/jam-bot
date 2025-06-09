@@ -50,7 +50,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     fake_response: Dict[str, Any] = {
         "messages": [
             {
-                "id": "1234567890",
+                "id": "1234567890c",
                 "subject": "Test Email",
                 "from": "test@example.com",
                 "date": "2023-01-01",

@@ -115,53 +115,47 @@
             "outputs": [
                 {
                     "name": "emails",
-                    "type": "array",
+                    "type": "object",
+                    "is_array": true,
                     "description": "List of matching emails",
                     "required": true,
                     "schema": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "Email ID"
-                                },
-                                "thread_id": {
-                                    "type": "string",
-                                    "description": "Thread ID"
-                                },
-                                "subject": {
-                                    "type": "string",
-                                    "description": "Email subject"
-                                },
-                                "from": {
-                                    "type": "string",
-                                    "description": "Sender email"
-                                },
-                                "to": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "description": "Recipient emails"
-                                },
-                                "date": {
-                                    "type": "string",
-                                    "format": "date-time",
-                                    "description": "Email date"
-                                },
-                                "snippet": {
-                                    "type": "string",
-                                    "description": "Email preview"
-                                },
-                                "labels": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "description": "Email labels"
-                                }
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Email ID"
+                            },
+                            "thread_id": {
+                                "type": "string",
+                                "description": "Thread ID"
+                            },
+                            "subject": {
+                                "type": "string",
+                                "description": "Email subject"
+                            },
+                            "from": {
+                                "type": "string",
+                                "description": "Sender email"
+                            },
+                            "to": {
+                                "type": "string",
+                                "is_array": true,
+                                "description": "Recipient emails"
+                            },
+                            "date": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "Email date"
+                            },
+                            "snippet": {
+                                "type": "string",
+                                "description": "Email preview"
+                            },
+                            "labels": {
+                                "type": "string",
+                                "is_array": true,
+                                "description": "Email labels"
                             }
                         }
                     }

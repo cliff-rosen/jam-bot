@@ -45,6 +45,11 @@ class SchemaEntity(BaseModel):
     description: str
     schema_definition: SchemaType = Field(alias="schema")
 
+    model_config = {
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+    }
+
 
 # --- Utility Functions ---
 

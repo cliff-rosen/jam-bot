@@ -301,36 +301,33 @@ Based on this context and the available tools, design the next hop that will mov
         # Convert mission to dict and handle datetime serialization
         mission_dict = mission.model_dump(mode='json')
         
-        # Ensure inputs and outputs are properly serialized with required fields
+        # Format mission for prompt
         mission_dict['inputs'] = [
             {
-                'name': asset.name,
                 'id': asset.id,
+                'name': asset.name,
                 'description': asset.description,
-                'type': asset.schema.type,
-                'subtype': asset.subtype,
-                'is_collection': asset.is_collection,
-                'collection_type': asset.collection_type,
-                'content': asset.value,
-                'metadata': asset.asset_metadata.model_dump(mode='json') if asset.asset_metadata else {}
+                'type': asset.schema_definition.type,
+                'is_collection': asset.schema_definition.is_array,
+                'role': asset.role,
+                'status': asset.status.value,
+                'value_preview': str(asset.value)[:100] + '...' if asset.value else None
             }
             for asset in mission.inputs
         ]
-        
         mission_dict['outputs'] = [
             {
-                'name': asset.name,
                 'id': asset.id,
+                'name': asset.name,
                 'description': asset.description,
-                'type': asset.schema.type,
-                'subtype': asset.subtype,
-                'is_collection': asset.is_collection,
-                'collection_type': asset.collection_type,
-                'content': asset.value,
-                'metadata': asset.asset_metadata.model_dump(mode='json') if asset.asset_metadata else {}
+                'type': asset.schema_definition.type,
+                'is_collection': asset.schema_definition.is_array,
+                'role': asset.role,
+                'status': asset.status.value
             }
             for asset in mission.outputs
         ]
+        mission_dict.pop('state', None) # Don't show full state in mission summary
         
         # Format mission string with serialized dates
         mission_str = format_mission(mission_dict)

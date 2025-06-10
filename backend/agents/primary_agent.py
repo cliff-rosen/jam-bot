@@ -291,7 +291,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             for asset in state.mission.outputs:
                 state.mission.mission_state[asset.id] = asset
 
-            # print(f"DEBUG: Mission state: {state.mission.state}")
+            # print(f"DEBUG: Mission state: {state.mission.mission_state}")
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -310,7 +310,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         }
 
         if writer:
-            # Prepare the AgentResponse
             # First convert all assets in state to their dict representation
             serialized_state = {
                 asset_id: asset.model_dump(mode='json')
@@ -319,7 +318,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             
             # Create a copy of the mission and update its state with serialized assets
             mission_dict = state.mission.model_dump(mode='json')
-            mission_dict['state'] = serialized_state
+            mission_dict['mission_state'] = serialized_state
             
             # Also ensure inputs and outputs are properly serialized using the same format as state
             mission_dict['inputs'] = [
@@ -377,7 +376,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         prompt = HopDesignerPrompt()
         
         # Convert mission state assets to list format for the prompt
-        available_assets = [asset.model_dump(mode='json') for asset in state.mission.state.values()] if state.mission else []
+        available_assets = [asset.model_dump(mode='json') for asset in state.mission.mission_state.values()] if state.mission else []
         
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
@@ -439,11 +438,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 name=hop_proposal.name,
                 description=hop_proposal.description,
                 input_mapping=canonical_input_mapping,
-                output_mapping=output_mapping, # Contains the correct ID for WIP or final
+                output_mapping=output_mapping,
                 is_final=hop_proposal.is_final,
-                status=ExecutionStatus.PENDING,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                status=ExecutionStatus.PENDING
             )
 
             # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
@@ -458,47 +455,47 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 new_wip_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
                 
                 # Ensure mission.state exists (it should, if mission was initialized)
-                if state.mission.state is None: # Defensive check
-                    state.mission.state = {}
-                state.mission.state[new_wip_asset.id] = new_wip_asset
+                if state.mission.mission_state is None: # Defensive check
+                    state.mission.mission_state = {}
+                state.mission.mission_state[new_wip_asset.id] = new_wip_asset
             
             # Update state with new hop
             state.mission.current_hop = new_hop
             state.mission.hop_status = HopStatus.HOP_PROPOSED
 
             # Initialize and populate the new hop's local state from mission.state
-            new_hop.state = {} 
+            new_hop.hop_state = {} 
 
             # 1. Populate hop.state with input assets
-            if state.mission and state.mission.state and new_hop.input_mapping:
+            if state.mission and state.mission.mission_state and new_hop.input_mapping:
                 for local_input_name, mission_asset_id in new_hop.input_mapping.items():
                     canonical_local_key = canonical_key(local_input_name)
-                    if mission_asset_id in state.mission.state:
+                    if mission_asset_id in state.mission.mission_state:
                         # Deep-copy the mission asset so that modifications inside the hop do NOT
                         # mutate the original asset attached to the parent mission. We also
                         # update the asset's `id` so that it matches the local key used to store
                         # it in `hop.state`. This guarantees `asset.id == key` for every entry in
                         # the hop state as intended.
-                        asset_copy = copy.deepcopy(state.mission.state[mission_asset_id])
+                        asset_copy = copy.deepcopy(state.mission.mission_state[mission_asset_id])
                         asset_copy.id = canonical_local_key
 
-                        new_hop.state[canonical_local_key] = asset_copy
+                        new_hop.hop_state[canonical_local_key] = asset_copy
                     else:
                         print(f"ERROR: [Hop Designer] Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
                         # Potentially raise an error or mark mission as invalid
             
             # 2. Populate hop.state with output assets
             # The output_asset_id_in_mission_state is either a mission_output_id or the generated_wip_asset_id
-            if state.mission and state.mission.state and new_hop.output_mapping:
+            if state.mission and state.mission.mission_state and new_hop.output_mapping:
                 for local_output_name, output_asset_id_in_mission_state in new_hop.output_mapping.items():
                     canonical_output_key = canonical_key(local_output_name)
-                    if output_asset_id_in_mission_state in state.mission.state:
+                    if output_asset_id_in_mission_state in state.mission.mission_state:
                         # Use a detached copy for the same reasons as inputs (avoid accidental
                         # mutation + maintain key/id alignment).
-                        asset_copy = copy.deepcopy(state.mission.state[output_asset_id_in_mission_state])
+                        asset_copy = copy.deepcopy(state.mission.mission_state[output_asset_id_in_mission_state])
                         asset_copy.id = canonical_output_key
 
-                        new_hop.state[canonical_output_key] = asset_copy
+                        new_hop.hop_state[canonical_output_key] = asset_copy
                     else:
                         print(f"ERROR: [Hop Designer] Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
                         # Potentially raise an error or mark mission as invalid
@@ -531,9 +528,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     "hop": new_hop.model_dump(mode='json'),
                     "mission": {
                         **state.mission.model_dump(mode='json'),
-                        "state": {
+                        "mission_state": {
                             asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in state.mission.state.items()
+                            for asset_id, asset in state.mission.mission_state.items()
                         },
                         "inputs": [
                             asset.model_dump(mode='json')
@@ -592,7 +589,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         prompt = HopImplementerPrompt()
         
         # Convert mission state assets to list format for the prompt
-        available_assets = [asset.model_dump() for asset in state.mission.state.values()] if state.mission else []
+        available_assets = [asset.model_dump() for asset in state.mission.mission_state.values()] if state.mission else []
         
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
@@ -671,7 +668,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
         elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
             # Validate the returned plan
-            validation_errors = validate_tool_chain(parsed_response.hop.steps, current_hop.state)
+            validation_errors = validate_tool_chain(parsed_response.hop.steps, current_hop.hop_state)
 
             if validation_errors:
                 # Bounce back for clarification with concise error list
@@ -734,16 +731,16 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "payload": {
                     "hop": {
                         **current_hop.model_dump(mode='json'),
-                        "state": {
+                        "hop_state": {
                             asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in current_hop.state.items()
+                            for asset_id, asset in current_hop.hop_state.items()
                         }
                     },
                     "mission": {
                         **state.mission.model_dump(mode='json'),
-                        "state": {
+                        "mission_state": {
                             asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in state.mission.state.items()
+                            for asset_id, asset in state.mission.mission_state.items()
                         },
                         "inputs": [
                             asset.model_dump(mode='json')
@@ -914,4 +911,23 @@ def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
         return False, [f"Pending inputs from user: {', '.join(pending_inputs)}"]
     else:
         return True, []
+
+class PrimaryAgent:
+    def __init__(self, mission: "Mission" = None):
+        self.mission = mission if mission else Mission(
+            id="default-mission-1", 
+            name="Default Mission", 
+            description="Default mission description",
+            status=ExecutionStatus.PENDING,
+            mission_status=MissionStatus.PENDING,
+            hop_status=HopStatus.READY_TO_DESIGN,
+            hops=[],
+            inputs=[],
+            outputs=[],
+            mission_state={}
+        )
+
+    async def run(self):
+        # Your agent's execution logic here
+        pass
 

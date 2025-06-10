@@ -50,9 +50,14 @@ class Hop(BaseModel):
     description: str
     input_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for input.")
     output_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for output.")
-    tool_steps: List[ToolStep]
+    tool_steps: List[ToolStep] = Field(default_factory=list)
     hop_state: Dict[str, Asset] = Field(default_factory=dict)
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
+    is_final: bool = Field(default=False)
+    is_resolved: bool = Field(default=False)
+    error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     @validator('input_mapping')
     def validate_input_mapping_asset_ids(cls, v, values, **kwargs):
@@ -85,7 +90,7 @@ class Hop(BaseModel):
             return v
             
         # Get the hop state
-        hop_state = values.get('state', {})
+        hop_state = values.get('hop_state', {})
         if not hop_state:
             return v
             

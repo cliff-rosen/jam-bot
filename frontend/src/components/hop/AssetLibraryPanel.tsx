@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Asset } from '@/types/schema';
+import { Asset } from '@/types';
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface AssetLibraryPanelProps {
@@ -24,7 +24,7 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
             const matchesSearch = assetName.toLowerCase().includes(searchLower) ||
                 assetDescription.toLowerCase().includes(searchLower);
-            const matchesType = filterType === 'all' || asset.schema.type === filterType;
+            const matchesType = filterType === 'all' || (asset.schema_definition && asset.schema_definition.type === filterType);
             return matchesSearch && matchesType;
         });
     };
@@ -153,7 +153,7 @@ const AssetCard: React.FC<{ asset: Asset; onAssetSelect: (asset: Asset) => void;
         <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px]">{asset.description || 'No description'}</div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                {asset.schema.type?.toUpperCase() || 'UNKNOWN'}
+                {asset.schema_definition?.type?.toUpperCase() || 'UNKNOWN'}
             </div>
             {/* Show role badge */}
             {asset.role && (

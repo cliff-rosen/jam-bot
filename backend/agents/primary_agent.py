@@ -6,28 +6,26 @@ from serpapi import GoogleSearch
 import uuid
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import asyncio
-
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
-from langchain_openai import ChatOpenAI
+import os
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
-from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from agents.prompts.mission_prompt import AssetLite
-import os
 from config.settings import settings
 
-from agents.prompts.mission_prompt import MissionDefinitionPrompt, MissionDefinitionResponse
+from schemas.base import SchemaType
+from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
+from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
+from schemas.asset import Asset, AssetStatus, AssetMetadata
+
+from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
+
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
+
 from tools.tool_registry import TOOL_REGISTRY
-from schemas.asset import Asset, AssetStatus, AssetMetadata
-from schemas.base import SchemaType
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -46,7 +44,7 @@ def _create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     
     # Create the unified schema
     unified_schema = SchemaType(
-        type=asset_lite.type,
+        type=asset_lite.type.value,
         description=asset_lite.schema_description or asset_lite.description,
         is_array=asset_lite.is_collection,
         fields=None  # TODO: Could extract fields from schema_description or example_value if structured
@@ -69,12 +67,12 @@ def _create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         id=str(uuid.uuid4()),
         name=asset_lite.name,
         description=asset_lite.description,
-        schema_definition=unified_schema,
+        schema=unified_schema,
         value=asset_lite.example_value,
         status=AssetStatus.PENDING,
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
-        collection_type=asset_lite.collection_type,
+        collection_type=asset_lite.collection_type.value if asset_lite.collection_type else None,
         role=asset_lite.role or 'intermediate',
         asset_metadata=asset_metadata,
     )
@@ -287,11 +285,11 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             
             # Initialize mission state with input assets
             for asset in state.mission.inputs:
-                state.mission.state[asset.id] = asset
+                state.mission.mission_state[asset.id] = asset
 
             # Also initialize mission state with output assets
             for asset in state.mission.outputs:
-                state.mission.state[asset.id] = asset
+                state.mission.mission_state[asset.id] = asset
 
             # print(f"DEBUG: Mission state: {state.mission.state}")
 
@@ -316,7 +314,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             # First convert all assets in state to their dict representation
             serialized_state = {
                 asset_id: asset.model_dump(mode='json')
-                for asset_id, asset in state.mission.state.items()
+                for asset_id, asset in state.mission.mission_state.items()
             }
             
             # Create a copy of the mission and update its state with serialized assets
@@ -863,10 +861,10 @@ graph_builder = StateGraph(State)
 
 # Add nodes
 graph_builder.add_node("supervisor_node", supervisor_node)
-graph_builder.add_node("asset_search_node", asset_search_node)
 graph_builder.add_node("mission_specialist_node", mission_specialist_node)
 graph_builder.add_node("hop_designer_node", hop_designer_node)
 graph_builder.add_node("hop_implementer_node", hop_implementer_node)
+graph_builder.add_node("asset_search_node", asset_search_node)
 
 # Add edges - define all possible paths
 graph_builder.add_edge(START, "supervisor_node")
@@ -917,16 +915,3 @@ def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
     else:
         return True, []
 
-class PrimaryAgent:
-    """
-    The main agent responsible for orchestrating the mission from planning to execution.
-    """
-    def __init__(self, mission: "Mission"):
-        self.mission = mission
-
-    async def run(self):
-        """
-        The main loop for the agent to execute a mission.
-        """
-        # ... (rest of the run method)
-        pass

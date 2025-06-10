@@ -350,11 +350,15 @@ Based on the provided context, analyze what information is complete and what nee
         """Formats tool descriptions with their external system dependencies"""
         
         # Get all available tools
-        all_tools = get_available_tools()
+        all_tool_ids = get_available_tools()
         
         # Group tools by category
         grouped_tools = {}
-        for tool_def in all_tools:
+        for tool_id in all_tool_ids:
+            tool_def = TOOL_REGISTRY.get(tool_id)
+            if not tool_def:
+                continue
+            
             if tool_def.category not in grouped_tools:
                 grouped_tools[tool_def.category] = []
             grouped_tools[tool_def.category].append(tool_def)

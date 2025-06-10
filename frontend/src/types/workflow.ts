@@ -6,7 +6,7 @@
  */
 
 import { Asset, AssetStatus } from './asset';
-import { Resource } from './tool';
+import { Resource } from './resource';
 
 // --- Workflow Execution Enums ---
 
@@ -21,21 +21,19 @@ export enum ExecutionStatus {
 export enum MissionStatus {
     PENDING = 'pending',
     ACTIVE = 'active',
-    COMPLETED = 'completed',
-    FAILED = 'failed',
-    PAUSED = 'paused'
+    COMPLETE = 'complete',
+    FAILED = 'failed'
 }
 
 // Re-exporting this for now to satisfy other files, will be removed.
 export enum HopStatus {
-    PENDING = 'pending',
-    READY_TO_DESIGN = 'ready_to_design',
-    DESIGN_IN_PROGRESS = 'design_in_progress',
-    READY_TO_EXECUTE = 'ready_to_execute',
-    EXECUTION_IN_PROGRESS = 'execution_in_progress',
-    EXECUTION_PAUSED = 'execution_paused',
-    COMPLETED = 'completed',
-    FAILED = 'failed'
+    READY_TO_DESIGN = "ready_to_design",
+    HOP_PROPOSED = "hop_proposed",
+    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve",
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute",
+    HOP_RUNNING = "hop_running",
+    ALL_HOPS_COMPLETE = "all_hops_complete",
+    FAILED = "failed"
 }
 
 // Keep WorkflowStatus for backwards compatibility but mark as deprecated
@@ -106,6 +104,7 @@ export interface ToolStep {
     validation_errors?: string[];
     created_at: string;
     updated_at: string;
+    current_step_index?: number;
 }
 
 export interface Hop {
@@ -117,6 +116,8 @@ export interface Hop {
     tool_steps: ToolStep[];
     hop_state: Record<string, Asset>;
     status: ExecutionStatus;
+    is_final?: boolean;
+    is_resolved?: boolean;
 }
 
 export interface Mission {
@@ -128,9 +129,15 @@ export interface Mission {
     outputs: Asset[];
     mission_state: Record<string, Asset>;
     status: ExecutionStatus;
+    current_hop?: Hop;
+    current_hop_index?: number;
+    mission_status?: MissionStatus;
+    hop_status?: HopStatus;
+    goal?: string;
+    success_criteria?: string[];
 }
 
-export const defaultMission1: Mission = {
+export const defaultMission: Mission = {
     id: "default-mission-1",
     name: "New Mission",
     description: "A new mission to be defined.",
@@ -139,6 +146,8 @@ export const defaultMission1: Mission = {
     outputs: [],
     mission_state: {},
     status: ExecutionStatus.PENDING,
+    mission_status: MissionStatus.PENDING,
+    hop_status: HopStatus.READY_TO_DESIGN,
 };
 
 export const defaultMission2: Mission = {
@@ -199,5 +208,27 @@ export const defaultMission2: Mission = {
         }
     ],
     mission_state: {},
-    status: ExecutionStatus.PENDING
+    status: ExecutionStatus.PENDING,
+    mission_status: MissionStatus.PENDING,
+    hop_status: HopStatus.READY_TO_DESIGN
 };
+
+export function markHopOutputsReady(
+    hopState: Record<string, Asset>,
+    outputMapping: Record<string, string>,
+    missionState: Record<string, Asset>,
+    updatedBy: string
+): Record<string, Asset> {
+    const updatedMissionState = { ...missionState };
+
+    for (const localKey in outputMapping) {
+        if (Object.prototype.hasOwnProperty.call(outputMapping, localKey)) {
+            const missionAssetId = outputMapping[localKey];
+            if (updatedMissionState[missionAssetId]) {
+                updatedMissionState[missionAssetId].status = AssetStatus.READY;
+                updatedMissionState[missionAssetId].asset_metadata.updatedAt = new Date().toISOString();
+            }
+        }
+    }
+    return updatedMissionState;
+}

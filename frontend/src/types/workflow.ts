@@ -118,6 +118,7 @@ export interface Hop {
     status: ExecutionStatus;
     is_final?: boolean;
     is_resolved?: boolean;
+    current_step_index?: number;
 }
 
 export interface Mission {
@@ -210,7 +211,7 @@ export const defaultMission2: Mission = {
     mission_state: {},
     status: ExecutionStatus.PENDING,
     mission_status: MissionStatus.PENDING,
-    hop_status: HopStatus.READY_TO_DESIGN
+    hop_status: HopStatus.READY_TO_DESIGN,
 };
 
 export function markHopOutputsReady(

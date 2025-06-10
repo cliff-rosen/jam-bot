@@ -130,9 +130,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
 
             const updatedHopsArray = [...state.mission.hops];
-            const implCurrentHopIndex = state.mission.current_hop_index ?? 0;
-            if (implCurrentHopIndex < updatedHopsArray.length) {
-                updatedHopsArray[implCurrentHopIndex] = updatedCurrentHop as Hop;
+            if (state.mission.current_hop_index != null && state.mission.current_hop_index < updatedHopsArray.length) {
+                updatedHopsArray[state.mission.current_hop_index] = updatedCurrentHop as Hop;
             }
 
             return {
@@ -147,8 +146,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
         case 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE':
             const completedHop = action.payload;
             const updatedHops = [...state.mission.hops];
-            const completeCurrentHopIndex = state.mission.current_hop_index ?? 0;
             const isFinalHop = completedHop.is_final;
+            const completeCurrentHopIndex = state.mission.current_hop_index ?? 0;
 
             if (completeCurrentHopIndex < updatedHops.length) {
                 updatedHops[completeCurrentHopIndex] = {
@@ -248,28 +247,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 // TODO: Do something with markedReady
             }
 
-            let newMissionStatus = state.mission.mission_status;
-            let newHopStatus: HopStatus;
-            let newCurrentHop: Hop | undefined;
-            let newCurrentHopIndex = state.mission.current_hop_index;
-
-            if (completedHopForExecution.is_final) {
-                newMissionStatus = MissionStatus.COMPLETE;
-                newHopStatus = HopStatus.ALL_HOPS_COMPLETE;
-                newCurrentHop = undefined;
-            } else {
-                newHopStatus = HopStatus.READY_TO_DESIGN;
-                newCurrentHop = undefined;
-                newCurrentHopIndex = state.mission.current_hop_index + 1;
-            }
-
-            console.log('Hop completion:', {
-                hopId: hopIdToComplete,
-                isFinal: completedHopForExecution.is_final,
-                newHopStatus,
-                newCurrentHopIndex,
-                hopName: completedHopForExecution.name
-            });
+            const isFinalHopAfterCompletion = updatedHopsForComplete[state.mission.current_hop_index ?? 0]?.is_final;
 
             return {
                 ...state,
@@ -277,10 +255,10 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     mission_state: updatedMissionState, // Include updated mission state with ready assets
                     hops: updatedHopsForComplete,
-                    current_hop: newCurrentHop,
-                    current_hop_index: newCurrentHopIndex,
-                    mission_status: newMissionStatus,
-                    hop_status: newHopStatus
+                    current_hop: undefined,
+                    current_hop_index: (state.mission.current_hop_index ?? 0) + 1,
+                    hop_status: isFinalHopAfterCompletion ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN,
+                    mission_status: isFinalHopAfterCompletion ? MissionStatus.COMPLETE : state.mission.mission_status
                 }
             };
         case 'FAIL_HOP_EXECUTION':
@@ -297,6 +275,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     return {
                         ...hop,
                         status: ExecutionStatus.FAILED,
+                        error: error,
                         tool_steps: updatedSteps
                     };
                 }
@@ -307,12 +286,12 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ? {
                     ...state.mission.current_hop,
                     status: ExecutionStatus.FAILED,
-                    tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
-                        if (index === (state.mission.current_hop?.current_step_index || 0)) {
-                            return { ...step, status: ExecutionStatus.FAILED };
-                        }
-                        return step;
-                    }) || []
+                    error: error,
+                    tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.FAILED,
+                        error: error
+                    }))
                 }
                 : state.mission.current_hop;
 
@@ -322,22 +301,22 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     hops: updatedHopsForFail,
                     current_hop: updatedCurrentHopForFail,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                    hop_status: HopStatus.FAILED
                 }
             };
         case 'RETRY_HOP_EXECUTION':
             const hopIdToRetry = action.payload;
             const updatedHopsForRetry = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToRetry) {
-                    const updatedSteps = hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.PENDING
-                    })) || [];
-
                     return {
                         ...hop,
                         status: ExecutionStatus.PENDING,
-                        tool_steps: updatedSteps,
+                        error: undefined,
+                        tool_steps: hop.tool_steps?.map(step => ({
+                            ...step,
+                            status: ExecutionStatus.PENDING,
+                            error: undefined
+                        })) || [],
                         current_step_index: 0
                     };
                 }
@@ -348,9 +327,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ? {
                     ...state.mission.current_hop,
                     status: ExecutionStatus.PENDING,
+                    error: undefined,
                     tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                         ...step,
-                        status: ExecutionStatus.PENDING
+                        status: ExecutionStatus.PENDING,
+                        error: undefined
                     })) || [],
                     current_step_index: 0
                 }
@@ -374,31 +355,21 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'UPDATE_HOP_STATE':
-            const { hop: updatedHop, missionOutputs } = action.payload;
-
-            // Update the hop in the hops array
-            const stateUpdatedHops = state.mission.hops.map(h =>
-                h.id === updatedHop.id ? updatedHop : h
+            const { hop: updatedHopData, missionOutputs } = action.payload;
+            const updatedHopsForState = state.mission.hops.map(hop =>
+                hop.id === updatedHopData.id ? updatedHopData : hop
             );
-
-            // Update current_hop if it matches
-            const stateUpdatedCurrentHop = state.mission.current_hop?.id === updatedHop.id
-                ? updatedHop
+            const currentHopForState = state.mission.current_hop?.id === updatedHopData.id
+                ? updatedHopData
                 : state.mission.current_hop;
-
-            // Update mission state with any new outputs
-            const stateUpdatedMissionState = { ...state.mission.mission_state };
-            missionOutputs.forEach((asset, missionOutputId) => {
-                stateUpdatedMissionState[missionOutputId] = asset;
-            });
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: stateUpdatedHops,
-                    current_hop: stateUpdatedCurrentHop,
-                    mission_state: stateUpdatedMissionState
+                    hops: updatedHopsForState,
+                    current_hop: currentHopForState,
+                    mission_state: { ...state.mission.mission_state, ...Object.fromEntries(missionOutputs) },
                 }
             };
         default:

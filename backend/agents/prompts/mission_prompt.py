@@ -347,39 +347,36 @@ Based on the provided context, analyze what information is complete and what nee
         return format_messages_for_openai(formatted_messages)
     
     def _format_tool_descriptions_with_external_systems(self) -> str:
-        """Format tool descriptions with integrated external system information"""
-        if not TOOL_REGISTRY:
-            return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
+        """Formats tool descriptions with their external system dependencies"""
         
-        descriptions = []
-        for tool_id, tool_def in TOOL_REGISTRY.items():
-            desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
-            desc += f"**Purpose**: {tool_def.description}\n"
-            desc += f"**Category**: {tool_def.category}\n"
-            
-            # Show external system requirements if any
-            if tool_def.external_system:
-                desc += f"**Requires External System**: {tool_def.external_system.name} (needs credentials)\n"
-                desc += f"**System Type**: {tool_def.external_system.type}\n"
-                desc += f"**Capabilities**: {', '.join(tool_def.external_system.capabilities)}\n"
-            else:
-                desc += f"**External System**: None (processes data directly)\n"
-            
-            # Format key capabilities from parameters
-            key_inputs = []
-            for param in tool_def.parameters:
-                if param.required and param.name != 'resource_connection':
-                    key_inputs.append(param.name)
-            if key_inputs:
-                desc += f"**Key Parameters**: {', '.join(key_inputs)}\n"
-            
-            # Format outputs
-            outputs = [output.name for output in tool_def.outputs]
-            if outputs:
-                desc += f"**Produces**: {', '.join(outputs)}\n"
-            
-            desc += "\n"
-            descriptions.append(desc)
+        # Get all available tools
+        all_tools = get_available_tools()
         
-        return "\n".join(descriptions)
+        # Group tools by category
+        grouped_tools = {}
+        for tool_def in all_tools:
+            if tool_def.category not in grouped_tools:
+                grouped_tools[tool_def.category] = []
+            grouped_tools[tool_def.category].append(tool_def)
+            
+        # Format descriptions
+        formatted_string = ""
+        for category, tools in grouped_tools.items():
+            formatted_string += f"### {category.replace('_', ' ').title()}\n"
+            for tool_def in tools:
+                # Format each tool's description
+                formatted_string += f"- **{tool_def.name}**: {tool_def.description}\n"
+                
+                # Add external system dependencies
+                if tool_def.resource_dependencies:
+                    system_names = [r.name for r in tool_def.resource_dependencies]
+                    formatted_string += f"  - **Requires**: {', '.join(system_names)}\n"
+                    
+        return formatted_string
+    
+    def get_final_prompt(self) -> str:
+        """Get the final prompt text"""
+        return self.system_message.format(
+            tool_descriptions=self._format_tool_descriptions_with_external_systems()
+        )
     

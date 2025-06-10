@@ -50,18 +50,6 @@ export interface Resource {
     updated_at: string;
 }
 
-export interface ResourceConnection {
-    id: string;
-    resource_id: string;
-    user_id?: string;
-    mission_id?: string;
-    connection_data: Record<string, any>;
-    is_active: boolean;
-    last_used?: string;
-    expires_at?: string;
-    created_at: string;
-}
-
 // Built-in resource definitions (matching backend)
 export const GMAIL_RESOURCE: Resource = {
     id: "gmail",

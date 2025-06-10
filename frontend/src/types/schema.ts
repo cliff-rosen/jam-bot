@@ -36,6 +36,6 @@ export * from './workflow';
 
 // Re-export with aliases to avoid naming conflicts during transition.
 export { type Asset as DeprecatedAsset } from './asset';
-export { type Resource as DeprecatedResource } from './tool';
+export { type Resource as DeprecatedResource } from './resource';
 export { type ToolDefinition as DeprecatedToolDefinition } from './tool';
 // ... and so on for all conflicting types

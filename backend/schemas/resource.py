@@ -58,17 +58,6 @@ class Resource(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-class ResourceConnection(BaseModel):
-    """Instance of a connection to a resource for a specific user/mission"""
-    id: str
-    resource_id: str
-    user_id: Optional[str] = None
-    mission_id: Optional[str] = None
-    connection_data: Dict[str, Any] = Field(description="Actual credentials/config data")
-    is_active: bool = True
-    last_used: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # --- Resource Validation Utilities ---
 

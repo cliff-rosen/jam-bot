@@ -5,46 +5,67 @@
             "name": "email_search",
             "description": "Search and retrieve emails from Gmail with filtering capabilities",
             "category": "data_retrieval",
-            "external_system": {
-                "id": "gmail",
-                "name": "Gmail",
-                "description": "Gmail email service",
-                "type": "messaging",
-                "connection_schema": {
-                    "type": "object",
-                    "properties": {
-                        "access_token": {
-                            "type": "string",
-                            "description": "OAuth access token"
-                        },
-                        "refresh_token": {
-                            "type": "string",
-                            "description": "OAuth refresh token"
-                        },
-                        "token_type": {
-                            "type": "string",
-                            "description": "Token type (usually 'Bearer')"
-                        },
-                        "expires_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "description": "Token expiration timestamp"
+            "resource_dependencies": [
+                {
+                    "id": "gmail",
+                    "name": "Gmail",
+                    "description": "Google Gmail email service for searching and retrieving emails",
+                    "type": "messaging",
+                    "auth_config": {
+                        "type": "oauth2",
+                        "required_fields": [
+                            {
+                                "field_name": "access_token",
+                                "field_type": "secret",
+                                "required": true,
+                                "description": "OAuth access token"
+                            },
+                            {
+                                "field_name": "refresh_token",
+                                "field_type": "secret",
+                                "required": true,
+                                "description": "OAuth refresh token"
+                            },
+                            {
+                                "field_name": "token_expires_at",
+                                "field_type": "string",
+                                "required": true,
+                                "description": "Token expiration timestamp"
+                            }
+                        ]
+                    },
+                    "connection_schema": {
+                        "type": "object",
+                        "description": "Gmail OAuth credentials",
+                        "is_array": false,
+                        "fields": {
+                            "access_token": {
+                                "type": "string",
+                                "description": "OAuth access token",
+                                "is_array": false
+                            },
+                            "refresh_token": {
+                                "type": "string",
+                                "description": "OAuth refresh token",
+                                "is_array": false
+                            },
+                            "token_expires_at": {
+                                "type": "string",
+                                "description": "Token expiration timestamp",
+                                "is_array": false
+                            }
                         }
                     },
-                    "required": [
-                        "access_token",
-                        "refresh_token",
-                        "token_type"
-                    ]
-                },
-                "capabilities": [
-                    "search_emails",
-                    "read_emails",
-                    "list_labels"
-                ],
-                "base_url": "https://gmail.googleapis.com",
-                "documentation_url": "https://developers.google.com/gmail/api/reference/rest/v1"
-            },
+                    "capabilities": [
+                        "search",
+                        "retrieve",
+                        "send",
+                        "list_folders"
+                    ],
+                    "base_url": "https://gmail.googleapis.com",
+                    "documentation_url": "https://developers.google.com/gmail/api"
+                }
+            ],
             "parameters": [
                 {
                     "name": "gmail_connection",
@@ -53,44 +74,45 @@
                     "required": true,
                     "schema": {
                         "type": "object",
-                        "properties": {
+                        "description": "Gmail OAuth credentials",
+                        "is_array": false,
+                        "fields": {
                             "access_token": {
                                 "type": "string",
-                                "description": "OAuth access token"
+                                "description": "OAuth access token",
+                                "is_array": false
                             },
                             "refresh_token": {
                                 "type": "string",
-                                "description": "OAuth refresh token"
+                                "description": "OAuth refresh token",
+                                "is_array": false
                             },
-                            "token_type": {
+                            "token_expires_at": {
                                 "type": "string",
-                                "description": "Token type (usually 'Bearer')"
-                            },
-                            "expires_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "Token expiration timestamp"
+                                "description": "Token expiration timestamp",
+                                "is_array": false
                             }
-                        },
-                        "required": [
-                            "access_token",
-                            "refresh_token",
-                            "token_type"
-                        ]
+                        }
                     }
                 },
                 {
                     "name": "query",
                     "type": "string",
                     "description": "Gmail search query (e.g., 'from:user@example.com label:important'). Will be split into terms.",
-                    "required": true
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
                 },
                 {
                     "name": "folder",
                     "type": "string",
                     "description": "Gmail folder/label to search in. Will be converted to a list.",
                     "required": false,
-                    "default": "INBOX"
+                    "default": "INBOX",
+                    "schema": {
+                        "type": "string"
+                    }
                 },
                 {
                     "name": "date_range",
@@ -99,7 +121,7 @@
                     "required": false,
                     "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "start_date": {
                                 "type": "string",
                                 "format": "date"
@@ -121,7 +143,7 @@
                     "required": true,
                     "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "id": {
                                 "type": "string",
                                 "description": "Email ID"
@@ -167,89 +189,71 @@
             "name": "extract",
             "description": "Extract specific information from items using extraction functions. Works with single items or lists.",
             "category": "data_processing",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "items": {
+            "parameters": [
+                {
+                    "name": "items",
+                    "required": true,
+                    "description": "List of items to process",
+                    "schema": {
                         "type": "object",
-                        "is_array": true,
-                        "description": "List of items to process",
-                        "items": {
-                            "type": "object"
-                        }
-                    },
-                    "extraction_function": {
-                        "type": "string",
-                        "description": "Function or prompt describing what to extract (e.g., 'extract sentiment and key topics')"
-                    },
-                    "extraction_fields": {
-                        "type": "string",
-                        "is_array": true,
-                        "description": "List of field names to extract (e.g., ['sentiment', 'topics', 'priority'])"
-                    },
-                    "batch_process": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Whether to process as a batch (true) or individual items (false)"
+                        "is_array": true
                     }
                 },
-                "required": [
-                    "items",
-                    "extraction_function",
-                    "extraction_fields"
-                ]
-            },
-            "output_schema": [
+                {
+                    "name": "extraction_function",
+                    "required": true,
+                    "description": "Function or prompt describing what to extract (e.g., 'extract sentiment and key topics')",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "extraction_fields",
+                    "required": true,
+                    "description": "List of field names to extract (e.g., ['sentiment', 'topics', 'priority'])",
+                    "schema": {
+                        "type": "string",
+                        "is_array": true
+                    }
+                },
+                {
+                    "name": "batch_process",
+                    "required": false,
+                    "description": "Whether to process as a batch (true) or individual items (false)",
+                    "schema": {
+                        "type": "boolean",
+                        "default": true
+                    }
+                }
+            ],
+            "outputs": [
                 {
                     "name": "extractions",
-                    "type": "object",
-                    "is_array": true,
                     "description": "List of item ID and extraction pairs",
                     "required": true,
-                    "details_schema": {
+                    "schema": {
                         "type": "object",
                         "is_array": true,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "item_id": {
-                                    "type": "string"
-                                },
-                                "original_item": {
-                                    "type": "object"
-                                },
-                                "extraction": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "example": [
-                        {
-                            "item_id": "email_123",
+                        "fields": {
+                            "item_id": {
+                                "type": "string"
+                            },
                             "original_item": {
-                                "subject": "Q3 Results",
-                                "body": "Great results this quarter..."
+                                "type": "object"
                             },
                             "extraction": {
-                                "sentiment": "positive",
-                                "topics": [
-                                    "quarterly results",
-                                    "performance"
-                                ],
-                                "priority": "high"
+                                "type": "object"
                             }
                         }
-                    ]
+                    }
                 },
                 {
                     "name": "extraction_stats",
-                    "type": "object",
                     "description": "Statistics about the extraction process",
                     "required": true,
-                    "details_schema": {
+                    "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "total_processed": {
                                 "type": "number"
                             },
@@ -260,11 +264,6 @@
                                 "type": "number"
                             }
                         }
-                    },
-                    "example": {
-                        "total_processed": 25,
-                        "successful": 24,
-                        "failed": 1
                     }
                 }
             ],
@@ -295,93 +294,72 @@
             "name": "update_augment",
             "description": "Apply updates or augmentations to a list of items",
             "category": "data_processing",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "items": {
+            "parameters": [
+                {
+                    "name": "items",
+                    "required": true,
+                    "description": "List of items to update",
+                    "schema": {
                         "type": "object",
-                        "is_array": true,
-                        "description": "List of items to update",
-                        "items": {
-                            "type": "object"
-                        }
-                    },
-                    "updates": {
-                        "type": "object",
-                        "is_array": true,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "item_id": {
-                                    "type": "string"
-                                },
-                                "update_data": {
-                                    "type": "object"
-                                }
-                            }
-                        },
-                        "description": "List of updates to apply to specific items"
-                    },
-                    "augmentation_rules": {
-                        "type": "object",
-                        "is_array": true,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "field_name": {
-                                    "type": "string"
-                                },
-                                "computation": {
-                                    "type": "string"
-                                },
-                                "apply_to_all": {
-                                    "type": "boolean",
-                                    "default": true
-                                }
-                            }
-                        },
-                        "description": "Rules for augmenting all items with computed fields"
+                        "is_array": true
                     }
                 },
-                "required": [
-                    "items"
-                ]
-            },
-            "output_schema": [
                 {
-                    "name": "updated_items",
-                    "type": "object",
-                    "is_array": true,
-                    "description": "Items with updates and augmentations applied",
-                    "required": true,
-                    "details_schema": {
+                    "name": "updates",
+                    "required": false,
+                    "description": "List of updates to apply to specific items",
+                    "schema": {
                         "type": "object",
                         "is_array": true,
-                        "items": {
-                            "type": "object"
+                        "fields": {
+                            "item_id": {
+                                "type": "string"
+                            },
+                            "update_data": {
+                                "type": "object"
+                            }
                         }
-                    },
-                    "example": [
-                        {
-                            "item_id": "email_123",
-                            "subject": "Q3 Results",
-                            "sentiment": "positive",
-                            "topics": [
-                                "quarterly results"
-                            ],
-                            "category": "business_critical",
-                            "processed_date": "2024-01-15T14:30:00Z"
+                    }
+                },
+                {
+                    "name": "augmentation_rules",
+                    "required": false,
+                    "description": "Rules for augmenting all items with computed fields",
+                    "schema": {
+                        "type": "object",
+                        "is_array": true,
+                        "fields": {
+                            "field_name": {
+                                "type": "string"
+                            },
+                            "computation": {
+                                "type": "string"
+                            },
+                            "apply_to_all": {
+                                "type": "boolean",
+                                "default": true
+                            }
                         }
-                    ]
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "updated_items",
+                    "required": true,
+                    "description": "Items with updates and augmentations applied",
+                    "schema": {
+                        "type": "object",
+                        "is_array": true
+                    }
                 },
                 {
                     "name": "update_stats",
-                    "type": "object",
                     "description": "Statistics about the update process",
                     "required": true,
-                    "details_schema": {
+                    "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "items_updated": {
                                 "type": "number"
                             },
@@ -392,11 +370,6 @@
                                 "type": "number"
                             }
                         }
-                    },
-                    "example": {
-                        "items_updated": 5,
-                        "items_augmented": 25,
-                        "errors": 0
                     }
                 }
             ],
@@ -440,37 +413,46 @@
             "name": "map_reduce_rollup",
             "description": "Group objects by rules and apply rollup functions to create aggregated results",
             "category": "data_analysis",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "items": {
+            "parameters": [
+                {
+                    "name": "items",
+                    "required": true,
+                    "description": "List of objects to group",
+                    "schema": {
                         "type": "object",
-                        "is_array": true,
-                        "description": "List of objects to group",
-                        "items": {
-                            "type": "object"
-                        }
-                    },
-                    "group_by_rule": {
+                        "is_array": true
+                    }
+                },
+                {
+                    "name": "group_by_rule",
+                    "required": true,
+                    "description": "Rule for grouping objects (e.g., 'date(timestamp)', 'sender', 'category')",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "rollup_functions",
+                    "required": true,
+                    "description": "Aggregation functions to apply to each group",
+                    "schema": {
+                        "type": "object"
+                    }
+                },
+                {
+                    "name": "sort_by",
+                    "required": false,
+                    "description": "Field to sort results by",
+                    "schema": {
                         "type": "string",
-                        "description": "Rule for grouping objects (e.g., 'date(timestamp)', 'sender', 'category')"
-                    },
-                    "rollup_functions": {
-                        "type": "object",
-                        "description": "Aggregation functions to apply to each group",
-                        "patternProperties": {
-                            ".*": {
-                                "type": "string",
-                                "description": "Rollup function (e.g., 'count', 'avg(field)', 'sum(field)', 'collect(field)')"
-                            }
-                        }
-                    },
-                    "sort_by": {
-                        "type": "string",
-                        "description": "Field to sort results by",
                         "default": "group_key"
-                    },
-                    "sort_direction": {
+                    }
+                },
+                {
+                    "name": "sort_direction",
+                    "required": false,
+                    "description": "Sort direction",
+                    "schema": {
                         "type": "string",
                         "enum": [
                             "asc",
@@ -478,61 +460,36 @@
                         ],
                         "default": "asc"
                     }
-                },
-                "required": [
-                    "items",
-                    "group_by_rule",
-                    "rollup_functions"
-                ]
-            },
-            "output_schema": [
+                }
+            ],
+            "outputs": [
                 {
                     "name": "grouped_results",
-                    "type": "object",
-                    "is_array": true,
-                    "description": "Aggregated results for each group",
                     "required": true,
-                    "details_schema": {
+                    "description": "Aggregated results for each group",
+                    "schema": {
                         "type": "object",
                         "is_array": true,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "group_key": {
-                                    "type": "string"
-                                },
-                                "group_value": {},
-                                "aggregated_data": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "example": [
-                        {
-                            "group_key": "date",
-                            "group_value": "2024-01-15",
+                        "fields": {
+                            "group_key": {
+                                "type": "string"
+                            },
+                            "group_value": {
+                                "type": "primitive"
+                            },
                             "aggregated_data": {
-                                "email_count": 12,
-                                "avg_sentiment": 0.7,
-                                "unique_senders": 5,
-                                "topics": [
-                                    "meetings",
-                                    "deadlines",
-                                    "reports"
-                                ]
+                                "type": "object"
                             }
                         }
-                    ]
+                    }
                 },
                 {
                     "name": "rollup_stats",
-                    "type": "object",
-                    "description": "Overall statistics about the rollup operation",
                     "required": true,
-                    "details_schema": {
+                    "description": "Overall statistics about the rollup operation",
+                    "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "total_groups": {
                                 "type": "number"
                             },
@@ -543,11 +500,6 @@
                                 "type": "number"
                             }
                         }
-                    },
-                    "example": {
-                        "total_groups": 7,
-                        "total_items_processed": 25,
-                        "avg_group_size": 3.6
                     }
                 }
             ],
@@ -583,18 +535,28 @@
             "name": "summarize",
             "description": "Create summaries of content based on specific summarization mandates",
             "category": "data_processing",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "object",
-                        "description": "Content to summarize (can be text, structured data, or mixed)"
-                    },
-                    "summarization_mandate": {
-                        "type": "string",
-                        "description": "Specific instructions for how to summarize (e.g., 'Create executive summary focusing on key metrics and trends')"
-                    },
-                    "summary_type": {
+            "parameters": [
+                {
+                    "name": "content",
+                    "required": true,
+                    "description": "Content to summarize (can be text, structured data, or mixed)",
+                    "schema": {
+                        "type": "object"
+                    }
+                },
+                {
+                    "name": "summarization_mandate",
+                    "required": true,
+                    "description": "Specific instructions for how to summarize (e.g., 'Create executive summary focusing on key metrics and trends')",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "summary_type",
+                    "required": false,
+                    "description": "Type of summary to generate",
+                    "schema": {
                         "type": "string",
                         "enum": [
                             "executive",
@@ -603,39 +565,41 @@
                             "narrative",
                             "statistical"
                         ],
-                        "default": "executive",
-                        "description": "Type of summary to generate"
-                    },
-                    "target_length": {
+                        "default": "executive"
+                    }
+                },
+                {
+                    "name": "target_length",
+                    "required": false,
+                    "description": "Target length of the summary",
+                    "schema": {
                         "type": "string",
                         "enum": [
                             "brief",
                             "medium",
                             "comprehensive"
                         ],
-                        "default": "medium",
-                        "description": "Target length of the summary"
-                    },
-                    "focus_areas": {
-                        "type": "string",
-                        "is_array": true,
-                        "description": "Specific areas to focus on in the summary"
+                        "default": "medium"
                     }
                 },
-                "required": [
-                    "content",
-                    "summarization_mandate"
-                ]
-            },
-            "output_schema": [
+                {
+                    "name": "focus_areas",
+                    "required": false,
+                    "description": "Specific areas to focus on in the summary",
+                    "schema": {
+                        "type": "string",
+                        "is_array": true
+                    }
+                }
+            ],
+            "outputs": [
                 {
                     "name": "summary",
-                    "type": "object",
-                    "description": "Generated summary with metadata",
                     "required": true,
-                    "details_schema": {
+                    "description": "Generated summary with metadata",
+                    "schema": {
                         "type": "object",
-                        "properties": {
+                        "fields": {
                             "title": {
                                 "type": "string"
                             },
@@ -652,7 +616,7 @@
                             },
                             "metadata": {
                                 "type": "object",
-                                "properties": {
+                                "fields": {
                                     "summary_type": {
                                         "type": "string"
                                     },
@@ -665,24 +629,6 @@
                                     }
                                 }
                             }
-                        }
-                    },
-                    "example": {
-                        "title": "Weekly Email Analysis Summary",
-                        "content": "During the week of January 15-19, 2024, email volume remained high with 85 messages processed. Overall sentiment was positive (72%) with key focus areas including quarterly planning, team coordination, and project deadlines.",
-                        "key_points": [
-                            "85 emails processed with 72% positive sentiment",
-                            "Primary topics: quarterly planning, team coordination",
-                            "High-priority items: 12 urgent project deadlines"
-                        ],
-                        "recommendations": [
-                            "Focus on addressing urgent project deadlines",
-                            "Continue positive communication patterns"
-                        ],
-                        "metadata": {
-                            "summary_type": "executive",
-                            "word_count": 156,
-                            "created_at": "2024-01-19T16:45:00Z"
                         }
                     }
                 }

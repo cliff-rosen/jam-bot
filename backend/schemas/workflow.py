@@ -115,8 +115,8 @@ class Mission(BaseModel):
     outputs: List[Asset]
     mission_state: Dict[str, Asset] = Field(default_factory=dict)
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
-    goal: str = Field(description="The main goal of the mission")
-    success_criteria: List[str] = Field(description="List of criteria that define mission success")
+    goal: str = Field(default="", description="The main goal of the mission")
+    success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     
     # Execution
     current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")

@@ -1,14 +1,30 @@
+/**
+ * Resource Schema Definitions
+ *
+ * This file contains all TypeScript types and interfaces for defining and
+ * managing Resources. Resources represent external systems, APIs, or
+ * databases that tools can depend on.
+ */
+
 // Resource Types - Frontend equivalent of backend/schemas/resource.py
 
 import { SchemaType } from './schema';
 
-export type ResourceType = 'api' | 'database' | 'storage' | 'messaging' | 'web' | 'social' | 'file_system';
+// Resource and authentication types
+export type AuthFieldType = 'string' | 'secret' | 'url';
+export type AuthType = 'oauth2' | 'api_key' | 'basic_auth' | 'none';
+export type ResourceType = 'database' | 'api' | 'file_system' | 'messaging' | 'storage' | 'web' | 'social';
 
-export interface RateLimitConfig {
-    requests_per_minute?: number;
-    requests_per_hour?: number;
-    requests_per_day?: number;
-    concurrent_requests?: number;
+export interface AuthField {
+    field_name: string;
+    field_type: AuthFieldType;
+    required: boolean;
+    description: string;
+}
+
+export interface AuthConfig {
+    type: AuthType;
+    required_fields: AuthField[];
 }
 
 export interface ResourceExample {
@@ -20,13 +36,14 @@ export interface ResourceExample {
 export interface Resource {
     id: string;
     name: string;
-    description: string;
     type: ResourceType;
-    connection_schema: SchemaType;
-    capabilities: string[];
-    rate_limits?: RateLimitConfig;
+    description: string;
+    auth_config?: AuthConfig;
     base_url?: string;
     documentation_url?: string;
+    rate_limits?: Record<string, any>;
+    connection_schema: SchemaType;
+    capabilities: string[];
     examples: ResourceExample[];
     metadata: Record<string, any>;
     created_at: string;
@@ -225,4 +242,58 @@ export function validateConnectionData(resourceId: string, connectionData: Recor
     // TODO: Implement proper schema validation
     // For now, just check if required fields are present
     return true;
+}
+
+// Resource utility functions
+export function getResourceAuthFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields || [];
+}
+
+export function getRequiredAuthFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields.filter(field => field.required) || [];
+}
+
+export function getOptionalAuthFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields.filter(field => !field.required) || [];
+}
+
+export function hasSecretFields(resource: Resource): boolean {
+    return resource.auth_config?.required_fields.some(field => field.field_type === 'secret') || false;
+}
+
+export function getSecretFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields.filter(field => field.field_type === 'secret') || [];
+}
+
+export function getUrlFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields.filter(field => field.field_type === 'url') || [];
+}
+
+export function getStringFields(resource: Resource): AuthField[] {
+    return resource.auth_config?.required_fields.filter(field => field.field_type === 'string') || [];
+}
+
+export function validateResourceConfig(resource: Resource, config: Record<string, any>): string[] {
+    const errors: string[] = [];
+    const requiredFields = getRequiredAuthFields(resource);
+
+    // Check all required fields are present
+    for (const field of requiredFields) {
+        if (!(field.field_name in config)) {
+            errors.push(`Missing required field: ${field.field_name}`);
+        }
+    }
+
+    // Validate URL fields
+    for (const field of getUrlFields(resource)) {
+        if (field.field_name in config) {
+            try {
+                new URL(config[field.field_name]);
+            } catch {
+                errors.push(`Invalid URL in field: ${field.field_name}`);
+            }
+        }
+    }
+
+    return errors;
 } 

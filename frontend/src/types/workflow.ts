@@ -1,21 +1,41 @@
-import { Asset, SchemaType, ToolDefinition, ToolParameter, ToolOutput } from './schema';
+/**
+ * Workflow Schema Definitions
+ *
+ * This file contains all TypeScript types and interfaces for defining and
+ * managing workflows, including Missions, Hops, and ToolSteps.
+ */
 
-// Re-export the unified types as the primary interfaces
-export type { Asset, SchemaType, ToolDefinition, ToolParameter, ToolOutput } from './schema';
+import { Asset, AssetStatus } from './asset';
+import { Resource } from './tool';
 
-export enum MissionStatus {
-    PENDING = "pending", // Mission proposed but not yet approved by user
-    ACTIVE = "active",   // Mission approved and in progress
-    COMPLETE = "complete" // Mission completed
+// --- Workflow Execution Enums ---
+
+export enum ExecutionStatus {
+    PENDING = "pending",
+    RUNNING = "running",
+    COMPLETED = "completed",
+    FAILED = "failed"
 }
 
+// Re-exporting this for now to satisfy other files, will be removed.
+export enum MissionStatus {
+    PENDING = 'pending',
+    ACTIVE = 'active',
+    COMPLETED = 'completed',
+    FAILED = 'failed',
+    PAUSED = 'paused'
+}
+
+// Re-exporting this for now to satisfy other files, will be removed.
 export enum HopStatus {
-    READY_TO_DESIGN = "ready_to_design",           // Ready to design next hop
-    HOP_PROPOSED = "hop_proposed",                 // Hop designer has proposed a hop
-    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve", // User accepted hop, ready to resolve with tools
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute", // Hop resolved with tools, ready to run
-    HOP_RUNNING = "hop_running",                   // Hop is executing
-    ALL_HOPS_COMPLETE = "all_hops_complete"        // No more hops needed
+    PENDING = 'pending',
+    READY_TO_DESIGN = 'ready_to_design',
+    DESIGN_IN_PROGRESS = 'design_in_progress',
+    READY_TO_EXECUTE = 'ready_to_execute',
+    EXECUTION_IN_PROGRESS = 'execution_in_progress',
+    EXECUTION_PAUSED = 'execution_paused',
+    COMPLETED = 'completed',
+    FAILED = 'failed'
 }
 
 // Keep WorkflowStatus for backwards compatibility but mark as deprecated
@@ -29,13 +49,6 @@ export enum WorkflowStatus {
     CANCELLED = "cancelled",
     HOP_DESIGN = "hop_design",
     HOP_IMPLEMENTATION = "hop_implementation"
-}
-
-export enum ExecutionStatus {
-    PENDING = "pending",
-    RUNNING = "running",
-    COMPLETED = "completed",
-    FAILED = "failed"
 }
 
 // DEPRECATED: StateVariable system - replaced by unified Asset schema
@@ -78,17 +91,21 @@ export interface DiscardMapping {
     type: "discard";
 }
 
+export type ParameterMappingValue = AssetFieldMapping | LiteralMapping;
+export type ResultMappingValue = AssetFieldMapping | DiscardMapping;
+
 export interface ToolStep {
     id: string;
     tool_id: string;
     description: string;
-    parameter_mapping: Record<string, AssetFieldMapping | LiteralMapping>;
-    result_mapping: Record<string, AssetFieldMapping | DiscardMapping>;
+    resource_configs: Record<string, Resource>;
+    parameter_mapping: Record<string, ParameterMappingValue>;
+    result_mapping: Record<string, ResultMappingValue>;
     status: ExecutionStatus;
     error?: string;
+    validation_errors?: string[];
     created_at: string;
     updated_at: string;
-    validation_errors?: string[];
 }
 
 export interface Hop {
@@ -96,61 +113,41 @@ export interface Hop {
     name: string;
     description: string;
     input_mapping: Record<string, string>;
-    state: Record<string, Asset>; // Using unified Asset type
     output_mapping: Record<string, string>;
-    steps: ToolStep[];
+    tool_steps: ToolStep[];
+    hop_state: Record<string, Asset>;
     status: ExecutionStatus;
-    is_resolved: boolean;
-    is_final: boolean;
-    error?: string;
-    current_step_index: number;
-    created_at: string;
-    updated_at: string;
 }
 
 export interface Mission {
     id: string;
     name: string;
     description: string;
-    goal: string;
-    success_criteria: string[];
-    inputs: Asset[]; // Using unified Asset type
-    outputs: Asset[]; // Using unified Asset type
-    state: Record<string, Asset>; // Using unified Asset type
     hops: Hop[];
-    current_hop?: Hop;
-    current_hop_index: number;
-    mission_status: MissionStatus;
-    hop_status?: HopStatus;
-    metadata: Record<string, any>;
-    created_at: string;
-    updated_at: string;
+    inputs: Asset[];
+    outputs: Asset[];
+    mission_state: Record<string, Asset>;
+    status: ExecutionStatus;
 }
 
-export const defaultMission: Mission = {
-    id: "default-01",
-    name: "Untitled Mission",
-    description: "This is a description of the mission.",
-    goal: "This is the goal of the mission.",
-    success_criteria: ["This is the success criteria of the mission."],
+export const defaultMission1: Mission = {
+    id: "default-mission-1",
+    name: "New Mission",
+    description: "A new mission to be defined.",
+    hops: [],
     inputs: [],
     outputs: [],
-    state: {},
-    hops: [],
-    current_hop_index: 0,
-    mission_status: MissionStatus.PENDING,
-    hop_status: undefined,
-    metadata: {},
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-}
+    mission_state: {},
+    status: ExecutionStatus.PENDING,
+};
 
 export const defaultMission2: Mission = {
-    id: "default",
-    name: "AI Newsletter Summarization",
-    description: "Summarize AI news for a given topic.",
-    goal: "Answer users questions about AI news.",
-    success_criteria: ["Answer is accurate."],
+    id: "default-mission-2",
+    name: "Recap Email Generation",
+    description: "This mission recaps the top 5 trending articles from a newsletter and generates a new draft email with the summary.",
+    hops: [
+        // ... (hops content)
+    ],
     inputs: [
         {
             id: "input-topic-areas",
@@ -162,6 +159,7 @@ export const defaultMission2: Mission = {
                 is_array: false
             },
             value: null,
+            status: AssetStatus.PENDING,
             is_collection: false,
             collection_type: 'null',
             asset_metadata: {
@@ -186,6 +184,7 @@ export const defaultMission2: Mission = {
                 is_array: false
             },
             value: null,
+            status: AssetStatus.PENDING,
             is_collection: false,
             collection_type: 'null',
             asset_metadata: {
@@ -199,12 +198,6 @@ export const defaultMission2: Mission = {
             }
         }
     ],
-    state: {},
-    hops: [],
-    current_hop_index: 0,
-    mission_status: MissionStatus.ACTIVE,
-    hop_status: HopStatus.READY_TO_DESIGN,
-    metadata: {},
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-}
+    mission_state: {},
+    status: ExecutionStatus.PENDING
+};

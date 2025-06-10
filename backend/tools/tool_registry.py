@@ -30,16 +30,9 @@ TOOL_REGISTRY: Dict[str, "ToolDefinition"] = {}
 
 def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
     """Parse the JSON definition of all tools into ToolDefinition objects."""
-    # Import lazily to dodge circular deps
-    from schemas.tools import (
-        ToolDefinition,
-        ToolParameter,
-        ToolOutput,
-        ToolParameterSchema,
-        ToolOutputSchema,
-        ExternalSystemInfo,
-    )
-    from schemas.unified_schema import SchemaType
+    from schemas.tool import ToolDefinition, ToolParameter, ToolOutput
+    from schemas.base import SchemaType
+    from schemas.resource import Resource
 
     tool_registry: Dict[str, ToolDefinition] = {}
 
@@ -60,21 +53,21 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             parameters: List[ToolParameter] = []
             if "parameters" in tool_def_json:
                 for param_def in tool_def_json["parameters"]:
-                    param_schema = ToolParameterSchema(**param_def)
-                    param_id = f"{tool_id}.{param_schema.name}"
+                    param_schema_dict = param_def.get("schema", {})
+                    param_id = f"{tool_id}.{param_def['name']}"
                     schema_type = SchemaType(
-                        type=param_schema.schema.get("type", "object") if param_schema.schema else "object",
-                        description=param_schema.schema.get("description") if param_schema.schema else None,
-                        is_array=param_schema.schema.get("is_array", False) if param_schema.schema else False,
-                        fields=param_schema.schema.get("fields") if param_schema.schema else None,
+                        type=param_schema_dict.get("type", "object"),
+                        description=param_schema_dict.get("description"),
+                        is_array=param_schema_dict.get("is_array", False),
+                        fields=param_schema_dict.get("fields"),
                     )
                     parameters.append(
                         ToolParameter(
                             id=param_id,
-                            name=param_schema.name,
-                            description=param_schema.description,
+                            name=param_def["name"],
+                            description=param_def["description"],
                             schema=schema_type,
-                            required=param_schema.required,
+                            required=param_def["required"],
                         )
                     )
             elif "input_schema" in tool_def_json:
@@ -105,19 +98,19 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             outputs: List[ToolOutput] = []
             if "outputs" in tool_def_json:
                 for output_def in tool_def_json["outputs"]:
-                    output_schema_obj = ToolOutputSchema(**output_def)
-                    output_id = f"{tool_id}.{output_schema_obj.name}"
+                    output_schema_dict = output_def.get("schema", {})
+                    output_id = f"{tool_id}.{output_def['name']}"
                     schema_type = SchemaType(
-                        type=output_schema_obj.schema.get("type", "object") if output_schema_obj.schema else "object",
-                        description=output_schema_obj.schema.get("description") if output_schema_obj.schema else None,
-                        is_array=output_schema_obj.schema.get("is_array", False) if output_schema_obj.schema else False,
-                        fields=output_schema_obj.schema.get("fields") if output_schema_obj.schema else None,
+                        type=output_schema_dict.get("type", "object"),
+                        description=output_schema_dict.get("description"),
+                        is_array=output_schema_dict.get("is_array", False),
+                        fields=output_schema_dict.get("fields"),
                     )
                     outputs.append(
                         ToolOutput(
                             id=output_id,
-                            name=output_schema_obj.name,
-                            description=output_schema_obj.description,
+                            name=output_def["name"],
+                            description=output_def["description"],
                             schema=schema_type,
                         )
                     )
@@ -143,11 +136,12 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                     )
 
             # ------------------------------------------------------------------
-            # External System
+            # Resource Dependencies
             # ------------------------------------------------------------------
-            external_system = None
-            if "external_system" in tool_def_json:
-                external_system = ExternalSystemInfo(**tool_def_json["external_system"])
+            resource_dependencies: List[Resource] = []
+            if "resource_dependencies" in tool_def_json:
+                for resource_def in tool_def_json["resource_dependencies"]:
+                    resource_dependencies.append(Resource(**resource_def))
 
             # ------------------------------------------------------------------
             # Assemble the ToolDefinition
@@ -160,7 +154,7 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                 outputs=outputs,
                 category=tool_def_json.get("category", "other"),
                 examples=tool_def_json.get("examples"),
-                external_system=external_system,
+                resource_dependencies=resource_dependencies,
             )
 
             if tool_definition.id in tool_registry:
@@ -177,11 +171,6 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             print(f"Traceback: {traceback.format_exc()}")
 
     return tool_registry
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def _default_tools_json_path() -> str:
     """Return the path to *tools.json* – first look in this package, then fallback to schemas."""
@@ -317,7 +306,7 @@ def format_tool_descriptions_for_implementation() -> str:
 
 def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None:
     """Attach an execution *handler* to an already-defined tool."""
-    from schemas.tool_handler_schema import ToolExecutionHandler  # local import to avoid circularity
+    from schemas.tool_handler_schema import ToolExecutionHandler
 
     print(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:

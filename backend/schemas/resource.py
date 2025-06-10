@@ -1,22 +1,36 @@
 """
-Resource Schema - External Systems and Services
-Defines external systems that tools can access (Gmail, PubMed, Web, etc.)
+Resource Schema Definitions
+
+This module contains all Pydantic models and related utilities for defining
+and managing Resources. Resources represent external systems, APIs, or
+databases that tools can depend on.
 """
 
+from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
-from schemas.unified_schema import SchemaType
+from schemas.base import SchemaType
 
-# Resource types
-ResourceType = Literal['api', 'database', 'storage', 'messaging', 'web', 'social', 'file_system']
+# --- Type Definitions for Resources ---
 
-class RateLimitConfig(BaseModel):
-    """Rate limiting configuration for a resource"""
-    requests_per_minute: Optional[int] = None
-    requests_per_hour: Optional[int] = None
-    requests_per_day: Optional[int] = None
-    concurrent_requests: Optional[int] = None
+AuthFieldType = Literal['string', 'secret', 'url']
+AuthType = Literal['oauth2', 'api_key', 'basic_auth', 'none']
+ResourceType = Literal['database', 'api', 'file_system', 'messaging', 'storage', 'web', 'social']
+
+# --- Core Resource Models ---
+
+class AuthField(BaseModel):
+    """Defines a single field required for authentication with a resource."""
+    field_name: str
+    field_type: AuthFieldType
+    required: bool
+    description: str
+
+class AuthConfig(BaseModel):
+    """Defines the authentication mechanism and required fields for a resource."""
+    type: AuthType
+    required_fields: List[AuthField]
 
 class ResourceExample(BaseModel):
     """Example usage of a resource"""
@@ -25,16 +39,20 @@ class ResourceExample(BaseModel):
     use_case: str
 
 class Resource(BaseModel):
-    """External system or service that tools can access"""
-    id: str = Field(description="Unique identifier for the resource")
-    name: str = Field(description="Human-readable name")
-    description: str = Field(description="What this resource provides access to")
-    type: ResourceType = Field(description="Category of resource")
-    connection_schema: SchemaType = Field(description="Schema for connection credentials/config")
-    capabilities: List[str] = Field(description="What operations are supported (search, retrieve, upload, etc.)")
-    rate_limits: Optional[RateLimitConfig] = None
+    """
+    Represents an external resource that a tool can depend on. This includes
+    its type, authentication requirements, and other metadata.
+    """
+    id: str
+    name: str
+    type: ResourceType
+    description: str
+    auth_config: AuthConfig
+    connection_schema: SchemaType
+    capabilities: List[str] = Field(default_factory=list)
     base_url: Optional[str] = None
     documentation_url: Optional[str] = None
+    rate_limits: Optional[Dict[str, Any]] = None
     examples: List[ResourceExample] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -52,29 +70,80 @@ class ResourceConnection(BaseModel):
     expires_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# --- Resource Validation Utilities ---
+
+def validate_resource_config(resource_definition: Resource, provided_config: Dict[str, Any]) -> List[str]:
+    """
+    Validates a provided resource configuration against the resource's
+    authentication requirements.
+
+    Args:
+        resource_definition: The definition of the resource.
+        provided_config: The user-provided configuration dictionary.
+
+    Returns:
+        A list of error strings, or an empty list if validation succeeds.
+    """
+    errors = []
+    auth_def = resource_definition.auth_config
+
+    for field in auth_def.required_fields:
+        if field.required and field.field_name not in provided_config:
+            errors.append(f"Required field '{field.field_name}' is missing.")
+        
+        # Can add more validation here (e.g., type checking) if needed.
+
+    return errors
+
+# Utility functions for resource introspection
+def get_required_auth_fields(resource: Resource) -> List[AuthField]:
+    """Get all required authentication fields for a resource"""
+    return [field for field in resource.auth_config.required_fields if field.required]
+
+def get_secret_fields(resource: Resource) -> List[AuthField]:
+    """Get all secret fields for a resource"""
+    return [field for field in resource.auth_config.required_fields if field.field_type == 'secret']
+
+def get_url_fields(resource: Resource) -> List[AuthField]:
+    """Get all URL fields for a resource"""
+    return [field for field in resource.auth_config.required_fields if field.field_type == 'url']
+
+def get_string_fields(resource: Resource) -> List[AuthField]:
+    """Get all string fields for a resource"""
+    return [field for field in resource.auth_config.required_fields if field.field_type == 'string']
+
 # Built-in resource definitions
 GMAIL_RESOURCE = Resource(
     id="gmail",
     name="Gmail",
     description="Google Gmail email service for searching and retrieving emails",
     type="messaging",
-    connection_schema=SchemaType(
-        type="object",
-        description="Gmail OAuth credentials",
-        fields={
-            "access_token": SchemaType(type="string", description="OAuth access token"),
-            "refresh_token": SchemaType(type="string", description="OAuth refresh token"),
-            "token_expires_at": SchemaType(type="string", description="Token expiration timestamp")
+    auth_config=AuthConfig(
+        type="oauth2",
+        required_fields=[
+            AuthField(field_name="access_token", field_type="secret", required=True, description="OAuth access token"),
+            AuthField(field_name="refresh_token", field_type="secret", required=True, description="OAuth refresh token"),
+            AuthField(field_name="token_expires_at", field_type="string", required=True, description="Token expiration timestamp")
+        ]
+    ),
+    connection_schema={
+        "type": "object",
+        "description": "Gmail OAuth credentials",
+        "is_array": False,
+        "fields": {
+            "access_token": {"type": "string", "description": "OAuth access token", "is_array": False},
+            "refresh_token": {"type": "string", "description": "OAuth refresh token", "is_array": False},
+            "token_expires_at": {"type": "string", "description": "Token expiration timestamp", "is_array": False}
         }
-    ),
+    },
     capabilities=["search", "retrieve", "send", "list_folders"],
-    rate_limits=RateLimitConfig(
-        requests_per_minute=250,
-        requests_per_day=1000000,
-        concurrent_requests=10
-    ),
     base_url="https://gmail.googleapis.com",
     documentation_url="https://developers.google.com/gmail/api",
+    rate_limits={
+        "requests_per_minute": 250,
+        "requests_per_day": 1000000,
+        "concurrent_requests": 10
+    },
     examples=[
         ResourceExample(
             description="Search for emails in Gmail",
@@ -93,21 +162,29 @@ PUBMED_RESOURCE = Resource(
     name="PubMed Database",
     description="NCBI PubMed database for searching biomedical research articles",
     type="database",
-    connection_schema=SchemaType(
-        type="object",
-        description="PubMed API configuration",
-        fields={
-            "api_key": SchemaType(type="string", description="NCBI API key (optional but recommended)"),
-            "email": SchemaType(type="string", description="Contact email for API usage")
+    auth_config=AuthConfig(
+        type="api_key",
+        required_fields=[
+            AuthField(field_name="api_key", field_type="string", required=True, description="NCBI API key (optional but recommended)"),
+            AuthField(field_name="email", field_type="string", required=True, description="Contact email for API usage")
+        ]
+    ),
+    connection_schema={
+        "type": "object",
+        "description": "PubMed API configuration",
+        "is_array": False,
+        "fields": {
+            "api_key": {"type": "string", "description": "NCBI API key (optional but recommended)", "is_array": False},
+            "email": {"type": "string", "description": "Contact email for API usage", "is_array": False}
         }
-    ),
+    },
     capabilities=["search", "retrieve", "get_metadata"],
-    rate_limits=RateLimitConfig(
-        requests_per_minute=10,  # Higher with API key
-        concurrent_requests=3
-    ),
     base_url="https://eutils.ncbi.nlm.nih.gov",
     documentation_url="https://www.ncbi.nlm.nih.gov/books/NBK25501/",
+    rate_limits={
+        "requests_per_minute": 10,  # Higher with API key
+        "concurrent_requests": 3
+    },
     examples=[
         ResourceExample(
             description="Search for research articles",
@@ -125,20 +202,31 @@ WEB_SEARCH_RESOURCE = Resource(
     name="Web Search",
     description="Search the web using search engines (Google, Bing, etc.)",
     type="web",
-    connection_schema=SchemaType(
-        type="object",
-        description="Web search API credentials",
-        fields={
-            "api_key": SchemaType(type="string", description="Search API key"),
-            "search_engine": SchemaType(type="string", description="Which search engine to use"),
-            "custom_search_id": SchemaType(type="string", description="Custom search engine ID (if applicable)")
+    auth_config=AuthConfig(
+        type="api_key",
+        required_fields=[
+            AuthField(field_name="api_key", field_type="string", required=True, description="Search API key"),
+            AuthField(field_name="search_engine", field_type="string", required=True, description="Which search engine to use"),
+            AuthField(field_name="custom_search_id", field_type="string", required=False, description="Custom search engine ID (if applicable)")
+        ]
+    ),
+    connection_schema={
+        "type": "object",
+        "description": "Web search API credentials",
+        "is_array": False,
+        "fields": {
+            "api_key": {"type": "string", "description": "Search API key", "is_array": False},
+            "search_engine": {"type": "string", "description": "Which search engine to use", "is_array": False},
+            "custom_search_id": {"type": "string", "description": "Custom search engine ID (if applicable)", "is_array": False}
         }
-    ),
+    },
     capabilities=["search", "get_snippets", "get_urls"],
-    rate_limits=RateLimitConfig(
-        requests_per_day=100,
-        concurrent_requests=2
-    ),
+    base_url="https://www.googleapis.com/customsearch/v1",
+    documentation_url="https://developers.google.com/custom-search/v1/overview",
+    rate_limits={
+        "requests_per_day": 100,
+        "concurrent_requests": 2
+    },
     examples=[
         ResourceExample(
             description="Search the web for information",
@@ -157,21 +245,29 @@ DROPBOX_RESOURCE = Resource(
     name="Dropbox",
     description="Dropbox file storage and sharing service",
     type="storage",
-    connection_schema=SchemaType(
-        type="object",
-        description="Dropbox API credentials",
-        fields={
-            "access_token": SchemaType(type="string", description="Dropbox access token"),
-            "refresh_token": SchemaType(type="string", description="Dropbox refresh token")
+    auth_config=AuthConfig(
+        type="oauth2",
+        required_fields=[
+            AuthField(field_name="access_token", field_type="secret", required=True, description="Dropbox access token"),
+            AuthField(field_name="refresh_token", field_type="secret", required=True, description="Dropbox refresh token")
+        ]
+    ),
+    connection_schema={
+        "type": "object",
+        "description": "Dropbox API credentials",
+        "is_array": False,
+        "fields": {
+            "access_token": {"type": "string", "description": "Dropbox access token", "is_array": False},
+            "refresh_token": {"type": "string", "description": "Dropbox refresh token", "is_array": False}
         }
-    ),
+    },
     capabilities=["upload", "download", "list", "search", "share"],
-    rate_limits=RateLimitConfig(
-        requests_per_minute=120,
-        concurrent_requests=5
-    ),
     base_url="https://api.dropboxapi.com",
     documentation_url="https://developers.dropbox.com/documentation",
+    rate_limits={
+        "requests_per_minute": 120,
+        "concurrent_requests": 5
+    },
     examples=[
         ResourceExample(
             description="Access files in Dropbox",
@@ -212,4 +308,17 @@ def validate_connection_data(resource_id: str, connection_data: Dict[str, Any]) 
     
     # TODO: Implement proper schema validation
     # For now, just check if required fields are present
-    return True 
+    return True
+
+# Resource utility functions
+def get_resource_auth_fields(resource: Resource) -> List[AuthField]:
+    """Get all authentication fields for a resource"""
+    return resource.auth_config.required_fields
+
+def get_optional_auth_fields(resource: Resource) -> List[AuthField]:
+    """Get optional authentication fields for a resource"""
+    return [field for field in resource.auth_config.required_fields if not field.required]
+
+def has_secret_fields(resource: Resource) -> bool:
+    """Check if resource has any secret fields"""
+    return any(field.field_type == 'secret' for field in resource.auth_config.required_fields)

@@ -16,7 +16,6 @@ from langgraph.types import StreamWriter, Send, Command
 
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from schemas.unified_schema import Asset, SchemaType, AssetStatus, check_mission_ready
 from agents.prompts.mission_prompt import AssetLite
 import os
 from config.settings import settings
@@ -27,6 +26,8 @@ from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImple
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
 from tools.tool_registry import TOOL_REGISTRY
+from schemas.asset import Asset, AssetStatus
+from schemas.base import SchemaType
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -908,3 +909,33 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
         errors.extend(step.validate_schema_compatibility(tool_def, hop_state))
 
     return errors 
+
+def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
+    """
+    Checks if all input assets required for a mission are in a READY state.
+    This function is temporarily located here until a permanent home in a
+    workflow utility service is created.
+    """
+    pending_inputs = [asset.name for asset in input_assets if asset.status != AssetStatus.READY]
+    failed_inputs = [asset.name for asset in input_assets if asset.status == AssetStatus.ERROR]
+    
+    if failed_inputs:
+        return False, [f"Failed inputs that need attention: {', '.join(failed_inputs)}"]
+    elif pending_inputs:
+        return False, [f"Pending inputs from user: {', '.join(pending_inputs)}"]
+    else:
+        return True, []
+
+class PrimaryAgent:
+    """
+    The main agent responsible for orchestrating the mission from planning to execution.
+    """
+    def __init__(self, mission: "Mission"):
+        self.mission = mission
+
+    async def run(self):
+        """
+        The main loop for the agent to execute a mission.
+        """
+        # ... (rest of the run method)
+        pass

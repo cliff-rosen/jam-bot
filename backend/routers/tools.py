@@ -6,9 +6,10 @@ import logging
 from database import get_db
 
 # Import from unified schema for Asset, but ToolDefinition now comes from tools.py
-from schemas.unified_schema import Asset
-from schemas.tools import ToolStep, ExecutionStatus, ToolDefinition
-from tools.tool_registry import TOOL_REGISTRY
+from schemas.asset import Asset
+from schemas.workflow import ToolStep, ExecutionStatus
+from schemas.tool import ToolDefinition
+from tools.tool_registry import get_available_tools, get_tool_definition, TOOL_REGISTRY
 
 from services.auth_service import validate_token
 
@@ -91,4 +92,41 @@ async def get_available_tools(
     Returns:
         List of tool definitions (no conversion needed since we use same schema)
     """
-    return {"tools": list(TOOL_REGISTRY.values())} 
+    return {"tools": list(TOOL_REGISTRY.values())}
+
+@router.get("/tools", response_model=List[ToolDefinition])
+async def list_tools():
+    """
+    Get a list of all available tool definitions.
+    """
+    tools = get_available_tools()
+    tool_defs = [get_tool_definition(tool_id) for tool_id in tools]
+    return [tool_def for tool_def in tool_defs if tool_def is not None]
+
+@router.get("/tools/{tool_id}", response_model=ToolDefinition)
+async def get_tool(tool_id: str):
+    """
+    Get the definition of a specific tool by its ID.
+    """
+    tool_def = get_tool_definition(tool_id)
+    if not tool_def:
+        raise HTTPException(status_code=404, detail="Tool not found")
+    return tool_def
+
+@router.post("/tools/execute", response_model=ToolStep)
+async def execute_tool(step: ToolStep, state: Dict[str, Any]):
+    """
+    Execute a single tool step.
+    Note: The 'state' parameter is a placeholder for the full hop or mission state.
+    """
+    # This is a placeholder for the real execution logic which will be
+    # more complex and likely live in an execution service.
+    print(f"Executing tool step {step.id} for tool {step.tool_id}")
+    # In a real scenario, we would:
+    # 1. Look up the tool from the registry
+    # 2. Build the tool's input from the provided state using parameter_mapping
+    # 3. Execute the tool
+    # 4. Map the tool's output back to the state using result_mapping
+    # 5. Return the updated ToolStep model
+    step.status = ExecutionStatus.COMPLETED
+    return step 

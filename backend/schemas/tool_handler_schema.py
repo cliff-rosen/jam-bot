@@ -7,7 +7,7 @@ purely to implementation code.
 
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, Any, Optional
+from typing import Awaitable, Callable, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 
 __all__ = [
@@ -21,7 +21,10 @@ class ToolExecutionInput(BaseModel):
     """Input payload delivered to every tool handler."""
 
     params: Dict[str, Any] = Field(default_factory=dict)
-    connection: Optional[Any] = None
+    resource_configs: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Configuration for each required resource, keyed by resource ID"
+    )
     step_id: Optional[str] = None
 
 
@@ -37,5 +40,5 @@ class ToolExecutionResult(BaseModel):
 class ToolExecutionHandler(BaseModel):
     """Metadata + async callable that performs the work."""
 
-    handler: Callable[[ToolExecutionInput], Awaitable[Dict[str, Any]]]
+    handler: Callable[[ToolExecutionInput], Awaitable[Union[Dict[str, Any], ToolExecutionResult]]]
     description: str 

@@ -2,10 +2,15 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from models import Asset as AssetModel
 from schemas.asset import Asset, CollectionType, DatabaseEntityMetadata
-from schemas.unified_schema import SchemaType, AssetMetadata
+from schemas.base import SchemaType
+from schemas.asset import AssetMetadata
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
+from uuid import uuid4
+
+# In-memory storage for assets
+ASSET_DB: Dict[str, Asset] = {}
 
 class AssetService:
     def __init__(self, db: Session):

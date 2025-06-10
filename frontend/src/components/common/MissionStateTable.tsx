@@ -1,5 +1,5 @@
 import React from 'react';
-import { Asset, AssetStatus } from '@/types/schema';
+import { Asset, AssetStatus } from '@/types/asset';
 import { getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionStateTableProps {
@@ -66,7 +66,7 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({
                             </td>
                             <td className="py-2 px-2">
                                 <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                                    {asset.schema.type || 'unknown'}
+                                    {asset.schema_definition.type || 'unknown'}
                                 </span>
                             </td>
                             <td className="py-2 px-2 text-gray-700 dark:text-gray-300 capitalize">

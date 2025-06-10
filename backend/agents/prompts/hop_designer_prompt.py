@@ -22,7 +22,7 @@ class HopProposal(BaseModel):
     
     # Maps logical input names to mission state asset IDs
     input_mapping: Dict[str, str] = Field(
-        description="Maps local hop state keys to mission state asset IDs. Format: {local_key: mission_asset_id}. Values MUST be valid asset IDs from mission.state. The local_key becomes the key in hop.state where the asset will be copied."
+        description="Maps local hop state keys to mission asset IDs. Format: {local_key: mission_asset_id}. Values MUST be valid asset IDs from mission.mission_state. The local_key becomes the key in hop.state where the asset will be copied."
     )
     
     output_asset: AssetLite = Field(description="The asset that will be produced by this hop")
@@ -74,7 +74,7 @@ The system has these specific tools available for hop implementation:
 3. **Cohesive Goal**: Each hop should have a single, clear, and cohesive goal. What one specific outcome does this hop achieve?
 
 4. **Input/Output Focus**: 
-   - Input mapping MUST use EXACT asset IDs from mission.state
+   - Input mapping MUST use EXACT asset IDs from mission.mission_state
    - NEVER use asset names or values in input_mapping
    - Example: `"input_mapping": {{"email_credentials": "ed4dff20-269e-403b-a203-72e251a51dc1"}}`
    - The output of this hop becomes a potential input for the next
@@ -90,7 +90,7 @@ The system has these specific tools available for hop implementation:
 
 ### Mission State vs Hop State
 1. **Mission State Assets**:
-   - Live in `mission.state`
+   - Live in `mission.mission_state`
    - Have unique IDs (e.g., "ed4dff20-269e-403b-a203-72e251a51dc1")
    - Referenced in input_mapping VALUES
    - Example: `"input_mapping": {{"local_key": "mission_asset_id"}}`
@@ -102,9 +102,9 @@ The system has these specific tools available for hop implementation:
    - Example: `"input_mapping": {{"local_key": "mission_asset_id"}}`
 
 ### Input Mapping Rules
-1. **ALWAYS use mission state asset IDs**: The input_mapping values must be EXACT asset IDs from mission.state
+1. **ALWAYS use mission state asset IDs**: The input_mapping values must be EXACT asset IDs from mission.mission_state
 2. **NEVER use asset names**: Do not use asset names or values in the mapping
-3. **Verify existence**: Only map to assets that exist in mission.state
+3. **Verify existence**: Only map to assets that exist in mission.mission_state
 4. **Example correct mapping**:
    ```json
    "input_mapping": {{

@@ -588,8 +588,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         # Create and format the prompt
         prompt = HopImplementerPrompt()
         
-        # Convert mission state assets to list format for the prompt
-        available_assets = [asset.model_dump() for asset in state.mission.mission_state.values()] if state.mission else []
+        # Convert HOP STATE assets to list format for the prompt
+        available_assets = [asset.model_dump(mode='json') for asset in current_hop.hop_state.values()] if current_hop else []
         
         formatted_messages = prompt.get_formatted_messages(
             messages=state.messages,
@@ -668,7 +668,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
         elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
             # Validate the returned plan
-            validation_errors = validate_tool_chain(parsed_response.hop.steps, current_hop.hop_state)
+            validation_errors = validate_tool_chain(parsed_response.hop.tool_steps, current_hop.hop_state)
 
             if validation_errors:
                 # Bounce back for clarification with concise error list
@@ -692,7 +692,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 # Accept the plan
                 updated_hop = parsed_response.hop
 
-                current_hop.steps = updated_hop.steps
+                current_hop.tool_steps = updated_hop.tool_steps
                 current_hop.is_resolved = True
                 current_hop.status = ExecutionStatus.PENDING
                 current_hop.updated_at = datetime.utcnow()
@@ -877,6 +877,41 @@ graph = compiled
 # Validation helpers
 # ---------------------------------------------------------------------------
 
+def _validate_step_schema(step: ToolStep, tool_def: "ToolDefinition", hop_state: Dict[str, Asset]) -> List[str]:
+    """Validate a single tool step's schema against the tool definition."""
+    errors = []
+    
+    # Validate parameter mapping
+    for param_name, mapping in step.parameter_mapping.items():
+        tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
+        if not tool_param:
+            errors.append(f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition.")
+            continue
+            
+        if mapping.type == "asset_field":
+            if mapping.state_asset not in hop_state:
+                errors.append(f"Step '{step.id}': Asset '{mapping.state_asset}' for parameter '{param_name}' not found in hop state.")
+                continue
+            
+            # TODO: Add more sophisticated schema compatibility checks here
+            # For now, we just check for existence.
+
+    # Validate result mapping
+    for result_name, mapping in step.result_mapping.items():
+        tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
+        if not tool_output:
+            errors.append(f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition.")
+            continue
+            
+        if mapping.type == "asset_field":
+            if mapping.state_asset not in hop_state:
+                errors.append(f"Step '{step.id}': Asset '{mapping.state_asset}' for result '{result_name}' not found in hop state.")
+                continue
+
+            # TODO: Add more sophisticated schema compatibility checks here
+
+    return errors
+
 def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> List[str]:
     """Validate the tool chain returned by the Hop-Implementer.
 
@@ -892,7 +927,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
             errors.append(f"Tool definition not found for tool_id '{step.tool_id}'")
             continue
 
-        errors.extend(step.validate_schema_compatibility(tool_def, hop_state))
+        errors.extend(_validate_step_schema(step, tool_def, hop_state))
 
     return errors 
 

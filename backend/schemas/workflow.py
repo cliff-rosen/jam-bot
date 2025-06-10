@@ -66,7 +66,7 @@ class Hop(BaseModel):
             return v
             
         # Check if we have access to mission state
-        mission_state = kwargs.get('mission_state')
+        mission_state = values.get('mission_state')
         if not mission_state:
             return v
             

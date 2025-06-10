@@ -33,8 +33,8 @@ class HopImplementationResponse(BaseModel):
     def validate_hop_for_implementation(cls, v, values):
         if values.get('response_type') == 'IMPLEMENTATION_PLAN' and not v:
             raise ValueError('hop must be provided for IMPLEMENTATION_PLAN response type')
-        if values.get('response_type') == 'IMPLEMENTATION_PLAN' and not v.steps:
-            raise ValueError('hop must have populated steps for IMPLEMENTATION_PLAN response type')
+        if values.get('response_type') == 'IMPLEMENTATION_PLAN' and not v.tool_steps:
+            raise ValueError('hop must have populated tool_steps for IMPLEMENTATION_PLAN response type')
         return v
 
     @validator('missing_information')
@@ -65,9 +65,9 @@ When providing an IMPLEMENTATION_PLAN response, you MUST:
 1. Set response_type to "IMPLEMENTATION_PLAN"
 2. Include a complete hop object with:
    - All existing fields (id, name, description, mappings)
-   - A populated steps array containing the tool steps to execute
+   - A populated tool_steps array containing the tool steps to execute
    - Any necessary intermediate assets in the state object
-3. Each step in the steps array must include:
+3. Each step in the tool_steps array must include:
    - id: Unique identifier for the step
    - tool_id: ID of the tool to use
    - description: What this step accomplishes
@@ -218,7 +218,7 @@ Use these three types for tool parameter mapping:
     "description": "Hop description",
     "input_mapping": {{"local_key": "external_asset_id"}},
     "output_mapping": {{"local_key": "external_asset_id"}},
-    "steps": [
+    "tool_steps": [
       {{
         "id": "step1_search",
         "tool_id": "email_search",
@@ -292,7 +292,7 @@ Here's a complete example of a hop implementation:
     "output_mapping": {{
       "analysis_results": "mission_analysis_output"
     }},
-    "steps": [
+    "tool_steps": [
       {{
         "id": "step1_email_search",
         "tool_id": "email_search",
@@ -443,7 +443,7 @@ If you cannot produce a valid resolution, you MUST:
 ## Current Context
 Mission: {mission}
 Current Hop: {current_hop}
-Available Assets: {available_assets}
+Available Assets in Hop State: {available_assets}
 
 Based on this context, create a detailed implementation plan for the current hop."""
 
@@ -461,7 +461,30 @@ Based on this context, create a detailed implementation plan for the current hop
         current_hop: Hop,
         available_assets: List[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
-        """Get formatted messages for the prompt"""
+        """Formats the full prompt for the OpenAI API"""
+        
+        # Format existing messages
+        formatted_messages = format_messages_for_openai(messages)
+
+        # Format available assets for the prompt
+        available_assets_str = "No assets available in the mission state."
+        if mission and mission.mission_state:
+            available_assets_list = []
+            for asset_id, asset in mission.mission_state.items():
+                asset_info = {
+                    "id": asset_id,
+                    "name": asset.name,
+                    "description": asset.description,
+                    "schema": asset.schema_definition.model_dump(by_alias=True) if asset.schema_definition else None,
+                    "status": asset.status.value if hasattr(asset.status, 'value') else asset.status,
+                    "is_collection": asset.is_collection,
+                    "collection_type": asset.collection_type
+                }
+                available_assets_list.append(asset_info)
+            
+            if available_assets_list:
+                available_assets_str = json.dumps(available_assets_list, indent=2)
+
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_implementation()
         
@@ -474,7 +497,7 @@ Based on this context, create a detailed implementation plan for the current hop
         mission_dict['outputs'] = [asset.model_dump(mode='json') for asset in mission.outputs]
         mission_dict['state'] = {
             asset_id: asset.model_dump(mode='json')
-            for asset_id, asset in mission.state.items()
+            for asset_id, asset in mission.mission_state.items()
         }
         
         # Format mission string with serialized dates

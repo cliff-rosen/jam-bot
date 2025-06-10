@@ -39,7 +39,7 @@ def validate_mission(mission: Mission) -> List[str]:
     # 3. State Validation
     # Check that all input assets are in state
     for input_asset in mission.inputs:
-        if input_asset.id not in mission.state:
+        if input_asset.id not in mission.mission_state:
             errors.append(f"Input asset {input_asset.id} not found in mission state")
 
     # 4. Hop Validation
@@ -56,11 +56,11 @@ def validate_mission(mission: Mission) -> List[str]:
 
             # Check hop asset mappings
             for input_key, asset_id in hop.input_mapping.items():
-                if asset_id not in mission.state:
+                if asset_id not in mission.mission_state:
                     errors.append(f"Hop {hop.id} input mapping references non-existent asset: {asset_id}")
 
             for output_key, asset_id in hop.output_mapping.items():
-                if asset_id not in mission.state:
+                if asset_id not in mission.mission_state:
                     errors.append(f"Hop {hop.id} output mapping references non-existent asset: {asset_id}")
 
     # 5. Status Validation
@@ -95,7 +95,7 @@ def test_mission_validation():
         success_criteria=["Test passes"],
         inputs=[],
         outputs=[],
-        state={},
+        mission_state={},
         hops=[],
         current_hop_index=0,
         mission_status=MissionStatus.PENDING,

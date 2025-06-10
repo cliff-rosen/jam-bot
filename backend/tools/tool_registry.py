@@ -54,20 +54,18 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             if "parameters" in tool_def_json:
                 for param_def in tool_def_json["parameters"]:
                     param_schema_dict = param_def.get("schema", {})
-                    param_id = f"{tool_id}.{param_def['name']}"
-                    schema_type = SchemaType(
-                        type=param_schema_dict.get("type", "object"),
-                        description=param_schema_dict.get("description"),
-                        is_array=param_schema_dict.get("is_array", False),
-                        fields=param_schema_dict.get("fields"),
-                    )
+                    if "type" not in param_schema_dict:
+                        param_schema_dict["type"] = "object"
+                    
+                    schema_type = SchemaType(**param_schema_dict)
+                    
                     parameters.append(
                         ToolParameter(
-                            id=param_id,
-                            name=param_def["name"],
-                            description=param_def["description"],
+                            id=param_def.get("name", ""),
+                            name=param_def.get("name", ""),
+                            description=param_def.get("description", ""),
+                            required=param_def.get("required", True),
                             schema=schema_type,
-                            required=param_def["required"],
                         )
                     )
             elif "input_schema" in tool_def_json:
@@ -75,16 +73,10 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                 input_schema = tool_def_json["input_schema"]
                 if "properties" in input_schema:
                     for param_name, param_schema in input_schema["properties"].items():
-                        param_id = f"{tool_id}.{param_name}"
-                        schema_type = SchemaType(
-                            type=param_schema.get("type", "object"),
-                            description=param_schema.get("description"),
-                            is_array=param_schema.get("is_array", False),
-                            fields=param_schema.get("fields"),
-                        )
+                        schema_type = SchemaType(**param_schema)
                         parameters.append(
                             ToolParameter(
-                                id=param_id,
+                                id=param_name,
                                 name=param_name,
                                 description=param_schema.get("description", ""),
                                 schema=schema_type,
@@ -99,41 +91,34 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             if "outputs" in tool_def_json:
                 for output_def in tool_def_json["outputs"]:
                     output_schema_dict = output_def.get("schema", {})
-                    output_id = f"{tool_id}.{output_def['name']}"
-                    schema_type = SchemaType(
-                        type=output_schema_dict.get("type", "object"),
-                        description=output_schema_dict.get("description"),
-                        is_array=output_schema_dict.get("is_array", False),
-                        fields=output_schema_dict.get("fields"),
-                    )
+                    if "type" not in output_schema_dict:
+                        output_schema_dict["type"] = "object"
+                    
+                    schema_type = SchemaType(**output_schema_dict)
                     outputs.append(
                         ToolOutput(
-                            id=output_id,
+                            id=output_def["name"],
                             name=output_def["name"],
-                            description=output_def["description"],
+                            description=output_def.get("description", ""),
+                            required=output_def.get("required", True),
                             schema=schema_type,
                         )
                     )
             elif "output_schema" in tool_def_json:
                 # Legacy format support
                 for output_def in tool_def_json["output_schema"]:
-                    output_name = output_def.get("name", "")
-                    output_id = f"{tool_id}.{output_name}"
-                    output_schema_dict = output_def.get("schema", {})
-                    schema_type = SchemaType(
-                        type=output_schema_dict.get("type", "object"),
-                        description=output_schema_dict.get("description"),
-                        is_array=output_schema_dict.get("is_array", False),
-                        fields=output_schema_dict.get("fields"),
-                    )
-                    outputs.append(
-                        ToolOutput(
-                            id=output_id,
-                            name=output_name,
-                            description=output_def.get("description", ""),
-                            schema=schema_type,
+                    output_name = output_def.get("name")
+                    if output_name:
+                        output_schema_dict = output_def.get("schema", {})
+                        schema_type = SchemaType(**output_schema_dict)
+                        outputs.append(
+                            ToolOutput(
+                                id=output_name,
+                                name=output_name,
+                                description=output_def.get("description", ""),
+                                schema=schema_type,
+                            )
                         )
-                    )
 
             # ------------------------------------------------------------------
             # Resource Dependencies
@@ -266,7 +251,7 @@ def format_tool_descriptions_for_hop_design() -> str:
         desc += f"**Purpose**: {tool_def.description}\n"
         desc += f"**Category**: {tool_def.category}\n"
 
-        outputs_with_types = [f"{o.name} ({o.schema.type if o.schema else 'object'})" for o in tool_def.outputs]
+        outputs_with_types = [f"{o.name} ({o.schema_definition.type if o.schema_definition else 'object'})" for o in tool_def.outputs]
         if outputs_with_types:
             desc += f"**Outputs**: {', '.join(outputs_with_types)}\n"
 
@@ -287,7 +272,7 @@ def format_tool_descriptions_for_implementation() -> str:
         desc += f"Description: {tool_def.description}\n"
         desc += "Input Parameters:\n"
         for param in tool_def.parameters:
-            param_type = param.schema.type if param.schema else "object"
+            param_type = param.schema_definition.type if param.schema_definition else "object"
             line = f"  - {param.name} ({param_type}): {param.description}"
             if not param.required:
                 line += " [Optional]"
@@ -295,7 +280,7 @@ def format_tool_descriptions_for_implementation() -> str:
 
         desc += "Outputs:\n"
         for output in tool_def.outputs:
-            output_type = output.schema.type if output.schema else "object"
+            output_type = output.schema_definition.type if output.schema_definition else "object"
             desc += f"  - {output.name} ({output_type}): {output.description}\n"
 
         desc += "\n"

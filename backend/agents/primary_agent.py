@@ -26,7 +26,7 @@ from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImple
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
 from tools.tool_registry import TOOL_REGISTRY
-from schemas.asset import Asset, AssetStatus
+from schemas.asset import Asset, AssetStatus, AssetMetadata
 from schemas.base import SchemaType
 
 # Use settings from config
@@ -40,53 +40,44 @@ SYSTEM_MESSAGE = """
 You are a helpful assistant named Jack that can answer question.
 """
 
-def convert_asset_lite_to_asset(asset_lite: AssetLite) -> Asset:
+def _create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     """Convert an AssetLite object to a full Asset object with unified schema"""
     current_time = datetime.utcnow()
     
     # Create the unified schema
     unified_schema = SchemaType(
-        type=asset_lite.type.value if hasattr(asset_lite.type, 'value') else str(asset_lite.type),
+        type=asset_lite.type,
         description=asset_lite.schema_description or asset_lite.description,
         is_array=asset_lite.is_collection,
         fields=None  # TODO: Could extract fields from schema_description or example_value if structured
     )
+
+    # Create metadata for the asset
+    custom_metadata = {}
+    if asset_lite.external_system_for:
+        custom_metadata['external_system_for'] = asset_lite.external_system_for
+
+    asset_metadata = AssetMetadata(
+        created_at=current_time,
+        updated_at=current_time,
+        creator='mission_specialist',
+        custom_metadata=custom_metadata,
+    )
     
-    # Determine initial status based on role
-    if asset_lite.role == 'input':
-        # Input assets start as pending until user provides them
-        initial_status = AssetStatus.PENDING
-    elif asset_lite.role == 'output':
-        # Output assets start as pending until generated
-        initial_status = AssetStatus.PENDING
-    else:
-        # Intermediate assets start as pending until created by hops
-        initial_status = AssetStatus.PENDING
-    
-    asset_to_return = Asset(
-        id=str(uuid.uuid4()),  # Generate new ID
+    # Create the full Asset object
+    return Asset(
+        id=str(uuid.uuid4()),
         name=asset_lite.name,
         description=asset_lite.description,
-        schema=unified_schema,  # Add the unified schema
-        value=asset_lite.example_value,  # Use example as initial content (renamed from content to value)
-        status=initial_status,  # Set appropriate initial status
+        schema_definition=unified_schema,
+        value=asset_lite.example_value,
+        status=AssetStatus.PENDING,
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
-        collection_type=asset_lite.collection_type.value if hasattr(asset_lite.collection_type, 'value') else str(asset_lite.collection_type) if asset_lite.collection_type else 'null',
-        role=asset_lite.role,  # Include the role field
-        asset_metadata={
-            'createdAt': current_time.isoformat(),
-            'updatedAt': current_time.isoformat(),
-            'creator': 'mission_specialist',
-            'tags': [],
-            'agent_associations': [],
-            'version': 1,
-            'token_count': 0,
-            'external_system_for': asset_lite.external_system_for  # Add external system reference
-        }
+        collection_type=asset_lite.collection_type,
+        role=asset_lite.role or 'intermediate',
+        asset_metadata=asset_metadata,
     )
-
-    return asset_to_return
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -274,13 +265,13 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             # Convert AssetLite objects to full Asset objects with explicit roles
             state.mission.inputs = []
             for asset_lite in parsed_response.mission_proposal.inputs:
-                asset = convert_asset_lite_to_asset(asset_lite) 
+                asset = _create_asset_from_lite(asset_lite) 
                 asset.role = 'input'  # Explicitly set as input
                 state.mission.inputs.append(asset)
             
             state.mission.outputs = []
             for asset_lite in parsed_response.mission_proposal.outputs:
-                asset = convert_asset_lite_to_asset(asset_lite)
+                asset = _create_asset_from_lite(asset_lite)
                 asset.role = 'output'  # Explicitly set as output
                 state.mission.outputs.append(asset)
             
@@ -462,7 +453,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 output_asset_lite = hop_proposal.output_asset
                 
                 # Convert AssetLite to Asset
-                new_wip_asset = convert_asset_lite_to_asset(output_asset_lite)
+                new_wip_asset = _create_asset_from_lite(output_asset_lite)
                 
                 # Override ID and set role for this WIP asset
                 new_wip_asset.id = generated_wip_asset_id 

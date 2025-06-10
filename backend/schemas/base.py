@@ -43,7 +43,7 @@ class SchemaEntity(BaseModel):
     id: str
     name: str
     description: str
-    schema: SchemaType
+    schema_definition: SchemaType = Field(alias="schema")
 
 
 # --- Utility Functions ---

@@ -96,18 +96,20 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                         className={`flex ${message.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
-                            className={`max-w-[80%] rounded-lg p-3 ${message.role === MessageRole.USER
-                                ? 'bg-blue-500 text-white'
+                            className={`max-w-[80%] rounded-lg ${message.role === MessageRole.USER
+                                ? 'p-3 bg-blue-500 text-white'
                                 : message.role === MessageRole.SYSTEM
-                                    ? 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-500'
+                                    ? 'p-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-500'
                                     : message.role === MessageRole.STATUS
-                                        ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                                        ? 'px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700/50'
+                                        : 'p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                                 }`}
                         >
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                <MarkdownRenderer content={message.content} />
-                            </div>
+                            <MarkdownRenderer
+                                content={message.content}
+                                compact={message.role === MessageRole.STATUS}
+                                className={message.role === MessageRole.STATUS ? '' : 'prose-sm'}
+                            />
                             <div className="flex items-center justify-between mt-1">
                                 {message.metadata?.type && (
                                     <div className="text-xs opacity-75">

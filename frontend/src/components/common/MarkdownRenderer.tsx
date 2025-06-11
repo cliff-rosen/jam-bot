@@ -5,9 +5,10 @@ import remarkGfm from 'remark-gfm';
 interface MarkdownRendererProps {
     content: string;
     className?: string;
+    compact?: boolean;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '', compact = false }) => {
     return (
         <div className={`prose prose-gray dark:prose-invert max-w-none ${className}`}>
             <ReactMarkdown
@@ -15,39 +16,39 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
                 components={{
                     // Text elements
                     p: ({ children }) => (
-                        <p className="text-base text-gray-900 dark:text-gray-100 mb-4">
+                        <p className={`text-gray-900 dark:text-gray-100 ${compact ? 'mb-1' : 'mb-4'}`}>
                             {children}
                         </p>
                     ),
                     h1: ({ children }) => (
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                        <h1 className={`text-2xl font-bold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2' : 'mb-4'}`}>
                             {children}
                         </h1>
                     ),
                     h2: ({ children }) => (
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                        <h2 className={`text-xl font-bold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2' : 'mb-3'}`}>
                             {children}
                         </h2>
                     ),
                     h3: ({ children }) => (
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                        <h3 className={`text-lg font-bold text-gray-900 dark:text-gray-100 ${compact ? 'mb-1' : 'mb-2'}`}>
                             {children}
                         </h3>
                     ),
 
                     // Lists
                     ul: ({ children }) => (
-                        <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100 mb-4">
+                        <ul className={`list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100 ${compact ? 'mb-2' : 'mb-4'}`}>
                             {children}
                         </ul>
                     ),
                     ol: ({ children }) => (
-                        <ol className="list-decimal list-inside space-y-1 text-gray-900 dark:text-gray-100 mb-4">
+                        <ol className={`list-decimal list-inside space-y-1 text-gray-900 dark:text-gray-100 ${compact ? 'mb-2' : 'mb-4'}`}>
                             {children}
                         </ol>
                     ),
                     li: ({ children }) => (
-                        <li className="text-base text-gray-900 dark:text-gray-100">
+                        <li className="text-gray-900 dark:text-gray-100">
                             {children}
                         </li>
                     ),

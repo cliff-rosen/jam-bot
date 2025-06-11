@@ -355,7 +355,11 @@ Here's a complete example of a hop implementation:
             "token_expires_at": {{"type": "string", "format": "date-time"}}
           }}
         }},
-        "value": null,
+        "value": {{
+          "access_token": "ya29.a0AfB_byC...",
+          "refresh_token": "1//04dX...",
+          "token_expires_at": "2024-04-11T03:46:47.190990Z"
+        }},
         "is_collection": false,
         "role": "input",
         "asset_metadata": {{
@@ -363,7 +367,9 @@ Here's a complete example of a hop implementation:
           "tags": [],
           "agent_associations": [],
           "version": 1,
-          "token_count": 0
+          "token_count": 0,
+          "created_at": "2024-04-11T03:46:47.190990Z",
+          "updated_at": "2024-04-11T03:46:47.190990Z"
         }}
       }},
       "step1_emails_list": {{
@@ -384,7 +390,18 @@ Here's a complete example of a hop implementation:
             "labels": {{"type": "string", "is_array": true}}
           }}
         }},
-        "value": null,
+        "value": [
+          {{
+            "id": "msg_123",
+            "thread_id": "thread_456",
+            "subject": "Test Email",
+            "from": "test@example.com",
+            "to": ["recipient@example.com"],
+            "date": "2024-04-11T03:46:47.190990Z",
+            "snippet": "This is a test email",
+            "labels": ["INBOX", "IMPORTANT"]
+          }}
+        ],
         "subtype": null,
         "is_collection": true,
         "collection_type": "array",
@@ -394,7 +411,9 @@ Here's a complete example of a hop implementation:
           "tags": [],
           "agent_associations": [],
           "version": 1,
-          "token_count": 0
+          "token_count": 0,
+          "created_at": "2024-04-11T03:46:47.190990Z",
+          "updated_at": "2024-04-11T03:46:47.190990Z"
         }}
       }}
     }}

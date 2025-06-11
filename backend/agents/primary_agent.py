@@ -733,16 +733,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "response_text": response_message.content,
                 "status": "hop_implementer_completed",
                 "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
-                "debug": f"Hop implementation status: {current_hop.status}, {next_status}",
+                "debug": f"Hop implementation status: {current_hop.status.value}, {next_status}",
                 "payload": {
-                    "hop": {
-                        **current_hop.model_dump(mode='json'),
-                        "tool_steps": current_hop.tool_steps,
-                        "hop_state": {
-                            asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in current_hop.hop_state.items()
-                        }
-                    },
+                    "hop": current_hop.model_dump(mode='json'),
                     "mission": {
                         **state.mission.model_dump(mode='json'),
                         "mission_state": {

@@ -667,10 +667,14 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             )
             
         elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
+            print("Response type: IMPLEMENTATION_PLAN")
             # Validate the returned plan
             validation_errors = validate_tool_chain(parsed_response.hop.tool_steps, current_hop.hop_state)
+            print("Back after validation")
 
             if validation_errors:
+                print("Validation errors:")
+                print(validation_errors)
                 # Bounce back for clarification with concise error list
                 current_hop.status = ExecutionStatus.PENDING
                 state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
@@ -689,12 +693,14 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                     timestamp=datetime.utcnow().isoformat()
                 )
             else:
+                print("Response type: IMPLEMENTATION_PLAN - no validation errors")
                 # Accept the plan
                 updated_hop = parsed_response.hop
 
-                current_hop.tool_steps = updated_hop.tool_steps
+                # Copy all fields from the updated hop
+                current_hop.__dict__.update(updated_hop.__dict__)
                 current_hop.is_resolved = True
-                current_hop.status = ExecutionStatus.PENDING
+                current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
                 current_hop.updated_at = datetime.utcnow()
 
                 state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
@@ -731,6 +737,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "payload": {
                     "hop": {
                         **current_hop.model_dump(mode='json'),
+                        "tool_steps": current_hop.tool_steps,
                         "hop_state": {
                             asset_id: asset.model_dump(mode='json')
                             for asset_id, asset in current_hop.hop_state.items()

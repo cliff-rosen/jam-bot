@@ -115,7 +115,7 @@ export interface Hop {
     output_mapping: Record<string, string>;
     tool_steps: ToolStep[];
     hop_state: Record<string, Asset>;
-    status: ExecutionStatus;
+    status: HopStatus;
     is_final?: boolean;
     is_resolved?: boolean;
     current_step_index?: number;

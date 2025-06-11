@@ -129,7 +129,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...implementedHop,
                 tool_steps: implementedHop.tool_steps || [],
                 is_resolved: true,
-                status: ExecutionStatus.PENDING
+                status: HopStatus.HOP_READY_TO_EXECUTE
             };
 
             const updatedHopsArray = [...state.mission.hops];
@@ -155,7 +155,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             if (completeCurrentHopIndex < updatedHops.length) {
                 updatedHops[completeCurrentHopIndex] = {
                     ...completedHop,
-                    status: ExecutionStatus.COMPLETED
+                    status: HopStatus.ALL_HOPS_COMPLETE
                 };
             }
 
@@ -183,7 +183,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
                     return {
                         ...hop,
-                        status: ExecutionStatus.RUNNING,
+                        status: HopStatus.HOP_RUNNING,
                         tool_steps: updatedSteps,
                     };
                 }
@@ -193,7 +193,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const updatedCurrentHopForStart = state.mission.current_hop?.id === hopIdToStart
                 ? {
                     ...state.mission.current_hop,
-                    status: ExecutionStatus.RUNNING,
+                    status: HopStatus.HOP_RUNNING,
                     tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
                         if (index === 0) {
                             return { ...step, status: ExecutionStatus.RUNNING };
@@ -224,7 +224,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
                     return {
                         ...hop,
-                        status: ExecutionStatus.COMPLETED,
+                        status: HopStatus.ALL_HOPS_COMPLETE,
                         tool_steps: updatedSteps
                     };
                 }
@@ -256,7 +256,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: {
                     ...state.mission,
-                    mission_state: updatedMissionState, // Include updated mission state with ready assets
+                    mission_state: updatedMissionState,
                     hops: updatedHopsForComplete,
                     current_hop: undefined,
                     current_hop_index: (state.mission.current_hop_index ?? 0) + 1,
@@ -277,7 +277,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
                     return {
                         ...hop,
-                        status: ExecutionStatus.FAILED,
+                        status: HopStatus.FAILED,
                         error: error,
                         tool_steps: updatedSteps
                     };
@@ -288,13 +288,14 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const updatedCurrentHopForFail = state.mission.current_hop?.id === hopIdToFail
                 ? {
                     ...state.mission.current_hop,
-                    status: ExecutionStatus.FAILED,
+                    status: HopStatus.FAILED,
                     error: error,
-                    tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.FAILED,
-                        error: error
-                    }))
+                    tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
+                        if (index === state.mission.current_hop?.current_step_index) {
+                            return { ...step, status: ExecutionStatus.FAILED };
+                        }
+                        return step;
+                    }) || [],
                 }
                 : state.mission.current_hop;
 
@@ -313,7 +314,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 if (hop.id === hopIdToRetry) {
                     return {
                         ...hop,
-                        status: ExecutionStatus.PENDING,
+                        status: HopStatus.HOP_READY_TO_EXECUTE,
                         error: undefined,
                         tool_steps: hop.tool_steps?.map(step => ({
                             ...step,
@@ -329,7 +330,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const updatedCurrentHopForRetry = state.mission.current_hop?.id === hopIdToRetry
                 ? {
                     ...state.mission.current_hop,
-                    status: ExecutionStatus.PENDING,
+                    status: HopStatus.HOP_READY_TO_EXECUTE,
                     error: undefined,
                     tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                         ...step,

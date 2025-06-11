@@ -730,7 +730,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
             agent_response_data = {
                 "token": response_message.content[0:100],
-                "response_text": parsed_response.response_content,
+                "response_text": response_message.content,
                 "status": "hop_implementer_completed",
                 "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
                 "debug": f"Hop implementation status: {current_hop.status}, {next_status}",

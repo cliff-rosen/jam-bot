@@ -287,7 +287,7 @@ Here's a complete example of a hop implementation:
     "description": "Search emails and extract key content",
     "input_mapping": {{
       "search_criteria": "mission_search_criteria",
-      "email_credentials": "mission_email_creds"
+      "gmail_credentials": "mission_gmail_creds"
     }},
     "output_mapping": {{
       "analysis_results": "mission_analysis_output"
@@ -297,26 +297,25 @@ Here's a complete example of a hop implementation:
         "id": "step1_email_search",
         "tool_id": "email_search",
         "description": "Search emails using criteria",
+        "resource_configs": {{
+          "gmail": {{
+            "type": "oauth2",
+            "access_token": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.access_token"}},
+            "refresh_token": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.refresh_token"}},
+            "token_expires_at": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.token_expires_at"}}
+          }}
+        }},
         "parameter_mapping": {{
           "query": {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.query"}},
-          "resource_connection": {{"type": "asset_field", "state_asset": "email_credentials"}},
-          "limit": {{"type": "literal", "value": 50}}
+          "folder": {{"type": "literal", "value": "AI News"}},
+          "date_range": {{"type": "literal", "value": {{"start_date": "2024-04-01", "end_date": "2024-04-30"}}}},
+          "limit": {{"type": "literal", "value": 50}},
+          "include_attachments": {{"type": "literal", "value": false}},
+          "include_metadata": {{"type": "literal", "value": true}}
         }},
         "result_mapping": {{
           "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}},
-          "count": {{"type": "discard"}}
-        }}
-      }},
-      {{
-        "id": "step2_content_extract",
-        "tool_id": "content_extractor",
-        "description": "Extract key content from emails",
-        "parameter_mapping": {{
-          "emails": {{"type": "asset_field", "state_asset": "step1_emails_list"}},
-          "extract_fields": {{"type": "literal", "value": ["subject", "body", "date"]}}
-        }},
-        "result_mapping": {{
-          "extracted_content": {{"type": "asset_field", "state_asset": "analysis_results"}}
+          "count": {{"type": "asset_field", "state_asset": "step1_emails_list", "path": "metadata.count"}}
         }}
       }}
     ],
@@ -329,8 +328,7 @@ Here's a complete example of a hop implementation:
           "type": "object",
           "is_array": false,
           "fields": {{
-            "query": {{"type": "string"}},
-            "date_range": {{"type": "object"}}
+            "query": {{"type": "string"}}
           }}
         }},
         "value": null,
@@ -344,16 +342,20 @@ Here's a complete example of a hop implementation:
           "token_count": 0
         }}
       }},
-      "email_credentials": {{
-        "id": "email_credentials",
-        "name": "Email Credentials",
-        "description": "OAuth credentials for email access",
+      "gmail_credentials": {{
+        "id": "gmail_credentials",
+        "name": "Gmail Credentials",
+        "description": "OAuth credentials for Gmail access",
         "schema": {{
-          "type": "config",
-          "is_array": false
+          "type": "object",
+          "is_array": false,
+          "fields": {{
+            "access_token": {{"type": "string"}},
+            "refresh_token": {{"type": "string"}},
+            "token_expires_at": {{"type": "string", "format": "date-time"}}
+          }}
         }},
         "value": null,
-        "subtype": "oauth_token",
         "is_collection": false,
         "role": "input",
         "asset_metadata": {{
@@ -372,10 +374,14 @@ Here's a complete example of a hop implementation:
           "type": "object",
           "is_array": true,
           "fields": {{
-            "sender": {{"type": "string"}},
+            "id": {{"type": "string"}},
+            "thread_id": {{"type": "string"}},
             "subject": {{"type": "string"}},
-            "body": {{"type": "string"}},
-            "date": {{"type": "string"}}
+            "from": {{"type": "string"}},
+            "to": {{"type": "string", "is_array": true}},
+            "date": {{"type": "string", "format": "date-time"}},
+            "snippet": {{"type": "string"}},
+            "labels": {{"type": "string", "is_array": true}}
           }}
         }},
         "value": null,
@@ -383,33 +389,6 @@ Here's a complete example of a hop implementation:
         "is_collection": true,
         "collection_type": "array",
         "role": "intermediate",
-        "asset_metadata": {{
-          "creator": "hop_implementer",
-          "tags": [],
-          "agent_associations": [],
-          "version": 1,
-          "token_count": 0
-        }}
-      }},
-      "analysis_results": {{
-        "id": "analysis_results", 
-        "name": "Analysis Results",
-        "description": "Extracted and analyzed email content",
-        "schema": {{
-          "type": "object",
-          "is_array": true,
-          "fields": {{
-            "sender": {{"type": "string"}},
-            "subject": {{"type": "string"}},
-            "body": {{"type": "string"}},
-            "date": {{"type": "string"}}
-          }}
-        }},
-        "value": null,
-        "subtype": null,
-        "is_collection": true,
-        "collection_type": "array",
-        "role": "output",
         "asset_metadata": {{
           "creator": "hop_implementer",
           "tags": [],

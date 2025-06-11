@@ -55,12 +55,12 @@ class DateRange(BaseModel):
 
 class EmailSearchParams(BaseModel):
     """Parameters for email search"""
-    folders: Optional[List[str]] = None
-    date_range: Optional[DateRange] = None
-    query_terms: Optional[List[str]] = None
-    max_results: int = Field(default=100, ge=1, le=500)
-    include_attachments: bool = False
-    include_metadata: bool = True
+    query: str = Field(description="Gmail search query")
+    folder: Optional[str] = Field(default="INBOX", description="Gmail folder/label to search in")
+    date_range: Optional[DateRange] = Field(default=None, description="Date range to search within")
+    limit: int = Field(default=100, ge=1, le=500, description="Maximum number of results to return")
+    include_attachments: bool = Field(default=False, description="Whether to include attachment data")
+    include_metadata: bool = Field(default=True, description="Whether to include message metadata")
 
 class EmailAgentResponse(BaseModel):
     """Response model for email agent operations"""

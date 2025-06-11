@@ -892,12 +892,18 @@ def _validate_step_schema(step: ToolStep, tool_def: "ToolDefinition", hop_state:
     for param_name, mapping in step.parameter_mapping.items():
         tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
         if not tool_param:
-            errors.append(f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition.")
+            errors.append(
+                f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition. "
+                f"Available parameters: {', '.join(p.name for p in tool_def.parameters)}"
+            )
             continue
             
         if mapping.type == "asset_field":
             if mapping.state_asset not in hop_state:
-                errors.append(f"Step '{step.id}': Asset '{mapping.state_asset}' for parameter '{param_name}' not found in hop state.")
+                errors.append(
+                    f"Step '{step.id}': Asset '{mapping.state_asset}' for parameter '{param_name}' not found in hop state. "
+                    f"Available assets: {', '.join(hop_state.keys())}"
+                )
                 continue
             
             # TODO: Add more sophisticated schema compatibility checks here
@@ -907,12 +913,18 @@ def _validate_step_schema(step: ToolStep, tool_def: "ToolDefinition", hop_state:
     for result_name, mapping in step.result_mapping.items():
         tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
         if not tool_output:
-            errors.append(f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition.")
+            errors.append(
+                f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition. "
+                f"Available outputs: {', '.join(o.name for o in tool_def.outputs)}"
+            )
             continue
             
         if mapping.type == "asset_field":
             if mapping.state_asset not in hop_state:
-                errors.append(f"Step '{step.id}': Asset '{mapping.state_asset}' for result '{result_name}' not found in hop state.")
+                errors.append(
+                    f"Step '{step.id}': Asset '{mapping.state_asset}' for result '{result_name}' not found in hop state. "
+                    f"Available assets: {', '.join(hop_state.keys())}"
+                )
                 continue
 
             # TODO: Add more sophisticated schema compatibility checks here

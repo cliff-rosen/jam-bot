@@ -20,16 +20,16 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     """Execution logic for the *email_search* tool.
 
     Expects the following parameters (as defined in the tool schema):
-        • folder : str | None – label ID to search inside (optional)
-        • query  : str | None – free-text search query
-        • limit  : int – maximum number of messages (<= 500)
-        • include_attachments : bool – whether to include attachment data
-        • include_metadata    : bool – include message metadata
-        • date_range          : Any – optional structure understood by EmailService
+        • query : str – Gmail search query
+        • folder : str | None – label ID to search inside (optional, defaults to INBOX)
+        • date_range : object | None – date range to search within
+        • limit : int – maximum number of messages (1-500, defaults to 100)
+        • include_attachments : bool – whether to include attachment data (defaults to false)
+        • include_metadata : bool – include message metadata (defaults to true)
 
     Returns a mapping with keys exactly matching the tool's declared outputs:
-        • emails – List[dict]
-        • count  – int
+        • emails – List[dict] – List of matching emails
+        • count – int – Total number of matching emails
     """
     print("handle_email_search executing")
 
@@ -37,12 +37,12 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
 
     # Transform inputs for EmailService API
     endpoint_params: Dict[str, Any] = {
-        "folders": [params["folder"]] if params.get("folder") else None,
-        "query_terms": [params["query"]] if params.get("query") else None,
+        "query": params["query"],
+        "folder": params.get("folder", "INBOX"),
+        "date_range": params.get("date_range"),
         "max_results": min(int(params.get("limit", 100)), 500),
         "include_attachments": bool(params.get("include_attachments", False)),
-        "include_metadata": bool(params.get("include_metadata", True)),
-        "date_range": params.get("date_range"),
+        "include_metadata": bool(params.get("include_metadata", True))
     }
 
     # Call the EmailService to get messages and count
@@ -65,9 +65,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
 
     return {
         "emails": response.get("messages", []),
-        "count": response.get("count", 0),
-        "stored_ids": response.get("stored_ids", []),
-        "error": response.get("error"),
+        "count": response.get("count", 0)
     }
 
 

@@ -13,6 +13,7 @@ from enum import Enum
 from .asset import Asset
 from .resource import Resource
 from .tool import ToolDefinition
+from tools.tool_execution import execute_tool_step, ToolExecutionError
 
 
 class ExecutionStatus(str, Enum):
@@ -185,4 +186,27 @@ class ToolStep(BaseModel):
         """Handle empty datetime strings from LLM responses"""
         if v == "" or v is None:
             return datetime.utcnow()
-        return v 
+        return v
+
+    async def execute(self, hop_state: Dict[str, Asset]) -> Dict[str, Any]:
+        """
+        Execute this tool step and return the results.
+        
+        Args:
+            hop_state: Current state of the hop containing all assets
+            
+        Returns:
+            Dict containing the execution results
+            
+        Raises:
+            ToolExecutionError: If tool execution fails
+        """
+        try:
+            self.status = ExecutionStatus.RUNNING
+            result = await execute_tool_step(self, hop_state)
+            self.status = ExecutionStatus.COMPLETED
+            return result
+        except Exception as e:
+            self.status = ExecutionStatus.FAILED
+            self.error = str(e)
+            raise ToolExecutionError(str(e), self.tool_id) 

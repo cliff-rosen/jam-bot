@@ -1,6 +1,7 @@
 import { api } from './index';
 import { ToolStep } from '../../types/workflow';
-import { Asset, ToolDefinition } from '../../types/schema';
+import { Asset } from '../../types/asset';
+import { ToolDefinition } from '../../types/tool';
 
 export interface ToolExecutionResult {
     success: boolean;

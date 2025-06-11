@@ -30,7 +30,8 @@ type JamBotAction =
     | { type: 'COMPLETE_HOP_EXECUTION'; payload: string }
     | { type: 'FAIL_HOP_EXECUTION'; payload: { hopId: string; error: string } }
     | { type: 'RETRY_HOP_EXECUTION'; payload: string }
-    | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; missionOutputs: Map<string, Asset> } };
+    | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; missionOutputs: Map<string, Asset> } }
+    | { type: 'SET_STATE'; payload: JamBotState };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -45,6 +46,8 @@ const initialState: JamBotState = {
 
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
     switch (action.type) {
+        case 'SET_STATE':
+            return action.payload;
         case 'ADD_MESSAGE':
             return {
                 ...state,
@@ -394,6 +397,7 @@ const JamBotContext = createContext<{
     retryHopExecution: (hopId: string) => void;
     clearCollabArea: () => void;
     updateHopState: (hop: Hop, missionOutputs: Map<string, Asset>) => void;
+    setState: (state: JamBotState) => void;
 } | undefined>(undefined);
 
 export const useJamBot = () => {
@@ -460,6 +464,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const updateHopState = useCallback((hop: Hop, missionOutputs: Map<string, Asset>) => {
         dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop, missionOutputs } });
+    }, []);
+
+    const setState = useCallback((newState: JamBotState) => {
+        dispatch({ type: 'SET_STATE', payload: newState });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -609,7 +617,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             failHopExecution,
             retryHopExecution,
             clearCollabArea,
-            updateHopState
+            updateHopState,
+            setState
         }}>
             {children}
         </JamBotContext.Provider>

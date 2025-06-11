@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { VariableRenderer } from './common/VariableRenderer';
 import Dialog from './common/Dialog';
-import { X } from 'lucide-react';
+import { X, Clipboard, Upload, Check } from 'lucide-react';
 
 interface StateInspectorProps {
     isOpen: boolean;
@@ -10,21 +10,105 @@ interface StateInspectorProps {
 }
 
 export default function StateInspector({ isOpen, onClose }: StateInspectorProps) {
-    const { state } = useJamBot();
+    const { state, setState } = useJamBot();
+    const [pasteError, setPasteError] = useState<string | null>(null);
+    const [showPasteArea, setShowPasteArea] = useState(false);
+    const [pasteContent, setPasteContent] = useState('');
+    const [copySuccess, setCopySuccess] = useState(false);
 
     if (!isOpen) {
         return null;
     }
 
+    const handleCopy = async () => {
+        try {
+            const text = JSON.stringify(state, null, 2);
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setPasteError('State copied to clipboard!');
+            setTimeout(() => setPasteError(null), 2000);
+        } catch (err) {
+            setPasteError('Failed to copy state');
+            console.error('Failed to copy state:', err);
+        }
+    };
+
+    const handlePaste = () => {
+        setShowPasteArea(true);
+        setPasteError(null);
+    };
+
+    const handleApplyPastedState = () => {
+        try {
+            const newState = JSON.parse(pasteContent);
+            setState(newState);
+            setPasteError(null);
+            setShowPasteArea(false);
+            setPasteContent('');
+        } catch (err) {
+            setPasteError('Invalid JSON. Please check the format.');
+            console.error('Failed to parse state:', err);
+        }
+    };
+
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title="JamBot State Inspector">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[90vw] max-w-4xl h-[80vh] flex flex-col">
+        <Dialog isOpen={isOpen} onClose={onClose} title="JamBot State Inspector" maxWidth="6xl">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl h-[80vh] flex flex-col">
                 <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-                    <h2 className="text-lg font-semibold">JamBot State Inspector</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleCopy}
+                            className={`p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${copySuccess ? 'text-green-500' : ''}`}
+                            title="Copy state to clipboard"
+                        >
+                            {copySuccess ? <Check size={20} /> : <Clipboard size={20} />}
+                        </button>
+                        <button
+                            onClick={handlePaste}
+                            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Paste state from clipboard"
+                        >
+                            <Upload size={20} />
+                        </button>
+                    </div>
                 </div>
+                {pasteError && (
+                    <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+                        {pasteError}
+                    </div>
+                )}
+                {showPasteArea && (
+                    <div className="p-4 border-b dark:border-gray-700">
+                        <textarea
+                            value={pasteContent}
+                            onChange={(e) => setPasteContent(e.target.value)}
+                            className="w-full h-32 p-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="Paste state JSON here..."
+                        />
+                        <div className="flex justify-end mt-2 gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowPasteArea(false);
+                                    setPasteContent('');
+                                    setPasteError(null);
+                                }}
+                                className="px-3 py-1 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApplyPastedState}
+                                className="px-3 py-1 text-sm bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors"
+                            >
+                                Apply State
+                            </button>
+                        </div>
+                    </div>
+                )}
                 <div className="p-4 overflow-auto flex-1">
                     <VariableRenderer value={state} />
                 </div>

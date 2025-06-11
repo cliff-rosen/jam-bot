@@ -223,9 +223,16 @@ Use these three types for tool parameter mapping:
         "id": "step1_search",
         "tool_id": "email_search",
         "description": "Search emails using criteria",
+        "resource_configs": {{
+          "gmail": {{
+            "type": "oauth2",
+            "access_token": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.access_token"}},
+            "refresh_token": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.refresh_token"}},
+            "token_expires_at": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.token_expires_at"}}
+          }}
+        }},
         "parameter_mapping": {{
           "query": {{"type": "asset_field", "state_asset": "search_criteria", "path": "content.query"}},
-          "resource_connection": {{"type": "asset_field", "state_asset": "email_credentials"}},
           "limit": {{"type": "literal", "value": 50}}
         }},
         "result_mapping": {{

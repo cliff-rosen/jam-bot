@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Asset } from '@/types/schema';
+import { Asset } from '@/types/asset';
 import { getAssetIcon } from '@/lib/utils/assets/assetIconUtils';
 import { assetApi } from '@/lib/api/assetApi';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
@@ -17,8 +17,8 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
     // Get the latest asset state from either mission state or current hop state
     const latestAsset = asset ? (
-        jamBotState.mission.state[asset.id] || // Check mission state first
-        (jamBotState.mission.current_hop?.state?.[asset.id]) // Then check current hop state
+        jamBotState.mission.mission_state?.[asset.id] || // Check mission state first
+        (jamBotState.mission.current_hop?.hop_state?.[asset.id]) // Then check current hop state
     ) : undefined;
 
     useEffect(() => {
@@ -26,7 +26,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
             if (!latestAsset) return;
 
             // Only fetch details for database entity assets
-            if (latestAsset.schema.type === 'database_entity' && !latestAsset.value) {
+            if (latestAsset.schema?.type === 'database_entity' && !latestAsset.value) {
                 setLoading(true);
                 setError(null);
                 try {
@@ -55,6 +55,14 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
     }
 
     const displayAsset = detailedAsset || latestAsset;
+
+    if (!displayAsset || !displayAsset.schema) {
+        return (
+            <div className="h-full flex items-center justify-center bg-white dark:bg-gray-800">
+                <p className="text-gray-500 dark:text-gray-400">Invalid asset data</p>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">

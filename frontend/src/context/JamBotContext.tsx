@@ -122,26 +122,25 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
-            const implementedHop = action.payload;
+            if (!state.mission?.current_hop) {
+                return state;
+            }
 
             const updatedCurrentHop = {
                 ...state.mission.current_hop,
-                ...implementedHop,
-                tool_steps: implementedHop.tool_steps || [],
-                is_resolved: true,
-                status: HopStatus.HOP_READY_TO_EXECUTE
+                status: HopStatus.HOP_READY_TO_EXECUTE,
+                is_resolved: true
             };
 
-            const updatedHopsArray = [...state.mission.hops];
-            if (state.mission.current_hop_index != null && state.mission.current_hop_index < updatedHopsArray.length) {
-                updatedHopsArray[state.mission.current_hop_index] = updatedCurrentHop as Hop;
-            }
+            const updatedHopsArray = state.mission.hops.map(hop =>
+                hop.id === updatedCurrentHop.id ? updatedCurrentHop : hop
+            );
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    current_hop: updatedCurrentHop as Hop,
+                    current_hop: updatedCurrentHop,
                     hops: updatedHopsArray,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
                 }
@@ -250,61 +249,48 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 // TODO: Do something with markedReady
             }
 
-            const isFinalHopAfterCompletion = updatedHopsForComplete[state.mission.current_hop_index ?? 0]?.is_final;
-
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    mission_state: updatedMissionState,
                     hops: updatedHopsForComplete,
-                    current_hop: undefined,
-                    current_hop_index: (state.mission.current_hop_index ?? 0) + 1,
-                    hop_status: isFinalHopAfterCompletion ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN,
-                    mission_status: isFinalHopAfterCompletion ? MissionStatus.COMPLETE : state.mission.mission_status
+                    current_hop: completedHopForExecution,
+                    hop_status: HopStatus.ALL_HOPS_COMPLETE
                 }
             };
         case 'FAIL_HOP_EXECUTION':
-            const { hopId: hopIdToFail, error } = action.payload;
+            const { hopId, error } = action.payload;
             const updatedHopsForFail = state.mission.hops.map(hop => {
-                if (hop.id === hopIdToFail) {
-                    const updatedSteps = hop.tool_steps?.map((step, index) => {
-                        if (index === hop.current_step_index) {
-                            return { ...step, status: ExecutionStatus.FAILED };
-                        }
-                        return step;
-                    }) || [];
+                if (hop.id === hopId) {
+                    const updatedSteps = hop.tool_steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.FAILED,
+                        error
+                    })) || [];
 
                     return {
                         ...hop,
                         status: HopStatus.FAILED,
-                        error: error,
+                        error,
                         tool_steps: updatedSteps
                     };
                 }
                 return hop;
             });
 
-            const updatedCurrentHopForFail = state.mission.current_hop?.id === hopIdToFail
-                ? {
-                    ...state.mission.current_hop,
-                    status: HopStatus.FAILED,
-                    error: error,
-                    tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
-                        if (index === state.mission.current_hop?.current_step_index) {
-                            return { ...step, status: ExecutionStatus.FAILED };
-                        }
-                        return step;
-                    }) || [],
-                }
-                : state.mission.current_hop;
+            const failedHop = updatedHopsForFail.find(h => h.id === hopId);
+
+            if (!failedHop) {
+                console.error('Failed hop not found in hops array');
+                return state;
+            }
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForFail,
-                    current_hop: updatedCurrentHopForFail,
+                    current_hop: failedHop,
                     hop_status: HopStatus.FAILED
                 }
             };
@@ -312,41 +298,35 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const hopIdToRetry = action.payload;
             const updatedHopsForRetry = state.mission.hops.map(hop => {
                 if (hop.id === hopIdToRetry) {
+                    const updatedSteps = hop.tool_steps?.map(step => ({
+                        ...step,
+                        status: ExecutionStatus.PENDING,
+                        error: undefined
+                    })) || [];
+
                     return {
                         ...hop,
                         status: HopStatus.HOP_READY_TO_EXECUTE,
                         error: undefined,
-                        tool_steps: hop.tool_steps?.map(step => ({
-                            ...step,
-                            status: ExecutionStatus.PENDING,
-                            error: undefined
-                        })) || [],
-                        current_step_index: 0
+                        tool_steps: updatedSteps
                     };
                 }
                 return hop;
             });
 
-            const updatedCurrentHopForRetry = state.mission.current_hop?.id === hopIdToRetry
-                ? {
-                    ...state.mission.current_hop,
-                    status: HopStatus.HOP_READY_TO_EXECUTE,
-                    error: undefined,
-                    tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.PENDING,
-                        error: undefined
-                    })) || [],
-                    current_step_index: 0
-                }
-                : state.mission.current_hop;
+            const retriedHop = updatedHopsForRetry.find(h => h.id === hopIdToRetry);
+
+            if (!retriedHop) {
+                console.error('Retried hop not found in hops array');
+                return state;
+            }
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
                     hops: updatedHopsForRetry,
-                    current_hop: updatedCurrentHopForRetry,
+                    current_hop: retriedHop,
                     hop_status: HopStatus.HOP_READY_TO_EXECUTE
                 }
             };

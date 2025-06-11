@@ -735,7 +735,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
                 "debug": f"Hop implementation status: {current_hop.status.value}, {next_status}",
                 "payload": {
-                    "hop": current_hop.model_dump(mode='json'),
+                    "hop": {
+                        **current_hop.model_dump(mode='json'),
+                        "status": current_hop.status.value,
+                        "hop_status": state.mission.hop_status.value if state.mission.hop_status else None
+                    },
                     "mission": {
                         **state.mission.model_dump(mode='json'),
                         "mission_state": {

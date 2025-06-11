@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
+import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
@@ -22,9 +22,23 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [executingStepId, setExecutingStepId] = useState<string | null>(null);
     const [executionError, setExecutionError] = useState<string | null>(null);
 
-    const statusDisplay = getExecutionStatusDisplay(hop.status);
-    const completedSteps = hop.steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
-    const totalSteps = hop.steps?.length || 0;
+    // Convert HopStatus to ExecutionStatus for display
+    const getExecutionStatusFromHopStatus = (status: HopStatus): ExecutionStatus => {
+        switch (status) {
+            case HopStatus.HOP_RUNNING:
+                return ExecutionStatus.RUNNING;
+            case HopStatus.ALL_HOPS_COMPLETE:
+                return ExecutionStatus.COMPLETED;
+            case HopStatus.FAILED:
+                return ExecutionStatus.FAILED;
+            default:
+                return ExecutionStatus.PENDING;
+        }
+    };
+
+    const statusDisplay = getExecutionStatusDisplay(getExecutionStatusFromHopStatus(hop.status));
+    const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
+    const totalSteps = hop.tool_steps?.length || 0;
 
     const executeToolStep = async (step: ToolStep) => {
         console.log("Executing tool step:", step);
@@ -32,14 +46,14 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
         setExecutionError(null);
 
         try {
-            const result = await toolsApi.executeTool(step.tool_id, step, hop.state);
+            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
             console.log("Result:", result);
 
             if (result.success) {
                 // Update hop state with execution results
                 const updatedHop = {
                     ...hop,
-                    state: result.hop_state
+                    hop_state: result.hop_state
                 };
 
                 // Check if any updated assets are mapped to mission outputs
@@ -123,7 +137,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Inputs</div>
                             {Object.keys(hop.input_mapping || {}).length > 0 ? (
                                 Object.entries(hop.input_mapping).map(([localKey, assetId]) => {
-                                    const asset = hop.state?.[localKey];
+                                    const asset = hop.hop_state?.[localKey];
                                     const assetName = asset?.name || `Asset ${assetId}`;
                                     const tooltipText = [
                                         `Hop Variable: ${localKey}`,
@@ -152,7 +166,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Outputs</div>
                             {Object.keys(hop.output_mapping || {}).length > 0 ? (
                                 Object.entries(hop.output_mapping).map(([localKey, assetId]) => {
-                                    const asset = hop.state?.[localKey];
+                                    const asset = hop.hop_state?.[localKey];
                                     const assetName = asset?.name || `Asset ${assetId}`;
                                     const tooltipText = [
                                         `Hop Variable: ${localKey}`,
@@ -179,7 +193,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                     </div>
 
                     {/* Steps */}
-                    {hop.steps && hop.steps.length > 0 && (
+                    {hop.tool_steps && hop.tool_steps.length > 0 && (
                         <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Steps</div>
@@ -193,7 +207,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
 
                             {showSteps && (
                                 <div className="space-y-2">
-                                    {hop.steps.map((step, index) => {
+                                    {hop.tool_steps.map((step, index) => {
                                         const stepStatus = getExecutionStatusDisplay(step.status);
 
                                         return (
@@ -256,7 +270,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                                     </div>
                                                                 );
                                                             } else if (mapping.type === "asset_field") {
-                                                                const asset = hop.state?.[mapping.state_asset];
+                                                                const asset = hop.hop_state?.[mapping.state_asset];
                                                                 const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
                                                                 const tooltipText = [
                                                                     `Parameter: ${param}`,
@@ -286,27 +300,37 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 {step.result_mapping && Object.keys(step.result_mapping).length > 0 && (
                                                     <div className="ml-3 space-y-0.5">
                                                         <div className="text-xs font-medium text-gray-600">Outputs</div>
-                                                        {Object.entries(step.result_mapping).map(([result, assetId]) => {
-                                                            const asset = hop.state?.[assetId];
-                                                            const assetName = asset?.name || `${assetId} (name not available)`;
-                                                            const tooltipText = [
-                                                                `Result: ${result}`,
-                                                                `Hop Variable: ${assetId}`,
-                                                                asset?.name ? `Asset Name: ${asset.name}` : null,
-                                                                asset?.description ? `Description: ${asset.description}` : null
-                                                            ].filter(Boolean).join('\n');
+                                                        {Object.entries(step.result_mapping).map(([result, mapping]) => {
+                                                            if (mapping.type === "discard") {
+                                                                return (
+                                                                    <div key={result} className="text-xs text-gray-500">
+                                                                        <span className="text-green-600 dark:text-green-400">{result}:</span>
+                                                                        <span className="ml-1 text-gray-400">(discarded)</span>
+                                                                    </div>
+                                                                );
+                                                            } else if (mapping.type === "asset_field") {
+                                                                const asset = hop.hop_state?.[mapping.state_asset];
+                                                                const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
+                                                                const tooltipText = [
+                                                                    `Result: ${result}`,
+                                                                    `Hop Variable: ${mapping.state_asset}`,
+                                                                    asset?.name ? `Asset Name: ${asset.name}` : null,
+                                                                    asset?.description ? `Description: ${asset.description}` : null
+                                                                ].filter(Boolean).join('\n');
 
-                                                            return (
-                                                                <div key={result} className="text-xs text-gray-500">
-                                                                    <span className="text-green-600 dark:text-green-400">{result}:</span>
-                                                                    <span
-                                                                        className="ml-1 hover:text-green-600 dark:hover:text-green-400 cursor-help transition-colors"
-                                                                        title={tooltipText}
-                                                                    >
-                                                                        {assetName || 'Unknown Asset'}
-                                                                    </span>
-                                                                </div>
-                                                            );
+                                                                return (
+                                                                    <div key={result} className="text-xs text-gray-500">
+                                                                        <span className="text-green-600 dark:text-green-400">{result}:</span>
+                                                                        <span
+                                                                            className="ml-1 hover:text-green-600 dark:hover:text-green-400 cursor-help transition-colors"
+                                                                            title={tooltipText}
+                                                                        >
+                                                                            {assetName}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
                                                         })}
                                                     </div>
                                                 )}
@@ -331,11 +355,11 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                     )}
 
                     {/* Assets */}
-                    {hop.state && Object.keys(hop.state).length > 0 && (
+                    {hop.hop_state && Object.keys(hop.hop_state).length > 0 && (
                         <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    Assets ({Object.keys(hop.state).length})
+                                    Assets ({Object.keys(hop.hop_state).length})
                                 </div>
                                 <button
                                     onClick={() => setShowAssets(!showAssets)}
@@ -347,7 +371,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
 
                             {showAssets && (
                                 <div className="space-y-1">
-                                    {Object.entries(hop.state).map(([key, asset]) => (
+                                    {Object.entries(hop.hop_state).map(([key, asset]) => (
                                         <div key={key} className="text-xs">
                                             <div className="text-gray-700 dark:text-gray-300">
                                                 <span className="text-blue-600 dark:text-blue-400">{key}:</span> {asset.name}
@@ -365,7 +389,6 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                     {/* Metadata */}
                     <div className="flex gap-4 text-xs text-gray-500">
                         <span>Resolved: {hop.is_resolved ? 'Yes' : 'No'}</span>
-                        <span>Created: {new Date(hop.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
             )}

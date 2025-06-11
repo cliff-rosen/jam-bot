@@ -225,10 +225,51 @@ Use these three types for tool parameter mapping:
         "description": "Search emails using criteria",
         "resource_configs": {{
           "gmail": {{
-            "type": "oauth2",
-            "access_token": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.access_token"}},
-            "refresh_token": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.refresh_token"}},
-            "token_expires_at": {{"type": "asset_field", "state_asset": "email_credentials", "path": "content.token_expires_at"}}
+            "id": "gmail",
+            "name": "Gmail",
+            "type": "messaging",
+            "description": "Google Gmail email service for searching and retrieving emails",
+            "auth_config": {{
+              "type": "oauth2",
+              "required_fields": [
+                {{
+                  "field_name": "access_token",
+                  "field_type": "secret",
+                  "required": true,
+                  "description": "OAuth access token"
+                }},
+                {{
+                  "field_name": "refresh_token",
+                  "field_type": "secret",
+                  "required": true,
+                  "description": "OAuth refresh token"
+                }},
+                {{
+                  "field_name": "token_expires_at",
+                  "field_type": "string",
+                  "required": true,
+                  "description": "Token expiration timestamp"
+                }}
+              ]
+            }},
+            "connection_schema": {{
+              "type": "object",
+              "description": "Gmail OAuth credentials",
+              "is_array": false,
+              "fields": {{
+                "access_token": {{"type": "string", "description": "OAuth access token", "is_array": false}},
+                "refresh_token": {{"type": "string", "description": "OAuth refresh token", "is_array": false}},
+                "token_expires_at": {{"type": "string", "description": "Token expiration timestamp", "is_array": false}}
+              }}
+            }},
+            "capabilities": ["search", "retrieve", "send", "list_folders"],
+            "base_url": "https://gmail.googleapis.com",
+            "documentation_url": "https://developers.google.com/gmail/api",
+            "rate_limits": {{
+              "requests_per_minute": 250,
+              "requests_per_day": 1000000,
+              "concurrent_requests": 10
+            }}
           }}
         }},
         "parameter_mapping": {{
@@ -306,10 +347,51 @@ Here's a complete example of a hop implementation:
         "description": "Search emails using criteria",
         "resource_configs": {{
           "gmail": {{
-            "type": "oauth2",
-            "access_token": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.access_token"}},
-            "refresh_token": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.refresh_token"}},
-            "token_expires_at": {{"type": "asset_field", "state_asset": "gmail_credentials", "path": "content.token_expires_at"}}
+            "id": "gmail",
+            "name": "Gmail",
+            "type": "messaging",
+            "description": "Google Gmail email service for searching and retrieving emails",
+            "auth_config": {{
+              "type": "oauth2",
+              "required_fields": [
+                {{
+                  "field_name": "access_token",
+                  "field_type": "secret",
+                  "required": true,
+                  "description": "OAuth access token"
+                }},
+                {{
+                  "field_name": "refresh_token",
+                  "field_type": "secret",
+                  "required": true,
+                  "description": "OAuth refresh token"
+                }},
+                {{
+                  "field_name": "token_expires_at",
+                  "field_type": "string",
+                  "required": true,
+                  "description": "Token expiration timestamp"
+                }}
+              ]
+            }},
+            "connection_schema": {{
+              "type": "object",
+              "description": "Gmail OAuth credentials",
+              "is_array": false,
+              "fields": {{
+                "access_token": {{"type": "string", "description": "OAuth access token", "is_array": false}},
+                "refresh_token": {{"type": "string", "description": "OAuth refresh token", "is_array": false}},
+                "token_expires_at": {{"type": "string", "description": "Token expiration timestamp", "is_array": false}}
+              }}
+            }},
+            "capabilities": ["search", "retrieve", "send", "list_folders"],
+            "base_url": "https://gmail.googleapis.com",
+            "documentation_url": "https://developers.google.com/gmail/api",
+            "rate_limits": {{
+              "requests_per_minute": 250,
+              "requests_per_day": 1000000,
+              "concurrent_requests": 10
+            }}
           }}
         }},
         "parameter_mapping": {{

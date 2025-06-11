@@ -125,17 +125,14 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             if (!state.mission?.current_hop) {
                 return state;
             }
-
             const updatedCurrentHop = {
                 ...state.mission.current_hop,
                 status: HopStatus.HOP_READY_TO_EXECUTE,
                 is_resolved: true
             };
-
             const updatedHopsArray = state.mission.hops.map(hop =>
                 hop.id === updatedCurrentHop.id ? updatedCurrentHop : hop
             );
-
             return {
                 ...state,
                 mission: {

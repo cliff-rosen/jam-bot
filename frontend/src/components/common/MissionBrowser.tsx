@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Mission, Hop, ToolStep } from '@/types/workflow';
 import { Asset } from '@/types/asset';
 
@@ -8,6 +8,23 @@ interface MissionBrowserProps {
 }
 
 export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, className = '' }) => {
+    const [hoveredAssetId, setHoveredAssetId] = useState<string | null>(null);
+
+    // Helper to check if a mapping row should be hot
+    const isMappingHot = (assetId: string) => hoveredAssetId === assetId;
+    // Helper to check if a hop state row should be hot
+    const isHopStateHot = (assetId: string, hop: Hop) => {
+        if (!hoveredAssetId) return false;
+        // If hovering a mapping row, highlight the asset row if IDs match
+        if (hoveredAssetId === assetId) return true;
+        // If hovering a hop state asset row, highlight all mapping rows that reference it
+        const isHoveredAsset = assetId === hoveredAssetId;
+        if (isHoveredAsset) return true;
+        // If hovering a hop state asset, highlight mapping rows that reference it
+        const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
+        return mappingRefs.includes(hoveredAssetId);
+    };
+
     return (
         <div className={`space-y-6 ${className}`}>
             {/* Mission Overview */}
@@ -91,18 +108,27 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(mission.mission_state).map(([key, asset]) => (
-                                <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
-                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
-                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
-                                    <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
-                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
-                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
-                                        <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
-                                    </td>
-                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.status}</td>
-                                </tr>
-                            ))}
+                            {Object.entries(mission.mission_state).map(([key, asset]) => {
+                                // Find if this asset is referenced in any hop input/output mapping
+                                const isMapped = mission.hops.some(hop => Object.values(hop.input_mapping).includes(asset.id) || Object.values(hop.output_mapping).includes(asset.id));
+                                return (
+                                    <tr
+                                        key={key}
+                                        className={`border-b border-gray-100 dark:border-gray-700 ${hoveredAssetId === asset.id && isMapped ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                        onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
+                                        onMouseLeave={() => isMapped && setHoveredAssetId(null)}
+                                    >
+                                        <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
+                                        <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
+                                        <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
+                                        <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
+                                        <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
+                                            <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
+                                        </td>
+                                        <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.status}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -129,7 +155,12 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         </thead>
                                         <tbody>
                                             {Object.entries(hop.input_mapping).map(([key, assetId]) => (
-                                                <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
+                                                <tr
+                                                    key={key}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) || (hoveredAssetId && assetId === hoveredAssetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => setHoveredAssetId(assetId)}
+                                                    onMouseLeave={() => setHoveredAssetId(null)}
+                                                >
                                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
                                                     <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{assetId.slice(-8)}</td>
                                                 </tr>
@@ -150,7 +181,12 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         </thead>
                                         <tbody>
                                             {Object.entries(hop.output_mapping).map(([key, assetId]) => (
-                                                <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
+                                                <tr
+                                                    key={key}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) || (hoveredAssetId && assetId === hoveredAssetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => setHoveredAssetId(assetId)}
+                                                    onMouseLeave={() => setHoveredAssetId(null)}
+                                                >
                                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
                                                     <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{assetId.slice(-8)}</td>
                                                 </tr>
@@ -177,18 +213,30 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {Object.entries(hop.hop_state).map(([key, asset]) => (
-                                            <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
-                                                <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
-                                                <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
-                                                <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
-                                                <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
-                                                <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
-                                                    <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
-                                                </td>
-                                                <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.status}</td>
-                                            </tr>
-                                        ))}
+                                        {Object.entries(hop.hop_state).map(([key, asset]) => {
+                                            // Find if this asset is referenced in input or output mapping
+                                            const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
+                                            const isMapped = mappingRefs.includes(asset.id);
+                                            // Highlight if hovered asset is this asset, or if this asset is referenced by hovered mapping
+                                            const isHot = hoveredAssetId && (asset.id === hoveredAssetId || mappingRefs.includes(hoveredAssetId));
+                                            return (
+                                                <tr
+                                                    key={key}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isHot && isMapped ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
+                                                    onMouseLeave={() => isMapped && setHoveredAssetId(null)}
+                                                >
+                                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
+                                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
+                                                    <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
+                                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
+                                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
+                                                        <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
+                                                    </td>
+                                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.status}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -288,6 +336,35 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                 </div>
                             </div>
                         ))}
+
+                        {/* Tool Steps Summary */}
+                        <div>
+                            <h4 className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Tool Steps</h4>
+                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded p-3">
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">#</th>
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Tool ID</th>
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Description</th>
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Status</th>
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Created At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {hop.tool_steps.map((step, idx) => (
+                                            <tr key={step.id} className="border-b border-gray-100 dark:border-gray-700">
+                                                <td className="py-1 px-2">{idx + 1}</td>
+                                                <td className="py-1 px-2 font-mono">{step.tool_id}</td>
+                                                <td className="py-1 px-2">{step.description}</td>
+                                                <td className="py-1 px-2">{step.status}</td>
+                                                <td className="py-1 px-2 font-mono">{step.created_at}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ))}

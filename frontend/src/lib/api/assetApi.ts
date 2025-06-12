@@ -1,4 +1,4 @@
-import { Asset } from '@/types/asset';
+import { Asset, AssetStatus } from '@/types/asset';
 import { api } from '@/lib/api';
 
 // Asset persistence information for tracking database state
@@ -41,13 +41,14 @@ function convertToUnifiedAsset(apiAsset: any): Asset {
         id: apiAsset.id,
         name: apiAsset.name,
         description: apiAsset.description || '',
-        schema: {
+        schema_definition: {
             type: mapLegacyTypeToValueType(apiAsset.type),
             description: apiAsset.description,
             is_array: apiAsset.is_collection || false,
             fields: undefined // TODO: Could extract from content structure
         },
         value: apiAsset.content,
+        status: apiAsset.status || AssetStatus.PENDING,
         subtype: mapLegacySubtype(apiAsset.subtype),
         is_collection: apiAsset.is_collection || false,
         collection_type: apiAsset.collection_type || 'null',

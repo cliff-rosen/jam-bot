@@ -29,8 +29,9 @@ export interface SchemaEntity {
     id: string;
     name: string;
     description: string;
-    schema: SchemaType;
+    schema_definition: SchemaType;
 }
+
 
 // --- Utility Functions ---
 

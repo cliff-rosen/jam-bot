@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { VariableRenderer } from './common/VariableRenderer';
+import { MissionBrowser } from './common/MissionBrowser';
 import Dialog from './common/Dialog';
 import { X, Clipboard, Upload, Check } from 'lucide-react';
 
@@ -15,6 +16,7 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
     const [showPasteArea, setShowPasteArea] = useState(false);
     const [pasteContent, setPasteContent] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
+    const [activeTab, setActiveTab] = useState<'state' | 'mission'>('state');
 
     if (!isOpen) {
         return null;
@@ -76,6 +78,28 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
                         </button>
                     </div>
                 </div>
+                <div className="border-b dark:border-gray-700">
+                    <div className="flex items-center px-4">
+                        <button
+                            onClick={() => setActiveTab('state')}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'state'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                        >
+                            State
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('mission')}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'mission'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                        >
+                            Mission Browser
+                        </button>
+                    </div>
+                </div>
                 {pasteError && (
                     <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
                         {pasteError}
@@ -110,7 +134,11 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
                     </div>
                 )}
                 <div className="p-4 overflow-auto flex-1">
-                    <VariableRenderer value={state} />
+                    {activeTab === 'state' ? (
+                        <VariableRenderer value={state} />
+                    ) : (
+                        <MissionBrowser mission={state.mission} />
+                    )}
                 </div>
             </div>
         </Dialog>

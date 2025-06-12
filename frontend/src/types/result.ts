@@ -13,7 +13,7 @@ export interface Note {
             "id": "9df93662-d664-4515-b2fe-080b8441562d",
             "name": "Gmail Credentials",
             "description": "Credentials to access the Gmail account for retrieval",
-            "schema": {
+            "schema_definition": {
                 "type": "object",
                 "description": "{\"email\":\"user@example.com\",\"api_key\":\"abc123\"}",
                 "is_array": false,
@@ -37,7 +37,7 @@ export interface Note {
             "id": "d7649070-d5cc-40a4-9e95-895f14312032",
             "name": "AI News Emails",
             "description": "Emails from the 'ai news' label/folder in Gmail",
-            "schema": {
+            "schema_definition": {
                 "type": "database_entity",
                 "description": "Search and retrieve emails with filtering capabilities",
                 "is_array": true,
@@ -63,7 +63,7 @@ export interface Note {
             "id": "1ede5e55-47f0-40f4-9932-25cc74e2f7a9",
             "name": "AI News Summary",
             "description": "Summarized bullet points in markdown format highlighting new model capabilities and orchestration tools.",
-            "schema": {
+            "schema_definition": {
                 "type": "markdown",
                 "description": "Markdown document with bullet points for each new model capability/tool",
                 "is_array": false,
@@ -89,7 +89,7 @@ export interface Note {
             "id": "hop_retrieve_april_ai_newsletters_10468075_output",
             "name": "April AI News Emails",
             "description": "Emails from the 'ai news' folder tagged with dates in April.",
-            "schema": {
+            "schema_definition": {
                 "type": "object",
                 "description": "List of emails with metadata including sender, date, subject, and body content.",
                 "is_array": true,
@@ -123,7 +123,7 @@ export interface Note {
                     "id": "9df93662-d664-4515-b2fe-080b8441562d",
                     "name": "Gmail Credentials",
                     "description": "Credentials to access the Gmail account for retrieval",
-                    "schema": {
+                    "schema_definition": {
                         "type": "object",
                         "description": "{\"email\":\"user@example.com\",\"api_key\":\"abc123\"}",
                         "is_array": false,
@@ -147,7 +147,7 @@ export interface Note {
                     "id": "hop_retrieve_april_ai_newsletters_10468075_output",
                     "name": "April AI News Emails",
                     "description": "Emails from the 'ai news' folder tagged with dates in April.",
-                    "schema": {
+                    "schema_definition": {
                         "type": "object",
                         "description": "List of emails with metadata including sender, date, subject, and body content.",
                         "is_array": true,

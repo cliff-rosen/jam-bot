@@ -10,19 +10,43 @@ interface MissionBrowserProps {
 export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, className = '' }) => {
     const [hoveredAssetId, setHoveredAssetId] = useState<string | null>(null);
 
+    console.log(mission);
+
     // Helper to check if a mapping row should be hot
     const isMappingHot = (assetId: string) => hoveredAssetId === assetId;
     // Helper to check if a hop state row should be hot
     const isHopStateHot = (assetId: string, hop: Hop) => {
         if (!hoveredAssetId) return false;
-        // If hovering a mapping row, highlight the asset row if IDs match
-        if (hoveredAssetId === assetId) return true;
-        // If hovering a hop state asset row, highlight all mapping rows that reference it
-        const isHoveredAsset = assetId === hoveredAssetId;
-        if (isHoveredAsset) return true;
-        // If hovering a hop state asset, highlight mapping rows that reference it
+
+        // Get all mapping references for this hop
         const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
-        return mappingRefs.includes(hoveredAssetId);
+
+        // Highlight if:
+        // 1. This is the hovered asset
+        // 2. This asset is referenced in the hovered mapping
+        // 3. The hovered asset is referenced in this hop's mappings
+        return assetId === hoveredAssetId ||
+            mappingRefs.includes(hoveredAssetId) ||
+            mappingRefs.includes(assetId);
+    };
+
+    // Helper to determine if an asset ID is from mission state
+    const isMissionAsset = (assetId: string) => {
+        return Object.keys(mission.mission_state).includes(assetId);
+    };
+
+    // Helper to get the appropriate ID color class
+    const getAssetIdColorClass = (assetId: string) => {
+        if (isMissionAsset(assetId)) {
+            return 'text-orange-700 dark:text-orange-500'; // Burnt orange
+        }
+        return 'text-green-700 dark:text-green-500'; // Muted green
+    };
+
+    // Helper to get color class for local key based on its mapped asset
+    const getLocalKeyColorClass = (key: string, hop: Hop) => {
+        // Local keys in hop state are always green (they're hop assets)
+        return 'text-green-700 dark:text-green-500';
     };
 
     return (
@@ -40,6 +64,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Name</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">ID</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Type</th>
+                                        <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Role</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Value</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Status</th>
                                     </tr>
@@ -48,8 +73,9 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                     {mission.inputs.map((input, idx) => (
                                         <tr key={input.id || idx} className="border-b border-gray-100 dark:border-gray-700">
                                             <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{input.name}</td>
-                                            <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{input.id?.slice(-8)}</td>
+                                            <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(input.id)}`}>{input.id}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{input.schema_definition.type || 'unknown'}</td>
+                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{input.role || 'input'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
                                                 <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(input.value, null, 2)}</pre>
                                             </td>
@@ -69,6 +95,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Name</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">ID</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Type</th>
+                                        <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Role</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Value</th>
                                         <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Status</th>
                                     </tr>
@@ -77,8 +104,9 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                     {mission.outputs.map((output, idx) => (
                                         <tr key={output.id || idx} className="border-b border-gray-100 dark:border-gray-700">
                                             <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{output.name}</td>
-                                            <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{output.id?.slice(-8)}</td>
+                                            <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(output.id)}`}>{output.id}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{output.schema_definition?.type || 'unknown'}</td>
+                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{output.role || 'output'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
                                                 <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(output.value, null, 2)}</pre>
                                             </td>
@@ -99,10 +127,10 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                     <table className="w-full text-xs">
                         <thead>
                             <tr className="border-b border-gray-200 dark:border-gray-700">
-                                <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Key</th>
                                 <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Name</th>
                                 <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">ID</th>
                                 <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Type</th>
+                                <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Role</th>
                                 <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Value</th>
                                 <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Status</th>
                             </tr>
@@ -118,10 +146,10 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
                                         onMouseLeave={() => isMapped && setHoveredAssetId(null)}
                                     >
-                                        <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
                                         <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
-                                        <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
+                                        <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(asset.id)}`}>{asset.id}</td>
                                         <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
+                                        <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.role || 'intermediate'}</td>
                                         <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
                                             <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
                                         </td>
@@ -161,8 +189,8 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                                     onMouseEnter={() => setHoveredAssetId(assetId)}
                                                     onMouseLeave={() => setHoveredAssetId(null)}
                                                 >
-                                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
-                                                    <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{assetId.slice(-8)}</td>
+                                                    <td className={`py-1 px-2 font-mono ${getLocalKeyColorClass(key, hop)}`}>{key}</td>
+                                                    <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(assetId)}`}>{assetId}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -187,8 +215,8 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                                     onMouseEnter={() => setHoveredAssetId(assetId)}
                                                     onMouseLeave={() => setHoveredAssetId(null)}
                                                 >
-                                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
-                                                    <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{assetId.slice(-8)}</td>
+                                                    <td className={`py-1 px-2 font-mono ${getLocalKeyColorClass(key, hop)}`}>{key}</td>
+                                                    <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(assetId)}`}>{assetId}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -204,10 +232,10 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                 <table className="w-full text-xs">
                                     <thead>
                                         <tr className="border-b border-gray-200 dark:border-gray-700">
-                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Key</th>
                                             <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Name</th>
                                             <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">ID</th>
                                             <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Type</th>
+                                            <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Role</th>
                                             <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Value</th>
                                             <th className="text-left py-1 px-2 text-gray-600 dark:text-gray-300">Status</th>
                                         </tr>
@@ -217,19 +245,19 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             // Find if this asset is referenced in input or output mapping
                                             const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
                                             const isMapped = mappingRefs.includes(asset.id);
-                                            // Highlight if hovered asset is this asset, or if this asset is referenced by hovered mapping
-                                            const isHot = hoveredAssetId && (asset.id === hoveredAssetId || mappingRefs.includes(hoveredAssetId));
+                                            // Use isHopStateHot to determine if this row should be highlighted
+                                            const isHot = isHopStateHot(asset.id, hop);
                                             return (
                                                 <tr
                                                     key={key}
-                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isHot && isMapped ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isHot ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
                                                     onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
                                                     onMouseLeave={() => isMapped && setHoveredAssetId(null)}
                                                 >
-                                                    <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{key}</td>
                                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
-                                                    <td className="py-1 px-2 font-mono text-gray-700 dark:text-gray-300">{asset.id?.slice(-8)}</td>
+                                                    <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(asset.id)}`}>{asset.id}</td>
                                                     <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.schema_definition?.type || 'unknown'}</td>
+                                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{asset.role || 'intermediate'}</td>
                                                     <td className="py-1 px-2 text-gray-700 dark:text-gray-300">
                                                         <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(asset.value, null, 2)}</pre>
                                                     </td>

@@ -23,7 +23,6 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
     const filteredMessages = showStatusMessages
         ? messages
         : messages.filter(message => message.role !== MessageRole.STATUS);
-    console.log(filteredMessages);
 
     useEffect(() => {
         inputRef.current?.focus();

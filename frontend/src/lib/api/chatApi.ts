@@ -1,7 +1,6 @@
-import { ChatRequest, AgentResponse } from '../../types/chat';
+import { ChatRequest, ChatMessage, AgentResponse } from '../../types/chat';
 import { makeStreamRequest, StreamUpdate } from './streamUtils';
 import { api } from './index';
-import { ChatMessage } from '@/types/chat';
 
 
 export function getDataFromLine(line: string): AgentResponse {

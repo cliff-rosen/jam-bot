@@ -340,9 +340,9 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             const updatedHopsForState = state.mission.hops.map(hop =>
                 hop.id === updatedHopData.id ? updatedHopData : hop
             );
-            const currentHopForState = state.mission.current_hop?.id === updatedHopData.id
-                ? updatedHopData
-                : state.mission.current_hop;
+
+            // Ensure current_hop is always in sync with hops array
+            const currentHopForState = updatedHopsForState.find(h => h.id === updatedHopData.id) || state.mission.current_hop;
 
             return {
                 ...state,
@@ -350,6 +350,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     hops: updatedHopsForState,
                     current_hop: currentHopForState,
+                    current_hop_index: updatedHopsForState.findIndex(h => h.id === updatedHopData.id),
                     mission_state: { ...state.mission.mission_state, ...Object.fromEntries(missionOutputs) },
                 }
             };

@@ -173,6 +173,10 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             (existingHop.name === hop.name && existingHop.description === hop.description)
         );
 
+        // Check if the hop is in a state where it needs to be accepted
+        const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED &&
+            state.mission.hop_status === HopStatus.HOP_PROPOSED;
+
         return (
             <div className="h-full overflow-auto">
                 <div className="p-6 space-y-6">
@@ -219,41 +223,39 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Input Mapping</h4>
-                                {hop.input_mapping && Object.keys(hop.input_mapping).length > 0 ? (
-                                    <ul className="space-y-1">
-                                        {Object.entries(hop.input_mapping).map(([key, value]) => (
-                                            <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
-                                                <span className="font-medium">{key}:</span> {String(value)}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-500 italic">No inputs required</p>
-                                )}
-                            </div>
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Input Mapping</h4>
+                            {hop.input_mapping && Object.keys(hop.input_mapping).length > 0 ? (
+                                <ul className="space-y-1">
+                                    {Object.entries(hop.input_mapping).map(([key, value]) => (
+                                        <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
+                                            <span className="font-medium">{key}:</span> {String(value)}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500 italic">No inputs defined</p>
+                            )}
+                        </div>
 
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Output Mapping</h4>
-                                {hop.output_mapping && Object.keys(hop.output_mapping).length > 0 ? (
-                                    <ul className="space-y-1">
-                                        {Object.entries(hop.output_mapping).map(([key, value]) => (
-                                            <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
-                                                <span className="font-medium">{key}:</span> {String(value)}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-500 italic">No outputs defined</p>
-                                )}
-                            </div>
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Output Mapping</h4>
+                            {hop.output_mapping && Object.keys(hop.output_mapping).length > 0 ? (
+                                <ul className="space-y-1">
+                                    {Object.entries(hop.output_mapping).map(([key, value]) => (
+                                        <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
+                                            <span className="font-medium">{key}:</span> {String(value)}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500 italic">No outputs defined</p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Action Buttons - Only show if not already accepted */}
-                    {!isAlreadyAccepted && (
+                    {/* Action Buttons - Show if not already accepted and needs acceptance */}
+                    {!isAlreadyAccepted && needsAcceptance && (
                         <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                             <button
                                 onClick={() => {
@@ -297,7 +299,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         const isAlreadyAccepted = state.mission.hop_status === HopStatus.HOP_RUNNING ||
             state.mission.hop_status === HopStatus.ALL_HOPS_COMPLETE ||
             (state.mission.current_hop?.id === hopToRender.id &&
-                state.mission.current_hop?.status === ExecutionStatus.COMPLETED);
+                state.mission.current_hop?.status === HopStatus.HOP_RUNNING);
 
         return (
             <div className="h-full overflow-auto">

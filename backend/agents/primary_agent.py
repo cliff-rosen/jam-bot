@@ -440,7 +440,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 input_mapping=canonical_input_mapping,
                 output_mapping=output_mapping,
                 is_final=hop_proposal.is_final,
-                status=ExecutionStatus.PENDING
+                status=HopStatus.HOP_PROPOSED
             )
 
             # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
@@ -462,6 +462,12 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Update state with new hop
             state.mission.current_hop = new_hop
             state.mission.hop_status = HopStatus.HOP_PROPOSED
+            
+            # Ensure hops array is updated
+            if not state.mission.hops:
+                state.mission.hops = []
+            state.mission.hops.append(new_hop)
+            state.mission.current_hop_index = len(state.mission.hops) - 1
 
             # Initialize and populate the new hop's local state from mission.state
             new_hop.hop_state = {} 
@@ -632,8 +638,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         # Handle different response types
         if parsed_response.response_type == "RESOLUTION_FAILED":
             # Update hop status to indicate failure
-            current_hop.status = ExecutionStatus.FAILED
-            current_hop.error = parsed_response.resolution_failure.get("specific_issues", ["Unknown failure"])[0]
+            current_hop.status = HopStatus.HOP_READY_TO_DESIGN
             
             # Set mission hop status to ready for next hop design
             state.mission.hop_status = HopStatus.READY_TO_DESIGN
@@ -654,7 +659,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
-            current_hop.status = ExecutionStatus.PENDING
+            current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
             state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
             
             # Create clarification message
@@ -676,7 +681,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 print("Validation errors:")
                 print(validation_errors)
                 # Bounce back for clarification with concise error list
-                current_hop.status = ExecutionStatus.PENDING
+                current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
                 state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
 
                 formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
@@ -732,7 +737,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "token": response_message.content[0:100],
                 "response_text": response_message.content,
                 "status": "hop_implementer_completed",
-                "error": current_hop.error if current_hop.status == ExecutionStatus.FAILED else None,
+                "error": current_hop.error if current_hop.status == HopStatus.HOP_READY_TO_DESIGN else None,
                 "debug": f"Hop implementation status: {current_hop.status.value}, {next_status}",
                 "payload": {
                     "hop": {

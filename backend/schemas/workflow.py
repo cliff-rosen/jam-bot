@@ -16,14 +16,6 @@ from .tool import ToolDefinition
 from tools.tool_execution import execute_tool_step, ToolExecutionError
 
 
-class ExecutionStatus(str, Enum):
-    """Overall status of an executable item (mission, hop, tool_step)"""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
 class MissionStatus(str, Enum):
     """Status of a mission"""
     PENDING = "pending"  # Mission proposed but not yet approved by user
@@ -53,7 +45,7 @@ class Hop(BaseModel):
     output_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for output.")
     tool_steps: List[ToolStep] = Field(default_factory=list)
     hop_state: Dict[str, Asset] = Field(default_factory=dict)
-    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
+    status: HopStatus = Field(default=HopStatus.HOP_PROPOSED)
     is_final: bool = Field(default=False)
     is_resolved: bool = Field(default=False)
     error: Optional[str] = None
@@ -120,7 +112,7 @@ class Mission(BaseModel):
     inputs: List[Asset]
     outputs: List[Asset]
     mission_state: Dict[str, Asset] = Field(default_factory=dict)
-    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
+    status: str = Field(default="pending", description="Status of the mission")
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     
@@ -175,7 +167,7 @@ class ToolStep(BaseModel):
     resource_configs: Dict[str, Resource] = Field(default_factory=dict)
     parameter_mapping: Dict[str, ParameterMappingValue]
     result_mapping: Dict[str, ResultMappingValue]
-    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING)
+    status: str = Field(default="pending", description="Status of the tool step")
     error: Optional[str] = None
     validation_errors: Optional[List[str]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -202,11 +194,11 @@ class ToolStep(BaseModel):
             ToolExecutionError: If tool execution fails
         """
         try:
-            self.status = ExecutionStatus.RUNNING
+            self.status = "running"
             result = await execute_tool_step(self, hop_state)
-            self.status = ExecutionStatus.COMPLETED
+            self.status = "completed"
             return result
         except Exception as e:
-            self.status = ExecutionStatus.FAILED
+            self.status = "failed"
             self.error = str(e)
             raise ToolExecutionError(str(e), self.tool_id) 

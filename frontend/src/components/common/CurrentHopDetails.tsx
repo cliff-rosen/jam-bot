@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
+import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
 import { toolsApi } from '@/lib/api/toolsApi';
 
 interface CurrentHopDetailsProps {
@@ -22,21 +22,8 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [executingStepId, setExecutingStepId] = useState<string | null>(null);
     const [executionError, setExecutionError] = useState<string | null>(null);
 
-    // Convert HopStatus to ExecutionStatus for display
-    const getExecutionStatusFromHopStatus = (status: HopStatus): ExecutionStatus => {
-        switch (status) {
-            case HopStatus.HOP_RUNNING:
-                return ExecutionStatus.RUNNING;
-            case HopStatus.ALL_HOPS_COMPLETE:
-                return ExecutionStatus.COMPLETED;
-            case HopStatus.FAILED:
-                return ExecutionStatus.FAILED;
-            default:
-                return ExecutionStatus.PENDING;
-        }
-    };
-
-    const statusDisplay = getExecutionStatusDisplay(getExecutionStatusFromHopStatus(hop.status));
+    // Use HopStatus directly for display
+    const statusDisplay = getHopStatusDisplay(hop.status);
     const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.tool_steps?.length || 0;
 

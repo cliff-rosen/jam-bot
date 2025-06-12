@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Mission, Hop, ToolStep } from '@/types/workflow';
-import { Asset } from '@/types/asset';
 
 interface MissionBrowserProps {
     mission: Mission;

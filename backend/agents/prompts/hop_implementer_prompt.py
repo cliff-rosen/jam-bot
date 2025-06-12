@@ -79,40 +79,42 @@ When providing an IMPLEMENTATION_PLAN response, you MUST:
 ### 1. Resource Configs (auth_config)
 For each resource_config in tool_steps:
 ```json
-"resource_configs": {
-  "gmail": {
-    "id": "gmail",
-    "name": "Gmail",
-    "type": "messaging",
-    "description": "Google Gmail email service",
-    "auth_config": {
-      "type": "oauth2",
-      "required_fields": [
-        {
-          "field_name": "access_token",
-          "field_type": "secret",
-          "required": true,
-          "description": "OAuth access token"
-        },
-        {
-          "field_name": "refresh_token",
-          "field_type": "secret",
-          "required": true,
-          "description": "OAuth refresh token"
-        }
-      ]
-    },
-    "connection_schema": {
-      "type": "object",
-      "description": "Gmail OAuth credentials",
-      "is_array": false,
-      "fields": {
-        "access_token": {"type": "string", "description": "OAuth access token", "is_array": false},
-        "refresh_token": {"type": "string", "description": "OAuth refresh token", "is_array": false}
-      }
-    }
-  }
-}
+{{
+  "resource_configs": {{
+    "gmail": {{
+      "id": "gmail",
+      "name": "Gmail",
+      "type": "messaging",
+      "description": "Google Gmail email service",
+      "auth_config": {{
+        "type": "oauth2",
+        "required_fields": [
+          {{
+            "field_name": "access_token",
+            "field_type": "secret",
+            "required": true,
+            "description": "OAuth access token"
+          }},
+          {{
+            "field_name": "refresh_token",
+            "field_type": "secret",
+            "required": true,
+            "description": "OAuth refresh token"
+          }}
+        ]
+      }},
+      "connection_schema": {{
+        "type": "object",
+        "description": "Gmail OAuth credentials",
+        "is_array": false,
+        "fields": {{
+          "access_token": {{"type": "string", "description": "OAuth access token", "is_array": false}},
+          "refresh_token": {{"type": "string", "description": "OAuth refresh token", "is_array": false}}
+        }}
+      }}
+    }}
+  }}
+}}
 ```
 
 ### 2. Parameter Mapping
@@ -120,23 +122,27 @@ Each parameter_mapping must follow these exact schemas:
 
 For asset field references:
 ```json
-"parameter_mapping": {
-  "query": {
-    "type": "asset_field",
-    "state_asset": "search_criteria",
-    "path": "content.query"
-  }
-}
+{{
+  "parameter_mapping": {{
+    "query": {{
+      "type": "asset_field",
+      "state_asset": "search_criteria",
+      "path": "content.query"
+    }}
+  }}
+}}
 ```
 
 For literal values:
 ```json
-"parameter_mapping": {
-  "limit": {
-    "type": "literal",
-    "value": 50
-  }
-}
+{{
+  "parameter_mapping": {{
+    "limit": {{
+      "type": "literal",
+      "value": 50
+    }}
+  }}
+}}
 ```
 
 ### 3. Result Mapping
@@ -144,49 +150,55 @@ Each result_mapping must follow these exact schemas:
 
 For asset field references:
 ```json
-"result_mapping": {
-  "emails": {
-    "type": "asset_field",
-    "state_asset": "step1_emails_list"
-  }
-}
+{{
+  "result_mapping": {{
+    "emails": {{
+      "type": "asset_field",
+      "state_asset": "step1_emails_list"
+    }}
+  }}
+}}
 ```
 
 For discarded outputs:
 ```json
-"result_mapping": {
-  "count": {
-    "type": "discard"
-  }
-}
+{{
+  "result_mapping": {{
+    "count": {{
+      "type": "discard"
+    }}
+  }}
+}}
 ```
 
 ### 4. Asset Schema Rules
 For any new assets created in hop.state:
 ```json
-"state": {
-  "step1_emails_list": {
-    "id": "step1_emails_list",
-    "name": "Emails List",
-    "description": "List of retrieved emails",
-    "schema": {
-      "type": "object",
-      "is_array": true,
-      "fields": {
-        "id": {"type": "string"},
-        "subject": {"type": "string"},
-        "labels": {"type": "string", "is_array": true}
-      }
-    },
-    "is_collection": true,
-    "collection_type": "array",
-    "role": "intermediate",
-    "asset_metadata": {
-      "creator": "hop_implementer",
-      "version": 1
-    }
-  }
-}
+{{
+  "state": {{
+    "step1_emails_list": {{
+      "id": "step1_emails_list",
+      "name": "Emails List",
+      "description": "List of retrieved emails",
+      "schema": {{
+        "type": "object",
+        "is_array": true,
+        "fields": {{
+          "id": {{"type": "string"}},
+          "subject": {{"type": "string"}},
+          "labels": {{"type": "string", "is_array": true}}
+        }}
+      }},
+      "is_collection": true,
+      "collection_type": "array",
+      "role": "intermediate",
+      "asset_metadata": {{
+        "creator": "hop_implementer",
+        "version": 1
+      }}
+    }}
+  }}
+}}
 ```
 
 ## Asset Flow Architecture

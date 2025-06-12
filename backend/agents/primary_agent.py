@@ -632,7 +632,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         # Handle different response types
         if parsed_response.response_type == "RESOLUTION_FAILED":
             # Update hop status to indicate failure
-            current_hop.status = HopStatus.HOP_READY_TO_DESIGN
+            current_hop.status = HopStatus.READY_TO_DESIGN
             
             # Set mission hop status to ready for next hop design
             state.mission.hop_status = HopStatus.READY_TO_DESIGN
@@ -769,7 +769,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 "token": response_message.content[0:100],
                 "response_text": response_message.content,
                 "status": "hop_implementer_completed",
-                "error": current_hop.error if current_hop.status == HopStatus.HOP_READY_TO_DESIGN else None,
+                "error": current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
                 "debug": f"Hop implementation status: {current_hop.status.value}, {next_status}",
                 "payload": {
                     "hop": {

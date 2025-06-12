@@ -8,26 +8,42 @@ interface MissionBrowserProps {
 }
 
 export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, className = '' }) => {
-    const [hoveredAssetId, setHoveredAssetId] = useState<string | null>(null);
+    const [hoveredAssetIds, setHoveredAssetIds] = useState<string[]>([]);
 
     console.log(mission);
 
     // Helper to check if a mapping row should be hot
-    const isMappingHot = (assetId: string) => hoveredAssetId === assetId;
+    const isMappingHot = (assetId: string) => hoveredAssetIds.includes(assetId);
     // Helper to check if a hop state row should be hot
-    const isHopStateHot = (assetId: string, hop: Hop) => {
-        if (!hoveredAssetId) return false;
+    const isHopStateHot = (assetId: string) => hoveredAssetIds.includes(assetId);
 
-        // Get all mapping references for this hop
-        const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
+    // Helper to handle hover start
+    const handleHoverStart = (assetId: string, hop: Hop) => {
+        const ids = [assetId];
 
-        // Highlight if:
-        // 1. This is the hovered asset
-        // 2. This asset is referenced in the hovered mapping
-        // 3. The hovered asset is referenced in this hop's mappings
-        return assetId === hoveredAssetId ||
-            mappingRefs.includes(hoveredAssetId) ||
-            mappingRefs.includes(assetId);
+        // If this is a mapping key, also include the mapped asset ID
+        if (hop.input_mapping[assetId]) {
+            ids.push(hop.input_mapping[assetId]);
+        }
+        if (hop.output_mapping[assetId]) {
+            ids.push(hop.output_mapping[assetId]);
+        }
+
+        // If this is a hop state asset, also include any mapping keys that reference it
+        const inputKeys = Object.entries(hop.input_mapping)
+            .filter(([_, id]) => id === assetId)
+            .map(([key]) => key);
+        const outputKeys = Object.entries(hop.output_mapping)
+            .filter(([_, id]) => id === assetId)
+            .map(([key]) => key);
+
+        ids.push(...inputKeys, ...outputKeys);
+        setHoveredAssetIds(ids);
+    };
+
+    // Helper to handle hover end
+    const handleHoverEnd = () => {
+        setHoveredAssetIds([]);
     };
 
     // Helper to determine if an asset ID is from mission state
@@ -142,9 +158,9 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                 return (
                                     <tr
                                         key={key}
-                                        className={`border-b border-gray-100 dark:border-gray-700 ${hoveredAssetId === asset.id && isMapped ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
-                                        onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
-                                        onMouseLeave={() => isMapped && setHoveredAssetId(null)}
+                                        className={`border-b border-gray-100 dark:border-gray-700 ${isHopStateHot(asset.id) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                        onMouseEnter={() => isMapped && handleHoverStart(asset.id, mission.hops[0])}
+                                        onMouseLeave={handleHoverEnd}
                                     >
                                         <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                         <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(asset.id)}`}>{asset.id}</td>
@@ -185,9 +201,9 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             {Object.entries(hop.input_mapping).map(([key, assetId]) => (
                                                 <tr
                                                     key={key}
-                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) || (hoveredAssetId && assetId === hoveredAssetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
-                                                    onMouseEnter={() => setHoveredAssetId(assetId)}
-                                                    onMouseLeave={() => setHoveredAssetId(null)}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => handleHoverStart(key, hop)}
+                                                    onMouseLeave={handleHoverEnd}
                                                 >
                                                     <td className={`py-1 px-2 font-mono ${getLocalKeyColorClass(key, hop)}`}>{key}</td>
                                                     <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(assetId)}`}>{assetId}</td>
@@ -211,9 +227,9 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             {Object.entries(hop.output_mapping).map(([key, assetId]) => (
                                                 <tr
                                                     key={key}
-                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) || (hoveredAssetId && assetId === hoveredAssetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
-                                                    onMouseEnter={() => setHoveredAssetId(assetId)}
-                                                    onMouseLeave={() => setHoveredAssetId(null)}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isMappingHot(assetId) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => handleHoverStart(key, hop)}
+                                                    onMouseLeave={handleHoverEnd}
                                                 >
                                                     <td className={`py-1 px-2 font-mono ${getLocalKeyColorClass(key, hop)}`}>{key}</td>
                                                     <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(assetId)}`}>{assetId}</td>
@@ -245,14 +261,12 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             // Find if this asset is referenced in input or output mapping
                                             const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
                                             const isMapped = mappingRefs.includes(asset.id);
-                                            // Use isHopStateHot to determine if this row should be highlighted
-                                            const isHot = isHopStateHot(asset.id, hop);
                                             return (
                                                 <tr
                                                     key={key}
-                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isHot ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
-                                                    onMouseEnter={() => isMapped && setHoveredAssetId(asset.id)}
-                                                    onMouseLeave={() => isMapped && setHoveredAssetId(null)}
+                                                    className={`border-b border-gray-100 dark:border-gray-700 ${isHopStateHot(asset.id) ? 'bg-yellow-100 dark:bg-yellow-900/40' : ''}`}
+                                                    onMouseEnter={() => handleHoverStart(asset.id, hop)}
+                                                    onMouseLeave={handleHoverEnd}
                                                 >
                                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                                     <td className={`py-1 px-2 font-mono ${getAssetIdColorClass(asset.id)}`}>{asset.id}</td>

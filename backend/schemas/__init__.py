@@ -76,7 +76,6 @@ __all__ = [
     'Mission',
     'MissionStatus',
     'HopStatus', 
-    'ExecutionStatus',
     'Hop',
     'ToolStep',
 

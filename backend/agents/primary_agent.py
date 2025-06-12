@@ -463,12 +463,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             state.mission.current_hop = new_hop
             state.mission.hop_status = HopStatus.HOP_PROPOSED
             
-            # Ensure hops array is updated
-            if not state.mission.hops:
-                state.mission.hops = []
-            state.mission.hops.append(new_hop)
-            state.mission.current_hop_index = len(state.mission.hops) - 1
-
             # Initialize and populate the new hop's local state from mission.state
             new_hop.hop_state = {} 
 
@@ -701,6 +695,44 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 print("Response type: IMPLEMENTATION_PLAN - no validation errors")
                 # Accept the plan
                 updated_hop = parsed_response.hop
+
+                # Ensure tool steps have the correct structure
+                for step in updated_hop.tool_steps:
+                    # Ensure resource_configs has the correct structure
+                    if 'gmail' in step.resource_configs:
+                        gmail_config = step.resource_configs['gmail']
+                        if 'auth_config' in gmail_config:
+                            auth_config = gmail_config['auth_config']
+                            if 'required_fields' in auth_config:
+                                for field in auth_config['required_fields']:
+                                    if 'required' not in field:
+                                        field['required'] = True
+
+                    # Ensure parameter_mapping has the correct structure
+                    if 'parameter_mapping' in step:
+                        for param_name, param_config in step.parameter_mapping.items():
+                            if isinstance(param_config, dict):
+                                if 'id' not in param_config:
+                                    param_config['id'] = f"{step.id}_{param_name}"
+                                if 'name' not in param_config:
+                                    param_config['name'] = param_name
+                                if 'type' not in param_config:
+                                    param_config['type'] = param_config.get('type', 'literal')
+                                if 'description' not in param_config:
+                                    param_config['description'] = f"Parameter {param_name} for {step.tool_id}"
+
+                    # Ensure result_mapping has the correct structure
+                    if 'result_mapping' in step:
+                        for result_name, result_config in step.result_mapping.items():
+                            if isinstance(result_config, dict):
+                                if 'id' not in result_config:
+                                    result_config['id'] = f"{step.id}_{result_name}"
+                                if 'name' not in result_config:
+                                    result_config['name'] = result_name
+                                if 'type' not in result_config:
+                                    result_config['type'] = result_config.get('type', 'asset_field')
+                                if 'description' not in result_config:
+                                    result_config['description'] = f"Result {result_name} from {step.tool_id}"
 
                 # Copy all fields from the updated hop
                 current_hop.__dict__.update(updated_hop.__dict__)

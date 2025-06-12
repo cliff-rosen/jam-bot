@@ -16,6 +16,14 @@ from .tool import ToolDefinition
 from tools.tool_execution import execute_tool_step, ToolExecutionError
 
 
+class ExecutionStatus(str, Enum):
+    """Status of tool step execution"""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class MissionStatus(str, Enum):
     """Status of a mission"""
     PENDING = "pending"  # Mission proposed but not yet approved by user
@@ -167,7 +175,7 @@ class ToolStep(BaseModel):
     resource_configs: Dict[str, Resource] = Field(default_factory=dict)
     parameter_mapping: Dict[str, ParameterMappingValue]
     result_mapping: Dict[str, ResultMappingValue]
-    status: str = Field(default="pending", description="Status of the tool step")
+    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING, description="Status of the tool step")
     error: Optional[str] = None
     validation_errors: Optional[List[str]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -194,11 +202,11 @@ class ToolStep(BaseModel):
             ToolExecutionError: If tool execution fails
         """
         try:
-            self.status = "running"
+            self.status = ExecutionStatus.RUNNING
             result = await execute_tool_step(self, hop_state)
-            self.status = "completed"
+            self.status = ExecutionStatus.COMPLETED
             return result
         except Exception as e:
-            self.status = "failed"
+            self.status = ExecutionStatus.FAILED
             self.error = str(e)
             raise ToolExecutionError(str(e), self.tool_id) 

@@ -7,7 +7,7 @@ from database import get_db
 
 # Import from unified schema for Asset, but ToolDefinition now comes from tools.py
 from schemas.asset import Asset
-from schemas.workflow import ToolStep, ExecutionStatus
+from schemas.workflow import ToolStep
 from schemas.tool import ToolDefinition
 from schemas.tools import ToolExecutionError
 from tools.tool_registry import get_available_tools, get_tool_definition, TOOL_REGISTRY

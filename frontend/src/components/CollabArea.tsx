@@ -169,13 +169,14 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
         // Check if this hop has already been accepted (exists in mission hops)
         const isAlreadyAccepted = state.mission.hops.some(existingHop =>
-            existingHop.id === hop.id ||
-            (existingHop.name === hop.name && existingHop.description === hop.description)
+            existingHop.id === hop.id &&
+            existingHop.status === HopStatus.HOP_READY_TO_RESOLVE
         );
 
         // Check if the hop is in a state where it needs to be accepted
         const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED &&
-            state.mission.hop_status === HopStatus.HOP_PROPOSED;
+            state.mission.hop_status === HopStatus.HOP_PROPOSED &&
+            !isAlreadyAccepted;
 
         return (
             <div className="h-full overflow-auto">

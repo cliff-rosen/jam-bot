@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pydantic import ValidationError
 
-from ..schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus
+from ..schemas.workflow import Mission, MissionStatus, HopStatus
 from ..schemas.asset import Asset, AssetType
 
 class MissionValidationError(Exception):
@@ -51,8 +51,8 @@ def validate_mission(mission: Mission) -> List[str]:
                 errors.append(f"Current hop index {mission.current_hop_index} doesn't match hop position {i}")
 
             # Check hop status consistency
-            if hop.status == ExecutionStatus.PENDING and mission.hop_status != HopStatus.HOP_READY_TO_EXECUTE:
-                errors.append(f"Inconsistent status: hop {hop.id} is PENDING but mission hop_status is {mission.hop_status}")
+            if hop.status == HopStatus.HOP_PROPOSED and mission.hop_status != HopStatus.HOP_READY_TO_EXECUTE:
+                errors.append(f"Inconsistent status: hop {hop.id} is PROPOSED but mission hop_status is {mission.hop_status}")
 
             # Check hop asset mappings
             for input_key, asset_id in hop.input_mapping.items():

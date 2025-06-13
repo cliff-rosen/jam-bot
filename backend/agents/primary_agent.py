@@ -396,6 +396,14 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Convert hop proposal to Hop object
             hop_proposal = parsed_response.hop_proposal
             
+            # Validate input mapping
+            if not hop_proposal.input_mapping:
+                raise ValueError(f"Hop proposal '{hop_proposal.name}' must include input mappings to existing mission state assets")
+            
+            # Validate output asset
+            if not hop_proposal.output_asset:
+                raise ValueError(f"Hop proposal '{hop_proposal.name}' must include an output asset definition")
+            
             # Canonicalize input mapping keys to ensure consistency
             canonical_input_mapping = {
                 canonical_key(local_name): asset_id
@@ -408,18 +416,13 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 
             if hop_proposal.is_final and hop_proposal.output_mission_asset_id:
                 # For final hops, map to mission output
-                if hop_proposal.output_asset: # Ensure output_asset exists before trying to use its name
-                    output_mapping[canonical_key(hop_proposal.output_asset.name)] = hop_proposal.output_mission_asset_id
-                else:
-                    # This case should ideally not happen if a final hop always has a defined output
-                    print(f"Warning: Hop '{hop_proposal.name}' is final but has no output_asset defined for mapping.")
+                output_mapping[canonical_key(hop_proposal.output_asset.name)] = hop_proposal.output_mission_asset_id
             else:
                 # For intermediate hops, create a new asset ID
-                if hop_proposal.output_asset: # Ensure output_asset exists
-                    # Sanitize name for use in ID and make it more unique
-                    sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
-                    generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
-                    output_mapping[canonical_key(hop_proposal.output_asset.name)] = generated_wip_asset_id
+                # Sanitize name for use in ID and make it more unique
+                sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
+                generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
+                output_mapping[canonical_key(hop_proposal.output_asset.name)] = generated_wip_asset_id
             
             new_hop = Hop(
                 id=str(uuid.uuid4()),
@@ -432,7 +435,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             )
 
             # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
-            if generated_wip_asset_id and hop_proposal.output_asset:
+            if generated_wip_asset_id:
                 output_asset_lite = hop_proposal.output_asset
                 
                 # Convert AssetLite to Asset
@@ -469,8 +472,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 
                         new_hop.hop_state[canonical_local_key] = asset_copy
                     else:
-                        print(f"ERROR: [Hop Designer] Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
-                        # Potentially raise an error or mark mission as invalid
+                        raise ValueError(f"Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
             
             # 2. Populate hop.state with output assets
             # The output_asset_id_in_mission_state is either a mission_output_id or the generated_wip_asset_id
@@ -485,8 +487,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 
                         new_hop.hop_state[canonical_output_key] = asset_copy
                     else:
-                        print(f"ERROR: [Hop Designer] Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
-                        # Potentially raise an error or mark mission as invalid
+                        raise ValueError(f"Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -572,6 +573,63 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             raise ValueError(error_msg)
 
         print(f"DEBUG: Implementing hop: {current_hop.name}")
+
+        # Check if hop state is empty and try to populate it
+        if not current_hop.hop_state:
+            print("DEBUG: Hop state is empty, attempting to populate from mission state")
+            current_hop.hop_state = {}
+            
+            # 1. Populate hop.state with input assets
+            if state.mission and state.mission.mission_state and current_hop.input_mapping:
+                for local_input_name, mission_asset_id in current_hop.input_mapping.items():
+                    canonical_local_key = canonical_key(local_input_name)
+                    if mission_asset_id in state.mission.mission_state:
+                        # Deep-copy the mission asset
+                        asset_copy = copy.deepcopy(state.mission.mission_state[mission_asset_id])
+                        asset_copy.id = canonical_local_key
+                        current_hop.hop_state[canonical_local_key] = asset_copy
+                    else:
+                        # If we can't find an input asset, we need clarification
+                        response_message = Message(
+                            id=str(uuid.uuid4()),
+                            role=MessageRole.ASSISTANT,
+                            content=f"Need clarification to implement hop '{current_hop.name}': Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') not found in mission state.",
+                            timestamp=datetime.utcnow().isoformat()
+                        )
+                        current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+                        state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+                        return Command(goto=END, update={
+                            "messages": [*state.messages, response_message.model_dump()],
+                            "mission": state.mission,
+                            "tool_params": {},
+                            "next_node": END
+                        })
+            
+            # 2. Populate hop.state with output assets
+            if state.mission and state.mission.mission_state and current_hop.output_mapping:
+                for local_output_name, output_asset_id_in_mission_state in current_hop.output_mapping.items():
+                    canonical_output_key = canonical_key(local_output_name)
+                    if output_asset_id_in_mission_state in state.mission.mission_state:
+                        # Deep-copy the mission asset
+                        asset_copy = copy.deepcopy(state.mission.mission_state[output_asset_id_in_mission_state])
+                        asset_copy.id = canonical_output_key
+                        current_hop.hop_state[canonical_output_key] = asset_copy
+                    else:
+                        # If we can't find an output asset, we need clarification
+                        response_message = Message(
+                            id=str(uuid.uuid4()),
+                            role=MessageRole.ASSISTANT,
+                            content=f"Need clarification to implement hop '{current_hop.name}': Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') not found in mission state.",
+                            timestamp=datetime.utcnow().isoformat()
+                        )
+                        current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+                        state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+                        return Command(goto=END, update={
+                            "messages": [*state.messages, response_message.model_dump()],
+                            "mission": state.mission,
+                            "tool_params": {},
+                            "next_node": END
+                        })
 
         # Create and format the prompt
         prompt = HopImplementerPrompt()

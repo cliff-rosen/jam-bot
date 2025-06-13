@@ -254,7 +254,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
 
             // If the hop is completed, add it to hop_history
-            if (hop.status === ExecutionStatus.COMPLETED) {
+            if (hop.status === HopStatus.ALL_HOPS_COMPLETE) {
                 updatedMission.hop_history = [
                     ...(state.mission.hop_history || []),
                     hop
@@ -294,6 +294,7 @@ interface JamBotContextValue {
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
     updateHopState: (hop: Hop, missionOutputs: Map<string, Asset>) => void;
+    setState: (newState: JamBotState) => void;
 }
 
 const JamBotContext = createContext<JamBotContextValue | null>(null);
@@ -519,7 +520,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             completeHopExecution,
             failHopExecution,
             retryHopExecution,
-            updateHopState
+            updateHopState,
+            setState
         }}>
             {children}
         </JamBotContext.Provider>

@@ -62,7 +62,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         // Check if mission has already been accepted (status is ACTIVE)
-        const isAlreadyAccepted = state.mission.mission_status === MissionStatus.ACTIVE;
+        const isAlreadyAccepted = state?.mission?.mission_status === MissionStatus.ACTIVE;
 
         return (
             <div className="h-full overflow-auto">
@@ -297,10 +297,10 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         // Check if this hop implementation has already been accepted
-        const isAlreadyAccepted = state.mission.current_hop?.status === HopStatus.HOP_RUNNING ||
-            state.mission.current_hop?.status === HopStatus.ALL_HOPS_COMPLETE ||
-            (state.mission.current_hop?.id === hopToRender.id &&
-                state.mission.current_hop?.status === HopStatus.HOP_RUNNING);
+        const isAlreadyAccepted = state?.mission?.current_hop?.status === HopStatus.HOP_RUNNING ||
+            state?.mission?.current_hop?.status === HopStatus.ALL_HOPS_COMPLETE ||
+            (state?.mission?.current_hop?.id === hopToRender.id &&
+                state?.mission?.current_hop?.status === HopStatus.HOP_RUNNING);
 
         return (
             <div className="h-full overflow-auto">
@@ -473,7 +473,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             // Action buttons based on backend workflow status AND hop execution status
             if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {
                 // Hop is ready to execute according to backend workflow
-                if (liveHop.status === ExecutionStatus.PENDING) {
+                if (liveHop.status === HopStatus.HOP_READY_TO_EXECUTE) {
                     if (liveHop.is_resolved && liveHop.steps && liveHop.steps.length > 0) {
                         buttons.push(
                             <button
@@ -489,7 +489,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             </button>
                         );
                     }
-                } else if (liveHop.status === ExecutionStatus.RUNNING) {
+                } else if (liveHop.status === HopStatus.HOP_RUNNING) {
                     buttons.push(
                         <button
                             key="complete"
@@ -513,7 +513,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             Mark Failed
                         </button>
                     );
-                } else if (liveHop.status === ExecutionStatus.FAILED) {
+                } else if (liveHop.status === HopStatus.FAILED) {
                     buttons.push(
                         <button
                             key="retry"
@@ -524,7 +524,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             Retry
                         </button>
                     );
-                } else if (liveHop.status === ExecutionStatus.COMPLETED) {
+                } else if (liveHop.status === HopStatus.ALL_HOPS_COMPLETE) {
                     // Even if hop execution is completed, allow restart if workflow says ready to execute
                     buttons.push(
                         <button

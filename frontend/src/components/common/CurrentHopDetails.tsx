@@ -4,6 +4,7 @@ import { Asset } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 import { toolsApi } from '@/lib/api/toolsApi';
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
 
 interface CurrentHopDetailsProps {
     hop: Hop;
@@ -166,10 +167,13 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                     return (
                                         <div
                                             key={localKey}
-                                            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors"
-                                            title={tooltipText}
+                                            className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors relative group"
                                         >
                                             {assetName}
+                                            {/* Custom tooltip for markdown rendering */}
+                                            <div className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded shadow-lg p-3 min-w-[250px] max-w-xs text-xs text-gray-900 dark:text-gray-100" style={{ pointerEvents: 'none' }}>
+                                                <MarkdownRenderer content={tooltipText.replace(/\n/g, '\n\n')} />
+                                            </div>
                                         </div>
                                     );
                                 })

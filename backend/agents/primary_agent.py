@@ -132,11 +132,11 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 next_node = "hop_designer_node"
                 routing_message = "Ready to design next hop - routing to hop designer"
             elif state.mission.current_hop.status == HopStatus.HOP_PROPOSED:
-                next_node = "hop_resolver_node"
-                routing_message = "Hop proposed - routing to hop resolver"
+                next_node = "hop_implementer_node"
+                routing_message = "Hop proposed - routing to hop implementer"
             elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_RESOLVE:
-                next_node = "hop_resolver_node"
-                routing_message = "Hop ready to resolve - routing to hop resolver"
+                next_node = "hop_implementer_node"
+                routing_message = "Hop ready to resolve - routing to hop implementer"
             elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_EXECUTE:
                 next_node = "hop_executor_node"
                 routing_message = "Hop ready to execute - routing to hop executor"

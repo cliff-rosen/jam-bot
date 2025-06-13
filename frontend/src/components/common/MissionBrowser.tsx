@@ -154,7 +154,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.schema_definition?.type || 'unknown'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.role || 'output'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
-                                                <VariableRenderer value={output.value} />
+                                                <VariableRenderer value={output.value} isMarkdown={typeof output.value === 'string' && /[\*#\|\n`>-]/.test(output.value)} />
                                             </td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.status}</td>
                                         </tr>

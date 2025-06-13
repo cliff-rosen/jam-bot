@@ -46,13 +46,41 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
 
     const handleApplyPastedState = () => {
         try {
+            // First validate that the pasted content is valid JSON
             const newState = JSON.parse(pasteContent);
+
+            // Validate that the new state has the required structure
+            if (!newState || typeof newState !== 'object') {
+                throw new Error('Invalid state structure');
+            }
+
+            // Validate required fields
+            const requiredFields = ['currentMessages', 'currentStreamingMessage', 'collabArea', 'mission', 'payload_history'];
+            const missingFields = requiredFields.filter(field => !(field in newState));
+
+            if (missingFields.length > 0) {
+                throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+            }
+
+            // Validate collabArea structure
+            if (!newState.collabArea || typeof newState.collabArea !== 'object' ||
+                !('type' in newState.collabArea) || !('content' in newState.collabArea)) {
+                throw new Error('Invalid collabArea structure');
+            }
+
+            // Validate arrays
+            if (!Array.isArray(newState.currentMessages) || !Array.isArray(newState.payload_history)) {
+                throw new Error('currentMessages and payload_history must be arrays');
+            }
+
+            // Apply the state if all validations pass
             setState(newState);
             setPasteError(null);
             setShowPasteArea(false);
             setPasteContent('');
         } catch (err) {
-            setPasteError('Invalid JSON. Please check the format.');
+            const errorMessage = err instanceof Error ? err.message : 'Invalid JSON. Please check the format.';
+            setPasteError(errorMessage);
             console.error('Failed to parse state:', err);
         }
     };

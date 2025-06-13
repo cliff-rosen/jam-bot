@@ -1,0 +1,126 @@
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
+from schemas.chat import Message
+from schemas.workflow import Mission
+from schemas.asset import AssetType, CollectionType
+from tools.tool_registry import format_tool_descriptions_for_mission_design
+from utils.message_formatter import format_assets, format_mission
+from .simple_prompt import SimplePrompt
+
+class AssetLite(BaseModel):
+    """Simplified asset definition for mission proposals"""
+    name: str = Field(description="Name of the asset")
+    description: str = Field(description="Clear description of what this asset contains")
+    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown', 'config'. Use 'config' for external system credentials!")
+    subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
+    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
+    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
+    role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data/credentials, 'output' for final results, 'intermediate' for data retrieved from external systems")
+    required: bool = Field(default=True, description="Whether this asset is required for the mission")
+    external_system_for: Optional[str] = Field(default=None, description="If this is an external system credential asset, which system it provides access to")
+    schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
+    example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
+
+class MissionProposal(BaseModel):
+    """Structure for a proposed mission"""
+    name: str = Field(description="Name of the mission (2-8 words)")
+    description: str = Field(description="One sentence describing what the mission accomplishes")
+    goal: str = Field(description="The main goal of the mission")
+    success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
+    inputs: List[AssetLite] = Field(description="Input assets required for the mission (user data + external system credentials)")
+    outputs: List[AssetLite] = Field(description="Output assets produced by the mission")
+    scope: str = Field(description="What is explicitly included/excluded in the mission")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
+
+class MissionDefinitionResponse(BaseModel):
+    """Structure for mission definition response"""
+    response_type: str = Field(description="Type of response: MISSION_DEFINITION or INTERVIEW_QUESTION")
+    response_content: str = Field(description="The main response text added to the conversation")
+    mission_proposal: Optional[MissionProposal] = Field(default=None, description="Proposed mission details")
+
+class MissionDefinitionPromptCaller(SimplePrompt):
+    """A simplified prompt caller for mission definition"""
+    
+    def __init__(self):
+        # Define the system message
+        system_message = """You are an AI assistant that helps users create structured mission definitions for knowledge-based projects. Your primary responsibilities are:
+
+## Core Functions
+1. **Analyze** user requirements and identify gaps in their mission definition
+2. **Structure** incomplete ideas into comprehensive mission plans
+3. **Clarify** ambiguous requirements through targeted questions
+4. **Validate** that mission plans are actionable and measurable with available tools
+
+## Available Tools
+The system has these specific tools available for mission execution:
+
+{tool_descriptions}
+
+## Mission Structure
+A mission consists of:
+1. A clear goal and success criteria
+2. Required input assets (user data + external system credentials)
+3. Expected output assets
+4. A defined scope
+
+## Asset Types and Roles
+1. **Mission Inputs** (role: "input"):
+   - User-provided data (files, text, config values)
+   - External system credentials (type: "config")
+   - Must specify external_system_for if providing credentials
+
+2. **External Data** (role: "intermediate"):
+   - Retrieved by tools during execution
+   - Never a mission input
+   - Examples: emails, articles, API responses
+
+3. **Mission Outputs** (role: "output"):
+   - Final deliverables
+   - Reports, summaries, processed data
+
+## Current Context
+Mission Context: {mission}
+Available Assets: {available_assets}
+
+Based on the provided context, analyze what information is complete and what needs clarification to create an effective mission plan using available tools."""
+
+        # Initialize the base class
+        super().__init__(
+            response_model=MissionDefinitionResponse,
+            system_message=system_message
+        )
+    
+    async def invoke(
+        self,
+        messages: List[Message],
+        mission: Mission,
+        available_assets: List[Dict[str, Any]] = None,
+        **kwargs: Dict[str, Any]
+    ) -> MissionDefinitionResponse:
+        """
+        Invoke the mission definition prompt.
+        
+        Args:
+            messages: List of conversation messages
+            mission: Current mission state
+            available_assets: List of available assets
+            **kwargs: Additional variables to format into the prompt
+            
+        Returns:
+            Parsed response as a MissionDefinitionResponse
+        """
+        # Format tool descriptions
+        tool_descriptions = format_tool_descriptions_for_mission_design()
+        
+        # Format available assets and mission
+        assets_str = format_assets(available_assets)
+        mission_str = format_mission(mission)
+        
+        # Call base invoke with formatted variables
+        return await super().invoke(
+            messages=messages,
+            tool_descriptions=tool_descriptions,
+            mission=mission_str,
+            available_assets=assets_str,
+            **kwargs
+        ) 

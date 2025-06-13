@@ -67,17 +67,22 @@ def format_assets(assets: List[Dict[str, Any]]) -> str:
         for asset in assets
     ])
 
-def format_mission(mission: Dict[str, Any], context_for_hop: bool = False) -> str:
+def format_mission(mission: Union[Dict[str, Any], Any], context_for_hop: bool = False) -> str:
     """
     Format a mission object into a readable string.
     
     Args:
-        mission: Mission dictionary (should be converted from Mission model using .dict())
+        mission: Mission object or dictionary (can be Mission model or dict)
         context_for_hop: If True, formats a concise version for hop-specific prompts.
         
     Returns:
         Formatted string representation of mission
     """
+    # Convert Pydantic model to dict if needed
+    if hasattr(mission, 'model_dump'):
+        mission = mission.model_dump()
+    elif hasattr(mission, 'dict'):
+        mission = mission.dict()
 
     if context_for_hop:
         return f"""Mission Name: {mission["name"]}

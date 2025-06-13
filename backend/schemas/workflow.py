@@ -121,12 +121,11 @@ class Mission(BaseModel):
     inputs: List[Asset]
     outputs: List[Asset]
     mission_state: Dict[str, Asset] = Field(default_factory=dict)
-    status: str = Field(default="pending", description="Status of the mission")
+    mission_status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     
-    # Status tracking
-    mission_status: MissionStatus = Field(default=MissionStatus.PENDING)
+    # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

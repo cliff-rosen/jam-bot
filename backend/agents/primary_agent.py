@@ -21,6 +21,7 @@ from schemas.asset import Asset, AssetStatus, AssetMetadata
 from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
+from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
@@ -206,39 +207,12 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         })
     
     try:
-        # Create and format the prompt
-        prompt = MissionDefinitionPrompt()
-        formatted_messages = prompt.get_formatted_messages(
+        # Create and use the simplified prompt caller
+        promptCaller = MissionDefinitionPromptCaller()
+        parsed_response = await promptCaller.invoke(
             messages=state.messages,
-            mission=state.mission,
+            mission=state.mission
         )
-
-        # Log the exact prompt messages being sent to OpenAI
-        try:
-            log_file_path = log_prompt_messages(
-                messages=formatted_messages,
-                prompt_type="mission_specialist"
-            )
-            print(f"MissionSpecialist prompt messages logged to: {log_file_path}")
-        except Exception as log_error:
-            print(f"Warning: Failed to log mission specialist prompt: {log_error}")
-            
-        schema = prompt.get_schema()
-
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=formatted_messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {    
-                    "schema": schema,
-                    "name": prompt.get_response_model_name()
-                }
-            }
-        )   
-        
-        response_text = response.choices[0].message.content
-        parsed_response = prompt.parse_response(response_text)
 
         if parsed_response.mission_proposal:
             state.mission.name = parsed_response.mission_proposal.name
@@ -258,8 +232,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
                 asset = _create_asset_from_lite(asset_lite)
                 asset.role = 'output'  # Explicitly set as output
                 state.mission.outputs.append(asset)
-            
-            # print(f"DEBUG: Mission inputs: {state.mission.inputs}")
 
             current_time = datetime.utcnow()
             state.mission.created_at = current_time
@@ -276,8 +248,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             # Also initialize mission state with output assets
             for asset in state.mission.outputs:
                 state.mission.mission_state[asset.id] = asset
-
-            # print(f"DEBUG: Mission state: {state.mission.mission_state}")
 
         response_message = Message(
             id=str(uuid.uuid4()),
@@ -319,7 +289,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             payload = {
                 "mission": mission_dict
             }
-            # print(f"DEBUG: Mission specialist payload: {payload}")
             agent_response_data = {
                 "token": response_message.content[0:100],
                 "response_text": parsed_response.response_content,

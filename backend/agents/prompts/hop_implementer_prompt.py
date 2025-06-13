@@ -85,7 +85,7 @@ For each resource_config in tool_steps:
       "id": "gmail",
       "name": "Gmail",
       "type": "messaging",
-      "description": "Google Gmail email service",
+      "description": "Google Gmail email service for searching and retrieving emails",
       "auth_config": {{
         "type": "oauth2",
         "required_fields": [
@@ -100,6 +100,12 @@ For each resource_config in tool_steps:
             "field_type": "secret",
             "required": true,
             "description": "OAuth refresh token"
+          }},
+          {{
+            "field_name": "token_expires_at",
+            "field_type": "string",
+            "required": true,
+            "description": "Token expiration timestamp"
           }}
         ]
       }},
@@ -109,7 +115,8 @@ For each resource_config in tool_steps:
         "is_array": false,
         "fields": {{
           "access_token": {{"type": "string", "description": "OAuth access token", "is_array": false}},
-          "refresh_token": {{"type": "string", "description": "OAuth refresh token", "is_array": false}}
+          "refresh_token": {{"type": "string", "description": "OAuth refresh token", "is_array": false}},
+          "token_expires_at": {{"type": "string", "description": "Token expiration timestamp", "is_array": false}}
         }}
       }}
     }}

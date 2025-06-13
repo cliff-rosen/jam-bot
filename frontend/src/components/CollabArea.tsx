@@ -175,7 +175,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
         // Check if the hop is in a state where it needs to be accepted
         const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED &&
-            state.mission.hop_status === HopStatus.HOP_PROPOSED &&
+            state.mission.current_hop?.status === HopStatus.HOP_PROPOSED &&
             !isAlreadyAccepted;
 
         return (
@@ -297,8 +297,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         // Check if this hop implementation has already been accepted
-        const isAlreadyAccepted = state.mission.hop_status === HopStatus.HOP_RUNNING ||
-            state.mission.hop_status === HopStatus.ALL_HOPS_COMPLETE ||
+        const isAlreadyAccepted = state.mission.current_hop?.status === HopStatus.HOP_RUNNING ||
+            state.mission.current_hop?.status === HopStatus.ALL_HOPS_COMPLETE ||
             (state.mission.current_hop?.id === hopToRender.id &&
                 state.mission.current_hop?.status === HopStatus.HOP_RUNNING);
 
@@ -468,7 +468,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
 
             // Check if this hop is the current hop in the mission workflow
             const isCurrentHop = state.mission.current_hop?.id === liveHop.id;
-            const missionHopStatus = state.mission.hop_status;
+            const missionHopStatus = state.mission.current_hop?.status;
 
             // Action buttons based on backend workflow status AND hop execution status
             if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {

@@ -5,7 +5,7 @@ from datetime import datetime
 from serpapi import GoogleSearch
 import uuid
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import os
 
 from langgraph.graph import StateGraph, START, END
@@ -108,11 +108,10 @@ def serialize_state(state: State) -> dict:
     return convert_datetime(state_dict)
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Simplified supervisor node that routes based on mission and hop status"""
+    """Supervisor node that routes to appropriate specialist based on mission and hop status"""
     print("Supervisor - Routing based on mission and hop status")
-    print(f"DEBUG: Mission status: {state.mission.mission_status if state.mission else 'No mission'}")
-    print(f"DEBUG: Hop status: {state.mission.hop_status if state.mission else 'No hop status'}")
-    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
+    print(f"DEBUG: Mission status: {state.mission.mission_status}")
+    print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No current hop'}")
     
     if writer:
         writer({
@@ -121,55 +120,42 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         })
 
     try:
-        # Route based on mission status first
-        if not state.mission or state.mission.mission_status == MissionStatus.PENDING:
-            next_node = "mission_specialist_node"
-            routing_message = "Mission is pending. Routing to mission specialist to define or refine the mission."
-        
-        elif state.mission.mission_status == MissionStatus.ACTIVE:
-            # Mission is active - route based on hop status
-            if not state.mission.hop_status or state.mission.hop_status == HopStatus.READY_TO_DESIGN:
-                next_node = "hop_designer_node"
-                routing_message = "Mission is active and ready for next hop design."
-            
-            elif state.mission.hop_status == HopStatus.HOP_PROPOSED:
-                # Hop is proposed - waiting for user approval (stay here for now)
-                next_node = END
-                routing_message = "Hop has been proposed. Waiting for your approval to proceed."
-            
-            elif state.mission.hop_status == HopStatus.HOP_READY_TO_RESOLVE:
-                next_node = "hop_implementer_node"
-                routing_message = "Hop approved. Routing to hop implementer to configure tools."
-            
-            elif state.mission.hop_status == HopStatus.HOP_READY_TO_EXECUTE:
-                # TODO: Route to hop executor when available
-                next_node = "hop_implementer_node"
-                routing_message = "Hop is configured and ready to execute. The user has questions or comments though"
-            
-            elif state.mission.hop_status == HopStatus.HOP_RUNNING:
-                # TODO: Route to hop executor for status updates
-                next_node = END
-                routing_message = "Hop is currently running."
-            
-            elif state.mission.hop_status == HopStatus.ALL_HOPS_COMPLETE:
-                # Mark mission as complete
-                state.mission.mission_status = MissionStatus.COMPLETE
-                next_node = END
-                routing_message = "All hops complete! Mission has been completed successfully."
-            
-            else:
-                next_node = END
-                routing_message = f"Unknown hop status: {state.mission.hop_status}"
-        
-        elif state.mission.mission_status == MissionStatus.COMPLETE:
-            next_node = END
-            routing_message = "Mission has been completed successfully!"
-        
-        else:
-            next_node = END
-            routing_message = f"Unknown mission status: {state.mission.mission_status}"
+        # Determine next node based on mission and hop status
+        next_node = None
+        routing_message = ""
 
-        print(f"DEBUG: Routing to: {next_node}")
+        if state.mission.mission_status == MissionStatus.PENDING:
+            next_node = "mission_specialist_node"
+            routing_message = "Mission pending - routing to mission specialist"
+        elif state.mission.mission_status == MissionStatus.ACTIVE:
+            if not state.mission.current_hop or state.mission.current_hop.status == HopStatus.READY_TO_DESIGN:
+                next_node = "hop_designer_node"
+                routing_message = "Ready to design next hop - routing to hop designer"
+            elif state.mission.current_hop.status == HopStatus.HOP_PROPOSED:
+                next_node = "hop_resolver_node"
+                routing_message = "Hop proposed - routing to hop resolver"
+            elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_RESOLVE:
+                next_node = "hop_resolver_node"
+                routing_message = "Hop ready to resolve - routing to hop resolver"
+            elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_EXECUTE:
+                next_node = "hop_executor_node"
+                routing_message = "Hop ready to execute - routing to hop executor"
+            elif state.mission.current_hop.status == HopStatus.HOP_RUNNING:
+                next_node = "hop_executor_node"
+                routing_message = "Hop running - routing to hop executor"
+            elif state.mission.current_hop.status == HopStatus.ALL_HOPS_COMPLETE:
+                next_node = "mission_specialist_node"
+                routing_message = "All hops complete - routing to mission specialist"
+            else:
+                routing_message = f"Unknown hop status: {state.mission.current_hop.status}"
+                next_node = "mission_specialist_node"
+        else:
+            routing_message = f"Unknown mission status: {state.mission.mission_status}"
+            next_node = "mission_specialist_node"
+
+        # Log routing decision
+        print(f"DEBUG: Routing decision - {routing_message}")
+        print(f"DEBUG: Next node: {next_node}")
 
         # Create routing message
         response_message = Message(
@@ -193,7 +179,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 response_text=routing_message,
                 status="supervisor_routing_completed",
                 error=None,
-                debug=f"Mission: {state.mission.mission_status}, Hop: {state.mission.hop_status}, Routing to: {next_node}",
+                debug=f"Mission: {state.mission.mission_status}, Hop: {state.mission.current_hop.status if state.mission.current_hop else 'No current hop'}, Routing to: {next_node}",
                 payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
@@ -429,9 +415,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
                     generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
                     output_mapping[canonical_key(hop_proposal.output_asset.name)] = generated_wip_asset_id
-                else:
-                    # This case implies a non-final hop without a defined output.
-                    print(f"Warning: Hop '{hop_proposal.name}' is not final but has no output_asset defined to generate a WIP asset from or map.")
             
             new_hop = Hop(
                 id=str(uuid.uuid4()),
@@ -461,7 +444,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             
             # Update state with new hop
             state.mission.current_hop = new_hop
-            state.mission.hop_status = HopStatus.HOP_PROPOSED
+            state.mission.current_hop.status = HopStatus.HOP_PROPOSED
             
             # Initialize and populate the new hop's local state from mission.state
             new_hop.hop_state = {} 
@@ -566,7 +549,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     """Node that handles hop implementer operations"""
     print("Hop implementer node")
     print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
-    print(f"DEBUG: Hop status: {state.mission.hop_status if state.mission else 'No hop status'}")
+    print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission else 'No hop status'}")
 
     if writer:
         writer({
@@ -579,7 +562,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         current_hop = state.mission.current_hop if state.mission else None
         
         if not current_hop:
-            error_msg = f"No current hop to implement. mission.current_hop: {state.mission.current_hop if state.mission else 'No mission'}, hop_status: {state.mission.hop_status if state.mission else 'No status'}"
+            error_msg = f"No current hop to implement. mission.current_hop: {state.mission.current_hop if state.mission else 'No mission'}, hop_status: {state.mission.current_hop.status if state.mission else 'No status'}"
             print(f"ERROR: {error_msg}")
             raise ValueError(error_msg)
 
@@ -635,7 +618,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             current_hop.status = HopStatus.READY_TO_DESIGN
             
             # Set mission hop status to ready for next hop design
-            state.mission.hop_status = HopStatus.READY_TO_DESIGN
+            state.mission.current_hop.status = HopStatus.READY_TO_DESIGN
             
             # Create error message
             error_details = {
@@ -654,7 +637,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
             current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-            state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
+            state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
             
             # Create clarification message
             missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
@@ -676,7 +659,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 print(validation_errors)
                 # Bounce back for clarification with concise error list
                 current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-                state.mission.hop_status = HopStatus.HOP_READY_TO_RESOLVE
+                state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
 
                 formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
 
@@ -740,7 +723,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
                 current_hop.updated_at = datetime.utcnow()
 
-                state.mission.hop_status = HopStatus.HOP_READY_TO_EXECUTE
+                state.mission.current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
 
                 response_message = Message(
                     id=str(uuid.uuid4()),
@@ -775,7 +758,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                     "hop": {
                         **current_hop.model_dump(mode='json'),
                         "status": current_hop.status.value,
-                        "hop_status": state.mission.hop_status.value if state.mission.hop_status else None
+                        "hop_status": state.mission.current_hop.status.value if state.mission.current_hop else None
                     },
                     "mission": {
                         **state.mission.model_dump(mode='json'),
@@ -1008,8 +991,8 @@ class PrimaryAgent:
             description="Default mission description",
             status=ExecutionStatus.PENDING,
             mission_status=MissionStatus.PENDING,
-            hop_status=HopStatus.READY_TO_DESIGN,
-            hops=[],
+            current_hop=None,
+            hop_history=[],
             inputs=[],
             outputs=[],
             mission_state={}

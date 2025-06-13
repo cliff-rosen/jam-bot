@@ -6,18 +6,16 @@ import { ExecutionStatus, MissionStatus, HopStatus } from '@/types/workflow';
  * STATUS LEVELS - Simple and Clear:
  * 
  * 1. MISSION STATUS (MissionStatus)
- *    - Overall mission state: PENDING → ACTIVE → COMPLETE
+ *    - Overall mission state: PENDING → ACTIVE → COMPLETE/FAILED
  *    - Shown as: "Mission: ACTIVE"
  * 
- * 2. HOP STATUS (ExecutionStatus)
- *    - Individual hop state: PENDING → RUNNING → COMPLETED/FAILED
- *    - Shown in hop list and details directly as status badge
+ * 2. HOP STATUS (HopStatus)
+ *    - Hop lifecycle state: PROPOSED → READY_TO_RESOLVE → READY_TO_EXECUTE → RUNNING → ALL_HOPS_COMPLETE
+ *    - Shown in hop list and details as status badge
  * 
- * 3. STEP STATUS (ExecutionStatus)
+ * 3. EXECUTION STATUS (ExecutionStatus)
  *    - Individual step state: PENDING → RUNNING → COMPLETED/FAILED  
  *    - Shown in step details as status badge
- * 
- * Note: HopStatus workflow enum is internal system state, not shown to users
  */
 
 export interface StatusDisplay {
@@ -26,128 +24,129 @@ export interface StatusDisplay {
     text: string;
 }
 
-// Centralized status display for ExecutionStatus (hops and steps)
-export const getExecutionStatusDisplay = (status: ExecutionStatus): StatusDisplay => {
-    switch (status) {
-        case ExecutionStatus.PENDING:
-            return {
-                color: 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30',
-                icon: React.createElement(Clock, { className: 'w-3 h-3' }),
-                text: 'PENDING'
-            };
-        case ExecutionStatus.RUNNING:
-            return {
-                color: 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
-                icon: React.createElement(PlayCircle, { className: 'w-3 h-3' }),
-                text: 'RUNNING'
-            };
-        case ExecutionStatus.COMPLETED:
-            return {
-                color: 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30',
-                icon: React.createElement(CheckCircle, { className: 'w-3 h-3' }),
-                text: 'COMPLETED'
-            };
-        case ExecutionStatus.FAILED:
-            return {
-                color: 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30',
-                icon: React.createElement(XCircle, { className: 'w-3 h-3' }),
-                text: 'FAILED'
-            };
-        default:
-            return {
-                color: 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700',
-                icon: React.createElement(AlertCircle, { className: 'w-3 h-3' }),
-                text: 'UNKNOWN'
-            };
-    }
-};
-
-// Centralized status display for MissionStatus
-export const getMissionStatusDisplay = (status: MissionStatus): StatusDisplay => {
+export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
     switch (status) {
         case MissionStatus.PENDING:
             return {
-                color: 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30',
-                icon: React.createElement(Clock, { className: 'w-3 h-3' }),
-                text: 'PENDING'
+                color: 'yellow',
+                icon: React.createElement(Clock, { className: "w-4 h-4" }),
+                text: 'Pending'
             };
         case MissionStatus.ACTIVE:
             return {
-                color: 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
-                icon: React.createElement(PlayCircle, { className: 'w-3 h-3' }),
-                text: 'ACTIVE'
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Active'
             };
         case MissionStatus.COMPLETE:
             return {
-                color: 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30',
-                icon: React.createElement(CheckCircle, { className: 'w-3 h-3' }),
-                text: 'COMPLETE'
+                color: 'green',
+                icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
+                text: 'Complete'
+            };
+        case MissionStatus.FAILED:
+            return {
+                color: 'red',
+                icon: React.createElement(XCircle, { className: "w-4 h-4" }),
+                text: 'Failed'
             };
         default:
             return {
-                color: 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700',
-                icon: React.createElement(AlertCircle, { className: 'w-3 h-3' }),
-                text: 'UNKNOWN'
+                color: 'gray',
+                icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
+                text: 'Unknown'
             };
     }
-};
+}
 
-// Centralized status display for HopStatus
-export const getHopStatusDisplay = (status: HopStatus): StatusDisplay => {
+export function getHopStatusDisplay(status: HopStatus): StatusDisplay {
     switch (status) {
-        case HopStatus.READY_TO_DESIGN:
-            return {
-                color: 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
-                icon: React.createElement(Clock, { className: 'w-3 h-3' }),
-                text: 'READY TO DESIGN'
-            };
         case HopStatus.HOP_PROPOSED:
             return {
-                color: 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30',
-                icon: React.createElement(AlertCircle, { className: 'w-3 h-3' }),
-                text: 'HOP PROPOSED'
+                color: 'yellow',
+                icon: React.createElement(Clock, { className: "w-4 h-4" }),
+                text: 'Proposed'
             };
         case HopStatus.HOP_READY_TO_RESOLVE:
             return {
-                color: 'text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30',
-                icon: React.createElement(Clock, { className: 'w-3 h-3' }),
-                text: 'READY TO RESOLVE'
+                color: 'blue',
+                icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
+                text: 'Ready to Resolve'
             };
         case HopStatus.HOP_READY_TO_EXECUTE:
             return {
-                color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20',
-                icon: React.createElement(PlayCircle, { className: 'w-3 h-3' }),
-                text: 'READY TO EXECUTE'
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Ready to Execute'
             };
         case HopStatus.HOP_RUNNING:
             return {
-                color: 'text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30',
-                icon: React.createElement(PlayCircle, { className: 'w-3 h-3' }),
-                text: 'RUNNING'
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Running'
             };
         case HopStatus.ALL_HOPS_COMPLETE:
             return {
-                color: 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30',
-                icon: React.createElement(CheckCircle, { className: 'w-3 h-3' }),
-                text: 'ALL COMPLETE'
+                color: 'green',
+                icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
+                text: 'Complete'
             };
         default:
             return {
-                color: 'text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-700',
-                icon: React.createElement(AlertCircle, { className: 'w-3 h-3' }),
-                text: 'UNKNOWN'
+                color: 'gray',
+                icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
+                text: 'Unknown'
             };
     }
-};
+}
 
-// Helper function to get simple status badge classes
-export const getStatusBadgeClass = (color: string): string => {
-    return `px-2 py-0.5 text-xs font-medium rounded-full ${color}`;
-};
+export function getExecutionStatusDisplay(status: ExecutionStatus): StatusDisplay {
+    switch (status) {
+        case ExecutionStatus.PENDING:
+            return {
+                color: 'yellow',
+                icon: React.createElement(Clock, { className: "w-4 h-4" }),
+                text: 'Pending'
+            };
+        case ExecutionStatus.RUNNING:
+            return {
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Running'
+            };
+        case ExecutionStatus.COMPLETED:
+            return {
+                color: 'green',
+                icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
+                text: 'Completed'
+            };
+        case ExecutionStatus.FAILED:
+            return {
+                color: 'red',
+                icon: React.createElement(XCircle, { className: "w-4 h-4" }),
+                text: 'Failed'
+            };
+        default:
+            return {
+                color: 'gray',
+                icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
+                text: 'Unknown'
+            };
+    }
+}
 
-// Helper function to get status with icon
-export const getStatusWithIcon = (color: string, icon: React.ReactElement, text: string): React.ReactElement => {
-    return React.createElement('span', {
-        className: `${getStatusBadgeClass(color)} flex items-center gap-1`
-    }, [icon, text]);
-}; 
+export function getStatusBadgeClass(color: string): string {
+    const baseClasses = 'px-2 py-1 rounded text-xs font-medium flex items-center gap-1';
+    switch (color) {
+        case 'green':
+            return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400`;
+        case 'yellow':
+            return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400`;
+        case 'red':
+            return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400`;
+        case 'blue':
+            return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400`;
+        default:
+            return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400`;
+    }
+} 

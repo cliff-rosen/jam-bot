@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
+import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
+import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 import { toolsApi } from '@/lib/api/toolsApi';
 
 interface CurrentHopDetailsProps {
@@ -23,7 +23,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [executionError, setExecutionError] = useState<string | null>(null);
 
     // Use HopStatus directly for display
-    const statusDisplay = getHopStatusDisplay(hop.status);
+    const statusDisplay = getExecutionStatusDisplay(hop.status);
     const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.tool_steps?.length || 0;
 
@@ -131,7 +131,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.schema ? `Type: ${asset.schema.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -160,7 +160,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.schema ? `Type: ${asset.schema.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -364,7 +364,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 <span className="text-blue-600 dark:text-blue-400">{key}:</span> {asset.name}
                                             </div>
                                             <div className="text-gray-500 ml-2">
-                                                {asset.schema?.type}{asset.is_collection ? ` (${asset.collection_type})` : ''}
+                                                {asset.schema_definition?.type}{asset.is_collection ? ` (${asset.collection_type})` : ''}
                                             </div>
                                         </div>
                                     ))}

@@ -12,7 +12,8 @@ const AssetPanels: React.FC<AssetPanelsProps> = (/*{ assets }*/) => {
     const [selectedAsset, setSelectedAsset] = useState<Asset | undefined>();
     const { state: jamBotState } = useJamBot(); // Get JamBot state
 
-    const missionAssets = Object.values(jamBotState.mission.mission_state || {});
+    // Add null checks and default values
+    const missionAssets = Object.values(jamBotState?.mission?.mission_state || {});
 
     return (
         <div className="flex h-full w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-l border-gray-200 dark:border-gray-700">

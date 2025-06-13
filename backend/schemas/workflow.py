@@ -116,7 +116,8 @@ class Mission(BaseModel):
     id: str
     name: str
     description: str
-    hops: List[Hop]
+    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")
+    hop_history: List[Hop] = Field(default_factory=list, description="List of completed hops")
     inputs: List[Asset]
     outputs: List[Asset]
     mission_state: Dict[str, Asset] = Field(default_factory=dict)
@@ -124,13 +125,8 @@ class Mission(BaseModel):
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     
-    # Execution
-    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")
-    current_hop_index: int = Field(default=0, description="Index of the current hop")
-    
     # Status tracking
     mission_status: MissionStatus = Field(default=MissionStatus.PENDING)
-    hop_status: Optional[HopStatus] = Field(default=None, description="Hop status (only when mission is active)")
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

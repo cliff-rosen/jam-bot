@@ -36,19 +36,6 @@ export enum HopStatus {
     FAILED = "failed"
 }
 
-// Keep WorkflowStatus for backwards compatibility but mark as deprecated
-/** @deprecated Use MissionStatus and HopStatus instead */
-export enum WorkflowStatus {
-    PENDING = "pending",
-    READY = "ready",
-    IN_PROGRESS = "in_progress",
-    COMPLETED = "completed",
-    FAILED = "failed",
-    CANCELLED = "cancelled",
-    HOP_DESIGN = "hop_design",
-    HOP_IMPLEMENTATION = "hop_implementation"
-}
-
 
 // Updated interfaces using unified schema
 export interface AssetFieldMapping {
@@ -81,7 +68,6 @@ export interface ToolStep {
     validation_errors?: string[];
     created_at: string;
     updated_at: string;
-    current_step_index?: number;
 }
 
 export interface Hop {
@@ -102,30 +88,28 @@ export interface Mission {
     id: string;
     name: string;
     description: string;
-    hops: Hop[];
+    current_hop?: Hop;  // Only tracks active hop
+    hop_history: Hop[]; // Renamed from hops, only stores completed hops
     inputs: Asset[];
     outputs: Asset[];
     mission_state: Record<string, Asset>;
     status: ExecutionStatus;
-    current_hop?: Hop;
-    current_hop_index?: number;
-    mission_status?: MissionStatus;
-    hop_status?: HopStatus;
     goal?: string;
     success_criteria?: string[];
+    mission_status?: MissionStatus;
 }
 
 export const defaultMission: Mission = {
     id: "default-mission-1",
     name: "New Mission",
     description: "A new mission to be defined.",
-    hops: [],
+    current_hop: undefined,
+    hop_history: [],
     inputs: [],
     outputs: [],
     mission_state: {},
     status: ExecutionStatus.PENDING,
     mission_status: MissionStatus.PENDING,
-    hop_status: HopStatus.READY_TO_DESIGN,
 };
 
 

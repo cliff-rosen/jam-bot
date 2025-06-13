@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, HopStatus, defaultMission, Hop, ExecutionStatus, markHopOutputsReady } from '@/types/workflow';
+import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset } from '@/types/asset';
@@ -9,8 +9,11 @@ import { Asset } from '@/types/asset';
 interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
-    collabArea: CollabAreaState;
-    mission: Mission;
+    collabArea: {
+        type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null;
+        content: any;
+    };
+    mission: Mission | null;
     payload_history: Record<string, any>[];
 }
 
@@ -18,9 +21,10 @@ type JamBotAction =
     | { type: 'ADD_MESSAGE'; payload: ChatMessage }
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
-    | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
+    | { type: 'SET_COLLAB_AREA'; payload: { type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null; content: any } }
     | { type: 'CLEAR_COLLAB_AREA' }
     | { type: 'SET_MISSION'; payload: Mission }
+    | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: Hop }
@@ -37,7 +41,7 @@ const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
     collabArea: {
-        type: 'default',
+        type: null,
         content: null
     },
     mission: defaultMission,
@@ -64,30 +68,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 collabArea: action.payload
             };
         case 'SET_MISSION':
-            const newMission = action.payload as Mission;
-            const combinedState: Record<string, Asset> = { ...(newMission.mission_state || {}) };
-
-            if (Array.isArray(newMission.inputs)) {
-                newMission.inputs.forEach(asset => {
-                    if (asset && asset.id) {
-                        combinedState[asset.id] = asset;
-                    }
-                });
-            }
-
-            if (Array.isArray(newMission.outputs)) {
-                newMission.outputs.forEach(asset => {
-                    if (asset && asset.id) {
-                        combinedState[asset.id] = asset;
-                    }
-                });
-            }
-
+            return {
+                ...state,
+                mission: action.payload
+            };
+        case 'UPDATE_MISSION':
+            if (!state.mission) return state;
             return {
                 ...state,
                 mission: {
-                    ...newMission,
-                    mission_state: combinedState,
+                    ...state.mission,
+                    ...action.payload
                 }
             };
         case 'ADD_PAYLOAD_HISTORY':
@@ -96,275 +87,203 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 payload_history: [...state.payload_history, action.payload]
             };
         case 'ACCEPT_MISSION_PROPOSAL':
+            if (!state.mission) return state;
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    mission_status: MissionStatus.ACTIVE,
-                    hop_status: HopStatus.READY_TO_DESIGN
+                    mission_status: MissionStatus.ACTIVE
                 },
                 collabArea: {
-                    type: 'default',
+                    type: null,
                     content: null
                 }
             };
         case 'ACCEPT_HOP_PROPOSAL':
+            if (!state.mission) return state;
             const acceptedHop = action.payload;
-            const existingHops = Array.isArray(state.mission.hops) ? state.mission.hops : [];
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    current_hop: acceptedHop,
-                    hops: [...existingHops, acceptedHop],
-                    current_hop_index: existingHops.length,
-                    hop_status: HopStatus.HOP_READY_TO_RESOLVE
+                    current_hop: {
+                        ...acceptedHop,
+                        status: HopStatus.HOP_READY_TO_RESOLVE
+                    }
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
-            if (!state.mission?.current_hop) {
-                return state;
-            }
-            const updatedCurrentHop = {
-                ...state.mission.current_hop,
-                status: HopStatus.HOP_READY_TO_EXECUTE,
-                is_resolved: true
-            };
-            const updatedHopsArray = state.mission.hops.map(hop =>
-                hop.id === updatedCurrentHop.id ? updatedCurrentHop : hop
-            );
+            if (!state.mission) return state;
+            const implementationHop = action.payload;
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    current_hop: updatedCurrentHop,
-                    hops: updatedHopsArray,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                    current_hop: {
+                        ...implementationHop,
+                        status: HopStatus.HOP_READY_TO_EXECUTE
+                    }
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE':
+            if (!state.mission) return state;
             const completedHop = action.payload;
-            const updatedHops = [...state.mission.hops];
             const isFinalHop = completedHop.is_final;
-            const completeCurrentHopIndex = state.mission.current_hop_index ?? 0;
-
-            if (completeCurrentHopIndex < updatedHops.length) {
-                updatedHops[completeCurrentHopIndex] = {
-                    ...completedHop,
-                    status: HopStatus.ALL_HOPS_COMPLETE
-                };
-            }
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: updatedHops,
                     current_hop: undefined,
-                    current_hop_index: completeCurrentHopIndex + 1,
-                    mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status,
-                    hop_status: isFinalHop ? HopStatus.ALL_HOPS_COMPLETE : HopStatus.READY_TO_DESIGN
+                    hop_history: [
+                        ...(state.mission.hop_history || []),
+                        {
+                            ...completedHop,
+                            status: HopStatus.ALL_HOPS_COMPLETE
+                        }
+                    ],
+                    mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status
                 }
             };
         case 'START_HOP_EXECUTION':
+            if (!state.mission || !state.mission.current_hop) return state;
             const hopIdToStart = action.payload;
-            const updatedHopsForStart = state.mission.hops.map(hop => {
-                if (hop.id === hopIdToStart) {
-                    const updatedSteps = hop.tool_steps?.map((step, index) => {
-                        if (index === 0) {
-                            return { ...step, status: ExecutionStatus.RUNNING };
-                        }
-                        return step;
-                    }) || [];
-
-                    return {
-                        ...hop,
-                        status: HopStatus.HOP_RUNNING,
-                        tool_steps: updatedSteps,
-                    };
-                }
-                return hop;
-            });
-
-            const updatedCurrentHopForStart = state.mission.current_hop?.id === hopIdToStart
-                ? {
-                    ...state.mission.current_hop,
-                    status: HopStatus.HOP_RUNNING,
-                    tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
-                        if (index === 0) {
-                            return { ...step, status: ExecutionStatus.RUNNING };
-                        }
-                        return step;
-                    }) || [],
-                }
-                : state.mission.current_hop;
+            if (state.mission.current_hop.id !== hopIdToStart) return state;
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: updatedHopsForStart,
-                    current_hop: updatedCurrentHopForStart,
-                    hop_status: HopStatus.HOP_RUNNING
+                    current_hop: {
+                        ...state.mission.current_hop,
+                        status: HopStatus.HOP_RUNNING,
+                        tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
+                            if (index === 0) {
+                                return { ...step, status: ExecutionStatus.RUNNING };
+                            }
+                            return step;
+                        }) || []
+                    }
                 }
             };
         case 'COMPLETE_HOP_EXECUTION':
+            if (!state.mission || !state.mission.current_hop) return state;
             const hopIdToComplete = action.payload;
+            if (state.mission.current_hop.id !== hopIdToComplete) return state;
 
-            const updatedHopsForComplete = state.mission.hops.map(hop => {
-                if (hop.id === hopIdToComplete) {
-                    const updatedSteps = hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.COMPLETED
-                    })) || [];
-
-                    return {
-                        ...hop,
-                        status: HopStatus.ALL_HOPS_COMPLETE,
-                        tool_steps: updatedSteps
-                    };
-                }
-                return hop;
-            });
-
-            const completedHopForExecution = updatedHopsForComplete.find(h => h.id === hopIdToComplete);
-
-            if (!completedHopForExecution) {
-                console.error('Completed hop not found in hops array');
-                return state;
-            }
-
-            // Mark hop output assets as ready when hop completes successfully
-            const updatedMissionState = { ...state.mission.mission_state };
-            if (completedHopForExecution.output_mapping && completedHopForExecution.hop_state) {
-                const markedReady = markHopOutputsReady(
-                    completedHopForExecution.hop_state,
-                    completedHopForExecution.output_mapping,
-                    updatedMissionState,
-                    "hop_execution"
-                );
-                // TODO: Do something with markedReady
-            }
+            const completedHopForExecution = {
+                ...state.mission.current_hop,
+                status: HopStatus.ALL_HOPS_COMPLETE,
+                tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
+                    ...step,
+                    status: ExecutionStatus.COMPLETED
+                })) || []
+            };
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: updatedHopsForComplete,
-                    current_hop: completedHopForExecution,
-                    hop_status: HopStatus.ALL_HOPS_COMPLETE
+                    current_hop: undefined,
+                    hop_history: [
+                        ...(state.mission.hop_history || []),
+                        completedHopForExecution
+                    ]
                 }
             };
         case 'FAIL_HOP_EXECUTION':
-            const { hopId, error } = action.payload;
-            const updatedHopsForFail = state.mission.hops.map(hop => {
-                if (hop.id === hopId) {
-                    const updatedSteps = hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.FAILED,
-                        error
-                    })) || [];
+            if (!state.mission || !state.mission.current_hop) return state;
+            const { hopId: failedHopId, error } = action.payload;
+            if (state.mission.current_hop.id !== failedHopId) return state;
 
-                    return {
-                        ...hop,
-                        status: HopStatus.FAILED,
-                        error,
-                        tool_steps: updatedSteps
-                    };
-                }
-                return hop;
-            });
-
-            const failedHop = updatedHopsForFail.find(h => h.id === hopId);
-
-            if (!failedHop) {
-                console.error('Failed hop not found in hops array');
-                return state;
-            }
+            const failedHop = {
+                ...state.mission.current_hop,
+                status: HopStatus.HOP_READY_TO_EXECUTE,
+                error,
+                tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
+                    ...step,
+                    status: ExecutionStatus.FAILED
+                })) || []
+            };
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: updatedHopsForFail,
-                    current_hop: failedHop,
-                    hop_status: HopStatus.FAILED
+                    current_hop: failedHop
                 }
             };
         case 'RETRY_HOP_EXECUTION':
-            const hopIdToRetry = action.payload;
-            const updatedHopsForRetry = state.mission.hops.map(hop => {
-                if (hop.id === hopIdToRetry) {
-                    const updatedSteps = hop.tool_steps?.map(step => ({
-                        ...step,
-                        status: ExecutionStatus.PENDING,
-                        error: undefined
-                    })) || [];
+            if (!state.mission || !state.mission.current_hop) return state;
+            const retryHopId = action.payload;
+            if (state.mission.current_hop.id !== retryHopId) return state;
 
-                    return {
-                        ...hop,
-                        status: HopStatus.HOP_READY_TO_EXECUTE,
-                        error: undefined,
-                        tool_steps: updatedSteps
-                    };
-                }
-                return hop;
-            });
-
-            const retriedHop = updatedHopsForRetry.find(h => h.id === hopIdToRetry);
-
-            if (!retriedHop) {
-                console.error('Retried hop not found in hops array');
-                return state;
-            }
+            const retriedHop = {
+                ...state.mission.current_hop,
+                status: HopStatus.HOP_READY_TO_EXECUTE,
+                error: undefined,
+                tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
+                    ...step,
+                    status: ExecutionStatus.PENDING
+                })) || []
+            };
 
             return {
                 ...state,
                 mission: {
                     ...state.mission,
-                    hops: updatedHopsForRetry,
-                    current_hop: retriedHop,
-                    hop_status: HopStatus.HOP_READY_TO_EXECUTE
+                    current_hop: retriedHop
                 }
             };
         case 'CLEAR_COLLAB_AREA':
             return {
                 ...state,
                 collabArea: {
-                    type: 'default',
+                    type: null,
                     content: null
                 }
             };
         case 'UPDATE_HOP_STATE':
-            const { hop: updatedHopData, missionOutputs } = action.payload;
-            const updatedHopsForState = state.mission.hops.map(hop =>
-                hop.id === updatedHopData.id ? updatedHopData : hop
-            );
+            if (!state.mission) return state;
+            const { hop, missionOutputs } = action.payload;
 
-            // Ensure current_hop is always in sync with hops array
-            const currentHopForState = updatedHopsForState.find(h => h.id === updatedHopData.id) || state.mission.current_hop;
+            // Update the current hop
+            const updatedMission = {
+                ...state.mission,
+                current_hop: hop
+            };
+
+            // If the hop is completed, add it to hop_history
+            if (hop.status === ExecutionStatus.COMPLETED) {
+                updatedMission.hop_history = [
+                    ...(state.mission.hop_history || []),
+                    hop
+                ];
+            }
+
+            // Update any mission outputs that were modified
+            if (missionOutputs.size > 0) {
+                updatedMission.outputs = state.mission.outputs.map(output => {
+                    const updatedOutput = missionOutputs.get(output.id);
+                    return updatedOutput || output;
+                });
+            }
 
             return {
                 ...state,
-                mission: {
-                    ...state.mission,
-                    hops: updatedHopsForState,
-                    current_hop: currentHopForState,
-                    current_hop_index: updatedHopsForState.findIndex(h => h.id === updatedHopData.id),
-                    mission_state: { ...state.mission.mission_state, ...Object.fromEntries(missionOutputs) },
-                }
+                mission: updatedMission
             };
         default:
             return state;
     }
 };
 
-const JamBotContext = createContext<{
+interface JamBotContextValue {
     state: JamBotState;
     addMessage: (message: ChatMessage) => void;
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
-    setCollabArea: (type: CollabAreaState['type'], content?: any) => void;
+    setCollabArea: (type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: (hop: Hop) => void;
@@ -374,10 +293,10 @@ const JamBotContext = createContext<{
     completeHopExecution: (hopId: string) => void;
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
-    clearCollabArea: () => void;
     updateHopState: (hop: Hop, missionOutputs: Map<string, Asset>) => void;
-    setState: (state: JamBotState) => void;
-} | undefined>(undefined);
+}
+
+const JamBotContext = createContext<JamBotContextValue | null>(null);
 
 export const useJamBot = () => {
     const context = useContext(JamBotContext);
@@ -422,19 +341,27 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const startHopExecution = useCallback((hopId: string) => {
-        dispatch({ type: 'START_HOP_EXECUTION', payload: hopId });
+        if (hopId) {
+            dispatch({ type: 'START_HOP_EXECUTION', payload: hopId });
+        }
     }, []);
 
     const completeHopExecution = useCallback((hopId: string) => {
-        dispatch({ type: 'COMPLETE_HOP_EXECUTION', payload: hopId });
+        if (hopId) {
+            dispatch({ type: 'COMPLETE_HOP_EXECUTION', payload: hopId });
+        }
     }, []);
 
     const failHopExecution = useCallback((hopId: string, error: string) => {
-        dispatch({ type: 'FAIL_HOP_EXECUTION', payload: { hopId, error } });
+        if (hopId) {
+            dispatch({ type: 'FAIL_HOP_EXECUTION', payload: { hopId, error } });
+        }
     }, []);
 
     const retryHopExecution = useCallback((hopId: string) => {
-        dispatch({ type: 'RETRY_HOP_EXECUTION', payload: hopId });
+        if (hopId) {
+            dispatch({ type: 'RETRY_HOP_EXECUTION', payload: hopId });
+        }
     }, []);
 
     const clearCollabArea = useCallback(() => {
@@ -508,7 +435,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             const currentCollabType = state.collabArea.type;
-            const isCurrentHopRelated = ['hop', 'hop-proposal', 'hop-implementation-proposal'].includes(currentCollabType);
+            const isCurrentHopRelated = currentCollabType !== null && ['hop', 'hop-proposal', 'hop-implementation-proposal'].includes(currentCollabType);
             const isNewHopRelated = isMissionProposal || isHopProposal || isHopImplementationProposal;
 
             newCollabAreaContent = data.payload;
@@ -543,7 +470,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
                 payload: {
-                    mission: state.mission,
+                    mission: state.mission || defaultMission,
                 }
             };
 
@@ -572,11 +499,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [state, addMessage, processBotMessage, updateStreamingMessage]);
 
-    const setCollabArea = useCallback((type: CollabAreaState['type'], content?: any) => {
-        dispatch({
-            type: 'SET_COLLAB_AREA',
-            payload: { type, content }
-        });
+    const setCollabArea = useCallback((type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => {
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type, content } });
     }, []);
 
     return (
@@ -595,9 +519,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             completeHopExecution,
             failHopExecution,
             retryHopExecution,
-            clearCollabArea,
-            updateHopState,
-            setState
+            updateHopState
         }}>
             {children}
         </JamBotContext.Provider>

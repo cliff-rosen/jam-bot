@@ -167,15 +167,15 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Check if this hop has already been accepted (exists in mission hops)
-        const isAlreadyAccepted = state.mission.hops.some(existingHop =>
+        // Check if this hop has already been accepted (exists in mission hop_history)
+        const isAlreadyAccepted = state?.mission?.hop_history.some(existingHop =>
             existingHop.id === hop.id &&
             existingHop.status === HopStatus.HOP_READY_TO_RESOLVE
         );
 
         // Check if the hop is in a state where it needs to be accepted
         const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED &&
-            state.mission.current_hop?.status === HopStatus.HOP_PROPOSED &&
+            state?.mission?.current_hop?.status === HopStatus.HOP_PROPOSED &&
             !isAlreadyAccepted;
 
         return (
@@ -452,7 +452,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         // Get the live hop data from the context state instead of using static content
-        const liveHop = state.mission.hops.find(h => h.id === staticHop.id) ||
+        const liveHop = state.mission.hop_history.find(h => h.id === staticHop.id) ||
             (state.mission.current_hop?.id === staticHop.id ? state.mission.current_hop : null);
 
         if (!liveHop) {

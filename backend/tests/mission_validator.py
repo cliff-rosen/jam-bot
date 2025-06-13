@@ -43,25 +43,18 @@ def validate_mission(mission: Mission) -> List[str]:
             errors.append(f"Input asset {input_asset.id} not found in mission state")
 
     # 4. Hop Validation
-    if mission.hops:
-        # Check hop sequence
-        for i, hop in enumerate(mission.hops):
-            # Verify hop index matches array position
-            if i != mission.current_hop_index and hop.id == mission.current_hop.id:
-                errors.append(f"Current hop index {mission.current_hop_index} doesn't match hop position {i}")
-
-            # Check hop status consistency
-            if hop.status == HopStatus.HOP_PROPOSED and mission.hop_status != HopStatus.HOP_READY_TO_EXECUTE:
-                errors.append(f"Inconsistent status: hop {hop.id} is PROPOSED but mission hop_status is {mission.hop_status}")
-
-            # Check hop asset mappings
-            for input_key, asset_id in hop.input_mapping.items():
-                if asset_id not in mission.mission_state:
-                    errors.append(f"Hop {hop.id} input mapping references non-existent asset: {asset_id}")
-
-            for output_key, asset_id in hop.output_mapping.items():
-                if asset_id not in mission.mission_state:
-                    errors.append(f"Hop {hop.id} output mapping references non-existent asset: {asset_id}")
+    if mission.hop_history:
+        # Check hop status consistency
+        for i, hop in enumerate(mission.hop_history):
+            # Check hop status consistency with mission status
+            if hop.status == HopStatus.HOP_PROPOSED and mission.current_hop and mission.current_hop.status != HopStatus.HOP_READY_TO_EXECUTE:
+                errors.append(f"Inconsistent status: hop {hop.id} is PROPOSED but mission current_hop status is {mission.current_hop.status}")
+            
+            # Check hop order
+            if i > 0:
+                prev_hop = mission.hop_history[i-1]
+                if prev_hop.created_at > hop.created_at:
+                    errors.append(f"Hop {hop.id} created before previous hop {prev_hop.id}")
 
     # 5. Status Validation
     if mission.mission_status == MissionStatus.ACTIVE:
@@ -96,7 +89,7 @@ def test_mission_validation():
         inputs=[],
         outputs=[],
         mission_state={},
-        hops=[],
+        hop_history=[],
         current_hop_index=0,
         mission_status=MissionStatus.PENDING,
         metadata={},

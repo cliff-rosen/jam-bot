@@ -91,7 +91,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
 
     // Helper to get all hops (completed + current)
     const allHops: Hop[] = [
-        ...mission.hop_history,
+        ...(mission.hop_history || []),
         ...(mission.current_hop ? [mission.current_hop] : [])
     ];
 

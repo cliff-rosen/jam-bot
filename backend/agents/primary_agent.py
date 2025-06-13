@@ -348,16 +348,21 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         raise
 
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
-    """Node that handles hop designer operations"""
+    """Hop designer node that designs the next hop in the mission"""
     print("Hop designer node")
+    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
+    print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop status'}")
 
     if writer:
         writer({
-            "status": "hop_designer_starting",
+            "status": "hop_designer_started",
             "payload": serialize_state(state)
         })
-    
+
     try:
+        # Get completed hops for context
+        completed_hops = state.mission.hop_history if state.mission else []
+
         # Create and format the prompt
         prompt = HopDesignerPrompt()
         
@@ -368,7 +373,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             messages=state.messages,
             mission=state.mission,
             available_assets=available_assets,
-            completed_hops=state.mission.hops if state.mission else []
+            completed_hops=completed_hops
         )
         schema = prompt.get_schema()
 

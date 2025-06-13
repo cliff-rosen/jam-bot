@@ -76,6 +76,53 @@ When providing an IMPLEMENTATION_PLAN response, you MUST:
 
 ## CRITICAL VALIDATION RULES
 
+### 0. Asset Creation Rules
+IMPORTANT: You MUST create any new assets in hop.state BEFORE referencing them in result_mapping.
+For example, if you want to store emails in "step1_emails_list", you must first create it in hop.state:
+
+```json
+{{
+  "hop": {{
+    "hop_state": {{
+      "step1_emails_list": {{
+        "id": "step1_emails_list",
+        "name": "Emails List",
+        "description": "List of retrieved emails",
+        "schema": {{
+          "type": "object",
+          "is_array": true,
+          "fields": {{
+            "id": {{"type": "string"}},
+            "subject": {{"type": "string"}},
+            "labels": {{"type": "string", "is_array": true}}
+          }}
+        }},
+        "is_collection": true,
+        "collection_type": "array",
+        "role": "intermediate",
+        "asset_metadata": {{
+          "creator": "hop_implementer",
+          "version": 1
+        }}
+      }}
+    }},
+    "tool_steps": [
+      {{
+        "id": "step1_search_ai_news",
+        "tool_id": "email_search",
+        "description": "Search for AI news emails",
+        "result_mapping": {{
+          "emails": {{
+            "type": "asset_field",
+            "state_asset": "step1_emails_list"
+          }}
+        }}
+      }}
+    ]
+  }}
+}}
+```
+
 ### 1. Resource Configs (auth_config)
 For each resource_config in tool_steps:
 ```json

@@ -742,6 +742,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 # Accept the plan
                 updated_hop = parsed_response.hop
 
+                # Store the current hop state before updating
+                current_hop_state = current_hop.hop_state
+
                 # Ensure tool steps have the correct structure
                 for step in updated_hop.tool_steps:
                     # Ensure resource_configs has the correct structure
@@ -780,11 +783,13 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                                 if 'description' not in result_config:
                                     result_config['description'] = f"Result {result_name} from {step.tool_id}"
 
-                # Copy all fields from the updated hop
-                current_hop.__dict__.update(updated_hop.__dict__)
+                # Update hop fields while preserving hop_state
+                current_hop.tool_steps = updated_hop.tool_steps
                 current_hop.is_resolved = True
                 current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
                 current_hop.updated_at = datetime.utcnow()
+                # Restore the hop state
+                current_hop.hop_state = current_hop_state
 
                 state.mission.current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
 

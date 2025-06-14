@@ -7,7 +7,7 @@ from schemas.chat import Message
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
 
-class SimplePrompt:
+class BasePromptCaller:
     """A simplified base class for creating and using prompts"""
     
     def __init__(

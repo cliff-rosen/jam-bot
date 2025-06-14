@@ -5,7 +5,7 @@ from schemas.workflow import Mission
 from schemas.asset import AssetType, CollectionType
 from tools.tool_registry import format_tool_descriptions_for_mission_design
 from utils.message_formatter import format_assets, format_mission
-from .simple_prompt import SimplePrompt
+from .base_prompt_caller import BasePromptCaller
 
 class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
@@ -38,7 +38,7 @@ class MissionDefinitionResponse(BaseModel):
     response_content: str = Field(description="The main response text added to the conversation")
     mission_proposal: Optional[MissionProposal] = Field(default=None, description="Proposed mission details")
 
-class MissionDefinitionPromptCaller(SimplePrompt):
+class MissionDefinitionPromptCaller(BasePromptCaller):
     """A simplified prompt caller for mission definition"""
     
     def __init__(self):

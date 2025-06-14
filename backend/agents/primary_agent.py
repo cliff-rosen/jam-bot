@@ -19,7 +19,7 @@ from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus,
 from schemas.asset import Asset, AssetStatus, AssetMetadata
 
 from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
-from agents.prompts.hop_designer_prompt import HopDesignerPrompt, HopDesignResponse
+from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
 from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 
@@ -332,34 +332,18 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         # Get completed hops for context
         completed_hops = state.mission.hop_history if state.mission else []
 
-        # Create and format the prompt
-        prompt = HopDesignerPrompt()
+        # Create and use the simplified prompt caller
+        promptCaller = HopDesignerPromptCaller()
         
         # Convert mission state assets to list format for the prompt
         available_assets = [asset.model_dump(mode='json') for asset in state.mission.mission_state.values()] if state.mission else []
         
-        formatted_messages = prompt.get_formatted_messages(
+        parsed_response = await promptCaller.invoke(
             messages=state.messages,
             mission=state.mission,
             available_assets=available_assets,
             completed_hops=completed_hops
         )
-        schema = prompt.get_schema()
-
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=formatted_messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {    
-                    "schema": schema,
-                    "name": prompt.get_response_model_name()
-                }
-            }
-        )   
-        
-        response_text = response.choices[0].message.content
-        parsed_response = prompt.parse_response(response_text)
 
         if parsed_response.hop_proposal:
             # Convert hop proposal to Hop object
@@ -424,7 +408,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             state.mission.current_hop.status = HopStatus.HOP_PROPOSED
             
             # Initialize and populate the new hop's local state from mission.state
-            new_hop.hop_state = {} 
+            new_hop.hop_state = {}
 
             # 1. Populate hop.state with input assets
             if state.mission and state.mission.mission_state and new_hop.input_mapping:

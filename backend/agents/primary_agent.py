@@ -20,7 +20,7 @@ from schemas.asset import Asset, AssetStatus, AssetMetadata
 
 from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
-from agents.prompts.hop_implementer_prompt import HopImplementerPrompt, HopImplementationResponse
+from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
@@ -584,49 +584,18 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                             "next_node": END
                         })
 
-        # Create and format the prompt
-        prompt = HopImplementerPrompt()
+        # Create and use the simplified prompt caller
+        promptCaller = HopImplementerPromptCaller()
         
         # Convert HOP STATE assets to list format for the prompt
         available_assets = [asset.model_dump(mode='json') for asset in current_hop.hop_state.values()] if current_hop else []
         
-        formatted_messages = prompt.get_formatted_messages(
+        parsed_response = await promptCaller.invoke(
             messages=state.messages,
             mission=state.mission,
             current_hop=current_hop,
             available_assets=available_assets
         )
-        
-        # Log the exact prompt messages being sent to OpenAI
-        try:
-            log_file_path = log_hop_implementer_prompt(
-                messages=formatted_messages,
-                mission_name=state.mission.name if state.mission else None,
-                hop_name=current_hop.name if current_hop else None,
-                available_assets_count=len(available_assets)
-            )
-            print(f"HopImplementer prompt messages logged to: {log_file_path}")
-        except Exception as log_error:
-            print(f"Warning: Failed to log hop implementer prompt: {log_error}")
-        
-        schema = prompt.get_schema()
-
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=formatted_messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {    
-                    "schema": schema,
-                    "name": prompt.get_response_model_name()
-                }
-            }
-        )   
-        
-        response_text = response.choices[0].message.content
-        parsed_response = prompt.parse_response(response_text)
-        # pretty print the parsed response
-        print(parsed_response.model_dump_json(indent=2))
 
         # Handle different response types
         if parsed_response.response_type == "RESOLUTION_FAILED":

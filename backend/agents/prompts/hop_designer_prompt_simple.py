@@ -41,9 +41,11 @@ The system has these specific tools available for hop implementation:
 
 ## Hop Design Guidelines
 1. **Inputs**: List the specific assets needed as inputs for this hop
-2. **Output**: Define a single output asset that will be created
-3. **Mission Output**: If this hop produces a mission output, specify its ID
-4. **New Assets**: For new assets, use a descriptive name and provide a clear schema
+2. **Output**: Define the output asset for this hop. You have two options:
+   a. Create a new asset: Define its schema and properties
+   b. Use an existing mission asset: Specify its ID and ensure it matches your needs
+3. **Mission Output**: If this hop produces a mission output, use option (b) above to specify the mission output asset ID
+4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
 
 ## Current Context
 Mission Context: {mission}

@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 import uuid
 
 from schemas.asset import Asset, AssetStatus, AssetMetadata, CollectionType
@@ -42,22 +42,34 @@ class ToolStepLite(BaseModel):
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict, description="Mapping of tool parameters to values or asset fields")
     result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict, description="Mapping of tool results to asset fields")
 
+class OutputAssetSpec(BaseModel):
+    """Specification for an output asset in a hop"""
+    asset: AssetLite = Field(description="Definition of the output asset")
+    use_existing: bool = Field(default=False, description="Whether to use an existing mission asset")
+    mission_asset_id: Optional[str] = Field(
+        default=None,
+        description="ID of existing mission asset to use. Required if use_existing is True."
+    )
+
 class HopLite(BaseModel):
     """Simplified hop definition focusing on inputs and outputs"""
     name: str = Field(description="Name of the hop (2-8 words)")
     description: str = Field(description="One sentence describing what the hop accomplishes")
     inputs: List[AssetLite] = Field(description="Input assets required for this hop")
-    output: AssetLite = Field(description="Output asset to be created by this hop")
-    output_mission_asset_id: Optional[str] = Field(
-        default=None, 
-        description="ID of existing mission output asset this hop will populate. If not provided, a new asset will be created."
-    )
+    output: OutputAssetSpec = Field(description="Output asset specification for this hop")
     is_final: bool = Field(default=False, description="Whether this is the final hop in the mission")
     rationale: str = Field(description="Explanation of why this hop is needed and how it contributes to the mission")
     alternative_approaches: List[str] = Field(
         default_factory=list, 
         description="Alternative approaches that were considered but not chosen"
     )
+
+    @validator('output')
+    def validate_output_spec(cls, v):
+        """Validate that output specification is complete"""
+        if v.use_existing and not v.mission_asset_id:
+            raise ValueError("mission_asset_id is required when use_existing is True")
+        return v
 
 # Mapping functions to convert between Lite and full models
 
@@ -163,12 +175,12 @@ def create_hop_from_lite(hop_lite: HopLite) -> Hop:
     }
     
     # Create output asset from lite version
-    output_asset = create_asset_from_lite(hop_lite.output)
+    output_asset = create_asset_from_lite(hop_lite.output.asset)
     
     # Create output mapping
     output_mapping = {
-        canonical_key(hop_lite.output.name): (
-            hop_lite.output_mission_asset_id or output_asset.id
+        canonical_key(hop_lite.output.asset.name): (
+            hop_lite.output.mission_asset_id or output_asset.id
         )
     }
     

@@ -321,22 +321,38 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     raise ValueError(f"Input asset '{input_asset.name}' not found in mission state")
                 canonical_input_mapping[canonical_key(input_asset.name)] = matching_asset.id
 
-            # Create output asset from lite version
-            output_asset = create_asset_from_lite(hop_lite.output)
-            
-            # Create output mapping based on whether this is a final hop
+            # Handle output asset based on specification
             output_mapping = {}
             generated_wip_asset_id = None
 
-            if hop_lite.is_final and hop_lite.output_mission_asset_id:
-                # For final hops, map to mission output
-                output_mapping[canonical_key(hop_lite.output.name)] = hop_lite.output_mission_asset_id
+            if hop_lite.output.use_existing:
+                # Using existing mission asset
+                if not hop_lite.output.mission_asset_id:
+                    raise ValueError("mission_asset_id is required when use_existing is True")
+                
+                # Verify the asset exists in mission state
+                if hop_lite.output.mission_asset_id not in state.mission.mission_state:
+                    raise ValueError(f"Specified mission asset {hop_lite.output.mission_asset_id} not found in mission state")
+                
+                # Map to existing mission asset
+                output_mapping[canonical_key(hop_lite.output.asset.name)] = hop_lite.output.mission_asset_id
             else:
-                # For intermediate hops, create a new asset ID
-                # Sanitize name for use in ID and make it more unique
+                # Create new asset
+                output_asset = create_asset_from_lite(hop_lite.output.asset)
+                
+                # Generate unique ID for the new asset
                 sanitized_name = hop_lite.name.lower().replace(' ', '_').replace('-', '_')
                 generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
-                output_mapping[canonical_key(hop_lite.output.name)] = generated_wip_asset_id
+                output_asset.id = generated_wip_asset_id
+                output_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
+                
+                # Add to mission state
+                if state.mission.mission_state is None:  # Defensive check
+                    state.mission.mission_state = {}
+                state.mission.mission_state[output_asset.id] = output_asset
+                
+                # Map to new asset
+                output_mapping[canonical_key(hop_lite.output.asset.name)] = generated_wip_asset_id
             
             # Create the full Hop object
             new_hop = Hop(
@@ -368,27 +384,13 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Initialize hop state with output asset using local key
             for local_key, mission_asset_id in output_mapping.items():
                 if mission_asset_id in state.mission.mission_state:
-                    # For final hops, copy the existing mission output asset
+                    # Copy the asset from mission state
                     original_asset = state.mission.mission_state[mission_asset_id]
                     hop_asset = copy.deepcopy(original_asset)
                     hop_asset.id = local_key  # Set ID to match the local key
                     new_hop.hop_state[local_key] = hop_asset
                 else:
-                    # For intermediate hops, use the newly created output asset
-                    hop_asset = copy.deepcopy(output_asset)
-                    hop_asset.id = local_key  # Set ID to match the local key
-                    new_hop.hop_state[local_key] = hop_asset
-
-            # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
-            if generated_wip_asset_id:
-                # Override ID and set role for this WIP asset
-                output_asset.id = generated_wip_asset_id 
-                output_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
-                
-                # Ensure mission.state exists (it should, if mission was initialized)
-                if state.mission.mission_state is None: # Defensive check
-                    state.mission.mission_state = {}
-                state.mission.mission_state[output_asset.id] = output_asset
+                    raise ValueError(f"Output asset {mission_asset_id} not found in mission state")
             
             # Update state with new hop
             state.mission.current_hop = new_hop

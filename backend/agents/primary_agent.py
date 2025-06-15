@@ -17,6 +17,7 @@ from schemas.base import SchemaType
 from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
 from schemas.asset import Asset, AssetStatus, AssetMetadata
+from schemas.lite_models import AssetLite, create_asset_from_lite
 
 from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
@@ -38,45 +39,6 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 SYSTEM_MESSAGE = """
 You are a helpful assistant named Jack that can answer question.
 """
-
-def _create_asset_from_lite(asset_lite: AssetLite) -> Asset:
-    """Convert an AssetLite object to a full Asset object with unified schema"""
-    current_time = datetime.utcnow()
-    
-    # Create the unified schema
-    unified_schema = SchemaType(
-        type=asset_lite.type.value,
-        description=asset_lite.schema_description or asset_lite.description,
-        is_array=asset_lite.is_collection,
-        fields=None  # TODO: Could extract fields from schema_description or example_value if structured
-    )
-
-    # Create metadata for the asset
-    custom_metadata = {}
-    if asset_lite.external_system_for:
-        custom_metadata['external_system_for'] = asset_lite.external_system_for
-
-    asset_metadata = AssetMetadata(
-        created_at=current_time,
-        updated_at=current_time,
-        creator='mission_specialist',
-        custom_metadata=custom_metadata,
-    )
-    
-    # Create the full Asset object
-    return Asset(
-        id=str(uuid.uuid4()),
-        name=asset_lite.name,
-        description=asset_lite.description,
-        schema=unified_schema,
-        value=asset_lite.example_value,
-        status=AssetStatus.PENDING,
-        subtype=asset_lite.subtype,
-        is_collection=asset_lite.is_collection,
-        collection_type=asset_lite.collection_type.value if asset_lite.collection_type else None,
-        role=asset_lite.role or 'intermediate',
-        asset_metadata=asset_metadata,
-    )
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -223,13 +185,13 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             # Convert AssetLite objects to full Asset objects with explicit roles
             state.mission.inputs = []
             for asset_lite in parsed_response.mission_proposal.inputs:
-                asset = _create_asset_from_lite(asset_lite) 
+                asset = create_asset_from_lite(asset_lite) 
                 asset.role = 'input'  # Explicitly set as input
                 state.mission.inputs.append(asset)
             
             state.mission.outputs = []
             for asset_lite in parsed_response.mission_proposal.outputs:
-                asset = _create_asset_from_lite(asset_lite)
+                asset = create_asset_from_lite(asset_lite)
                 asset.role = 'output'  # Explicitly set as output
                 state.mission.outputs.append(asset)
 

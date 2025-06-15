@@ -24,20 +24,18 @@ class AssetStatus(str, Enum):
     ERROR = "error"
     EXPIRED = "expired"
 
+class CollectionType(str, Enum):
+    """Type of collection for assets that contain multiple items"""
+    ARRAY = "array"
+    MAP = "map"
+    SET = "set"
+
 class AssetMetadata(BaseModel):
     """Contains metadata about an asset, such as creation and update times."""
     created_at: datetime = Field(default_factory=datetime.utcnow, alias='createdAt')
     updated_at: datetime = Field(default_factory=datetime.utcnow, alias='updatedAt')
     creator: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    agent_associations: List[str] = Field(default_factory=list)
-    version: int = Field(default=1)
-    token_count: int = Field(default=0)
-
-    model_config = {
-        "populate_by_name": True,
-        "arbitrary_types_allowed": True
-    }
+    custom_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class Asset(SchemaEntity):
     """
@@ -48,7 +46,7 @@ class Asset(SchemaEntity):
     status: AssetStatus = Field(default=AssetStatus.PENDING)
     subtype: Optional[str] = None
     is_collection: bool = Field(default=False)
-    collection_type: Optional[Literal['array', 'map', 'set', 'null']] = None
+    collection_type: Optional[CollectionType] = None
     role: Optional[AssetRole] = None
     error_message: Optional[str] = None
     last_updated_by: Optional[str] = None

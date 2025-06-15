@@ -3,16 +3,16 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import uuid
 
-from schemas.asset import Asset, AssetStatus, AssetMetadata, AssetType, CollectionType
+from schemas.asset import Asset, AssetStatus, AssetMetadata, CollectionType
 from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus
-from schemas.base import SchemaType
-from utils import canonical_key
+from schemas.base import SchemaType, ValueType
+from utils.string_utils import canonical_key
 
 class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
     name: str = Field(description="Name of the asset")
     description: str = Field(description="Clear description of what this asset contains")
-    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown', 'config'. Use 'config' for external system credentials!")
+    type: ValueType = Field(description="Type of asset. Must be one of: 'string', 'number', 'boolean', 'primitive', 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'")
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
     is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
     collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
@@ -67,7 +67,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     
     # Create the unified schema
     unified_schema = SchemaType(
-        type=asset_lite.type.value,
+        type=asset_lite.type,  # type is already a ValueType string
         description=asset_lite.schema_description or asset_lite.description,
         is_array=asset_lite.is_collection,
         fields=None  # TODO: Could extract fields from schema_description or example_value if structured
@@ -90,7 +90,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         id=str(uuid.uuid4()),
         name=asset_lite.name,
         description=asset_lite.description,
-        schema=unified_schema,
+        schema_definition=unified_schema,
         value=asset_lite.example_value,
         status=AssetStatus.PENDING,
         subtype=asset_lite.subtype,

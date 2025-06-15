@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 import json
 import logging
+import uuid
 
 from services.asset_service import AssetService
 from services.auth_service import validate_token
@@ -12,7 +13,10 @@ from services.newsletter_summary_service import NewsletterSummaryService
 from services.newsletter_summary_report_service import NewsletterSummaryReportService
 from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 from schemas.email import EmailAgentResponse
-from schemas.asset import Asset, AssetType
+from schemas.asset import Asset, AssetType, AssetStatus, AssetMetadata
+from schemas.base import ValueType
+from schemas.workflow import Mission, MissionStatus
+from schemas.lite_models import AssetLite, create_asset_from_lite
 from database import get_db
 
 logger = logging.getLogger(__name__)
@@ -437,4 +441,31 @@ async def get_newsletter_report_as_asset(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
-        ) 
+        )
+
+def create_asset(name: str, description: str, value: Any = None) -> Asset:
+    """Create a new asset with the given name and description"""
+    current_time = datetime.utcnow()
+    
+    # Create metadata
+    asset_metadata = AssetMetadata(
+        created_at=current_time,
+        updated_at=current_time,
+        creator='newsletter_service',
+        custom_metadata={}
+    )
+    
+    # Create the asset
+    return Asset(
+        id=str(uuid.uuid4()),
+        name=name,
+        description=description,
+        schema_definition=SchemaType(
+            type='markdown',  # Use string literal instead of enum
+            description=description,
+            is_array=False
+        ),
+        value=value,
+        status=AssetStatus.PENDING,
+        asset_metadata=asset_metadata
+    ) 

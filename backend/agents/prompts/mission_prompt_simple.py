@@ -2,7 +2,6 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from schemas.chat import Message
 from schemas.workflow import Mission
-from schemas.asset import AssetType, CollectionType
 from schemas.lite_models import AssetLite, MissionLite, create_mission_from_lite
 from tools.tool_registry import format_tool_descriptions_for_mission_design
 from utils.message_formatter import format_assets, format_mission

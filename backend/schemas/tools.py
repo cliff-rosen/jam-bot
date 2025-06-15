@@ -8,7 +8,7 @@ including the ToolStep execute method and related utilities.
 from __future__ import annotations
 from typing import Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
-from .workflow import ToolStep
+from .workflow import ToolStep, ExecutionStatus
 from .asset import Asset
 from .tool_handler_schema import ToolExecutionInput, ToolExecutionResult
 from tools.tool_registry import TOOL_REGISTRY, get_tool_definition

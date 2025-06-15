@@ -435,10 +435,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
-            const currentCollabType = state.collabArea.type;
-            const isCurrentHopRelated = currentCollabType !== null && ['hop', 'hop-proposal', 'hop-implementation-proposal'].includes(currentCollabType);
-            const isNewHopRelated = isMissionProposal || isHopProposal || isHopImplementationProposal;
-
             newCollabAreaContent = data.payload;
             if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
                 dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
@@ -450,7 +446,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
             } else if (isHopProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
-            } else if (!isCurrentHopRelated) {
             }
 
             if (lastMessageId) {

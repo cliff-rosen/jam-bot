@@ -102,8 +102,4 @@ Based on the provided context, design the next hop in the mission workflow."""
             **kwargs
         )
 
-        # If we got a hop proposal, convert it to a full Hop object
-        if response.hop_proposal:
-            response.hop_proposal = create_hop_from_lite(response.hop_proposal)
-
         return response 

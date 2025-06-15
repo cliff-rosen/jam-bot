@@ -16,7 +16,7 @@ from config.settings import settings
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
 from schemas.asset import Asset
-from schemas.lite_models import AssetLite, create_asset_from_lite
+from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
@@ -305,109 +305,93 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             completed_hops=completed_hops
         )
 
-        if parsed_response.hop_proposal:
-            # Convert hop proposal to Hop object
-            hop_proposal = parsed_response.hop_proposal
-            
-            # Validate input mapping
-            if not hop_proposal.input_mapping:
-                raise ValueError(f"Hop proposal '{hop_proposal.name}' must include input mappings to existing mission state assets")
-            
-            # Validate output asset
-            if not hop_proposal.output_asset:
-                raise ValueError(f"Hop proposal '{hop_proposal.name}' must include an output asset definition")
-            
-            # Canonicalize input mapping keys to ensure consistency
-            canonical_input_mapping = {
-                canonical_key(local_name): asset_id
-                for local_name, asset_id in hop_proposal.input_mapping.items()
-            }
-
-            # Create output mapping based on whether this is a final hop
-            output_mapping = {}
-            generated_wip_asset_id = None # To store the ID if it's a new WIP asset
-
-            if hop_proposal.is_final and hop_proposal.output_mission_asset_id:
-                # For final hops, map to mission output
-                output_mapping[canonical_key(hop_proposal.output_asset.name)] = hop_proposal.output_mission_asset_id
-            else:
-                # For intermediate hops, create a new asset ID
-                # Sanitize name for use in ID and make it more unique
-                sanitized_name = hop_proposal.name.lower().replace(' ', '_').replace('-', '_')
-                generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
-                output_mapping[canonical_key(hop_proposal.output_asset.name)] = generated_wip_asset_id
-            
-            new_hop = Hop(
-                id=str(uuid.uuid4()),
-                name=hop_proposal.name,
-                description=hop_proposal.description,
-                input_mapping=canonical_input_mapping,
-                output_mapping=output_mapping,
-                is_final=hop_proposal.is_final,
-                status=HopStatus.HOP_PROPOSED
-            )
-
-            # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
-            if generated_wip_asset_id:
-                output_asset_lite = hop_proposal.output_asset
-                
-                # Convert AssetLite to Asset
-                new_wip_asset = _create_asset_from_lite(output_asset_lite)
-                
-                # Override ID and set role for this WIP asset
-                new_wip_asset.id = generated_wip_asset_id 
-                new_wip_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
-                
-                # Ensure mission.state exists (it should, if mission was initialized)
-                if state.mission.mission_state is None: # Defensive check
-                    state.mission.mission_state = {}
-                state.mission.mission_state[new_wip_asset.id] = new_wip_asset
-            
-            # Update state with new hop
-            state.mission.current_hop = new_hop
-            state.mission.current_hop.status = HopStatus.HOP_PROPOSED
-            
-            # Initialize and populate the new hop's local state from mission.state
-            new_hop.hop_state = {}
-
-            # 1. Populate hop.state with input assets
-            if state.mission and state.mission.mission_state and new_hop.input_mapping:
-                for local_input_name, mission_asset_id in new_hop.input_mapping.items():
-                    canonical_local_key = canonical_key(local_input_name)
-                    if mission_asset_id in state.mission.mission_state:
-                        # Deep-copy the mission asset so that modifications inside the hop do NOT
-                        # mutate the original asset attached to the parent mission. We also
-                        # update the asset's `id` so that it matches the local key used to store
-                        # it in `hop.state`. This guarantees `asset.id == key` for every entry in
-                        # the hop state as intended.
-                        asset_copy = copy.deepcopy(state.mission.mission_state[mission_asset_id])
-                        asset_copy.id = canonical_local_key
-
-                        new_hop.hop_state[canonical_local_key] = asset_copy
-                    else:
-                        raise ValueError(f"Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') for hop '{new_hop.name}' not found in mission.state. This is a critical issue.")
-            
-            # 2. Populate hop.state with output assets
-            # The output_asset_id_in_mission_state is either a mission_output_id or the generated_wip_asset_id
-            if state.mission and state.mission.mission_state and new_hop.output_mapping:
-                for local_output_name, output_asset_id_in_mission_state in new_hop.output_mapping.items():
-                    canonical_output_key = canonical_key(local_output_name)
-                    if output_asset_id_in_mission_state in state.mission.mission_state:
-                        # Use a detached copy for the same reasons as inputs (avoid accidental
-                        # mutation + maintain key/id alignment).
-                        asset_copy = copy.deepcopy(state.mission.mission_state[output_asset_id_in_mission_state])
-                        asset_copy.id = canonical_output_key
-
-                        new_hop.hop_state[canonical_output_key] = asset_copy
-                    else:
-                        raise ValueError(f"Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') for hop '{new_hop.name}' not found in mission.state. This asset should have been present (either as mission output or newly created WIP). Critical issue.")
-
+        # Create response message
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
             timestamp=datetime.utcnow().isoformat()
         )
+
+        # Handle different response types
+        if parsed_response.response_type == "HOP_PROPOSAL":
+            if not parsed_response.hop_proposal:
+                raise ValueError("Response type is HOP_PROPOSAL but no hop proposal was provided")
+            
+            # Get the HopLite proposal
+            hop_lite: HopLite = parsed_response.hop_proposal
+            
+            # Validate inputs
+            if not hop_lite.inputs:
+                raise ValueError(f"Hop proposal '{hop_lite.name}' must include input assets")
+            
+            # Validate output asset
+            if not hop_lite.output:
+                raise ValueError(f"Hop proposal '{hop_lite.name}' must include an output asset definition")
+            
+            # Create full Asset objects from input assets
+            input_assets = [create_asset_from_lite(asset) for asset in hop_lite.inputs]
+            
+            # Create input mapping from the full Asset objects
+            canonical_input_mapping = {
+                canonical_key(asset.name): asset.id
+                for asset in input_assets
+            }
+
+            # Create output asset from lite version
+            output_asset = create_asset_from_lite(hop_lite.output)
+            
+            # Create output mapping based on whether this is a final hop
+            output_mapping = {}
+            generated_wip_asset_id = None # To store the ID if it's a new WIP asset
+
+            if hop_lite.is_final and hop_lite.output_mission_asset_id:
+                # For final hops, map to mission output
+                output_mapping[canonical_key(hop_lite.output.name)] = hop_lite.output_mission_asset_id
+            else:
+                # For intermediate hops, create a new asset ID
+                # Sanitize name for use in ID and make it more unique
+                sanitized_name = hop_lite.name.lower().replace(' ', '_').replace('-', '_')
+                generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
+                output_mapping[canonical_key(hop_lite.output.name)] = generated_wip_asset_id
+            
+            # Create the full Hop object
+            new_hop = Hop(
+                id=str(uuid.uuid4()),
+                name=hop_lite.name,
+                description=hop_lite.description,
+                input_mapping=canonical_input_mapping,
+                output_mapping=output_mapping,
+                tool_steps=[],  # Tool steps will be added by the implementer
+                hop_state={},   # State will be populated when the hop is implemented
+                status=HopStatus.HOP_PROPOSED,
+                is_final=hop_lite.is_final,
+                is_resolved=False,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
+            if generated_wip_asset_id:
+                # Override ID and set role for this WIP asset
+                output_asset.id = generated_wip_asset_id 
+                output_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
+                
+                # Ensure mission.state exists (it should, if mission was initialized)
+                if state.mission.mission_state is None: # Defensive check
+                    state.mission.mission_state = {}
+                state.mission.mission_state[output_asset.id] = output_asset
+            
+            # Update state with new hop
+            state.mission.current_hop = new_hop
+            state.mission.current_hop.status = HopStatus.HOP_PROPOSED
+
+        elif parsed_response.response_type == "CLARIFICATION_NEEDED":
+            # For clarification needed, we don't create a new hop
+            # Just update the response message with the reasoning
+            response_message.content = f"{parsed_response.response_content}\n\nReasoning: {parsed_response.reasoning}"
+        else:
+            raise ValueError(f"Invalid response type: {parsed_response.response_type}")
 
         # Route back to supervisor
         next_node = END
@@ -422,12 +406,12 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         if writer:
             agent_response_data = {
                 "token": response_message.content[0:100],
-                "response_text": parsed_response.response_content,
+                "response_text": response_message.content,
                 "status": "hop_designer_completed",
                 "error": None,
-                "debug": f"Hop proposed: {new_hop.name if parsed_response.hop_proposal else 'No hop proposed'}, waiting for user approval",
+                "debug": f"Response type: {parsed_response.response_type}, Hop proposed: {state.mission.current_hop.name if state.mission.current_hop else 'No hop proposed'}, waiting for user approval",
                 "payload": {
-                    "hop": new_hop.model_dump(mode='json'),
+                    "hop": state.mission.current_hop.model_dump(mode='json') if state.mission.current_hop else None,
                     "mission": {
                         **state.mission.model_dump(mode='json'),
                         "mission_state": {
@@ -445,7 +429,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     }
                 }
             }
-
+            
             agent_response = AgentResponse(**agent_response_data)
             writer(agent_response.model_dump())
 

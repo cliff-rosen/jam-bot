@@ -153,16 +153,22 @@ def create_hop_from_lite(hop_lite: HopLite) -> Hop:
     """Convert a HopLite object to a full Hop object"""
     current_time = datetime.utcnow()
     
-    # Create input mapping from input assets
+    # Create full Asset objects from input assets
+    input_assets = [create_asset_from_lite(asset) for asset in hop_lite.inputs]
+    
+    # Create input mapping from the full Asset objects
     input_mapping = {
         canonical_key(asset.name): asset.id
-        for asset in hop_lite.inputs
+        for asset in input_assets
     }
+    
+    # Create output asset from lite version
+    output_asset = create_asset_from_lite(hop_lite.output)
     
     # Create output mapping
     output_mapping = {
         canonical_key(hop_lite.output.name): (
-            hop_lite.output_mission_asset_id or f"NEW_{hop_lite.output.name.lower().replace(' ', '_')}"
+            hop_lite.output_mission_asset_id or output_asset.id
         )
     }
     

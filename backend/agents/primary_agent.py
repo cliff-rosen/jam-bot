@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, Any, AsyncIterator, List, Optional, Iterator, TypedDict, Callable, Union
+from typing import Dict, Any, AsyncIterator, List
 import json
 import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
@@ -13,16 +13,14 @@ from langgraph.types import StreamWriter, Send, Command
 
 from config.settings import settings
 
-from schemas.base import SchemaType
-from schemas.chat import Message, MessageRole, AgentResponse, StatusResponse
-from schemas.workflow import Mission, MissionStatus, HopStatus, ExecutionStatus, Hop, ToolStep
-from schemas.asset import Asset, AssetStatus, AssetMetadata
+from schemas.chat import Message, MessageRole, AgentResponse
+from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
+from schemas.asset import Asset
 from schemas.lite_models import AssetLite, create_asset_from_lite
 
-from agents.prompts.mission_prompt import AssetLite, MissionDefinitionPrompt, MissionDefinitionResponse
+from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
 from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
-from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key

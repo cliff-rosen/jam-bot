@@ -7,17 +7,6 @@ from tools.tool_registry import format_tool_descriptions_for_mission_design
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
 
-class MissionProposal(BaseModel):
-    """Structure for a proposed mission"""
-    name: str = Field(description="Name of the mission (2-8 words)")
-    description: str = Field(description="One sentence describing what the mission accomplishes")
-    goal: str = Field(description="The main goal of the mission")
-    success_criteria: List[str] = Field(description="2-3 specific, measurable outcomes that define completion")
-    inputs: List[AssetLite] = Field(description="Input assets required for the mission (user data + external system credentials)")
-    outputs: List[AssetLite] = Field(description="Output assets produced by the mission")
-    scope: str = Field(description="What is explicitly included/excluded in the mission")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the mission")
-
 class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""
     response_type: str = Field(description="Type of response: MISSION_DEFINITION or INTERVIEW_QUESTION")
@@ -110,9 +99,5 @@ Based on the provided context, analyze what information is complete and what nee
             available_assets=assets_str,
             **kwargs
         )
-
-        # If we got a mission proposal, convert it to a full Mission object
-        if response.mission_proposal:
-            response.mission_proposal = create_mission_from_lite(response.mission_proposal)
 
         return response 

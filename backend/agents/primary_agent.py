@@ -344,7 +344,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 sanitized_name = hop_lite.name.lower().replace(' ', '_').replace('-', '_')
                 generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
                 output_asset.id = generated_wip_asset_id
-                output_asset.role = 'intermediate'  # Explicitly set as intermediate/WIP
+                output_asset.role = 'output'  # Set as output at the hop level
                 
                 # Add to mission state
                 if state.mission.mission_state is None:  # Defensive check

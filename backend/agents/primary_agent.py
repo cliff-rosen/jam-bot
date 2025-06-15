@@ -15,8 +15,9 @@ from config.settings import settings
 
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
-from schemas.asset import Asset
+from schemas.asset import Asset, AssetStatus, AssetMetadata
 from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite
+from schemas.base import SchemaType, ValueType
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse

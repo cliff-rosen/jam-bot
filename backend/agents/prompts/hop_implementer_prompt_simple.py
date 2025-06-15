@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from schemas.chat import Message
 from schemas.workflow import Mission, Hop, HopStatus
 from schemas.asset import Asset
-from schemas.lite_models import HopLite, AssetLite
+from schemas.lite_models import HopLite, AssetLite, ToolStepLite
 from tools.tool_registry import format_tool_descriptions_for_implementation
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
@@ -12,7 +12,7 @@ class HopImplementationResponse(BaseModel):
     """Structure for hop implementation response"""
     response_type: str = Field(description="Type of response: IMPLEMENTATION_PLAN or CLARIFICATION_NEEDED")
     response_content: str = Field(description="The main response text to add to the conversation")
-    tool_steps: List[Dict[str, Any]] = Field(default_factory=list, description="List of tool steps to implement the hop")
+    tool_steps: List[ToolStepLite] = Field(default_factory=list, description="List of tool steps to implement the hop")
     missing_information: List[str] = Field(default_factory=list, description="List of missing information if clarification is needed")
 
 class HopImplementerPromptCaller(BasePromptCaller):

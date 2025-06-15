@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, foreign, remote, validates
 from datetime import datetime
@@ -35,26 +35,27 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    google_credentials = relationship("GoogleOAuth2Credentials", back_populates="user", uselist=False)
+    # google_credentials = relationship("GoogleOAuth2Credentials", back_populates="user", uselist=False)
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
+    resource_credentials = relationship("ResourceCredentials", back_populates="user", cascade="all, delete-orphan")
 
-class GoogleOAuth2Credentials(Base):
-    __tablename__ = "google_oauth2_credentials"
+# class GoogleOAuth2Credentials(Base):
+#     __tablename__ = "google_oauth2_credentials"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
-    token = Column(String(255))
-    refresh_token = Column(String(255))
-    token_uri = Column(String(255))
-    client_id = Column(String(255))
-    client_secret = Column(String(255))
-    scopes = Column(JSON)  # Store scopes as JSON array
-    expiry = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+#     id = Column(Integer, primary_key=True, index=True)
+#     user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
+#     token = Column(String(255))
+#     refresh_token = Column(String(255))
+#     token_uri = Column(String(255))
+#     client_id = Column(String(255))
+#     client_secret = Column(String(255))
+#     scopes = Column(JSON)  # Store scopes as JSON array
+#     expiry = Column(DateTime)
+#     created_at = Column(DateTime, default=datetime.utcnow)
+#     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship
-    user = relationship("User", back_populates="google_credentials")
+#     # Relationship
+#     user = relationship("User", back_populates="google_credentials")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -79,4 +80,22 @@ class Asset(Base):
     # Relationships
     user = relationship("User", back_populates="assets")
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+
+class ResourceCredentials(Base):
+    __tablename__ = "resource_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"))
+    resource_id = Column(String(50))  # e.g. "gmail", "dropbox", etc.
+    credentials = Column(JSON)  # Store all credentials as JSON
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    user = relationship("User", back_populates="resource_credentials")
+
+    # Add unique constraint for user_id and resource_id combination
+    __table_args__ = (
+        UniqueConstraint('user_id', 'resource_id', name='uix_user_resource'),
+    )
 

@@ -11,9 +11,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config.settings import settings
-
-from models import GoogleOAuth2Credentials
+from models import ResourceCredentials
 from schemas.email import DateRange
+from schemas.resource import GMAIL_RESOURCE
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +49,24 @@ class EmailService:
         """
         try:
             # Get credentials from database
-            db_credentials = db.query(GoogleOAuth2Credentials).filter(
-                GoogleOAuth2Credentials.user_id == user_id
+            db_credentials = db.query(ResourceCredentials).filter(
+                ResourceCredentials.user_id == user_id,
+                ResourceCredentials.resource_id == GMAIL_RESOURCE.id
             ).first()
             
             if not db_credentials:
-                logger.error(f"No credentials found for user {user_id}")
+                logger.error(f"No Gmail credentials found for user {user_id}")
                 return False
                 
             # Create credentials object
+            creds_data = db_credentials.credentials
             self.credentials = Credentials(
-                token=db_credentials.token,
-                refresh_token=db_credentials.refresh_token,
-                token_uri=db_credentials.token_uri,
-                client_id=db_credentials.client_id,
-                client_secret=db_credentials.client_secret,
-                scopes=db_credentials.scopes
+                token=creds_data['access_token'],
+                refresh_token=creds_data['refresh_token'],
+                token_uri=creds_data['token_uri'],
+                client_id=creds_data['client_id'],
+                client_secret=creds_data['client_secret'],
+                scopes=creds_data['scopes']
             )
             
             # Refresh token if expired
@@ -72,8 +74,9 @@ class EmailService:
                 self.credentials.refresh(Request())
                 
                 # Update database with new token
-                db_credentials.token = self.credentials.token
-                db_credentials.expiry = self.credentials.expiry
+                creds_data['access_token'] = self.credentials.token
+                creds_data['token_expires_at'] = self.credentials.expiry.isoformat()
+                db_credentials.credentials = creds_data
                 db.commit()
             
             # Build Gmail API service

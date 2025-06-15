@@ -5,13 +5,14 @@ from datetime import datetime, date
 
 from services.auth_service import validate_token
 from services.email_service import EmailService
-from models import GoogleOAuth2Credentials, User
+from models import ResourceCredentials, User
 from schemas.email import (
     EmailLabel,
     EmailMessage,
     EmailSearchParams,
     EmailAgentResponse
 )
+from schemas.resource import GMAIL_RESOURCE
 from database import get_db
 import logging
 from config.settings import settings
@@ -365,7 +366,6 @@ async def oauth2_callback(
             # Decode without verification first to get the token data
             decoded_token = jwt.decode(raw_id_token, options={"verify_signature": False})
     
-            
             # Get the email from the decoded token
             user_email = decoded_token.get('email')
             if not user_email:
@@ -388,36 +388,42 @@ async def oauth2_callback(
                 detail=f"User not found for email: {user_email}"
             )
         
+        # Prepare credentials data
+        credentials_data = {
+            'access_token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes,
+            'token_expires_at': credentials.expiry.isoformat() if credentials.expiry else None
+        }
+        
         # Store credentials in database
-        db_credentials = GoogleOAuth2Credentials(
+        db_credentials = ResourceCredentials(
             user_id=user.user_id,
-            token=credentials.token,
-            refresh_token=credentials.refresh_token,
-            token_uri=credentials.token_uri,
-            client_id=credentials.client_id,
-            client_secret=credentials.client_secret,
-            scopes=credentials.scopes,
-            expiry=credentials.expiry
+            resource_id=GMAIL_RESOURCE.id,
+            credentials=credentials_data
         )
         
         # Update or insert credentials
-        existing_credentials = db.query(GoogleOAuth2Credentials).filter(
-            GoogleOAuth2Credentials.user_id == user.user_id
+        existing_credentials = db.query(ResourceCredentials).filter(
+            ResourceCredentials.user_id == user.user_id,
+            ResourceCredentials.resource_id == GMAIL_RESOURCE.id
         ).first()
         
         if existing_credentials:
             # Check if scopes have changed
-            if set(existing_credentials.scopes) != set(credentials.scopes):
+            if set(existing_credentials.credentials.get('scopes', [])) != set(credentials.scopes):
                 logger.info(f"Scopes have changed for user {user.user_id}. Updating credentials.")
-                # Update all fields including scopes
-                for key, value in db_credentials.__dict__.items():
-                    if key != '_sa_instance_state':
-                        setattr(existing_credentials, key, value)
+                existing_credentials.credentials = credentials_data
             else:
                 # Only update token-related fields if scopes haven't changed
-                existing_credentials.token = credentials.token
-                existing_credentials.refresh_token = credentials.refresh_token
-                existing_credentials.expiry = credentials.expiry
+                existing_credentials.credentials.update({
+                    'access_token': credentials.token,
+                    'refresh_token': credentials.refresh_token,
+                    'token_expires_at': credentials.expiry.isoformat() if credentials.expiry else None
+                })
         else:
             db.add(db_credentials)
             
@@ -450,8 +456,9 @@ async def disconnect_gmail(
     """
     try:
         # Find and delete the user's Gmail credentials
-        credentials = db.query(GoogleOAuth2Credentials).filter(
-            GoogleOAuth2Credentials.user_id == user.user_id
+        credentials = db.query(ResourceCredentials).filter(
+            ResourceCredentials.user_id == user.user_id,
+            ResourceCredentials.resource_id == GMAIL_RESOURCE.id
         ).first()
         
         if credentials:

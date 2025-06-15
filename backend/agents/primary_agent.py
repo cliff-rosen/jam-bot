@@ -330,14 +330,18 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             if not hop_lite.output:
                 raise ValueError(f"Hop proposal '{hop_lite.name}' must include an output asset definition")
             
-            # Create full Asset objects from input assets
-            input_assets = [create_asset_from_lite(asset) for asset in hop_lite.inputs]
-            
-            # Create input mapping from the full Asset objects
-            canonical_input_mapping = {
-                canonical_key(asset.name): asset.id
-                for asset in input_assets
-            }
+            # Create input mapping by finding matching assets in mission state
+            canonical_input_mapping = {}
+            for input_asset in hop_lite.inputs:
+                # Find matching asset in mission state by name
+                matching_asset = next(
+                    (asset for asset in state.mission.mission_state.values() 
+                     if canonical_key(asset.name) == canonical_key(input_asset.name)),
+                    None
+                )
+                if not matching_asset:
+                    raise ValueError(f"Input asset '{input_asset.name}' not found in mission state")
+                canonical_input_mapping[canonical_key(input_asset.name)] = matching_asset.id
 
             # Create output asset from lite version
             output_asset = create_asset_from_lite(hop_lite.output)

@@ -1,10 +1,10 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
 import uuid
 
 from schemas.asset import Asset, AssetStatus, AssetMetadata, CollectionType
-from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus
+from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
 from schemas.base import SchemaType, ValueType
 from utils.string_utils import canonical_key
 
@@ -39,8 +39,8 @@ class ToolStepLite(BaseModel):
     tool_id: str = Field(description="ID of the tool to use")
     description: str = Field(description="Description of what this step accomplishes")
     resource_configs: Dict[str, Any] = Field(default_factory=dict, description="Configuration for external resources needed by the tool")
-    parameter_mapping: Dict[str, Any] = Field(default_factory=dict, description="Mapping of tool parameters to values or asset fields")
-    result_mapping: Dict[str, Any] = Field(default_factory=dict, description="Mapping of tool results to asset fields")
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict, description="Mapping of tool parameters to values or asset fields")
+    result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict, description="Mapping of tool results to asset fields")
 
 class HopLite(BaseModel):
     """Simplified hop definition focusing on inputs and outputs"""

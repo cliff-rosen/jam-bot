@@ -46,21 +46,42 @@ The system has these specific tools available for hop implementation:
    - Each step must map its results to hop.state assets
 
 3. **Parameter Mapping Format**:
+   For asset field mappings:
    ```python
    {{
        "parameter_name": {{
            "type": "asset_field",
-           "state_asset": "asset_name_in_hop_state"
+           "state_asset": "asset_name_in_hop_state",
+           "path": "optional.path.to.field"  # Optional path for nested fields
+       }}
+   }}
+   ```
+   For literal value mappings:
+   ```python
+   {{
+       "parameter_name": {{
+           "type": "literal",
+           "value": "actual_value_here"
        }}
    }}
    ```
 
 4. **Result Mapping Format**:
+   For asset field mappings:
    ```python
    {{
        "result_name": {{
            "type": "asset_field",
-           "state_asset": "asset_name_in_hop_state"
+           "state_asset": "asset_name_in_hop_state",
+           "path": "optional.path.to.field"  # Optional path for nested fields
+       }}
+   }}
+   ```
+   For discarded results:
+   ```python
+   {{
+       "result_name": {{
+           "type": "discard"
        }}
    }}
    ```

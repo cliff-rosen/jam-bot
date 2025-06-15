@@ -476,6 +476,28 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         print(f"DEBUG: Implementing hop: {current_hop.name}")
 
+        # Populate hop state with input assets from mission state
+        for local_key, asset_id in current_hop.input_mapping.items():
+            if asset_id in state.mission.mission_state:
+                # Create a copy of the asset but with ID set to the local key
+                original_asset = state.mission.mission_state[asset_id]
+                hop_asset = copy.deepcopy(original_asset)
+                hop_asset.id = local_key  # Set ID to match the local key
+                current_hop.hop_state[local_key] = hop_asset
+            else:
+                print(f"WARNING: Input asset {asset_id} not found in mission state")
+
+        # Add output assets to hop state
+        for local_key, asset_id in current_hop.output_mapping.items():
+            if asset_id in state.mission.mission_state:
+                # Create a copy of the asset but with ID set to the local key
+                original_asset = state.mission.mission_state[asset_id]
+                hop_asset = copy.deepcopy(original_asset)
+                hop_asset.id = local_key  # Set ID to match the local key
+                current_hop.hop_state[local_key] = hop_asset
+            else:
+                print(f"WARNING: Output asset {asset_id} not found in mission state")
+
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
         
@@ -523,7 +545,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 if asset_name not in current_hop.hop_state:
                     # Create a new asset for this intermediate result
                     new_asset = Asset(
-                        id=str(uuid.uuid4()),
+                        id=asset_name,  # Use the asset name as the ID to match local key
                         name=asset_name,
                         description=f"Intermediate asset created during hop implementation: {asset_name}",
                         schema_definition=SchemaType(

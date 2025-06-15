@@ -18,7 +18,7 @@ class ToolExecutionError(Exception):
     def __init__(self, message: str, tool_id: str):
         super().__init__(f"Tool {tool_id} execution failed: {message}")
 
-async def execute_tool_step(step: ToolStep, hop_state: Dict[str, Asset]) -> Dict[str, Any]:
+async def _execute_tool_step(step: ToolStep, hop_state: Dict[str, Asset]) -> Dict[str, Any]:
     """
     Execute a tool step and return the results.
     
@@ -126,7 +126,7 @@ async def tool_step_execute(self: ToolStep, hop_state: Dict[str, Asset]) -> Dict
     """Execute this tool step and return the results."""
     try:
         self.status = ExecutionStatus.RUNNING
-        result = await execute_tool_step(self, hop_state)
+        result = await _execute_tool_step(self, hop_state)
         self.status = ExecutionStatus.COMPLETED
         return result
     except Exception as e:

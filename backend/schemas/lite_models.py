@@ -6,6 +6,7 @@ import uuid
 from schemas.asset import Asset, AssetStatus, AssetMetadata, AssetType, CollectionType
 from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus
 from schemas.base import SchemaType
+from utils import canonical_key
 
 class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""

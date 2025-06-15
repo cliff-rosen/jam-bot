@@ -25,6 +25,10 @@ from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCal
 
 from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
+from utils.state_serializer import (
+    serialize_state, serialize_mission, serialize_hop,
+    create_agent_response
+)
 
 from tools.tool_registry import TOOL_REGISTRY
 
@@ -227,39 +231,13 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         }
 
         if writer:
-            # First convert all assets in state to their dict representation
-            serialized_state = {
-                asset_id: asset.model_dump(mode='json')
-                for asset_id, asset in state.mission.mission_state.items()
-            }
-            
-            # Create a copy of the mission and update its state with serialized assets
-            mission_dict = state.mission.model_dump(mode='json')
-            mission_dict['mission_state'] = serialized_state
-            
-            # Also ensure inputs and outputs are properly serialized using the same format as state
-            mission_dict['inputs'] = [
-                asset.model_dump(mode='json')
-                for asset in state.mission.inputs
-            ]
-            mission_dict['outputs'] = [
-                asset.model_dump(mode='json')
-                for asset in state.mission.outputs
-            ]
-            
-            payload = {
-                "mission": mission_dict
-            }
-            agent_response_data = {
-                "token": response_message.content[0:100],
-                "response_text": parsed_response.response_content,
-                "status": "mission_specialist_completed",
-                "payload": payload,
-                "error": None,
-                "debug": serialize_state(State(**state_update))
-            }
-
-            agent_response = AgentResponse(**agent_response_data)
+            agent_response = AgentResponse(**create_agent_response(
+                token=response_message.content[0:100],
+                response_text=parsed_response.response_content,
+                status="mission_specialist_completed",
+                payload={"mission": serialize_mission(state.mission)},
+                debug=serialize_state(State(**state_update))
+            ))
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)
@@ -348,7 +326,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             
             # Create output mapping based on whether this is a final hop
             output_mapping = {}
-            generated_wip_asset_id = None # To store the ID if it's a new WIP asset
+            generated_wip_asset_id = None
 
             if hop_lite.is_final and hop_lite.output_mission_asset_id:
                 # For final hops, map to mission output
@@ -409,33 +387,16 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         }
 
         if writer:
-            agent_response_data = {
-                "token": response_message.content[0:100],
-                "response_text": response_message.content,
-                "status": "hop_designer_completed",
-                "error": None,
-                "debug": f"Response type: {parsed_response.response_type}, Hop proposed: {state.mission.current_hop.name if state.mission.current_hop else 'No hop proposed'}, waiting for user approval",
-                "payload": {
-                    "hop": state.mission.current_hop.model_dump(mode='json') if state.mission.current_hop else None,
-                    "mission": {
-                        **state.mission.model_dump(mode='json'),
-                        "mission_state": {
-                            asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in state.mission.mission_state.items()
-                        },
-                        "inputs": [
-                            asset.model_dump(mode='json')
-                            for asset in state.mission.inputs
-                        ],
-                        "outputs": [
-                            asset.model_dump(mode='json')
-                            for asset in state.mission.outputs
-                        ]
-                    }
+            agent_response = AgentResponse(**create_agent_response(
+                token=response_message.content[0:100],
+                response_text=response_message.content,
+                status="hop_designer_completed",
+                debug=f"Response type: {parsed_response.response_type}, Hop proposed: {state.mission.current_hop.name if state.mission.current_hop else 'No hop proposed'}, waiting for user approval",
+                payload={
+                    "hop": serialize_hop(state.mission.current_hop),
+                    "mission": serialize_mission(state.mission)
                 }
-            }
-            
-            agent_response = AgentResponse(**agent_response_data)
+            ))
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)
@@ -618,37 +579,17 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             hop_name = current_hop.name
             next_status = "ready for next hop" if not current_hop.is_final else "mission complete"
             
-            agent_response_data = {
-                "token": response_message.content[0:100],
-                "response_text": response_message.content,
-                "status": "hop_implementer_completed",
-                "error": current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
-                "debug": f"Hop implementation status: {current_hop.status.value}, {next_status}",
-                "payload": {
-                    "hop": {
-                        **current_hop.model_dump(mode='json'),
-                        "status": current_hop.status.value,
-                        "hop_status": state.mission.current_hop.status.value if state.mission.current_hop else None
-                    },
-                    "mission": {
-                        **state.mission.model_dump(mode='json'),
-                        "mission_state": {
-                            asset_id: asset.model_dump(mode='json')
-                            for asset_id, asset in state.mission.mission_state.items()
-                        },
-                        "inputs": [
-                            asset.model_dump(mode='json')
-                            for asset in state.mission.inputs
-                        ],
-                        "outputs": [
-                            asset.model_dump(mode='json')
-                            for asset in state.mission.outputs
-                        ]
-                    }
+            agent_response = AgentResponse(**create_agent_response(
+                token=response_message.content[0:100],
+                response_text=response_message.content,
+                status="hop_implementer_completed",
+                error=current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
+                debug=f"Hop implementation status: {current_hop.status.value}, {next_status}",
+                payload={
+                    "hop": serialize_hop(current_hop),
+                    "mission": serialize_mission(state.mission)
                 }
-            }
-            
-            agent_response = AgentResponse(**agent_response_data)
+            ))
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)
@@ -788,6 +729,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
 
         # Validate parameter mapping
         for param_name, mapping in step.parameter_mapping.items():
+            # get the tool parameter for the current parameter mapping
             tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
             if not tool_param:
                 errors.append(
@@ -796,6 +738,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
                 )
                 continue
                 
+            # if the tool parameter is an asset field, we need to check if the asset is in the hop state
             if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
                 state_asset = mapping.get('state_asset')
                 if not state_asset:
@@ -812,8 +755,9 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
                 # TODO: Add schema compatibility check here
                 # For now, we just check for existence
 
-        # Validate result mapping
+        # Validate result mapping    
         for result_name, mapping in step.result_mapping.items():
+            # get the tool output for the current result mapping
             tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
             if not tool_output:
                 errors.append(
@@ -822,6 +766,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
                 )
                 continue
                 
+            # if the tool output is an asset field, we need to check if the asset is in the hop state
             if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
                 state_asset = mapping.get('state_asset')
                 if not state_asset:
@@ -862,13 +807,12 @@ class PrimaryAgent:
             id="default-mission-1", 
             name="Default Mission", 
             description="Default mission description",
-            status=ExecutionStatus.PENDING,
-            mission_status=MissionStatus.PENDING,
             current_hop=None,
             hop_history=[],
             inputs=[],
             outputs=[],
-            mission_state={}
+            mission_state={},
+            mission_status=MissionStatus.PENDING
         )
 
     async def run(self):

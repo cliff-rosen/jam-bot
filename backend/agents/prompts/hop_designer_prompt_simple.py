@@ -1,82 +1,56 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from schemas.chat import Message
-from schemas.workflow import Mission, Hop
-from schemas.asset import AssetType, CollectionType
+from schemas.workflow import Mission, Hop, HopStatus
+from schemas.asset import Asset
+from schemas.lite_models import HopLite, AssetLite, create_hop_from_lite
 from tools.tool_registry import format_tool_descriptions_for_hop_design
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
-from .mission_prompt_simple import AssetLite
-
-class HopProposal(BaseModel):
-    """Structure for a proposed hop"""
-    name: str = Field(description="Name of the hop (e.g., 'Extract Email Data', 'Generate Summary Report')")
-    description: str = Field(description="Clear description of what this hop accomplishes")
-    
-    # Maps logical input names to mission state asset IDs
-    input_mapping: Dict[str, str] = Field(
-        description="Maps local hop state keys to mission asset IDs. Format: {local_key: mission_asset_id}. Values MUST be valid asset IDs from mission.mission_state. The local_key becomes the key in hop.state where the asset will be copied."
-    )
-    
-    output_asset: AssetLite = Field(description="The asset that will be produced by this hop")
-    
-    # If this is a final hop producing a mission output
-    output_mission_asset_id: Optional[str] = Field(
-        default=None,
-        description="ID of the mission output asset this hop produces (if final hop)"
-    )
-    
-    is_final: bool = Field(description="Whether this hop produces the final deliverable")
-    rationale: str = Field(description="Explanation of why this is the right next step")
-    alternative_approaches: Optional[List[str]] = Field(default=None, description="Other approaches considered")
 
 class HopDesignResponse(BaseModel):
     """Structure for hop design response"""
-    response_type: str = Field(description="Type of response: HOP_PROPOSAL or INTERVIEW_QUESTION")
+    response_type: str = Field(description="Type of response: HOP_PROPOSAL or CLARIFICATION_NEEDED")
     response_content: str = Field(description="The main response text to add to the conversation")
-    hop_proposal: Optional[HopProposal] = Field(default=None, description="Proposed hop details")
-    reasoning: Optional[str] = Field(default=None, description="Detailed reasoning about the hop design")
+    hop_proposal: Optional[HopLite] = Field(default=None, description="Proposed hop details")
+    reasoning: str = Field(description="Explanation of the design decisions made")
 
 class HopDesignerPromptCaller(BasePromptCaller):
     """A simplified prompt caller for hop design"""
     
     def __init__(self):
         # Define the system message
-        system_message = """You are an AI assistant that designs incremental steps (hops) to accomplish missions. Your role is to analyze the current state and propose the next logical step toward completing the mission.
+        system_message = """You are an AI assistant that helps design hops in a mission workflow. Your primary responsibilities are:
 
 ## Core Functions
-1. **Analyze** the mission goal and current progress
-2. **Identify** what assets are available and what's still needed
-3. **Design** the next hop that moves closer to the goal
-4. **Validate** that the hop is achievable with available tools
+1. **Analyze** the mission goal and current state
+2. **Identify** available assets and tools
+3. **Design** the next hop in the workflow
+4. **Validate** that the hop is implementable
 
 ## Available Tools
 The system has these specific tools available for hop implementation:
 
 {tool_descriptions}
 
-## Hop Design Principles
+## Design Principles
+1. **Incremental Progress**: Each hop should make clear progress toward the mission goal
+2. **Tractability**: Each hop should be implementable with available tools
+3. **Cohesive Goals**: Each hop should have a clear, focused purpose
+4. **Input/Output Focus**: Each hop should clearly map inputs to outputs
 
-1. **Incremental Progress**: Each hop should make meaningful progress toward the mission goal. A hop is NOT necessarily intended to complete the entire mission in one go.
-
-2. **Tractability and Verifiability**: Design hops that are "right-sized" – complex enough to be useful, but simple enough to be implemented and verified reliably.
-
-3. **Cohesive Goal**: Each hop should have a single, clear, and cohesive goal. What one specific outcome does this hop achieve?
-
-4. **Input/Output Focus**: 
-   - Input mapping MUST use EXACT asset IDs from mission.mission_state
-   - NEVER use asset names or values in input_mapping
-   - Example: `"input_mapping": {{"email_credentials": "ed4dff20-269e-403b-a203-72e251a51dc1"}}`
-   - The output of this hop becomes a potential input for the next
-
-5. **Tool Awareness**: Consider the available tools. Can the proposed transformation be realistically achieved by a sequence of tool steps?
+## Hop Design Guidelines
+1. **Inputs**: List the specific assets needed as inputs for this hop
+2. **Output**: Define a single output asset that will be created
+3. **Mission Output**: If this hop produces a mission output, specify its ID
+4. **New Assets**: For new assets, use a descriptive name and provide a clear schema
 
 ## Current Context
-Mission: {mission}
+Mission Context: {mission}
 Available Assets: {available_assets}
 Completed Hops: {completed_hops}
 
-Based on this context and the available tools, design the next hop that will move us closer to completing the mission."""
+Based on the provided context, design the next hop in the mission workflow."""
 
         # Initialize the base class
         super().__init__(
@@ -93,7 +67,7 @@ Based on this context and the available tools, design the next hop that will mov
         **kwargs: Dict[str, Any]
     ) -> HopDesignResponse:
         """
-        Invoke the hop design prompt.
+        Invoke the hop designer prompt.
         
         Args:
             messages: List of conversation messages
@@ -113,17 +87,23 @@ Based on this context and the available tools, design the next hop that will mov
         mission_str = format_mission(mission)
         
         # Format completed hops
-        hops_str = "None" if not completed_hops else "\n".join([
+        completed_hops_str = "\n".join([
             f"- {hop.name}: {hop.description}"
-            for hop in completed_hops
-        ])
+            for hop in (completed_hops or [])
+        ]) if completed_hops else "No hops completed yet"
         
         # Call base invoke with formatted variables
-        return await super().invoke(
+        response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
             mission=mission_str,
             available_assets=assets_str,
-            completed_hops=hops_str,
+            completed_hops=completed_hops_str,
             **kwargs
-        ) 
+        )
+
+        # If we got a hop proposal, convert it to a full Hop object
+        if response.hop_proposal:
+            response.hop_proposal = create_hop_from_lite(response.hop_proposal)
+
+        return response 

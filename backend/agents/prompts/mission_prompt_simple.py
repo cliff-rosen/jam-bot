@@ -3,23 +3,10 @@ from pydantic import BaseModel, Field
 from schemas.chat import Message
 from schemas.workflow import Mission
 from schemas.asset import AssetType, CollectionType
+from schemas.lite_models import AssetLite, MissionLite, create_mission_from_lite
 from tools.tool_registry import format_tool_descriptions_for_mission_design
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
-
-class AssetLite(BaseModel):
-    """Simplified asset definition for mission proposals"""
-    name: str = Field(description="Name of the asset")
-    description: str = Field(description="Clear description of what this asset contains")
-    type: AssetType = Field(description="Type of asset. MUST be one of: 'file', 'primitive', 'object', 'database_entity', 'markdown', 'config'. Use 'config' for external system credentials!")
-    subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
-    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
-    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
-    role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data/credentials, 'output' for final results, 'intermediate' for data retrieved from external systems")
-    required: bool = Field(default=True, description="Whether this asset is required for the mission")
-    external_system_for: Optional[str] = Field(default=None, description="If this is an external system credential asset, which system it provides access to")
-    schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
-    example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
 
 class MissionProposal(BaseModel):
     """Structure for a proposed mission"""
@@ -36,7 +23,7 @@ class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""
     response_type: str = Field(description="Type of response: MISSION_DEFINITION or INTERVIEW_QUESTION")
     response_content: str = Field(description="The main response text added to the conversation")
-    mission_proposal: Optional[MissionProposal] = Field(default=None, description="Proposed mission details")
+    mission_proposal: Optional[MissionLite] = Field(default=None, description="Proposed mission details")
 
 class MissionDefinitionPromptCaller(BasePromptCaller):
     """A simplified prompt caller for mission definition"""
@@ -117,10 +104,16 @@ Based on the provided context, analyze what information is complete and what nee
         mission_str = format_mission(mission)
         
         # Call base invoke with formatted variables
-        return await super().invoke(
+        response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
             mission=mission_str,
             available_assets=assets_str,
             **kwargs
-        ) 
+        )
+
+        # If we got a mission proposal, convert it to a full Mission object
+        if response.mission_proposal:
+            response.mission_proposal = create_mission_from_lite(response.mission_proposal)
+
+        return response 

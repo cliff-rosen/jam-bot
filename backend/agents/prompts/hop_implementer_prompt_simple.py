@@ -7,7 +7,8 @@ from utils.message_formatter import format_assets, format_mission
 
 from schemas.chat import Message
 from schemas.workflow import Mission, Hop, ToolStep, HopStatus
-from schemas.asset import Asset, AssetMetadata, AssetStatus
+from schemas.asset import Asset
+from schemas.lite_models import HopLite, ToolStepLite, AssetLite, create_hop_from_lite
 
 from .base_prompt_caller import BasePromptCaller
 
@@ -87,12 +88,9 @@ class HopImplementationResponse(BaseModel):
         description="Type of response: IMPLEMENTATION_PLAN, CLARIFICATION_NEEDED, or RESOLUTION_FAILED"
     )
     response_content: str = Field(description="The main response text to add to the conversation")
-    hop: Optional[HopLite] = Field(default=None, description="Updated hop with populated tool steps")
-    missing_information: Optional[List[str]] = Field(default=None, description="Information needed to complete implementation")
-    resolution_failure: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Details about why implementation failed, including failure_type and specific_issues"
-    )
+    hop: Optional[HopLite] = Field(default=None, description="Implemented hop details")
+    missing_information: List[str] = Field(default_factory=list, description="List of missing information needed to implement the hop")
+    resolution_failure: Optional[Dict[str, Any]] = Field(default=None, description="Details about why the hop could not be resolved")
 
     @validator('response_type')
     def validate_response_type(cls, v):
@@ -134,8 +132,8 @@ class HopImplementerPromptCaller(BasePromptCaller):
 ## Core Functions
 1. **Analyze** the hop requirements and available assets
 2. **Design** a sequence of tool steps to implement the hop
-3. **Validate** that the implementation plan is complete and correct
-4. **Identify** any missing information needed for implementation
+3. **Validate** that the implementation is complete and correct
+4. **Handle** any missing information or implementation challenges
 
 ## Available Tools
 The system has these specific tools available for hop implementation:
@@ -187,13 +185,13 @@ Based on the provided context, analyze what information is complete and what nee
         
         # Format available assets and mission
         assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission, context_for_hop=True)
+        mission_str = format_mission(mission)
         
         # Format current hop
         hop_str = self._format_hop(current_hop)
         
         # Call base invoke with formatted variables
-        return await super().invoke(
+        response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
             mission=mission_str,
@@ -201,16 +199,28 @@ Based on the provided context, analyze what information is complete and what nee
             available_assets=assets_str,
             **kwargs
         )
+
+        # If we got a hop proposal, convert it to a full Hop object
+        if response.hop:
+            response.hop = create_hop_from_lite(response.hop)
+
+        return response
     
     def _format_hop(self, hop: Hop) -> str:
         """Format hop information for the prompt"""
-        input_mapping_str = "\n".join([f"  - {local_name} -> {asset_id}" for local_name, asset_id in hop.input_mapping.items()])
-        output_mapping_str = "\n".join([f"  - {local_name} -> {asset_id}" for local_name, asset_id in hop.output_mapping.items()])
+        input_mapping_str = "\n".join([
+            f"  - {local_name} -> {asset_id}"
+            for local_name, asset_id in hop.input_mapping.items()
+        ])
+        
+        output_mapping_str = "\n".join([
+            f"  - {local_name} -> {asset_id}"
+            for local_name, asset_id in hop.output_mapping.items()
+        ])
         
         return f"""Hop Name: {hop.name}
 Description: {hop.description}
 Input Mapping:
 {input_mapping_str}
 Output Mapping:
-{output_mapping_str}
-Status: {hop.status.value}""" 
+{output_mapping_str}""" 

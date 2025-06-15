@@ -346,13 +346,38 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 input_mapping=canonical_input_mapping,
                 output_mapping=output_mapping,
                 tool_steps=[],  # Tool steps will be added by the implementer
-                hop_state={},   # State will be populated when the hop is implemented
+                hop_state={},   # Will be populated below
                 status=HopStatus.HOP_PROPOSED,
                 is_final=hop_lite.is_final,
                 is_resolved=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
+
+            # Initialize hop state with copies of input assets using local keys
+            for local_key, mission_asset_id in canonical_input_mapping.items():
+                if mission_asset_id in state.mission.mission_state:
+                    # Create a copy of the asset but with ID set to the local key
+                    original_asset = state.mission.mission_state[mission_asset_id]
+                    hop_asset = copy.deepcopy(original_asset)
+                    hop_asset.id = local_key  # Set ID to match the local key
+                    new_hop.hop_state[local_key] = hop_asset
+                else:
+                    raise ValueError(f"Input asset {mission_asset_id} not found in mission state")
+
+            # Initialize hop state with output asset using local key
+            for local_key, mission_asset_id in output_mapping.items():
+                if mission_asset_id in state.mission.mission_state:
+                    # For final hops, copy the existing mission output asset
+                    original_asset = state.mission.mission_state[mission_asset_id]
+                    hop_asset = copy.deepcopy(original_asset)
+                    hop_asset.id = local_key  # Set ID to match the local key
+                    new_hop.hop_state[local_key] = hop_asset
+                else:
+                    # For intermediate hops, use the newly created output asset
+                    hop_asset = copy.deepcopy(output_asset)
+                    hop_asset.id = local_key  # Set ID to match the local key
+                    new_hop.hop_state[local_key] = hop_asset
 
             # If a new WIP asset ID was generated (i.e., hop is not final and has a defined output_asset)
             if generated_wip_asset_id:

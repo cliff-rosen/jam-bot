@@ -103,7 +103,7 @@ class BasePromptCaller:
         
         # Get schema
         schema = self.get_schema()
-        
+
         # Call OpenAI
         response = await self.client.chat.completions.create(
             model="gpt-4o",

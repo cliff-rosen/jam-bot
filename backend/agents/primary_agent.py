@@ -471,63 +471,6 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         print(f"DEBUG: Implementing hop: {current_hop.name}")
 
-        # Check if hop state is empty and try to populate it
-        if not current_hop.hop_state:
-            print("DEBUG: Hop state is empty, attempting to populate from mission state")
-            current_hop.hop_state = {}
-            
-            # 1. Populate hop.state with input assets
-            if state.mission and state.mission.mission_state and current_hop.input_mapping:
-                for local_input_name, mission_asset_id in current_hop.input_mapping.items():
-                    canonical_local_key = canonical_key(local_input_name)
-                    if mission_asset_id in state.mission.mission_state:
-                        # Deep-copy the mission asset
-                        asset_copy = copy.deepcopy(state.mission.mission_state[mission_asset_id])
-                        asset_copy.id = canonical_local_key
-                        current_hop.hop_state[canonical_local_key] = asset_copy
-                    else:
-                        # If we can't find an input asset, we need clarification
-                        response_message = Message(
-                            id=str(uuid.uuid4()),
-                            role=MessageRole.ASSISTANT,
-                            content=f"Need clarification to implement hop '{current_hop.name}': Input asset ID '{mission_asset_id}' (local name: '{local_input_name}') not found in mission state.",
-                            timestamp=datetime.utcnow().isoformat()
-                        )
-                        current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-                        state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-                        return Command(goto=END, update={
-                            "messages": [*state.messages, response_message.model_dump()],
-                            "mission": state.mission,
-                            "tool_params": {},
-                            "next_node": END
-                        })
-            
-            # 2. Populate hop.state with output assets
-            if state.mission and state.mission.mission_state and current_hop.output_mapping:
-                for local_output_name, output_asset_id_in_mission_state in current_hop.output_mapping.items():
-                    canonical_output_key = canonical_key(local_output_name)
-                    if output_asset_id_in_mission_state in state.mission.mission_state:
-                        # Deep-copy the mission asset
-                        asset_copy = copy.deepcopy(state.mission.mission_state[output_asset_id_in_mission_state])
-                        asset_copy.id = canonical_output_key
-                        current_hop.hop_state[canonical_output_key] = asset_copy
-                    else:
-                        # If we can't find an output asset, we need clarification
-                        response_message = Message(
-                            id=str(uuid.uuid4()),
-                            role=MessageRole.ASSISTANT,
-                            content=f"Need clarification to implement hop '{current_hop.name}': Output asset ID '{output_asset_id_in_mission_state}' (local name: '{local_output_name}') not found in mission state.",
-                            timestamp=datetime.utcnow().isoformat()
-                        )
-                        current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-                        state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-                        return Command(goto=END, update={
-                            "messages": [*state.messages, response_message.model_dump()],
-                            "mission": state.mission,
-                            "tool_params": {},
-                            "next_node": END
-                        })
-
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
         
@@ -542,28 +485,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         )
 
         # Handle different response types
-        if parsed_response.response_type == "RESOLUTION_FAILED":
-            # Update hop status to indicate failure
-            current_hop.status = HopStatus.READY_TO_DESIGN
-            
-            # Set mission hop status to ready for next hop design
-            state.mission.current_hop.status = HopStatus.READY_TO_DESIGN
-            
-            # Create error message
-            error_details = {
-                "failure_type": parsed_response.resolution_failure.get("failure_type", "OTHER"),
-                "specific_issues": parsed_response.resolution_failure.get("specific_issues", []),
-                "suggested_alternatives": parsed_response.resolution_failure.get("suggested_alternatives", [])
-            }
-            
-            response_message = Message(
-                id=str(uuid.uuid4()),
-                role=MessageRole.ASSISTANT,
-                content=f"Failed to implement hop '{current_hop.name}': {parsed_response.response_content}\n\nFailure Details: {json.dumps(error_details, indent=2)}",
-                timestamp=datetime.utcnow().isoformat()
-            )
-            
-        elif parsed_response.response_type == "CLARIFICATION_NEEDED":
+        if parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
             current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
             state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
@@ -578,14 +500,48 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             )
             
         elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
-            print("Response type: IMPLEMENTATION_PLAN")
-            # Validate the returned plan
-            validation_errors = validate_tool_chain(parsed_response.hop.tool_steps, current_hop.hop_state)
-            print("Back after validation")
+            # First, create any intermediate assets needed by the tool steps
+            intermediate_assets = set()
+            for step in parsed_response.tool_steps:
+                # Check parameter mappings for intermediate assets
+                for param_config in step.parameter_mapping.values():
+                    if isinstance(param_config, dict) and param_config.get('type') == 'asset_field':
+                        intermediate_assets.add(param_config['state_asset'])
+                
+                # Check result mappings for intermediate assets
+                for result_config in step.result_mapping.values():
+                    if isinstance(result_config, dict) and result_config.get('type') == 'asset_field':
+                        intermediate_assets.add(result_config['state_asset'])
+            
+            # Create any missing intermediate assets
+            for asset_name in intermediate_assets:
+                if asset_name not in current_hop.hop_state:
+                    # Create a new asset for this intermediate result
+                    new_asset = Asset(
+                        id=str(uuid.uuid4()),
+                        name=asset_name,
+                        description=f"Intermediate asset created during hop implementation: {asset_name}",
+                        schema_definition=SchemaType(
+                            type='object',  # Default to object type
+                            description=f"Intermediate result from hop implementation: {asset_name}"
+                        ),
+                        status=AssetStatus.PENDING,
+                        is_collection=False,
+                        role='intermediate',
+                        asset_metadata=AssetMetadata(
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow(),
+                            creator='hop_implementer',
+                            custom_metadata={}
+                        )
+                    )
+                    # Use the asset name as the key in hop_state
+                    current_hop.hop_state[asset_name] = new_asset
+
+            # Now validate the tool chain with all assets in place
+            validation_errors = validate_tool_chain(parsed_response.tool_steps, current_hop.hop_state)
 
             if validation_errors:
-                print("Validation errors:")
-                print(validation_errors)
                 # Bounce back for clarification with concise error list
                 current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
                 state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
@@ -604,58 +560,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                     timestamp=datetime.utcnow().isoformat()
                 )
             else:
-                print("Response type: IMPLEMENTATION_PLAN - no validation errors")
                 # Accept the plan
-                updated_hop = parsed_response.hop
-
-                # Store the current hop state before updating
-                current_hop_state = current_hop.hop_state
-
-                # Ensure tool steps have the correct structure
-                for step in updated_hop.tool_steps:
-                    # Ensure resource_configs has the correct structure
-                    if 'gmail' in step.resource_configs:
-                        gmail_config = step.resource_configs['gmail']
-                        if 'auth_config' in gmail_config:
-                            auth_config = gmail_config['auth_config']
-                            if 'required_fields' in auth_config:
-                                for field in auth_config['required_fields']:
-                                    if 'required' not in field:
-                                        field['required'] = True
-
-                    # Ensure parameter_mapping has the correct structure
-                    if 'parameter_mapping' in step:
-                        for param_name, param_config in step.parameter_mapping.items():
-                            if isinstance(param_config, dict):
-                                if 'id' not in param_config:
-                                    param_config['id'] = f"{step.id}_{param_name}"
-                                if 'name' not in param_config:
-                                    param_config['name'] = param_name
-                                if 'type' not in param_config:
-                                    param_config['type'] = param_config.get('type', 'literal')
-                                if 'description' not in param_config:
-                                    param_config['description'] = f"Parameter {param_name} for {step.tool_id}"
-
-                    # Ensure result_mapping has the correct structure
-                    if 'result_mapping' in step:
-                        for result_name, result_config in step.result_mapping.items():
-                            if isinstance(result_config, dict):
-                                if 'id' not in result_config:
-                                    result_config['id'] = f"{step.id}_{result_name}"
-                                if 'name' not in result_config:
-                                    result_config['name'] = result_name
-                                if 'type' not in result_config:
-                                    result_config['type'] = result_config.get('type', 'asset_field')
-                                if 'description' not in result_config:
-                                    result_config['description'] = f"Result {result_name} from {step.tool_id}"
-
-                # Update hop fields while preserving hop_state
-                current_hop.tool_steps = updated_hop.tool_steps
+                current_hop.tool_steps = parsed_response.tool_steps
                 current_hop.is_resolved = True
                 current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
                 current_hop.updated_at = datetime.utcnow()
-                # Restore the hop state
-                current_hop.hop_state = current_hop_state
 
                 state.mission.current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
 
@@ -835,53 +744,6 @@ graph = compiled
 # Validation helpers
 # ---------------------------------------------------------------------------
 
-def _validate_step_schema(step: ToolStep, tool_def: "ToolDefinition", hop_state: Dict[str, Asset]) -> List[str]:
-    """Validate a single tool step's schema against the tool definition."""
-    errors = []
-    
-    # Validate parameter mapping
-    for param_name, mapping in step.parameter_mapping.items():
-        tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
-        if not tool_param:
-            errors.append(
-                f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition. "
-                f"Available parameters: {', '.join(p.name for p in tool_def.parameters)}"
-            )
-            continue
-            
-        if mapping.type == "asset_field":
-            if mapping.state_asset not in hop_state:
-                errors.append(
-                    f"Step '{step.id}': Asset '{mapping.state_asset}' for parameter '{param_name}' not found in hop state. "
-                    f"Available assets: {', '.join(hop_state.keys())}"
-                )
-                continue
-            
-            # TODO: Add more sophisticated schema compatibility checks here
-            # For now, we just check for existence.
-
-    # Validate result mapping
-    for result_name, mapping in step.result_mapping.items():
-        tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
-        if not tool_output:
-            errors.append(
-                f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition. "
-                f"Available outputs: {', '.join(o.name for o in tool_def.outputs)}"
-            )
-            continue
-            
-        if mapping.type == "asset_field":
-            if mapping.state_asset not in hop_state:
-                errors.append(
-                    f"Step '{step.id}': Asset '{mapping.state_asset}' for result '{result_name}' not found in hop state. "
-                    f"Available assets: {', '.join(hop_state.keys())}"
-                )
-                continue
-
-            # TODO: Add more sophisticated schema compatibility checks here
-
-    return errors
-
 def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> List[str]:
     """Validate the tool chain returned by the Hop-Implementer.
 
@@ -897,9 +759,59 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
             errors.append(f"Tool definition not found for tool_id '{step.tool_id}'")
             continue
 
-        errors.extend(_validate_step_schema(step, tool_def, hop_state))
+        # Validate parameter mapping
+        for param_name, mapping in step.parameter_mapping.items():
+            tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
+            if not tool_param:
+                errors.append(
+                    f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition. "
+                    f"Available parameters: {', '.join(p.name for p in tool_def.parameters)}"
+                )
+                continue
+                
+            if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
+                state_asset = mapping.get('state_asset')
+                if not state_asset:
+                    errors.append(f"Step '{step.id}': Missing state_asset in parameter mapping for '{param_name}'")
+                    continue
+                    
+                if state_asset not in hop_state:
+                    errors.append(
+                        f"Step '{step.id}': Asset '{state_asset}' for parameter '{param_name}' not found in hop state. "
+                        f"Available assets: {', '.join(hop_state.keys())}"
+                    )
+                    continue
+                
+                # TODO: Add schema compatibility check here
+                # For now, we just check for existence
 
-    return errors 
+        # Validate result mapping
+        for result_name, mapping in step.result_mapping.items():
+            tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
+            if not tool_output:
+                errors.append(
+                    f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition. "
+                    f"Available outputs: {', '.join(o.name for o in tool_def.outputs)}"
+                )
+                continue
+                
+            if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
+                state_asset = mapping.get('state_asset')
+                if not state_asset:
+                    errors.append(f"Step '{step.id}': Missing state_asset in result mapping for '{result_name}'")
+                    continue
+                    
+                if state_asset not in hop_state:
+                    errors.append(
+                        f"Step '{step.id}': Asset '{state_asset}' for result '{result_name}' not found in hop state. "
+                        f"Available assets: {', '.join(hop_state.keys())}"
+                    )
+                    continue
+
+                # TODO: Add schema compatibility check here
+                # For now, we just check for existence
+
+    return errors
 
 def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
     """

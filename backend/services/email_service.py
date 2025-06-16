@@ -444,6 +444,7 @@ class EmailService:
             - error: Error message if storage failed (None if successful)
         """
         try:
+            print("Retrieving messages")
             # First get the messages
             result = await self.get_messages(
                 folders=folders,

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Dict, Any, List
 
+from database import get_db
 from services.email_service import EmailService
-from tools.tool_registry import register_tool_handler  # Updated import path
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
+from tools.tool_registry import register_tool_handler  # Updated import path
 
 # Singleton service instance – reuse HTTP connections etc.
 email_service = EmailService()
@@ -33,28 +34,39 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     """
     print("handle_email_search executing")
 
-    params = input.params
+    try:
+        print("Authenticating user")        
+        db = next(get_db())
+        await email_service.authenticate(1, db)
+    except Exception as e:
+        print(f"Error authenticating user: {e}")
+        raise Exception(f"Error authenticating user: {e}")
 
-    # Transform inputs for EmailService API
-    endpoint_params: Dict[str, Any] = {
-        "query": params["query"],
-        "folder": params.get("folder", "INBOX"),
-        "date_range": params.get("date_range"),
-        "max_results": min(int(params.get("limit", 100)), 500),
-        "include_attachments": bool(params.get("include_attachments", False)),
-        "include_metadata": bool(params.get("include_metadata", True))
-    }
+    try:
+        params = input.params
 
-    # Call the EmailService to get messages and count
-    # First authenticate the user
-    await email_service.authenticate()
-    response = await email_service.get_messages_and_store(**endpoint_params)
+        # Transform inputs for EmailService API
+        endpoint_params: Dict[str, Any] = {
+            "db": db,
+            "query_terms": [params["query"]],  # Convert single query to list
+            "folders": [params.get("folder", "INBOX")] if params.get("folder") else None,  # Convert single folder to list
+            "date_range": params.get("date_range"),
+            "max_results": min(int(params.get("limit", 100)), 500),
+            "include_attachments": bool(params.get("include_attachments", False)),
+            "include_metadata": bool(params.get("include_metadata", True))
+        }
 
-    return {
-        "emails": response.get("messages", []),
-        "count": response.get("count", 0)
-    }
-
+        print("Authenticated user. Awaiting response")
+        response = await email_service.get_messages_and_store(**endpoint_params)
+        print("Response received")
+        
+        return {
+            "emails": response.get("messages", []),
+            "count": response.get("count", 0)
+        }
+    except Exception as e:
+        print(f"Error executing email search: {e}")
+        raise Exception(f"Error executing email search: {e}")
 
 # ---------------------------------------------------------------------------
 # Register the handler so the framework can invoke it.

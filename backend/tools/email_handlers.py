@@ -46,22 +46,9 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     }
 
     # Call the EmailService to get messages and count
-    # response = await email_service.get_messages_and_store(**endpoint_params)
-    fake_response: Dict[str, Any] = {
-        "messages": [
-            {
-                "id": "1234567890c",
-                "subject": "Test Email",
-                "from": "test@example.com",
-                "date": "2023-01-01",
-                "body": "This is a test email",
-            }
-        ],
-        "count": 1,
-        "stored_ids": [],
-        "error": None
-    }
-    response = fake_response
+    # First authenticate the user
+    await email_service.authenticate()
+    response = await email_service.get_messages_and_store(**endpoint_params)
 
     return {
         "emails": response.get("messages", []),

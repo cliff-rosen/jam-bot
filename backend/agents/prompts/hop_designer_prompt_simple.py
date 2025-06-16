@@ -39,6 +39,15 @@ The system has these specific tools available for hop implementation:
 3. **Cohesive Goals**: Each hop should have a clear, focused purpose
 4. **Input/Output Focus**: Each hop should clearly map inputs to outputs
 
+## Asset Type Guidelines
+1. Valid primitive types: 'string', 'number', 'boolean', 'primitive'
+2. Valid complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
+3. For collections:
+   - Set is_collection=true
+   - Set collection_type to 'array', 'map', or 'set'
+   - Use a valid type from above (e.g., 'object' for array of objects)
+   - NEVER use 'collection' as a type
+
 ## Hop Design Guidelines
 1. **Inputs**: List the specific assets needed as inputs for this hop
 2. **Output**: Define the output asset for this hop. You have two options:

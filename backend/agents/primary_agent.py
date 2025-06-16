@@ -344,7 +344,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 sanitized_name = hop_lite.name.lower().replace(' ', '_').replace('-', '_')
                 generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
                 output_asset.id = generated_wip_asset_id
-                output_asset.role = 'output'  # Set as output at the hop level
+                
+                # Set role as intermediate in mission state
+                output_asset.role = 'intermediate'
                 
                 # Add to mission state
                 if state.mission.mission_state is None:  # Defensive check
@@ -370,6 +372,11 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 updated_at=datetime.utcnow()
             )
 
+            # Create a copy for hop state with output role
+            hop_output_asset = copy.deepcopy(output_asset)
+            hop_output_asset.role = 'output'  # Set as output at the hop level
+            new_hop.hop_state[canonical_key(hop_lite.output.asset.name)] = hop_output_asset
+
             # Initialize hop state with copies of input assets using local keys
             for local_key, mission_asset_id in canonical_input_mapping.items():
                 if mission_asset_id in state.mission.mission_state:
@@ -380,17 +387,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     new_hop.hop_state[local_key] = hop_asset
                 else:
                     raise ValueError(f"Input asset {mission_asset_id} not found in mission state")
-
-            # Initialize hop state with output asset using local key
-            for local_key, mission_asset_id in output_mapping.items():
-                if mission_asset_id in state.mission.mission_state:
-                    # Copy the asset from mission state
-                    original_asset = state.mission.mission_state[mission_asset_id]
-                    hop_asset = copy.deepcopy(original_asset)
-                    hop_asset.id = local_key  # Set ID to match the local key
-                    new_hop.hop_state[local_key] = hop_asset
-                else:
-                    raise ValueError(f"Output asset {mission_asset_id} not found in mission state")
             
             # Update state with new hop
             state.mission.current_hop = new_hop

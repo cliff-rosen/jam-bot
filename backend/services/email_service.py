@@ -444,7 +444,7 @@ class EmailService:
             - error: Error message if storage failed (None if successful)
         """
         try:
-            print("Retrieving messages")
+            print("Retrieving messages with params: ", folders, date_range, query_terms, max_results, include_attachments, include_metadata)
             # First get the messages
             result = await self.get_messages(
                 folders=folders,

@@ -70,7 +70,7 @@
                 {
                     "name": "query",
                     "type": "string",
-                    "description": "Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01'). Supports the same query format as the Gmail search box.",
+                    "description": "Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01'). Supports the same query format as the Gmail search box. Note: Do NOT include labels in the query string - use the label_ids parameter instead.",
                     "required": true,
                     "schema": {
                         "type": "string"
@@ -80,7 +80,7 @@
                     "name": "label_ids",
                     "type": "string",
                     "is_array": true,
-                    "description": "List of Gmail label IDs to search in. Messages must match ALL specified labels.",
+                    "description": "List of Gmail label IDs to search in. Messages must match ALL specified labels. This is the ONLY way to filter by labels - do not use 'label:' in the query string.",
                     "required": false,
                     "schema": {
                         "type": "string",

@@ -22,7 +22,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     """Execution logic for the *email_search* tool.
 
     Expects the following parameters (as defined in the tool schema):
-        • query : str – Gmail search query
+        • query : str – Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01')
         • label_ids : List[str] | None – label IDs to search inside (optional)
         • max_results : int – maximum number of messages (1-500, defaults to 100)
         • include_spam_trash : bool – whether to include messages from SPAM and TRASH
@@ -46,10 +46,15 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
     try:
         params = input.params
 
+        # Get the query string and validate it doesn't contain label: prefix
+        query = params.get("query", "")
+        if "label:" in query:
+            raise ValueError("Labels should be specified using the label_ids parameter, not in the query string")
+
         # Transform inputs for EmailService API
         endpoint_params: Dict[str, Any] = {
             "db": db,
-            "query": params.get("query", ""),  # Pass query string directly, default to empty string
+            "query": query,
             "label_ids": params.get("label_ids"),  # Use consistent parameter name
             "max_results": min(int(params.get("max_results", 100)), 500),
             "include_spam_trash": bool(params.get("include_spam_trash", False)),
@@ -57,6 +62,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         }
 
         print("Authenticated user. Awaiting response")
+        print(f"Search params: query='{query}', label_ids={endpoint_params['label_ids']}")
         response = await email_service.get_messages_and_store(**endpoint_params)
         print("Response received")
         

@@ -90,31 +90,10 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
         else:
             outputs = result
             
-        # Map results back to hop state
-        for output_name, mapping in step.result_mapping.items():
-            if mapping.type == "discard":
-                continue
-                
-            if mapping.type == "asset_field":
-                value = outputs.get(output_name)
-                if value is not None:
-                    # Create or update asset in hop state
-                    if mapping.state_asset not in hop_state:
-                        hop_state[mapping.state_asset] = Asset(
-                            id=mapping.state_asset,
-                            name=f"Output from {step.tool_id}",
-                            description=f"Output {output_name} from tool {step.tool_id}",
-                            value=value
-                        )
-                    else:
-                        hop_state[mapping.state_asset].value = value
-
-        print("execute_tool_step: Tool execution completed successfully")
         return {
             "success": True,
             "errors": [],
-            "tool_results": outputs,
-            "hop_state": hop_state
+            "outputs": outputs
         }
         
     except Exception as e:

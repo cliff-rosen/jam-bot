@@ -28,13 +28,9 @@ class ToolExecutionInput(BaseModel):
     step_id: Optional[str] = None
 
 
-class ToolExecutionResult(BaseModel):
-    """Typed wrapper around handler output (optional to use)."""
-
-    outputs: Dict[str, Any] = Field(default_factory=dict)
-
-    def dict(self, *args, **kwargs) -> Dict[str, Any]:  # pragma: no cover
-        return self.outputs
+class ToolExecutionResult:
+    """Result returned by a tool handler"""
+    outputs: Dict[str, Any]  # Maps output parameter names to their values
 
 
 class ToolExecutionHandler(BaseModel):

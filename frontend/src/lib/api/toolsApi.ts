@@ -6,7 +6,7 @@ import { ToolDefinition } from '../../types/tool';
 export interface ToolExecutionResult {
     success: boolean;
     errors: string[];
-    hop_state: Record<string, Asset>;
+    outputs: Record<string, any>;  // Maps output parameter names to their values
 }
 
 export const toolsApi = {

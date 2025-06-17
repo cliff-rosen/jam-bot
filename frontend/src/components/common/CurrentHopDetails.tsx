@@ -38,23 +38,39 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
             console.log("Result:", result);
 
             if (result.success) {
-                // Update hop state with execution results
+                // Create new hop state by applying the result mapping
+                const newHopState = { ...hop.hop_state };
+
+                // Apply the result mapping to update hop state
+                for (const [outputName, mapping] of Object.entries(step.result_mapping)) {
+                    if (mapping.type === "discard") continue;
+
+                    if (mapping.type === "asset_field") {
+                        const value = result.outputs[outputName];
+                        if (value !== undefined) {
+                            newHopState[mapping.state_asset] = {
+                                ...newHopState[mapping.state_asset],
+                                value: value
+                            };
+                        }
+                    }
+                }
+
+                // Update hop with new state
                 const updatedHop = {
                     ...hop,
-                    hop_state: result.hop_state
+                    hop_state: newHopState
                 };
 
                 // Check if any updated assets are mapped to mission outputs
                 const updatedMissionOutputs = new Map<string, Asset>();
-                for (const [hopAssetKey, asset] of Object.entries(result.hop_state)) {
-                    // If this hop asset is mapped to a mission output
+                for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
                     const missionOutputId = hop.output_mapping[hopAssetKey];
                     if (missionOutputId) {
                         updatedMissionOutputs.set(missionOutputId, asset);
                     }
                 }
 
-                // Call onHopUpdate with both hop and mission updates
                 if (onHopUpdate) {
                     onHopUpdate(updatedHop, updatedMissionOutputs);
                 }

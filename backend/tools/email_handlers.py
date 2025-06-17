@@ -66,28 +66,12 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         response = await email_service.get_messages_and_store(**endpoint_params)
         print("Response received")
         
-        # Create the schema for the response
-        schema = SchemaType(
-            type="object",
-            description="List of email messages with metadata",
-            is_array=True,
-            fields={
-                "id": SchemaType(type="string", description="Email ID"),
-                "thread_id": SchemaType(type="string", description="Thread ID"),
-                "subject": SchemaType(type="string", description="Email subject"),
-                "from": SchemaType(type="string", description="Sender email"),
-                "to": SchemaType(type="string", description="Recipient emails", is_array=True),
-                "date": SchemaType(type="string", description="Email date"),
-                "snippet": SchemaType(type="string", description="Email preview"),
-                "labels": SchemaType(type="string", description="Email labels", is_array=True)
-            }
-        )
-        
+        # Return just the outputs mapping
         return {
-            "value": response.get("messages", []),
-            "schema": schema,
-            "count": response.get("count", 0),
-            "next_page_token": response.get("nextPageToken")  # Add pagination token to response
+            "outputs": {
+                "emails": response.get("messages", []),
+                "count": response.get("count", 0)
+            }
         }
     except Exception as e:
         print(f"Error executing email search: {e}")

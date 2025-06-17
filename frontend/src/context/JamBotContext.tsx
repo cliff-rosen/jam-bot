@@ -405,6 +405,10 @@ export const useJamBot = () => {
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
 
+    const setState = useCallback((newState: JamBotState) => {
+        dispatch({ type: 'SET_STATE', payload: newState });
+    }, []);
+
     const addMessage = useCallback((message: ChatMessage) => {
         dispatch({ type: 'ADD_MESSAGE', payload: message });
     }, []);
@@ -460,16 +464,24 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, []);
 
-    const clearCollabArea = useCallback(() => {
-        dispatch({ type: 'CLEAR_COLLAB_AREA' });
-    }, []);
-
     const updateHopState = useCallback((hop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
         dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop, updatedMissionOutputs } });
     }, []);
 
-    const setState = useCallback((newState: JamBotState) => {
-        dispatch({ type: 'SET_STATE', payload: newState });
+    const setError = useCallback((error: string) => {
+        dispatch({ type: 'SET_ERROR', payload: error });
+    }, []);
+
+    const clearError = useCallback(() => {
+        dispatch({ type: 'CLEAR_ERROR' });
+    }, []);
+
+    const setCollabArea = useCallback((type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => {
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type, content } });
+    }, []);
+
+    const clearCollabArea = useCallback(() => {
+        dispatch({ type: 'CLEAR_COLLAB_AREA' });
     }, []);
 
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
@@ -577,14 +589,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
         }
     };
-
-    const setError = useCallback((error: string) => {
-        dispatch({ type: 'SET_ERROR', payload: error });
-    }, []);
-
-    const clearError = useCallback(() => {
-        dispatch({ type: 'CLEAR_ERROR' });
-    }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("data", data);
@@ -749,9 +753,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [state, addMessage, processBotMessage, updateStreamingMessage]);
 
-    const setCollabArea = useCallback((type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => {
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type, content } });
-    }, []);
 
     return (
         <JamBotContext.Provider value={{

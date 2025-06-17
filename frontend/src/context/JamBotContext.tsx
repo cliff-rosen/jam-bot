@@ -490,6 +490,15 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
 
             if (result.success) {
+                // Add success message to chat
+                const successMessage: ChatMessage = {
+                    id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    role: MessageRole.TOOL,
+                    content: `Tool '${step.tool_id}' executed successfully`,
+                    timestamp: new Date().toISOString()
+                };
+                addMessage(successMessage);
+
                 // Create new hop state by applying the result mapping
                 const newHopState = { ...hop.hop_state };
 

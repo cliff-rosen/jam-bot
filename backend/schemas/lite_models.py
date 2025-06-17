@@ -97,6 +97,15 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         custom_metadata=custom_metadata,
     )
     
+    # Determine initial status based on type and subtype
+    initial_status = AssetStatus.PENDING
+    if asset_lite.role == 'input':
+        # Config values and system credentials are ready by default
+        if (asset_lite.type in ['config', 'object'] or 
+            asset_lite.subtype in ['oauth_token', 'email'] or
+            asset_lite.external_system_for is not None):
+            initial_status = AssetStatus.READY
+    
     # Create the full Asset object
     return Asset(
         id=str(uuid.uuid4()),
@@ -104,7 +113,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         description=asset_lite.description,
         schema_definition=unified_schema,
         value=asset_lite.example_value,
-        status=AssetStatus.PENDING,
+        status=initial_status,
         subtype=asset_lite.subtype,
         is_collection=asset_lite.is_collection,
         collection_type=asset_lite.collection_type.value if asset_lite.collection_type else None,

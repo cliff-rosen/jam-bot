@@ -21,12 +21,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
         acceptMissionProposal,
         acceptHopProposal,
         acceptHopImplementationProposal,
-        acceptHopImplementationAsComplete,
         startHopExecution,
-        completeHopExecution,
         failHopExecution,
         retryHopExecution,
-        setCollabArea,
         updateHopState,
         clearCollabArea
     } = useJamBot();

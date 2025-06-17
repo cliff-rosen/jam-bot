@@ -408,10 +408,11 @@ class EmailService:
     async def get_messages_and_store(
         self,
         db: Session,
-        folders: Optional[List[str]] = None,
-        date_range: Optional[DateRange] = None,
-        query_terms: Optional[List[str]] = None,
+        label_ids: Optional[List[str]] = None,
+        query: Optional[str] = None,
         max_results: int = 100,
+        include_spam_trash: bool = False,
+        page_token: Optional[str] = None,
         include_attachments: bool = False,
         include_metadata: bool = True
     ) -> Dict[str, Any]:
@@ -420,10 +421,11 @@ class EmailService:
         
         Args:
             db: Database session (required)
-            folders: List of folder/label IDs
-            date_range: DateRange object with start and end dates
-            query_terms: List of search terms
-            max_results: Maximum number of results to return
+            label_ids: List of label IDs to search in
+            query: Gmail search query string
+            max_results: Maximum number of results to return (1-500)
+            include_spam_trash: Whether to include messages from SPAM and TRASH
+            page_token: Token for retrieving the next page of results
             include_attachments: Whether to include attachment data
             include_metadata: Whether to include message metadata
             
@@ -433,15 +435,17 @@ class EmailService:
             - count: Number of messages retrieved
             - stored_ids: List of IDs of successfully stored newsletters
             - error: Error message if storage failed (None if successful)
+            - nextPageToken: Token for retrieving the next page (if any)
         """
         try:
-            print("Retrieving messages with params: ", folders, date_range, query_terms, max_results, include_attachments, include_metadata)
+            print("Retrieving messages with params: ", label_ids, query, max_results, include_spam_trash, page_token)
             # First get the messages
             result = await self.get_messages(
-                folders=folders,
-                date_range=date_range,
-                query_terms=query_terms,
+                label_ids=label_ids,
+                query=query,
                 max_results=max_results,
+                include_spam_trash=include_spam_trash,
+                page_token=page_token,
                 include_attachments=include_attachments,
                 include_metadata=include_metadata,
                 db=db
@@ -456,7 +460,8 @@ class EmailService:
                     'messages': messages,
                     'count': count,
                     'stored_ids': stored_ids,
-                    'error': None
+                    'error': None,
+                    'nextPageToken': result.get('nextPageToken')
                 }
             except Exception as e:
                 logger.error(f"Error storing messages to newsletters: {str(e)}")
@@ -464,7 +469,8 @@ class EmailService:
                     'messages': messages,
                     'count': count,
                     'stored_ids': [],
-                    'error': str(e)
+                    'error': str(e),
+                    'nextPageToken': result.get('nextPageToken')
                 }
                 
         except Exception as e:

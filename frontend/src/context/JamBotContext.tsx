@@ -284,6 +284,7 @@ interface JamBotContextValue {
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
     setCollabArea: (type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => void;
+    clearCollabArea: () => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: (hop: Hop) => void;
@@ -506,6 +507,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             updateStreamingMessage,
             sendMessage,
             setCollabArea,
+            clearCollabArea,
             addPayloadHistory,
             acceptMissionProposal,
             acceptHopProposal,

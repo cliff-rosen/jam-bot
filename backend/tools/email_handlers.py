@@ -68,10 +68,8 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         
         # Return just the outputs mapping
         return {
-            "outputs": {
-                "emails": response.get("messages", []),
-                "count": response.get("count", 0)
-            }
+            "emails": response.get("messages", []),
+            "count": response.get("count", 0)
         }
     except Exception as e:
         print(f"Error executing email search: {e}")

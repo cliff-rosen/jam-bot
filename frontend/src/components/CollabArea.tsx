@@ -28,7 +28,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         failHopExecution,
         retryHopExecution,
         setCollabArea,
-        updateHopState
+        updateHopState,
+        clearCollabArea
     } = useJamBot();
 
     const handlePrevious = () => {
@@ -298,11 +299,23 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
+        // Get the live hop data from the context state instead of using static content
+        const liveHop = state?.mission?.hop_history?.find(h => h.id === hopToRender.id) ||
+            (state?.mission?.current_hop?.id === hopToRender.id ? state?.mission?.current_hop : null);
+
+        if (!liveHop) {
+            return (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    Hop not found in current mission
+                </div>
+            );
+        }
+
         // Check if this hop implementation has already been accepted
-        const isAlreadyAccepted = state?.mission?.current_hop?.status === HopStatus.HOP_RUNNING ||
-            state?.mission?.current_hop?.status === HopStatus.ALL_HOPS_COMPLETE ||
+        const isAlreadyAccepted = (state?.mission?.current_hop?.status as HopStatus) === HopStatus.HOP_RUNNING ||
+            (state?.mission?.current_hop?.status as HopStatus) === HopStatus.ALL_HOPS_COMPLETE ||
             (state?.mission?.current_hop?.id === hopToRender.id &&
-                state?.mission?.current_hop?.status === HopStatus.HOP_RUNNING);
+                (state?.mission?.current_hop?.status as HopStatus) === HopStatus.HOP_RUNNING);
 
         return (
             <div className="h-full overflow-auto">
@@ -365,12 +378,12 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                         )}
                     </div>
 
-                    {/* Tool Steps using hopToRender.steps */}
+                    {/* Tool Steps using hopToRender.tool_steps */}
                     <div className="space-y-4">
                         <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300 mt-4 mb-2">Tool Steps:</h4>
-                        {hopToRender.steps && hopToRender.steps.length > 0 ? (
+                        {hopToRender.tool_steps && hopToRender.tool_steps.length > 0 ? (
                             <ul className="space-y-3">
-                                {hopToRender.steps.map((step: ToolStep, index: number) => (
+                                {hopToRender.tool_steps.map((step: ToolStep, index: number) => (
                                     <li key={step.id || index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700">
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_id}</p>
                                         {step.description && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>}
@@ -454,8 +467,8 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         }
 
         // Get the live hop data from the context state instead of using static content
-        const liveHop = state.mission.hop_history.find(h => h.id === staticHop.id) ||
-            (state.mission.current_hop?.id === staticHop.id ? state.mission.current_hop : null);
+        const liveHop = state?.mission?.hop_history?.find(h => h.id === staticHop.id) ||
+            (state?.mission?.current_hop?.id === staticHop.id ? state?.mission?.current_hop : null);
 
         if (!liveHop) {
             return (
@@ -469,14 +482,14 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             const buttons = [];
 
             // Check if this hop is the current hop in the mission workflow
-            const isCurrentHop = state.mission.current_hop?.id === liveHop.id;
-            const missionHopStatus = state.mission.current_hop?.status;
+            const isCurrentHop = state?.mission?.current_hop?.id === liveHop?.id;
+            const missionHopStatus = state?.mission?.current_hop?.status;
 
             // Action buttons based on backend workflow status AND hop execution status
             if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {
                 // Hop is ready to execute according to backend workflow
-                if (liveHop.status === HopStatus.HOP_READY_TO_EXECUTE) {
-                    if (liveHop.is_resolved && liveHop.steps && liveHop.steps.length > 0) {
+                if (liveHop?.status === HopStatus.HOP_READY_TO_EXECUTE) {
+                    if (liveHop.is_resolved && liveHop.tool_steps && liveHop.tool_steps.length > 0) {
                         buttons.push(
                             <button
                                 key="start"
@@ -491,7 +504,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             </button>
                         );
                     }
-                } else if (liveHop.status === HopStatus.HOP_RUNNING) {
+                } else if (liveHop?.status === HopStatus.HOP_RUNNING) {
                     buttons.push(
                         <button
                             key="complete"
@@ -544,7 +557,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 buttons.push(
                     <button
                         key="complete"
-                        onClick={() => completeHopExecution(liveHop.id)}
+                        onClick={() => completeHopExecution(liveHop?.id || '')}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     >
                         <CheckCircle className="w-4 h-4" />
@@ -554,7 +567,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                 buttons.push(
                     <button
                         key="fail"
-                        onClick={() => failHopExecution(liveHop.id, 'Manually marked as failed')}
+                        onClick={() => failHopExecution(liveHop?.id || '', 'Manually marked as failed')}
                         className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                     >
                         <XCircle className="w-4 h-4" />

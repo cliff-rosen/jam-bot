@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
-import { Asset } from '@/types/asset';
+import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
+import { Asset, AssetStatus } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
+import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
 
@@ -24,7 +24,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [executionError, setExecutionError] = useState<string | null>(null);
 
     // Use HopStatus directly for display
-    const statusDisplay = getExecutionStatusDisplay(hop.status);
+    const statusDisplay = getHopStatusDisplay(hop.status);
     const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.tool_steps?.length || 0;
 
@@ -50,7 +50,8 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                         if (value !== undefined) {
                             newHopState[mapping.state_asset] = {
                                 ...newHopState[mapping.state_asset],
-                                value: value
+                                value: value,
+                                status: AssetStatus.READY  // Update status to ready when value is set
                             };
                         }
                     }
@@ -67,7 +68,13 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                 for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
                     const missionOutputId = hop.output_mapping[hopAssetKey];
                     if (missionOutputId) {
-                        updatedMissionOutputs.set(missionOutputId, asset);
+                        // Create a copy of the asset with the mission asset ID
+                        const missionAsset = {
+                            ...asset,
+                            id: missionOutputId,
+                            status: AssetStatus.READY  // Ensure mission asset is marked as ready
+                        };
+                        updatedMissionOutputs.set(missionOutputId, missionAsset);
                     }
                 }
 

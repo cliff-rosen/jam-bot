@@ -88,7 +88,7 @@ export interface Mission {
     id: string;
     name: string;
     description: string;
-    current_hop?: Hop;  // Only tracks active hop
+    current_hop: Hop | undefined;  // Make it explicit that current_hop can be undefined
     hop_history: Hop[]; // Renamed from hops, only stores completed hops
     inputs: Asset[];
     outputs: Asset[];
@@ -96,7 +96,7 @@ export interface Mission {
     status: ExecutionStatus;
     goal?: string;
     success_criteria?: string[];
-    mission_status?: MissionStatus;
+    mission_status: MissionStatus;  // Make mission_status required
 }
 
 export const defaultMission: Mission = {

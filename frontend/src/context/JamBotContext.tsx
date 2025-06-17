@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission } from '@/types/workflow';
+import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset } from '@/types/asset';
+import { AssetStatus } from '@/types/asset';
+import { toolsApi } from '@/lib/api/toolsApi';
+import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -15,6 +18,7 @@ interface JamBotState {
     };
     mission: Mission | null;
     payload_history: Record<string, any>[];
+    error?: string;
 }
 
 type JamBotAction =
@@ -34,8 +38,11 @@ type JamBotAction =
     | { type: 'COMPLETE_HOP_EXECUTION'; payload: string }
     | { type: 'FAIL_HOP_EXECUTION'; payload: { hopId: string; error: string } }
     | { type: 'RETRY_HOP_EXECUTION'; payload: string }
-    | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; missionOutputs: Map<string, Asset> } }
-    | { type: 'SET_STATE'; payload: JamBotState };
+    | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; updatedMissionOutputs: Map<string, Asset> } }
+    | { type: 'SET_STATE'; payload: JamBotState }
+    | { type: 'EXECUTE_TOOL_STEP'; payload: { step: ToolStep; hop: Hop } }
+    | { type: 'SET_ERROR'; payload: string }
+    | { type: 'CLEAR_ERROR' };
 
 const initialState: JamBotState = {
     currentMessages: [],
@@ -245,34 +252,57 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'UPDATE_HOP_STATE':
             if (!state.mission) return state;
-            const { hop, missionOutputs } = action.payload;
+            const { hop, updatedMissionOutputs } = action.payload;
 
-            // Update the current hop
+            // Create updated mission
             const updatedMission = {
                 ...state.mission,
                 current_hop: hop
             };
 
-            // If the hop is completed, add it to hop_history
-            if (hop.status === HopStatus.ALL_HOPS_COMPLETE) {
+            // Check if all hop outputs are ready
+            const allHopOutputsReady = Object.entries(hop.output_mapping).every(([hopAssetKey]) => {
+                const asset = hop.hop_state[hopAssetKey];
+                return asset && asset.status === AssetStatus.READY;
+            });
+
+            // If hop is complete, add it to history and clear current hop
+            if (allHopOutputsReady) {
                 updatedMission.hop_history = [
                     ...(state.mission.hop_history || []),
-                    hop
+                    {
+                        ...hop,
+                        status: HopStatus.ALL_HOPS_COMPLETE,
+                        is_resolved: true
+                    }
                 ];
+                // Use type assertion to handle current_hop
+                (updatedMission as any).current_hop = undefined;
+
+                // Check if all mission outputs are ready
+                const allMissionOutputsReady = updatedMission.outputs.every(output => {
+                    const updatedOutput = updatedMissionOutputs.get(output.id);
+                    return updatedOutput?.status === AssetStatus.READY;
+                });
+
+                // Update mission status
+                if (allMissionOutputsReady) {
+                    updatedMission.mission_status = MissionStatus.COMPLETE;
+                }
             }
 
             // Update any mission outputs that were modified
-            if (missionOutputs.size > 0) {
+            if (updatedMissionOutputs.size > 0) {
                 // Update mission outputs
                 updatedMission.outputs = state.mission.outputs.map(output => {
-                    const updatedOutput = missionOutputs.get(output.id);
+                    const updatedOutput = updatedMissionOutputs.get(output.id);
                     return updatedOutput || output;
                 });
 
                 // Update mission state
                 updatedMission.mission_state = {
                     ...state.mission.mission_state,
-                    ...Object.fromEntries(missionOutputs)
+                    ...Object.fromEntries(updatedMissionOutputs)
                 };
             }
 
@@ -280,12 +310,42 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: updatedMission
             };
+        case 'EXECUTE_TOOL_STEP': {
+            const { step, hop } = action.payload;
+            if (!state.mission) return state;
+
+            // Execute the tool step
+            return {
+                ...state,
+                mission: {
+                    ...state.mission,
+                    current_hop: {
+                        ...hop,
+                        tool_steps: hop.tool_steps.map(s =>
+                            s.id === step.id
+                                ? { ...s, status: ExecutionStatus.RUNNING }
+                                : s
+                        )
+                    }
+                }
+            };
+        }
+        case 'SET_ERROR':
+            return {
+                ...state,
+                error: action.payload
+            };
+        case 'CLEAR_ERROR':
+            return {
+                ...state,
+                error: undefined
+            };
         default:
             return state;
     }
 };
 
-interface JamBotContextValue {
+interface JamBotContextType {
     state: JamBotState;
     addMessage: (message: ChatMessage) => void;
     updateStreamingMessage: (message: string) => void;
@@ -301,11 +361,14 @@ interface JamBotContextValue {
     completeHopExecution: (hopId: string) => void;
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
-    updateHopState: (hop: Hop, missionOutputs: Map<string, Asset>) => void;
+    updateHopState: (hop: Hop, updatedMissionOutputs: Map<string, Asset>) => void;
     setState: (newState: JamBotState) => void;
+    executeToolStep: (step: ToolStep, hop: Hop) => Promise<void>;
+    setError: (error: string) => void;
+    clearError: () => void;
 }
 
-const JamBotContext = createContext<JamBotContextValue | null>(null);
+const JamBotContext = createContext<JamBotContextType | null>(null);
 
 export const useJamBot = () => {
     const context = useContext(JamBotContext);
@@ -377,12 +440,126 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'CLEAR_COLLAB_AREA' });
     }, []);
 
-    const updateHopState = useCallback((hop: Hop, missionOutputs: Map<string, Asset>) => {
-        dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop, missionOutputs } });
+    const updateHopState = useCallback((hop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
+        dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop, updatedMissionOutputs } });
     }, []);
 
     const setState = useCallback((newState: JamBotState) => {
         dispatch({ type: 'SET_STATE', payload: newState });
+    }, []);
+
+    const executeToolStep = async (step: ToolStep, hop: Hop) => {
+        try {
+            // Update step status to running
+            dispatch({ type: 'EXECUTE_TOOL_STEP', payload: { step, hop } });
+
+            // Execute the tool
+            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
+
+            if (result.success) {
+                // Create new hop state by applying the result mapping
+                const newHopState = { ...hop.hop_state };
+
+                // Apply the result mapping to update hop state
+                for (const [outputName, mapping] of Object.entries(step.result_mapping)) {
+                    if ((mapping as DiscardMapping).type === "discard") continue;
+
+                    if ((mapping as AssetFieldMapping).type === "asset_field") {
+                        const value = result.outputs[outputName];
+                        if (value !== undefined) {
+                            newHopState[(mapping as AssetFieldMapping).state_asset] = {
+                                ...newHopState[(mapping as AssetFieldMapping).state_asset],
+                                value: value,
+                                status: AssetStatus.READY
+                            };
+                        }
+                    }
+                }
+
+                // Update hop with new state
+                const updatedHop = {
+                    ...hop,
+                    hop_state: newHopState,
+                    tool_steps: hop.tool_steps.map(s =>
+                        s.id === step.id
+                            ? { ...s, status: ExecutionStatus.COMPLETED }
+                            : s
+                    )
+                };
+
+                // Check if any updated assets are mapped to mission outputs
+                const updatedMissionOutputs = new Map<string, Asset>();
+                for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
+                    const missionOutputId = hop.output_mapping[hopAssetKey];
+                    if (missionOutputId) {
+                        // Create a complete copy of the asset with the mission asset ID
+                        const missionAsset: Asset = {
+                            ...asset,
+                            id: missionOutputId,
+                            status: AssetStatus.READY,
+                            value: asset.value,
+                            name: asset.name,
+                            description: asset.description,
+                            schema_definition: asset.schema_definition,
+                            subtype: asset.subtype,
+                            is_collection: asset.is_collection,
+                            collection_type: asset.collection_type,
+                            role: asset.role,
+                            asset_metadata: {
+                                ...asset.asset_metadata,
+                                updatedAt: new Date().toISOString()
+                            }
+                        };
+                        updatedMissionOutputs.set(missionOutputId, missionAsset);
+                    }
+                }
+
+                // Check if all hop outputs are ready
+                const allOutputsReady = Object.entries(hop.output_mapping).every(([hopAssetKey]) => {
+                    const asset = newHopState[hopAssetKey];
+                    return asset && asset.status === AssetStatus.READY;
+                });
+
+                if (allOutputsReady) {
+                    // Mark hop as complete
+                    updatedHop.status = HopStatus.ALL_HOPS_COMPLETE;
+                    updatedHop.is_resolved = true;
+                }
+
+                // Update the hop state
+                dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs } });
+            } else {
+                // Update step status to failed
+                const updatedHop = {
+                    ...hop,
+                    tool_steps: hop.tool_steps.map(s =>
+                        s.id === step.id
+                            ? { ...s, status: ExecutionStatus.FAILED, error: result.errors.join('\n') }
+                            : s
+                    )
+                };
+                dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
+            }
+        } catch (error) {
+            // Update step status to failed
+            const updatedHop = {
+                ...hop,
+                tool_steps: hop.tool_steps.map(s =>
+                    s.id === step.id
+                        ? { ...s, status: ExecutionStatus.FAILED, error: error instanceof Error ? error.message : 'Failed to execute tool step' }
+                        : s
+                )
+            };
+            dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
+        }
+    };
+
+    const setError = useCallback((error: string) => {
+        dispatch({ type: 'SET_ERROR', payload: error });
+    }, []);
+
+    const clearError = useCallback(() => {
+        dispatch({ type: 'CLEAR_ERROR' });
     }, []);
 
     const processBotMessage = useCallback((data: AgentResponse) => {
@@ -525,7 +702,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             failHopExecution,
             retryHopExecution,
             updateHopState,
-            setState
+            setState,
+            executeToolStep,
+            setError,
+            clearError
         }}>
             {children}
         </JamBotContext.Provider>

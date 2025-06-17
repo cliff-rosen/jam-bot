@@ -3,8 +3,8 @@ import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
 import { Asset, AssetStatus } from '@/types/asset';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
-import { toolsApi } from '@/lib/api/toolsApi';
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
+import { useJamBot } from '@/context/JamBotContext';
 
 interface CurrentHopDetailsProps {
     hop: Hop;
@@ -21,84 +21,17 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     const [showSteps, setShowSteps] = useState(true);
     const [showAssets, setShowAssets] = useState(false);
     const [executingStepId, setExecutingStepId] = useState<string | null>(null);
-    const [executionError, setExecutionError] = useState<string | null>(null);
+    const { executeToolStep } = useJamBot();
 
     // Use HopStatus directly for display
     const statusDisplay = getHopStatusDisplay(hop.status);
     const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.tool_steps?.length || 0;
 
-    const executeToolStep = async (step: ToolStep) => {
-        console.log("Executing tool step:", step);
+    const handleExecuteToolStep = async (step: ToolStep) => {
         setExecutingStepId(step.id);
-        setExecutionError(null);
-
         try {
-            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
-            console.log("Result:", result);
-
-            if (result.success) {
-                // Create new hop state by applying the result mapping
-                const newHopState = { ...hop.hop_state };
-
-                // Apply the result mapping to update hop state
-                for (const [outputName, mapping] of Object.entries(step.result_mapping)) {
-                    if (mapping.type === "discard") continue;
-
-                    if (mapping.type === "asset_field") {
-                        const value = result.outputs[outputName];
-                        if (value !== undefined) {
-                            newHopState[mapping.state_asset] = {
-                                ...newHopState[mapping.state_asset],
-                                value: value,
-                                status: AssetStatus.READY  // Update status to ready when value is set
-                            };
-                        }
-                    }
-                }
-
-                // Update hop with new state
-                const updatedHop = {
-                    ...hop,
-                    hop_state: newHopState
-                };
-
-                // Check if any updated assets are mapped to mission outputs
-                const updatedMissionOutputs = new Map<string, Asset>();
-                for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
-                    const missionOutputId = hop.output_mapping[hopAssetKey];
-                    if (missionOutputId) {
-                        // Create a complete copy of the asset with the mission asset ID
-                        const missionAsset: Asset = {
-                            ...asset,
-                            id: missionOutputId,
-                            status: AssetStatus.READY,
-                            value: asset.value,  // Ensure value is copied
-                            name: asset.name,    // Ensure name is copied
-                            description: asset.description,  // Ensure description is copied
-                            schema_definition: asset.schema_definition,  // Ensure schema is copied
-                            subtype: asset.subtype,
-                            is_collection: asset.is_collection,
-                            collection_type: asset.collection_type,
-                            role: asset.role,
-                            asset_metadata: {
-                                ...asset.asset_metadata,
-                                updatedAt: new Date().toISOString()
-                            }
-                        };
-                        updatedMissionOutputs.set(missionOutputId, missionAsset);
-                    }
-                }
-
-                if (onHopUpdate) {
-                    onHopUpdate(updatedHop, updatedMissionOutputs);
-                }
-            } else {
-                setExecutionError(result.errors.join('\n'));
-            }
-        } catch (error) {
-            console.error("Error executing tool step:", error);
-            setExecutionError(error instanceof Error ? error.message : 'Failed to execute tool step');
+            await executeToolStep(step, hop);
         } finally {
             setExecutingStepId(null);
         }
@@ -245,7 +178,7 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                     <div className="flex items-center gap-2">
                                                         {step.status !== ExecutionStatus.COMPLETED && (
                                                             <button
-                                                                onClick={() => executeToolStep(step)}
+                                                                onClick={() => handleExecuteToolStep(step)}
                                                                 disabled={executingStepId === step.id}
                                                                 className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${executingStepId === step.id
                                                                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -364,12 +297,6 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                                                 {step.error && (
                                                     <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-1 rounded">
                                                         Error: {step.error}
-                                                    </div>
-                                                )}
-
-                                                {executionError && executingStepId === step.id && (
-                                                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-1 rounded mt-1">
-                                                        {executionError}
                                                     </div>
                                                 )}
                                             </div>

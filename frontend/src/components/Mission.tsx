@@ -5,7 +5,7 @@ import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { FileText, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { MissionStatus, Hop, Mission as MissionType, ExecutionStatus, HopStatus, defaultMission } from '@/types/workflow';
 import { getMissionStatusDisplay, getHopStatusDisplay, getExecutionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
-import { Asset } from '@/types/asset';
+import { Asset, AssetStatus } from '@/types/asset';
 
 interface MissionProps {
     className?: string;
@@ -46,19 +46,14 @@ const AssetDisplay: React.FC<AssetDisplayProps> = ({ asset }) => {
     );
 };
 
-export default function Mission({
-    className = ''
-}: MissionProps) {
-    const {
-        state,
-        setCollabArea,
-        updateHopState
-    } = useJamBot();
+export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
+    const { state, updateHopState, setCollabArea } = useJamBot();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const mission = state.mission || defaultMission;
 
     const handleHopUpdate = (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
+        // Update the current hop and mission state
         updateHopState(updatedHop, updatedMissionOutputs);
     };
 

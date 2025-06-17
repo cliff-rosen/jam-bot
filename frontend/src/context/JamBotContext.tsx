@@ -263,10 +263,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             // Update any mission outputs that were modified
             if (missionOutputs.size > 0) {
+                // Update mission outputs
                 updatedMission.outputs = state.mission.outputs.map(output => {
                     const updatedOutput = missionOutputs.get(output.id);
                     return updatedOutput || output;
                 });
+
+                // Update mission state
+                updatedMission.mission_state = {
+                    ...state.mission.mission_state,
+                    ...Object.fromEntries(missionOutputs)
+                };
             }
 
             return {

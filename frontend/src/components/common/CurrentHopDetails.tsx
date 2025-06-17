@@ -68,11 +68,23 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
                 for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
                     const missionOutputId = hop.output_mapping[hopAssetKey];
                     if (missionOutputId) {
-                        // Create a copy of the asset with the mission asset ID
-                        const missionAsset = {
+                        // Create a complete copy of the asset with the mission asset ID
+                        const missionAsset: Asset = {
                             ...asset,
                             id: missionOutputId,
-                            status: AssetStatus.READY  // Ensure mission asset is marked as ready
+                            status: AssetStatus.READY,
+                            value: asset.value,  // Ensure value is copied
+                            name: asset.name,    // Ensure name is copied
+                            description: asset.description,  // Ensure description is copied
+                            schema_definition: asset.schema_definition,  // Ensure schema is copied
+                            subtype: asset.subtype,
+                            is_collection: asset.is_collection,
+                            collection_type: asset.collection_type,
+                            role: asset.role,
+                            asset_metadata: {
+                                ...asset.asset_metadata,
+                                updatedAt: new Date().toISOString()
+                            }
                         };
                         updatedMissionOutputs.set(missionOutputId, missionAsset);
                     }

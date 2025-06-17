@@ -12,7 +12,7 @@ from schemas.base import SchemaType, ValueType
 from database import get_db
 from services.email_service import EmailService
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
-from tools.tool_registry import register_tool_handler  # Updated import path
+from tools.tool_registry import register_tool_handler
 
 # Singleton service instance – reuse HTTP connections etc.
 email_service = EmailService()

@@ -12,8 +12,13 @@ refresh_tool_registry()
 
 # Then import individual tool handler modules so their registration side-effects run
 # (e.g. they call register_tool_handler when imported).
-# Add additional handler modules here as they are implemented.
-from . import email_handlers  # noqa: F401
+from .handlers import (  # noqa: F401
+    email_handlers,
+    extract_handlers,
+    update_augment_handlers,
+    map_reduce_handlers,
+    summarize_handlers,
+)
 
 __all__ = [
     "ToolExecutionInput",

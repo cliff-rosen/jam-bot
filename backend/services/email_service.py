@@ -18,6 +18,9 @@ from schemas.resource import GMAIL_RESOURCE
 
 logger = logging.getLogger(__name__)
 
+# Google API Docs
+# https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list
+
 class EmailService:
     SCOPES = [
         'https://www.googleapis.com/auth/userinfo.profile',  # Match the order from error

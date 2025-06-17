@@ -1,68 +1,62 @@
 """
 Handler implementation for the extract tool.
 
-This tool extracts specific information from items using extraction functions.
-It can work with single items or lists and supports both batch and individual processing.
+This tool extracts specific information from content based on extraction mandates.
+It supports various extraction types and can focus on specific areas of interest.
 """
 
 from typing import List, Dict, Any
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult, ToolExecutionHandler
+from datetime import datetime
+from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 
-async def handle_extract(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_extract(input: ToolExecutionInput) -> Dict[str, Any]:
     """
-    Extract specific information from items using extraction functions.
+    Extract specific information from content based on extraction mandates.
     
     Args:
         input: ToolExecutionInput containing:
-            - items: List of items to process
-            - extraction_function: Function or prompt describing what to extract
-            - extraction_fields: List of field names to extract
-            - batch_process: Whether to process as a batch (default: True)
+            - content: Content to extract from
+            - extraction_mandate: Instructions for what to extract
+            - extraction_type: Type of extraction to perform
+            - focus_areas: Optional specific areas to focus on
             
     Returns:
-        ToolExecutionResult containing:
-            - extractions: List of item ID and extraction pairs
-            - extraction_stats: Statistics about the extraction process
+        Dict containing:
+            - extracted_data: Extracted information with metadata
     """
     # Extract parameters
-    items = input.params.get("items", [])
-    extraction_function = input.params.get("extraction_function")
-    extraction_fields = input.params.get("extraction_fields", [])
-    batch_process = input.params.get("batch_process", True)
+    content = input.params.get("content", {})
+    extraction_mandate = input.params.get("extraction_mandate")
+    extraction_type = input.params.get("extraction_type", "key_points")
+    focus_areas = input.params.get("focus_areas", [])
     
     # TODO: Implement extraction logic
     # This is where you would:
-    # 1. Process the extraction_function to understand what to extract
-    # 2. Apply the extraction to each item or batch
-    # 3. Format results according to the schema
+    # 1. Parse and validate the extraction mandate
+    # 2. Analyze the content based on the mandate
+    # 3. Extract information based on type
+    # 4. Format the output according to the schema
     
     # Placeholder implementation
-    extractions = []
-    for item in items:
-        # TODO: Implement actual extraction
-        extractions.append({
-            "item_id": item.get("id", "unknown"),
-            "original_item": item,
-            "extraction": {field: None for field in extraction_fields}
-        })
+    extracted_items = ["Item 1", "Item 2"]
     
-    return ToolExecutionResult(
-        outputs={
-            "extractions": extractions,
-            "extraction_stats": {
-                "total_processed": len(items),
-                "successful": len(extractions),
-                "failed": 0
+    return {
+        "extracted_data": {
+            "type": extraction_type,
+            "items": extracted_items,
+            "metadata": {
+                "item_count": len(extracted_items),
+                "extracted_at": datetime.utcnow().isoformat()
             }
         }
-    )
+    }
 
 # Register the handler
 register_tool_handler(
     "extract",
     ToolExecutionHandler(
         handler=handle_extract,
-        description="Extracts specific information from items using extraction functions"
+        description="Extracts specific information from content based on extraction mandates"
     )
 ) 

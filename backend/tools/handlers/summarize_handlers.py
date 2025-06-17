@@ -7,10 +7,10 @@ It supports various summary types and can focus on specific areas of interest.
 
 from typing import List, Dict, Any
 from datetime import datetime
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 
-async def handle_summarize(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_summarize(input: ToolExecutionInput) -> Dict[str, Any]:
     """
     Create summaries of content based on specific summarization mandates.
     
@@ -23,7 +23,7 @@ async def handle_summarize(input: ToolExecutionInput) -> ToolExecutionResult:
             - focus_areas: Optional specific areas to focus on
             
     Returns:
-        ToolExecutionResult containing:
+        Dict containing:
             - summary: Generated summary with metadata
     """
     # Extract parameters
@@ -46,21 +46,19 @@ async def handle_summarize(input: ToolExecutionInput) -> ToolExecutionResult:
     key_points = ["Key point 1", "Key point 2"]
     recommendations = ["Recommendation 1", "Recommendation 2"]
     
-    return ToolExecutionResult(
-        outputs={
-            "summary": {
-                "title": f"{summary_type.title()} Summary",
-                "content": summary_content,
-                "key_points": key_points,
-                "recommendations": recommendations,
-                "metadata": {
-                    "summary_type": summary_type,
-                    "word_count": len(summary_content.split()),
-                    "created_at": datetime.utcnow().isoformat()
-                }
+    return {
+        "summary": {
+            "title": f"{summary_type.title()} Summary",
+            "content": summary_content,
+            "key_points": key_points,
+            "recommendations": recommendations,
+            "metadata": {
+                "summary_type": summary_type,
+                "word_count": len(summary_content.split()),
+                "created_at": datetime.utcnow().isoformat()
             }
         }
-    )
+    }
 
 # Register the handler
 register_tool_handler(

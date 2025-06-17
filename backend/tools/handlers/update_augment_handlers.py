@@ -1,82 +1,61 @@
 """
 Handler implementation for the update_augment tool.
 
-This tool applies updates or augmentations to a list of items.
-It supports both direct updates to specific items and computed augmentations for all items.
+This tool updates or augments content based on specific update mandates.
+It supports various update types and can focus on specific areas of interest.
 """
 
 from typing import List, Dict, Any
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult, ToolExecutionHandler
+from datetime import datetime
+from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 
-async def handle_update_augment(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_update_augment(input: ToolExecutionInput) -> Dict[str, Any]:
     """
-    Apply updates or augmentations to a list of items.
+    Update or augment content based on specific update mandates.
     
     Args:
         input: ToolExecutionInput containing:
-            - items: List of items to update
-            - updates: Optional list of updates to apply to specific items
-            - augmentation_rules: Optional rules for augmenting all items
+            - content: Content to update/augment
+            - update_mandate: Instructions for how to update/augment
+            - update_type: Type of update to perform
+            - focus_areas: Optional specific areas to focus on
             
     Returns:
-        ToolExecutionResult containing:
-            - updated_items: Items with updates and augmentations applied
-            - update_stats: Statistics about the update process
+        Dict containing:
+            - updated_content: Updated/augmented content with metadata
     """
     # Extract parameters
-    items = input.params.get("items", [])
-    updates = input.params.get("updates", [])
-    augmentation_rules = input.params.get("augmentation_rules", [])
+    content = input.params.get("content", {})
+    update_mandate = input.params.get("update_mandate")
+    update_type = input.params.get("update_type", "enhance")
+    focus_areas = input.params.get("focus_areas", [])
     
-    # TODO: Implement update and augmentation logic
+    # TODO: Implement update/augment logic
     # This is where you would:
-    # 1. Apply direct updates to specific items
-    # 2. Apply augmentation rules to all items
-    # 3. Track statistics about the process
+    # 1. Parse and validate the update mandate
+    # 2. Analyze the content based on the mandate
+    # 3. Apply updates based on type
+    # 4. Format the output according to the schema
     
     # Placeholder implementation
-    updated_items = items.copy()
-    items_updated = 0
-    items_augmented = 0
+    updated_content = f"Updated {type(content).__name__} content"
     
-    # Apply direct updates
-    for update in updates:
-        item_id = update.get("item_id")
-        update_data = update.get("update_data", {})
-        for item in updated_items:
-            if item.get("id") == item_id:
-                item.update(update_data)
-                items_updated += 1
-    
-    # Apply augmentations
-    for rule in augmentation_rules:
-        field_name = rule.get("field_name")
-        computation = rule.get("computation")
-        apply_to_all = rule.get("apply_to_all", True)
-        
-        if apply_to_all:
-            for item in updated_items:
-                # TODO: Implement actual computation
-                item[field_name] = None
-                items_augmented += 1
-    
-    return ToolExecutionResult(
-        outputs={
-            "updated_items": updated_items,
-            "update_stats": {
-                "items_updated": items_updated,
-                "items_augmented": items_augmented,
-                "errors": 0
+    return {
+        "updated_content": {
+            "content": updated_content,
+            "metadata": {
+                "update_type": update_type,
+                "updated_at": datetime.utcnow().isoformat()
             }
         }
-    )
+    }
 
 # Register the handler
 register_tool_handler(
     "update_augment",
     ToolExecutionHandler(
         handler=handle_update_augment,
-        description="Applies updates or augmentations to a list of items"
+        description="Updates or augments content based on specific update mandates"
     )
 ) 

@@ -55,6 +55,26 @@ const initialState: JamBotState = {
     payload_history: []
 };
 
+// Helper function to sanitize asset values
+const sanitizeAsset = (asset: Asset): Asset => {
+    return {
+        ...asset,
+        value: typeof asset.value === 'string'
+            ? asset.value.substring(0, 100)
+            : JSON.stringify(asset.value).substring(0, 100)
+    };
+};
+
+// Helper function to sanitize hop state
+const sanitizeHopState = (hopState: Record<string, Asset>): Record<string, Asset> => {
+    return Object.fromEntries(
+        Object.entries(hopState).map(([key, asset]) => [
+            key,
+            sanitizeAsset(asset)
+        ])
+    );
+};
+
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
     switch (action.type) {
         case 'SET_STATE':
@@ -268,13 +288,17 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             // If hop is complete, add it to history and clear current hop
             if (allHopOutputsReady) {
+                // Sanitize the hop state before adding to history
+                const sanitizedHop = {
+                    ...hop,
+                    hop_state: sanitizeHopState(hop.hop_state),
+                    status: HopStatus.ALL_HOPS_COMPLETE,
+                    is_resolved: true
+                };
+
                 updatedMission.hop_history = [
                     ...(state.mission.hop_history || []),
-                    {
-                        ...hop,
-                        status: HopStatus.ALL_HOPS_COMPLETE,
-                        is_resolved: true
-                    }
+                    sanitizedHop
                 ];
                 // Use type assertion to handle current_hop
                 (updatedMission as any).current_hop = undefined;
@@ -648,10 +672,55 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         try {
             const filteredMessages = state.currentMessages.filter(msg => msg.role !== MessageRole.STATUS);
+
+            // Create a sanitized mission payload with truncated asset values for backend
+            const sanitizedMission = state.mission ? {
+                ...state.mission,
+                mission_state: Object.fromEntries(
+                    Object.entries(state.mission.mission_state).map(([key, asset]) => [
+                        key,
+                        {
+                            ...asset,
+                            value: typeof asset.value === 'string'
+                                ? asset.value.substring(0, 100)
+                                : JSON.stringify(asset.value).substring(0, 100)
+                        }
+                    ])
+                ),
+                current_hop: state.mission.current_hop ? {
+                    ...state.mission.current_hop,
+                    hop_state: Object.fromEntries(
+                        Object.entries(state.mission.current_hop.hop_state).map(([key, asset]) => [
+                            key,
+                            {
+                                ...asset,
+                                value: typeof asset.value === 'string'
+                                    ? asset.value.substring(0, 100)
+                                    : JSON.stringify(asset.value).substring(0, 100)
+                            }
+                        ])
+                    )
+                } : undefined,
+                hop_history: state.mission.hop_history.map(hop => ({
+                    ...hop,
+                    hop_state: Object.fromEntries(
+                        Object.entries(hop.hop_state).map(([key, asset]) => [
+                            key,
+                            {
+                                ...asset,
+                                value: typeof asset.value === 'string'
+                                    ? asset.value.substring(0, 100)
+                                    : JSON.stringify(asset.value).substring(0, 100)
+                            }
+                        ])
+                    )
+                }))
+            } : defaultMission;
+
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
                 payload: {
-                    mission: state.mission || defaultMission,
+                    mission: sanitizedMission,
                 }
             };
 

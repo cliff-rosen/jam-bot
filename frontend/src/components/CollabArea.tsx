@@ -4,7 +4,6 @@ import { CheckCircle, XCircle, Play, Square, RotateCcw, X } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
 
 import { Mission } from './Mission';
-import { VariableRenderer } from './common/VariableRenderer';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';

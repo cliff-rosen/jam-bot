@@ -8,15 +8,15 @@ import { VariableRenderer } from './common/VariableRenderer';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';
+import { ApprovalContent } from '@/types/collabArea';
 
 interface CollabAreaProps {
-    // We can add props here as needed for different types of content
-    type?: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop';
-    content?: any;
+    type: 'current-hop' | ApprovalContent['type'] | null;
+    content: Hop | ApprovalContent['content'] | null;
 }
 
-const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
+const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
+
     const {
         state,
         acceptMissionProposal,
@@ -32,26 +32,24 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         clearCollabArea
     } = useJamBot();
 
-    const handlePrevious = () => {
-        setCurrentIndex(prev => Math.max(0, prev - 1));
-    };
-
-    const handleNext = () => {
-        if (Array.isArray(content)) {
-            setCurrentIndex(prev => Math.min(content.length - 1, prev + 1));
-        }
-    };
 
     const handleHopUpdate = (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
         updateHopState(updatedHop, updatedMissionOutputs);
     };
 
-    const renderObject = () => {
-        return (
-            <div className="h-full">
-                <VariableRenderer value={content} useEnhancedJsonView={true} maxTextLength={1000} maxArrayItems={20} maxArrayItemLength={500} className="h-full" />
-            </div>
-        );
+    const renderApprovalContent = () => {
+        if (!type || !content) return null;
+
+        switch (type) {
+            case 'mission-proposal':
+                return renderMissionProposal();
+            case 'hop-proposal':
+                return renderHopProposal();
+            case 'hop-implementation-proposal':
+                return renderHopImplementationProposal();
+            default:
+                return null;
+        }
     };
 
     const renderMissionProposal = () => {
@@ -64,7 +62,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Check if mission has already been accepted (status is ACTIVE)
         const isAlreadyAccepted = state?.mission?.mission_status === MissionStatus.ACTIVE;
 
         return (
@@ -124,7 +121,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                                     <p className="text-sm text-gray-500 italic">No inputs required</p>
                                 )}
                             </div>
-
                             <div>
                                 <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Outputs</h4>
                                 {mission.outputs && mission.outputs.length > 0 ? (
@@ -140,20 +136,27 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                                 )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Action Buttons - Only show if not already accepted */}
-                    {!isAlreadyAccepted && (
-                        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <button
-                                onClick={() => acceptMissionProposal()}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                Accept Mission
-                            </button>
-                        </div>
-                    )}
+                        {/* Action Buttons */}
+                        {!isAlreadyAccepted && (
+                            <div className="flex gap-3 justify-end mt-6">
+                                <button
+                                    onClick={acceptMissionProposal}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    <CheckCircle className="w-5 h-5 mr-2" />
+                                    Accept Mission
+                                </button>
+                                <button
+                                    onClick={clearCollabArea}
+                                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    <XCircle className="w-5 h-5 mr-2" />
+                                    Reject
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -170,13 +173,11 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Check if this hop has already been accepted (exists in mission hop_history)
         const isAlreadyAccepted = state?.mission?.hop_history.some(existingHop =>
             existingHop.id === hop.id &&
             existingHop.status === HopStatus.HOP_READY_TO_RESOLVE
         );
 
-        // Check if the hop is in a state where it needs to be accepted
         const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED &&
             state?.mission?.current_hop?.status === HopStatus.HOP_PROPOSED &&
             !isAlreadyAccepted;
@@ -220,60 +221,26 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                             <p className="text-sm text-gray-800 dark:text-gray-200">{hop.description}</p>
                         </div>
 
-                        <div>
-                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Type</h4>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">
-                                {hop.is_final ? 'Final Hop (produces final deliverable)' : 'Intermediate Hop'}
-                            </p>
-                        </div>
-
-                        <div>
-                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Input Mapping</h4>
-                            {hop.input_mapping && Object.keys(hop.input_mapping).length > 0 ? (
-                                <ul className="space-y-1">
-                                    {Object.entries(hop.input_mapping).map(([key, value]) => (
-                                        <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
-                                            <span className="font-medium">{key}:</span> {String(value)}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-gray-500 italic">No inputs defined</p>
-                            )}
-                        </div>
-
-                        <div>
-                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Output Mapping</h4>
-                            {hop.output_mapping && Object.keys(hop.output_mapping).length > 0 ? (
-                                <ul className="space-y-1">
-                                    {Object.entries(hop.output_mapping).map(([key, value]) => (
-                                        <li key={key} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
-                                            <span className="font-medium">{key}:</span> {String(value)}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-gray-500 italic">No outputs defined</p>
-                            )}
-                        </div>
+                        {/* Action Buttons */}
+                        {needsAcceptance && (
+                            <div className="flex gap-3 justify-end mt-6">
+                                <button
+                                    onClick={() => acceptHopProposal(hop)}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                    <CheckCircle className="w-5 h-5 mr-2" />
+                                    Accept Hop
+                                </button>
+                                <button
+                                    onClick={clearCollabArea}
+                                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                    <XCircle className="w-5 h-5 mr-2" />
+                                    Reject
+                                </button>
+                            </div>
+                        )}
                     </div>
-
-                    {/* Action Buttons - Show if not already accepted and needs acceptance */}
-                    {!isAlreadyAccepted && needsAcceptance && (
-                        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <button
-                                onClick={() => {
-                                    if (hop) {
-                                        acceptHopProposal(hop);
-                                    }
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                Accept Hop
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
         );
@@ -282,16 +249,13 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
     const renderHopImplementationProposal = () => {
         let hopToRender: Hop | Partial<Hop> | undefined = undefined;
 
-        // Path 1: Hop data is directly in content.hop (e.g., from hop_designer_completed with resolved hop)
         if (content?.hop && typeof content.hop === 'object' && (content.hop as Partial<Hop>).is_resolved === true) {
             hopToRender = content.hop as Hop;
-        }
-        // Path 2: Hop data is in content.mission.current_hop (e.g., from a status that sends the full mission)
-        else if (content?.mission?.current_hop && typeof content.mission.current_hop === 'object' && (content.mission.current_hop as Partial<Hop>).is_resolved === true) {
+        } else if (content?.mission?.current_hop && typeof content.mission.current_hop === 'object' && (content.mission.current_hop as Partial<Hop>).is_resolved === true) {
             hopToRender = content.mission.current_hop as Hop;
         }
 
-        if (!hopToRender || !hopToRender.is_resolved) { // Final check on the derived hop
+        if (!hopToRender || !hopToRender.is_resolved) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
                     No valid hop implementation proposal available or hop is not resolved.
@@ -299,7 +263,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Get the live hop data from the context state instead of using static content
         const liveHop = state?.mission?.hop_history?.find(h => h.id === hopToRender.id) ||
             (state?.mission?.current_hop?.id === hopToRender.id ? state?.mission?.current_hop : null);
 
@@ -311,12 +274,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             );
         }
 
-        // Check if this hop implementation has already been accepted
-        const isAlreadyAccepted = (state?.mission?.current_hop?.status as HopStatus) === HopStatus.HOP_RUNNING ||
-            (state?.mission?.current_hop?.status as HopStatus) === HopStatus.ALL_HOPS_COMPLETE ||
-            (state?.mission?.current_hop?.id === hopToRender.id &&
-                (state?.mission?.current_hop?.status as HopStatus) === HopStatus.HOP_RUNNING);
-
         return (
             <div className="h-full overflow-auto">
                 <div className="p-6 space-y-6">
@@ -325,268 +282,144 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
                         <div className="flex justify-between items-start">
                             <div>
                                 <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
-                                    Hop Implementation Proposal {isAlreadyAccepted && <span className="text-sm font-normal">(Accepted)</span>}
+                                    Hop Implementation Proposal
                                 </h3>
                                 <p className="text-sm text-purple-700 dark:text-purple-300">
-                                    {isAlreadyAccepted
-                                        ? "This hop implementation has been accepted and is ready for execution."
-                                        : "Review the hop implementation details below. You can accept this implementation to mark the hop as complete."
-                                    }
+                                    Review the proposed hop implementation below. You can accept this implementation to proceed with execution.
                                 </p>
                             </div>
                             <button
                                 onClick={clearCollabArea}
                                 className="text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 transition-colors"
-                                title="Close hop implementation"
+                                title="Close hop implementation proposal"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
 
-                    {/* Hop Details using hopToRender */}
+                    {/* Hop Implementation Details */}
                     <div className="space-y-4">
                         <div>
                             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Hop Name</h4>
-                            <p className="text-base text-gray-900 dark:text-gray-100">{hopToRender.name}</p>
+                            <p className="text-base text-gray-900 dark:text-gray-100">{liveHop.name}</p>
                         </div>
+
                         <div>
                             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Description</h4>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">{hopToRender.description}</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{liveHop.description}</p>
                         </div>
-                        {/* Displaying Inputs if available on hopToRender */}
-                        {hopToRender.input_mapping && Object.keys(hopToRender.input_mapping).length > 0 && (
+
+                        {/* Tool Steps */}
+                        {liveHop.tool_steps && liveHop.tool_steps.length > 0 && (
                             <div>
-                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Inputs</h4>
-                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
-                                    {Object.entries(hopToRender.input_mapping).map(([key, value]) => (
-                                        <li key={key}><span className="font-semibold">{key}:</span> {String(value)}</li>
+                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Tool Steps</h4>
+                                <div className="space-y-3">
+                                    {liveHop.tool_steps.map((step: ToolStep, idx: number) => (
+                                        <div key={step.id} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                        Step {idx + 1}: {step.description}
+                                                    </h5>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        Tool: {step.tool_id}
+                                                    </p>
+                                                </div>
+                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${step.status === ExecutionStatus.COMPLETED
+                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400'
+                                                    : step.status === ExecutionStatus.RUNNING
+                                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400'
+                                                        : step.status === ExecutionStatus.FAILED
+                                                            ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400'
+                                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400'
+                                                    }`}>
+                                                    {step.status}
+                                                </span>
+                                            </div>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             </div>
                         )}
-                        {/* Displaying Outputs if available on hopToRender */}
-                        {hopToRender.output_mapping && Object.keys(hopToRender.output_mapping).length > 0 && (
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Outputs</h4>
-                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
-                                    {Object.entries(hopToRender.output_mapping).map(([key, value]) => (
-                                        <li key={key}><span className="font-semibold">{key}:</span> {String(value)}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Tool Steps using hopToRender.tool_steps */}
-                    <div className="space-y-4">
-                        <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300 mt-4 mb-2">Tool Steps:</h4>
-                        {hopToRender.tool_steps && hopToRender.tool_steps.length > 0 ? (
-                            <ul className="space-y-3">
-                                {hopToRender.tool_steps.map((step: ToolStep, index: number) => (
-                                    <li key={step.id || index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700">
-                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Step {index + 1}: {step.tool_id}</p>
-                                        {step.description && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{step.description}</p>}
-
-                                        {step.parameter_mapping && Object.keys(step.parameter_mapping).length > 0 && (
-                                            <div className="mt-2">
-                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Parameters:</p>
-                                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
-                                                    {Object.entries(step.parameter_mapping).map(([paramKey, paramValue]) => (
-                                                        <li key={paramKey}>
-                                                            <span className="font-semibold">{paramKey}:</span> {typeof paramValue === 'object' && paramValue !== null && 'literal' in paramValue ? JSON.stringify((paramValue as any).literal) : JSON.stringify(paramValue)}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        {step.result_mapping && Object.keys(step.result_mapping).length > 0 && (
-                                            <div className="mt-2">
-                                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Result Mapping:</p>
-                                                <ul className="list-disc list-inside pl-4 text-xs text-gray-700 dark:text-gray-300">
-                                                    {Object.entries(step.result_mapping).map(([resultKey, resultValue]) => (
-                                                        <li key={resultKey}>
-                                                            <span className="font-semibold">{resultKey}:</span> {JSON.stringify(resultValue)}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-500 italic">No tool steps defined for this hop.</p>
-                        )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        {!isAlreadyAccepted && (
-                            <>
-                                <button
-                                    onClick={() => {
-                                        if (hopToRender) {
-                                            acceptHopImplementationProposal(hopToRender as Hop);
-                                        }
-                                    }}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-                                >
-                                    <CheckCircle className="w-4 h-4" />
-                                    Accept
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (hopToRender) {
-                                            acceptHopImplementationAsComplete(hopToRender as Hop);
-                                        }
-                                    }}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                                >
-                                    <CheckCircle className="w-4 h-4" />
-                                    Accept as Complete
-                                </button>
-                            </>
-                        )}
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={() => acceptHopImplementationProposal(liveHop)}
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                            >
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Accept Implementation
+                            </button>
+                            <button
+                                onClick={clearCollabArea}
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                            >
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Reject
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         );
     };
 
-    const renderHop = () => {
-        const staticHop = content as Hop | undefined;
-
-        if (!staticHop || !staticHop.id) {
+    const renderCurrentHop = () => {
+        const currentHop = state?.mission?.current_hop;
+        if (!currentHop) {
             return (
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                    No hop data available
+                    No current hop available
                 </div>
             );
         }
 
-        // Get the live hop data from the context state instead of using static content
-        const liveHop = state?.mission?.hop_history?.find(h => h.id === staticHop.id) ||
-            (state?.mission?.current_hop?.id === staticHop.id ? state?.mission?.current_hop : null);
+        const actionButtons = [];
 
-        if (!liveHop) {
-            return (
-                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                    Hop not found in current mission
-                </div>
+        // Add action buttons based on hop status
+        if (currentHop.status === HopStatus.HOP_READY_TO_EXECUTE) {
+            actionButtons.push(
+                <button
+                    key="start"
+                    onClick={() => startHopExecution(currentHop.id)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                    <Play className="w-5 h-5 mr-2" />
+                    Start Execution
+                </button>
+            );
+        } else if (currentHop.status === HopStatus.HOP_RUNNING) {
+            actionButtons.push(
+                <button
+                    key="stop"
+                    onClick={() => failHopExecution(currentHop.id, "Execution stopped by user")}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                    <Square className="w-5 h-5 mr-2" />
+                    Stop Execution
+                </button>
+            );
+        } else if (currentHop.status === HopStatus.FAILED) {
+            actionButtons.push(
+                <button
+                    key="retry"
+                    onClick={() => retryHopExecution(currentHop.id)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    <RotateCcw className="w-5 h-5 mr-2" />
+                    Retry Execution
+                </button>
             );
         }
-
-        const getActionButtons = () => {
-            const buttons = [];
-
-            // Check if this hop is the current hop in the mission workflow
-            const isCurrentHop = state?.mission?.current_hop?.id === liveHop?.id;
-            const missionHopStatus = state?.mission?.current_hop?.status;
-
-            // Action buttons based on backend workflow status AND hop execution status
-            if (isCurrentHop && missionHopStatus === HopStatus.HOP_READY_TO_EXECUTE) {
-                // Hop is ready to execute according to backend workflow
-                if (liveHop?.status === HopStatus.HOP_READY_TO_EXECUTE) {
-                    if (liveHop.is_resolved && liveHop.tool_steps && liveHop.tool_steps.length > 0) {
-                        buttons.push(
-                            <button
-                                key="start"
-                                onClick={() => {
-                                    console.log('Starting hop execution for:', liveHop.id);
-                                    startHopExecution(liveHop.id);
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                            >
-                                <Play className="w-4 h-4" />
-                                Start Execution
-                            </button>
-                        );
-                    }
-                } else if (liveHop?.status === HopStatus.HOP_RUNNING) {
-                    buttons.push(
-                        <button
-                            key="complete"
-                            onClick={() => {
-                                console.log('Completing hop execution for:', liveHop.id, 'isFinal:', liveHop.is_final);
-                                completeHopExecution(liveHop.id);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <CheckCircle className="w-4 h-4" />
-                            Mark Complete
-                        </button>
-                    );
-                    buttons.push(
-                        <button
-                            key="fail"
-                            onClick={() => failHopExecution(liveHop.id, 'Manually marked as failed')}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <XCircle className="w-4 h-4" />
-                            Mark Failed
-                        </button>
-                    );
-                } else if (liveHop.status === HopStatus.FAILED) {
-                    buttons.push(
-                        <button
-                            key="retry"
-                            onClick={() => retryHopExecution(liveHop.id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            Retry
-                        </button>
-                    );
-                } else if (liveHop.status === HopStatus.ALL_HOPS_COMPLETE) {
-                    // Even if hop execution is completed, allow restart if workflow says ready to execute
-                    buttons.push(
-                        <button
-                            key="restart"
-                            onClick={() => retryHopExecution(liveHop.id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            Restart Execution
-                        </button>
-                    );
-                }
-            } else if (missionHopStatus === HopStatus.HOP_RUNNING && isCurrentHop) {
-                // Hop is running according to backend workflow
-                buttons.push(
-                    <button
-                        key="complete"
-                        onClick={() => completeHopExecution(liveHop?.id || '')}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                        <CheckCircle className="w-4 h-4" />
-                        Mark Complete
-                    </button>
-                );
-                buttons.push(
-                    <button
-                        key="fail"
-                        onClick={() => failHopExecution(liveHop?.id || '', 'Manually marked as failed')}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                        <XCircle className="w-4 h-4" />
-                        Mark Failed
-                    </button>
-                );
-            }
-
-            return buttons;
-        };
-
-        const actionButtons = getActionButtons();
 
         return (
             <div className="h-full flex flex-col">
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                     <div className="px-8 pt-8">
-                        <CurrentHopDetails hop={liveHop} className="" onHopUpdate={handleHopUpdate} />
+                        <CurrentHopDetails hop={currentHop} className="" onHopUpdate={handleHopUpdate} />
                     </div>
                 </div>
 
@@ -602,60 +435,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         );
     };
 
-    const renderObjectList = () => {
-        if (!Array.isArray(content) || content.length === 0) {
-            return (
-                <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                    No objects to display
-                </div>
-            );
-        }
-
-        const currentItem = content[currentIndex];
-        const showNavigation = content.length > 1;
-
-        return (
-            <div className="h-full flex flex-col">
-                {/* Navigation controls - only show if there are multiple items */}
-                {showNavigation && (
-                    <div className="flex-none flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-                        <button
-                            onClick={handlePrevious}
-                            disabled={currentIndex === 0}
-                            className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                            Item {currentIndex + 1} of {content.length}
-                        </span>
-                        <button
-                            onClick={handleNext}
-                            disabled={currentIndex === content.length - 1}
-                            className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Next
-                        </button>
-                    </div>
-                )}
-
-                {/* Content area */}
-                <div className="flex-1 overflow-auto">
-                    <div className="h-full p-6">
-                        <VariableRenderer
-                            value={currentItem}
-                            useEnhancedJsonView={true}
-                            maxTextLength={1000}
-                            maxArrayItems={20}
-                            maxArrayItemLength={500}
-                            className="h-full"
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
     return (
         <div className="h-full w-full flex flex-col">
             {/* Mission Header */}
@@ -664,62 +443,17 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
             {/* Header Section */}
             <div className="flex-shrink-0 px-6 py-3 border-b dark:border-gray-700">
                 <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    {type === 'workflow' && 'Workflow'}
-                    {type === 'document' && 'Document'}
-                    {type === 'code' && 'Code Editor'}
-                    {type === 'object' && 'Object'}
-                    {type === 'object-list' && 'Object List'}
+                    {type === 'current-hop' && 'Current Hop'}
                     {type === 'mission-proposal' && 'Mission Proposal'}
                     {type === 'hop-proposal' && 'Hop Proposal'}
                     {type === 'hop-implementation-proposal' && 'Hop Implementation Proposal'}
-                    {type === 'hop' && 'Hop Details'}
-                    {type === 'default' && 'Collaboration Area'}
                 </h2>
             </div>
 
             {/* Main Content Section */}
             <div className="flex-1 overflow-hidden">
-                {/* Content will be rendered here based on type */}
-                {type === 'default' && (
-                    <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                        - - -
-                    </div>
-                )}
-                {type === 'workflow' && content && (
-                    <div className="h-full">
-                        WORKFLOW
-                    </div>
-                )}
-                {type === 'document' && content && (
-                    <div className="h-full">
-                        <VariableRenderer
-                            value={content}
-                            useEnhancedJsonView={true}
-                            maxTextLength={1000}
-                            maxArrayItems={20}
-                            maxArrayItemLength={500}
-                            className="h-full"
-                        />
-                    </div>
-                )}
-                {type === 'code' && content && (
-                    <div className="h-full">
-                        <VariableRenderer
-                            value={content}
-                            useEnhancedJsonView={true}
-                            maxTextLength={1000}
-                            maxArrayItems={20}
-                            maxArrayItemLength={500}
-                            className="h-full"
-                        />
-                    </div>
-                )}
-                {type === 'object-list' && renderObjectList()}
-                {type === 'object' && renderObject()}
-                {type === 'mission-proposal' && renderMissionProposal()}
-                {type === 'hop-proposal' && renderHopProposal()}
-                {type === 'hop-implementation-proposal' && renderHopImplementationProposal()}
-                {type === 'hop' && renderHop()}
+                {type === 'current-hop' && renderCurrentHop()}
+                {type && type !== 'current-hop' && renderApprovalContent()}
             </div>
         </div>
     );

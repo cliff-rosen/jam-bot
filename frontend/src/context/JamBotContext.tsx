@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect } 
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
-import { CollabAreaState } from '@/types/collabArea';
+import { CollabAreaState, ApprovalContent } from '@/types/collabArea';
 import { assetApi } from '@/lib/api/assetApi';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
@@ -12,10 +12,7 @@ import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
-    collabArea: {
-        type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null;
-        content: any;
-    };
+    collabArea: CollabAreaState;
     mission: Mission | null;
     payload_history: Record<string, any>[];
     error?: string;
@@ -25,7 +22,7 @@ type JamBotAction =
     | { type: 'ADD_MESSAGE'; payload: ChatMessage }
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
-    | { type: 'SET_COLLAB_AREA'; payload: { type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null; content: any } }
+    | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
     | { type: 'CLEAR_COLLAB_AREA' }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
@@ -374,7 +371,7 @@ interface JamBotContextType {
     addMessage: (message: ChatMessage) => void;
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
-    setCollabArea: (type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => void;
+    setCollabArea: (type: CollabAreaState['type'], content: CollabAreaState['content']) => void;
     clearCollabArea: () => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
@@ -427,17 +424,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const acceptHopProposal = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
     }, []);
 
     const acceptHopImplementationProposal = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
     }, []);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
     }, []);
 
     const startHopExecution = useCallback((hopId: string) => {
@@ -476,7 +473,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'CLEAR_ERROR' });
     }, []);
 
-    const setCollabArea = useCallback((type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop' | null, content: any) => {
+    const setCollabArea = useCallback((type: CollabAreaState['type'], content: CollabAreaState['content']) => {
         dispatch({ type: 'SET_COLLAB_AREA', payload: { type, content } });
     }, []);
 

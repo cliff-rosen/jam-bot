@@ -1,4 +1,5 @@
 import { newsletterApi } from '@/lib/api/newsletterApi';
+import { Hop } from '@/types/workflow';
 
 export const getCollabAreaData = async () => {
 
@@ -52,7 +53,12 @@ export const getCollabAreaData2 = async () => {
     }
 }
 
-export interface CollabAreaState {
-    type: 'default' | 'workflow' | 'document' | 'code' | 'object-list' | 'object' | 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal' | 'hop';
+export type ApprovalContent = {
+    type: 'mission-proposal' | 'hop-proposal' | 'hop-implementation-proposal';
     content: any;
+};
+
+export interface CollabAreaState {
+    type: 'current-hop' | ApprovalContent['type'] | null;
+    content: Hop | ApprovalContent['content'] | null;
 }

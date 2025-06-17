@@ -70,45 +70,27 @@
                 {
                     "name": "query",
                     "type": "string",
-                    "description": "Gmail search query (e.g., 'from:user@example.com label:important')",
+                    "description": "Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01'). Supports the same query format as the Gmail search box.",
                     "required": true,
                     "schema": {
                         "type": "string"
                     }
                 },
                 {
-                    "name": "folder",
+                    "name": "label_ids",
                     "type": "string",
-                    "description": "Gmail folder/label to search in",
+                    "is_array": true,
+                    "description": "List of Gmail label IDs to search in. Messages must match ALL specified labels.",
                     "required": false,
-                    "default": "INBOX",
                     "schema": {
-                        "type": "string"
+                        "type": "string",
+                        "is_array": true
                     }
                 },
                 {
-                    "name": "date_range",
-                    "type": "object",
-                    "description": "Date range to search within",
-                    "required": false,
-                    "schema": {
-                        "type": "object",
-                        "fields": {
-                            "start_date": {
-                                "type": "string",
-                                "format": "date"
-                            },
-                            "end_date": {
-                                "type": "string",
-                                "format": "date"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "limit",
+                    "name": "max_results",
                     "type": "number",
-                    "description": "Maximum number of results to return (1-500)",
+                    "description": "Maximum number of messages to return (1-500, default: 100)",
                     "required": false,
                     "default": 100,
                     "schema": {
@@ -118,9 +100,9 @@
                     }
                 },
                 {
-                    "name": "include_attachments",
+                    "name": "include_spam_trash",
                     "type": "boolean",
-                    "description": "Whether to include attachment data",
+                    "description": "Include messages from SPAM and TRASH in the results",
                     "required": false,
                     "default": false,
                     "schema": {
@@ -128,13 +110,12 @@
                     }
                 },
                 {
-                    "name": "include_metadata",
-                    "type": "boolean",
-                    "description": "Whether to include message metadata",
+                    "name": "page_token",
+                    "type": "string",
+                    "description": "Token for retrieving the next page of results",
                     "required": false,
-                    "default": true,
                     "schema": {
-                        "type": "boolean"
+                        "type": "string"
                     }
                 }
             ],

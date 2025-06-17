@@ -48,12 +48,11 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         # Transform inputs for EmailService API
         endpoint_params: Dict[str, Any] = {
             "db": db,
-            "query_terms": [params["query"]],  # Convert single query to list
-            "folders": [params.get("folder", "INBOX")] if params.get("folder") else None,  # Convert single folder to list
-            "date_range": params.get("date_range"),
-            "max_results": min(int(params.get("limit", 100)), 500),
-            "include_attachments": bool(params.get("include_attachments", False)),
-            "include_metadata": bool(params.get("include_metadata", True))
+            "query": params["query"],  # Pass query string directly
+            "label_ids": params.get("label_ids"),  # Use consistent parameter name
+            "max_results": min(int(params.get("max_results", 100)), 500),
+            "include_spam_trash": bool(params.get("include_spam_trash", False)),
+            "page_token": params.get("page_token")
         }
 
         print("Authenticated user. Awaiting response")
@@ -62,7 +61,8 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         
         return {
             "emails": response.get("messages", []),
-            "count": response.get("count", 0)
+            "count": response.get("count", 0),
+            "next_page_token": response.get("nextPageToken")  # Add pagination token to response
         }
     except Exception as e:
         print(f"Error executing email search: {e}")

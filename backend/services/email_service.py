@@ -275,23 +275,25 @@ class EmailService:
 
     async def get_messages(
         self,
-        folders: Optional[List[str]] = None,
-        date_range: Optional[DateRange] = None,
-        query_terms: Optional[List[str]] = None,
+        label_ids: Optional[List[str]] = None,
+        query: Optional[str] = None,
         max_results: int = 100,
+        include_spam_trash: bool = False,
+        page_token: Optional[str] = None,
         include_attachments: bool = False,
         include_metadata: bool = True,
         db: Optional[Session] = None,
         save_to_newsletters: bool = False
     ) -> Dict[str, Any]:
         """
-        Get messages from specified folders
+        Get messages from specified labels
         
         Args:
-            folders: List of folder/label IDs
-            date_range: DateRange object with start and end dates
-            query_terms: List of search terms
-            max_results: Maximum number of results to return
+            label_ids: List of label IDs to search in
+            query: Gmail search query string
+            max_results: Maximum number of results to return (1-500)
+            include_spam_trash: Whether to include messages from SPAM and TRASH
+            page_token: Token for retrieving the next page of results
             include_attachments: Whether to include attachment data (not used)
             include_metadata: Whether to include message metadata (not used)
             db: Database session (used for authentication and saving to newsletters)
@@ -301,36 +303,24 @@ class EmailService:
             A dictionary containing:
             - messages: List of message objects
             - count: Number of messages retrieved
+            - nextPageToken: Token for retrieving the next page (if any)
         """
         try:
-            logger.info(f"Starting get_messages with params: folders={folders}, date_range={date_range}, query_terms={query_terms}, max_results={max_results}")
+            logger.info(f"Starting get_messages with params: label_ids={label_ids}, query={query}, max_results={max_results}")
             
             if not self.service:
                 logger.error("Service not initialized. Call authenticate first.")
                 raise ValueError("Service not initialized. Call authenticate first.")
                 
-            # Build search query
-            query_parts = []
-            
-            if date_range:
-                if date_range.start:
-                    query_parts.append(f'after:{int(date_range.start.timestamp())}')
-                if date_range.end:
-                    query_parts.append(f'before:{int(date_range.end.timestamp())}')
-                    
-            if query_terms:
-                query_parts.extend(query_terms)
-                
-            query = ' '.join(query_parts) if query_parts else None
-            logger.info(f"Built search query: {query}")
-            
             # Get messages with proper label handling
-            logger.info(f"Making Gmail API request with query={query}, folders={folders}")
+            logger.info(f"Making Gmail API request with query={query}, label_ids={label_ids}")
             results = self.service.users().messages().list(
                 userId='me',
                 q=query,
                 maxResults=max_results,
-                labelIds=folders if folders else None
+                labelIds=label_ids,
+                includeSpamTrash=include_spam_trash,
+                pageToken=page_token
             ).execute()
             
             messages = results.get('messages', [])
@@ -350,7 +340,8 @@ class EmailService:
             logger.info(f"Successfully fetched {len(detailed_messages)} detailed messages")
             return {
                 'messages': detailed_messages,
-                'count': len(detailed_messages)
+                'count': len(detailed_messages),
+                'nextPageToken': results.get('nextPageToken')
             }
             
         except HttpError as e:

@@ -22,6 +22,13 @@ class AssetLite(BaseModel):
     schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
 
+    @validator('type')
+    def validate_type_for_credentials(cls, v, values):
+        """Validate that OAuth credentials use the 'config' type"""
+        if values.get('external_system_for') and v != 'config':
+            raise ValueError("External system credentials must use type 'config'")
+        return v
+
 class MissionLite(BaseModel):
     """Simplified mission definition for proposals"""
     name: str = Field(description="Name of the mission (2-8 words)")

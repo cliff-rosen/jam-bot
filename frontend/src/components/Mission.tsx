@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
-import { defaultMission } from '@/types/workflow';
+import { defaultMission, MissionStatus } from '@/types/workflow';
 import { getMissionStatusDisplay, getHopStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -14,6 +14,11 @@ export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
     const mission = state.mission || defaultMission;
     const missionStatusDisplay = getMissionStatusDisplay(mission.mission_status);
     const [expanded, setExpanded] = useState(false);
+
+    // Don't render anything if mission is pending
+    if (mission.mission_status === MissionStatus.PENDING) {
+        return null;
+    }
 
     return (
         <Card className={`w-full max-w-2xl mx-auto my-6 shadow-lg ${className}`}>
@@ -55,7 +60,7 @@ export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
                                     <button
                                         key={hop.id}
                                         className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center gap-6 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none shadow-sm"
-                                        onClick={() => setCollabArea('hop', hop)}
+                                        onClick={() => setCollabArea('current-hop', hop)}
                                     >
                                         <div>
                                             <div className="text-base font-semibold text-gray-900 dark:text-gray-100">

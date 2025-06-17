@@ -17,8 +17,8 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
     // Get the latest asset state from either mission state or current hop state
     const latestAsset = asset ? (
-        jamBotState.mission.mission_state?.[asset.id] || // Check mission state first
-        (jamBotState.mission.current_hop?.hop_state?.[asset.id]) // Then check current hop state
+        jamBotState?.mission?.mission_state?.[asset.id] || // Check mission state first
+        (jamBotState?.mission?.current_hop?.hop_state?.[asset.id]) // Then check current hop state
     ) : undefined;
 
     useEffect(() => {
@@ -26,7 +26,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
             if (!latestAsset) return;
 
             // Only fetch details for database entity assets
-            if (latestAsset.schema?.type === 'database_entity' && !latestAsset.value) {
+            if (latestAsset.schema_definition?.type === 'database_entity' && !latestAsset.value) {
                 setLoading(true);
                 setError(null);
                 try {
@@ -56,7 +56,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
     const displayAsset = detailedAsset || latestAsset;
 
-    if (!displayAsset || !displayAsset.schema) {
+    if (!displayAsset || !displayAsset.schema_definition) {
         return (
             <div className="h-full flex items-center justify-center bg-white dark:bg-gray-800">
                 <p className="text-gray-500 dark:text-gray-400">Invalid asset data</p>
@@ -69,7 +69,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
             {/* Header */}
             <div className="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700">
                 <div className="flex items-center space-x-2">
-                    {getAssetIcon(displayAsset.schema.type, displayAsset.subtype)}
+                    {getAssetIcon(displayAsset.schema_definition.type, displayAsset.subtype)}
                     <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         {displayAsset.name}
                     </h2>
@@ -88,7 +88,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                 <div className="mb-4">
                     <div className="flex items-center gap-2">
                         <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                            {displayAsset.schema.type?.toUpperCase() || 'UNKNOWN'}
+                            {displayAsset.schema_definition.type?.toUpperCase() || 'UNKNOWN'}
                         </div>
                         {/* Show role badge */}
                         {displayAsset.role && (
@@ -128,7 +128,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
                 {displayAsset.value && (
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                        {displayAsset.schema.type === 'database_entity' ? (
+                        {displayAsset.schema_definition.type === 'database_entity' ? (
                             <div className="space-y-4">
                                 {Array.isArray(displayAsset.value) ? (
                                     <div className="space-y-2">

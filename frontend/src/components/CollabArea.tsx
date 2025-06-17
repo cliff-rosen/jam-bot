@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { VariableRenderer } from './common/VariableRenderer';
-import Mission from './Mission';
-import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { CheckCircle, XCircle, Play, Square, RotateCcw, X } from 'lucide-react';
+
 import { useJamBot } from '@/context/JamBotContext';
+
+import Mission from './Mission';
+import { VariableRenderer } from './common/VariableRenderer';
+import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
+import { Asset } from '@/types/asset';
 
 interface CollabAreaProps {
     // We can add props here as needed for different types of content
@@ -24,7 +27,6 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type = 'default', content }) =>
         completeHopExecution,
         failHopExecution,
         retryHopExecution,
-        clearCollabArea,
         setCollabArea,
         updateHopState
     } = useJamBot();

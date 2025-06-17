@@ -7,6 +7,7 @@ from schemas.lite_models import HopLite, AssetLite, create_hop_from_lite
 from tools.tool_registry import format_tool_descriptions_for_hop_design
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
+from datetime import datetime
 
 class HopDesignResponse(BaseModel):
     """Structure for hop design response"""
@@ -19,8 +20,11 @@ class HopDesignerPromptCaller(BasePromptCaller):
     """A simplified prompt caller for hop design"""
     
     def __init__(self):
+        # Get current date and time
+        current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        
         # Define the system message
-        system_message = """You are an AI assistant that helps design hops in a mission workflow. Your primary responsibilities are:
+        system_message = f"""You are an AI assistant that helps design hops in a mission workflow. Your primary responsibilities are:
 
 ## Core Functions
 1. **Analyze** the mission goal and current state
@@ -28,10 +32,13 @@ class HopDesignerPromptCaller(BasePromptCaller):
 3. **Design** the next hop in the workflow
 4. **Validate** that the hop is implementable
 
+## Current Date and Time
+{current_time}
+
 ## Available Tools
 The system has these specific tools available for hop implementation:
 
-{tool_descriptions}
+{{tool_descriptions}}
 
 ## Design Principles
 1. **Incremental Progress**: Each hop should make clear progress toward the mission goal
@@ -57,9 +64,9 @@ The system has these specific tools available for hop implementation:
 4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
 
 ## Current Context
-Mission Context: {mission}
-Available Assets: {available_assets}
-Completed Hops: {completed_hops}
+Mission Context: {{mission}}
+Available Assets: {{available_assets}}
+Completed Hops: {{completed_hops}}
 
 Based on the provided context, design the next hop in the mission workflow."""
 

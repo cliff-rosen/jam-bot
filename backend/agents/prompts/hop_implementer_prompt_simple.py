@@ -7,6 +7,7 @@ from schemas.lite_models import HopLite, AssetLite, ToolStepLite
 from tools.tool_registry import format_tool_descriptions_for_implementation
 from utils.message_formatter import format_assets, format_mission
 from .base_prompt_caller import BasePromptCaller
+from datetime import datetime
 
 class HopImplementationResponse(BaseModel):
     """Structure for hop implementation response"""
@@ -19,18 +20,24 @@ class HopImplementerPromptCaller(BasePromptCaller):
     """A simplified prompt caller for hop implementation"""
     
     def __init__(self):
+        # Get current date and time
+        current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        
         # Define the system message
-        system_message = """You are an AI assistant that helps implement hops in a mission workflow. Your primary responsibilities are:
+        system_message = f"""You are an AI assistant that helps implement hops in a mission workflow. Your primary responsibilities are:
 
 ## Core Functions
 1. **Analyze** the hop's input and output requirements
 2. **Design** a sequence of tool steps to transform inputs to outputs
 3. **Validate** that the tool chain is complete and correct
 
+## Current Date and Time
+{current_time}
+
 ## Available Tools
 The system has these specific tools available for hop implementation:
 
-{tool_descriptions}
+{{tool_descriptions}}
 
 ## Implementation Guidelines
 1. **Asset Management**:
@@ -48,48 +55,48 @@ The system has these specific tools available for hop implementation:
 3. **Parameter Mapping Format**:
    For asset field mappings:
    ```python
-   {{
-       "parameter_name": {{
+   {{{{  # Double curly braces to escape them
+       "parameter_name": {{{{
            "type": "asset_field",
            "state_asset": "asset_name_in_hop_state",
            "path": "optional.path.to.field"  # Optional path for nested fields
-       }}
-   }}
+       }}}}
+   }}}}
    ```
    For literal value mappings:
    ```python
-   {{
-       "parameter_name": {{
+   {{{{  # Double curly braces to escape them
+       "parameter_name": {{{{
            "type": "literal",
            "value": "actual_value_here"
-       }}
-   }}
+       }}}}
+   }}}}
    ```
 
 4. **Result Mapping Format**:
    For asset field mappings:
    ```python
-   {{
-       "result_name": {{
+   {{{{  # Double curly braces to escape them
+       "result_name": {{{{
            "type": "asset_field",
            "state_asset": "asset_name_in_hop_state",
            "path": "optional.path.to.field"  # Optional path for nested fields
-       }}
-   }}
+       }}}}
+   }}}}
    ```
    For discarded results:
    ```python
-   {{
-       "result_name": {{
+   {{{{  # Double curly braces to escape them
+       "result_name": {{{{
            "type": "discard"
-       }}
-   }}
+       }}}}
+   }}}}
    ```
 
 ## Current Context
-Mission Context: {mission}
-Current Hop: {current_hop}
-Available Assets: {available_assets}
+Mission Context: {{mission}}
+Current Hop: {{current_hop}}
+Available Assets: {{available_assets}}
 
 Based on the provided context, implement the hop by designing a sequence of tool steps that transform the inputs into the desired outputs."""
 

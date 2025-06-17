@@ -31,6 +31,8 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
     Raises:
         ToolExecutionError: If tool execution fails
     """
+    print("Starting execute_tool_step")
+
     # Get tool definition from registry
     tool_def = get_tool_definition(step.tool_id)
     if not tool_def:
@@ -78,8 +80,10 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
     
     try:
         # Execute the tool
+        print("execute_tool_step: Executing tool")
         result = await tool_def.execution_handler.handler(execution_input)
-        
+        print("execute_tool_step: Tool execution completed")
+
         # Handle result mapping
         if isinstance(result, ToolExecutionResult):
             outputs = result.outputs
@@ -104,7 +108,8 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
                         )
                     else:
                         hop_state[mapping.state_asset].value = value
-        
+
+        print("execute_tool_step: Tool execution completed successfully")
         return {
             "success": True,
             "errors": [],
@@ -113,4 +118,5 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
         }
         
     except Exception as e:
+        print(f"execute_tool_step: Error executing tool: {e}")
         raise ToolExecutionError(str(e), step.tool_id) 

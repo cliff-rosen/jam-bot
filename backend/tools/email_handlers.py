@@ -7,6 +7,7 @@ email data (currently Gmail search).
 from __future__ import annotations
 
 from typing import Dict, Any, List
+from schemas.base import SchemaType, ValueType
 
 from database import get_db
 from services.email_service import EmailService
@@ -22,15 +23,15 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
 
     Expects the following parameters (as defined in the tool schema):
         • query : str – Gmail search query
-        • folder : str | None – label ID to search inside (optional, defaults to INBOX)
-        • date_range : object | None – date range to search within
-        • limit : int – maximum number of messages (1-500, defaults to 100)
-        • include_attachments : bool – whether to include attachment data (defaults to false)
-        • include_metadata : bool – include message metadata (defaults to true)
+        • label_ids : List[str] | None – label IDs to search inside (optional)
+        • max_results : int – maximum number of messages (1-500, defaults to 100)
+        • include_spam_trash : bool – whether to include messages from SPAM and TRASH
+        • page_token : str | None – token for retrieving the next page of results
 
     Returns a mapping with keys exactly matching the tool's declared outputs:
         • emails – List[dict] – List of matching emails
         • count – int – Total number of matching emails
+        • next_page_token – str | None – Token for retrieving the next page
     """
     print("handle_email_search executing")
 
@@ -48,7 +49,7 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         # Transform inputs for EmailService API
         endpoint_params: Dict[str, Any] = {
             "db": db,
-            "query": params["query"],  # Pass query string directly
+            "query": params.get("query", ""),  # Pass query string directly, default to empty string
             "label_ids": params.get("label_ids"),  # Use consistent parameter name
             "max_results": min(int(params.get("max_results", 100)), 500),
             "include_spam_trash": bool(params.get("include_spam_trash", False)),
@@ -59,8 +60,26 @@ async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
         response = await email_service.get_messages_and_store(**endpoint_params)
         print("Response received")
         
+        # Create the schema for the response
+        schema = SchemaType(
+            type="object",
+            description="List of email messages with metadata",
+            is_array=True,
+            fields={
+                "id": SchemaType(type="string", description="Email ID"),
+                "thread_id": SchemaType(type="string", description="Thread ID"),
+                "subject": SchemaType(type="string", description="Email subject"),
+                "from": SchemaType(type="string", description="Sender email"),
+                "to": SchemaType(type="string", description="Recipient emails", is_array=True),
+                "date": SchemaType(type="string", description="Email date"),
+                "snippet": SchemaType(type="string", description="Email preview"),
+                "labels": SchemaType(type="string", description="Email labels", is_array=True)
+            }
+        )
+        
         return {
-            "emails": response.get("messages", []),
+            "value": response.get("messages", []),
+            "schema": schema,
             "count": response.get("count", 0),
             "next_page_token": response.get("nextPageToken")  # Add pagination token to response
         }

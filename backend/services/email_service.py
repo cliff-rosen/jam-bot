@@ -9,6 +9,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from google.auth.transport.requests import Request
 
 from config.settings import settings
 from models import ResourceCredentials
@@ -71,13 +72,19 @@ class EmailService:
             
             # Refresh token if expired
             if self.credentials.expired:
-                self.credentials.refresh(Request())
-                
-                # Update database with new token
-                creds_data['access_token'] = self.credentials.token
-                creds_data['token_expires_at'] = self.credentials.expiry.isoformat()
-                db_credentials.credentials = creds_data
-                db.commit()
+                try:
+                    logger.info("Refreshing expired credentials")
+                    self.credentials.refresh(Request())
+                    
+                    # Update database with new token
+                    creds_data['access_token'] = self.credentials.token
+                    creds_data['token_expires_at'] = self.credentials.expiry.isoformat()
+                    db_credentials.credentials = creds_data
+                    db.commit()
+                    logger.info("Successfully refreshed credentials")
+                except Exception as e:
+                    logger.error(f"Error refreshing credentials: {str(e)}")
+                    return False
             
             # Build Gmail API service
             self.service = build('gmail', 'v1', credentials=self.credentials)

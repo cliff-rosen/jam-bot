@@ -548,7 +548,10 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                             updated_at=datetime.utcnow(),
                             creator='hop_implementer',
                             custom_metadata={}
-                        )
+                        ),
+                        value=None,  # Initialize with no value
+                        subtype=None,  # No specific subtype
+                        collection_type=None  # Not a collection
                     )
                     # Use the asset name as the key in hop_state
                     current_hop.hop_state[asset_name] = new_asset

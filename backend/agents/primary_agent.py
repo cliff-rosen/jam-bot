@@ -324,6 +324,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Handle output asset based on specification
             output_mapping = {}
             generated_wip_asset_id = None
+            output_asset = None  # Initialize output_asset
 
             if hop_lite.output.use_existing:
                 # Using existing mission asset
@@ -333,6 +334,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 # Verify the asset exists in mission state
                 if hop_lite.output.mission_asset_id not in state.mission.mission_state:
                     raise ValueError(f"Specified mission asset {hop_lite.output.mission_asset_id} not found in mission state")
+                
+                # Get the existing asset
+                output_asset = state.mission.mission_state[hop_lite.output.mission_asset_id]
                 
                 # Map to existing mission asset
                 output_mapping[canonical_key(hop_lite.output.asset.name)] = hop_lite.output.mission_asset_id

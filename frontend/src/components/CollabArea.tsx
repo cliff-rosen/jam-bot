@@ -6,7 +6,6 @@ import { useJamBot } from '@/context/JamBotContext';
 import { Mission } from './Mission';
 import { CurrentHopDetails } from './common/CurrentHopDetails';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
-import { Asset } from '@/types/asset';
 import { ApprovalContent } from '@/types/collabArea';
 
 interface CollabAreaProps {
@@ -24,14 +23,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
         startHopExecution,
         failHopExecution,
         retryHopExecution,
-        updateHopState,
         clearCollabArea
     } = useJamBot();
 
-
-    const handleHopUpdate = (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => {
-        updateHopState(updatedHop, updatedMissionOutputs);
-    };
 
     const renderApprovalContent = () => {
         if (!type || !content) return null;
@@ -415,7 +409,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                     <div className="px-8 pt-8">
-                        <CurrentHopDetails hop={currentHop} className="" onHopUpdate={handleHopUpdate} />
+                        <CurrentHopDetails hop={currentHop} className="" />
                     </div>
                 </div>
 

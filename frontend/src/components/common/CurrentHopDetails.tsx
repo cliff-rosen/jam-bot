@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Hop, ToolStep, ExecutionStatus, HopStatus } from '@/types/workflow';
-import { Asset, AssetStatus } from '@/types/asset';
+import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
@@ -9,13 +8,11 @@ import { useJamBot } from '@/context/JamBotContext';
 interface CurrentHopDetailsProps {
     hop: Hop;
     className?: string;
-    onHopUpdate?: (updatedHop: Hop, updatedMissionOutputs: Map<string, Asset>) => void;
 }
 
 export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     hop,
-    className = '',
-    onHopUpdate
+    className = ''
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showSteps, setShowSteps] = useState(true);

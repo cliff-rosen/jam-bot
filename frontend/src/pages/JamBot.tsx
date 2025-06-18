@@ -1,20 +1,32 @@
 import React, { useState } from 'react';
+import { Database, Wrench } from 'lucide-react';
+
 import Chat from '@/components/Chat';
 import CollabArea from '@/components/CollabArea';
-import { useJamBot } from '@/context/JamBotContext';
 import AssetPanels from '@/components/hop/AssetPanels';
 import StateInspector from '@/components/StateInspector';
-import { Database } from 'lucide-react';
+import ToolBrowserDialog from '@/components/ToolBrowserDialog';
+
+import { useJamBot } from '@/context/JamBotContext';
+
 
 const JamBotPage: React.FC = () => {
     const { state, sendMessage } = useJamBot();
     const { currentMessages, currentStreamingMessage, collabArea, mission } = state;
     const [isStateInspectorOpen, setIsStateInspectorOpen] = useState(false);
+    const [isToolBrowserOpen, setIsToolBrowserOpen] = useState(false);
 
     return (
         <div className="relative flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">
-            {/* State Inspector Button */}
-            <div className="absolute top-2 right-2 z-10">
+            {/* Inspector Buttons */}
+            <div className="absolute top-2 right-2 z-10 flex gap-2">
+                <button
+                    onClick={() => setIsToolBrowserOpen(true)}
+                    className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    title="Browse Available Tools"
+                >
+                    <Wrench className="w-5 h-5" />
+                </button>
                 <button
                     onClick={() => setIsStateInspectorOpen(true)}
                     className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -27,6 +39,11 @@ const JamBotPage: React.FC = () => {
             <StateInspector
                 isOpen={isStateInspectorOpen}
                 onClose={() => setIsStateInspectorOpen(false)}
+            />
+
+            <ToolBrowserDialog
+                isOpen={isToolBrowserOpen}
+                onClose={() => setIsToolBrowserOpen(false)}
             />
 
             {/* Chat Area - Fixed width */}

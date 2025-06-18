@@ -7,13 +7,15 @@ and managing workflows, including Missions, Hops, and ToolSteps.
 
 from __future__ import annotations
 from pydantic import BaseModel, Field, validator
-from typing import Dict, Any, Optional, List, Union, Literal
+from typing import Dict, Any, Optional, List, Union, Literal, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from .asset import Asset
 from .resource import Resource
 from .tool import ToolDefinition
-from tools.tool_execution import execute_tool_step, ToolExecutionError
+
+if TYPE_CHECKING:
+    from tools.tool_execution import execute_tool_step, ToolExecutionError
 
 
 class ExecutionStatus(str, Enum):
@@ -196,6 +198,9 @@ class ToolStep(BaseModel):
         Raises:
             ToolExecutionError: If tool execution fails
         """
+        # Import here to avoid circular imports
+        from tools.tool_execution import execute_tool_step, ToolExecutionError
+        
         try:
             self.status = ExecutionStatus.RUNNING
             result = await execute_tool_step(self, hop_state)

@@ -4,7 +4,7 @@ import { CheckCircle, XCircle, Play, Square, RotateCcw, X } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
 
 import { Mission } from './Mission';
-import { CurrentHopDetails } from './common/CurrentHopDetails';
+import HopDetails from './common/HopDetails';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 import { ApprovalContent } from '@/types/collabArea';
 
@@ -409,7 +409,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                     <div className="px-8 pt-8">
-                        <CurrentHopDetails hop={currentHop} className="" />
+                        <HopDetails hop={currentHop} className="" />
                     </div>
                 </div>
 

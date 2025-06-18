@@ -5,12 +5,12 @@ import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } f
 import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
 import { useJamBot } from '@/context/JamBotContext';
 
-interface CurrentHopDetailsProps {
+interface HopDetailsProps {
     hop: Hop;
     className?: string;
 }
 
-export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
+export const HopDetails: React.FC<HopDetailsProps> = ({
     hop,
     className = ''
 }) => {
@@ -346,4 +346,4 @@ export const CurrentHopDetails: React.FC<CurrentHopDetailsProps> = ({
     );
 };
 
-export default CurrentHopDetails; 
+export default HopDetails; 

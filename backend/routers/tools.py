@@ -52,6 +52,14 @@ async def execute_tool(
     print("--------------------------------")
     print(f"/execute/ endpoint hit for tool: {tool_id}")
 
+    # validate that tool_id matches the tool_id in the step
+    # TO DO: consider removing toolid from the signiture of execute_tool
+    if tool_id != step.tool_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tool ID mismatch: {tool_id} != {step.tool_id}"
+        )
+
     # Validate tool exists
     if tool_id not in TOOL_REGISTRY:
         print(f"Tool {tool_id} not found")

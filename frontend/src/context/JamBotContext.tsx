@@ -634,8 +634,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (data.payload) {
-            const isMissionProposal = data.status === 'mission_specialist_completed' &&
+            let isMissionProposal = data.status === 'mission_specialist_completed' &&
                 typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
+
+            if (isMissionProposal) {
+                if (data.payload?.mission?.name?.includes('New Mission')) {
+                    isMissionProposal = false;
+                }
+            }
+
+
+
             let isHopProposal = false;
             let isHopImplementationProposal = false;
             let hopPayload: Partial<Hop> | null = null;

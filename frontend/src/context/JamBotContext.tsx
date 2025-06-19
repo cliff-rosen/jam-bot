@@ -436,17 +436,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const acceptHopProposal = useCallback((hop: Hop, proposedAssets?: any[]) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
     }, []);
 
     const acceptHopImplementationProposal = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
     }, []);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
+        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
     }, []);
 
     const startHopExecution = useCallback((hopId: string) => {

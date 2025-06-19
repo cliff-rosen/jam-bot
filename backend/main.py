@@ -50,7 +50,7 @@ app.include_router(email.router, prefix="/api")
 app.include_router(newsletter.router, prefix="/api")
 app.include_router(asset.router, prefix="/api")
 app.include_router(llm.router, prefix="/api")
-app.include_router(tools.router)
+app.include_router(tools.router, prefix="/api")
 
 # app.include_router(
 #     search.router,

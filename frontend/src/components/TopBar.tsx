@@ -33,7 +33,7 @@ export default function TopBar() {
                                     } inline-flex items-center px-4 border-b-2 text-sm font-medium`}
                             >
                                 <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
-                                Jam
+                                Hop
                             </Link>
 
                             <Link

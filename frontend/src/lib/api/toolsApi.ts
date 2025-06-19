@@ -14,7 +14,7 @@ export const toolsApi = {
      * Get list of available tools
      */
     getAvailableTools: async (): Promise<ToolDefinition[]> => {
-        const response = await api.get<{ tools: ToolDefinition[] }>('/tools/available');
+        const response = await api.get<{ tools: ToolDefinition[] }>('/api/tools/available');
         return response.data.tools;
     },
 
@@ -26,7 +26,7 @@ export const toolsApi = {
         step: ToolStep,
         hopState: Record<string, Asset>
     ): Promise<ToolExecutionResult> => {
-        const response = await api.post<ToolExecutionResult>(`/tools/execute/${toolId}`, {
+        const response = await api.post<ToolExecutionResult>(`/api/tools/execute/${toolId}`, {
             step,
             hop_state: hopState
         });

@@ -325,6 +325,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             output_mapping = {}
             generated_wip_asset_id = None
             output_asset = None  # Initialize output_asset
+            proposed_assets = []  # Track assets that would be added to mission state
 
             if hop_lite.output.use_existing:
                 # Using existing mission asset
@@ -341,7 +342,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 # Map to existing mission asset
                 output_mapping[canonical_key(hop_lite.output.asset.name)] = hop_lite.output.mission_asset_id
             else:
-                # Create new asset
+                # Create new asset (but don't add to mission state yet)
                 output_asset = create_asset_from_lite(hop_lite.output.asset)
                 
                 # Generate unique ID for the new asset
@@ -349,13 +350,11 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 generated_wip_asset_id = f"hop_{sanitized_name}_{str(uuid.uuid4())[:8]}_output"
                 output_asset.id = generated_wip_asset_id
                 
-                # Set role as intermediate in mission state
+                # Set role as intermediate (will be added to mission state when accepted)
                 output_asset.role = 'intermediate'
                 
-                # Add to mission state
-                if state.mission.mission_state is None:  # Defensive check
-                    state.mission.mission_state = {}
-                state.mission.mission_state[output_asset.id] = output_asset
+                # Track this asset for the payload (don't add to mission state yet)
+                proposed_assets.append(output_asset)
                 
                 # Map to new asset
                 output_mapping[canonical_key(hop_lite.output.asset.name)] = generated_wip_asset_id
@@ -372,6 +371,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 status=HopStatus.HOP_PROPOSED,
                 is_final=hop_lite.is_final,
                 is_resolved=False,
+                rationale=hop_lite.rationale,  # Include rationale from HopLite
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -392,9 +392,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 else:
                     raise ValueError(f"Input asset {mission_asset_id} not found in mission state")
             
-            # Update state with new hop
-            state.mission.current_hop = new_hop
-            state.mission.current_hop.status = HopStatus.HOP_PROPOSED
+            # Don't update state with new hop - let frontend handle this when accepted
+            # state.mission.current_hop = new_hop
+            # state.mission.current_hop.status = HopStatus.HOP_PROPOSED
 
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # For clarification needed, we don't create a new hop
@@ -418,10 +418,11 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 token=response_message.content[0:100],
                 response_text=response_message.content,
                 status="hop_designer_completed",
-                debug=f"Response type: {parsed_response.response_type}, Hop proposed: {state.mission.current_hop.name if state.mission.current_hop else 'No hop proposed'}, waiting for user approval",
+                debug=f"Response type: {parsed_response.response_type}, Hop proposed: {new_hop.name if parsed_response.response_type == 'HOP_PROPOSAL' else 'No hop proposed'}, waiting for user approval",
                 payload={
-                    "hop": serialize_hop(state.mission.current_hop),
-                    "mission": serialize_mission(state.mission)
+                    "hop": serialize_hop(new_hop) if parsed_response.response_type == 'HOP_PROPOSAL' else None,
+                    "mission": serialize_mission(state.mission),
+                    "proposed_assets": [asset.model_dump(mode='json') for asset in proposed_assets] if parsed_response.response_type == 'HOP_PROPOSAL' else []
                 }
             ))
             writer(agent_response.model_dump())

@@ -28,7 +28,7 @@ type JamBotAction =
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL' }
-    | { type: 'ACCEPT_HOP_PROPOSAL'; payload: Hop }
+    | { type: 'ACCEPT_HOP_PROPOSAL'; payload: { hop: Hop; proposedAssets: any[] } }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop }
     | { type: 'START_HOP_EXECUTION'; payload: string }
@@ -125,11 +125,23 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'ACCEPT_HOP_PROPOSAL':
             if (!state.mission) return state;
-            const acceptedHop = action.payload;
+            const { hop: acceptedHop, proposedAssets } = action.payload;
+
+            // Add proposed assets to mission state
+            const updatedMissionState = { ...state.mission.mission_state };
+            if (proposedAssets && Array.isArray(proposedAssets)) {
+                proposedAssets.forEach((assetData: any) => {
+                    if (assetData && assetData.id) {
+                        updatedMissionState[assetData.id] = assetData;
+                    }
+                });
+            }
+
             return {
                 ...state,
                 mission: {
                     ...state.mission,
+                    mission_state: updatedMissionState,
                     current_hop: {
                         ...acceptedHop,
                         status: HopStatus.HOP_READY_TO_RESOLVE
@@ -375,7 +387,7 @@ interface JamBotContextType {
     clearCollabArea: () => void;
     addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
-    acceptHopProposal: (hop: Hop) => void;
+    acceptHopProposal: (hop: Hop, proposedAssets?: any[]) => void;
     acceptHopImplementationProposal: (hop: Hop) => void;
     acceptHopImplementationAsComplete: (hop: Hop) => void;
     startHopExecution: (hopId: string) => void;
@@ -422,8 +434,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ACCEPT_MISSION_PROPOSAL' });
     }, []);
 
-    const acceptHopProposal = useCallback((hop: Hop) => {
-        dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: hop });
+    const acceptHopProposal = useCallback((hop: Hop, proposedAssets?: any[]) => {
+        dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
         dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: hop } });
     }, []);
 
@@ -643,8 +655,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
-
-
             let isHopProposal = false;
             let isHopImplementationProposal = false;
             let hopPayload: Partial<Hop> | null = null;
@@ -665,7 +675,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
             newCollabAreaContent = data.payload;
             if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-                dispatch({ type: 'SET_MISSION', payload: (data.payload as any).mission });
+                const payload = data.payload as { mission?: any };
+                if (payload.mission) {
+                    dispatch({ type: 'SET_MISSION', payload: payload.mission });
+                }
             }
 
             if (isMissionProposal) {

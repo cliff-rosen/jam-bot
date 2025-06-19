@@ -58,6 +58,7 @@ class Hop(BaseModel):
     status: HopStatus = Field(default=HopStatus.HOP_PROPOSED)
     is_final: bool = Field(default=False)
     is_resolved: bool = Field(default=False)
+    rationale: Optional[str] = Field(default=None, description="Explanation of why this hop is needed and how it contributes to the mission")
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

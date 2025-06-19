@@ -81,6 +81,7 @@ export interface Hop {
     status: HopStatus;
     is_final?: boolean;
     is_resolved?: boolean;
+    rationale?: string;
     current_step_index?: number;
 }
 

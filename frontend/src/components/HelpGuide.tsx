@@ -30,15 +30,15 @@ const sections: Section[] = [
         content: (
             <div className="space-y-6">
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">What is FractalBot?</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">What is HopBot?</h4>
                     <p className="text-gray-700 dark:text-gray-300 mb-3">
-                        FractalBot is a new kind of AI assistant that combines the flexibility of natural language interaction with the rigor of structured workflows. Unlike traditional tools, it:
+                        HopBot is a precision workflow orchestration system that breaks down complex tasks into verifiable, controllable 'hops'. Unlike traditional automation tools, it:
                     </p>
                     <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                        <li><strong>Architects Before Executing:</strong> Unlike regular chatbots that jump straight to answers, FractalBot first designs a structured workflow to achieve your goal</li>
-                        <li><strong>Recursively Refines:</strong> Unlike static workflow tools, FractalBot dynamically creates and executes steps as needed, adapting to the task's requirements</li>
-                        <li><strong>Maintains Context:</strong> While executing workflows, FractalBot preserves the big picture, ensuring each step contributes to the overall mission</li>
-                        <li><strong>Verifies Progress:</strong> At each stage, FractalBot checks success criteria, ensuring the work meets quality standards before proceeding</li>
+                        <li><strong>Decomposes Complex Tasks:</strong> Breaks down any complex problem into a series of clear, objective-driven stages called "hops"</li>
+                        <li><strong>Provides Human Oversight:</strong> Gives you visibility and control at every step, with the ability to inspect, modify, and confirm intermediate outputs</li>
+                        <li><strong>Ensures Quality:</strong> Each hop produces verifiable intermediate results that you can validate before proceeding</li>
+                        <li><strong>Maintains Traceability:</strong> Every stage, from raw input to final output, is visible and auditable</li>
                     </ul>
                 </div>
 
@@ -46,21 +46,21 @@ const sections: Section[] = [
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">How is it Different?</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <h5 className="font-medium text-gray-900 dark:text-white mb-2">Compared to Chatbots:</h5>
+                            <h5 className="font-medium text-gray-900 dark:text-white mb-2">Compared to Traditional Workflow Tools:</h5>
                             <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                                <li>Doesn't just answer questions - creates structured solutions</li>
-                                <li>Maintains clear success criteria and verification</li>
-                                <li>Organizes work into stages with clear dependencies</li>
-                                <li>Manages data flow and asset tracking</li>
+                                <li>No manual workflow building - hops are designed dynamically</li>
+                                <li>Provides intermediate outputs you can inspect and modify</li>
+                                <li>Natural language interaction for task definition</li>
+                                <li>Built-in verification at each stage</li>
                             </ul>
                         </div>
                         <div>
-                            <h5 className="font-medium text-gray-900 dark:text-white mb-2">Compared to Workflow Tools:</h5>
+                            <h5 className="font-medium text-gray-900 dark:text-white mb-2">Compared to Black-Box AI:</h5>
                             <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                                <li>Designs workflows dynamically based on the task</li>
-                                <li>Creates steps recursively during execution</li>
-                                <li>Uses natural language for interaction</li>
-                                <li>Adapts to changing requirements</li>
+                                <li>Complete transparency into decision-making process</li>
+                                <li>Human oversight and control at every step</li>
+                                <li>Verifiable intermediate results</li>
+                                <li>Ability to refine and adjust as needed</li>
                             </ul>
                         </div>
                     </div>
@@ -69,11 +69,11 @@ const sections: Section[] = [
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Key Benefits</h4>
                     <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                        <li><strong>Structured Yet Flexible:</strong> Combines the rigor of workflows with the adaptability of AI</li>
-                        <li><strong>Clear Progress Tracking:</strong> Each stage and step has defined success criteria</li>
-                        <li><strong>Data Management:</strong> Systematic handling of inputs, outputs, and intermediate results</li>
-                        <li><strong>Quality Assurance:</strong> Built-in verification at multiple levels</li>
-                        <li><strong>Natural Interaction:</strong> Conversational interface while maintaining structure</li>
+                        <li><strong>Transparent:</strong> Every stage, from raw input to final output, is visible and auditable</li>
+                        <li><strong>Controlled:</strong> Define objectives, inspect results, and refine each hop to match your intent</li>
+                        <li><strong>Tractable:</strong> Complex workflows broken into manageable, verifiable, and debuggable segments</li>
+                        <li><strong>Versatile:</strong> Adaptable across diverse domains, from data analysis to content generation</li>
+                        <li><strong>Accelerated:</strong> Achieve high-quality, precise results faster with guided, intelligent automation</li>
                     </ul>
                 </div>
             </div>
@@ -89,42 +89,39 @@ const sections: Section[] = [
                 content: (
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 mb-3">
-                            All work in FractalBot follows a simple, powerful pattern:
+                            HopBot follows a systematic approach to workflow orchestration:
                         </p>
                         <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                            <li><strong>Define Outputs:</strong> Start by clearly specifying what you want to achieve
+                            <li><strong>Mission Definition:</strong> Start by clearly specifying what you want to achieve
                                 <ul className="list-disc pl-6 mt-2">
+                                    <li>What is your overall goal?</li>
                                     <li>What are the final deliverables?</li>
-                                    <li>What form should they take?</li>
-                                    <li>How will you know they're complete?</li>
+                                    <li>How will you know you've succeeded?</li>
                                 </ul>
                             </li>
-                            <li><strong>Define Inputs:</strong> Identify what you have to work with
+                            <li><strong>Hop Design:</strong> Break down the mission into discrete, manageable stages
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>What data or resources do you have?</li>
-                                    <li>What constraints or requirements exist?</li>
-                                    <li>What additional information might be needed?</li>
+                                    <li>Each hop has a specific objective</li>
+                                    <li>Hops produce intermediate outputs you can verify</li>
+                                    <li>Hops can be refined based on results</li>
                                 </ul>
                             </li>
-                            <li><strong>Connect Inputs to Outputs:</strong> Use available tools to bridge the gap
+                            <li><strong>Execution & Verification:</strong> Execute each hop with human oversight
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>What tools can transform your inputs?</li>
-                                    <li>What intermediate steps are needed?</li>
-                                    <li>How do the tools chain together?</li>
+                                    <li>Review intermediate outputs</li>
+                                    <li>Provide feedback and adjustments</li>
+                                    <li>Verify quality before proceeding</li>
                                 </ul>
                             </li>
                         </ul>
                         <p className="text-gray-700 dark:text-gray-300 mt-4">
-                            This pattern scales from simple tasks to complex missions:
+                            This approach scales from simple tasks to complex missions:
                         </p>
                         <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                            <li><strong>Simple Tasks:</strong> A single step using one tool</li>
-                            <li><strong>Complex Tasks:</strong> Multiple steps with different tools</li>
-                            <li><strong>Missions:</strong> Multilevel workflows steps organized into stages</li>
+                            <li><strong>Simple Tasks:</strong> A single hop with one or two tools</li>
+                            <li><strong>Complex Tasks:</strong> Multiple hops with different objectives</li>
+                            <li><strong>Missions:</strong> Multi-hop workflows with clear progression toward the goal</li>
                         </ul>
-                        <p className="text-gray-700 dark:text-gray-300 mt-4">
-                            FractalBot provides a structured way to implement this pattern through its schema, which you'll learn about in the next section. This schema helps organize and track the work as it progresses from inputs to outputs.
-                        </p>
                     </div>
                 )
             },
@@ -134,92 +131,46 @@ const sections: Section[] = [
                 content: (
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 mb-3">
-                            The FractalBot schema provides the structure for implementing a robust workflow system comprised of several interrelated components:
+                            HopBot uses a structured schema to organize and track workflow execution:
                         </p>
                         <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
                             <li><strong>Mission:</strong> The top-level container that defines the overall goal
                                 <ul className="list-disc pl-6 mt-2">
                                     <li><strong>Goal:</strong> The fundamental reason for the mission - what you ultimately want to achieve</li>
-                                    <li><strong>Outputs:</strong> The specific deliverables you believe will achieve the goal - what you need to produce</li>
-                                    <li><strong>Success Criteria:</strong> The measurable conditions that verify the outputs actually achieve the goal - how you'll know you succeeded</li>
+                                    <li><strong>Success Criteria:</strong> The measurable conditions that verify the outputs actually achieve the goal</li>
                                     <li><strong>Inputs:</strong> Required data objects to start the mission</li>
-                                    <li><strong>Workflows:</strong> Structured plans to produce the outputs from the inputs</li>
-                                </ul>
-                                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mt-4 ml-6">
-                                    <p className="text-gray-700 dark:text-gray-300 mb-2">
-                                        <strong>How These Elements Work Together:</strong> The relationship between goal, outputs, and success criteria forms a critical chain of responsibility that ensures outputs truly achieve the goal:
-                                    </p>
-                                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                                        <li><strong>Success Criteria Define Success:</strong> They must be carefully crafted to truly represent what's needed to achieve the goal</li>
-                                        <li><strong>Outputs Must Meet Criteria:</strong> The outputs must demonstrably satisfy all success criteria</li>
-                                        <li><strong>Goal Achievement Follows:</strong> If the success criteria truly define success, and the outputs meet all criteria, then the goal must be achieved</li>
-                                    </ul>
-                                    <p className="text-gray-700 dark:text-gray-300 mt-4">
-                                        For example, if your goal is to "improve customer satisfaction", your success criteria might include "reduce average response time to under 2 hours" and "achieve 90% positive feedback on support interactions". These criteria must be carefully chosen to truly represent improved satisfaction. Your outputs (like a new support process and training materials) must demonstrably achieve these criteria before being released from the workflow. Only then can you be confident that the goal has been achieved.
-                                    </p>
-                                    <p className="text-gray-700 dark:text-gray-300 mt-4">
-                                        <strong>The Workflow's Role:</strong> The workflow's job is to ensure that a sequence of steps can be identified and executed that follow the data flow rule: inputs can be transformed into outputs through a series of steps, where each step's inputs can come from any previous step's outputs or the mission's initial inputs. This ensures that the mission's inputs can be systematically transformed into the required outputs that meet the success criteria.
-                                    </p>
-                                </div>
-                            </li>
-                            <li><strong>Workflow:</strong> A collection of stages that achieve a specific part of the mission
-                                <ul className="list-disc pl-6 mt-2">
-                                    <li>Stages: Major phases of execution</li>
-                                    <li>Assets: Data objects used throughout</li>
+                                    <li><strong>Outputs:</strong> The specific deliverables that will achieve the goal</li>
+                                    <li><strong>Current Hop:</strong> The hop currently being designed or executed</li>
+                                    <li><strong>Hop History:</strong> Record of completed hops</li>
                                 </ul>
                             </li>
-                            <li><strong>Stage:</strong> A major phase with defined boundaries
+                            <li><strong>Hop:</strong> A discrete stage in the mission with specific objectives
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>Inputs: Required data from previous stages</li>
-                                    <li>Outputs: Data produced for next stages</li>
-                                    <li>Success Criteria: Conditions for stage completion</li>
-                                    <li>Steps: Individual tasks within the stage</li>
+                                    <li><strong>Name & Description:</strong> Clear definition of what the hop accomplishes</li>
+                                    <li><strong>Input Mapping:</strong> Maps local hop state keys to mission asset IDs</li>
+                                    <li><strong>Output Mapping:</strong> Maps local hop state keys to mission asset IDs</li>
+                                    <li><strong>Tool Steps:</strong> Individual operations within the hop</li>
+                                    <li><strong>Hop State:</strong> Data objects used within the hop</li>
+                                    <li><strong>Status:</strong> Current state (proposed, ready to resolve, ready to execute, running, complete)</li>
                                 </ul>
                             </li>
-                            <li><strong>Step:</strong> An individual task with specific operations
+                            <li><strong>Tool Step:</strong> An individual operation within a hop
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>Tool: Specialized function assigned during execution</li>
-                                    <li>Inputs: Required data for the tool</li>
-                                    <li>Outputs: Data produced by the tool</li>
-                                </ul>
-                            </li>
-                            <li><strong>Tool:</strong> A specialized function for processing data
-                                <ul className="list-disc pl-6 mt-2">
-                                    <li>Input Schema: Defines required input structure</li>
-                                    <li>Output Schema: Defines produced output structure</li>
-                                    <li>Configuration: Settings for tool operation</li>
+                                    <li><strong>Tool ID:</strong> The specific tool to execute</li>
+                                    <li><strong>Description:</strong> What this step accomplishes</li>
+                                    <li><strong>Parameter Mapping:</strong> How tool inputs map to hop state</li>
+                                    <li><strong>Result Mapping:</strong> How tool outputs map to hop state</li>
+                                    <li><strong>Status:</strong> Execution status (pending, running, completed, failed)</li>
                                 </ul>
                             </li>
                             <li><strong>Asset:</strong> A piece of information that flows through the workflow
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    Assets are the fundamental units of data that flow through the workflow. Each tool operation consumes some assets as inputs and produces new assets as outputs. The workflow's job is to ensure that all required assets are available when needed, and that the final assets meet the success criteria.
-                                </p>
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li><strong>Types of Assets:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li><strong>Pure Input Assets:</strong> Supplied by the user to start the workflow</li>
-                                            <li><strong>Pure Output Assets:</strong> Final deliverables of the workflow</li>
-                                            <li><strong>Work in Progress Assets:</strong> Intermediate results created by one step and used by another</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Status:</strong> Tracks the state of the asset (pending, ready, archived)</li>
-                                    <li><strong>Versioning:</strong> Maintains history of changes as the asset evolves</li>
+                                    <li><strong>Name & Description:</strong> Clear identification of the asset</li>
+                                    <li><strong>Schema Definition:</strong> Structure and type of the asset</li>
+                                    <li><strong>Value:</strong> The actual data content</li>
+                                    <li><strong>Status:</strong> Current state (pending, ready, archived)</li>
+                                    <li><strong>Role:</strong> Purpose in the workflow (input, output, intermediate)</li>
                                 </ul>
-                            </li>
-                            <li><strong>Resource:</strong> An external system that the workflow may need to access
-                                <ul className="list-disc pl-6 mt-2">
-                                    <li><strong>Access via Tools:</strong> Resources are accessed through tools assigned to steps</li>
-                                    <li><strong>Types of Resources:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li><strong>External Services:</strong> APIs, databases, or other systems</li>
-                                            <li><strong>System Access:</strong> Required permissions or connections</li>
-                                            <li><strong>Processing Capabilities:</strong> Computational resources or specialized hardware</li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    Resources are not data objects themselves, but rather systems that can be used to process or generate data. For example, a database is a resource that can be accessed via a database query tool to retrieve or store assets.
-                                </p>
                             </li>
                         </ul>
                     </div>
@@ -227,100 +178,51 @@ const sections: Section[] = [
             },
             {
                 id: 'realtime-evolution',
-                title: '3. Real-time Schema Evolution',
+                title: '3. Real-time Workflow Evolution',
                 content: (
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 mb-3">
-                            The mission lifecycle evolves in real-time through several key phases:
+                            HopBot workflows evolve in real-time through several key phases:
                         </p>
                         <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                            <li><strong>Mission Definition:</strong> Establishing the chain of responsibility
+                            <li><strong>Mission Proposal:</strong> Initial definition and planning
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>Defines the goal and what success looks like</li>
+                                    <li>Defines the goal and success criteria</li>
                                     <li>Identifies required inputs and expected outputs</li>
-                                    <li>Sets clear success criteria that truly represent goal achievement</li>
-                                    <li>Ensures the foundation for quality throughout the workflow</li>
-                                </ul>
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    This phase is critical because it establishes the chain of responsibility that will guide the entire mission. The mission definition process:
-                                </p>
-                                <ul className="list-disc pl-6 mt-2 text-gray-700 dark:text-gray-300">
-                                    <li><strong>Distinguishes Inputs from Resources:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li>Inputs are specific data objects the user must provide</li>
-                                            <li>Resources are general capabilities accessed via tools</li>
-                                            <li>Example: For email analysis, the emails are inputs, while email system access is a resource</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Evaluates Mission Feasibility:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li>Checks if outputs can be produced from given inputs</li>
-                                            <li>Verifies resource availability and accessibility</li>
-                                            <li>Identifies any technical or practical limitations</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Ensures Clarity and Completeness:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li>Makes goals specific and unambiguous</li>
-                                            <li>Ensures success criteria are measurable</li>
-                                            <li>Clarifies all assumptions and requirements</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Manages Scope and Focus:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li>Keeps mission scope appropriately bounded</li>
-                                            <li>Identifies and removes unnecessary complexities</li>
-                                            <li>Clarifies what's included and what's not</li>
-                                            <li>Considers breaking down complex missions</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Verifies Information Sufficiency:</strong>
-                                        <ul className="list-disc pl-6 mt-2">
-                                            <li>Ensures all necessary information is available</li>
-                                            <li>Identifies any missing details needed to proceed</li>
-                                            <li>Validates that inputs are realistically obtainable</li>
-                                            <li>Confirms outputs will be useful for the goal</li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    This comprehensive evaluation process ensures that the mission is well-defined, feasible, and focused before proceeding to workflow architecture. If any issues are identified, the mission elements are adjusted, limitations are clearly explained, and complex missions may be broken down into simpler ones. This prevents the "garbage in, garbage out" principle and sets up the workflow for success.
-                                </p>
-                            </li>
-                            <li><strong>Workflow Architecture:</strong> Balancing exploration and focus
-                                <ul className="list-disc pl-6 mt-2">
-                                    <li>Defines major stages that remain relatively fixed</li>
-                                    <li>Establishes clear boundaries for each stage</li>
-                                    <li>Identifies stage-level inputs, outputs, and success criteria</li>
-                                    <li>Creates a framework for systematic exploration</li>
-                                </ul>
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    The architecture phase finds the balance between exploring the full solution space and maintaining focus. By establishing clear stage boundaries and success criteria, it prevents the workflow from going down unproductive rabbit holes while still allowing for thorough exploration of valid solutions.
-                                </p>
-                            </li>
-                            <li><strong>Stage Execution:</strong> Dynamic creation and execution of steps
-                                <ul className="list-disc pl-6 mt-2">
-                                    <li>Steps are created recursively as needed</li>
-                                    <li>Tools are assigned to steps during execution</li>
-                                    <li>Assets are created and modified by tool operations</li>
-                                    <li>Success criteria are verified before stage completion</li>
+                                    <li>Evaluates mission feasibility</li>
+                                    <li>Establishes the foundation for quality throughout</li>
                                 </ul>
                             </li>
-                            <li><strong>Schema Evolution:</strong> How the structure changes during execution
+                            <li><strong>Hop Design:</strong> Creating the next hop in the mission
                                 <ul className="list-disc pl-6 mt-2">
-                                    <li>New assets are created as tools process data</li>
-                                    <li>Step structure emerges based on execution needs</li>
-                                    <li>Tool assignments happen dynamically</li>
-                                    <li>Success criteria verification drives progression</li>
+                                    <li>Analyzes available mission state</li>
+                                    <li>Designs hop objectives and structure</li>
+                                    <li>Maps inputs and outputs</li>
+                                    <li>Proposes hop for user approval</li>
                                 </ul>
-                                <p className="text-gray-700 dark:text-gray-300 mt-2 pl-6">
-                                    As the workflow progresses, the schema evolves to reflect the current state of the mission. Each stage's completion is verified against its success criteria, ensuring that the outputs meet the required standards before proceeding. The final stage's completion involves:
-                                </p>
-                                <ul className="list-disc pl-6 mt-2 text-gray-700 dark:text-gray-300">
-                                    <li>Verification that all success criteria are met</li>
-                                    <li>Delivery of final outputs that achieve the mission goal</li>
-                                    <li>Archiving of completed assets for future reference</li>
-                                    <li>Summary of mission results and outcomes</li>
+                            </li>
+                            <li><strong>Hop Implementation:</strong> Resolving the hop with specific tools
+                                <ul className="list-disc pl-6 mt-2">
+                                    <li>Analyzes hop requirements</li>
+                                    <li>Selects appropriate tools</li>
+                                    <li>Creates tool steps with parameter mappings</li>
+                                    <li>Validates the implementation plan</li>
+                                </ul>
+                            </li>
+                            <li><strong>Hop Execution:</strong> Running the hop with human oversight
+                                <ul className="list-disc pl-6 mt-2">
+                                    <li>Executes tool steps sequentially</li>
+                                    <li>Updates hop state with results</li>
+                                    <li>Provides intermediate outputs for review</li>
+                                    <li>Handles errors and retries</li>
+                                </ul>
+                            </li>
+                            <li><strong>Mission Completion:</strong> Final verification and delivery
+                                <ul className="list-disc pl-6 mt-2">
+                                    <li>Verifies all success criteria are met</li>
+                                    <li>Delivers final outputs</li>
+                                    <li>Archives completed assets</li>
+                                    <li>Provides mission summary</li>
                                 </ul>
                             </li>
                         </ul>
@@ -337,39 +239,54 @@ const sections: Section[] = [
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Chat Interface</h4>
                     <p className="text-gray-700 dark:text-gray-300 mb-3">
-                        Your main interaction point with FractalBot:
+                        Your main interaction point with HopBot:
                     </p>
                     <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
                         <li>Describe tasks in natural language</li>
                         <li>Review mission proposals</li>
-                        <li>Monitor progress updates</li>
+                        <li>Approve or modify hop designs</li>
+                        <li>Monitor execution progress</li>
                         <li>Provide feedback and guidance</li>
                     </ul>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Workspace</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Collaboration Area</h4>
                     <p className="text-gray-700 dark:text-gray-300 mb-3">
-                        The central area for mission management:
+                        The central area for mission management and hop interaction:
                     </p>
                     <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                        <li>View current mission details</li>
-                        <li>Track workflow progress</li>
-                        <li>Monitor asset status</li>
-                        <li>Access tool interfaces</li>
+                        <li>View current mission details and progress</li>
+                        <li>Review and approve hop proposals</li>
+                        <li>Inspect hop implementations</li>
+                        <li>Monitor tool step execution</li>
+                        <li>Control hop execution (start, stop, retry)</li>
                     </ul>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Tools & Assets Panel</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Asset Panels</h4>
                     <p className="text-gray-700 dark:text-gray-300 mb-3">
-                        Manage your mission resources:
+                        Manage your mission data and resources:
                     </p>
                     <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
-                        <li>Access available tools</li>
-                        <li>View and manage assets</li>
-                        <li>Configure tool settings</li>
-                        <li>Monitor resource usage</li>
+                        <li>View mission state and hop state</li>
+                        <li>Inspect asset values and status</li>
+                        <li>Track data flow through the workflow</li>
+                        <li>Monitor resource usage and availability</li>
+                    </ul>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Tool Browser</h4>
+                    <p className="text-gray-700 dark:text-gray-300 mb-3">
+                        Explore available tools and capabilities:
+                    </p>
+                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
+                        <li>Browse available tools by category</li>
+                        <li>View tool descriptions and parameters</li>
+                        <li>Understand tool capabilities and limitations</li>
+                        <li>See examples of tool usage</li>
                     </ul>
                 </div>
             </div>
@@ -381,7 +298,43 @@ const sections: Section[] = [
         content: (
             <div className="space-y-6">
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
-                    TBD
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Mission Design</h4>
+                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
+                        <li><strong>Start with Clear Goals:</strong> Define specific, measurable objectives that truly represent what you want to achieve</li>
+                        <li><strong>Set Concrete Success Criteria:</strong> Ensure your success criteria are verifiable and directly related to goal achievement</li>
+                        <li><strong>Identify All Required Inputs:</strong> Be comprehensive about what data and resources you need to start</li>
+                        <li><strong>Scope Appropriately:</strong> Break down complex missions into smaller, manageable pieces</li>
+                    </ul>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Hop Design</h4>
+                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
+                        <li><strong>Focus on Single Objectives:</strong> Each hop should have one clear, specific purpose</li>
+                        <li><strong>Plan for Verification:</strong> Design hops to produce outputs you can inspect and validate</li>
+                        <li><strong>Consider Dependencies:</strong> Ensure each hop has the inputs it needs from previous hops</li>
+                        <li><strong>Allow for Iteration:</strong> Be prepared to refine hops based on intermediate results</li>
+                    </ul>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Execution & Oversight</h4>
+                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
+                        <li><strong>Review Intermediate Outputs:</strong> Take time to inspect and validate results at each hop</li>
+                        <li><strong>Provide Timely Feedback:</strong> Respond quickly to requests for clarification or approval</li>
+                        <li><strong>Monitor for Issues:</strong> Watch for errors or unexpected results that might need attention</li>
+                        <li><strong>Be Prepared to Adjust:</strong> Don't hesitate to modify hops or add clarification when needed</li>
+                    </ul>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Quality Assurance</h4>
+                    <ul className="list-disc pl-6 space-y-2 text-gray-700 dark:text-gray-300">
+                        <li><strong>Verify at Each Stage:</strong> Don't assume quality - check intermediate outputs</li>
+                        <li><strong>Use Success Criteria:</strong> Reference your defined criteria to ensure you're on track</li>
+                        <li><strong>Document Issues:</strong> Note any problems or unexpected results for future reference</li>
+                        <li><strong>Iterate When Needed:</strong> Be willing to go back and refine earlier hops if necessary</li>
+                    </ul>
                 </div>
             </div>
         )
@@ -481,7 +434,7 @@ export const HelpGuide: React.FC = () => {
                     </Button>
                 </DialogClose>
                 <DialogHeader className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                    <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">FractalBot Help Guide</DialogTitle>
+                    <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">HopBot Help Guide</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 flex overflow-hidden">

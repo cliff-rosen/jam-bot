@@ -2,22 +2,22 @@ import React, { useState } from 'react';
 import { Database, Wrench } from 'lucide-react';
 
 import { Chat } from '@/components/features/chat';
-import CollabArea from '@/components/CollabArea';
-import AssetPanels from '@/components/features/asset/AssetPanels';
-import StateInspector from '@/components/StateInspector';
-import ToolBrowserDialog from '@/components/ToolBrowserDialog';
+import { CollabArea } from '@/components/features/collab';
+import { AssetPanels } from '@/components/features/asset';
+import { StateInspector } from '@/components/features/collab';
+import { ToolBrowserDialog } from '@/components/features/tools';
 
 import { useJamBot } from '@/context/JamBotContext';
 
 
-const JamBotPage: React.FC = () => {
+export default function JamBotPage() {
     const { state } = useJamBot();
     const { collabArea } = state;
     const [isStateInspectorOpen, setIsStateInspectorOpen] = useState(false);
     const [isToolBrowserOpen, setIsToolBrowserOpen] = useState(false);
 
     return (
-        <div className="relative flex bg-gray-50 dark:bg-gray-900 h-[calc(100vh-64px)] mt-[64px]">
+        <div className="relative flex h-full bg-gray-50 dark:bg-gray-900">
             {/* Inspector Buttons */}
             <div className="absolute top-2 right-2 z-10 flex gap-2">
                 <button
@@ -67,6 +67,4 @@ const JamBotPage: React.FC = () => {
             </div>
         </div>
     );
-};
-
-export default JamBotPage; 
+}; 

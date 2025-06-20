@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ToolDefinition } from '@/types/tool';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
 import { Search, Filter, Code, Database, Globe, FileText, BarChart3, Settings } from 'lucide-react';
+import { Tool } from '@/types/tools';
 
 interface ToolBrowserProps {
     className?: string;
+    onSelectTool: (tool: Tool | null) => void;
 }
 
-export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '' }) => {
+export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSelectTool }) => {
     const [tools, setTools] = useState<ToolDefinition[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,11 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '' }) => {
             default:
                 return <Code className="w-4 h-4" />;
         }
+    };
+
+    const handleSelectTool = (tool: Tool) => {
+        setSearchTerm(tool.id); // Or some other behavior
+        onSelectTool(tool);
     };
 
     if (loading) {
@@ -129,33 +136,29 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '' }) => {
                             {filteredTools.map(tool => (
                                 <div
                                     key={tool.id}
-                                    className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedTool?.id === tool.id
-                                        ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
-                                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    className={`w-full text-left p-3 rounded-lg flex items-start gap-3 transition-colors ${searchTerm === tool.id ? 'bg-blue-50 dark:bg-blue-900/50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                                         }`}
-                                    onClick={() => setSelectedTool(tool)}
+                                    onClick={() => handleSelectTool(tool)}
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex-shrink-0 mt-1">
-                                            {getCategoryIcon(tool.category)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                                {tool.name}
-                                            </h3>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                                {tool.description}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                                    {tool.category.replace(/_/g, ' ')}
+                                    <div className="text-gray-400 dark:text-gray-500 mt-1">
+                                        {getCategoryIcon(tool.category)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                            {tool.name}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                            {tool.description}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                {tool.category.replace(/_/g, ' ')}
+                                            </span>
+                                            {tool.resource_dependencies.length > 0 && (
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                                                    {tool.resource_dependencies.length} resource{tool.resource_dependencies.length !== 1 ? 's' : ''}
                                                 </span>
-                                                {tool.resource_dependencies.length > 0 && (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                                                        {tool.resource_dependencies.length} resource{tool.resource_dependencies.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

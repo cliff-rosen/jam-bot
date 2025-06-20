@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
-import { VariableRenderer } from './common/VariableRenderer';
-import { MissionBrowser } from './common/MissionBrowser';
-import Dialog from './common/Dialog';
+import { VariableRenderer } from '@/components/common/VariableRenderer';
+import { MissionBrowser } from '@/components/features/mission';
+import Dialog from '@/components/common/Dialog';
 import { X, Clipboard, Upload, Check } from 'lucide-react';
 
 interface StateInspectorProps {

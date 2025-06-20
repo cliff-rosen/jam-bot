@@ -22,41 +22,27 @@ function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
 
-  console.log("app");
-
   // Set up session expiry handler
   useEffect(() => {
     setStreamSessionExpiredHandler(handleSessionExpired);
     return () => setStreamSessionExpiredHandler(() => { });
   }, [handleSessionExpired]);
 
-  // Main app content when authenticated - defined inside App to ensure context is available
+  // Main app content when authenticated
   const AuthenticatedApp = () => {
     return (
       <div className="h-screen flex flex-col dark:bg-gray-900 bg-gray-50">
         <TopBar />
-        <div className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto pt-16">
           <Routes>
-            {/* <Route path="/" element={<Navigate to="/workflows" />} /> */}
             <Route path="/" element={<Navigate to="/jam-bot" />} />
-
-            {/* Jam Bot routes */}
             <Route path="/jam-bot" element={<JamBotPage />} />
-
-            {/* Email auth routes */}
-            <Route path="/email/auth/success" element={<EmailAuthSuccess />} />
-
-            {/* Profile route */}
-            <Route path="/profile" element={<Profile />} />
-
-            {/* Lab routes */}
             <Route path="/lab" element={<LabPage />} />
-
-            {/* Catch-all route for unmatched paths */}
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/email/auth/success" element={<EmailAuthSuccess />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-
           </Routes>
-        </div>
+        </main>
       </div>
     );
   };

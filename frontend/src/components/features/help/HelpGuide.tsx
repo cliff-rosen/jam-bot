@@ -6,8 +6,8 @@ import {
     DialogTitle,
     DialogTrigger,
     DialogClose,
-} from './ui/dialog';
-import { Button } from './ui/button';
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { HelpCircle, X } from 'lucide-react';
 
 interface Subsection {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Asset } from '@/types/asset';
-import { VariableRenderer } from './VariableRenderer';
+import { VariableRenderer } from '@/components/common/VariableRenderer';
 
 interface MissionStateTableProps {
     missionState: Record<string, Asset>;

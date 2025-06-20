@@ -12,7 +12,7 @@ import { setStreamSessionExpiredHandler } from './lib/api/streamUtils';
 
 // components
 import TopBar from './components/TopBar';
-import LoginForm from './components/auth/LoginForm';
+import { LoginForm } from './components/features/auth';
 import EmailAuthSuccess from './pages/EmailAuthSuccess';
 import Profile from './pages/Profile';
 import JamBotPage from './pages/JamBot';

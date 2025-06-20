@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { UseMutationResult } from '@tanstack/react-query';
-import settings from '../../config/settings';
+import settings from '@/config/settings';
 
 interface LoginFormProps {
     isRegistering: boolean;

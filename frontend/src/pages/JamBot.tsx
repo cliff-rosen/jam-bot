@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Database, Wrench } from 'lucide-react';
 
-import Chat from '@/components/Chat';
+import { Chat } from '@/components/features/chat';
 import CollabArea from '@/components/CollabArea';
 import AssetPanels from '@/components/hop/AssetPanels';
 import StateInspector from '@/components/StateInspector';

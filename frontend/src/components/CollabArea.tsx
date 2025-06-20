@@ -347,8 +347,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
             );
         }
 
-        const liveHop = state?.mission?.hop_history?.find(h => h.id === hopToRender.id) ||
-            (state?.mission?.current_hop?.id === hopToRender.id ? state?.mission?.current_hop : null);
+        // const liveHop = state?.mission?.hop_history?.find(h => h.id === hopToRender.id) ||
+        //     (state?.mission?.current_hop?.id === hopToRender.id ? state?.mission?.current_hop : null);
+        const liveHop = hopToRender;
 
         if (!liveHop) {
             return (

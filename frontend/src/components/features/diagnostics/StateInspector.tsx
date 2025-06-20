@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
-import { MissionBrowser } from '@/components/features/mission';
+import { MissionBrowser } from '@/components/features/diagnostics/MissionBrowser';
 import Dialog from '@/components/common/Dialog';
 import { X, Clipboard, Upload, Check } from 'lucide-react';
 

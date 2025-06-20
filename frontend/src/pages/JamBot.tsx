@@ -4,7 +4,7 @@ import { Database, Wrench } from 'lucide-react';
 import { Chat } from '@/components/features/chat';
 import { CollabArea } from '@/components/features/collab';
 import { AssetPanels } from '@/components/features/asset';
-import { StateInspector } from '@/components/features/collab';
+import { StateInspector } from '@/components/features/diagnostics';
 import { ToolBrowserDialog } from '@/components/features/tools';
 
 import { useJamBot } from '@/context/JamBotContext';

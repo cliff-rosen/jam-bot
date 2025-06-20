@@ -16,7 +16,7 @@ from config.settings import settings
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
 from schemas.asset import Asset, AssetStatus, AssetMetadata
-from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite
+from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite, create_mission_from_lite
 from schemas.base import SchemaType, ValueType
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
@@ -179,41 +179,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             mission=state.mission
         )
 
-        if parsed_response.mission_proposal:
-            state.mission.name = parsed_response.mission_proposal.name
-            state.mission.description = parsed_response.mission_proposal.description
-            state.mission.goal = parsed_response.mission_proposal.goal
-            state.mission.success_criteria = parsed_response.mission_proposal.success_criteria
-            
-            # Convert AssetLite objects to full Asset objects with explicit roles
-            state.mission.inputs = []
-            for asset_lite in parsed_response.mission_proposal.inputs:
-                asset = create_asset_from_lite(asset_lite) 
-                asset.role = 'input'  # Explicitly set as input
-                state.mission.inputs.append(asset)
-            
-            state.mission.outputs = []
-            for asset_lite in parsed_response.mission_proposal.outputs:
-                asset = create_asset_from_lite(asset_lite)
-                asset.role = 'output'  # Explicitly set as output
-                state.mission.outputs.append(asset)
-
-            current_time = datetime.utcnow()
-            state.mission.created_at = current_time
-            state.mission.updated_at = current_time
-            state.mission.metadata = {}
-            
-            # Set mission as pending (waiting for user approval)
-            state.mission.mission_status = MissionStatus.PENDING
-            
-            # Initialize mission state with input assets
-            for asset in state.mission.inputs:
-                state.mission.mission_state[asset.id] = asset
-
-            # Also initialize mission state with output assets
-            for asset in state.mission.outputs:
-                state.mission.mission_state[asset.id] = asset
-
+        # Create response message
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,
@@ -225,19 +191,34 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
-            "mission": state.mission,
+            "mission": state.mission,  # Keep existing mission state unchanged
             "tool_params": {},
             "next_node": next_node,
         }
 
         if writer:
-            agent_response = AgentResponse(**create_agent_response(
-                token=response_message.content[0:100],
-                response_text=parsed_response.response_content,
-                status="mission_specialist_completed",
-                payload={"mission": serialize_mission(state.mission)},
-                debug=serialize_state(State(**state_update))
-            ))
+            # If we have a mission proposal, send it to frontend for approval
+            if parsed_response.mission_proposal:
+                # Create a full mission from the proposal (but don't update state yet)
+                proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
+                
+                agent_response = AgentResponse(**create_agent_response(
+                    token=response_message.content[0:100],
+                    response_text=parsed_response.response_content,
+                    status="mission_specialist_completed",
+                    payload={"mission": serialize_mission(proposed_mission)},
+                    debug=f"Mission proposal created: {proposed_mission.name}, waiting for user approval"
+                ))
+            else:
+                # No mission proposal (e.g., clarification needed)
+                agent_response = AgentResponse(**create_agent_response(
+                    token=response_message.content[0:100],
+                    response_text=parsed_response.response_content,
+                    status="mission_specialist_completed",
+                    payload={},
+                    debug="No mission proposal - clarification needed"
+                ))
+            
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)

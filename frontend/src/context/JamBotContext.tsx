@@ -27,7 +27,7 @@ type JamBotAction =
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
     | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
-    | { type: 'ACCEPT_MISSION_PROPOSAL' }
+    | { type: 'ACCEPT_MISSION_PROPOSAL'; payload?: Mission }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: { hop: Hop; proposedAssets: any[] } }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop }
@@ -112,10 +112,13 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'ACCEPT_MISSION_PROPOSAL':
             if (!state.mission) return state;
+            const proposedMission = action.payload;
+            if (!proposedMission) return state;
+
             return {
                 ...state,
                 mission: {
-                    ...state.mission,
+                    ...proposedMission,
                     mission_status: MissionStatus.ACTIVE
                 },
                 collabArea: {
@@ -431,8 +434,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const acceptMissionProposal = useCallback(() => {
-        dispatch({ type: 'ACCEPT_MISSION_PROPOSAL' });
-    }, []);
+        // Get the proposed mission from the collab area content
+        const proposedMission = state.collabArea.content?.mission;
+        if (proposedMission) {
+            dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: proposedMission });
+        }
+    }, [state.collabArea.content]);
 
     const acceptHopProposal = useCallback((hop: Hop, proposedAssets?: any[]) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });

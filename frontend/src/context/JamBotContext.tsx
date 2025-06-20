@@ -656,12 +656,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             let isMissionProposal = data.status === 'mission_specialist_completed' &&
                 typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
 
-            if (isMissionProposal) {
-                if (data.payload?.mission?.name?.includes('New Mission')) {
-                    isMissionProposal = false;
-                }
-            }
-
             let isHopProposal = false;
             let isHopImplementationProposal = false;
             let hopPayload: Partial<Hop> | null = null;
@@ -681,12 +675,13 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             newCollabAreaContent = data.payload;
-            if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-                const payload = data.payload as { mission?: any };
-                if (payload.mission) {
-                    dispatch({ type: 'SET_MISSION', payload: payload.mission });
-                }
-            }
+            // Remove the automatic mission state update - only update on explicit acceptance
+            // if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
+            //     const payload = data.payload as { mission?: any };
+            //     if (payload.mission) {
+            //         dispatch({ type: 'SET_MISSION', payload: payload.mission });
+            //     }
+            // }
 
             if (isMissionProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
@@ -694,6 +689,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
             } else if (isHopProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
+            } else if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
+                // Only update mission state for non-proposal responses (e.g., direct mission updates)
+                const payload = data.payload as { mission?: any };
+                if (payload.mission) {
+                    dispatch({ type: 'SET_MISSION', payload: payload.mission });
+                }
             }
 
             if (lastMessageId) {

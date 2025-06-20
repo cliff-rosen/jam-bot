@@ -11,8 +11,8 @@ import { useJamBot } from '@/context/JamBotContext';
 
 
 const JamBotPage: React.FC = () => {
-    const { state, sendMessage } = useJamBot();
-    const { currentMessages, currentStreamingMessage, collabArea, mission } = state;
+    const { state } = useJamBot();
+    const { collabArea } = state;
     const [isStateInspectorOpen, setIsStateInspectorOpen] = useState(false);
     const [isToolBrowserOpen, setIsToolBrowserOpen] = useState(false);
 
@@ -48,11 +48,7 @@ const JamBotPage: React.FC = () => {
 
             {/* Chat Area - Fixed width */}
             <div className="w-[400px] h-full flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700">
-                <Chat
-                    messages={currentMessages}
-                    streamingMessage={currentStreamingMessage}
-                    onNewMessage={sendMessage}
-                />
+                <Chat />
             </div>
 
             {/* Collab Area - Fixed width */}

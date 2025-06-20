@@ -7,23 +7,19 @@ import { ChatMessageItem } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatLoadingIndicator } from './ChatLoadingIndicator';
 
-interface ChatProps {
-    messages: ChatMessage[];
-    streamingMessage: string;
-    onNewMessage: (message: Omit<ChatMessage, 'role'> & { role: Exclude<MessageRole, MessageRole.STATUS> }) => void;
-}
+export default function Chat() {
+    const { state, sendMessage } = useJamBot();
+    const { currentMessages, currentStreamingMessage } = state;
 
-export default function Chat({ messages, onNewMessage, streamingMessage }: ChatProps) {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showStatusMessages, setShowStatusMessages] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const { state } = useJamBot();
 
     // Filter messages based on showStatusMessages state
     const filteredMessages = showStatusMessages
-        ? messages
-        : messages.filter(message => message.role !== MessageRole.STATUS);
+        ? currentMessages
+        : currentMessages.filter(message => message.role !== MessageRole.STATUS);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,7 +27,7 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, streamingMessage]);
+    }, [currentMessages, currentStreamingMessage]);
 
     const handleSendMessage = async () => {
         if (!input.trim() || isLoading) return;
@@ -45,7 +41,7 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
             timestamp: new Date().toISOString()
         };
 
-        await onNewMessage(userMessage);
+        await sendMessage(userMessage);
         setIsLoading(false);
     };
 
@@ -66,7 +62,7 @@ export default function Chat({ messages, onNewMessage, streamingMessage }: ChatP
                     <ChatMessageItem
                         key={message.id}
                         message={message}
-                        onCollabClick={() => { }}
+                        onCollabClick={() => { }} // Removed functionality due to type incompatibility
                         hasPayload={hasPayload(message.id)}
                     />
                 ))}

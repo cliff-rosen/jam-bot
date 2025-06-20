@@ -56,12 +56,15 @@ The system has these specific tools available for hop implementation:
    - NEVER use 'collection' as a type
 
 ## Hop Design Guidelines
-1. **Inputs**: List the specific assets needed as inputs for this hop
+1. **Inputs**: List ONLY assets that already exist in the mission state as inputs for this hop. DO NOT create new input assets.
 2. **Output**: Define the output asset for this hop. You have two options:
    a. Create a new asset: Define its schema and properties
    b. Use an existing mission asset: Specify its ID and ensure it matches your needs
 3. **Mission Output**: If this hop produces a mission output, use option (b) above to specify the mission output asset ID
 4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
+5. **Asset Availability**: Only reference assets that are currently available in the mission state. If you need an asset that doesn't exist, either:
+   - Choose a different approach that uses available assets, or
+   - Respond with CLARIFICATION_NEEDED and explain what additional assets are required
 
 ## Current Context
 Mission Context: {{mission}}

@@ -291,7 +291,15 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             
             # Create input mapping by finding matching assets in mission state
             canonical_input_mapping = {}
+            
+            # Debug: Print available assets in mission state
+            print(f"DEBUG: Available assets in mission state:")
+            for asset_id, asset in state.mission.mission_state.items():
+                print(f"  - {asset.name} (ID: {asset_id}, canonical: {canonical_key(asset.name)})")
+            
             for input_asset in hop_lite.inputs:
+                print(f"DEBUG: Looking for input asset: '{input_asset.name}' (canonical: {canonical_key(input_asset.name)})")
+                
                 # Find matching asset in mission state by name
                 matching_asset = next(
                     (asset for asset in state.mission.mission_state.values() 
@@ -299,7 +307,19 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     None
                 )
                 if not matching_asset:
-                    raise ValueError(f"Input asset '{input_asset.name}' not found in mission state")
+                    print(f"DEBUG: No matching asset found for '{input_asset.name}'")
+                    print(f"DEBUG: Available canonical keys: {[canonical_key(asset.name) for asset in state.mission.mission_state.values()]}")
+                    
+                    # Provide a more helpful error message with suggestions
+                    available_asset_names = [asset.name for asset in state.mission.mission_state.values()]
+                    error_msg = f"Input asset '{input_asset.name}' not found in mission state. "
+                    error_msg += f"Available assets: {', '.join(available_asset_names)}. "
+                    error_msg += "The hop designer should only propose hops that use existing assets. "
+                    error_msg += "If this asset is needed, it should be created by a previous hop or added to the mission inputs."
+                    
+                    raise ValueError(error_msg)
+                
+                print(f"DEBUG: Found matching asset: {matching_asset.name} (ID: {matching_asset.id})")
                 canonical_input_mapping[canonical_key(input_asset.name)] = matching_asset.id
 
             # Handle output asset based on specification

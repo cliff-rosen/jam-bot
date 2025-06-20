@@ -2,8 +2,7 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect } 
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
-import { CollabAreaState, ApprovalContent } from '@/types/collabArea';
-import { assetApi } from '@/lib/api/assetApi';
+import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
 import { toolsApi } from '@/lib/api/toolsApi';
@@ -152,6 +151,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             };
         case 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL':
+            console.log('ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', action.payload);
             if (!state.mission) return state;
             const implementationHop = action.payload;
             return {
@@ -654,21 +654,23 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (data.payload) {
 
+            // set tracking variables
             let isMissionProposal = false
             let isHopProposal = false;
             let isHopImplementationProposal = false;
             let hopPayload: Partial<Hop> | null = null;
+            let missionPayload: Partial<Mission> | null = null;
+
+            // determine proposal type
+            if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
+                missionPayload = data.payload.mission as Partial<Mission>;
+            }
             if (typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop) {
                 hopPayload = data.payload.hop as Partial<Hop>;
             }
-
-            // determine proposal type
-            if (data.status === 'mission_specialist_completed' &&
-                typeof data.payload === 'object' &&
-                data.payload !== null &&
-                'mission' in data.payload) {
+            if (data.status === 'mission_specialist_completed' && missionPayload) {
                 isMissionProposal = true
-            } else if ((data.status === 'hop_designer_completed') && hopPayload) {
+            } else if (data.status === 'hop_designer_completed' && hopPayload) {
                 isHopProposal = true;
             } else if (data.status === 'hop_implementer_completed' && hopPayload) {
                 isHopImplementationProposal = true;
@@ -683,12 +685,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
             } else if (isHopProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
-            } else if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-                // Only update mission state for non-proposal responses (e.g., direct mission updates)
-                const payload = data.payload as { mission?: any };
-                if (payload.mission) {
-                    dispatch({ type: 'SET_MISSION', payload: payload.mission });
-                }
             }
 
             if (lastMessageId) {

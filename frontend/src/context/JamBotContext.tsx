@@ -675,13 +675,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             newCollabAreaContent = data.payload;
-            // Remove the automatic mission state update - only update on explicit acceptance
-            // if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-            //     const payload = data.payload as { mission?: any };
-            //     if (payload.mission) {
-            //         dispatch({ type: 'SET_MISSION', payload: payload.mission });
-            //     }
-            // }
 
             if (isMissionProposal) {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });

@@ -3,7 +3,7 @@ import { Play, Square, RotateCcw } from 'lucide-react';
 
 import { useJamBot } from '@/context/JamBotContext';
 
-import { Mission } from '@/components/features/mission';
+import { Mission } from './Mission';
 import { HopDetails } from '@/components/features/hop';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 import { ApprovalContent } from '@/types/collabArea';
@@ -65,7 +65,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                 const isHopAlreadyAccepted = state?.mission?.hop_history.some(existingHop =>
                     existingHop.id === hop.id &&
                     existingHop.status === HopStatus.HOP_READY_TO_RESOLVE
-                );
+                ) || false;
                 const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED && !isHopAlreadyAccepted;
                 return (
                     <HopProposal

@@ -3,7 +3,7 @@ import { Database, Wrench } from 'lucide-react';
 
 import { Chat } from '@/components/features/chat';
 import CollabArea from '@/components/CollabArea';
-import AssetPanels from '@/components/hop/AssetPanels';
+import AssetPanels from '@/components/features/asset/AssetPanels';
 import StateInspector from '@/components/StateInspector';
 import ToolBrowserDialog from '@/components/ToolBrowserDialog';
 

@@ -4,7 +4,7 @@ import { CheckCircle, XCircle, Play, Square, RotateCcw, X } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
 
 import { Mission } from './Mission';
-import HopDetails from './common/HopDetails';
+import { HopDetails } from '@/components/features/hop';
 import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
 import { ApprovalContent } from '@/types/collabArea';
 

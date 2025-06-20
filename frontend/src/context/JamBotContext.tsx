@@ -653,27 +653,28 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (data.payload) {
-            let isMissionProposal = data.status === 'mission_specialist_completed' &&
-                typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload;
 
+            let isMissionProposal = false
             let isHopProposal = false;
             let isHopImplementationProposal = false;
             let hopPayload: Partial<Hop> | null = null;
             if (typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop) {
                 hopPayload = data.payload.hop as Partial<Hop>;
             }
-            if ((data.status === 'hop_designer_completed') && hopPayload) {
-                if (hopPayload.is_resolved === true) {
-                    isHopImplementationProposal = true;
-                } else {
-                    isHopProposal = true;
-                }
+
+            // determine proposal type
+            if (data.status === 'mission_specialist_completed' &&
+                typeof data.payload === 'object' &&
+                data.payload !== null &&
+                'mission' in data.payload) {
+                isMissionProposal = true
+            } else if ((data.status === 'hop_designer_completed') && hopPayload) {
+                isHopProposal = true;
             } else if (data.status === 'hop_implementer_completed' && hopPayload) {
-                if (hopPayload.is_resolved === true) {
-                    isHopImplementationProposal = true;
-                }
+                isHopImplementationProposal = true;
             }
 
+            // process proposal based on type
             newCollabAreaContent = data.payload;
 
             if (isMissionProposal) {

@@ -2,9 +2,8 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from schemas.chat import Message
 from schemas.workflow import Mission
-from schemas.lite_models import AssetLite, MissionLite, create_mission_from_lite
-from utils.message_formatter import format_assets, format_mission, create_prompt_context, format_context_for_prompt, format_tool_descriptions_for_mission_design
-from utils.prompt_context_mapper import PromptContextType
+from schemas.lite_models import MissionLite
+from utils.message_formatter import format_tool_descriptions_for_mission_design
 from .base_prompt_caller import BasePromptCaller
 from datetime import datetime
 
@@ -70,10 +69,10 @@ A mission consists of:
      * NEVER use 'collection' as a type
 
 ## Current Context
-Mission Context: {{mission}}
-Available Assets: {{available_assets}}
+Mission Goal: {{mission_goal}}
+Desired Assets: {{desired_assets}}
 
-Based on the provided context, analyze what information is complete and what needs clarification to create an effective mission plan using available tools."""
+Based on the conversation history and available tools, analyze what information is complete and what needs clarification to create an effective mission plan."""
 
         # Initialize the base class
         super().__init__(
@@ -85,7 +84,6 @@ Based on the provided context, analyze what information is complete and what nee
         self,
         messages: List[Message],
         mission: Mission,
-        available_assets: List[Dict[str, Any]] = None,
         **kwargs: Dict[str, Any]
     ) -> MissionDefinitionResponse:
         """
@@ -93,8 +91,7 @@ Based on the provided context, analyze what information is complete and what nee
         
         Args:
             messages: List of conversation messages
-            mission: Current mission state
-            available_assets: List of available assets
+            mission: Current mission state (only goal and outputs are used)
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -103,52 +100,24 @@ Based on the provided context, analyze what information is complete and what nee
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_mission_design()
         
-        # Use the new prompt context mapper system
-        context = create_prompt_context(
-            context_type=PromptContextType.MISSION_DEFINITION,
-            mission=mission,
-            additional_assets=available_assets,
-            **kwargs
-        )
+        # Extract mission goal
+        mission_goal = mission.goal if mission.goal else "No goal specified"
         
-        # Format context for prompt variables
-        formatted_context = format_context_for_prompt(context, include_categories=True, include_metadata=True)
+        # Format desired assets (mission outputs)
+        if mission.outputs:
+            desired_assets = "\n".join([
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                for asset in mission.outputs
+            ])
+        else:
+            desired_assets = "No specific outputs defined yet"
         
-        # Call base invoke with formatted variables
+        # Call base invoke with simplified variables
         response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
-            mission=formatted_context["mission"],
-            available_assets=formatted_context["available_assets"],
-            **kwargs
-        )
-
-        return response
-    
-    async def invoke_legacy(
-        self,
-        messages: List[Message],
-        mission: Mission,
-        available_assets: List[Dict[str, Any]] = None,
-        **kwargs: Dict[str, Any]
-    ) -> MissionDefinitionResponse:
-        """
-        Legacy invoke method that maintains backward compatibility.
-        This method uses the old formatting approach.
-        """
-        # Format tool descriptions
-        tool_descriptions = format_tool_descriptions_for_mission_design()
-        
-        # Format available assets and mission using legacy approach
-        assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission)
-        
-        # Call base invoke with formatted variables
-        response = await super().invoke(
-            messages=messages,
-            tool_descriptions=tool_descriptions,
-            mission=mission_str,
-            available_assets=assets_str,
+            mission_goal=mission_goal,
+            desired_assets=desired_assets,
             **kwargs
         )
 

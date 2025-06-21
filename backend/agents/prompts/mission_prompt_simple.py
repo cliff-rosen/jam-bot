@@ -3,8 +3,7 @@ from pydantic import BaseModel, Field
 from schemas.chat import Message
 from schemas.workflow import Mission
 from schemas.lite_models import AssetLite, MissionLite, create_mission_from_lite
-from tools.tool_registry import format_tool_descriptions_for_mission_design
-from utils.message_formatter import format_assets, format_mission, create_prompt_context, format_context_for_prompt
+from utils.message_formatter import format_assets, format_mission, create_prompt_context, format_context_for_prompt, format_tool_descriptions_for_mission_design
 from utils.prompt_context_mapper import PromptContextType
 from .base_prompt_caller import BasePromptCaller
 from datetime import datetime

@@ -210,83 +210,9 @@ def get_tools_by_category() -> Dict[str, List[str]]:
     return categories
 
 
-def format_tool_descriptions_for_mission_design() -> str:
-    """Return a human readable list of tools (mission design view)."""
-    if not TOOL_REGISTRY:
-        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
-
-    descriptions: List[str] = []
-    for tool_id, tool_def in TOOL_REGISTRY.items():
-        desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
-        desc += f"**Purpose**: {tool_def.description}\n"
-        desc += f"**Category**: {tool_def.category}\n"
-
-        key_inputs = [param.name for param in tool_def.parameters if param.required]
-        if key_inputs:
-            desc += f"**Key Capabilities**: {', '.join(key_inputs)}\n"
-
-        outputs = [output.name for output in tool_def.outputs]
-        if outputs:
-            desc += f"**Produces**: {', '.join(outputs)}\n"
-
-        desc += "\n"
-        descriptions.append(desc)
-
-    return "\n".join(descriptions)
-
-
 def get_tool_definition(tool_id: str) -> Optional["ToolDefinition"]:
     """Return the *ToolDefinition* for *tool_id* if it exists."""
     return TOOL_REGISTRY.get(tool_id)
-
-
-def format_tool_descriptions_for_hop_design() -> str:
-    """Return a human readable list of tools (hop design view)."""
-    if not TOOL_REGISTRY:
-        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
-
-    descriptions: List[str] = []
-    for tool_id, tool_def in TOOL_REGISTRY.items():
-        desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
-        desc += f"**Purpose**: {tool_def.description}\n"
-        desc += f"**Category**: {tool_def.category}\n"
-
-        outputs_with_types = [f"{o.name} ({o.schema_definition.type if o.schema_definition else 'object'})" for o in tool_def.outputs]
-        if outputs_with_types:
-            desc += f"**Outputs**: {', '.join(outputs_with_types)}\n"
-
-        desc += "\n"
-        descriptions.append(desc)
-
-    return "\n".join(descriptions)
-
-
-def format_tool_descriptions_for_implementation() -> str:
-    """Return a human readable list of tools (implementation view)."""
-    if not TOOL_REGISTRY:
-        return "No tools available - tool registry not loaded. Call refresh_tool_registry() first."
-
-    descriptions: List[str] = []
-    for tool_id, tool_def in TOOL_REGISTRY.items():
-        desc = f"### Tool Name: {tool_def.name} (ID: {tool_def.id})\n"
-        desc += f"Description: {tool_def.description}\n"
-        desc += "Input Parameters:\n"
-        for param in tool_def.parameters:
-            param_type = param.schema_definition.type if param.schema_definition else "object"
-            line = f"  - {param.name} ({param_type}): {param.description}"
-            if not param.required:
-                line += " [Optional]"
-            desc += line + "\n"
-
-        desc += "Outputs:\n"
-        for output in tool_def.outputs:
-            output_type = output.schema_definition.type if output.schema_definition else "object"
-            desc += f"  - {output.name} ({output_type}): {output.description}\n"
-
-        desc += "\n"
-        descriptions.append(desc)
-
-    return "\n".join(descriptions)
 
 
 def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None:

@@ -4,8 +4,7 @@ from schemas.chat import Message
 from schemas.workflow import Mission, Hop, HopStatus
 from schemas.asset import Asset
 from schemas.lite_models import HopLite, AssetLite, create_hop_from_lite
-from tools.tool_registry import format_tool_descriptions_for_hop_design
-from utils.message_formatter import format_assets, format_mission
+from utils.message_formatter import format_assets, format_mission, format_tool_descriptions_for_hop_design
 from .base_prompt_caller import BasePromptCaller
 from datetime import datetime
 

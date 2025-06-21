@@ -252,13 +252,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         # Create and use the simplified prompt caller
         promptCaller = HopDesignerPromptCaller()
         
-        # Convert mission state assets to list format for the prompt
-        available_assets = [asset.model_dump(mode='json') for asset in state.mission.mission_state.values()] if state.mission else []
-        
         parsed_response = await promptCaller.invoke(
-            messages=state.messages,
-            mission=state.mission,
-            available_assets=available_assets
+            mission=state.mission
         )
 
         # Create response message

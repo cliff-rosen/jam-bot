@@ -1,6 +1,5 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-from schemas.chat import Message
 from schemas.workflow import Mission
 from schemas.lite_models import HopLite
 from utils.message_formatter import format_tool_descriptions_for_hop_design
@@ -53,44 +52,59 @@ The system has these specific tools available for hop implementation:
    - Use a valid type from above (e.g., 'object' for array of objects)
    - NEVER use 'collection' as a type
 
+## Asset Categories and Usage
+
+### Desired Assets (Mission Outputs)
+These are the **final deliverables** that the mission aims to produce. They represent what the user wants to achieve:
+- These are the **target outputs** that the mission should eventually produce
+- Each hop should work toward creating or contributing to these desired assets
+- You can reference these to understand what the hop should ultimately help achieve
+
+### Available Assets (Mission State)
+These are the **current assets** in the mission state that can be used as inputs:
+- These are **inputs you can use** for the hop you're designing
+- Only assets listed here can be referenced as inputs for your hop
+- These include both mission inputs (user-provided data) and intermediate assets (created by previous hops)
+
 ## Hop Design Guidelines
-1. **Inputs**: List ONLY assets that already exist in the mission state as inputs for this hop. DO NOT create new input assets.
+1. **Inputs**: List ONLY assets from the "Available Assets" section as inputs for this hop. DO NOT create new input assets.
 2. **Output**: Define the output asset for this hop. You have two options:
    a. Create a new asset: Define its schema and properties
-   b. Use an existing mission asset: Specify its ID and ensure it matches your needs
-3. **Mission Output**: If this hop produces a mission output, use option (b) above to specify the mission output asset ID
+   b. Use an existing mission asset: If your output matches one of the "Desired Assets", specify its ID
+3. **Progress Toward Goals**: Your hop should make progress toward the "Desired Assets" using the "Available Assets"
 4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
-5. **Asset Availability**: Only reference assets that are currently available in the mission state. If you need an asset that doesn't exist, either:
+5. **Asset Availability**: Only reference assets that are currently available. If you need an asset that doesn't exist, either:
    - Choose a different approach that uses available assets, or
    - Respond with CLARIFICATION_NEEDED and explain what additional assets are required
 
 ## Current Context
 Mission Goal: {{mission_goal}}
-Desired Assets: {{desired_assets}}
-Available Assets: {{available_assets}}
 
-Based on the provided context, design the next hop in the mission workflow."""
+**Desired Assets (Mission Outputs - What the mission aims to produce):**
+{{desired_assets}}
 
-        # Initialize the base class
+**Available Assets (Mission State - What you can use as inputs):**
+{{available_assets}}
+
+Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets."""
+
+        # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(
             response_model=HopDesignResponse,
-            system_message=system_message
+            system_message=system_message,
+            messages_placeholder=False
         )
     
     async def invoke(
         self,
-        messages: List[Message],
         mission: Mission,
-        available_assets: List[Dict[str, Any]] = None,
         **kwargs: Dict[str, Any]
     ) -> HopDesignResponse:
         """
         Invoke the hop designer prompt.
         
         Args:
-            messages: List of conversation messages
-            mission: Current mission state (only goal and outputs are used)
-            available_assets: List of available assets in mission state
+            mission: Current mission state (contains goal, outputs, and available assets)
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -111,18 +125,18 @@ Based on the provided context, design the next hop in the mission workflow."""
         else:
             desired_assets = "No specific outputs defined yet"
         
-        # Format available assets
-        if available_assets:
+        # Format available assets from mission state
+        if mission.mission_state:
             available_assets_str = "\n".join([
-                f"- {asset.get('name', 'Unknown')} ({asset.get('type', 'unknown')}): {asset.get('description', 'No description')}"
-                for asset in available_assets
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                for asset in mission.mission_state.values()
             ])
         else:
             available_assets_str = "No assets available"
         
         # Call base invoke with simplified variables
         response = await super().invoke(
-            messages=messages,
+            messages=[],  # Empty list since we don't need conversation history
             tool_descriptions=tool_descriptions,
             mission_goal=mission_goal,
             desired_assets=desired_assets,

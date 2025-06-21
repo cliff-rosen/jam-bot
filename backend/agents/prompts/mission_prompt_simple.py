@@ -4,7 +4,8 @@ from schemas.chat import Message
 from schemas.workflow import Mission
 from schemas.lite_models import AssetLite, MissionLite, create_mission_from_lite
 from tools.tool_registry import format_tool_descriptions_for_mission_design
-from utils.message_formatter import format_assets, format_mission
+from utils.message_formatter import format_assets, format_mission, create_prompt_context, format_context_for_prompt
+from utils.prompt_context_mapper import PromptContextType
 from .base_prompt_caller import BasePromptCaller
 from datetime import datetime
 
@@ -103,7 +104,43 @@ Based on the provided context, analyze what information is complete and what nee
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_mission_design()
         
-        # Format available assets and mission
+        # Use the new prompt context mapper system
+        context = create_prompt_context(
+            context_type=PromptContextType.MISSION_DEFINITION,
+            mission=mission,
+            additional_assets=available_assets,
+            **kwargs
+        )
+        
+        # Format context for prompt variables
+        formatted_context = format_context_for_prompt(context, include_categories=True, include_metadata=True)
+        
+        # Call base invoke with formatted variables
+        response = await super().invoke(
+            messages=messages,
+            tool_descriptions=tool_descriptions,
+            mission=formatted_context["mission"],
+            available_assets=formatted_context["available_assets"],
+            **kwargs
+        )
+
+        return response
+    
+    async def invoke_legacy(
+        self,
+        messages: List[Message],
+        mission: Mission,
+        available_assets: List[Dict[str, Any]] = None,
+        **kwargs: Dict[str, Any]
+    ) -> MissionDefinitionResponse:
+        """
+        Legacy invoke method that maintains backward compatibility.
+        This method uses the old formatting approach.
+        """
+        # Format tool descriptions
+        tool_descriptions = format_tool_descriptions_for_mission_design()
+        
+        # Format available assets and mission using legacy approach
         assets_str = format_assets(available_assets)
         mission_str = format_mission(mission)
         

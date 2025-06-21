@@ -249,9 +249,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         })
 
     try:
-        # Get completed hops for context
-        completed_hops = state.mission.hop_history if state.mission else []
-
         # Create and use the simplified prompt caller
         promptCaller = HopDesignerPromptCaller()
         
@@ -261,8 +258,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         parsed_response = await promptCaller.invoke(
             messages=state.messages,
             mission=state.mission,
-            available_assets=available_assets,
-            completed_hops=completed_hops
+            available_assets=available_assets
         )
 
         # Create response message

@@ -1,10 +1,9 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from schemas.chat import Message
-from schemas.workflow import Mission, Hop, HopStatus
-from schemas.asset import Asset
-from schemas.lite_models import HopLite, AssetLite, create_hop_from_lite
-from utils.message_formatter import format_assets, format_mission, format_tool_descriptions_for_hop_design
+from schemas.workflow import Mission
+from schemas.lite_models import HopLite
+from utils.message_formatter import format_tool_descriptions_for_hop_design
 from .base_prompt_caller import BasePromptCaller
 from datetime import datetime
 
@@ -66,9 +65,9 @@ The system has these specific tools available for hop implementation:
    - Respond with CLARIFICATION_NEEDED and explain what additional assets are required
 
 ## Current Context
-Mission Context: {{mission}}
+Mission Goal: {{mission_goal}}
+Desired Assets: {{desired_assets}}
 Available Assets: {{available_assets}}
-Completed Hops: {{completed_hops}}
 
 Based on the provided context, design the next hop in the mission workflow."""
 
@@ -83,7 +82,6 @@ Based on the provided context, design the next hop in the mission workflow."""
         messages: List[Message],
         mission: Mission,
         available_assets: List[Dict[str, Any]] = None,
-        completed_hops: List[Hop] = None,
         **kwargs: Dict[str, Any]
     ) -> HopDesignResponse:
         """
@@ -91,9 +89,8 @@ Based on the provided context, design the next hop in the mission workflow."""
         
         Args:
             messages: List of conversation messages
-            mission: Current mission state
-            available_assets: List of available assets
-            completed_hops: List of completed hops
+            mission: Current mission state (only goal and outputs are used)
+            available_assets: List of available assets in mission state
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -102,23 +99,34 @@ Based on the provided context, design the next hop in the mission workflow."""
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_hop_design()
         
-        # Format available assets and mission
-        assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission)
+        # Extract mission goal
+        mission_goal = mission.goal if mission.goal else "No goal specified"
         
-        # Format completed hops
-        completed_hops_str = "\n".join([
-            f"- {hop.name}: {hop.description}"
-            for hop in (completed_hops or [])
-        ]) if completed_hops else "No hops completed yet"
+        # Format desired assets (mission outputs)
+        if mission.outputs:
+            desired_assets = "\n".join([
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                for asset in mission.outputs
+            ])
+        else:
+            desired_assets = "No specific outputs defined yet"
         
-        # Call base invoke with formatted variables
+        # Format available assets
+        if available_assets:
+            available_assets_str = "\n".join([
+                f"- {asset.get('name', 'Unknown')} ({asset.get('type', 'unknown')}): {asset.get('description', 'No description')}"
+                for asset in available_assets
+            ])
+        else:
+            available_assets_str = "No assets available"
+        
+        # Call base invoke with simplified variables
         response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
-            mission=mission_str,
-            available_assets=assets_str,
-            completed_hops=completed_hops_str,
+            mission_goal=mission_goal,
+            desired_assets=desired_assets,
+            available_assets=available_assets_str,
             **kwargs
         )
 

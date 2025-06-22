@@ -49,21 +49,23 @@ class ToolStepLite(BaseModel):
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict, description="Mapping of tool parameters to values or asset fields")
     result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict, description="Mapping of tool results to asset fields")
 
-class OutputAssetSpec(BaseModel):
-    """Specification for an output asset in a hop"""
-    asset: AssetLite = Field(description="Definition of the output asset")
-    use_existing: bool = Field(default=False, description="Whether to use an existing mission asset")
-    mission_asset_id: Optional[str] = Field(
-        default=None,
-        description="ID of existing mission asset to use. Required if use_existing is True."
-    )
+class NewAssetOutput(BaseModel):
+    """Specification for creating a new output asset in a hop"""
+    asset: AssetLite = Field(description="Complete definition of the new asset to create")
+
+class ExistingAssetOutput(BaseModel):
+    """Specification for using an existing mission asset as output"""
+    mission_asset_id: str = Field(description="ID of the existing mission asset to use as output")
+
+# Union type for hop output specification
+OutputAssetSpec = Union[NewAssetOutput, ExistingAssetOutput]
 
 class HopLite(BaseModel):
     """Simplified hop definition focusing on inputs and outputs"""
     name: str = Field(description="Name of the hop (2-8 words)")
     description: str = Field(description="One sentence describing what the hop accomplishes")
     inputs: List[AssetLite] = Field(description="Input assets required for this hop")
-    output: OutputAssetSpec = Field(description="Output asset specification for this hop")
+    output: OutputAssetSpec = Field(description="Output asset specification for this hop - either a new asset definition or reference to existing mission asset")
     is_final: bool = Field(default=False, description="Whether this is the final hop in the mission")
     rationale: str = Field(description="Explanation of why this hop is needed and how it contributes to the mission")
     alternative_approaches: List[str] = Field(
@@ -74,8 +76,8 @@ class HopLite(BaseModel):
     @validator('output')
     def validate_output_spec(cls, v):
         """Validate that output specification is complete"""
-        if v.use_existing and not v.mission_asset_id:
-            raise ValueError("mission_asset_id is required when use_existing is True")
+        if isinstance(v, ExistingAssetOutput) and not v.mission_asset_id:
+            raise ValueError("mission_asset_id is required when using an existing mission asset")
         return v
 
 # Mapping functions to convert between Lite and full models
@@ -190,14 +192,24 @@ def create_hop_from_lite(hop_lite: HopLite) -> Hop:
         for asset in input_assets
     }
     
-    # Create output asset from lite version
-    output_asset = create_asset_from_lite(hop_lite.output.asset)
+    # Handle output asset specification based on type
+    if isinstance(hop_lite.output, NewAssetOutput):
+        # Create new output asset from lite version
+        output_asset = create_asset_from_lite(hop_lite.output.asset)
+        output_asset_id = output_asset.id
+        output_asset_name = hop_lite.output.asset.name
+    elif isinstance(hop_lite.output, ExistingAssetOutput):
+        # Use existing mission asset
+        output_asset_id = hop_lite.output.mission_asset_id
+        # We need to get the asset name from the mission state, but we don't have access to it here
+        # For now, we'll use the ID as the key and let the caller handle the name resolution
+        output_asset_name = hop_lite.output.mission_asset_id
+    else:
+        raise ValueError(f"Invalid output specification type: {type(hop_lite.output)}")
     
     # Create output mapping
     output_mapping = {
-        canonical_key(hop_lite.output.asset.name): (
-            hop_lite.output.mission_asset_id or output_asset.id
-        )
+        canonical_key(output_asset_name): output_asset_id
     }
     
     # Create the full Hop object

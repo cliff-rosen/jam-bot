@@ -69,13 +69,42 @@ These are the **current assets** in the mission state that can be used as inputs
 ## Hop Design Guidelines
 1. **Inputs**: List ONLY assets from the "Available Assets" section as inputs for this hop. DO NOT create new input assets.
 2. **Output**: Define the output asset for this hop. You have two options:
-   a. Create a new asset: Define its schema and properties
-   b. Use an existing mission asset: If your output matches one of the "Desired Assets", specify its ID
+   a. **Create a new asset**: Define its complete schema and properties using the AssetLite format
+   b. **Use an existing mission asset**: If your output matches one of the "Desired Assets", reference it by its mission asset ID
 3. **Progress Toward Goals**: Your hop should make progress toward the "Desired Assets" using the "Available Assets"
 4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
 5. **Asset Availability**: Only reference assets that are currently available. If you need an asset that doesn't exist, either:
    - Choose a different approach that uses available assets, or
    - Respond with CLARIFICATION_NEEDED and explain what additional assets are required
+
+## Output Specification Examples
+
+### Creating a New Asset
+When you need to create a new asset that doesn't exist yet:
+```json
+{
+  "output": {
+    "asset": {
+      "name": "processed_data",
+      "description": "Cleaned and processed data from the input source",
+      "type": "object",
+      "subtype": "json",
+      "is_collection": false,
+      "role": "intermediate"
+    }
+  }
+}
+```
+
+### Using an Existing Mission Asset
+When your hop produces one of the desired mission outputs:
+```json
+{
+  "output": {
+    "mission_asset_id": "existing-asset-id-here"
+  }
+}
+```
 
 ## Current Context
 Mission Goal: {{mission_goal}}
@@ -119,7 +148,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         # Format desired assets (mission outputs)
         if mission.outputs:
             desired_assets = "\n".join([
-                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                f"- {asset.name} (ID: {asset.id}, Type: {asset.schema_definition.type}): {asset.description}"
                 for asset in mission.outputs
             ])
         else:
@@ -135,7 +164,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
             
             if available_assets:
                 available_assets_str = "\n".join([
-                    f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                    f"- {asset.name} (ID: {asset.id}, Type: {asset.schema_definition.type}): {asset.description}"
                     for asset in available_assets
                 ])
             else:

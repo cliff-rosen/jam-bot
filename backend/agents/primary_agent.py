@@ -16,7 +16,7 @@ from config.settings import settings
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
 from schemas.asset import Asset, AssetStatus, AssetMetadata
-from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite, create_mission_from_lite
+from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
 from schemas.base import SchemaType, ValueType
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
@@ -319,10 +319,10 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             output_asset = None  # Initialize output_asset
             proposed_assets = []  # Track assets that would be added to mission state
 
-            if hop_lite.output.use_existing:
+            if isinstance(hop_lite.output, ExistingAssetOutput):
                 # Using existing mission asset
                 if not hop_lite.output.mission_asset_id:
-                    raise ValueError("mission_asset_id is required when use_existing is True")
+                    raise ValueError("mission_asset_id is required when using an existing mission asset")
                 
                 # Verify the asset exists in mission state
                 if hop_lite.output.mission_asset_id not in state.mission.mission_state:
@@ -332,8 +332,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 output_asset = state.mission.mission_state[hop_lite.output.mission_asset_id]
                 
                 # Map to existing mission asset
-                output_mapping[canonical_key(hop_lite.output.asset.name)] = hop_lite.output.mission_asset_id
-            else:
+                output_mapping[canonical_key(output_asset.name)] = hop_lite.output.mission_asset_id
+            elif isinstance(hop_lite.output, NewAssetOutput):
                 # Create new asset (but don't add to mission state yet)
                 output_asset = create_asset_from_lite(hop_lite.output.asset)
                 
@@ -350,6 +350,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 
                 # Map to new asset
                 output_mapping[canonical_key(hop_lite.output.asset.name)] = generated_wip_asset_id
+            else:
+                raise ValueError(f"Invalid output specification type: {type(hop_lite.output)}")
             
             # Create the full Hop object
             new_hop = Hop(
@@ -371,7 +373,16 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             # Create a copy for hop state with output role
             hop_output_asset = copy.deepcopy(output_asset)
             hop_output_asset.role = 'output'  # Set as output at the hop level
-            new_hop.hop_state[canonical_key(hop_lite.output.asset.name)] = hop_output_asset
+            
+            # Use the appropriate key for the output asset
+            if isinstance(hop_lite.output, NewAssetOutput):
+                output_key = canonical_key(hop_lite.output.asset.name)
+            elif isinstance(hop_lite.output, ExistingAssetOutput):
+                output_key = canonical_key(output_asset.name)
+            else:
+                raise ValueError(f"Invalid output specification type: {type(hop_lite.output)}")
+            
+            new_hop.hop_state[output_key] = hop_output_asset
 
             # Initialize hop state with copies of input assets using local keys
             for local_key, mission_asset_id in canonical_input_mapping.items():

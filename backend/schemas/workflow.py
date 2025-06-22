@@ -53,8 +53,8 @@ class Hop(BaseModel):
     description: str
     input_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for input.")
     output_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for output.")
-    tool_steps: List[ToolStep] = Field(default_factory=list)
     hop_state: Dict[str, Asset] = Field(default_factory=dict)
+    tool_steps: List[ToolStep] = Field(default_factory=list)
     status: HopStatus = Field(default=HopStatus.HOP_PROPOSED)
     is_final: bool = Field(default=False)
     is_resolved: bool = Field(default=False)

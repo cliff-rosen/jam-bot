@@ -8,7 +8,7 @@ export default function EmailAgentOAuthButton() {
     const { isAuthenticated } = useAuth();
     const [isConnecting, setIsConnecting] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [_error, setError] = useState<string | null>(null);
     const [isGmailConnected, setIsGmailConnected] = useState(false);
 
     useEffect(() => {

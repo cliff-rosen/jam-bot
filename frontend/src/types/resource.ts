@@ -8,7 +8,7 @@
 
 // Resource Types - Frontend equivalent of backend/schemas/resource.py
 
-import { SchemaType } from './schema';
+import { SchemaType } from './base';
 
 // Resource and authentication types
 export type AuthFieldType = 'string' | 'secret' | 'url';
@@ -219,17 +219,6 @@ export function getResourcesWithCapability(capability: string): Resource[] {
     return Object.values(RESOURCE_REGISTRY).filter(resource =>
         resource.capabilities.includes(capability)
     );
-}
-
-export function validateConnectionData(resourceId: string, connectionData: Record<string, any>): boolean {
-    const resource = getResource(resourceId);
-    if (!resource) {
-        return false;
-    }
-
-    // TODO: Implement proper schema validation
-    // For now, just check if required fields are present
-    return true;
 }
 
 // Resource utility functions

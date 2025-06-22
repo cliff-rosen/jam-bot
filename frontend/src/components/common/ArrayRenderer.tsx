@@ -35,7 +35,7 @@ export const ArrayRenderer: React.FC<ArrayRendererProps> = ({
     const toggleExpand = () => setIsExpanded(prev => !prev);
 
     // Helper function to render an individual item based on its type
-    const renderItem = (item: any, index: number) => {
+    const renderItem = (item: any, _index: number) => {
         // For objects, use the ObjectRenderer with a smaller max properties setting
         if (typeof item === 'object' && item !== null) {
             return <ObjectRenderer object={item} maxInitialProperties={3} />;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ToolBrowser } from '@/components/features/tools';
 
 export default function LabPage() {
@@ -39,7 +39,7 @@ export default function LabPage() {
             <div className="flex-1 overflow-auto">
                 {activeTab === 'hop' ? (
                     <div className="p-4 h-full">
-                        <ToolBrowser />
+                        <ToolBrowser onSelectTool={() => { }} />
                     </div>
                 ) : (
                     <div className="p-4 h-full">

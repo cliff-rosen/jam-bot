@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mission, Hop, ToolStep } from '@/types/workflow';
+import { Mission, Hop } from '@/types/workflow';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
 
 interface MissionBrowserProps {
@@ -63,7 +63,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
     };
 
     // Helper to get color class for local key based on its mapped asset
-    const getLocalKeyColorClass = (key: string, hop: Hop) => {
+    const getLocalKeyColorClass = (_key: string, _hop: Hop) => {
         return 'text-green-600 dark:text-green-400'; // Adjusted for better contrast
     };
 
@@ -290,8 +290,6 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                     </thead>
                                     <tbody>
                                         {Object.entries(hop.hop_state).map(([key, asset]) => {
-                                            const mappingRefs = Object.values(hop.input_mapping).concat(Object.values(hop.output_mapping));
-                                            const isMapped = mappingRefs.includes(asset.id);
                                             return (
                                                 <tr
                                                     key={key}

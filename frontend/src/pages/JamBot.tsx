@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Database, Wrench } from 'lucide-react';
 
 import { Chat } from '@/components/features/chat';

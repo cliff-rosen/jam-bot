@@ -1,7 +1,6 @@
 import React from 'react';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { Mission } from '@/types/workflow';
-import { MissionStatus } from '@/types/workflow';
 
 interface MissionProposalProps {
     mission: Mission;

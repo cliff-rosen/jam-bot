@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MessageRole } from '@/types/chat';
 import { useJamBot } from '@/context/JamBotContext';
 import { ChatHeader } from './ChatHeader';

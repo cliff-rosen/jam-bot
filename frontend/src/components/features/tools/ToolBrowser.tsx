@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ToolDefinition } from '@/types/tool';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
 import { Search, Filter, Code, Database, Globe, FileText, BarChart3, Settings } from 'lucide-react';
-import { Tool } from '@/types/tools';
 
 interface ToolBrowserProps {
     className?: string;
-    onSelectTool: (tool: Tool | null) => void;
+    onSelectTool: (tool: ToolDefinition | null) => void;
 }
 
 export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSelectTool }) => {
@@ -16,7 +15,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [selectedTool, setSelectedTool] = useState<ToolDefinition | null>(null);
+    const [selectedTool, _setSelectedTool] = useState<ToolDefinition | null>(null);
 
     useEffect(() => {
         const fetchTools = async () => {
@@ -67,7 +66,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
         }
     };
 
-    const handleSelectTool = (tool: Tool) => {
+    const handleSelectTool = (tool: ToolDefinition) => {
         setSearchTerm(tool.id); // Or some other behavior
         onSelectTool(tool);
     };
@@ -213,7 +212,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                     {param.description}
                                                 </p>
                                                 <div className="text-xs text-gray-600 dark:text-gray-300">
-                                                    Type: {param.schema?.type || 'unknown'}
+                                                    Type: {param.schema_definition?.type || 'unknown'}
                                                 </div>
                                             </div>
                                         ))}
@@ -243,7 +242,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                     {output.description}
                                                 </p>
                                                 <div className="text-xs text-gray-600 dark:text-gray-300">
-                                                    Type: {output.schema?.type || 'unknown'}
+                                                    Type: {output.schema_definition?.type || 'unknown'}
                                                 </div>
                                             </div>
                                         ))}

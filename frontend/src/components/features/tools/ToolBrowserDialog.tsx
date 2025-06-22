@@ -1,4 +1,3 @@
-import React from 'react';
 import { ToolBrowser } from '@/components/features/tools';
 import Dialog from '@/components/common/Dialog';
 import { ToolDefinition } from '@/types/tool';

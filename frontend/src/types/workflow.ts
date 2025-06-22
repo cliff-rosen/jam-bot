@@ -5,7 +5,7 @@
  * managing workflows, including Missions, Hops, and ToolSteps.
  */
 
-import { Asset, AssetStatus } from './asset';
+import { Asset } from './asset';
 import { Resource } from './resource';
 
 // --- Workflow Execution Enums ---
@@ -114,22 +114,3 @@ export const defaultMission: Mission = {
 };
 
 
-export function markHopOutputsReady(
-    hopState: Record<string, Asset>,
-    outputMapping: Record<string, string>,
-    missionState: Record<string, Asset>,
-    updatedBy: string
-): Record<string, Asset> {
-    const updatedMissionState = { ...missionState };
-
-    for (const localKey in outputMapping) {
-        if (Object.prototype.hasOwnProperty.call(outputMapping, localKey)) {
-            const missionAssetId = outputMapping[localKey];
-            if (updatedMissionState[missionAssetId]) {
-                updatedMissionState[missionAssetId].status = AssetStatus.READY;
-                updatedMissionState[missionAssetId].asset_metadata.updatedAt = new Date().toISOString();
-            }
-        }
-    }
-    return updatedMissionState;
-}

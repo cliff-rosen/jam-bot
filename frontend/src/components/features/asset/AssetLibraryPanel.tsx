@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Asset } from '@/types';
+import { Asset } from '@/types/asset';
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface AssetLibraryPanelProps {

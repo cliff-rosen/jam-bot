@@ -1,4 +1,4 @@
-import { DocumentIcon, DocumentTextIcon, ListBulletIcon, TableCellsIcon, PhotoIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon, TableCellsIcon, PhotoIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { getAssetColor } from './assetUtils';
 
 export const getAssetIcon = (type: string, subtype?: string) => {

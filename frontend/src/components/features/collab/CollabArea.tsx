@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Play, Square, RotateCcw } from 'lucide-react';
 
 import { useJamBot } from '@/context/JamBotContext';
 
 import { Mission } from './Mission';
 import { HopDetails } from '@/components/features/hop';
-import { ToolStep, Hop, ExecutionStatus, HopStatus, MissionStatus } from '@/types/workflow';
+import { Hop, HopStatus, MissionStatus } from '@/types/workflow';
 import { ApprovalContent } from '@/types/collabArea';
 import { MissionProposal } from './MissionProposal';
 import { HopProposal } from './HopProposal';

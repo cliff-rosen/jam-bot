@@ -227,7 +227,6 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                                                 );
                                                             } else if (mapping.type === "asset_field") {
                                                                 const asset = hop.hop_state?.[mapping.state_asset];
-                                                                const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
                                                                 const tooltipText = [
                                                                     `Parameter: ${param}`,
                                                                     `Hop Variable: ${mapping.state_asset}`,

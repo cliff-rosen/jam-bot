@@ -1,4 +1,4 @@
-import { Asset } from '../../../types/schema';
+import { Asset } from '@/types/asset';
 
 export const getAssetColor = (type: string, subtype?: string) => {
     switch (type) {

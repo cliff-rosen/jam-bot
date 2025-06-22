@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useJamBot } from '@/context/JamBotContext';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
 import { MissionBrowser } from '@/components/features/diagnostics/MissionBrowser';
 import Dialog from '@/components/common/Dialog';
-import { X, Clipboard, Upload, Check } from 'lucide-react';
+import { Clipboard, Upload, Check } from 'lucide-react';
 
 interface StateInspectorProps {
     isOpen: boolean;
@@ -15,7 +15,7 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
     const [pasteError, setPasteError] = useState<string | null>(null);
     const [showPasteArea, setShowPasteArea] = useState(false);
     const [pasteContent, setPasteContent] = useState('');
-    const [copySuccess, setCopySuccess] = useState(false);
+    const [copySuccess, _setCopySuccess] = useState(false);
     const [activeTab, setActiveTab] = useState<'state' | 'mission'>('state');
 
     if (!isOpen) {

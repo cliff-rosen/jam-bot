@@ -152,6 +152,9 @@ export const JsonRenderer: React.FC<JsonRendererProps> = ({
     maxInitialDepth = 2,
     maxStringLength = 100
 }) => {
+    if (maxInitialDepth === 0)
+        console.log('maxInitialDepth', maxInitialDepth);
+
     // If the data is empty, show a message
     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
         return <span className="text-gray-500 dark:text-gray-400 italic">Empty data</span>;

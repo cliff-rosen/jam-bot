@@ -71,6 +71,7 @@ These are the **current assets** in the mission state that can be used as inputs
 2. **Output**: Define the output asset for this hop. You have two options:
    a. **Create a new asset**: Define its complete schema and properties using the AssetLite format
    b. **Use an existing mission asset**: If your output matches one of the "Desired Assets", reference it by its mission asset ID
+   *** Always choose an existing asset if you feel that can be reasonably produced in a single remaining hop.
 3. **Progress Toward Goals**: Your hop should make progress toward the "Desired Assets" using the "Available Assets"
 4. **Asset Naming**: Use descriptive names that reflect the asset's purpose and content
 5. **Asset Availability**: Only reference assets that are currently available. If you need an asset that doesn't exist, either:

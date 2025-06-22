@@ -82,28 +82,28 @@ These are the **current assets** in the mission state that can be used as inputs
 ### Creating a New Asset
 When you need to create a new asset that doesn't exist yet:
 ```json
-{
-  "output": {
-    "asset": {
+{{{{
+  "output": {{{{
+    "asset": {{{{
       "name": "processed_data",
       "description": "Cleaned and processed data from the input source",
       "type": "object",
       "subtype": "json",
       "is_collection": false,
       "role": "intermediate"
-    }
-  }
-}
+    }}}}
+  }}}}
+}}}}
 ```
 
 ### Using an Existing Mission Asset
 When your hop produces one of the desired mission outputs:
 ```json
-{
-  "output": {
+{{{{
+  "output": {{{{
     "mission_asset_id": "existing-asset-id-here"
-  }
-}
+  }}}}
+}}}}
 ```
 
 ## Current Context

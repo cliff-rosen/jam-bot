@@ -90,14 +90,14 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                     </div>
                 )}
 
-                {/* Available Resources */}
+                {/* Input Assets */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
                             <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            Available Resources
+                            Input Assets
                         </h2>
                     </div>
 
@@ -118,11 +118,14 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                                                     {asset?.schema_definition?.type}
                                                     {asset?.is_collection && ` • ${asset?.collection_type}`}
                                                 </div>
+                                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                                    From asset library
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium">
                                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                            Ready
+                                            Available
                                         </div>
                                     </div>
                                 </div>
@@ -131,20 +134,20 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                     ) : (
                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
                             <div className="text-gray-500 dark:text-gray-400 text-sm">
-                                No specific resources required for this step
+                                No input assets required for this step
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Proposed Output */}
+                {/* Output Assets */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
                             <FileText className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            Proposed Output
+                            Output Assets
                         </h2>
                     </div>
 
@@ -170,12 +173,12 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                                                     </div>
                                                     {hop.is_final && (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">
-                                                            Final Asset
+                                                            Mission Output
                                                         </span>
                                                     )}
                                                     {!hop.is_final && (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
-                                                            Intermediate
+                                                            Work in Progress
                                                         </span>
                                                     )}
                                                 </div>
@@ -188,6 +191,9 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                                                         {asset.description}
                                                     </div>
                                                 )}
+                                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                                    {hop.is_final ? 'To mission outputs' : 'To asset library'}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className={`flex items-center gap-2 text-sm font-medium ${hop.is_final

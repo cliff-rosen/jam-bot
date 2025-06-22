@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, XCircle, X, Target, Package, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, X, Target, Package, AlertTriangle, ArrowRight, FileText, Star } from 'lucide-react';
 import { Hop } from '@/types/workflow';
 
 interface HopProposalProps {
@@ -23,6 +23,12 @@ export const HopProposal: React.FC<HopProposalProps> = ({
 }) => {
     // Get input assets from hop state
     const inputAssets = Object.entries(hop.input_mapping).map(([localKey, missionAssetId]) => {
+        const asset = hop.hop_state[localKey];
+        return { localKey, missionAssetId, asset };
+    }).filter(item => item.asset);
+
+    // Get output assets from hop state
+    const outputAssets = Object.entries(hop.output_mapping).map(([localKey, missionAssetId]) => {
         const asset = hop.hop_state[localKey];
         return { localKey, missionAssetId, asset };
     }).filter(item => item.asset);
@@ -126,6 +132,80 @@ export const HopProposal: React.FC<HopProposalProps> = ({
                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
                             <div className="text-gray-500 dark:text-gray-400 text-sm">
                                 No specific resources required for this step
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Proposed Output */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                            <FileText className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            Proposed Output
+                        </h2>
+                    </div>
+
+                    {outputAssets.length > 0 ? (
+                        <div className="grid gap-3">
+                            {outputAssets.map(({ asset, localKey }, index) => (
+                                <div key={localKey} className={`group rounded-xl p-4 transition-all duration-200 border ${hop.is_final
+                                    ? 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-emerald-200 dark:border-emerald-700 hover:border-emerald-300 dark:hover:border-emerald-600'
+                                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600'
+                                    }`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-medium ${hop.is_final
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-300 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                                                }`}>
+                                                {hop.is_final ? <Star className="w-4 h-4" /> : index + 1}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <div className="font-medium text-gray-900 dark:text-white">
+                                                        {asset?.name || localKey}
+                                                    </div>
+                                                    {hop.is_final && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">
+                                                            Final Asset
+                                                        </span>
+                                                    )}
+                                                    {!hop.is_final && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
+                                                            Intermediate
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {asset?.schema_definition?.type}
+                                                    {asset?.is_collection && ` • ${asset?.collection_type}`}
+                                                </div>
+                                                {asset?.description && (
+                                                    <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                                        {asset.description}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className={`flex items-center gap-2 text-sm font-medium ${hop.is_final
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-blue-600 dark:text-blue-400'
+                                            }`}>
+                                            <div className={`w-2 h-2 rounded-full ${hop.is_final ? 'bg-emerald-500' : 'bg-blue-500'
+                                                }`}></div>
+                                            {hop.is_final ? 'Final Result' : 'New Asset'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 text-center">
+                            <div className="text-gray-500 dark:text-gray-400 text-sm">
+                                No output assets defined for this step
                             </div>
                         </div>
                     )}

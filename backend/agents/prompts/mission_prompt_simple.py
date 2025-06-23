@@ -1,11 +1,13 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+from datetime import datetime
+
 from schemas.chat import Message
 from schemas.workflow import Mission
 from schemas.lite_models import MissionLite
+
 from utils.message_formatter import format_tool_descriptions_for_mission_design
 from .base_prompt_caller import BasePromptCaller
-from datetime import datetime
 
 class MissionDefinitionResponse(BaseModel):
     """Structure for mission definition response"""

@@ -1,12 +1,14 @@
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
-from schemas.chat import Message
-from schemas.workflow import Mission, Hop, HopStatus
-from schemas.asset import Asset
-from schemas.lite_models import HopLite, AssetLite, ToolStepLite, create_hop_from_lite
-from utils.message_formatter import format_assets, format_mission, format_tool_descriptions_for_implementation
-from .base_prompt_caller import BasePromptCaller
+from typing import Dict, Any, List
 from datetime import datetime
+from pydantic import BaseModel, Field
+
+from schemas.chat import Message
+from schemas.workflow import Mission, Hop
+from schemas.lite_models import ToolStepLite
+
+from utils.message_formatter import format_assets, format_mission, format_tool_descriptions_for_implementation
+
+from .base_prompt_caller import BasePromptCaller
 
 class HopImplementationResponse(BaseModel):
     """Structure for hop implementation response"""

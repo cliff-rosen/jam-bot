@@ -1,10 +1,12 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+from datetime import datetime
+
 from schemas.workflow import Mission
 from schemas.lite_models import HopLite
+
 from utils.message_formatter import format_tool_descriptions_for_hop_design
 from .base_prompt_caller import BasePromptCaller
-from datetime import datetime
 
 class HopDesignResponse(BaseModel):
     """Structure for hop design response"""

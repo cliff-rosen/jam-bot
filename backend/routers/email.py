@@ -18,7 +18,7 @@ import logging
 from config.settings import settings
 
 from google_auth_oauthlib.flow import Flow
-import jwt
+from jose import JWTError, jwt
 import asyncio
 import json
 
@@ -363,9 +363,18 @@ async def oauth2_callback(
             raw_id_token = credentials.id_token
             print("Raw ID token: ", raw_id_token)
 
-            # Decode without verification first to get the token data
-            decoded_token = jwt.decode(raw_id_token, options={"verify_signature": False})
-    
+            # Decode without verification to get the token data
+            decoded_token = jwt.decode(
+                raw_id_token, 
+                None, 
+                options={
+                    "verify_signature": False, 
+                    "verify_aud": False,
+                    "verify_exp": False,
+                    "verify_at_hash": False
+                }
+            )
+
             # Get the email from the decoded token
             user_email = decoded_token.get('email')
             if not user_email:
@@ -373,7 +382,7 @@ async def oauth2_callback(
                 
             logger.info(f"Got email from ID token: {user_email}")
             
-        except Exception as e:
+        except JWTError as e:
             logger.error(f"Error decoding ID token: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

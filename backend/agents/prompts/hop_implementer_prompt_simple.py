@@ -29,6 +29,8 @@ class HopImplementerPromptCaller(BasePromptCaller):
         # Define the system message
         system_message = f"""You are an AI assistant that helps users implement "hops" for knowledge missions.
 
+## About Missions and Hops
+
 - A knowledge mission is a user defined project to generate a desired information asset from available inputs, tools and resources.
 
 - A knowledge mission begins as a stated goal along with specifications for an output asset that would achieve that goal and a list of available inputs, tools and resources available for the achievement.
@@ -39,10 +41,8 @@ class HopImplementerPromptCaller(BasePromptCaller):
 
 You will be presented with a hop that has been proposed by the hop designer. Your job is to implement the hop by designing a sequence of tool steps that transform the available inputs into the desired outputs.
 
-## Current Date and Time
-{current_time}
-
 ## Detailed Instructions
+
 Given the mission context provided below, design 1-4 tool steps that will:
 1. Take the available assets as inputs
 2. Use the available tools to process them
@@ -50,16 +50,18 @@ Given the mission context provided below, design 1-4 tool steps that will:
 
 NOTE: Unless this is the final hop, the output assets for the hop will be intermediate assets that will be used as inputs for the next hop. Be sure to focus specifically on the output asset for the hop rather than the mission's desired output asset in case they are different.
 
-Each tool step will identify the tool it will use, a map from hop state to the required parameters and resources it will pass to that tool and a map from the tool's outputs to the hop state.
+Each tool step will consist of the following:
+- unique identifier
+- the tool it will use
+- a map from hop state to the required parameters and resources it will pass to that tool
+- a map from the tool's outputs to the hop state
 
-Along with the tool steps you must also provide the hop state that will be used to execute the tool steps. The hop has a state that contains all available assets. Initially, this state includes:
+Tool steps must be designed in coordination with the hop state. The hop state is the set of all available assets that can be used as inputs and outputs for tool steps. Initially, this state includes:
 - All input assets (mission inputs + intermediate assets from previous hops)
 - All output assets (target assets to be produced)
 
-When you design multiple tool steps, intermediate assets are created and stored in this state. Each step:
-- Reads from the current hop state for its inputs
-- Writes its outputs back to the hop state
-- Subsequent steps can then use these intermediate assets
+When you design multiple tool steps, the intermediate assets are created and stored in this state so that subsequent steps can use them as inputs.
+
 
 The input and output mappings in your tool steps always refer to assets in this hop state.
 
@@ -88,7 +90,10 @@ Map tool outputs to assets using:
 }}}}
 ```
 
-## Context
+## Mission Context
+
+### Current Date and Time
+{current_time}
 
 ### Mission
 {{mission_description}}

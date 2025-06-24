@@ -64,7 +64,7 @@ class HopLite(BaseModel):
     """Simplified hop definition focusing on inputs and outputs"""
     name: str = Field(description="Name of the hop (2-8 words)")
     description: str = Field(description="One sentence describing what the hop accomplishes")
-    inputs: List[AssetLite] = Field(description="Input assets required for this hop")
+    inputs: List[str] = Field(description="List of asset IDs from mission state to use as inputs for this hop")
     output: OutputAssetSpec = Field(description="Output asset specification for this hop - either a new asset definition or reference to existing mission asset")
     is_final: bool = Field(default=False, description="Whether this is the final hop in the mission")
     rationale: str = Field(description="Explanation of why this hop is needed and how it contributes to the mission")
@@ -179,18 +179,26 @@ def create_tool_step_from_lite(step_lite: ToolStepLite) -> ToolStep:
         updated_at=current_time
     )
 
-def create_hop_from_lite(hop_lite: HopLite) -> Hop:
+def create_hop_from_lite(hop_lite: HopLite, mission_state: Dict[str, Asset] = None) -> Hop:
     """Convert a HopLite object to a full Hop object"""
     current_time = datetime.utcnow()
     
-    # Create full Asset objects from input assets
-    input_assets = [create_asset_from_lite(asset) for asset in hop_lite.inputs]
-    
-    # Create input mapping from the full Asset objects
-    input_mapping = {
-        canonical_key(asset.name): asset.id
-        for asset in input_assets
-    }
+    # Create input mapping from asset IDs
+    input_mapping = {}
+    if mission_state:
+        # We have access to mission state, so we can create proper canonical key mapping
+        for asset_id in hop_lite.inputs:
+            if asset_id in mission_state:
+                asset = mission_state[asset_id]
+                input_mapping[canonical_key(asset.name)] = asset_id
+            else:
+                # Fallback: use asset_id as both key and value
+                input_mapping[asset_id] = asset_id
+    else:
+        # No mission state available, use asset_id as both key and value
+        # The actual canonical key mapping will be done when the hop is implemented
+        for asset_id in hop_lite.inputs:
+            input_mapping[asset_id] = asset_id
     
     # Handle output asset specification based on type
     if isinstance(hop_lite.output, NewAssetOutput):

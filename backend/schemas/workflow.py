@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union, Literal, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
+
 from .asset import Asset
 from .resource import Resource
-from .tool import ToolDefinition
 
 if TYPE_CHECKING:
     from tools.tool_execution import execute_tool_step, ToolExecutionError

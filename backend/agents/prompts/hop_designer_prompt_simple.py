@@ -31,6 +31,10 @@ class HopDesignerPromptCaller(BasePromptCaller):
 3. **Design** the next hop in the workflow
 4. **Validate** that the hop is implementable
 
+## IMPORTANT: Asset ID Usage
+When specifying inputs for a hop, you MUST use the exact asset IDs shown in the "Available Assets" section. 
+Do NOT create new asset definitions for inputs - only reference existing asset IDs.
+
 ## Current Date and Time
 {current_time}
 
@@ -66,10 +70,11 @@ These are the **final deliverables** that the mission aims to produce. They repr
 These are the **current assets** in the mission state that can be used as inputs:
 - These are **inputs you can use** for the hop you're designing
 - Only assets listed here can be referenced as inputs for your hop
+- **IMPORTANT**: Use the exact asset ID (e.g., "asset_123") from the list below as input references
 - These include both mission inputs (user-provided data) and intermediate assets (created by previous hops)
 
 ## Hop Design Guidelines
-1. **Inputs**: List ONLY assets from the "Available Assets" section as inputs for this hop. DO NOT create new input assets.
+1. **Inputs**: List ONLY asset IDs from the "Available Assets" section as inputs for this hop. Use the exact asset ID (e.g., "asset_123") from the available assets list.
 2. **Output**: Define the output asset for this hop. You have two options:
    a. **Create a new asset**: Define its complete schema and properties using the AssetLite format
    b. **Use an existing mission asset**: If your output matches one of the "Desired Assets", reference it by its mission asset ID
@@ -79,6 +84,16 @@ These are the **current assets** in the mission state that can be used as inputs
 5. **Asset Availability**: Only reference assets that are currently available. If you need an asset that doesn't exist, either:
    - Choose a different approach that uses available assets, or
    - Respond with CLARIFICATION_NEEDED and explain what additional assets are required
+
+## Input Specification Examples
+
+### Using Available Assets as Inputs
+When specifying inputs, use the exact asset IDs from the available assets list:
+```json
+{{{{
+  "inputs": ["asset_123", "asset_456"]
+}}}}
+```
 
 ## Output Specification Examples
 

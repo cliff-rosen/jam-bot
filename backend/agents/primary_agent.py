@@ -421,9 +421,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 error=current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
                 debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, {next_status}",
                 payload={
-                    "hop": serialize_hop(current_hop) if include_hop else None,
-                    "mission": serialize_mission(state.mission),
-                    "hop_state": {k: v.model_dump() for k, v in current_hop.hop_state.items()} if include_hop else None
+                    "hop": serialize_hop(current_hop) if include_hop else None
                 }
             ))
             writer(agent_response.model_dump())
@@ -898,7 +896,9 @@ def _process_implementation_plan(
         return False, error_message
     
     # Validation passed - accept the implementation plan
-    current_hop.tool_steps = parsed_response.tool_steps
+    # Convert ToolStepLite objects to ToolStep objects
+    from schemas.lite_models import create_tool_step_from_lite
+    current_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
     current_hop.is_resolved = True
     current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
     current_hop.updated_at = datetime.utcnow()

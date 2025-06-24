@@ -165,13 +165,31 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
 
 def create_tool_step_from_lite(step_lite: ToolStepLite) -> ToolStep:
     """Convert a ToolStepLite object to a full ToolStep object"""
+    from schemas.resource import get_resource
+    
     current_time = datetime.utcnow()
+    
+    # Convert resource configs from Dict[str, Any] to Dict[str, Resource]
+    resource_configs = {}
+    for resource_id, config in step_lite.resource_configs.items():
+        if isinstance(config, dict):
+            # This is a configuration dict, we need to get the Resource definition
+            resource_def = get_resource(resource_id)
+            if resource_def:
+                resource_configs[resource_id] = resource_def
+            else:
+                # If we can't find the resource definition, skip it
+                # This prevents the validation error but logs the issue
+                print(f"Warning: Resource '{resource_id}' not found in registry for tool step '{step_lite.id}'")
+        else:
+            # Assume it's already a Resource object (shouldn't happen but be safe)
+            resource_configs[resource_id] = config
     
     return ToolStep(
         id=step_lite.id,
         tool_id=step_lite.tool_id,
         description=step_lite.description,
-        resource_configs=step_lite.resource_configs,
+        resource_configs=resource_configs,
         parameter_mapping=step_lite.parameter_mapping,
         result_mapping=step_lite.result_mapping,
         status=ExecutionStatus.PENDING,

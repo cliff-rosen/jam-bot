@@ -559,22 +559,19 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             available_assets=available_assets
         )
 
+        # Create response message
+        response_message = Message(
+            id=str(uuid.uuid4()),
+            role=MessageRole.ASSISTANT,
+            content=parsed_response.response_content,
+            timestamp=datetime.utcnow().isoformat()
+        )
+
         # Handle different response types
-        if parsed_response.response_type == "CLARIFICATION_NEEDED":
-            # Keep hop in current state but mark as needing clarification
-            current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-            state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+        if parsed_response.response_type == "IMPLEMENTATION_PLAN":
+            if not parsed_response.tool_steps:
+                raise ValueError("Response type is IMPLEMENTATION_PLAN but no tool steps were provided")
             
-            # Create clarification message
-            missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
-            response_message = Message(
-                id=str(uuid.uuid4()),
-                role=MessageRole.ASSISTANT,
-                content=f"Need clarification to implement hop '{current_hop.name}':\n\n{parsed_response.response_content}\n\nMissing Information:\n{missing_info}",
-                timestamp=datetime.utcnow().isoformat()
-            )
-            
-        elif parsed_response.response_type == "IMPLEMENTATION_PLAN":
             # First, create any intermediate assets needed by the tool steps
             intermediate_assets = set()
             for step in parsed_response.tool_steps:
@@ -626,16 +623,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
                 formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
 
-                response_message = Message(
-                    id=str(uuid.uuid4()),
-                    role=MessageRole.ASSISTANT,
-                    content=(
-                        "The proposed implementation plan has validation issues:\n\n" +
-                        formatted_errors + "\n\n" +
-                        "Please revise the plan so every state_asset reference exists in hop.state "
-                        "or create the corresponding Asset before it is used."
-                    ),
-                    timestamp=datetime.utcnow().isoformat()
+                response_message.content = (
+                    "The proposed implementation plan has validation issues:\n\n" +
+                    formatted_errors + "\n\n" +
+                    "Please revise the plan so every state_asset reference exists in hop.state "
+                    "or create the corresponding Asset before it is used."
                 )
             else:
                 # Accept the plan
@@ -646,12 +638,20 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
                 state.mission.current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
 
-                response_message = Message(
-                    id=str(uuid.uuid4()),
-                    role=MessageRole.ASSISTANT,
-                    content=parsed_response.response_content,
-                    timestamp=datetime.utcnow().isoformat()
-                )
+                # Add reasoning to response if available
+                if parsed_response.reasoning:
+                    response_message.content = f"{parsed_response.response_content}\n\nImplementation Reasoning: {parsed_response.reasoning}"
+
+        elif parsed_response.response_type == "CLARIFICATION_NEEDED":
+            # Keep hop in current state but mark as needing clarification
+            current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+            state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+            
+            # Create clarification message with reasoning
+            missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
+            reasoning_text = f"\n\nReasoning: {parsed_response.reasoning}" if parsed_response.reasoning else ""
+            response_message.content = f"Need clarification to implement hop '{current_hop.name}':\n\n{parsed_response.response_content}\n\nMissing Information:\n{missing_info}{reasoning_text}"
+            
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
         
@@ -674,9 +674,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 response_text=response_message.content,
                 status="hop_implementer_completed",
                 error=current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
-                debug=f"Hop implementation status: {current_hop.status.value}, {next_status}",
+                debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, {next_status}",
                 payload={
-                    "hop": serialize_hop(current_hop),
+                    "hop": serialize_hop(current_hop) if parsed_response.response_type == 'IMPLEMENTATION_PLAN' else None,
                     "mission": serialize_mission(state.mission)
                 }
             ))

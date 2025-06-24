@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,7 @@ class HopImplementationResponse(BaseModel):
     response_content: str = Field(description="The main response text to add to the conversation")
     tool_steps: List[ToolStepLite] = Field(default_factory=list, description="List of tool steps to implement the hop")
     missing_information: List[str] = Field(default_factory=list, description="List of missing information if clarification is needed")
+    reasoning: str = Field(description="Explanation of the implementation decisions made")
 
 class HopImplementerPromptCaller(BasePromptCaller):
     """A simplified prompt caller for hop implementation"""
@@ -47,52 +48,81 @@ The system has these specific tools available for hop implementation:
    - Create new assets in hop.state for intermediate results
    - Use descriptive names for assets that reflect their content
 
-2. **Tool Step Structure**:
-   - Each step must have a unique ID
-   - Each step must specify the tool_id to use
-   - Each step must map its parameters to hop.state assets
-   - Each step must map its results to hop.state assets
+## Asset Categories and Usage
 
-3. **Parameter Mapping Format**:
-   For asset field mappings:
-   ```python
-   {{{{  # Double curly braces to escape them
-       "parameter_name": {{{{
-           "type": "asset_field",
-           "state_asset": "asset_name_in_hop_state",
-           "path": "optional.path.to.field"  # Optional path for nested fields
-       }}}}
-   }}}}
-   ```
-   For literal value mappings:
-   ```python
-   {{{{  # Double curly braces to escape them
-       "parameter_name": {{{{
-           "type": "literal",
-           "value": "actual_value_here"
-       }}}}
-   }}}}
-   ```
+### Input Assets (Hop State)
+These are the **available inputs** for this hop that you can use as tool parameters:
+- These assets are already in the hop state and ready to use
+- Use the exact asset names from the hop state when mapping parameters
+- These include both mission inputs and intermediate assets from previous hops
 
-4. **Result Mapping Format**:
-   For asset field mappings:
-   ```python
-   {{{{  # Double curly braces to escape them
-       "result_name": {{{{
-           "type": "asset_field",
-           "state_asset": "asset_name_in_hop_state",
-           "path": "optional.path.to.field"  # Optional path for nested fields
-       }}}}
-   }}}}
-   ```
-   For discarded results:
-   ```python
-   {{{{  # Double curly braces to escape them
-       "result_name": {{{{
-           "type": "discard"
-       }}}}
-   }}}}
-   ```
+### Output Assets (Hop State)
+These are the **target outputs** that this hop must produce:
+- These assets define what the hop should ultimately create
+- Your tool chain must map results to these output assets
+- These may be final mission outputs or intermediate processing results
+
+### Intermediate Assets (To Be Created)
+These are **new assets** that will be created during tool execution:
+- Create descriptive names that reflect the asset's content and purpose
+- Use these for intermediate processing results between tool steps
+- Each intermediate asset should contribute to the final outputs
+
+## Tool Step Structure Guidelines
+1. **Unique IDs**: Each step must have a unique identifier
+2. **Tool Selection**: Choose the most appropriate tool for each step's purpose
+3. **Parameter Mapping**: Map tool parameters to hop state assets or literal values
+4. **Result Mapping**: Map tool outputs to hop state assets or discard unused outputs
+
+## Parameter Mapping Format
+For asset field mappings:
+```python
+{{{{  # Double curly braces to escape them
+    "parameter_name": {{{{
+        "type": "asset_field",
+        "state_asset": "asset_name_in_hop_state",
+        "path": "optional.path.to.field"  # Optional path for nested fields
+    }}}}
+}}}}
+```
+
+For literal value mappings:
+```python
+{{{{  # Double curly braces to escape them
+    "parameter_name": {{{{
+        "type": "literal",
+        "value": "actual_value_here"
+    }}}}
+}}}}
+```
+
+## Result Mapping Format
+For asset field mappings:
+```python
+{{{{  # Double curly braces to escape them
+    "result_name": {{{{
+        "type": "asset_field",
+        "state_asset": "asset_name_in_hop_state",
+        "path": "optional.path.to.field"  # Optional path for nested fields
+    }}}}
+}}}}
+```
+
+For discarded results:
+```python
+{{{{  # Double curly braces to escape them
+    "result_name": {{{{
+        "type": "discard"
+    }}}}
+}}}}
+```
+
+## Implementation Strategy
+1. **Analyze Requirements**: Understand what inputs you have and what outputs you need
+2. **Plan Tool Sequence**: Design a logical sequence of 1-4 tool steps
+3. **Map Parameters**: Ensure each tool parameter maps to an available asset
+4. **Map Results**: Ensure each tool output maps to a target asset or intermediate result
+5. **Validate Completeness**: Verify that all inputs are used and all outputs are produced
 
 ## Current Context
 Mission Context: {{mission}}
@@ -131,18 +161,27 @@ Based on the provided context, implement the hop by designing a sequence of tool
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_implementation()
         
-        # Format available assets and mission
-        assets_str = format_assets(available_assets)
-        mission_str = format_mission(mission)
+        # Format mission context (concise version for hop implementation)
+        mission_str = format_mission(mission, context_for_hop=True)
         
-        # Format current hop
+        # Format current hop with detailed information
         hop_str = f"""
 Name: {current_hop.name}
 Description: {current_hop.description}
-Input Mapping: {current_hop.input_mapping}
-Output Mapping: {current_hop.output_mapping}
+Rationale: {current_hop.rationale if current_hop.rationale else 'No rationale provided'}
+
+Input Mapping (Local Key → Mission Asset ID):
+{self._format_mapping(current_hop.input_mapping)}
+
+Output Mapping (Local Key → Mission Asset ID):
+{self._format_mapping(current_hop.output_mapping)}
+
 Status: {current_hop.status}
+Is Final: {current_hop.is_final}
 """
+        
+        # Format available assets with categorization
+        assets_str = self._format_available_assets(available_assets, current_hop)
         
         # Call base invoke with formatted variables
         response = await super().invoke(
@@ -154,4 +193,57 @@ Status: {current_hop.status}
             **kwargs
         )
 
-        return response 
+        return response
+    
+    def _format_mapping(self, mapping: Dict[str, str]) -> str:
+        """Format input/output mapping for display"""
+        if not mapping:
+            return "  No mappings defined"
+        
+        formatted = []
+        for local_key, asset_id in mapping.items():
+            formatted.append(f"  {local_key} → {asset_id}")
+        return "\n".join(formatted)
+    
+    def _format_available_assets(self, available_assets: List[Dict[str, Any]], current_hop: Hop) -> str:
+        """Format available assets with categorization"""
+        if not available_assets:
+            return "No assets available in hop state"
+        
+        # Categorize assets by their role in the hop
+        input_assets = []
+        output_assets = []
+        intermediate_assets = []
+        
+        for asset in available_assets:
+            asset_name = asset.get('name', 'Unnamed')
+            asset_type = asset.get('schema_definition', {}).get('type', 'unknown')
+            asset_description = asset.get('description', 'No description')
+            
+            # Determine category based on hop mappings
+            if asset_name in current_hop.input_mapping:
+                input_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+            elif asset_name in current_hop.output_mapping:
+                output_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+            else:
+                intermediate_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+        
+        # Build formatted string
+        sections = []
+        
+        if input_assets:
+            sections.append("**Input Assets (Available for tool parameters):**")
+            sections.extend(input_assets)
+            sections.append("")
+        
+        if output_assets:
+            sections.append("**Output Assets (Target outputs to produce):**")
+            sections.extend(output_assets)
+            sections.append("")
+        
+        if intermediate_assets:
+            sections.append("**Intermediate Assets (Available for processing):**")
+            sections.extend(intermediate_assets)
+            sections.append("")
+        
+        return "\n".join(sections) 

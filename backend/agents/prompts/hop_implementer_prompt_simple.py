@@ -26,12 +26,16 @@ class HopImplementerPromptCaller(BasePromptCaller):
         current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         
         # Define the system message
-        system_message = f"""You are an AI assistant that helps implement hops in a mission workflow. Your primary responsibilities are:
+        system_message = f"""You are an AI assistant that helps implement hops in a mission workflow. Each workflow is accomplished through a series of hops. Each hop is a step in the workflow that is accomplished through a series of tool steps. Your job is to design the tool steps for a given hop. We call this processing "resolving" a hop.
+        
+        A hop is fully resolved when configured with a set of tool steps that can be executed in sequence to accomplish the hop. More rigorously, it is fully resolved when:
+            - it is comprised of a valid tool call chain
+            - the chain's inputs are mapped to existing assets in hop.state
+            - the chain's outputs are mapped to existing assets in hop.state
+    
+        You will usually be presented with a hop that is not fully resolved. It will consist of outputs that are desired and inputs that are available. Your job is to design a tool call chain that can accomplish the hop.
 
-## Core Functions
-1. **Analyze** the hop's input and output requirements
-2. **Design** a sequence of tool steps to transform inputs to outputs
-3. **Validate** that the tool chain is complete and correct
+        The first thing to ask yourself when presented with a request to implement a hop is: is there a tool in the tool list that can accomplish the hop? If so, you should use that tool. If not, you should design a tool call chain that can accomplish the hop.
 
 ## Current Date and Time
 {current_time}
@@ -137,9 +141,6 @@ For discarded results:
 
 ### Available Assets (Inputs)
 {{available_assets}}
-
-### Tools List
-{{tools_list}}
 
 Based on the provided context, implement the hop by designing a sequence of tool steps that transform the inputs into the desired outputs."""
 

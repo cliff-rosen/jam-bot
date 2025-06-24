@@ -549,14 +549,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
         
-        # Convert HOP STATE assets to list format for the prompt
-        available_assets = [asset.model_dump(mode='json') for asset in current_hop.hop_state.values()] if current_hop else []
-        
         parsed_response = await promptCaller.invoke(
-            messages=state.messages,
-            mission=state.mission,
-            current_hop=current_hop,
-            available_assets=available_assets
+            mission=state.mission
         )
 
         # Create response message

@@ -126,38 +126,39 @@ For discarded results:
 
 ## Current Context
 Mission Context: {{mission}}
-Current Hop: {{current_hop}}
-Available Assets: {{available_assets}}
 
 Based on the provided context, implement the hop by designing a sequence of tool steps that transform the inputs into the desired outputs."""
 
-        # Initialize the base class
+        # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(
             response_model=HopImplementationResponse,
-            system_message=system_message
+            system_message=system_message,
+            messages_placeholder=False
         )
     
     async def invoke(
         self,
-        messages: List[Message],
         mission: Mission,
-        current_hop: Hop,
-        available_assets: List[Dict[str, Any]] = None,
         **kwargs: Dict[str, Any]
     ) -> HopImplementationResponse:
         """
         Invoke the hop implementer prompt.
         
         Args:
-            messages: List of conversation messages
-            mission: Current mission state
-            current_hop: The hop to implement
-            available_assets: List of available assets in hop state
+            mission: Current mission state (contains current_hop and hop_state)
             **kwargs: Additional variables to format into the prompt
             
         Returns:
             Parsed response as a HopImplementationResponse
         """
+        # Get current hop from mission
+        current_hop = mission.current_hop
+        if not current_hop:
+            raise ValueError("No current hop found in mission")
+        
+        # Get available assets from hop state
+        available_assets = [asset.model_dump(mode='json') for asset in current_hop.hop_state.values()]
+        
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_implementation()
         
@@ -185,11 +186,9 @@ Is Final: {current_hop.is_final}
         
         # Call base invoke with formatted variables
         response = await super().invoke(
-            messages=messages,
+            messages=[],  # Empty list since we don't need conversation history
             tool_descriptions=tool_descriptions,
-            mission=mission_str,
-            current_hop=hop_str,
-            available_assets=assets_str,
+            mission=f"{mission_str}\n\n{hop_str}\n\nAvailable Assets:\n{assets_str}",
             **kwargs
         )
 

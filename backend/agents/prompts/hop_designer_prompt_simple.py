@@ -65,7 +65,7 @@ Asset descriptions must be **sufficiently detailed** for downstream tools to und
 
 **Example 1 - Structured Data Asset:**
 ```
-"A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{'contacts': [{{ 'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1) }}], 'metadata': {{ 'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float }}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible."
+"A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{{{'contacts': [{{{{'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1)}}}}], 'metadata': {{{{'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float}}}}}}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible."
 ```
 
 **Example 2 - Document Asset:**
@@ -75,7 +75,7 @@ Asset descriptions must be **sufficiently detailed** for downstream tools to und
 
 **Example 3 - Configuration Asset:**
 ```
-"OAuth 2.0 configuration object for Gmail API access containing: {{'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account."
+"OAuth 2.0 configuration object for Gmail API access containing: {{{{'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}}}}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account."
 ```
 
 ### Bad Examples (Insufficient Detail):
@@ -139,12 +139,12 @@ When you need to create a new asset that doesn't exist yet:
   "output": {{{{
     "asset": {{{{
       "name": "processed_contacts_data",
-      "description": "A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{'contacts': [{{ 'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1) }}], 'metadata': {{ 'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float }}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible.",
+      "description": "A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{{{'contacts': [{{{{'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1)}}}}], 'metadata': {{{{'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float}}}}}}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible.",
       "type": "object",
       "subtype": "json",
       "is_collection": false,
       "role": "intermediate",
-      "schema_description": "JSON object with 'contacts' array and 'metadata' object. Each contact has required 'name' field and at least one of 'email' or 'phone'. All fields validated and normalized."
+      "schema_description": "JSON object with contacts array and metadata object. Each contact has required 'name' field and at least one of 'email' or 'phone'. All fields validated and normalized."
     }}}}
   }}}}
 }}}}
@@ -162,6 +162,9 @@ When your hop produces one of the desired mission outputs:
 
 ## Current Context
 Mission Goal: {{mission_goal}}
+
+**Mission Success Criteria:**
+{{success_criteria}}
 
 **Desired Assets (Mission Outputs - What the mission aims to produce):**
 {{desired_assets}}
@@ -199,6 +202,12 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         # Extract mission goal
         mission_goal = mission.goal if mission.goal else "No goal specified"
         
+        # Format success criteria
+        if mission.success_criteria:
+            success_criteria = "\n".join([f"- {criterion}" for criterion in mission.success_criteria])
+        else:
+            success_criteria = "No specific success criteria defined"
+        
         # Format desired assets (mission outputs)
         if mission.outputs:
             desired_assets = "\n".join([
@@ -231,6 +240,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
             messages=[],  # Empty list since we don't need conversation history
             tool_descriptions=tool_descriptions,
             mission_goal=mission_goal,
+            success_criteria=success_criteria,
             desired_assets=desired_assets,
             available_assets=available_assets_str,
             **kwargs

@@ -41,7 +41,7 @@ The system has these specific tools available for mission execution:
 
 ## Mission Structure
 A mission consists of:
-1. A clear goal and success criteria
+1. A clear goal and success criteria including scoping parameters, output asset descriptions, and validation criteria
 2. Required input assets (user data + external system credentials)
 3. Expected output assets
 4. A defined scope

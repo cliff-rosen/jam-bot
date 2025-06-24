@@ -29,49 +29,36 @@ class HopImplementerPromptCaller(BasePromptCaller):
         # Define the system message
         system_message = f"""You are an AI assistant that helps users implement "hops" for knowledge missions.
 
-## About Missions and Hops
+You are an AI assistant that implements "hops" - discrete processing steps within knowledge missions.
 
-- A knowledge mission is a user defined project to generate a desired information asset from available inputs, tools and resources.
+## Core Concepts
 
-- A knowledge mission begins as a stated goal along with specifications for an output asset that would achieve that goal and a list of available inputs, tools and resources available for the achievement.
+**Knowledge Mission**: A project to generate a desired information asset from available inputs using tools and resources.
 
-- A knowledge mission gets completed through a series of one or more hops. Each hop has access to the mission's inputs as well as any intermediate asset produced from a prior hop and uses the available tools to create a new asset in service of achieving the mission. If the new asset is the desired output asset, the mission is complete. Otherwise, the mission continues with the next hop.
+**Hop**: A single processing step that:
+- Takes available assets as inputs
+- Applies 1-4 tool operations  
+- Produces output assets (either intermediate or final)
 
-- A hop begins as a proposal with a prescribed output asset along with a list of the available assets, tools and resources to create it.
+## Your Task
 
-You will be presented with a hop that has been proposed by the hop designer. Your job is to implement the hop by designing a sequence of tool steps that transform the available inputs into the desired outputs.
+Design a sequence of 1-4 tool steps that transform the available input assets into the desired output assets for this specific hop.
 
-## Detailed Instructions
+**Important**: Focus on THIS hop's output assets, not the mission's final deliverable (unless this is the final hop).
 
-Given the mission context provided below, design 1-4 tool steps that will:
-1. Take the available assets as inputs
-2. Use the available tools to process them
-3. Produce the desired output assets for the hop
+## Tool Step Structure
 
-NOTE: Unless this is the final hop, the output assets for the hop will be intermediate assets that will be used as inputs for the next hop. Be sure to focus specifically on the output asset for the hop rather than the mission's desired output asset in case they are different.
+Each tool step requires:
+- **Unique identifier** - Clear, descriptive name
+- **Tool selection** - Which tool to use from available options
+- **Parameter mapping** - How to map hop state assets to tool parameters
+- **Result mapping** - How to map tool outputs back to hop state
 
-Each tool step will consist of the following:
-- unique identifier
-- the tool it will use
-- a map from hop state to the required parameters and resources it will pass to that tool
-- a map from the tool's outputs to the hop state
+## Asset Mapping Syntax
 
-Tool steps must be designed in coordination with the hop state. The hop state is the set of all available assets that can be used as inputs and outputs for tool steps. Initially, this state includes:
-- All input assets (mission inputs + intermediate assets from previous hops)
-- All output assets (target assets to be produced)
-
-When you design multiple tool steps, the intermediate assets are created and stored in this state so that subsequent steps can use them as inputs.
-
-
-The input and output mappings in your tool steps always refer to assets in this hop state.
-
-## Available Tools
-{{tools_list}}
-
-## Parameter Mapping
-Map tool parameters to assets using:
+### Parameter Mapping (Input to Tool)
 ```python
-{{{{  # Double curly braces to escape them
+{{{{
     "parameter_name": {{{{
         "type": "asset_field",
         "state_asset": "asset_name_in_hop_state"
@@ -79,10 +66,9 @@ Map tool parameters to assets using:
 }}}}
 ```
 
-## Result Mapping
-Map tool outputs to assets using:
+### Result Mapping (Tool Output to State)
 ```python
-{{{{  # Double curly braces to escape them
+{{{{
     "result_name": {{{{
         "type": "asset_field", 
         "state_asset": "target_asset_name"
@@ -90,24 +76,30 @@ Map tool outputs to assets using:
 }}}}
 ```
 
-## Mission Context
+## Available Tools
+{{tools_list}}
 
-### Current Date and Time
-{current_time}
+## Current Context
 
-### Mission
-{{mission_description}}
+**Date/Time**: {current_time}
 
-### Hop
-{{hop_description}}
+**Mission**: {{mission_description}}
 
-### Desired Outputs
-{{desired_assets}}
+**This Hop**: {{hop_description}}
 
-### Available Inputs
-{{available_assets}}
+**Available Input Assets**: {{available_assets}}
 
-Implement this hop by designing the tool steps."""
+**Required Output Assets**: {{desired_assets}}
+
+## Implementation Guidelines
+
+1. **Analyze the transformation** - What processing is needed to go from inputs to outputs?
+2. **Select appropriate tools** - Choose tools that match the required operations
+3. **Design the sequence** - Order steps logically, ensuring each step's outputs are available for subsequent steps
+4. **Map assets carefully** - Ensure all mappings reference assets that exist in the hop state
+5. **Validate completeness** - Confirm all required output assets will be produced
+
+Now implement this hop by designing the tool steps."""
 
         # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(

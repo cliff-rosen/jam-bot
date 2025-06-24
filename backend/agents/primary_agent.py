@@ -2,7 +2,6 @@ from typing import Dict, Any, AsyncIterator, List
 import json
 import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
-from serpapi import GoogleSearch
 import uuid
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
@@ -17,14 +16,13 @@ from config.settings import settings
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
 from schemas.asset import Asset, AssetStatus, AssetMetadata
-from schemas.lite_models import AssetLite, create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
+from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
 from schemas.base import SchemaType, ValueType
 
-from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller, MissionDefinitionResponse
-from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller, HopDesignResponse
+from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
+from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller
 from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
 
-from utils.prompt_logger import log_hop_implementer_prompt, log_prompt_messages
 from utils.string_utils import canonical_key
 from utils.state_serializer import (
     serialize_state, serialize_mission, serialize_hop,
@@ -382,7 +380,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         # Handle different response types
         if parsed_response.response_type == "IMPLEMENTATION_PLAN":
-            result = _process_implementation_plan(parsed_response, current_hop, state)
+            result = _process_implementation_plan(parsed_response, current_hop)
             response_message.content = result.response_content
             
             # Apply the changes to the state if processing was successful
@@ -842,8 +840,7 @@ class ImplementationPlanResult:
 
 def _process_implementation_plan(
     parsed_response: 'HopImplementationResponse', 
-    current_hop: Hop, 
-    state: State
+    current_hop: Hop
 ) -> ImplementationPlanResult:
     """
     Process an implementation plan response from the hop implementer.

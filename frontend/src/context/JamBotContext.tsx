@@ -553,6 +553,11 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
                     const missionOutputId = hop.output_mapping[hopAssetKey];
                     if (missionOutputId) {
+                        // Determine the correct mission-level role for this asset
+                        // Check if this asset ID exists in the mission state to get its original role
+                        const originalMissionAsset = state.mission?.mission_state[missionOutputId];
+                        const missionRole = originalMissionAsset?.role || 'intermediate';
+
                         // Create a complete copy of the asset with the mission asset ID
                         const missionAsset: Asset = {
                             ...asset,
@@ -565,7 +570,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                             subtype: asset.subtype,
                             is_collection: asset.is_collection,
                             collection_type: asset.collection_type,
-                            role: asset.role,
+                            role: missionRole, // Use the original mission-level role, not the hop-level role
                             asset_metadata: {
                                 ...asset.asset_metadata,
                                 updatedAt: new Date().toISOString()

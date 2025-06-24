@@ -566,8 +566,25 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
     """
     errors: List[str] = []
     
-    # Track which assets are available at each step
-    available_assets = set(hop_state.keys())  # Start with initial hop state
+    # Track which assets are available at each step based on their roles
+    # Start with only INPUT assets - outputs and intermediates are not available until produced!
+    available_assets = set()
+    input_assets = set()
+    output_assets = set()
+    intermediate_assets = set()
+    
+    # Categorize assets by role
+    for asset_name, asset in hop_state.items():
+        if asset.role == 'input':
+            available_assets.add(asset_name)  # Input assets are immediately available
+            input_assets.add(asset_name)
+        elif asset.role == 'output':
+            output_assets.add(asset_name)  # Output assets only available after production
+        elif asset.role == 'intermediate':
+            intermediate_assets.add(asset_name)  # Intermediate assets only available after creation
+        else:
+            # Handle assets without explicit roles - treat as intermediate for safety
+            intermediate_assets.add(asset_name)
     
     for step_index, step in enumerate(steps):
         tool_def = TOOL_REGISTRY.get(step.tool_id)
@@ -591,23 +608,23 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
                 
             # if the tool parameter is an asset field, we need to check if the asset is available
             if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
-                state_asset = mapping.get('state_asset')
-                if not state_asset:
+                state_asset_id = mapping.get('state_asset')
+                if not state_asset_id:
                     errors.append(f"Step '{step.id}': Missing state_asset in parameter mapping for '{param_name}'")
                     continue
                     
                 # Check if asset is available (either in initial state or created by previous steps)
-                if state_asset not in available_assets:
+                if state_asset_id not in available_assets:
                     errors.append(
-                        f"Step '{step.id}' (step {step_index + 1}): Asset '{state_asset}' for parameter '{param_name}' is not available. "
+                        f"Step '{step.id}' (step {step_index + 1}): Asset '{state_asset_id}' for parameter '{param_name}' is not available. "
                         f"Available assets at this step: {', '.join(sorted(available_assets))}"
                     )
                     continue
-                
+
                 # Check if asset exists in hop state (for schema validation)
-                if state_asset not in hop_state:
+                if state_asset_id not in hop_state:
                     errors.append(
-                        f"Step '{step.id}': Asset '{state_asset}' for parameter '{param_name}' not found in hop state. "
+                        f"Step '{step.id}': Asset '{state_asset_id}' for parameter '{param_name}' not found in hop state. "
                         f"Available assets: {', '.join(hop_state.keys())}"
                     )
                     continue

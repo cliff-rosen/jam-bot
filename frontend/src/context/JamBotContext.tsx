@@ -701,7 +701,9 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         let streamingContent = '';
 
         try {
-            const filteredMessages = state.currentMessages.filter(msg => msg.role !== MessageRole.STATUS);
+            const filteredMessages = state.currentMessages.filter(msg =>
+                msg.role !== MessageRole.STATUS && msg.role !== MessageRole.TOOL
+            );
 
             // Create a sanitized mission payload with truncated asset values for backend
             const sanitizedMission = state.mission ? {

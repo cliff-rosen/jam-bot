@@ -73,7 +73,6 @@ def serialize_state(state: State) -> dict:
     state_dict = state.model_dump()
     return convert_datetime(state_dict)
 
-
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
     print("Supervisor - Routing based on mission and hop status")
@@ -409,7 +408,6 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         }
 
         if writer:
-            hop_name = current_hop.name
             next_status = "ready for next hop" if not current_hop.is_final else "mission complete"
             
             # Include hop in payload if it's successfully implemented (ready to execute)

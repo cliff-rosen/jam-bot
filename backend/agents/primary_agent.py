@@ -6,6 +6,7 @@ from serpapi import GoogleSearch
 import uuid
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from dataclasses import dataclass
 import os
 
 from langgraph.graph import StateGraph, START, END
@@ -381,8 +382,19 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         # Handle different response types
         if parsed_response.response_type == "IMPLEMENTATION_PLAN":
-            success, response_content = _process_implementation_plan(parsed_response, current_hop, state)
-            response_message.content = response_content
+            result = _process_implementation_plan(parsed_response, current_hop, state)
+            response_message.content = result.response_content
+            
+            # Apply the changes to the state if processing was successful
+            if result.success:
+                # Update the current hop in the mission state
+                state.mission.current_hop = result.updated_hop
+                # Also update the local reference for consistency
+                current_hop = result.updated_hop
+            else:
+                # If validation failed, we still need to update status for clarification
+                current_hop.status = result.updated_hop.status
+                state.mission.current_hop.status = result.updated_hop.status
             
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
@@ -816,29 +828,44 @@ def _process_hop_proposal(hop_lite: HopLite, mission_state: Dict[str, Asset]) ->
     
     return new_hop, proposed_assets
 
+@dataclass
+class ImplementationPlanResult:
+    """Result of processing an implementation plan"""
+    success: bool
+    response_content: str
+    updated_hop: Hop
+    validation_errors: List[str] = None
+    
+    def __post_init__(self):
+        if self.validation_errors is None:
+            self.validation_errors = []
+
 def _process_implementation_plan(
     parsed_response: 'HopImplementationResponse', 
     current_hop: Hop, 
     state: State
-) -> tuple[bool, str]:
+) -> ImplementationPlanResult:
     """
     Process an implementation plan response from the hop implementer.
     
     Args:
         parsed_response: The response from the hop implementer
-        current_hop: The current hop being implemented
-        state: The current state
+        current_hop: The current hop being implemented (will not be modified)
+        state: The current state (will not be modified)
         
     Returns:
-        tuple: (success, response_content)
+        ImplementationPlanResult: The result of processing the implementation plan
     """
     if not parsed_response.tool_steps:
         raise ValueError("Response type is IMPLEMENTATION_PLAN but no tool steps were provided")
     
+    # Create a deep copy of the hop to avoid mutating the original
+    updated_hop = copy.deepcopy(current_hop)
+    
     # Find assets that are referenced in tool steps but don't exist in hop state
     # These are truly intermediate assets that need to be created
     referenced_assets = set()
-    existing_assets = set(current_hop.hop_state.keys())
+    existing_assets = set(updated_hop.hop_state.keys())
     
     for step in parsed_response.tool_steps:
         # Check parameter mappings for asset references
@@ -854,7 +881,7 @@ def _process_implementation_plan(
     # Identify truly intermediate assets (referenced but not existing)
     intermediate_assets = referenced_assets - existing_assets
     
-    # Create missing intermediate assets
+    # Create missing intermediate assets in the copy
     for asset_name in intermediate_assets:
         new_asset = Asset(
             id=asset_name,  # Use the asset name as the ID to match local key
@@ -877,15 +904,14 @@ def _process_implementation_plan(
             subtype=None,  # No specific subtype
             collection_type=None  # Not a collection
         )
-        current_hop.hop_state[asset_name] = new_asset
+        updated_hop.hop_state[asset_name] = new_asset
     
     # Validate the tool chain with all assets in place
-    validation_errors = validate_tool_chain(parsed_response.tool_steps, current_hop.hop_state)
+    validation_errors = validate_tool_chain(parsed_response.tool_steps, updated_hop.hop_state)
     
     if validation_errors:
         # Validation failed - keep hop in ready to resolve state
-        current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-        state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+        updated_hop.status = HopStatus.HOP_READY_TO_RESOLVE
         
         formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
         error_message = (
@@ -893,24 +919,32 @@ def _process_implementation_plan(
             formatted_errors + "\n\n" +
             "Please revise the plan to address these issues."
         )
-        return False, error_message
+        return ImplementationPlanResult(
+            success=False, 
+            response_content=error_message, 
+            updated_hop=updated_hop, 
+            validation_errors=validation_errors
+        )
     
     # Validation passed - accept the implementation plan
     # Convert ToolStepLite objects to ToolStep objects
     from schemas.lite_models import create_tool_step_from_lite
-    current_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
-    current_hop.is_resolved = True
-    current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
-    current_hop.updated_at = datetime.utcnow()
-    
-    state.mission.current_hop.status = HopStatus.HOP_READY_TO_EXECUTE
+    updated_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
+    updated_hop.is_resolved = True
+    updated_hop.status = HopStatus.HOP_READY_TO_EXECUTE
+    updated_hop.updated_at = datetime.utcnow()
     
     # Create success message
     success_message = parsed_response.response_content
     if parsed_response.reasoning:
         success_message = f"{success_message}\n\nImplementation Reasoning: {parsed_response.reasoning}"
     
-    return True, success_message
+    return ImplementationPlanResult(
+        success=True, 
+        response_content=success_message, 
+        updated_hop=updated_hop, 
+        validation_errors=[]
+    )
 
 class PrimaryAgent:
     def __init__(self, mission: "Mission" = None):

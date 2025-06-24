@@ -171,19 +171,41 @@ def create_tool_step_from_lite(step_lite: ToolStepLite) -> ToolStep:
     
     # Convert resource configs from Dict[str, Any] to Dict[str, Resource]
     resource_configs = {}
-    for resource_id, config in step_lite.resource_configs.items():
+    for resource_key, config in step_lite.resource_configs.items():
         if isinstance(config, dict):
             # This is a configuration dict, we need to get the Resource definition
+            # The resource_key is the key in the mapping, config should contain the resource ID
+            resource_id = config.get('resource_id', resource_key)
             resource_def = get_resource(resource_id)
             if resource_def:
-                resource_configs[resource_id] = resource_def
+                resource_configs[resource_key] = resource_def
             else:
                 # If we can't find the resource definition, skip it
                 # This prevents the validation error but logs the issue
                 print(f"Warning: Resource '{resource_id}' not found in registry for tool step '{step_lite.id}'")
+        elif isinstance(config, str):
+            # This is a string reference to a resource ID
+            # Handle common mappings where the AI might use different names
+            resource_id_mapping = {
+                'gmail_login_credentials': 'gmail',
+                'gmail_credentials': 'gmail',
+                'gmail_oauth': 'gmail',
+                'pubmed_credentials': 'pubmed',
+                'web_search_credentials': 'web_search',
+                'dropbox_credentials': 'dropbox'
+            }
+            
+            actual_resource_id = resource_id_mapping.get(config, config)
+            resource_def = get_resource(actual_resource_id)
+            if resource_def:
+                resource_configs[resource_key] = resource_def
+            else:
+                # If we can't find the resource definition, skip it
+                # This prevents the validation error but logs the issue
+                print(f"Warning: Resource '{config}' (mapped to '{actual_resource_id}') not found in registry for tool step '{step_lite.id}'")
         else:
             # Assume it's already a Resource object (shouldn't happen but be safe)
-            resource_configs[resource_id] = config
+            resource_configs[resource_key] = config
     
     return ToolStep(
         id=step_lite.id,

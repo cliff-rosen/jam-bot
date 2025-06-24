@@ -6,7 +6,7 @@ from schemas.chat import Message
 from schemas.workflow import Mission, Hop
 from schemas.lite_models import ToolStepLite
 
-from utils.message_formatter import format_assets, format_mission, format_tool_descriptions_for_implementation
+from utils.message_formatter import format_tool_descriptions_for_implementation
 
 from .base_prompt_caller import BasePromptCaller
 
@@ -39,7 +39,7 @@ class HopImplementerPromptCaller(BasePromptCaller):
 ## Available Tools
 The system has these specific tools available for hop implementation:
 
-{{tool_descriptions}}
+{{tools_list}}
 
 ## Implementation Guidelines
 1. **Asset Management**:
@@ -125,7 +125,21 @@ For discarded results:
 5. **Validate Completeness**: Verify that all inputs are used and all outputs are produced
 
 ## Current Context
-Mission Context: {{mission}}
+
+### Mission Description
+{{mission_description}}
+
+### Hop Description
+{{hop_description}}
+
+### Desired Assets (Target Outputs)
+{{desired_assets}}
+
+### Available Assets (Inputs)
+{{available_assets}}
+
+### Tools List
+{{tools_list}}
 
 Based on the provided context, implement the hop by designing a sequence of tool steps that transform the inputs into the desired outputs."""
 
@@ -156,57 +170,60 @@ Based on the provided context, implement the hop by designing a sequence of tool
         if not current_hop:
             raise ValueError("No current hop found in mission")
         
-        # Get available assets from hop state
-        available_assets = [asset.model_dump(mode='json') for asset in current_hop.hop_state.values()]
+        # Extract and format the essential inputs
+        mission_description = self._format_mission_description(mission)
+        hop_description = self._format_hop_description(current_hop)
+        desired_assets = self._format_desired_assets(current_hop)
+        available_assets = self._format_available_assets(current_hop)
+        tools_list = format_tool_descriptions_for_implementation()
         
-        # Format tool descriptions
-        tool_descriptions = format_tool_descriptions_for_implementation()
-        
-        # Format mission context (concise version for hop implementation)
-        mission_str = format_mission(mission, context_for_hop=True)
-        
-        # Format current hop with detailed information
-        hop_str = f"""
-Name: {current_hop.name}
-Description: {current_hop.description}
-Rationale: {current_hop.rationale if current_hop.rationale else 'No rationale provided'}
-
-Input Mapping (Local Key → Mission Asset ID):
-{self._format_mapping(current_hop.input_mapping)}
-
-Output Mapping (Local Key → Mission Asset ID):
-{self._format_mapping(current_hop.output_mapping)}
-
-Status: {current_hop.status}
-Is Final: {current_hop.is_final}
-"""
-        
-        # Format available assets with categorization
-        assets_str = self._format_available_assets(available_assets, current_hop)
-        
-        # Call base invoke with formatted variables
+        # Call base invoke with individual variables
         response = await super().invoke(
             messages=[],  # Empty list since we don't need conversation history
-            tool_descriptions=tool_descriptions,
-            mission=f"{mission_str}\n\n{hop_str}\n\nAvailable Assets:\n{assets_str}",
+            mission_description=mission_description,
+            hop_description=hop_description,
+            desired_assets=desired_assets,
+            available_assets=available_assets,
+            tools_list=tools_list,
             **kwargs
         )
 
         return response
     
-    def _format_mapping(self, mapping: Dict[str, str]) -> str:
-        """Format input/output mapping for display"""
-        if not mapping:
-            return "  No mappings defined"
+    def _format_mission_description(self, mission: Mission) -> str:
+        """Format mission description for the prompt"""
+        return f"""Name: {mission.name}
+Description: {mission.description}
+Goal: {mission.goal}
+Success Criteria: {', '.join(mission.success_criteria)}"""
+
+    def _format_hop_description(self, hop: Hop) -> str:
+        """Format hop description for the prompt"""
+        return f"""Name: {hop.name}
+Description: {hop.description}
+Rationale: {hop.rationale if hop.rationale else 'No rationale provided'}
+Is Final: {hop.is_final}"""
+
+    def _format_desired_assets(self, hop: Hop) -> str:
+        """Format desired (output) assets for the prompt"""
+        if not hop.output_mapping:
+            return "No output assets defined"
         
-        formatted = []
-        for local_key, asset_id in mapping.items():
-            formatted.append(f"  {local_key} → {asset_id}")
-        return "\n".join(formatted)
-    
-    def _format_available_assets(self, available_assets: List[Dict[str, Any]], current_hop: Hop) -> str:
-        """Format available assets with categorization"""
-        if not available_assets:
+        output_assets = []
+        for local_key, asset_id in hop.output_mapping.items():
+            # Get the asset from hop state if available
+            if local_key in hop.hop_state:
+                asset = hop.hop_state[local_key]
+                asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
+                output_assets.append(f"- {local_key} ({asset_type}): {asset.description}")
+            else:
+                output_assets.append(f"- {local_key}: Asset ID {asset_id} (not in hop state)")
+        
+        return "\n".join(output_assets)
+
+    def _format_available_assets(self, hop: Hop) -> str:
+        """Format available (input) assets for the prompt"""
+        if not hop.hop_state:
             return "No assets available in hop state"
         
         # Categorize assets by their role in the hop
@@ -214,15 +231,14 @@ Is Final: {current_hop.is_final}
         output_assets = []
         intermediate_assets = []
         
-        for asset in available_assets:
-            asset_name = asset.get('name', 'Unnamed')
-            asset_type = asset.get('schema_definition', {}).get('type', 'unknown')
-            asset_description = asset.get('description', 'No description')
+        for asset_name, asset in hop.hop_state.items():
+            asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
+            asset_description = asset.description
             
             # Determine category based on hop mappings
-            if asset_name in current_hop.input_mapping:
+            if asset_name in hop.input_mapping:
                 input_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
-            elif asset_name in current_hop.output_mapping:
+            elif asset_name in hop.output_mapping:
                 output_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
             else:
                 intermediate_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")

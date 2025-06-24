@@ -27,9 +27,7 @@ class HopImplementerPromptCaller(BasePromptCaller):
         current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         
         # Define the system message
-        system_message = f"""You are an AI assistant that helps users implement "hops" for knowledge missions.
-
-You are an AI assistant that implements "hops" - discrete processing steps within knowledge missions.
+        system_message = f"""You are an AI assistant that implements "hops" - discrete processing steps within knowledge missions.
 
 ## Core Concepts
 
@@ -45,6 +43,30 @@ You are an AI assistant that implements "hops" - discrete processing steps withi
 Design a sequence of 1-4 tool steps that transform the available input assets into the desired output assets for this specific hop.
 
 **Important**: Focus on THIS hop's output assets, not the mission's final deliverable (unless this is the final hop).
+
+## CRITICAL: Asset Description Analysis
+
+Before implementing, carefully analyze the asset descriptions provided:
+
+### What to Look For in Asset Descriptions:
+1. **Data Structure**: Exact fields, hierarchy, and organization
+2. **Format Requirements**: File formats, encoding, validation rules  
+3. **Content Specifications**: Required information, constraints, patterns
+4. **Quality Criteria**: How to validate completeness and correctness
+5. **Tool Integration**: How other tools should interpret this asset
+
+### When Asset Descriptions Are Insufficient:
+If asset descriptions lack critical details needed for tool configuration, respond with `CLARIFICATION_NEEDED` and specify:
+- What specific information is missing
+- Why this information is needed for tool configuration
+- What assumptions you would make if forced to proceed
+
+### Examples of Missing Information That Requires Clarification:
+- ❌ Vague descriptions like "processed data" or "clean content"
+- ❌ No schema/structure information for structured data assets
+- ❌ Missing format specifications for files or documents
+- ❌ No validation criteria for determining success
+- ❌ Unclear data types or field requirements
 
 ## Tool Step Structure
 
@@ -71,11 +93,13 @@ Each tool step requires:
 
 ## Implementation Guidelines
 
-1. **Analyze the transformation** - What processing is needed to go from inputs to outputs?
-2. **Select appropriate tools** - Choose tools that match the required operations
-3. **Design the sequence** - Order steps logically, ensuring each step's outputs are available for subsequent steps
-4. **Map assets carefully** - Ensure all mappings reference assets that exist in the hop state
-5. **Validate completeness** - Confirm all required output assets will be produced
+1. **Analyze Asset Descriptions** - Verify output asset descriptions contain sufficient detail for tool configuration
+2. **Analyze the transformation** - What processing is needed to go from inputs to outputs?
+3. **Select appropriate tools** - Choose tools that match the required operations and can produce the specified output format
+4. **Design the sequence** - Order steps logically, ensuring each step's outputs are available for subsequent steps
+5. **Map assets carefully** - Ensure all mappings reference assets that exist in the hop state
+6. **Validate completeness** - Confirm all required output assets will be produced according to their detailed specifications
+7. **Consider tool capabilities** - Ensure selected tools can actually produce outputs matching the asset descriptions
 
 ## Asset Mapping Syntax
 
@@ -84,7 +108,8 @@ Each tool step requires:
 {{{{
     "parameter_name": {{{{
         "type": "asset_field",
-        "state_asset": "asset_name_in_hop_state"
+        "state_asset": "asset_name_in_hop_state",
+        "path": "optional.nested.field.path"
     }}}}
 }}}}
 ```
@@ -98,6 +123,28 @@ Each tool step requires:
     }}}}
 }}}}
 ```
+
+## Implementation Quality Checks
+
+Before finalizing your implementation, verify:
+1. ✅ All output assets can be produced with the selected tools
+2. ✅ Tool parameters are correctly mapped to available input assets
+3. ✅ Output format matches the detailed asset description requirements
+4. ✅ Validation criteria from asset descriptions can be satisfied
+5. ✅ Tool sequence is logical and dependencies are resolved
+6. ✅ All required fields/properties specified in asset descriptions will be populated
+
+## Response Guidelines
+
+### For IMPLEMENTATION_PLAN:
+- Include detailed reasoning for tool selection
+- Explain how each tool step contributes to the output asset requirements
+- Describe how the implementation satisfies the asset description specifications
+
+### For CLARIFICATION_NEEDED:
+- Specify exactly what asset description details are missing
+- Explain why this information is critical for tool configuration
+- Suggest what the asset description should include
 
 Now implement this hop by designing the tool steps."""
 
@@ -163,7 +210,7 @@ Rationale: {hop.rationale if hop.rationale else 'No rationale provided'}
 Is Final: {hop.is_final}"""
 
     def _format_desired_assets(self, hop: Hop) -> str:
-        """Format desired (output) assets for the prompt"""
+        """Format desired (output) assets for the prompt with enhanced detail"""
         if not hop.output_mapping:
             return "No output assets defined"
         
@@ -173,14 +220,30 @@ Is Final: {hop.is_final}"""
             if local_key in hop.hop_state:
                 asset = hop.hop_state[local_key]
                 asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
-                output_assets.append(f"- {local_key} ({asset_type}): {asset.description}")
+                
+                # Enhanced formatting with schema information
+                asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
+                
+                # Add schema description if available
+                if asset.schema_definition and asset.schema_definition.description:
+                    asset_info += f"\n  Schema: {asset.schema_definition.description}"
+                
+                # Add subtype if available
+                if asset.subtype:
+                    asset_info += f"\n  Subtype: {asset.subtype}"
+                
+                # Add collection info if applicable
+                if asset.is_collection and asset.collection_type:
+                    asset_info += f"\n  Collection: {asset.collection_type}"
+                
+                output_assets.append(asset_info)
             else:
                 output_assets.append(f"- {local_key}: Asset ID {asset_id} (not in hop state)")
         
-        return "\n".join(output_assets)
+        return "\n\n".join(output_assets)
 
     def _format_available_assets(self, hop: Hop) -> str:
-        """Format available (input) assets for the prompt"""
+        """Format available (input) assets for the prompt with enhanced detail"""
         if not hop.hop_state:
             return "No assets available in hop state"
         
@@ -191,15 +254,29 @@ Is Final: {hop.is_final}"""
         
         for asset_name, asset in hop.hop_state.items():
             asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
-            asset_description = asset.description
+            
+            # Enhanced asset information formatting
+            asset_info = f"- **{asset_name}** ({asset_type}): {asset.description}"
+            
+            # Add additional details if available
+            details = []
+            if asset.subtype:
+                details.append(f"Subtype: {asset.subtype}")
+            if asset.is_collection and asset.collection_type:
+                details.append(f"Collection: {asset.collection_type}")
+            if asset.schema_definition and asset.schema_definition.description:
+                details.append(f"Schema: {asset.schema_definition.description}")
+            
+            if details:
+                asset_info += f"\n  {' | '.join(details)}"
             
             # Determine category based on hop mappings
             if asset_name in hop.input_mapping:
-                input_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+                input_assets.append(asset_info)
             elif asset_name in hop.output_mapping:
-                output_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+                output_assets.append(asset_info)
             else:
-                intermediate_assets.append(f"- {asset_name} ({asset_type}): {asset_description}")
+                intermediate_assets.append(asset_info)
         
         # Build formatted string
         sections = []

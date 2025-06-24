@@ -49,6 +49,41 @@ The system has these specific tools available for hop implementation:
 3. **Cohesive Goals**: Each hop should have a clear, focused purpose
 4. **Input/Output Focus**: Each hop should clearly map inputs to outputs
 
+## CRITICAL: Asset Description Requirements
+
+Asset descriptions must be **sufficiently detailed** for downstream tools to understand:
+
+### For Output Assets - Include ALL of these details:
+1. **Data Structure**: Describe the exact structure, fields, and hierarchy
+2. **Format Specifications**: File formats, data formats, encoding, etc.
+3. **Content Requirements**: What specific information must be included
+4. **Validation Criteria**: How to determine if the asset is complete and correct
+5. **Tool Integration**: How downstream tools should interpret and use this asset
+6. **Schema Definition**: For structured data, describe the expected schema
+
+### Examples of GOOD Asset Descriptions:
+
+**Example 1 - Structured Data Asset:**
+```
+"A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{'contacts': [{{ 'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1) }}], 'metadata': {{ 'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float }}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible."
+```
+
+**Example 2 - Document Asset:**
+```
+"A clean, well-formatted markdown document containing the final research report. Must include: executive summary (2-3 paragraphs), methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy (# ## ###), include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation."
+```
+
+**Example 3 - Configuration Asset:**
+```
+"OAuth 2.0 configuration object for Gmail API access containing: {{'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account."
+```
+
+### Bad Examples (Insufficient Detail):
+- ❌ "Processed data from the input"
+- ❌ "Clean email content"  
+- ❌ "Configuration for API access"
+- ❌ "Extracted information"
+
 ## Asset Type Guidelines
 1. Valid primitive types: 'string', 'number', 'boolean', 'primitive'
 2. Valid complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
@@ -76,7 +111,7 @@ These are the **current assets** in the mission state that can be used as inputs
 ## Hop Design Guidelines
 1. **Inputs**: List ONLY asset IDs from the "Available Assets" section as inputs for this hop. Use the exact asset ID (e.g., "asset_123") from the available assets list.
 2. **Output**: Define the output asset for this hop. You have two options:
-   a. **Create a new asset**: Define its complete schema and properties using the AssetLite format
+   a. **Create a new asset**: Define its complete schema and properties using the AssetLite format with DETAILED description
    b. **Use an existing mission asset**: If your output matches one of the "Desired Assets", reference it by its mission asset ID
    *** Always choose an existing asset if you feel that can be reasonably produced in a single remaining hop.
 3. **Progress Toward Goals**: Your hop should make progress toward the "Desired Assets" using the "Available Assets"
@@ -103,12 +138,13 @@ When you need to create a new asset that doesn't exist yet:
 {{{{
   "output": {{{{
     "asset": {{{{
-      "name": "processed_data",
-      "description": "Cleaned and processed data from the input source",
+      "name": "processed_contacts_data",
+      "description": "A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{'contacts': [{{ 'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1) }}], 'metadata': {{ 'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float }}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible.",
       "type": "object",
       "subtype": "json",
       "is_collection": false,
-      "role": "intermediate"
+      "role": "intermediate",
+      "schema_description": "JSON object with 'contacts' array and 'metadata' object. Each contact has required 'name' field and at least one of 'email' or 'phone'. All fields validated and normalized."
     }}}}
   }}}}
 }}}}
@@ -133,7 +169,7 @@ Mission Goal: {{mission_goal}}
 **Available Assets (Mission State - What you can use as inputs):**
 {{available_assets}}
 
-Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets."""
+Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset descriptions must be detailed enough for the hop implementer to correctly configure tools and validate outputs."""
 
         # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(

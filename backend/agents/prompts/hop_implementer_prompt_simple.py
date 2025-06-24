@@ -15,6 +15,7 @@ class HopImplementationResponse(BaseModel):
     response_type: str = Field(description="Type of response: IMPLEMENTATION_PLAN or CLARIFICATION_NEEDED")
     response_content: str = Field(description="The main response text to add to the conversation")
     tool_steps: List[ToolStepLite] = Field(default_factory=list, description="List of tool steps to implement the hop")
+    hop_state: Dict[str, Any] = Field(default_factory=dict, description="Updated hop state including any intermediate assets created")
     missing_information: List[str] = Field(default_factory=list, description="List of missing information if clarification is needed")
     reasoning: str = Field(description="Explanation of the implementation decisions made")
 

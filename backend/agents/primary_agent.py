@@ -410,9 +410,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             mission=state.mission
         )
 
-        # pretty print the parsed response
-        print(f"DEBUG: Parsed response: {parsed_response.model_dump_json(indent=2)}")
-
         # Create response message
         response_message = Message(
             id=str(uuid.uuid4()),

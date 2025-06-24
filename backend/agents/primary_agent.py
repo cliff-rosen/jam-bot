@@ -363,25 +363,16 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     try:
         # Use mission's current_hop as the single source of truth
         current_hop = state.mission.current_hop if state.mission else None
-        
-        if not current_hop:
-            error_msg = f"No current hop to implement. mission.current_hop: {state.mission.current_hop if state.mission else 'No mission'}, hop_status: {state.mission.current_hop.status if state.mission else 'No status'}"
-            print(f"ERROR: {error_msg}")
-            raise ValueError(error_msg)
-
-        # The hop state should already be populated by the hop designer
-        # We just need to validate it has the expected inputs and outputs
-        if not current_hop.hop_state:
-            raise ValueError(f"Hop '{current_hop.name}' has empty hop_state. This should have been populated by the hop designer.")
+        if not current_hop or not current_hop.hop_state:
+            raise ValueError(f"Hop is missing or has empty hop_state.")
 
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
-        
         parsed_response = await promptCaller.invoke(
             mission=state.mission
         )
 
-        # Create response message
+        # Create response message from parsed response.response_content
         response_message = Message(
             id=str(uuid.uuid4()),
             role=MessageRole.ASSISTANT,

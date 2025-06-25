@@ -23,7 +23,7 @@ class HopDesignerPromptCaller(BasePromptCaller):
         current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         
         # Define the system message
-        system_message = f"""You are an AI assistant that helps design hops in a mission workflow. Your primary responsibilities are:
+        system_message = """You are an AI assistant that helps design hops in a mission workflow. Your primary responsibilities are:
 
 ## Core Functions
 1. **Analyze** the mission goal and current state
@@ -67,8 +67,8 @@ When defining output assets, you must provide BOTH:
 
 **Example 1 - Structured Data Asset:**
 ```json
-{
-  "asset": {
+{{
+  "asset": {{
     "name": "processed_contacts_data",
     "description": "Clean contact information extracted from the source data",
     "agent_specification": "A comprehensive JSON object with contacts array and metadata object. Each contact must have name plus email or phone. All fields validated and normalized to standard formats.",
@@ -76,36 +76,36 @@ When defining output assets, you must provide BOTH:
     "subtype": "json",
     "is_collection": false,
     "role": "intermediate"
-  }
-}
+  }}
+}}
 ```
 
 **Example 2 - Document Asset:**
 ```json
-{
-  "asset": {
+{{
+  "asset": {{
     "name": "research_report",
     "description": "Final research report with findings and recommendations",
-    "agent_specification": "A clean, well-formatted markdown document containing the final research report. Must include: executive summary (2-3 paragraphs), methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy (# ## ###), include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation.",
+    "agent_specification": "A clean, well-formatted markdown document containing the final research report. Must include: executive summary, methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy, include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation.",
     "type": "markdown",
     "is_collection": false,
     "role": "output"
-  }
-}
+  }}
+}}
 ```
 
 **Example 3 - Configuration Asset:**
 ```json
-{
-  "asset": {
+{{
+  "asset": {{
     "name": "gmail_oauth_config",
     "description": "Gmail API access configuration",
-    "agent_specification": "OAuth 2.0 configuration object for Gmail API access containing: {'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account.",
+    "agent_specification": "OAuth 2.0 configuration object for Gmail API access containing required fields for authentication including client_id, client_secret, redirect_uri, scope array, access_token, refresh_token, expires_in, and token_type. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account.",
     "type": "config",
     "external_system_for": "gmail",
     "role": "input"
-  }
-}
+  }}
+}}
 ```
 
 ### Bad Examples (Insufficient Detail):
@@ -155,9 +155,9 @@ These are the **current assets** in the mission state that can be used as inputs
 ### Using Available Assets as Inputs
 When specifying inputs, use the exact asset IDs from the available assets list:
 ```json
-{{{{
+{{
   "inputs": ["asset_123", "asset_456"]
-}}}}
+}}
 ```
 
 ## Output Specification Examples
@@ -247,6 +247,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         response = await super().invoke(
             messages=[],  # Empty list since we don't need conversation history
             tool_descriptions=tool_descriptions,
+            current_time=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
             mission_goal=mission_goal,
             success_criteria=success_criteria,
             desired_assets=desired_assets,

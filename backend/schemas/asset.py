@@ -48,6 +48,7 @@ class Asset(SchemaEntity):
     is_collection: bool = Field(default=False)
     collection_type: Optional[CollectionType] = None
     role: Optional[AssetRole] = None
+    agent_specification: Optional[str] = Field(default=None, description="Detailed technical specification for agents including data structure, format requirements, validation criteria, and tool integration details")
     error_message: Optional[str] = None
     last_updated_by: Optional[str] = None
     ready_at: Optional[datetime] = None

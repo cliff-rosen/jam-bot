@@ -49,11 +49,13 @@ The system has these specific tools available for hop implementation:
 3. **Cohesive Goals**: Each hop should have a clear, focused purpose
 4. **Input/Output Focus**: Each hop should clearly map inputs to outputs
 
-## CRITICAL: Asset Description Requirements
+## CRITICAL: Asset Definition Requirements
 
-Asset descriptions must be **sufficiently detailed** for downstream tools to understand:
+When defining output assets, you must provide BOTH:
+1. **description**: User-friendly explanation of what the asset contains (for end users)
+2. **agent_specification**: Detailed technical specification for agents and tools
 
-### For Output Assets - Include ALL of these details:
+### Agent Specification Requirements - Include ALL of these details:
 1. **Data Structure**: Describe the exact structure, fields, and hierarchy
 2. **Format Specifications**: File formats, data formats, encoding, etc.
 3. **Content Requirements**: What specific information must be included
@@ -61,28 +63,56 @@ Asset descriptions must be **sufficiently detailed** for downstream tools to und
 5. **Tool Integration**: How downstream tools should interpret and use this asset
 6. **Schema Definition**: For structured data, describe the expected schema
 
-### Examples of GOOD Asset Descriptions:
+### Examples of GOOD Asset Definitions:
 
 **Example 1 - Structured Data Asset:**
-```
-"A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{{{'contacts': [{{{{'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1)}}}}], 'metadata': {{{{'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float}}}}}}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible."
+```json
+{
+  "asset": {
+    "name": "processed_contacts_data",
+    "description": "Clean contact information extracted from the source data",
+    "agent_specification": "A comprehensive JSON object with contacts array and metadata object. Each contact must have name plus email or phone. All fields validated and normalized to standard formats.",
+    "type": "object",
+    "subtype": "json",
+    "is_collection": false,
+    "role": "intermediate"
+  }
+}
 ```
 
 **Example 2 - Document Asset:**
-```
-"A clean, well-formatted markdown document containing the final research report. Must include: executive summary (2-3 paragraphs), methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy (# ## ###), include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation."
+```json
+{
+  "asset": {
+    "name": "research_report",
+    "description": "Final research report with findings and recommendations",
+    "agent_specification": "A clean, well-formatted markdown document containing the final research report. Must include: executive summary (2-3 paragraphs), methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy (# ## ###), include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation.",
+    "type": "markdown",
+    "is_collection": false,
+    "role": "output"
+  }
+}
 ```
 
 **Example 3 - Configuration Asset:**
-```
-"OAuth 2.0 configuration object for Gmail API access containing: {{{{'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}}}}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account."
+```json
+{
+  "asset": {
+    "name": "gmail_oauth_config",
+    "description": "Gmail API access configuration",
+    "agent_specification": "OAuth 2.0 configuration object for Gmail API access containing: {'client_id': string, 'client_secret': string, 'redirect_uri': string (must match registered OAuth app), 'scope': array of strings (minimum: ['https://www.googleapis.com/auth/gmail.readonly']), 'access_token': string (JWT format), 'refresh_token': string, 'expires_in': int (seconds), 'token_type': 'Bearer'}. All tokens must be valid and not expired. Configuration enables read access to Gmail messages and attachments for the authenticated user account.",
+    "type": "config",
+    "external_system_for": "gmail",
+    "role": "input"
+  }
+}
 ```
 
 ### Bad Examples (Insufficient Detail):
-- ❌ "Processed data from the input"
-- ❌ "Clean email content"  
-- ❌ "Configuration for API access"
-- ❌ "Extracted information"
+- ❌ "Processed data from the input" (both description and agent_specification)
+- ❌ "Clean email content" (missing agent_specification details)
+- ❌ "Configuration for API access" (no technical details)
+- ❌ "Extracted information" (no structure or format specified)
 
 ## Asset Type Guidelines
 1. Valid primitive types: 'string', 'number', 'boolean', 'primitive'
@@ -133,32 +163,10 @@ When specifying inputs, use the exact asset IDs from the available assets list:
 ## Output Specification Examples
 
 ### Creating a New Asset
-When you need to create a new asset that doesn't exist yet:
-```json
-{{{{
-  "output": {{{{
-    "asset": {{{{
-      "name": "processed_contacts_data",
-      "description": "A comprehensive JSON object containing cleaned and standardized contact information extracted from the source data. Structure: {{{{'contacts': [{{{{'name': string, 'email': string (validated email format), 'phone': string (E.164 format), 'company': string, 'role': string, 'source_confidence': float (0-1)}}}}], 'metadata': {{{{'total_contacts': int, 'extraction_date': ISO datetime, 'data_quality_score': float}}}}}}}}. Each contact record must include at least name and one valid contact method. Phone numbers normalized to international format. Email addresses validated for syntax and deliverability where possible.",
-      "type": "object",
-      "subtype": "json",
-      "is_collection": false,
-      "role": "intermediate",
-      "schema_description": "JSON object with contacts array and metadata object. Each contact has required 'name' field and at least one of 'email' or 'phone'. All fields validated and normalized."
-    }}}}
-  }}}}
-}}}}
-```
+When you need to create a new asset that doesn't exist yet, use the AssetLite format with both description and agent_specification fields.
 
 ### Using an Existing Mission Asset
-When your hop produces one of the desired mission outputs:
-```json
-{{{{
-  "output": {{{{
-    "mission_asset_id": "existing-asset-id-here"
-  }}}}
-}}}}
-```
+When your hop produces one of the desired mission outputs, reference it by its mission asset ID.
 
 ## Current Context
 Mission Goal: {{mission_goal}}
@@ -172,7 +180,7 @@ Mission Goal: {{mission_goal}}
 **Available Assets (Mission State - What you can use as inputs):**
 {{available_assets}}
 
-Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset descriptions must be detailed enough for the hop implementer to correctly configure tools and validate outputs."""
+Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset definitions must include both user-friendly descriptions and detailed agent specifications for proper implementation."""
 
         # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(
@@ -246,4 +254,4 @@ Based on the provided context, design the next hop in the mission workflow. Use 
             **kwargs
         )
 
-        return response 
+        return response

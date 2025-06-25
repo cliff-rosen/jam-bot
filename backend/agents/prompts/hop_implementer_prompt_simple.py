@@ -44,29 +44,23 @@ Design a sequence of 1-4 tool steps that transform the available input assets in
 
 **Important**: Focus on THIS hop's output assets, not the mission's final deliverable (unless this is the final hop).
 
-## CRITICAL: Asset Description Analysis
+## CRITICAL: Asset Analysis
 
-Before implementing, carefully analyze the asset descriptions provided:
+Before implementing, carefully analyze the asset information provided:
 
-### What to Look For in Asset Descriptions:
-1. **Data Structure**: Exact fields, hierarchy, and organization
-2. **Format Requirements**: File formats, encoding, validation rules  
-3. **Content Specifications**: Required information, constraints, patterns
-4. **Quality Criteria**: How to validate completeness and correctness
-5. **Tool Integration**: How other tools should interpret this asset
+### What to Look For in Asset Information:
+1. **User Description**: User-friendly explanation of what the asset contains
+2. **Agent Specification**: Detailed technical requirements including:
+   - Data structure and format requirements
+   - Validation criteria and constraints
+   - Tool integration specifications
+   - Expected schema and field definitions
 
-### When Asset Descriptions Are Insufficient:
-If asset descriptions lack critical details needed for tool configuration, respond with `CLARIFICATION_NEEDED` and specify:
-- What specific information is missing
-- Why this information is needed for tool configuration
-- What assumptions you would make if forced to proceed
-
-### Examples of Missing Information That Requires Clarification:
-- ❌ Vague descriptions like "processed data" or "clean content"
-- ❌ No schema/structure information for structured data assets
-- ❌ Missing format specifications for files or documents
-- ❌ No validation criteria for determining success
-- ❌ Unclear data types or field requirements
+### When Asset Information Is Insufficient:
+If asset specifications lack critical details needed for tool configuration, respond with `CLARIFICATION_NEEDED` and specify:
+- What technical details are missing
+- How this impacts tool selection/configuration
+- What additional specification details are needed
 
 ## Tool Step Structure
 
@@ -221,11 +215,13 @@ Is Final: {hop.is_final}"""
                 asset = hop.hop_state[local_key]
                 asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
                 
-                # Enhanced formatting with schema information
+                # Enhanced formatting with agent specification
                 asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
                 
-                # Add schema description if available
-                if asset.schema_definition and asset.schema_definition.description:
+                # Add agent specification if available
+                if hasattr(asset, 'agent_specification') and asset.agent_specification:
+                    asset_info += f"\n  Agent Spec: {asset.agent_specification}"
+                elif asset.schema_definition and asset.schema_definition.description:
                     asset_info += f"\n  Schema: {asset.schema_definition.description}"
                 
                 # Add subtype if available
@@ -252,31 +248,29 @@ Is Final: {hop.is_final}"""
         output_assets = []
         intermediate_assets = []
         
-        for asset_name, asset in hop.hop_state.items():
-            asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
-            
-            # Enhanced asset information formatting
-            asset_info = f"- **{asset_name}** ({asset_type}): {asset.description}"
-            
-            # Add additional details if available
-            details = []
-            if asset.subtype:
-                details.append(f"Subtype: {asset.subtype}")
-            if asset.is_collection and asset.collection_type:
-                details.append(f"Collection: {asset.collection_type}")
-            if asset.schema_definition and asset.schema_definition.description:
-                details.append(f"Schema: {asset.schema_definition.description}")
-            
-            if details:
-                asset_info += f"\n  {' | '.join(details)}"
-            
-            # Determine category based on hop mappings
-            if asset_name in hop.input_mapping:
-                input_assets.append(asset_info)
-            elif asset_name in hop.output_mapping:
-                output_assets.append(asset_info)
+        for local_key, asset in hop.hop_state.items():
+            if asset.role == 'input':
+                asset_type = f"{asset.schema_definition.type}{'[]' if asset.is_collection else ''}"
+                asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
+                input_details = [asset_info]
+                
+                # Add agent specification if available
+                if hasattr(asset, 'agent_specification') and asset.agent_specification:
+                    input_details.append(f"  Agent Spec: {asset.agent_specification}")
+                elif asset.schema_definition and asset.schema_definition.description:
+                    input_details.append(f"  Schema: {asset.schema_definition.description}")
+                
+                if asset.status != "ready":
+                    input_details.append(f"  Status: {asset.status}")
+                    if asset.error_message:
+                        input_details.append(f"  Error: {asset.error_message}")
+                
+                input_assets_str = "\n".join(input_details) if input_details else "None"
+                input_assets.append(input_assets_str)
+            elif asset.role == 'output':
+                output_assets.append(f"- **{local_key}** ({asset.schema_definition.type}): {asset.description}")
             else:
-                intermediate_assets.append(asset_info)
+                intermediate_assets.append(f"- **{local_key}** ({asset.schema_definition.type}): {asset.description}")
         
         # Build formatted string
         sections = []

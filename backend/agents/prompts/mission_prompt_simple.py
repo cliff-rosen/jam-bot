@@ -114,12 +114,22 @@ Based on the conversation history and available tools, analyze what information 
         else:
             desired_assets = "No specific outputs defined yet"
         
+        # Format existing inputs from the mission (if any)
+        if mission.inputs:
+            existing_inputs = "\n".join([
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
+                for asset in mission.inputs
+            ])
+        else:
+            existing_inputs = "No existing inputs defined"
+        
         # Call base invoke with simplified variables
         response = await super().invoke(
             messages=messages,
             tool_descriptions=tool_descriptions,
             mission_goal=mission_goal,
             desired_assets=desired_assets,
+            existing_inputs=existing_inputs,
             **kwargs
         )
 

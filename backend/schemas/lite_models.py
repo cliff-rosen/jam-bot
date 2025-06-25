@@ -11,7 +11,8 @@ from utils.string_utils import canonical_key
 class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""
     name: str = Field(description="Name of the asset")
-    description: str = Field(description="Clear description of what this asset contains")
+    description: str = Field(description="User-friendly description of what this asset contains - should be clear and understandable for non-technical users")
+    agent_specification: str = Field(description="Detailed technical specification for agents including data structure, format requirements, validation criteria, tool integration details, and schema definitions")
     type: ValueType = Field(description="Type of asset. Must be one of: 'string', 'number', 'boolean', 'primitive', 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'")
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
     is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
@@ -19,7 +20,6 @@ class AssetLite(BaseModel):
     role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data/credentials, 'output' for final results, 'intermediate' for data retrieved from external systems")
     required: bool = Field(default=True, description="Whether this asset is required for the mission")
     external_system_for: Optional[str] = Field(default=None, description="If this is an external system credential asset, which system it provides access to")
-    schema_description: Optional[str] = Field(default=None, description="Description of expected structure/format for structured data")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
 
     @validator('type')
@@ -89,9 +89,9 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     # Create the unified schema
     unified_schema = SchemaType(
         type=asset_lite.type,  # type is already a ValueType string
-        description=asset_lite.schema_description or asset_lite.description,
+        description=asset_lite.agent_specification or asset_lite.description,
         is_array=asset_lite.is_collection,
-        fields=None  # TODO: Could extract fields from schema_description or example_value if structured
+        fields=None  # TODO: Could extract fields from agent_specification or example_value if structured
     )
 
     # Create metadata for the asset
@@ -121,6 +121,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         name=asset_lite.name,
         description=asset_lite.description,
         schema_definition=unified_schema,
+        agent_specification=asset_lite.agent_specification,
         value=asset_lite.example_value,
         status=initial_status,
         subtype=asset_lite.subtype,

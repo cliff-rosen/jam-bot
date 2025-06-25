@@ -97,7 +97,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -126,7 +126,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                         `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
-                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.is_collection ? ` (${asset.collection_type})` : ''}` : null
+                                        asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null
                                     ].filter(Boolean).join('\n');
 
                                     return (
@@ -325,8 +325,8 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                             <div className="text-gray-700 dark:text-gray-300">
                                                 <span className="text-blue-600 dark:text-blue-400">{key}:</span> {asset.name}
                                             </div>
-                                            <div className="text-gray-500 ml-2">
-                                                {asset.schema_definition?.type}{asset.is_collection ? ` (${asset.collection_type})` : ''}
+                                            <div className="text-sm text-gray-600">
+                                                {`${asset.schema_definition?.type}${asset.schema_definition?.is_array ? '[]' : ''}` || null}
                                             </div>
                                         </div>
                                     ))}

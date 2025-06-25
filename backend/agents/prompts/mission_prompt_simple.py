@@ -64,11 +64,8 @@ A mission consists of:
 4. **Valid Asset Types**:
    - Primitive types: 'string', 'number', 'boolean', 'primitive'
    - Complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
-   - For collections:
-     * Set is_collection=true
-     * Set collection_type to 'array', 'map', or 'set'
-     * Use a valid type from above (e.g., 'object' for array of objects)
-     * NEVER use 'collection' as a type
+   - For arrays: Set is_array=true in the asset definition
+   - NEVER use 'collection' as a type
 
 ## Current Context
 Mission Goal: {{mission_goal}}

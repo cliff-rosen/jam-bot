@@ -31,8 +31,6 @@ export interface Asset extends SchemaEntity {
     value?: any;
     status: AssetStatus;
     subtype?: CustomType;
-    is_collection: boolean;
-    collection_type?: 'array' | 'map' | 'set' | 'null';
     role?: AssetRole;
     agent_specification?: string;
     error_message?: string;

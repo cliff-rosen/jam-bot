@@ -213,7 +213,7 @@ Is Final: {hop.is_final}"""
             # Get the asset from hop state if available
             if local_key in hop.hop_state:
                 asset = hop.hop_state[local_key]
-                asset_type = asset.schema_definition.type if asset.schema_definition else 'unknown'
+                asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
                 
                 # Enhanced formatting with agent specification
                 asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
@@ -229,8 +229,8 @@ Is Final: {hop.is_final}"""
                     asset_info += f"\n  Subtype: {asset.subtype}"
                 
                 # Add collection info if applicable
-                if asset.is_collection and asset.collection_type:
-                    asset_info += f"\n  Collection: {asset.collection_type}"
+                if asset.schema_definition.is_array:
+                    asset_info += f"\n  Array: true"
                 
                 output_assets.append(asset_info)
             else:
@@ -250,7 +250,7 @@ Is Final: {hop.is_final}"""
         
         for local_key, asset in hop.hop_state.items():
             if asset.role == 'input':
-                asset_type = f"{asset.schema_definition.type}{'[]' if asset.is_collection else ''}"
+                asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
                 asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
                 input_details = [asset_info]
                 

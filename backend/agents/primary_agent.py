@@ -38,10 +38,6 @@ VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "vs_68347e57e7408191a5a775f40db83
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-SYSTEM_MESSAGE = """
-You are a helpful assistant named Jack that can answer question.
-"""
-
 class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
@@ -784,8 +780,7 @@ def _process_implementation_plan(
                 custom_metadata={}
             ),
             value=None,  # Initialize with no value
-            subtype=None,  # No specific subtype
-            collection_type=None  # Not a collection
+            subtype=None
         )
         updated_hop.hop_state[asset_name] = new_asset
     

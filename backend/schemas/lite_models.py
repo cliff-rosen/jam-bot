@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator
 import uuid
 
-from schemas.asset import Asset, AssetStatus, AssetMetadata, CollectionType
+from schemas.asset import Asset, AssetStatus, AssetMetadata
 from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
 from schemas.base import SchemaType, ValueType
 from utils.string_utils import canonical_key
@@ -15,18 +15,23 @@ class AssetLite(BaseModel):
     agent_specification: str = Field(description="Detailed technical specification for agents including data structure, format requirements, validation criteria, tool integration details, and schema definitions")
     type: ValueType = Field(description="Type of asset. Must be one of: 'string', 'number', 'boolean', 'primitive', 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'")
     subtype: Optional[str] = Field(default=None, description="Specific format or schema (e.g., 'csv', 'json', 'email', 'oauth_token')")
-    is_collection: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists, sets, maps)")
-    collection_type: Optional[CollectionType] = Field(default=None, description="Type of collection if is_collection is true. Use 'array' for lists, 'map' for dictionaries, 'set' for unique items")
+    is_array: bool = Field(default=False, description="Whether this asset contains multiple items (arrays, lists)")
     role: Optional[str] = Field(default=None, description="Role of asset in workflow: 'input' for user-provided data/credentials, 'output' for final results, 'intermediate' for data retrieved from external systems")
-    required: bool = Field(default=True, description="Whether this asset is required for the mission")
-    external_system_for: Optional[str] = Field(default=None, description="If this is an external system credential asset, which system it provides access to")
     example_value: Optional[Any] = Field(default=None, description="Example of what the asset value might look like")
+    external_system_for: Optional[str] = Field(default=None, description="If this is a config asset for external system credentials, specify which system (e.g., 'gmail', 'pubmed')")
 
     @validator('type')
-    def validate_type_for_credentials(cls, v, values):
-        """Validate that OAuth credentials use the 'config' type"""
-        if values.get('external_system_for') and v != 'config':
-            raise ValueError("External system credentials must use type 'config'")
+    def validate_type(cls, v):
+        """Ensure type is a valid ValueType"""
+        if v not in get_args(ValueType):
+            raise ValueError(f"Invalid type '{v}'. Must be one of: {', '.join(get_args(ValueType))}")
+        return v
+
+    @validator('role')
+    def validate_role(cls, v):
+        """Ensure role is valid if provided"""
+        if v is not None and v not in ['input', 'output', 'intermediate']:
+            raise ValueError(f"Invalid role '{v}'. Must be one of: 'input', 'output', 'intermediate'")
         return v
 
 class MissionLite(BaseModel):
@@ -90,7 +95,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     unified_schema = SchemaType(
         type=asset_lite.type,  # type is already a ValueType string
         description=asset_lite.agent_specification or asset_lite.description,
-        is_array=asset_lite.is_collection,
+        is_array=asset_lite.is_array,
         fields=None  # TODO: Could extract fields from agent_specification or example_value if structured
     )
 
@@ -125,8 +130,6 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         value=asset_lite.example_value,
         status=initial_status,
         subtype=asset_lite.subtype,
-        is_collection=asset_lite.is_collection,
-        collection_type=asset_lite.collection_type.value if asset_lite.collection_type else None,
         role=asset_lite.role or 'intermediate',
         asset_metadata=asset_metadata,
     )

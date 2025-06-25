@@ -19,8 +19,6 @@ interface AssetWithPersistence extends Asset {
 interface CreateAssetParams {
     type: string; // legacy API still uses string types
     subtype?: string;
-    is_collection?: boolean;
-    collection_type?: string; // 'array' | 'map' | 'set' | 'null'
     content?: any;
     metadata?: Record<string, any>;
 }
@@ -29,8 +27,6 @@ interface CreateAssetParams {
 interface UpdateAssetParams {
     type?: string; // legacy API still uses string types
     subtype?: string;
-    is_collection?: boolean;
-    collection_type?: string; // 'array' | 'map' | 'set' | 'null'
     content?: any;
     metadata?: Record<string, any>;
 }
@@ -44,14 +40,12 @@ function convertToUnifiedAsset(apiAsset: any): Asset {
         schema_definition: {
             type: mapLegacyTypeToValueType(apiAsset.type),
             description: apiAsset.description,
-            is_array: apiAsset.is_collection || false,
+            is_array: apiAsset.is_collection || false,  // Map from database field
             fields: undefined // TODO: Could extract from content structure
         },
         value: apiAsset.content,
         status: apiAsset.status || AssetStatus.PENDING,
         subtype: mapLegacySubtype(apiAsset.subtype),
-        is_collection: apiAsset.is_collection || false,
-        collection_type: apiAsset.collection_type || 'null',
         asset_metadata: apiAsset.asset_metadata || {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

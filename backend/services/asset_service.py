@@ -56,10 +56,13 @@ class AssetService:
 
         metadata_dict = model.get('asset_metadata', {})
         
+        # Map database is_collection to schema is_array
+        is_collection_db = model.get('is_collection', False)
+        
         schema = SchemaType(
             type=model.get('type'),
             description=model.get('description'),
-            is_array=model.get('is_collection', False),
+            is_array=is_collection_db,  # Map database field to schema field
             fields=None
         )
         
@@ -97,8 +100,6 @@ class AssetService:
             schema_definition=schema,
             value=content,
             subtype=model.get('subtype'),
-            is_collection=model.get('is_collection', False),
-            collection_type=model.get('collection_type', 'null'),
             role=model.get('role'),
             asset_metadata=asset_metadata
         )
@@ -109,8 +110,7 @@ class AssetService:
         name: str,
         type: str,
         subtype: Optional[str] = None,
-        is_collection: bool = False,
-        collection_type: Optional[CollectionType] = None,
+        is_array: bool = False,
         description: Optional[str] = None,
         content: Optional[Any] = None,
         asset_metadata: Optional[Dict[str, Any]] = None
@@ -137,8 +137,8 @@ class AssetService:
             "description": description,
             "type": type,
             "subtype": subtype,
-            "is_collection": is_collection,
-            "collection_type": collection_type,
+            "is_collection": is_array,
+            "collection_type": "array" if is_array else None,
             "content": content,
             "asset_metadata": asset_metadata_dict
         }

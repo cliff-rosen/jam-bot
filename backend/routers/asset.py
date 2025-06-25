@@ -22,13 +22,12 @@ async def create_asset(
 ):
     """Create a new asset"""
     asset_service = AssetService(db)
-    return asset_service.create_asset(
+    return await asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
         type=request.type,
         subtype=request.subtype,
-        is_collection=request.is_collection,
-        collection_type=request.collection_type,
+        description=request.description,
         content=request.content,
         asset_metadata=request.asset_metadata
     )

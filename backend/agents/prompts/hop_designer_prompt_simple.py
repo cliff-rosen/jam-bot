@@ -117,10 +117,9 @@ When defining output assets, you must provide BOTH:
 ## Asset Type Guidelines
 1. Valid primitive types: 'string', 'number', 'boolean', 'primitive'
 2. Valid complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
-3. For collections:
-   - Set is_collection=true
-   - Set collection_type to 'array', 'map', or 'set'
-   - Use a valid type from above (e.g., 'object' for array of objects)
+3. For arrays:
+   - Set is_array=true in the schema definition
+   - Use appropriate base types (e.g., 'object' for array of objects, 'string' for array of strings)
    - NEVER use 'collection' as a type
 
 ## Asset Categories and Usage
@@ -180,7 +179,14 @@ Mission Goal: {mission_goal}
 **Available Assets (Mission State - What you can use as inputs):**
 {available_assets}
 
-Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset definitions must include both user-friendly descriptions and detailed agent specifications for proper implementation."""
+Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset definitions must include both user-friendly descriptions and detailed agent specifications for proper implementation.
+
+5. **Valid Asset Types and Collection Handling**:
+   - Primitive types: 'string', 'number', 'boolean', 'primitive'
+   - Complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
+   - For arrays of items: Set is_array=true in the asset schema
+   - Use appropriate base types (e.g., 'object' for array of objects, 'string' for array of strings)
+"""
 
         # Initialize the base class with messages_placeholder=False since we don't need conversation history
         super().__init__(

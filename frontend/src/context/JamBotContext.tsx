@@ -560,7 +560,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
                         // Create a complete copy of the asset with the mission asset ID
                         const missionAsset: Asset = {
-                            ...asset,
                             id: missionOutputId,
                             status: AssetStatus.READY,
                             value: asset.value,
@@ -568,8 +567,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                             description: asset.description,
                             schema_definition: asset.schema_definition,
                             subtype: asset.subtype,
-                            is_collection: asset.is_collection,
-                            collection_type: asset.collection_type,
                             role: missionRole, // Use the original mission-level role, not the hop-level role
                             asset_metadata: {
                                 ...asset.asset_metadata,

@@ -24,12 +24,6 @@ class AssetStatus(str, Enum):
     ERROR = "error"
     EXPIRED = "expired"
 
-class CollectionType(str, Enum):
-    """Type of collection for assets that contain multiple items"""
-    ARRAY = "array"
-    MAP = "map"
-    SET = "set"
-
 class AssetMetadata(BaseModel):
     """Contains metadata about an asset, such as creation and update times."""
     created_at: datetime = Field(default_factory=datetime.utcnow, alias='createdAt')
@@ -45,8 +39,6 @@ class Asset(SchemaEntity):
     value: Optional[Any] = None
     status: AssetStatus = Field(default=AssetStatus.PENDING)
     subtype: Optional[str] = None
-    is_collection: bool = Field(default=False)
-    collection_type: Optional[CollectionType] = None
     role: Optional[AssetRole] = None
     agent_specification: Optional[str] = Field(default=None, description="Detailed technical specification for agents including data structure, format requirements, validation criteria, and tool integration details")
     error_message: Optional[str] = None
@@ -85,6 +77,13 @@ class Asset(SchemaEntity):
     def needs_attention(self) -> bool:
         """Checks if the asset is in a state that requires attention."""
         return self.status in [AssetStatus.ERROR, AssetStatus.EXPIRED]
+
+    # --- Convenience Properties ---
+    
+    @property
+    def is_collection(self) -> bool:
+        """Backward compatibility property - returns schema_definition.is_array"""
+        return self.schema_definition.is_array if self.schema_definition else False
 
 # --- Asset-Specific Utility Functions ---
 
@@ -145,9 +144,6 @@ class AssetType(str, Enum):
     MARKDOWN = "markdown"
     CONFIG = "config"
 
-# Import from models to use the canonical enum definition
-from models import CollectionType
-
 class AssetSubtype(str, Enum):
     """Specific format or schema of the asset - kept for backend API compatibility"""
     EMAIL = "email"
@@ -172,8 +168,6 @@ class CreateAssetRequest(BaseModel):
     description: Optional[str] = None
     type: str
     subtype: Optional[str] = None
-    is_collection: bool = False
-    collection_type: Optional[CollectionType] = None
     role: Optional[AssetRole] = None  # Role of asset in workflow
     content: Optional[Any] = None
     asset_metadata: Optional[Dict[str, Any]] = None
@@ -183,15 +177,13 @@ DAILY_NEWSLETTER_RECAP_ASSET = Asset(
     id="daily_newsletter_recap",
     name="Daily Newsletter Recap",
     description="A collection of daily newsletter summaries",
-    schema=SchemaType(
+    schema_definition=SchemaType(
         type="database_entity",
         description="A collection of daily newsletter summaries",
         is_array=True
     ),
     value=None,
     subtype="daily_newsletter_recap",
-    is_collection=True,
-    collection_type="array",
     asset_metadata=AssetMetadata(
         creator="system",
         tags=["newsletter", "summary", "daily"],

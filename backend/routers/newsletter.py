@@ -419,8 +419,8 @@ async def get_newsletter_report_as_asset(
             name=f"{period_type} newsletter report",
             type=AssetType.MARKDOWN.value,  # Use enum value
             subtype="NEWSLETTER_SUMMARY",
-            is_collection=False,
-            collection_type=None,
+
+            is_array=False,
             content=report,
             asset_metadata={  # Use asset_metadata instead of metadata
                 "period_type": period_type,

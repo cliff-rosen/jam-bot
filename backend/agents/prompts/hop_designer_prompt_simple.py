@@ -41,7 +41,7 @@ Do NOT create new asset definitions for inputs - only reference existing asset I
 ## Available Tools
 The system has these specific tools available for hop implementation:
 
-{{tool_descriptions}}
+{tool_descriptions}
 
 ## Design Principles
 1. **Incremental Progress**: Each hop should make clear progress toward the mission goal
@@ -169,16 +169,16 @@ When you need to create a new asset that doesn't exist yet, use the AssetLite fo
 When your hop produces one of the desired mission outputs, reference it by its mission asset ID.
 
 ## Current Context
-Mission Goal: {{mission_goal}}
+Mission Goal: {mission_goal}
 
 **Mission Success Criteria:**
-{{success_criteria}}
+{success_criteria}
 
 **Desired Assets (Mission Outputs - What the mission aims to produce):**
-{{desired_assets}}
+{desired_assets}
 
 **Available Assets (Mission State - What you can use as inputs):**
-{{available_assets}}
+{available_assets}
 
 Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset definitions must include both user-friendly descriptions and detailed agent specifications for proper implementation."""
 

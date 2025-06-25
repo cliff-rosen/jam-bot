@@ -14,7 +14,7 @@ from langgraph.types import StreamWriter, Send, Command
 from config.settings import settings
 
 from schemas.chat import Message, MessageRole, AgentResponse
-from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep
+from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
 from schemas.asset import Asset, AssetStatus, AssetMetadata
 from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
 from schemas.base import SchemaType, ValueType
@@ -29,7 +29,7 @@ from utils.state_serializer import (
     create_agent_response
 )
 
-from tools.tool_registry import TOOL_REGISTRY
+
 
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
@@ -552,138 +552,7 @@ graph_builder.add_edge(START, "supervisor_node")
 compiled = graph_builder.compile()
 graph = compiled 
 
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
 
-def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> List[str]:
-    """Validate the tool chain returned by the Hop-Implementer.
-
-    Ensures that every tool step references existing assets (or creates them first)
-    and that schemas are compatible according to each tool's own validation logic.
-    Also validates that the steps form a proper chain where all inputs are satisfied.
-    Returns a flat list of validation-error strings (empty list means no errors).
-    """
-    errors: List[str] = []
-    
-    # Track which assets are available at each step based on their roles
-    # Start with only INPUT assets - outputs and intermediates are not available until produced!
-    available_assets = set()
-    input_assets = set()
-    output_assets = set()
-    intermediate_assets = set()
-    
-    # Categorize assets by role
-    for asset_name, asset in hop_state.items():
-        if asset.role == 'input':
-            available_assets.add(asset_name)  # Input assets are immediately available
-            input_assets.add(asset_name)
-        elif asset.role == 'output':
-            output_assets.add(asset_name)  # Output assets only available after production
-        elif asset.role == 'intermediate':
-            intermediate_assets.add(asset_name)  # Intermediate assets only available after creation
-        else:
-            # Handle assets without explicit roles - treat as intermediate for safety
-            intermediate_assets.add(asset_name)
-    
-    for step_index, step in enumerate(steps):
-        tool_def = TOOL_REGISTRY.get(step.tool_id)
-        if not tool_def:
-            errors.append(f"Tool definition not found for tool_id '{step.tool_id}'")
-            continue
-
-        # Track assets that will be created by this step
-        step_outputs = set()
-
-        # Validate parameter mapping
-        for param_name, mapping in step.parameter_mapping.items():
-            # get the tool parameter for the current parameter mapping
-            tool_param = next((p for p in tool_def.parameters if p.name == param_name), None)
-            if not tool_param:
-                errors.append(
-                    f"Step '{step.id}': Parameter '{param_name}' not found in tool '{tool_def.id}' definition. "
-                    f"Available parameters: {', '.join(p.name for p in tool_def.parameters)}"
-                )
-                continue
-                
-            # if the tool parameter is an asset field, we need to check if the asset is available
-            if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
-                state_asset_id = mapping.get('state_asset')
-                if not state_asset_id:
-                    errors.append(f"Step '{step.id}': Missing state_asset in parameter mapping for '{param_name}'")
-                    continue
-                    
-                # Check if asset is available (either in initial state or created by previous steps)
-                if state_asset_id not in available_assets:
-                    errors.append(
-                        f"Step '{step.id}' (step {step_index + 1}): Asset '{state_asset_id}' for parameter '{param_name}' is not available. "
-                        f"Available assets at this step: {', '.join(sorted(available_assets))}"
-                    )
-                    continue
-
-                # Check if asset exists in hop state (for schema validation)
-                if state_asset_id not in hop_state:
-                    errors.append(
-                        f"Step '{step.id}': Asset '{state_asset_id}' for parameter '{param_name}' not found in hop state. "
-                        f"Available assets: {', '.join(hop_state.keys())}"
-                    )
-                    continue
-                
-                # TODO: Add schema compatibility check here
-                # For now, we just check for existence
-
-        # Validate result mapping and track outputs
-        for result_name, mapping in step.result_mapping.items():
-            # get the tool output for the current result mapping
-            tool_output = next((o for o in tool_def.outputs if o.name == result_name), None)
-            if not tool_output:
-                errors.append(
-                    f"Step '{step.id}': Result '{result_name}' not found in tool '{tool_def.id}' definition. "
-                    f"Available outputs: {', '.join(o.name for o in tool_def.outputs)}"
-                )
-                continue
-                
-            # if the tool output is an asset field, track it as available for subsequent steps
-            if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
-                state_asset = mapping.get('state_asset')
-                if not state_asset:
-                    errors.append(f"Step '{step.id}': Missing state_asset in result mapping for '{result_name}'")
-                    continue
-                    
-                # Add to outputs that will be created by this step
-                step_outputs.add(state_asset)
-                
-                # Check if asset exists in hop state (should exist or be created)
-                if state_asset not in hop_state:
-                    errors.append(
-                        f"Step '{step.id}': Asset '{state_asset}' for result '{result_name}' not found in hop state. "
-                        f"Available assets: {', '.join(hop_state.keys())}"
-                    )
-                    continue
-
-                # TODO: Add schema compatibility check here
-                # For now, we just check for existence
-        
-        # Add this step's outputs to available assets for subsequent steps
-        available_assets.update(step_outputs)
-
-    return errors
-
-def check_mission_ready(input_assets: List[Asset]) -> tuple[bool, List[str]]:
-    """
-    Checks if all input assets required for a mission are in a READY state.
-    This function is temporarily located here until a permanent home in a
-    workflow utility service is created.
-    """
-    pending_inputs = [asset.name for asset in input_assets if asset.status != AssetStatus.READY]
-    failed_inputs = [asset.name for asset in input_assets if asset.status == AssetStatus.ERROR]
-    
-    if failed_inputs:
-        return False, [f"Failed inputs that need attention: {', '.join(failed_inputs)}"]
-    elif pending_inputs:
-        return False, [f"Pending inputs from user: {', '.join(pending_inputs)}"]
-    else:
-        return True, []
 
 # ---------------------------------------------------------------------------
 # Hop Implementation Helpers

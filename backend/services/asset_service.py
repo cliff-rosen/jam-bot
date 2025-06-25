@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from schemas.asset import Asset, CollectionType, DatabaseEntityMetadata
+from schemas.asset import Asset, DatabaseEntityMetadata
 from schemas.base import SchemaType
 from schemas.asset import AssetMetadata
 from datetime import datetime

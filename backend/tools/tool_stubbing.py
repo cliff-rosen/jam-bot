@@ -75,6 +75,7 @@ class ToolStubbing:
         Raises:
             Exception: If simulating failure or no sample response is available
         """
+        print("Stubbing tool execution for {tool_def.id}")
         logger.info(f"Stubbing tool execution for {tool_def.id}")
         
         # Simulate realistic delay

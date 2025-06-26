@@ -177,7 +177,88 @@
                         "description": "Count of matching emails"
                     }
                 }
-            ]
+            ],
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": true,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "emails": [
+                                {
+                                    "id": "1897a5b2c3f4e6d8",
+                                    "thread_id": "1897a5b2c3f4e6d8",
+                                    "subject": "Weekly AI Newsletter - Latest Developments",
+                                    "from": "ai-newsletter@techcorp.com",
+                                    "to": [
+                                        "user@example.com"
+                                    ],
+                                    "date": "2024-01-15T10:30:00Z",
+                                    "snippet": "This week in AI: Major breakthrough in transformer architecture, new GPT model released, and insights from the latest research papers...",
+                                    "labels": [
+                                        "CATEGORY_NEWSLETTERS",
+                                        "INBOX"
+                                    ]
+                                },
+                                {
+                                    "id": "2a34f5e8d9c1b7a6",
+                                    "thread_id": "2a34f5e8d9c1b7a6",
+                                    "subject": "AI Research Digest - December 2024",
+                                    "from": "research@university.edu",
+                                    "to": [
+                                        "user@example.com"
+                                    ],
+                                    "date": "2024-01-14T15:45:00Z",
+                                    "snippet": "Monthly compilation of the most important AI research papers, including advances in computer vision, NLP, and reinforcement learning...",
+                                    "labels": [
+                                        "CATEGORY_NEWSLETTERS",
+                                        "INBOX"
+                                    ]
+                                },
+                                {
+                                    "id": "3b56c7d9e2a4f8b1",
+                                    "thread_id": "3b56c7d9e2a4f8b1",
+                                    "subject": "The ML Weekly - Issue #342",
+                                    "from": "editor@mlweekly.com",
+                                    "to": [
+                                        "user@example.com"
+                                    ],
+                                    "date": "2024-01-13T08:00:00Z",
+                                    "snippet": "Featured this week: AutoML tools comparison, ethical AI considerations, and tutorial on fine-tuning language models...",
+                                    "labels": [
+                                        "CATEGORY_NEWSLETTERS",
+                                        "INBOX"
+                                    ]
+                                }
+                            ],
+                            "count": 3
+                        },
+                        "metadata": {
+                            "total_found": 3,
+                            "search_time_ms": 145
+                        }
+                    },
+                    {
+                        "scenario": "empty_results",
+                        "outputs": {
+                            "emails": [],
+                            "count": 0
+                        },
+                        "metadata": {
+                            "total_found": 0,
+                            "search_time_ms": 89
+                        }
+                    },
+                    {
+                        "scenario": "api_error",
+                        "is_error": true,
+                        "error_message": "Gmail API quota exceeded. Please try again later.",
+                        "outputs": {}
+                    }
+                ]
+            }
         },
         {
             "id": "extract",

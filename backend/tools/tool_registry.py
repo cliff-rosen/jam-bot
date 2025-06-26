@@ -29,133 +29,133 @@ TOOL_REGISTRY: Dict[str, "ToolDefinition"] = {}
 # ---------------------------------------------------------------------------
 
 def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
-    """Parse the JSON definition of all tools into ToolDefinition objects."""
-    from schemas.tool import ToolDefinition, ToolParameter, ToolOutput
+    """Parse the tools.json data into ToolDefinition objects."""
+    from schemas.tool import ToolDefinition, ToolParameter, ToolOutput, ToolStubConfig, ToolSampleResponse
+    from schemas.resource import Resource, AuthConfig, AuthField
     from schemas.base import SchemaType
-    from schemas.resource import Resource
-
-    tool_registry: Dict[str, ToolDefinition] = {}
-
-    for tool_def_json in tools_data.get("tools", []):
+    
+    tools = {}
+    
+    for tool_data in tools_data.get("tools", []):
         try:
-            if "id" not in tool_def_json:
-                tool_name_for_error = tool_def_json.get("name", "Unknown tool without ID")
-                print(
-                    f"Warning: Tool definition for '{tool_name_for_error}' is missing the required 'id' field in tools.json. Skipping this tool."
+            # Parse parameters
+            parameters = []
+            for param_data in tool_data.get("parameters", []):
+                param = ToolParameter(
+                    id=f"{tool_data['id']}.{param_data['name']}",
+                    name=param_data["name"],
+                    description=param_data.get("description", ""),
+                    schema_definition=SchemaType(
+                        type=param_data.get("type", "string"),
+                        description=param_data.get("description", ""),
+                        is_array=param_data.get("is_array", False)
+                    ),
+                    required=param_data.get("required", True)
                 )
-                continue
-
-            tool_id = tool_def_json["id"]
-
-            # ------------------------------------------------------------------
-            # Parameters
-            # ------------------------------------------------------------------
-            parameters: List[ToolParameter] = []
-            if "parameters" in tool_def_json:
-                for param_def in tool_def_json["parameters"]:
-                    param_schema_dict = param_def.get("schema", {})
-                    if "type" not in param_schema_dict:
-                        param_schema_dict["type"] = "object"
-                    
-                    schema_type = SchemaType(**param_schema_dict)
-                    
-                    parameters.append(
-                        ToolParameter(
-                            id=param_def.get("name", ""),
-                            name=param_def.get("name", ""),
-                            description=param_def.get("description", ""),
-                            required=param_def.get("required", True),
-                            schema=schema_type,
-                        )
+                parameters.append(param)
+            
+            # Parse outputs
+            outputs = []
+            for output_data in tool_data.get("outputs", []):
+                output = ToolOutput(
+                    id=f"{tool_data['id']}.{output_data['name']}",
+                    name=output_data["name"],
+                    description=output_data.get("description", ""),
+                    schema_definition=SchemaType(
+                        type=output_data.get("type", "string"),
+                        description=output_data.get("description", ""),
+                        is_array=output_data.get("is_array", False),
+                        fields=output_data.get("schema", {}).get("fields") if output_data.get("schema") else None
+                    ),
+                    required=output_data.get("required", True)
+                )
+                outputs.append(output)
+            
+            # Parse resource dependencies
+            resource_deps = []
+            for resource_data in tool_data.get("resource_dependencies", []):
+                # Parse auth fields
+                auth_fields = []
+                for field_data in resource_data.get("auth_config", {}).get("required_fields", []):
+                    auth_field = AuthField(
+                        field_name=field_data["field_name"],
+                        field_type=field_data["field_type"],
+                        required=field_data.get("required", True),
+                        description=field_data.get("description", "")
                     )
-            elif "input_schema" in tool_def_json:
-                # Legacy format support
-                input_schema = tool_def_json["input_schema"]
-                if "properties" in input_schema:
-                    for param_name, param_schema in input_schema["properties"].items():
-                        schema_type = SchemaType(**param_schema)
-                        parameters.append(
-                            ToolParameter(
-                                id=param_name,
-                                name=param_name,
-                                description=param_schema.get("description", ""),
-                                schema=schema_type,
-                                required=param_name in input_schema.get("required", []),
-                            )
-                        )
-
-            # ------------------------------------------------------------------
-            # Outputs
-            # ------------------------------------------------------------------
-            outputs: List[ToolOutput] = []
-            if "outputs" in tool_def_json:
-                for output_def in tool_def_json["outputs"]:
-                    output_schema_dict = output_def.get("schema", {})
-                    if "type" not in output_schema_dict:
-                        output_schema_dict["type"] = "object"
-                    
-                    schema_type = SchemaType(**output_schema_dict)
-                    outputs.append(
-                        ToolOutput(
-                            id=output_def["name"],
-                            name=output_def["name"],
-                            description=output_def.get("description", ""),
-                            required=output_def.get("required", True),
-                            schema=schema_type,
-                        )
+                    auth_fields.append(auth_field)
+                
+                # Create auth config
+                auth_config = AuthConfig(
+                    type=resource_data.get("auth_config", {}).get("type", "none"),
+                    required_fields=auth_fields
+                )
+                
+                # Create connection schema
+                connection_schema_data = resource_data.get("connection_schema", {})
+                connection_schema = SchemaType(
+                    type=connection_schema_data.get("type", "object"),
+                    description=connection_schema_data.get("description", ""),
+                    is_array=connection_schema_data.get("is_array", False),
+                    fields=connection_schema_data.get("fields")
+                )
+                
+                resource = Resource(
+                    id=resource_data["id"],
+                    name=resource_data["name"],
+                    type=resource_data["type"],
+                    description=resource_data.get("description", ""),
+                    auth_config=auth_config,
+                    connection_schema=connection_schema,
+                    capabilities=resource_data.get("capabilities", []),
+                    base_url=resource_data.get("base_url"),
+                    documentation_url=resource_data.get("documentation_url")
+                )
+                resource_deps.append(resource)
+            
+            # Parse stub configuration if present
+            stub_config = None
+            stub_data = tool_data.get("stub_config")
+            if stub_data:
+                sample_responses = []
+                for response_data in stub_data.get("sample_responses", []):
+                    sample_response = ToolSampleResponse(
+                        scenario=response_data["scenario"],
+                        outputs=response_data.get("outputs", {}),
+                        metadata=response_data.get("metadata", {}),
+                        is_error=response_data.get("is_error", False),
+                        error_message=response_data.get("error_message")
                     )
-            elif "output_schema" in tool_def_json:
-                # Legacy format support
-                for output_def in tool_def_json["output_schema"]:
-                    output_name = output_def.get("name")
-                    if output_name:
-                        output_schema_dict = output_def.get("schema", {})
-                        schema_type = SchemaType(**output_schema_dict)
-                        outputs.append(
-                            ToolOutput(
-                                id=output_name,
-                                name=output_name,
-                                description=output_def.get("description", ""),
-                                schema=schema_type,
-                            )
-                        )
-
-            # ------------------------------------------------------------------
-            # Resource Dependencies
-            # ------------------------------------------------------------------
-            resource_dependencies: List[Resource] = []
-            if "resource_dependencies" in tool_def_json:
-                for resource_def in tool_def_json["resource_dependencies"]:
-                    resource_dependencies.append(Resource(**resource_def))
-
-            # ------------------------------------------------------------------
-            # Assemble the ToolDefinition
-            # ------------------------------------------------------------------
-            tool_definition = ToolDefinition(
-                id=tool_id,
-                name=tool_def_json["name"],
-                description=tool_def_json["description"],
+                    sample_responses.append(sample_response)
+                
+                stub_config = ToolStubConfig(
+                    enabled=stub_data.get("enabled", True),
+                    default_scenario=stub_data.get("default_scenario", "success"),
+                    requires_external_calls=stub_data.get("requires_external_calls", True),
+                    sample_responses=sample_responses
+                )
+            
+            # Create tool definition
+            tool_def = ToolDefinition(
+                id=tool_data["id"],
+                name=tool_data["name"],
+                description=tool_data.get("description", ""),
+                category=tool_data.get("category", "general"),
                 parameters=parameters,
                 outputs=outputs,
-                category=tool_def_json.get("category", "other"),
-                examples=tool_def_json.get("examples"),
-                resource_dependencies=resource_dependencies,
+                resource_dependencies=resource_deps,
+                stub_config=stub_config
             )
-
-            if tool_definition.id in tool_registry:
-                print(
-                    f"Warning: Duplicate tool ID '{tool_definition.id}' found in tools.json. Overwriting previous definition."
-                )
-            tool_registry[tool_definition.id] = tool_definition
-
+            
+            tools[tool_data["id"]] = tool_def
+            
         except Exception as exc:
-            tool_name_for_error = tool_def_json.get("name", tool_def_json.get("id", "unknown tool"))
-            print(f"Error parsing tool definition for '{tool_name_for_error}': {exc}")
+            print(f"Error parsing tool {tool_data.get('id', 'unknown')}: {exc}")
             import traceback
-
             print(f"Traceback: {traceback.format_exc()}")
-
-    return tool_registry
+            continue
+    
+    return tools
 
 def _default_tools_json_path() -> str:
     """Return the path to *tools.json* – first look in this package, then fallback to schemas."""

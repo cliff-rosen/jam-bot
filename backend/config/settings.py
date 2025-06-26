@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     NEO4J_API_KEY: str = os.getenv("NEO4J_API_KEY", "")
     NEO4J_DATABASE: str = os.getenv("NEO4J_DATABASE", "neo4j")
 
+    # Tool Stubbing Settings
+    TOOL_STUBBING_ENABLED: bool = os.getenv("TOOL_STUBBING_ENABLED", "false").lower() == "true"
+    TOOL_STUBBING_MODE: str = os.getenv("TOOL_STUBBING_MODE", "all")  # Options: "all", "external_only", "none"
+    TOOL_STUBBING_DELAY_MS: int = int(os.getenv("TOOL_STUBBING_DELAY_MS", "500"))  # Simulate realistic delays
+    TOOL_STUBBING_FAILURE_RATE: float = float(os.getenv("TOOL_STUBBING_FAILURE_RATE", "0.0"))  # 0.0-1.0 for testing error handling
+
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

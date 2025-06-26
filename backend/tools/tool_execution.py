@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from schemas.asset import Asset
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
 from tools.tool_registry import TOOL_REGISTRY, get_tool_definition
+from tools.tool_stubbing import ToolStubbing
 
 class ToolExecutionError(Exception):
     """Raised when tool execution fails."""
@@ -79,21 +80,31 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
     )
     
     try:
-        # Execute the tool
-        print("execute_tool_step: Executing tool")
-        result = await tool_def.execution_handler.handler(execution_input)
+        # Check if we should stub this tool execution
+        if ToolStubbing.should_stub_tool(tool_def):
+            print(f"execute_tool_step: Stubbing tool {step.tool_id}")
+            result = await ToolStubbing.get_stub_response(tool_def, execution_input)
+        else:
+            # Execute the actual tool
+            print("execute_tool_step: Executing tool")
+            result = await tool_def.execution_handler.handler(execution_input)
+        
         print("execute_tool_step: Tool execution completed")
 
         # Handle result mapping
         if isinstance(result, ToolExecutionResult):
             outputs = result.outputs
+        elif isinstance(result, dict) and "outputs" in result:
+            # Result is already in the expected format
+            outputs = result["outputs"]
         else:
             outputs = result
             
         return {
             "success": True,
             "errors": [],
-            "outputs": outputs
+            "outputs": outputs,
+            "_stubbed": result.get("_stubbed", False) if isinstance(result, dict) else False
         }
         
     except Exception as e:

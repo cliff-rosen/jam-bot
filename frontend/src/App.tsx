@@ -49,7 +49,12 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+      >
         <ThemeProvider>
           <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
             <LoginForm
@@ -66,7 +71,12 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <ThemeProvider>
         <JamBotProvider>
           <AuthenticatedApp />

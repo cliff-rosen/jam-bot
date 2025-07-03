@@ -5,24 +5,37 @@ import { ToolDefinition } from '@/types/tool';
 interface ToolBrowserDialogProps {
     isOpen: boolean;
     onClose: () => void;
+    onSelectTool?: (tool: ToolDefinition) => void;
 }
 
-export default function ToolBrowserDialog({ isOpen, onClose }: ToolBrowserDialogProps) {
+export default function ToolBrowserDialog({ isOpen, onClose, onSelectTool }: ToolBrowserDialogProps) {
     const handleSelectTool = (tool: ToolDefinition | null) => {
-        // For now, just close the dialog when a tool is selected
-        // In the future, this could trigger additional actions
         if (tool) {
             console.log('Selected tool:', tool);
-            onClose();
+            // Don't close the dialog - let users view the tool details
+            // If parent component provided onSelectTool, call it but don't close
+            onSelectTool?.(tool);
         }
     };
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title="Tool Browser" maxWidth="6xl">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl h-[80vh] flex flex-col">
-                {/* Content */}
-                <div className="flex-1 overflow-hidden">
+        <Dialog isOpen={isOpen} onClose={onClose} title="Tool Browser" maxWidth="full">
+            <div className="w-[1400px] h-[900px] flex flex-col">
+                {/* Content - takes up all available space */}
+                <div className="flex-1 min-h-0">
                     <ToolBrowser onSelectTool={handleSelectTool} />
+                </div>
+
+                {/* Footer with Close button */}
+                <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <div className="flex justify-end">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </Dialog>

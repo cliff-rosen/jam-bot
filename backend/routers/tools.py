@@ -18,6 +18,8 @@ from services.auth_service import validate_token
 # include all tool handlers so that they are registered
 from tools import *
 
+
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(

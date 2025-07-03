@@ -131,46 +131,9 @@
                     "description": "List of matching emails",
                     "required": true,
                     "schema_definition": {
-                        "type": "object",
+                        "type": "email",
                         "description": "Email object",
-                        "is_array": true,
-                        "fields": {
-                            "id": {
-                                "type": "string",
-                                "description": "Email ID",
-                                "is_array": false
-                            },
-                            "subject": {
-                                "type": "string",
-                                "description": "Email subject",
-                                "is_array": false
-                            },
-                            "body": {
-                                "type": "string",
-                                "description": "Email body content",
-                                "is_array": false
-                            },
-                            "sender": {
-                                "type": "string",
-                                "description": "Sender email address",
-                                "is_array": false
-                            },
-                            "timestamp": {
-                                "type": "string",
-                                "description": "Email timestamp (ISO format)",
-                                "is_array": false
-                            },
-                            "labels": {
-                                "type": "string",
-                                "description": "Email labels",
-                                "is_array": true
-                            },
-                            "metadata": {
-                                "type": "object",
-                                "description": "Additional email metadata",
-                                "is_array": false
-                            }
-                        }
+                        "is_array": true
                     }
                 }
             ],
@@ -734,41 +697,9 @@
                     "description": "List of web search results",
                     "required": true,
                     "schema_definition": {
-                        "type": "object",
+                        "type": "search_result",
                         "description": "Search result",
-                        "is_array": true,
-                        "fields": {
-                            "title": {
-                                "type": "string",
-                                "description": "Page title",
-                                "is_array": false
-                            },
-                            "url": {
-                                "type": "string",
-                                "description": "Page URL",
-                                "is_array": false
-                            },
-                            "snippet": {
-                                "type": "string",
-                                "description": "Page snippet/description",
-                                "is_array": false
-                            },
-                            "published_date": {
-                                "type": "string",
-                                "description": "Publication date (if available)",
-                                "is_array": false
-                            },
-                            "source": {
-                                "type": "string",
-                                "description": "Source domain",
-                                "is_array": false
-                            },
-                            "rank": {
-                                "type": "number",
-                                "description": "Search result rank",
-                                "is_array": false
-                            }
-                        }
+                        "is_array": true
                     }
                 },
                 {

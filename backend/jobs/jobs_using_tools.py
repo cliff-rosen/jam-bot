@@ -2,19 +2,14 @@ from typing import List, Dict, Any, Callable, TypeVar, Iterable, Optional, Union
 from datetime import datetime
 from dataclasses import dataclass
 
+from schemas.canonical_types import CanonicalEmail
+
 T = TypeVar('T')
 K = TypeVar('K') 
 V = TypeVar('V')
 
-@dataclass
-class Email:
-    id: str
-    subject: str
-    body: str
-    sender: str
-    timestamp: datetime
-    labels: List[str]
-    metadata: Dict[str, Any] = None
+# Use the canonical email model instead of custom dataclass
+Email = CanonicalEmail
 
 @dataclass
 class ExtractionResult:

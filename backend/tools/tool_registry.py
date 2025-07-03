@@ -41,14 +41,18 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             # Parse parameters
             parameters = []
             for param_data in tool_data.get("parameters", []):
+                # Get schema definition data
+                schema_def_data = param_data.get("schema_definition", {})
+                
                 param = ToolParameter(
                     id=f"{tool_data['id']}.{param_data['name']}",
                     name=param_data["name"],
                     description=param_data.get("description", ""),
                     schema_definition=SchemaType(
-                        type=param_data.get("type", "string"),
-                        description=param_data.get("description", ""),
-                        is_array=param_data.get("is_array", False)
+                        type=schema_def_data.get("type", "string"),
+                        description=schema_def_data.get("description", param_data.get("description", "")),
+                        is_array=schema_def_data.get("is_array", False),
+                        fields=schema_def_data.get("fields")
                     ),
                     required=param_data.get("required", True)
                 )
@@ -57,15 +61,18 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
             # Parse outputs
             outputs = []
             for output_data in tool_data.get("outputs", []):
+                # Get schema definition data
+                schema_def_data = output_data.get("schema_definition", {})
+                
                 output = ToolOutput(
                     id=f"{tool_data['id']}.{output_data['name']}",
                     name=output_data["name"],
                     description=output_data.get("description", ""),
                     schema_definition=SchemaType(
-                        type=output_data.get("type", "string"),
-                        description=output_data.get("description", ""),
-                        is_array=output_data.get("is_array", False),
-                        fields=output_data.get("schema", {}).get("fields") if output_data.get("schema") else None
+                        type=schema_def_data.get("type", "string"),
+                        description=schema_def_data.get("description", output_data.get("description", "")),
+                        is_array=schema_def_data.get("is_array", False),
+                        fields=schema_def_data.get("fields")
                     ),
                     required=output_data.get("required", True)
                 )

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ToolDefinition } from '@/types/tool';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
+import { SchemaRenderer } from '@/components/common';
 import {
     Search,
     Filter,
@@ -15,7 +16,6 @@ import {
     AlertCircle,
     RefreshCw,
     CheckCircle,
-    XCircle,
     Info
 } from 'lucide-react';
 
@@ -223,28 +223,28 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                     <div
                                         key={tool.id}
                                         className={`w-full text-left p-3 rounded-lg flex items-start gap-3 transition-all duration-200 cursor-pointer group ${selectedTool?.id === tool.id
-                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 shadow-sm'
-                                                : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-transparent'
+                                            ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 shadow-sm'
+                                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-transparent'
                                             }`}
                                         onClick={() => handleSelectTool(tool)}
                                     >
                                         <div className={`transition-colors ${selectedTool?.id === tool.id
-                                                ? 'text-blue-600 dark:text-blue-400'
-                                                : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                                            ? 'text-blue-600 dark:text-blue-400'
+                                            : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
                                             }`}>
                                             {getCategoryIcon(tool.category)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
                                                 <h3 className={`text-sm font-medium truncate ${selectedTool?.id === tool.id
-                                                        ? 'text-blue-900 dark:text-blue-100'
-                                                        : 'text-gray-900 dark:text-gray-100'
+                                                    ? 'text-blue-900 dark:text-blue-100'
+                                                    : 'text-gray-900 dark:text-gray-100'
                                                     }`}>
                                                     {tool.name}
                                                 </h3>
                                                 <ChevronRight className={`w-4 h-4 transition-transform ${selectedTool?.id === tool.id
-                                                        ? 'rotate-90 text-blue-600 dark:text-blue-400'
-                                                        : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                                                    ? 'rotate-90 text-blue-600 dark:text-blue-400'
+                                                    : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
                                                     }`} />
                                             </div>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
@@ -326,8 +326,17 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                         {param.description}
                                                     </p>
                                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        <strong>Type:</strong> {param.schema_definition?.type || 'unknown'}
-                                                        {param.schema_definition?.is_array && <span className="ml-1">(array)</span>}
+                                                        <strong>Type:</strong>
+                                                        <div className="mt-1 ml-2">
+                                                            {param.schema_definition ? (
+                                                                <SchemaRenderer
+                                                                    schema={param.schema_definition}
+                                                                    compact={false}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-gray-500">unknown</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
@@ -362,8 +371,17 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                         {output.description}
                                                     </p>
                                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        <strong>Type:</strong> {output.schema_definition?.type || 'unknown'}
-                                                        {output.schema_definition?.is_array && <span className="ml-1">(array)</span>}
+                                                        <strong>Type:</strong>
+                                                        <div className="mt-1 ml-2">
+                                                            {output.schema_definition ? (
+                                                                <SchemaRenderer
+                                                                    schema={output.schema_definition}
+                                                                    compact={false}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-gray-500">unknown</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

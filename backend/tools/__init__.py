@@ -15,9 +15,9 @@ refresh_tool_registry()
 from .handlers import (  # noqa: F401
     email_handlers,
     extract_handlers,
-    update_augment_handlers,
     map_reduce_handlers,
     summarize_handlers,
+    web_search_handlers,
 )
 
 __all__ = [

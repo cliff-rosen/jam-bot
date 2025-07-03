@@ -7,7 +7,7 @@ modular schema system.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Optional, Union, Literal
+from typing import Dict, Optional, Union, Literal, get_args
 
 # --- Common Type Definitions ---
 
@@ -43,7 +43,7 @@ class SchemaEntity(BaseModel):
     id: str
     name: str
     description: str
-    schema_definition: SchemaType = Field(alias="schema")
+    schema_definition: SchemaType
 
     model_config = {
         "populate_by_name": True,

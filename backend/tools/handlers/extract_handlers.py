@@ -109,47 +109,47 @@ async def handle_extract(input: ToolExecutionInput) -> Dict[str, Any]:
     Args:
         input: ToolExecutionInput containing:
             - items: List of items to process
-            - result_schema: Schema defining the structure of the extraction result
-            - extraction_instructions: Natural language instructions for how to produce the result
+            - extraction_function: Function or prompt describing what to extract
+            - extraction_fields: List of field names to extract
+            - batch_process: Whether to process as batch or individual items
             
     Returns:
         Dict containing:
             - extractions: List of item ID and extraction pairs
-            - extraction_stats: Statistics about the extraction process
     """
     # Extract parameters
     items = input.params.get("items", [])
-    result_schema = input.params.get("result_schema")
-    extraction_instructions = input.params.get("extraction_instructions")
+    extraction_function = input.params.get("extraction_function")
+    extraction_fields = input.params.get("extraction_fields", [])
+    batch_process = input.params.get("batch_process", True)
     
     if not items:
         return {
-            "extractions": [],
-            "extraction_stats": {
-                "total_processed": 0,
-                "successful": 0,
-                "failed": 0
-            }
+            "extractions": []
         }
     
-    if not result_schema:
-        raise ValueError("result_schema is required")
+    if not extraction_function:
+        raise ValueError("extraction_function is required")
     
-    if not extraction_instructions:
-        raise ValueError("extraction_instructions is required")
+    if not extraction_fields:
+        raise ValueError("extraction_fields is required")
     
     extractions = []
-    successful_count = 0
-    failed_count = 0
+    
+    # Create a schema from the extraction fields
+    result_schema = {
+        "type": "object",
+        "properties": {field: {"type": "string"} for field in extraction_fields},
+        "required": extraction_fields
+    }
     
     # Process each item individually
     for item in items:
         try:
             extraction_result = await _apply_extraction_function(
-                item, result_schema, extraction_instructions
+                item, result_schema, extraction_function
             )
             extractions.append(extraction_result)
-            successful_count += 1
         except Exception as e:
             # Create failed extraction record
             extractions.append({
@@ -158,15 +158,9 @@ async def handle_extract(input: ToolExecutionInput) -> Dict[str, Any]:
                 "extraction": None,
                 "error": str(e)
             })
-            failed_count += 1
     
     return {
-        "extractions": extractions,
-        "extraction_stats": {
-            "total_processed": len(items),
-            "successful": successful_count,
-            "failed": failed_count
-        }
+        "extractions": extractions
     }
 
 async def _apply_extraction_function(

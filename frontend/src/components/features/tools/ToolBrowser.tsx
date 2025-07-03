@@ -203,7 +203,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
             <div className="flex-1 overflow-hidden">
                 <div className="flex h-full">
                     {/* Tool List */}
-                    <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+                    <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
                         <div className="p-2">
                             {filteredTools.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -273,7 +273,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                     </div>
 
                     {/* Tool Details */}
-                    <div className="w-1/2 overflow-y-auto">
+                    <div className="w-2/3 overflow-y-auto">
                         {selectedTool ? (
                             <div className="p-4">
                                 {/* Tool Header */}
@@ -316,8 +316,8 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                             {param.name}
                                                         </span>
                                                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${param.required
-                                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                                                : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                            : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                                                             }`}>
                                                             {param.required ? 'Required' : 'Optional'}
                                                         </span>
@@ -352,8 +352,8 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                                             {output.name}
                                                         </span>
                                                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${output.required
-                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                                                             }`}>
                                                             {output.required ? 'Always returned' : 'Optional'}
                                                         </span>

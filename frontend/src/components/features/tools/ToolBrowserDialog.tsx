@@ -19,8 +19,8 @@ export default function ToolBrowserDialog({ isOpen, onClose, onSelectTool }: Too
     };
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title="Tool Browser" maxWidth="full">
-            <div className="w-[1400px] h-[900px] flex flex-col">
+        <Dialog isOpen={isOpen} onClose={onClose} title="Tool Browser" maxWidth="6xl">
+            <div className="w-full h-[90vh] flex flex-col px-4">
                 {/* Content - takes up all available space */}
                 <div className="flex-1 min-h-0">
                     <ToolBrowser onSelectTool={handleSelectTool} />

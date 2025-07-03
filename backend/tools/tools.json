@@ -68,113 +68,109 @@
             ],
             "parameters": [
                 {
+                    "id": "query",
                     "name": "query",
-                    "type": "string",
-                    "description": "Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01'). Supports the same query format as the Gmail search box. Note: Do NOT include labels in the query string - use the label_ids parameter instead.",
+                    "description": "Gmail search query (e.g., 'from:user@example.com', 'subject:meeting', 'after:2024/01/01'). Supports the same query format as the Gmail search box.",
                     "required": true,
-                    "schema": {
-                        "type": "string"
-                    }
-                },
-                {
-                    "name": "label_ids",
-                    "type": "string",
-                    "is_array": true,
-                    "description": "List of Gmail label IDs to search in. Messages must match ALL specified labels. This is the ONLY way to filter by labels - do not use 'label:' in the query string.",
-                    "required": false,
-                    "schema": {
+                    "schema_definition": {
                         "type": "string",
-                        "is_array": true
+                        "description": "Gmail search query string",
+                        "is_array": false
                     }
                 },
                 {
-                    "name": "max_results",
-                    "type": "number",
-                    "description": "Maximum number of messages to return (1-500, default: 100)",
+                    "id": "folder",
+                    "name": "folder",
+                    "description": "Gmail folder/label to search in",
                     "required": false,
-                    "default": 100,
-                    "schema": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 500
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Gmail folder name",
+                        "is_array": false
                     }
                 },
                 {
-                    "name": "include_spam_trash",
-                    "type": "boolean",
-                    "description": "Include messages from SPAM and TRASH in the results",
+                    "id": "date_range",
+                    "name": "date_range",
+                    "description": "Optional date range filter with 'start_date' and 'end_date' keys",
                     "required": false,
-                    "default": false,
-                    "schema": {
-                        "type": "boolean"
-                    }
-                },
-                {
-                    "name": "page_token",
-                    "type": "string",
-                    "description": "Token for retrieving the next page of results",
-                    "required": false,
-                    "schema": {
-                        "type": "string"
-                    }
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "emails",
-                    "type": "object",
-                    "is_array": true,
-                    "description": "List of matching emails",
-                    "required": true,
-                    "schema": {
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Date range filter",
+                        "is_array": false,
                         "fields": {
-                            "id": {
+                            "start_date": {
                                 "type": "string",
-                                "description": "Email ID"
+                                "description": "Start date (ISO format)",
+                                "is_array": false
                             },
-                            "thread_id": {
+                            "end_date": {
                                 "type": "string",
-                                "description": "Thread ID"
-                            },
-                            "subject": {
-                                "type": "string",
-                                "description": "Email subject"
-                            },
-                            "from": {
-                                "type": "string",
-                                "description": "Sender email"
-                            },
-                            "to": {
-                                "type": "string",
-                                "is_array": true,
-                                "description": "Recipient emails"
-                            },
-                            "date": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "Email date"
-                            },
-                            "snippet": {
-                                "type": "string",
-                                "description": "Email preview"
-                            },
-                            "labels": {
-                                "type": "string",
-                                "is_array": true,
-                                "description": "Email labels"
+                                "description": "End date (ISO format)",
+                                "is_array": false
                             }
                         }
                     }
                 },
                 {
-                    "name": "count",
-                    "type": "number",
-                    "description": "Total number of matching emails",
-                    "required": true,
-                    "schema": {
+                    "id": "limit",
+                    "name": "limit",
+                    "description": "Maximum number of emails to retrieve",
+                    "required": false,
+                    "schema_definition": {
                         "type": "number",
-                        "description": "Count of matching emails"
+                        "description": "Maximum number of emails (default: 100)",
+                        "is_array": false
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "id": "emails",
+                    "name": "emails",
+                    "description": "List of matching emails",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "object",
+                        "description": "Email object",
+                        "is_array": true,
+                        "fields": {
+                            "id": {
+                                "type": "string",
+                                "description": "Email ID",
+                                "is_array": false
+                            },
+                            "subject": {
+                                "type": "string",
+                                "description": "Email subject",
+                                "is_array": false
+                            },
+                            "body": {
+                                "type": "string",
+                                "description": "Email body content",
+                                "is_array": false
+                            },
+                            "sender": {
+                                "type": "string",
+                                "description": "Sender email address",
+                                "is_array": false
+                            },
+                            "timestamp": {
+                                "type": "string",
+                                "description": "Email timestamp (ISO format)",
+                                "is_array": false
+                            },
+                            "labels": {
+                                "type": "string",
+                                "description": "Email labels",
+                                "is_array": true
+                            },
+                            "metadata": {
+                                "type": "object",
+                                "description": "Additional email metadata",
+                                "is_array": false
+                            }
+                        }
                     }
                 }
             ],
@@ -189,62 +185,39 @@
                             "emails": [
                                 {
                                     "id": "1897a5b2c3f4e6d8",
-                                    "thread_id": "1897a5b2c3f4e6d8",
                                     "subject": "Weekly AI Newsletter - Latest Developments",
-                                    "from": "ai-newsletter@techcorp.com",
-                                    "to": [
-                                        "user@example.com"
-                                    ],
-                                    "date": "2024-01-15T10:30:00Z",
-                                    "snippet": "This week in AI: Major breakthrough in transformer architecture, new GPT model released, and insights from the latest research papers...",
+                                    "body": "This week in AI: Major breakthrough in transformer architecture...",
+                                    "sender": "ai-newsletter@techcorp.com",
+                                    "timestamp": "2024-01-15T10:30:00Z",
                                     "labels": [
                                         "CATEGORY_NEWSLETTERS",
                                         "INBOX"
-                                    ]
+                                    ],
+                                    "metadata": {}
                                 },
                                 {
                                     "id": "2a34f5e8d9c1b7a6",
-                                    "thread_id": "2a34f5e8d9c1b7a6",
                                     "subject": "AI Research Digest - December 2024",
-                                    "from": "research@university.edu",
-                                    "to": [
-                                        "user@example.com"
-                                    ],
-                                    "date": "2024-01-14T15:45:00Z",
-                                    "snippet": "Monthly compilation of the most important AI research papers, including advances in computer vision, NLP, and reinforcement learning...",
+                                    "body": "Monthly compilation of the most important AI research papers...",
+                                    "sender": "research@university.edu",
+                                    "timestamp": "2024-01-14T15:45:00Z",
                                     "labels": [
                                         "CATEGORY_NEWSLETTERS",
                                         "INBOX"
-                                    ]
-                                },
-                                {
-                                    "id": "3b56c7d9e2a4f8b1",
-                                    "thread_id": "3b56c7d9e2a4f8b1",
-                                    "subject": "The ML Weekly - Issue #342",
-                                    "from": "editor@mlweekly.com",
-                                    "to": [
-                                        "user@example.com"
                                     ],
-                                    "date": "2024-01-13T08:00:00Z",
-                                    "snippet": "Featured this week: AutoML tools comparison, ethical AI considerations, and tutorial on fine-tuning language models...",
-                                    "labels": [
-                                        "CATEGORY_NEWSLETTERS",
-                                        "INBOX"
-                                    ]
+                                    "metadata": {}
                                 }
-                            ],
-                            "count": 3
+                            ]
                         },
                         "metadata": {
-                            "total_found": 3,
+                            "total_found": 2,
                             "search_time_ms": 145
                         }
                     },
                     {
                         "scenario": "empty_results",
                         "outputs": {
-                            "emails": [],
-                            "count": 0
+                            "emails": []
                         },
                         "metadata": {
                             "total_found": 0,
@@ -267,344 +240,275 @@
             "category": "data_processing",
             "parameters": [
                 {
+                    "id": "items",
                     "name": "items",
+                    "description": "Single item or list of items to process",
                     "required": true,
-                    "description": "List of items to process",
-                    "schema": {
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Items to extract from",
                         "is_array": true
                     }
                 },
                 {
+                    "id": "extraction_function",
                     "name": "extraction_function",
-                    "required": true,
                     "description": "Function or prompt describing what to extract (e.g., 'extract sentiment and key topics')",
-                    "schema": {
-                        "type": "string"
+                    "required": true,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Extraction function description",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "extraction_fields",
                     "name": "extraction_fields",
-                    "required": true,
                     "description": "List of field names to extract (e.g., ['sentiment', 'topics', 'priority'])",
-                    "schema": {
+                    "required": true,
+                    "schema_definition": {
                         "type": "string",
+                        "description": "Field names to extract",
                         "is_array": true
                     }
                 },
                 {
+                    "id": "batch_process",
                     "name": "batch_process",
-                    "required": false,
                     "description": "Whether to process as a batch (true) or individual items (false)",
-                    "schema": {
+                    "required": false,
+                    "schema_definition": {
                         "type": "boolean",
-                        "default": true
+                        "description": "Batch processing flag (default: true)",
+                        "is_array": false
                     }
                 }
             ],
             "outputs": [
                 {
+                    "id": "extractions",
                     "name": "extractions",
-                    "description": "List of item ID and extraction pairs",
+                    "description": "List of extraction results with item IDs and extracted data",
                     "required": true,
-                    "schema": {
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Extraction result",
                         "is_array": true,
                         "fields": {
                             "item_id": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Unique identifier for the item",
+                                "is_array": false
                             },
                             "original_item": {
-                                "type": "object"
+                                "type": "object",
+                                "description": "Original item data",
+                                "is_array": false
                             },
                             "extraction": {
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "extraction_stats",
-                    "description": "Statistics about the extraction process",
-                    "required": true,
-                    "schema": {
-                        "type": "object",
-                        "fields": {
-                            "total_processed": {
-                                "type": "number"
-                            },
-                            "successful": {
-                                "type": "number"
-                            },
-                            "failed": {
-                                "type": "number"
+                                "type": "object",
+                                "description": "Extracted data fields",
+                                "is_array": false
                             }
                         }
                     }
                 }
             ],
-            "examples": [
-                {
-                    "description": "Extract sentiment and topics from emails",
-                    "input": {
-                        "items": [
-                            {
-                                "id": "email_123",
-                                "subject": "Great news!",
-                                "body": "We exceeded our goals..."
-                            }
-                        ],
-                        "extraction_function": "Analyze each email and extract sentiment (positive/negative/neutral), main topics discussed, and priority level (high/medium/low)",
-                        "extraction_fields": [
-                            "sentiment",
-                            "topics",
-                            "priority"
-                        ],
-                        "batch_process": true
-                    }
-                }
-            ]
-        },
-        {
-            "id": "update_augment",
-            "name": "update_augment",
-            "description": "Apply updates or augmentations to a list of items",
-            "category": "data_processing",
-            "parameters": [
-                {
-                    "name": "items",
-                    "required": true,
-                    "description": "List of items to update",
-                    "schema": {
-                        "type": "object",
-                        "is_array": true
-                    }
-                },
-                {
-                    "name": "updates",
-                    "required": false,
-                    "description": "List of updates to apply to specific items",
-                    "schema": {
-                        "type": "object",
-                        "is_array": true,
-                        "fields": {
-                            "item_id": {
-                                "type": "string"
-                            },
-                            "update_data": {
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "augmentation_rules",
-                    "required": false,
-                    "description": "Rules for augmenting all items with computed fields",
-                    "schema": {
-                        "type": "object",
-                        "is_array": true,
-                        "fields": {
-                            "field_name": {
-                                "type": "string"
-                            },
-                            "computation": {
-                                "type": "string"
-                            },
-                            "apply_to_all": {
-                                "type": "boolean",
-                                "default": true
-                            }
-                        }
-                    }
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "updated_items",
-                    "required": true,
-                    "description": "Items with updates and augmentations applied",
-                    "schema": {
-                        "type": "object",
-                        "is_array": true
-                    }
-                },
-                {
-                    "name": "update_stats",
-                    "description": "Statistics about the update process",
-                    "required": true,
-                    "schema": {
-                        "type": "object",
-                        "fields": {
-                            "items_updated": {
-                                "type": "number"
-                            },
-                            "items_augmented": {
-                                "type": "number"
-                            },
-                            "errors": {
-                                "type": "number"
-                            }
-                        }
-                    }
-                }
-            ],
-            "examples": [
-                {
-                    "description": "Add categories and processing timestamps to analyzed emails",
-                    "input": {
-                        "items": [
-                            {
-                                "item_id": "email_123",
-                                "sentiment": "positive",
-                                "priority": "high"
-                            }
-                        ],
-                        "updates": [
-                            {
-                                "item_id": "email_123",
-                                "update_data": {
-                                    "category": "urgent"
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": true,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "extractions": [
+                                {
+                                    "item_id": "email_123",
+                                    "original_item": {
+                                        "subject": "Great news about the project!",
+                                        "body": "We exceeded our quarterly goals..."
+                                    },
+                                    "extraction": {
+                                        "sentiment": "positive",
+                                        "topics": [
+                                            "project",
+                                            "goals",
+                                            "quarterly"
+                                        ],
+                                        "priority": "high"
+                                    }
                                 }
-                            }
-                        ],
-                        "augmentation_rules": [
-                            {
-                                "field_name": "processed_date",
-                                "computation": "current_timestamp",
-                                "apply_to_all": true
-                            },
-                            {
-                                "field_name": "category",
-                                "computation": "if priority='high' then 'business_critical' else 'standard'",
-                                "apply_to_all": true
-                            }
-                        ]
+                            ]
+                        },
+                        "metadata": {
+                            "total_processed": 1,
+                            "successful": 1,
+                            "failed": 0
+                        }
+                    },
+                    {
+                        "scenario": "extraction_error",
+                        "is_error": true,
+                        "error_message": "Failed to extract data from malformed input",
+                        "outputs": {}
                     }
-                }
-            ]
+                ]
+            }
         },
         {
-            "id": "map_reduce_rollup",
-            "name": "map_reduce_rollup",
-            "description": "Group objects by rules and apply rollup functions to create aggregated results",
+            "id": "group_reduce",
+            "name": "group_reduce",
+            "description": "Group objects by rules and apply reduce functions to create aggregated results",
             "category": "data_analysis",
             "parameters": [
                 {
+                    "id": "items",
                     "name": "items",
-                    "required": true,
                     "description": "List of objects to group",
-                    "schema": {
+                    "required": true,
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Items to group",
                         "is_array": true
                     }
                 },
                 {
-                    "name": "group_by_rule",
+                    "id": "key_func",
+                    "name": "key_func",
+                    "description": "Function to extract grouping key from each item (e.g., 'date(timestamp)', 'sender', 'category')",
                     "required": true,
-                    "description": "Rule for grouping objects (e.g., 'date(timestamp)', 'sender', 'category')",
-                    "schema": {
-                        "type": "string"
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Key extraction function",
+                        "is_array": false
                     }
                 },
                 {
-                    "name": "rollup_functions",
+                    "id": "reduce_func",
+                    "name": "reduce_func",
+                    "description": "Function to aggregate items in each group (e.g., 'count', 'sum', 'average')",
                     "required": true,
-                    "description": "Aggregation functions to apply to each group",
-                    "schema": {
-                        "type": "object"
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Reduction function",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "sort_by",
                     "name": "sort_by",
-                    "required": false,
                     "description": "Field to sort results by",
-                    "schema": {
+                    "required": false,
+                    "schema_definition": {
                         "type": "string",
-                        "default": "group_key"
+                        "description": "Sort field (default: 'group_key')",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "sort_direction",
                     "name": "sort_direction",
+                    "description": "Sort direction ('asc' or 'desc')",
                     "required": false,
-                    "description": "Sort direction",
-                    "schema": {
+                    "schema_definition": {
                         "type": "string",
-                        "enum": [
-                            "asc",
-                            "desc"
-                        ],
-                        "default": "asc"
+                        "description": "Sort direction (default: 'asc')",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "include_items",
+                    "name": "include_items",
+                    "description": "Whether to include original items in results",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "boolean",
+                        "description": "Include original items flag (default: false)",
+                        "is_array": false
                     }
                 }
             ],
             "outputs": [
                 {
+                    "id": "grouped_results",
                     "name": "grouped_results",
-                    "required": true,
                     "description": "Aggregated results for each group",
-                    "schema": {
+                    "required": true,
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Grouped result",
                         "is_array": true,
                         "fields": {
                             "group_key": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "String representation of the group key",
+                                "is_array": false
                             },
                             "group_value": {
-                                "type": "primitive"
+                                "type": "object",
+                                "description": "Original group value",
+                                "is_array": false
                             },
                             "aggregated_data": {
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "rollup_stats",
-                    "required": true,
-                    "description": "Overall statistics about the rollup operation",
-                    "schema": {
-                        "type": "object",
-                        "fields": {
-                            "total_groups": {
-                                "type": "number"
+                                "type": "object",
+                                "description": "Aggregated data for the group",
+                                "is_array": false
                             },
-                            "total_items_processed": {
-                                "type": "number"
-                            },
-                            "avg_group_size": {
-                                "type": "number"
+                            "items": {
+                                "type": "object",
+                                "description": "Original items in the group (if include_items=true)",
+                                "is_array": true
                             }
                         }
                     }
                 }
             ],
-            "examples": [
-                {
-                    "description": "Group emails by date and calculate daily statistics",
-                    "input": {
-                        "items": [
-                            {
-                                "timestamp": "2024-01-15T10:30:00Z",
-                                "sentiment": 0.8,
-                                "sender": "user@company.com",
-                                "topics": [
-                                    "meetings"
-                                ]
-                            }
-                        ],
-                        "group_by_rule": "date(timestamp)",
-                        "rollup_functions": {
-                            "email_count": "count",
-                            "avg_sentiment": "avg(sentiment_score)",
-                            "unique_senders": "count_distinct(sender)",
-                            "topics": "collect_unique(topics)"
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": false,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "grouped_results": [
+                                {
+                                    "group_key": "2024-01-15",
+                                    "group_value": "2024-01-15",
+                                    "aggregated_data": {
+                                        "email_count": 5,
+                                        "avg_sentiment": 0.7,
+                                        "unique_senders": 3,
+                                        "key_topics": [
+                                            "ai",
+                                            "research",
+                                            "meetings"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "group_key": "2024-01-16",
+                                    "group_value": "2024-01-16",
+                                    "aggregated_data": {
+                                        "email_count": 3,
+                                        "avg_sentiment": 0.8,
+                                        "unique_senders": 2,
+                                        "key_topics": [
+                                            "project",
+                                            "deadlines"
+                                        ]
+                                    }
+                                }
+                            ]
                         },
-                        "sort_by": "group_value",
-                        "sort_direction": "asc"
+                        "metadata": {
+                            "total_groups": 2,
+                            "total_items_processed": 8
+                        }
                     }
-                }
-            ]
+                ]
+            }
         },
         {
             "id": "summarize",
@@ -613,95 +517,111 @@
             "category": "data_processing",
             "parameters": [
                 {
+                    "id": "content",
                     "name": "content",
+                    "description": "Content to summarize (text, structured data, or mixed)",
                     "required": true,
-                    "description": "Content to summarize (can be text, structured data, or mixed)",
-                    "schema": {
-                        "type": "object"
+                    "schema_definition": {
+                        "type": "object",
+                        "description": "Content to summarize",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "summarization_mandate",
                     "name": "summarization_mandate",
+                    "description": "Instructions for how to summarize (e.g., 'Create executive summary focusing on key metrics and trends')",
                     "required": true,
-                    "description": "Specific instructions for how to summarize (e.g., 'Create executive summary focusing on key metrics and trends')",
-                    "schema": {
-                        "type": "string"
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Summarization instructions",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "summary_type",
                     "name": "summary_type",
+                    "description": "Type of summary ('executive', 'detailed', 'bullet_points', 'narrative', 'statistical')",
                     "required": false,
-                    "description": "Type of summary to generate",
-                    "schema": {
+                    "schema_definition": {
                         "type": "string",
-                        "enum": [
-                            "executive",
-                            "detailed",
-                            "bullet_points",
-                            "narrative",
-                            "statistical"
-                        ],
-                        "default": "executive"
+                        "description": "Summary type (default: 'executive')",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "target_length",
                     "name": "target_length",
+                    "description": "Target length ('brief', 'medium', 'comprehensive')",
                     "required": false,
-                    "description": "Target length of the summary",
-                    "schema": {
+                    "schema_definition": {
                         "type": "string",
-                        "enum": [
-                            "brief",
-                            "medium",
-                            "comprehensive"
-                        ],
-                        "default": "medium"
+                        "description": "Target length (default: 'medium')",
+                        "is_array": false
                     }
                 },
                 {
+                    "id": "focus_areas",
                     "name": "focus_areas",
+                    "description": "Specific areas to focus on",
                     "required": false,
-                    "description": "Specific areas to focus on in the summary",
-                    "schema": {
+                    "schema_definition": {
                         "type": "string",
+                        "description": "Focus areas",
                         "is_array": true
                     }
                 }
             ],
             "outputs": [
                 {
+                    "id": "summary",
                     "name": "summary",
-                    "required": true,
                     "description": "Generated summary with metadata",
-                    "schema": {
+                    "required": true,
+                    "schema_definition": {
                         "type": "object",
+                        "description": "Summary result",
+                        "is_array": false,
                         "fields": {
                             "title": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Summary title",
+                                "is_array": false
                             },
                             "content": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Summary content",
+                                "is_array": false
                             },
                             "key_points": {
                                 "type": "string",
+                                "description": "Key points extracted",
                                 "is_array": true
                             },
                             "recommendations": {
                                 "type": "string",
+                                "description": "Recommendations",
                                 "is_array": true
                             },
                             "metadata": {
                                 "type": "object",
+                                "description": "Summary metadata",
+                                "is_array": false,
                                 "fields": {
                                     "summary_type": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Type of summary generated",
+                                        "is_array": false
                                     },
                                     "word_count": {
-                                        "type": "number"
+                                        "type": "number",
+                                        "description": "Word count of summary",
+                                        "is_array": false
                                     },
                                     "created_at": {
                                         "type": "string",
-                                        "format": "date-time"
+                                        "description": "Creation timestamp",
+                                        "is_array": false
                                     }
                                 }
                             }
@@ -709,35 +629,252 @@
                     }
                 }
             ],
-            "examples": [
-                {
-                    "description": "Create executive summary of daily email statistics",
-                    "input": {
-                        "content": {
-                            "daily_stats": [
-                                {
-                                    "date": "2024-01-15",
-                                    "email_count": 12,
-                                    "avg_sentiment": 0.7
-                                },
-                                {
-                                    "date": "2024-01-16",
-                                    "email_count": 8,
-                                    "avg_sentiment": 0.8
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": true,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "summary": {
+                                "title": "Weekly Email Analysis Summary",
+                                "content": "Analysis of 127 emails over the past week reveals increasing engagement with AI-related topics. Average sentiment remains positive at 0.72, with notable spikes in discussions around machine learning applications and research developments.",
+                                "key_points": [
+                                    "127 emails processed over 7 days",
+                                    "Positive sentiment trend (0.72 average)",
+                                    "AI and ML topics dominating discussions",
+                                    "Research papers generating highest engagement"
+                                ],
+                                "recommendations": [
+                                    "Continue focus on AI research content",
+                                    "Consider increasing frequency of ML application updates",
+                                    "Monitor sentiment trends weekly"
+                                ],
+                                "metadata": {
+                                    "summary_type": "executive",
+                                    "word_count": 89,
+                                    "created_at": "2024-01-15T16:30:00Z"
                                 }
-                            ]
+                            }
                         },
-                        "summarization_mandate": "Create an executive summary highlighting email volume trends, sentiment patterns, and key topics discussed over the analyzed period",
-                        "summary_type": "executive",
-                        "target_length": "medium",
-                        "focus_areas": [
-                            "volume trends",
-                            "sentiment analysis",
-                            "key topics"
-                        ]
+                        "metadata": {
+                            "processing_time_ms": 2340
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "id": "web_search",
+            "name": "web_search",
+            "description": "Search the web for real-time information about any topic",
+            "category": "data_retrieval",
+            "parameters": [
+                {
+                    "id": "search_term",
+                    "name": "search_term",
+                    "description": "The search term to look up on the web. Be specific and include relevant keywords for better results.",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Web search query",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "num_results",
+                    "name": "num_results",
+                    "description": "Number of search results to return",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "Number of results (default: 10)",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "date_range",
+                    "name": "date_range",
+                    "description": "Date range for search results ('day', 'week', 'month', 'year', 'all')",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Date range filter (default: 'all')",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "region",
+                    "name": "region",
+                    "description": "Geographic region for search results (e.g., 'us', 'uk', 'global')",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Geographic region (default: 'global')",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "language",
+                    "name": "language",
+                    "description": "Language for search results (e.g., 'en', 'es', 'fr')",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Language code (default: 'en')",
+                        "is_array": false
                     }
                 }
-            ]
+            ],
+            "outputs": [
+                {
+                    "id": "search_results",
+                    "name": "search_results",
+                    "description": "List of web search results",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "object",
+                        "description": "Search result",
+                        "is_array": true,
+                        "fields": {
+                            "title": {
+                                "type": "string",
+                                "description": "Page title",
+                                "is_array": false
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "Page URL",
+                                "is_array": false
+                            },
+                            "snippet": {
+                                "type": "string",
+                                "description": "Page snippet/description",
+                                "is_array": false
+                            },
+                            "published_date": {
+                                "type": "string",
+                                "description": "Publication date (if available)",
+                                "is_array": false
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Source domain",
+                                "is_array": false
+                            },
+                            "rank": {
+                                "type": "number",
+                                "description": "Search result rank",
+                                "is_array": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "search_metadata",
+                    "name": "search_metadata",
+                    "description": "Search metadata and statistics",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "object",
+                        "description": "Search metadata",
+                        "is_array": false,
+                        "fields": {
+                            "query": {
+                                "type": "string",
+                                "description": "Original search query",
+                                "is_array": false
+                            },
+                            "total_results": {
+                                "type": "number",
+                                "description": "Total number of results found",
+                                "is_array": false
+                            },
+                            "search_time": {
+                                "type": "number",
+                                "description": "Search execution time in milliseconds",
+                                "is_array": false
+                            },
+                            "timestamp": {
+                                "type": "string",
+                                "description": "Search timestamp",
+                                "is_array": false
+                            }
+                        }
+                    }
+                }
+            ],
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": true,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "search_results": [
+                                {
+                                    "title": "Latest AI Research Breakthroughs in 2024",
+                                    "url": "https://example.com/ai-research-2024",
+                                    "snippet": "Comprehensive overview of the most significant AI research developments in 2024, including advances in large language models, computer vision, and robotics.",
+                                    "published_date": "2024-01-15",
+                                    "source": "example.com",
+                                    "rank": 1
+                                },
+                                {
+                                    "title": "OpenAI GPT-4 Turbo: New Features and Capabilities",
+                                    "url": "https://example.com/gpt4-turbo-features",
+                                    "snippet": "Detailed analysis of GPT-4 Turbo's new features, performance improvements, and real-world applications in various industries.",
+                                    "published_date": "2024-01-14",
+                                    "source": "example.com",
+                                    "rank": 2
+                                },
+                                {
+                                    "title": "Machine Learning Trends and Predictions for 2024",
+                                    "url": "https://example.com/ml-trends-2024",
+                                    "snippet": "Expert predictions and analysis of emerging machine learning trends, including automated ML, federated learning, and ethical AI considerations.",
+                                    "published_date": "2024-01-13",
+                                    "source": "example.com",
+                                    "rank": 3
+                                }
+                            ],
+                            "search_metadata": {
+                                "query": "AI research 2024 developments",
+                                "total_results": 847000,
+                                "search_time": 234,
+                                "timestamp": "2024-01-15T10:30:00Z"
+                            }
+                        },
+                        "metadata": {
+                            "api_version": "v1",
+                            "region": "global",
+                            "language": "en"
+                        }
+                    },
+                    {
+                        "scenario": "no_results",
+                        "outputs": {
+                            "search_results": [],
+                            "search_metadata": {
+                                "query": "very specific nonexistent search term xyz123",
+                                "total_results": 0,
+                                "search_time": 156,
+                                "timestamp": "2024-01-15T10:30:00Z"
+                            }
+                        },
+                        "metadata": {
+                            "message": "No results found for the given search term"
+                        }
+                    },
+                    {
+                        "scenario": "api_error",
+                        "is_error": true,
+                        "error_message": "Web search API temporarily unavailable. Please try again later.",
+                        "outputs": {}
+                    }
+                ]
+            }
         }
     ]
 }

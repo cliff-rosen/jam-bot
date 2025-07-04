@@ -13,8 +13,6 @@ import aiohttp
 from sqlalchemy.orm import Session
 
 from config.settings import settings
-from models import ResourceCredentials
-from schemas.resource import WEB_SEARCH_RESOURCE
 from schemas.canonical_types import CanonicalSearchResult
 
 logger = logging.getLogger(__name__)
@@ -147,7 +145,7 @@ class SearchService:
             search_time_ms: Search execution time
             
         Returns:
-            Formatted search results
+            Dict with search_results as List[CanonicalSearchResult] and search_metadata
         """
         items = data.get("items", [])
         search_results = []
@@ -166,7 +164,7 @@ class SearchService:
                 rank=idx
             )
             
-            search_results.append(result.model_dump())
+            search_results.append(result)
         
         # Get total results count from API
         total_results = int(data.get("searchInformation", {}).get("totalResults", 0))
@@ -268,7 +266,12 @@ class SearchService:
             raise
 
     def _format_duckduckgo_results(self, data: Dict[str, Any], search_term: str, search_time_ms: int, num_results: int) -> Dict[str, Any]:
-        """Format DuckDuckGo API results into our canonical format"""
+        """
+        Format DuckDuckGo API results into our canonical format
+        
+        Returns:
+            Dict with search_results as List[CanonicalSearchResult] and search_metadata
+        """
         # DuckDuckGo instant answers are limited, so we create a basic response
         search_results = []
         
@@ -282,7 +285,7 @@ class SearchService:
                 source=self._extract_domain(data.get("AbstractURL", "")),
                 rank=1
             )
-            search_results.append(result.model_dump())
+            search_results.append(result)
         
         # Add related topics
         for idx, topic in enumerate(data.get("RelatedTopics", [])[:num_results-1], 2):
@@ -295,7 +298,7 @@ class SearchService:
                     source=self._extract_domain(topic.get("FirstURL", "")),
                     rank=idx
                 )
-                search_results.append(result.model_dump())
+                search_results.append(result)
         
         search_metadata = {
             "query": search_term,

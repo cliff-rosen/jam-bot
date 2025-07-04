@@ -33,10 +33,22 @@ class SearchRequest(BaseModel):
     region: str = Field(default="global", description="Geographic region for search results")
     language: str = Field(default="en", description="Language for search results")
 
+class SearchMetadata(BaseModel):
+    """Search metadata information"""
+    query: str
+    total_results: int
+    search_time: int  # milliseconds
+    timestamp: str
+
+class SearchResultData(BaseModel):
+    """Typed data structure for search results"""
+    search_results: List[CanonicalSearchResult]
+    search_metadata: SearchMetadata
+
 class SearchResponse(BaseModel):
     """Response model for web search"""
     success: bool
-    data: Optional[Dict[str, Any]] = None
+    data: Optional[SearchResultData] = None
     error: Optional[str] = None
     message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -85,9 +97,20 @@ async def perform_search(
             language=request.language
         )
         
+        # Create properly typed response data
+        search_result_data = SearchResultData(
+            search_results=result.get('search_results', []),
+            search_metadata=SearchMetadata(
+                query=result.get('search_metadata', {}).get('query', request.search_term),
+                total_results=result.get('search_metadata', {}).get('total_results', 0),
+                search_time=result.get('search_metadata', {}).get('search_time', 0),
+                timestamp=result.get('search_metadata', {}).get('timestamp', datetime.utcnow().isoformat())
+            )
+        )
+        
         return SearchResponse(
             success=True,
-            data=result,
+            data=search_result_data,
             message=f"Found {len(result.get('search_results', []))} results for '{request.search_term}'",
             metadata={
                 'query_params': request.model_dump(),
@@ -223,12 +246,25 @@ async def validate_search_service(
         )
         
         if test_result.get('search_results'):
+            # Create properly typed response for validation test
+            search_result_data = SearchResultData(
+                search_results=test_result.get('search_results', []),
+                search_metadata=SearchMetadata(
+                    query=test_result.get('search_metadata', {}).get('query', 'test'),
+                    total_results=test_result.get('search_metadata', {}).get('total_results', 0),
+                    search_time=test_result.get('search_metadata', {}).get('search_time', 0),
+                    timestamp=test_result.get('search_metadata', {}).get('timestamp', datetime.utcnow().isoformat())
+                )
+            )
+            
             return SearchResponse(
                 success=True,
+                data=search_result_data,
                 message=f"Search service validated successfully with {search_service.search_engine}",
                 metadata={
                     'search_engine': search_service.search_engine,
-                    'test_search_time': test_result.get('search_metadata', {}).get('search_time', 0)
+                    'test_search_time': test_result.get('search_metadata', {}).get('search_time', 0),
+                    'results_count': len(test_result.get('search_results', []))
                 }
             )
         else:
@@ -246,38 +282,6 @@ async def validate_search_service(
             message="Error validating search service"
         )
 
-@router.get("/suggestions")
-async def get_search_suggestions(
-    query: str,
-    user = Depends(validate_token)
-):
-    """
-    Get search suggestions for a partial query (placeholder endpoint)
-    
-    Args:
-        query: Partial search query
-        user: Authenticated user
-        
-    Returns:
-        List of search suggestions
-    """
-    # This is a placeholder implementation
-    # In a real implementation, you might use a search suggestion API
-    # or generate suggestions based on search history
-    
-    if not query or len(query) < 2:
-        return {"suggestions": []}
-    
-    # Simple suggestions based on common search patterns
-    suggestions = [
-        f"{query} 2024",
-        f"{query} guide",
-        f"{query} tutorial",
-        f"{query} examples",
-        f"{query} best practices"
-    ]
-    
-    return {"suggestions": suggestions[:5]}
 
 ##########################
 ### Search History (Optional) ###

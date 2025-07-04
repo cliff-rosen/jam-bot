@@ -56,6 +56,15 @@ async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
             language=language
         )
         
+        # Convert canonical search results to dictionaries for tool output
+        # The service returns CanonicalSearchResult objects, but the tool execution
+        # framework expects dictionaries, so we serialize them here at the boundary
+        if 'search_results' in result:
+            result['search_results'] = [
+                search_result.model_dump() if hasattr(search_result, 'model_dump') else search_result
+                for search_result in result['search_results']
+            ]
+        
         return result
         
     except Exception as e:

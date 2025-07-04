@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 from services.search_service import SearchService
+from schemas.canonical_types import CanonicalSearchResult
 
 
 class TestSearchService:
@@ -114,9 +115,14 @@ class TestSearchService:
         assert "search_results" in result
         assert "search_metadata" in result
         assert len(result["search_results"]) == 2
-        assert result["search_results"][0]["title"] == "Test Result 1"
-        assert result["search_results"][0]["url"] == "https://example.com/test1"
-        assert result["search_results"][0]["rank"] == 1
+        
+        # Verify first result is a CanonicalSearchResult object
+        first_result = result["search_results"][0]
+        assert isinstance(first_result, CanonicalSearchResult)
+        assert first_result.title == "Test Result 1"
+        assert first_result.url == "https://example.com/test1"
+        assert first_result.rank == 1
+        
         assert result["search_metadata"]["query"] == "test query"
         assert result["search_metadata"]["total_results"] == 2
 
@@ -140,8 +146,13 @@ class TestSearchService:
         assert "search_results" in result
         assert "search_metadata" in result
         assert len(result["search_results"]) >= 1
-        assert result["search_results"][0]["title"] == "Test Source"
-        assert result["search_results"][0]["url"] == "https://example.com/abstract"
+        
+        # Verify first result is a CanonicalSearchResult object
+        first_result = result["search_results"][0]
+        assert isinstance(first_result, CanonicalSearchResult)
+        assert first_result.title == "Test Source"
+        assert first_result.url == "https://example.com/abstract"
+        
         assert result["search_metadata"]["query"] == "test query"
 
     def test_extract_domain(self):

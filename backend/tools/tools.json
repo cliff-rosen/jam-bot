@@ -694,45 +694,79 @@
                 {
                     "id": "search_results",
                     "name": "search_results",
-                    "description": "List of web search results",
+                    "description": "List of web search results using canonical CanonicalSearchResult schema",
                     "required": true,
                     "schema_definition": {
                         "type": "search_result",
-                        "description": "Search result",
-                        "is_array": true
+                        "description": "Canonical search result object",
+                        "is_array": true,
+                        "canonical_type": "CanonicalSearchResult"
                     }
                 },
                 {
-                    "id": "search_metadata",
-                    "name": "search_metadata",
-                    "description": "Search metadata and statistics",
+                    "id": "query",
+                    "name": "query",
+                    "description": "Original search query",
                     "required": true,
                     "schema_definition": {
+                        "type": "string",
+                        "description": "Original search query",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "total_results",
+                    "name": "total_results",
+                    "description": "Total number of results found",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "Total number of results found",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "search_time",
+                    "name": "search_time",
+                    "description": "Search execution time in milliseconds",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "Search execution time in milliseconds",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "timestamp",
+                    "name": "timestamp",
+                    "description": "Search timestamp",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Search timestamp (ISO format)",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "search_engine",
+                    "name": "search_engine",
+                    "description": "Search engine used",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Search engine used (google, duckduckgo, etc.)",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "metadata",
+                    "name": "metadata",
+                    "description": "Additional search metadata",
+                    "required": false,
+                    "schema_definition": {
                         "type": "object",
-                        "description": "Search metadata",
-                        "is_array": false,
-                        "fields": {
-                            "query": {
-                                "type": "string",
-                                "description": "Original search query",
-                                "is_array": false
-                            },
-                            "total_results": {
-                                "type": "number",
-                                "description": "Total number of results found",
-                                "is_array": false
-                            },
-                            "search_time": {
-                                "type": "number",
-                                "description": "Search execution time in milliseconds",
-                                "is_array": false
-                            },
-                            "timestamp": {
-                                "type": "string",
-                                "description": "Search timestamp",
-                                "is_array": false
-                            }
-                        }
+                        "description": "Additional search metadata",
+                        "is_array": false
                     }
                 }
             ],
@@ -751,7 +785,9 @@
                                     "snippet": "Comprehensive overview of the most significant AI research developments in 2024, including advances in large language models, computer vision, and robotics.",
                                     "published_date": "2024-01-15",
                                     "source": "example.com",
-                                    "rank": 1
+                                    "rank": 1,
+                                    "relevance_score": 0.95,
+                                    "metadata": null
                                 },
                                 {
                                     "title": "OpenAI GPT-4 Turbo: New Features and Capabilities",
@@ -759,7 +795,9 @@
                                     "snippet": "Detailed analysis of GPT-4 Turbo's new features, performance improvements, and real-world applications in various industries.",
                                     "published_date": "2024-01-14",
                                     "source": "example.com",
-                                    "rank": 2
+                                    "rank": 2,
+                                    "relevance_score": 0.92,
+                                    "metadata": null
                                 },
                                 {
                                     "title": "Machine Learning Trends and Predictions for 2024",
@@ -767,15 +805,17 @@
                                     "snippet": "Expert predictions and analysis of emerging machine learning trends, including automated ML, federated learning, and ethical AI considerations.",
                                     "published_date": "2024-01-13",
                                     "source": "example.com",
-                                    "rank": 3
+                                    "rank": 3,
+                                    "relevance_score": 0.89,
+                                    "metadata": null
                                 }
                             ],
-                            "search_metadata": {
-                                "query": "AI research 2024 developments",
-                                "total_results": 847000,
-                                "search_time": 234,
-                                "timestamp": "2024-01-15T10:30:00Z"
-                            }
+                            "query": "AI research 2024 developments",
+                            "total_results": 847000,
+                            "search_time": 234,
+                            "timestamp": "2024-01-15T10:30:00Z",
+                            "search_engine": "google",
+                            "metadata": null
                         },
                         "metadata": {
                             "api_version": "v1",
@@ -787,12 +827,12 @@
                         "scenario": "no_results",
                         "outputs": {
                             "search_results": [],
-                            "search_metadata": {
-                                "query": "very specific nonexistent search term xyz123",
-                                "total_results": 0,
-                                "search_time": 156,
-                                "timestamp": "2024-01-15T10:30:00Z"
-                            }
+                            "query": "very specific nonexistent search term xyz123",
+                            "total_results": 0,
+                            "search_time": 156,
+                            "timestamp": "2024-01-15T10:30:00Z",
+                            "search_engine": "google",
+                            "metadata": null
                         },
                         "metadata": {
                             "message": "No results found for the given search term"

@@ -5,7 +5,7 @@ This service handles web search operations using various search APIs.
 Currently supports Google Custom Search API.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TypedDict
 from datetime import datetime
 import logging
 import asyncio
@@ -16,6 +16,17 @@ from config.settings import settings
 from schemas.canonical_types import CanonicalSearchResult
 
 logger = logging.getLogger(__name__)
+
+
+class SearchServiceResult(TypedDict):
+    """Simple service result structure containing canonical search results"""
+    search_results: List[CanonicalSearchResult]
+    query: str
+    total_results: int
+    search_time: int
+    timestamp: str
+    search_engine: Optional[str]
+    metadata: Optional[Dict[str, Any]]
 
 
 class SearchService:
@@ -69,7 +80,7 @@ class SearchService:
         date_range: str = "all",
         region: str = "global",
         language: str = "en"
-    ) -> Dict[str, Any]:
+    ) -> SearchServiceResult:
         """
         Perform search using Google Custom Search API
         
@@ -81,7 +92,7 @@ class SearchService:
             language: Language for search results
             
         Returns:
-            Dict containing search results and metadata
+            SearchServiceResult containing List[CanonicalSearchResult] and metadata
         """
         if not self.api_key or not self.custom_search_id:
             raise ValueError("Google search requires API key and custom search ID")
@@ -135,9 +146,9 @@ class SearchService:
             logger.error(f"Error performing Google search: {str(e)}")
             raise
 
-    def _format_google_results(self, data: Dict[str, Any], search_term: str, search_time_ms: int) -> Dict[str, Any]:
+    def _format_google_results(self, data: Dict[str, Any], search_term: str, search_time_ms: int) -> SearchServiceResult:
         """
-        Format Google Custom Search API results into our canonical format
+        Format Google Custom Search API results into our service result format
         
         Args:
             data: Raw Google API response
@@ -145,10 +156,10 @@ class SearchService:
             search_time_ms: Search execution time
             
         Returns:
-            Dict with search_results as List[CanonicalSearchResult] and search_metadata
+            SearchServiceResult with canonical search results and metadata
         """
         items = data.get("items", [])
-        search_results = []
+        search_results: List[CanonicalSearchResult] = []
         
         for idx, item in enumerate(items, 1):
             # Extract publication date from snippet or use current date
@@ -169,17 +180,15 @@ class SearchService:
         # Get total results count from API
         total_results = int(data.get("searchInformation", {}).get("totalResults", 0))
         
-        search_metadata = {
-            "query": search_term,
-            "total_results": total_results,
-            "search_time": search_time_ms,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        return {
-            "search_results": search_results,
-            "search_metadata": search_metadata
-        }
+        return SearchServiceResult(
+            search_results=search_results,
+            query=search_term,
+            total_results=total_results,
+            search_time=search_time_ms,
+            timestamp=datetime.utcnow().isoformat(),
+            search_engine=self.search_engine,
+            metadata=None
+        )
 
     def _extract_domain(self, url: str) -> str:
         """Extract domain name from URL"""
@@ -224,7 +233,7 @@ class SearchService:
         search_term: str,
         num_results: int = 10,
         region: str = "global"
-    ) -> Dict[str, Any]:
+    ) -> SearchServiceResult:
         """
         Perform search using DuckDuckGo API (as fallback)
         
@@ -234,7 +243,7 @@ class SearchService:
             region: Geographic region for search results
             
         Returns:
-            Dict containing search results and metadata
+            SearchServiceResult containing canonical search results and metadata
         """
         # DuckDuckGo Instant Answer API
         url = "https://api.duckduckgo.com/"
@@ -265,15 +274,15 @@ class SearchService:
             logger.error(f"Error performing DuckDuckGo search: {str(e)}")
             raise
 
-    def _format_duckduckgo_results(self, data: Dict[str, Any], search_term: str, search_time_ms: int, num_results: int) -> Dict[str, Any]:
+    def _format_duckduckgo_results(self, data: Dict[str, Any], search_term: str, search_time_ms: int, num_results: int) -> SearchServiceResult:
         """
-        Format DuckDuckGo API results into our canonical format
+        Format DuckDuckGo API results into our service result format
         
         Returns:
-            Dict with search_results as List[CanonicalSearchResult] and search_metadata
+            SearchServiceResult with canonical search results and metadata
         """
         # DuckDuckGo instant answers are limited, so we create a basic response
-        search_results = []
+        search_results: List[CanonicalSearchResult] = []
         
         # Add instant answer if available
         if data.get("AbstractText"):
@@ -300,17 +309,15 @@ class SearchService:
                 )
                 search_results.append(result)
         
-        search_metadata = {
-            "query": search_term,
-            "total_results": len(search_results),
-            "search_time": search_time_ms,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        return {
-            "search_results": search_results,
-            "search_metadata": search_metadata
-        }
+        return SearchServiceResult(
+            search_results=search_results,
+            query=search_term,
+            total_results=len(search_results),
+            search_time=search_time_ms,
+            timestamp=datetime.utcnow().isoformat(),
+            search_engine=self.search_engine,
+            metadata=None
+        )
 
     async def search(
         self,
@@ -319,7 +326,7 @@ class SearchService:
         date_range: str = "all",
         region: str = "global",
         language: str = "en"
-    ) -> Dict[str, Any]:
+    ) -> SearchServiceResult:
         """
         Perform web search using the configured search engine
         
@@ -331,7 +338,7 @@ class SearchService:
             language: Language for search results
             
         Returns:
-            Dict containing search results and metadata
+            SearchServiceResult containing canonical search results and metadata
         """
         if not self.initialized:
             # Auto-initialize if not already done

@@ -33,22 +33,19 @@ class SearchRequest(BaseModel):
     region: str = Field(default="global", description="Geographic region for search results")
     language: str = Field(default="en", description="Language for search results")
 
-class SearchMetadata(BaseModel):
-    """Search metadata information"""
+class SearchResultsData(BaseModel):
+    """API response data structure for search results"""
+    search_results: List[CanonicalSearchResult]
     query: str
     total_results: int
-    search_time: int  # milliseconds
+    search_time: int
     timestamp: str
-
-class SearchResultData(BaseModel):
-    """Typed data structure for search results"""
-    search_results: List[CanonicalSearchResult]
-    search_metadata: SearchMetadata
+    search_engine: Optional[str] = None
 
 class SearchResponse(BaseModel):
     """Response model for web search"""
     success: bool
-    data: Optional[SearchResultData] = None
+    data: Optional[SearchResultsData] = None
     error: Optional[str] = None
     message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -97,21 +94,20 @@ async def perform_search(
             language=request.language
         )
         
-        # Create properly typed response data
-        search_result_data = SearchResultData(
-            search_results=result.get('search_results', []),
-            search_metadata=SearchMetadata(
-                query=result.get('search_metadata', {}).get('query', request.search_term),
-                total_results=result.get('search_metadata', {}).get('total_results', 0),
-                search_time=result.get('search_metadata', {}).get('search_time', 0),
-                timestamp=result.get('search_metadata', {}).get('timestamp', datetime.utcnow().isoformat())
-            )
+        # Convert service result to API response data
+        search_data = SearchResultsData(
+            search_results=result["search_results"],
+            query=result["query"],
+            total_results=result["total_results"],
+            search_time=result["search_time"],
+            timestamp=result["timestamp"],
+            search_engine=result["search_engine"]
         )
         
         return SearchResponse(
             success=True,
-            data=search_result_data,
-            message=f"Found {len(result.get('search_results', []))} results for '{request.search_term}'",
+            data=search_data,
+            message=f"Found {len(result['search_results'])} results for '{request.search_term}'",
             metadata={
                 'query_params': request.model_dump(),
                 'search_engine': search_service.search_engine,
@@ -245,26 +241,25 @@ async def validate_search_service(
             num_results=1
         )
         
-        if test_result.get('search_results'):
-            # Create properly typed response for validation test
-            search_result_data = SearchResultData(
-                search_results=test_result.get('search_results', []),
-                search_metadata=SearchMetadata(
-                    query=test_result.get('search_metadata', {}).get('query', 'test'),
-                    total_results=test_result.get('search_metadata', {}).get('total_results', 0),
-                    search_time=test_result.get('search_metadata', {}).get('search_time', 0),
-                    timestamp=test_result.get('search_metadata', {}).get('timestamp', datetime.utcnow().isoformat())
-                )
+        if test_result["search_results"]:
+            # Convert service result to API response data
+            search_data = SearchResultsData(
+                search_results=test_result["search_results"],
+                query=test_result["query"],
+                total_results=test_result["total_results"],
+                search_time=test_result["search_time"],
+                timestamp=test_result["timestamp"],
+                search_engine=test_result["search_engine"]
             )
             
             return SearchResponse(
                 success=True,
-                data=search_result_data,
+                data=search_data,
                 message=f"Search service validated successfully with {search_service.search_engine}",
                 metadata={
                     'search_engine': search_service.search_engine,
-                    'test_search_time': test_result.get('search_metadata', {}).get('search_time', 0),
-                    'results_count': len(test_result.get('search_results', []))
+                    'test_search_time': test_result["search_time"],
+                    'results_count': len(test_result["search_results"])
                 }
             )
         else:
@@ -281,7 +276,6 @@ async def validate_search_service(
             error=str(e),
             message="Error validating search service"
         )
-
 
 ##########################
 ### Search History (Optional) ###

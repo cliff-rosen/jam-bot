@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 from schemas.asset import Asset
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
+from schemas.schema_utils import serialize_canonical_object, create_typed_response
 from tools.tool_registry import TOOL_REGISTRY, get_tool_definition
 from tools.tool_stubbing import ToolStubbing
 
@@ -20,14 +21,14 @@ class ToolExecutionError(Exception):
 
 async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Dict[str, Any]:
     """
-    Execute a tool step and return the results.
+    Execute a tool step and return the results with proper canonical type handling.
     
     Args:
         step: The tool step to execute
         hop_state: Current state of the hop containing all assets
         
     Returns:
-        Dict containing the execution results
+        Dict containing the execution results with canonical types preserved
         
     Raises:
         ToolExecutionError: If tool execution fails
@@ -91,22 +92,29 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
         
         print("execute_tool_step: Tool execution completed")
 
-        # Handle result mapping
+        # Handle different result types while preserving canonical types
         if isinstance(result, ToolExecutionResult):
-            outputs = result.outputs
+            # New typed result format - use schema utilities for proper handling
+            return create_typed_response(
+                success=True,
+                outputs=result.outputs,
+                metadata=result.metadata
+            )
         elif isinstance(result, dict) and "outputs" in result:
-            # Result is already in the expected format
-            outputs = result["outputs"]
+            # Legacy result format - handle gracefully
+            return create_typed_response(
+                success=True,
+                outputs=result["outputs"],
+                metadata=result.get("metadata")
+            )
         else:
-            outputs = result
+            # Direct result format - treat as outputs
+            return create_typed_response(
+                success=True,
+                outputs=result,
+                metadata=None
+            )
             
-        return {
-            "success": True,
-            "errors": [],
-            "outputs": outputs,
-            "_stubbed": result.get("_stubbed", False) if isinstance(result, dict) else False
-        }
-        
     except Exception as e:
         print(f"execute_tool_step: Error executing tool: {e}")
         raise ToolExecutionError(str(e), step.tool_id) 

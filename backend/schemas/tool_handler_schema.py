@@ -28,9 +28,16 @@ class ToolExecutionInput(BaseModel):
     step_id: Optional[str] = None
 
 
-class ToolExecutionResult:
-    """Result returned by a tool handler"""
-    outputs: Dict[str, Any]  # Maps output parameter names to their values
+class ToolExecutionResult(BaseModel):
+    """Result returned by a tool handler with properly typed outputs."""
+    
+    outputs: Dict[str, Any] = Field(
+        description="Maps output parameter names to their values, preserving canonical types"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Additional metadata about the execution"
+    )
 
 
 class ToolExecutionHandler(BaseModel):

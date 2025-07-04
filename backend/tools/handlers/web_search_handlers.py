@@ -6,7 +6,9 @@ This tool searches the web for real-time information about any topic.
 
 from typing import List, Dict, Any
 from datetime import datetime
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler, ToolExecutionResult
+from schemas.canonical_types import CanonicalSearchResult
+from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
 from tools.tool_stubbing import create_stub_decorator
 from services.search_service import SearchService
@@ -15,7 +17,7 @@ from services.search_service import SearchService
 search_service = SearchService()
 
 @create_stub_decorator("web_search")
-async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
+async def handle_web_search(input: ToolExecutionInput) -> ToolExecutionResult:
     """
     Search the web for real-time information about any topic.
     
@@ -28,9 +30,14 @@ async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
             - language: Language for search results
             
     Returns:
-        Dict containing:
-            - search_results: List of web search results
-            - search_metadata: Search metadata and statistics
+        ToolExecutionResult containing:
+            - search_results: List of web search results (CanonicalSearchResult objects)
+            - query: Original search query
+            - total_results: Total number of results
+            - search_time: Search time in milliseconds
+            - timestamp: Search timestamp
+            - search_engine: Search engine used
+            - metadata: Additional search metadata
     """
     # Extract parameters
     search_term = input.params.get("search_term")
@@ -56,32 +63,37 @@ async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
             language=language
         )
         
-        # Convert canonical search results to dictionaries for tool output
-        # The service returns CanonicalSearchResult objects, but the tool execution
-        # framework expects dictionaries, so we serialize them here at the boundary
-        if 'search_results' in result:
-            result['search_results'] = [
-                search_result.model_dump() if hasattr(search_result, 'model_dump') else search_result
-                for search_result in result['search_results']
-            ]
-        
-        return result
+        # Return properly typed canonical results
+        # The service already returns CanonicalSearchResult objects, maintaining full type safety
+        return ToolExecutionResult(
+            outputs={
+                "search_results": result["search_results"],  # List[CanonicalSearchResult]
+                "query": result["query"],
+                "total_results": result["total_results"],
+                "search_time": result["search_time"],
+                "timestamp": result["timestamp"],
+                "search_engine": result["search_engine"],
+                "metadata": result.get("metadata")
+            }
+        )
         
     except Exception as e:
-        # Log error and return empty results
+        # Log error and return empty results with error metadata
         print(f"Error performing web search: {e}")
         
-        # Return empty results with error metadata
-        return {
-            "search_results": [],
-            "search_metadata": {
+        return ToolExecutionResult(
+            outputs={
+                "search_results": [],  # Empty list, but still properly typed
                 "query": search_term,
                 "total_results": 0,
                 "search_time": 0,
                 "timestamp": datetime.utcnow().isoformat(),
-                "error": str(e)
+                "search_engine": None,
+                "metadata": {
+                    "error": str(e)
+                }
             }
-        }
+        )
 
 # Register the handler
 register_tool_handler(

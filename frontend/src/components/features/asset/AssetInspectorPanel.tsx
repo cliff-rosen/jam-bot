@@ -142,16 +142,25 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                                     <div className="space-y-2">
                                         {displayAsset.value.map((item: any, index: number) => (
                                             <div key={index} className="p-3 bg-white dark:bg-gray-800 rounded border dark:border-gray-700">
-                                                <VariableRenderer value={item} />
+                                                <VariableRenderer
+                                                    value={item}
+                                                    schema={displayAsset.schema_definition}
+                                                />
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <VariableRenderer value={displayAsset.value} />
+                                    <VariableRenderer
+                                        value={displayAsset.value}
+                                        schema={displayAsset.schema_definition}
+                                    />
                                 )}
                             </div>
                         ) : (
-                            <VariableRenderer value={displayAsset.value} />
+                            <VariableRenderer
+                                value={displayAsset.value}
+                                schema={displayAsset.schema_definition}
+                            />
                         )}
                     </div>
                 )}

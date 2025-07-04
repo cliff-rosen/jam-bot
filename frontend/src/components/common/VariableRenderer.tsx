@@ -4,6 +4,8 @@ import { TextRenderer } from './TextRenderer';
 import { ObjectRenderer } from './ObjectRenderer';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import JsonRenderer from './JsonRenderer';
+import { CanonicalTypeRenderer } from './CanonicalTypeRenderer';
+import { isCanonicalType, CanonicalType } from '@/types/canonical_types';
 
 export interface VariableRendererProps {
     value: any;
@@ -36,6 +38,18 @@ export const VariableRenderer: React.FC<VariableRendererProps> = ({
             <span className="text-gray-400 dark:text-gray-500 italic">
                 Not set
             </span>
+        );
+    }
+
+    // Check if this is a canonical type
+    if (schema && isCanonicalType(schema.type)) {
+        return (
+            <CanonicalTypeRenderer
+                data={value}
+                type={schema.type as CanonicalType}
+                isArray={schema.is_array}
+                className={className}
+            />
         );
     }
 

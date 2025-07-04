@@ -505,6 +505,9 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             // Update step status to running
             dispatch({ type: 'EXECUTE_TOOL_STEP', payload: { step, hop } });
 
+            // Get tool definition to access output schema information
+            const toolDefinition = await toolsApi.getToolDefinition(step.tool_id);
+
             // Execute the tool
             const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
 
@@ -526,12 +529,26 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     if ((mapping as DiscardMapping).type === "discard") continue;
 
                     if ((mapping as AssetFieldMapping).type === "asset_field") {
-                        const value = result.outputs[outputName];
+                        // Use canonical outputs if available, otherwise fall back to regular outputs
+                        const value = result.canonical_outputs?.[outputName] ?? result.outputs[outputName];
+
                         if (value !== undefined) {
+                            const existingAsset = newHopState[(mapping as AssetFieldMapping).state_asset];
+
+                            // Get the output schema from tool definition to preserve canonical type
+                            const outputSchema = toolDefinition?.outputs?.find(output => output.name === outputName)?.schema_definition;
+
                             newHopState[(mapping as AssetFieldMapping).state_asset] = {
-                                ...newHopState[(mapping as AssetFieldMapping).state_asset],
+                                ...existingAsset,
                                 value: value,
-                                status: AssetStatus.READY
+                                status: AssetStatus.READY,
+                                // Preserve canonical type information if available
+                                schema_definition: outputSchema ? {
+                                    ...existingAsset.schema_definition,
+                                    type: outputSchema.type,
+                                    is_array: outputSchema.is_array,
+                                    fields: outputSchema.fields
+                                } : existingAsset.schema_definition
                             };
                         }
                     }

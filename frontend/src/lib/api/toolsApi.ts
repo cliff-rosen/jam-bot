@@ -6,7 +6,9 @@ import { ToolDefinition } from '../../types/tool';
 export interface ToolExecutionResult {
     success: boolean;
     errors: string[];
-    outputs: Record<string, any>;  // Maps output parameter names to their values
+    outputs: Record<string, any>;  // Maps output parameter names to their values (serialized)
+    canonical_outputs?: Record<string, any>;  // Maps output parameter names to their canonical typed values
+    metadata?: Record<string, any>;  // Additional metadata about the execution
 }
 
 export const toolsApi = {
@@ -16,6 +18,14 @@ export const toolsApi = {
     getAvailableTools: async (): Promise<ToolDefinition[]> => {
         const response = await api.get<{ tools: ToolDefinition[] }>('/api/tools/available');
         return response.data.tools;
+    },
+
+    /**
+     * Get a single tool definition by ID
+     */
+    getToolDefinition: async (toolId: string): Promise<ToolDefinition> => {
+        const response = await api.get<ToolDefinition>(`/api/tools/tools/${toolId}`);
+        return response.data;
     },
 
     /**

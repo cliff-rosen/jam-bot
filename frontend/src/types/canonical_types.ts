@@ -23,9 +23,11 @@ export interface CanonicalSearchResult {
     title: string;
     url: string;
     snippet: string;
-    published_date: string;
+    published_date?: string;
     source: string;
     rank: number;
+    relevance_score?: number;
+    metadata?: Record<string, any>;
 }
 
 export interface CanonicalWebpage {
@@ -132,9 +134,11 @@ export function getCanonicalTypeSchema(type: CanonicalType): SchemaType {
                     title: { type: 'string', description: 'Result title', is_array: false },
                     url: { type: 'string', description: 'Result URL', is_array: false },
                     snippet: { type: 'string', description: 'Result snippet/preview', is_array: false },
-                    published_date: { type: 'string', description: 'Publication date', is_array: false },
+                    published_date: { type: 'string', description: 'Publication date (optional)', is_array: false },
                     source: { type: 'string', description: 'Source domain', is_array: false },
-                    rank: { type: 'number', description: 'Search result rank', is_array: false }
+                    rank: { type: 'number', description: 'Search result rank', is_array: false },
+                    relevance_score: { type: 'number', description: 'Relevance score (optional)', is_array: false },
+                    metadata: { type: 'object', description: 'Additional search metadata (optional)', is_array: false }
                 }
             };
 

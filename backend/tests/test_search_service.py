@@ -8,7 +8,6 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 from services.search_service import SearchService
-from models import ResourceCredentials
 
 
 class TestSearchService:
@@ -63,44 +62,44 @@ class TestSearchService:
             ]
         }
 
-    @patch('services.search_service.ResourceCredentials')
-    def test_authenticate_success(self, mock_resource_creds, mock_credentials):
-        """Test successful authentication"""
-        # Mock database response
-        mock_db = Mock()
-        mock_creds_obj = Mock()
-        mock_creds_obj.credentials = mock_credentials
-        mock_resource_creds.return_value = mock_creds_obj
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_creds_obj
+    @patch('services.search_service.settings')
+    def test_initialize_success(self, mock_settings):
+        """Test successful initialization"""
+        # Mock settings
+        mock_settings.GOOGLE_SEARCH_API_KEY = "test_api_key"
+        mock_settings.GOOGLE_SEARCH_ENGINE_ID = "test_search_id"
 
-        # Test authentication
-        result = asyncio.run(self.search_service.authenticate(1, mock_db))
+        # Test initialization
+        result = self.search_service.initialize()
         
         assert result is True
         assert self.search_service.api_key == "test_api_key"
         assert self.search_service.search_engine == "google"
         assert self.search_service.custom_search_id == "test_search_id"
+        assert self.search_service.initialized is True
 
-    @patch('services.search_service.ResourceCredentials')
-    def test_authenticate_no_credentials(self, mock_resource_creds):
-        """Test authentication failure when no credentials found"""
-        # Mock database response with no credentials
-        mock_db = Mock()
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+    @patch('services.search_service.settings')
+    def test_initialize_fallback_to_duckduckgo(self, mock_settings):
+        """Test fallback to DuckDuckGo when Google credentials not available"""
+        # Mock settings with no Google API key
+        mock_settings.GOOGLE_SEARCH_API_KEY = None
+        mock_settings.GOOGLE_SEARCH_ENGINE_ID = None
 
-        # Test authentication
-        result = asyncio.run(self.search_service.authenticate(1, mock_db))
+        # Test initialization
+        result = self.search_service.initialize()
         
-        assert result is False
+        assert result is True
+        assert self.search_service.search_engine == "duckduckgo"
+        assert self.search_service.initialized is True
 
     @patch('aiohttp.ClientSession.get')
     async def test_search_google_success(self, mock_get, mock_google_response):
         """Test successful Google search"""
-        # Setup authenticated service
+        # Setup initialized service
         self.search_service.api_key = "test_api_key"
         self.search_service.custom_search_id = "test_search_id"
         self.search_service.search_engine = "google"
-        self.search_service.credentials = {"api_key": "test_api_key"}
+        self.search_service.initialized = True
 
         # Mock HTTP response
         mock_response = AsyncMock()
@@ -125,7 +124,8 @@ class TestSearchService:
     async def test_search_duckduckgo_success(self, mock_get, mock_duckduckgo_response):
         """Test successful DuckDuckGo search"""
         # Setup service
-        self.search_service.credentials = {"search_engine": "duckduckgo"}
+        self.search_service.search_engine = "duckduckgo"
+        self.search_service.initialized = True
 
         # Mock HTTP response
         mock_response = AsyncMock()
@@ -167,19 +167,19 @@ class TestSearchService:
         date3 = self.search_service._extract_date_from_snippet(snippet3)
         assert date3 is not None  # Should return current date
 
-    async def test_search_without_authentication(self):
-        """Test search without authentication"""
-        with pytest.raises(ValueError, match="Search service not authenticated"):
+    async def test_search_without_initialization(self):
+        """Test search without initialization"""
+        with pytest.raises(ValueError, match="Search service could not be initialized"):
             await self.search_service.search("test query")
 
     @patch('aiohttp.ClientSession.get')
     async def test_search_api_error(self, mock_get):
         """Test handling of API errors"""
-        # Setup authenticated service
+        # Setup initialized service
         self.search_service.api_key = "test_api_key"
         self.search_service.custom_search_id = "test_search_id"
         self.search_service.search_engine = "google"
-        self.search_service.credentials = {"api_key": "test_api_key"}
+        self.search_service.initialized = True
 
         # Mock HTTP error response
         mock_response = AsyncMock()

@@ -10,7 +10,6 @@ from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 from tools.tool_stubbing import create_stub_decorator
 from services.search_service import SearchService
-from database import get_db
 
 # Singleton service instance
 search_service = SearchService()

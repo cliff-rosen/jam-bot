@@ -55,8 +55,7 @@ class SearchStatus(BaseModel):
 @router.post("/", response_model=SearchResponse)
 async def perform_search(
     request: SearchRequest,
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
+    user = Depends(validate_token)
 ):
     """
     Perform a web search using the configured search engine
@@ -64,7 +63,6 @@ async def perform_search(
     Args:
         request: Search request parameters
         user: Authenticated user
-        db: Database session
         
     Returns:
         SearchResponse with search results and metadata

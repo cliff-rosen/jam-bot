@@ -10,14 +10,12 @@ from schemas.asset import Asset
 from schemas.workflow import ToolStep
 from schemas.tool import ToolDefinition
 from tools.tool_execution import ToolExecutionError
-from schemas.workflow import ExecutionStatus
-from tools.tool_registry import get_available_tools, get_tool_definition, TOOL_REGISTRY
+from tools.tool_registry import get_tool_definition, TOOL_REGISTRY
 
 from services.auth_service import validate_token
 
 # include all tool handlers so that they are registered
 from tools import *
-
 
 
 logger = logging.getLogger(__name__)

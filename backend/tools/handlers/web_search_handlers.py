@@ -8,7 +8,14 @@ from typing import List, Dict, Any
 from datetime import datetime
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
+from tools.tool_stubbing import create_stub_decorator
+from services.search_service import SearchService
+from database import get_db
 
+# Singleton service instance
+search_service = SearchService()
+
+@create_stub_decorator("web_search")
 async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
     """
     Search the web for real-time information about any topic.
@@ -36,47 +43,38 @@ async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
     if not search_term:
         raise ValueError("search_term is required")
     
-    # TODO: Implement actual web search logic
-    # This is where you would:
-    # 1. Connect to a web search API (e.g., Google, Bing, DuckDuckGo)
-    # 2. Execute the search with the provided parameters
-    # 3. Parse and format the results
-    # 4. Return structured search results
-    
-    # Placeholder implementation
-    search_results = [
-        {
-            "title": f"Search result for '{search_term}' - Article 1",
-            "url": "https://example.com/article-1",
-            "snippet": f"This is a sample search result for the query '{search_term}'. It contains relevant information about the topic.",
-            "published_date": "2024-01-15",
-            "source": "example.com",
-            "rank": 1
-        },
-        {
-            "title": f"Search result for '{search_term}' - Article 2",
-            "url": "https://example.com/article-2",
-            "snippet": f"Another sample search result for '{search_term}' with different information and perspective.",
-            "published_date": "2024-01-14",
-            "source": "example.com",
-            "rank": 2
+    try:
+        # Authenticate with search service
+        db = next(get_db())
+        # Use user_id = 1 for now, should be extracted from context in real implementation
+        await search_service.authenticate(1, db)
+        
+        # Perform search
+        result = await search_service.search(
+            search_term=search_term,
+            num_results=num_results,
+            date_range=date_range,
+            region=region,
+            language=language
+        )
+        
+        return result
+        
+    except Exception as e:
+        # Log error and return empty results
+        print(f"Error performing web search: {e}")
+        
+        # Return empty results with error metadata
+        return {
+            "search_results": [],
+            "search_metadata": {
+                "query": search_term,
+                "total_results": 0,
+                "search_time": 0,
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e)
+            }
         }
-    ]
-    
-    # Limit results based on num_results parameter
-    search_results = search_results[:num_results]
-    
-    search_metadata = {
-        "query": search_term,
-        "total_results": len(search_results),
-        "search_time": 150,  # milliseconds
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    
-    return {
-        "search_results": search_results,
-        "search_metadata": search_metadata
-    }
 
 # Register the handler
 register_tool_handler(

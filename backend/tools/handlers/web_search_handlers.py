@@ -44,10 +44,9 @@ async def handle_web_search(input: ToolExecutionInput) -> Dict[str, Any]:
         raise ValueError("search_term is required")
     
     try:
-        # Authenticate with search service
-        db = next(get_db())
-        # Use user_id = 1 for now, should be extracted from context in real implementation
-        await search_service.authenticate(1, db)
+        # Initialize search service (uses app-level API keys from settings)
+        if not search_service.initialized:
+            search_service.initialize()
         
         # Perform search
         result = await search_service.search(

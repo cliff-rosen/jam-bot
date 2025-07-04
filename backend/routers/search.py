@@ -12,10 +12,7 @@ import logging
 
 from services.auth_service import validate_token
 from services.search_service import SearchService
-from models import ResourceCredentials, User
 from schemas.canonical_types import CanonicalSearchResult
-from schemas.resource import WEB_SEARCH_RESOURCE
-from database import get_db
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -73,12 +70,13 @@ async def perform_search(
         SearchResponse with search results and metadata
     """
     try:
-        # Authenticate with search service
-        if not await search_service.authenticate(user.user_id, db):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Failed to authenticate with search API. Please configure your search credentials."
-            )
+        # Initialize search service (uses app-level API keys from settings)
+        if not search_service.initialized:
+            if not search_service.initialize():
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Search service could not be initialized. Please check server configuration."
+                )
             
         # Perform search
         result = await search_service.search(
@@ -113,50 +111,39 @@ async def perform_search(
 
 @router.get("/status", response_model=SearchStatus)
 async def get_search_status(
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
+    user = Depends(validate_token)
 ):
     """
     Get the current status of the search service
     
     Args:
         user: Authenticated user
-        db: Database session
         
     Returns:
-        SearchStatus with authentication and configuration info
+        SearchStatus with service configuration info
     """
     try:
-        # Check if user has search credentials configured
-        db_credentials = db.query(ResourceCredentials).filter(
-            ResourceCredentials.user_id == user.user_id,
-            ResourceCredentials.resource_id == WEB_SEARCH_RESOURCE.id
-        ).first()
-        
-        credentials_configured = db_credentials is not None
-        
-        # Try to authenticate
-        authenticated = False
+        # Check if search service can be initialized with app-level settings
+        service_initialized = search_service.initialized
         search_engine = None
         message = None
         
-        if credentials_configured:
+        if not service_initialized:
             try:
-                authenticated = await search_service.authenticate(user.user_id, db)
-                if authenticated:
-                    search_engine = search_service.search_engine
-                    message = f"Successfully authenticated with {search_engine}"
-                else:
-                    message = "Authentication failed with configured credentials"
+                service_initialized = search_service.initialize()
             except Exception as e:
-                message = f"Authentication error: {str(e)}"
+                message = f"Initialization error: {str(e)}"
+        
+        if service_initialized:
+            search_engine = search_service.search_engine
+            message = f"Search service ready with {search_engine}"
         else:
-            message = "No search credentials configured"
+            message = "Search service not properly configured"
         
         return SearchStatus(
-            authenticated=authenticated,
+            authenticated=service_initialized,
             search_engine=search_engine,
-            credentials_configured=credentials_configured,
+            credentials_configured=service_initialized,
             message=message
         )
         
@@ -209,28 +196,27 @@ async def get_supported_search_engines(
     ]
 
 @router.post("/validate", response_model=SearchResponse)
-async def validate_search_credentials(
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
+async def validate_search_service(
+    user = Depends(validate_token)
 ):
     """
-    Validate the configured search credentials by performing a test search
+    Validate the search service configuration by performing a test search
     
     Args:
         user: Authenticated user
-        db: Database session
         
     Returns:
-        SearchResponse indicating whether credentials are valid
+        SearchResponse indicating whether search service is working
     """
     try:
-        # Authenticate with search service
-        if not await search_service.authenticate(user.user_id, db):
-            return SearchResponse(
-                success=False,
-                error="Authentication failed",
-                message="Unable to authenticate with the configured search credentials"
-            )
+        # Initialize search service
+        if not search_service.initialized:
+            if not search_service.initialize():
+                return SearchResponse(
+                    success=False,
+                    error="Initialization failed",
+                    message="Unable to initialize search service with current configuration"
+                )
             
         # Perform a simple test search
         test_result = await search_service.search(
@@ -241,7 +227,7 @@ async def validate_search_credentials(
         if test_result.get('search_results'):
             return SearchResponse(
                 success=True,
-                message=f"Credentials validated successfully with {search_service.search_engine}",
+                message=f"Search service validated successfully with {search_service.search_engine}",
                 metadata={
                     'search_engine': search_service.search_engine,
                     'test_search_time': test_result.get('search_metadata', {}).get('search_time', 0)
@@ -251,15 +237,15 @@ async def validate_search_credentials(
             return SearchResponse(
                 success=False,
                 error="No results returned",
-                message="Search credentials appear to be configured but no results were returned"
+                message="Search service appears to be configured but no results were returned"
             )
             
     except Exception as e:
-        logger.error(f"Error validating search credentials: {str(e)}")
+        logger.error(f"Error validating search service: {str(e)}")
         return SearchResponse(
             success=False,
             error=str(e),
-            message="Error validating search credentials"
+            message="Error validating search service"
         )
 
 @router.get("/suggestions")

@@ -24,52 +24,44 @@ class SearchService:
     """Service for performing web searches using various search APIs"""
     
     def __init__(self):
-        self.credentials = None
         self.api_key = None
         self.search_engine = None
         self.custom_search_id = None
+        self.initialized = False
         
-    async def authenticate(self, user_id: int, db: Session) -> bool:
+    def initialize(self) -> bool:
         """
-        Authenticate with search API using stored credentials
+        Initialize search service with app-level API keys from settings
         
-        Args:
-            user_id: User ID
-            db: Database session
-            
         Returns:
-            bool: True if authentication successful, False otherwise
+            bool: True if initialization successful, False otherwise
         """
         try:
-            # Get credentials from database
-            db_credentials = db.query(ResourceCredentials).filter(
-                ResourceCredentials.user_id == user_id,
-                ResourceCredentials.resource_id == WEB_SEARCH_RESOURCE.id
-            ).first()
-            
-            if not db_credentials:
-                logger.error(f"No web search credentials found for user {user_id}")
-                return False
-                
-            # Extract credentials
-            creds_data = db_credentials.credentials
-            self.api_key = creds_data.get('api_key')
-            self.search_engine = creds_data.get('search_engine', 'google')
-            self.custom_search_id = creds_data.get('custom_search_id')
+            # Get API keys from settings (app-level, not user-specific)
+            self.api_key = settings.GOOGLE_SEARCH_API_KEY
+            self.custom_search_id = settings.GOOGLE_SEARCH_ENGINE_ID
+            self.search_engine = "google"  # Default to Google
             
             if not self.api_key:
-                logger.error("API key not found in credentials")
-                return False
+                logger.warning("Google Search API key not configured in settings")
+                # Fall back to DuckDuckGo which doesn't require API key
+                self.search_engine = "duckduckgo"
+                self.initialized = True
+                return True
                 
-            if self.search_engine == 'google' and not self.custom_search_id:
-                logger.error("Custom search ID required for Google search")
-                return False
+            if not self.custom_search_id:
+                logger.warning("Google Custom Search Engine ID not configured in settings")
+                # Fall back to DuckDuckGo
+                self.search_engine = "duckduckgo"
+                self.initialized = True
+                return True
             
-            self.credentials = creds_data
+            logger.info(f"Search service initialized with {self.search_engine}")
+            self.initialized = True
             return True
             
         except Exception as e:
-            logger.error(f"Error authenticating with search API: {str(e)}")
+            logger.error(f"Error initializing search service: {str(e)}")
             return False
 
     async def search_google(
@@ -338,8 +330,10 @@ class SearchService:
         Returns:
             Dict containing search results and metadata
         """
-        if not self.credentials:
-            raise ValueError("Search service not authenticated. Call authenticate() first.")
+        if not self.initialized:
+            # Auto-initialize if not already done
+            if not self.initialize():
+                raise ValueError("Search service could not be initialized")
         
         try:
             if self.search_engine == "google" and self.api_key and self.custom_search_id:

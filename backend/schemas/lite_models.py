@@ -5,14 +5,15 @@ import uuid
 
 from schemas.asset import Asset, AssetStatus, AssetMetadata
 from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
-from schemas.base import SchemaType, ValueType, PrimitiveType, ComplexType
+from schemas.base import SchemaType, ValueType, PrimitiveType, ComplexType, CanonicalType
 from utils.string_utils import canonical_key
 
 def get_all_value_types() -> List[str]:
     """Get all valid ValueType strings"""
     primitive_types = get_args(PrimitiveType)
     complex_types = get_args(ComplexType)
-    return list(primitive_types) + list(complex_types)
+    canonical_types = get_args(CanonicalType)
+    return list(primitive_types) + list(complex_types) + list(canonical_types)
 
 class AssetLite(BaseModel):
     """Simplified asset definition for mission proposals"""

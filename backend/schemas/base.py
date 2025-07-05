@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 
 # Defines the basic data types that can be represented.
 PrimitiveType = Literal['string', 'number', 'boolean', 'primitive']
-CustomType = Literal['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
-ComplexType = Literal['object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
-ValueType = Union[PrimitiveType, ComplexType]
+ComplexType = Literal['object', 'file', 'database_entity', 'markdown', 'config']
+CanonicalType = Literal['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
+ValueType = Union[PrimitiveType, ComplexType, CanonicalType]
 
 # Defines the role an asset plays within a workflow.
 AssetRole = Literal['input', 'output', 'intermediate']
@@ -72,7 +72,7 @@ def is_compatible_schema(source_schema: SchemaType, target_schema: SchemaType) -
 
 def is_custom_type(type_value: ValueType) -> bool:
     """Checks if a given type is one of the defined custom types."""
-    return type_value in get_args(CustomType)
+    return type_value in get_args(CanonicalType)
 
 def is_primitive_type(type_value: ValueType) -> bool:
     """Checks if a given type is a primitive type."""

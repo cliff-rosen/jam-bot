@@ -850,18 +850,18 @@
         {
             "id": "web_retrieve",
             "name": "web_retrieve",
-            "description": "Retrieve and extract content from a webpage given its URL",
+            "description": "Retrieve and extract content from one or more webpages given their URLs",
             "category": "data_retrieval",
             "parameters": [
                 {
                     "id": "url",
                     "name": "url",
-                    "description": "The URL of the webpage to retrieve and extract content from",
+                    "description": "The URL(s) of the webpage(s) to retrieve and extract content from. Can be a single URL string or an array of URLs.",
                     "required": true,
                     "schema_definition": {
                         "type": "string",
-                        "description": "Webpage URL",
-                        "is_array": false
+                        "description": "Webpage URL(s)",
+                        "is_array": true
                     }
                 },
                 {
@@ -902,12 +902,12 @@
                 {
                     "id": "webpage",
                     "name": "webpage",
-                    "description": "Retrieved webpage content using canonical CanonicalWebpage schema",
+                    "description": "Retrieved webpage content using canonical CanonicalWebpage schema. Returns an array of webpages when multiple URLs are provided.",
                     "required": true,
                     "schema_definition": {
                         "type": "webpage",
-                        "description": "Canonical webpage object",
-                        "is_array": false,
+                        "description": "Canonical webpage object(s)",
+                        "is_array": true,
                         "canonical_type": "CanonicalWebpage"
                     }
                 },
@@ -953,26 +953,28 @@
                     {
                         "scenario": "success",
                         "outputs": {
-                            "webpage": {
-                                "url": "https://example.com/article",
-                                "title": "Understanding Machine Learning Fundamentals",
-                                "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. This comprehensive guide covers the fundamental concepts, algorithms, and applications of machine learning in today's technology landscape.",
-                                "html": "<html><head><title>Understanding Machine Learning Fundamentals</title></head><body><h1>Understanding Machine Learning Fundamentals</h1><p>Machine learning is a subset of artificial intelligence...</p></body></html>",
-                                "last_modified": "2024-01-15T08:00:00Z",
-                                "content_type": "text/html",
-                                "status_code": 200,
-                                "headers": {
-                                    "content-type": "text/html; charset=utf-8",
-                                    "server": "nginx/1.18.0"
-                                },
-                                "metadata": {
-                                    "word_count": 1250,
-                                    "language": "en",
-                                    "author": "Dr. Sarah Johnson",
-                                    "description": "A comprehensive guide to machine learning fundamentals",
-                                    "published_date": "2024-01-15"
+                            "webpage": [
+                                {
+                                    "url": "https://example.com/article",
+                                    "title": "Understanding Machine Learning Fundamentals",
+                                    "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. This comprehensive guide covers the fundamental concepts, algorithms, and applications of machine learning in today's technology landscape.",
+                                    "html": "<html><head><title>Understanding Machine Learning Fundamentals</title></head><body><h1>Understanding Machine Learning Fundamentals</h1><p>Machine learning is a subset of artificial intelligence...</p></body></html>",
+                                    "last_modified": "2024-01-15T08:00:00Z",
+                                    "content_type": "text/html",
+                                    "status_code": 200,
+                                    "headers": {
+                                        "content-type": "text/html; charset=utf-8",
+                                        "server": "nginx/1.18.0"
+                                    },
+                                    "metadata": {
+                                        "word_count": 1250,
+                                        "language": "en",
+                                        "author": "Dr. Sarah Johnson",
+                                        "description": "A comprehensive guide to machine learning fundamentals",
+                                        "published_date": "2024-01-15"
+                                    }
                                 }
-                            },
+                            ],
                             "status_code": 200,
                             "response_time": 1250,
                             "timestamp": "2024-01-15T10:30:00Z"
@@ -985,28 +987,83 @@
                     {
                         "scenario": "not_found",
                         "outputs": {
-                            "webpage": {
-                                "url": "https://example.com/nonexistent-page",
-                                "title": "Page Not Found",
-                                "content": "The requested page could not be found.",
-                                "html": "<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested page could not be found.</p></body></html>",
-                                "last_modified": null,
-                                "content_type": "text/html",
-                                "status_code": 404,
-                                "headers": {
-                                    "content-type": "text/html; charset=utf-8"
-                                },
-                                "metadata": {
-                                    "word_count": 8,
-                                    "language": "en"
+                            "webpage": [
+                                {
+                                    "url": "https://example.com/nonexistent-page",
+                                    "title": "Page Not Found",
+                                    "content": "The requested page could not be found.",
+                                    "html": "<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested page could not be found.</p></body></html>",
+                                    "last_modified": null,
+                                    "content_type": "text/html",
+                                    "status_code": 404,
+                                    "headers": {
+                                        "content-type": "text/html; charset=utf-8"
+                                    },
+                                    "metadata": {
+                                        "word_count": 8,
+                                        "language": "en"
+                                    }
                                 }
-                            },
+                            ],
                             "status_code": 404,
                             "response_time": 890,
                             "timestamp": "2024-01-15T10:30:00Z"
                         },
                         "metadata": {
                             "error": "Page not found"
+                        }
+                    },
+                    {
+                        "scenario": "multiple_urls",
+                        "outputs": {
+                            "webpage": [
+                                {
+                                    "url": "https://example.com/ai-research",
+                                    "title": "Latest AI Research Breakthroughs",
+                                    "content": "Recent advances in artificial intelligence research have led to breakthrough developments in natural language processing, computer vision, and robotics. This article covers the most significant discoveries of the past year.",
+                                    "html": "<html><head><title>Latest AI Research Breakthroughs</title></head><body><h1>Latest AI Research Breakthroughs</h1><p>Recent advances in artificial intelligence...</p></body></html>",
+                                    "last_modified": "2024-01-14T12:00:00Z",
+                                    "content_type": "text/html",
+                                    "status_code": 200,
+                                    "headers": {
+                                        "content-type": "text/html; charset=utf-8"
+                                    },
+                                    "metadata": {
+                                        "word_count": 850,
+                                        "language": "en",
+                                        "author": "Dr. Emily Chen",
+                                        "description": "Overview of recent AI research breakthroughs",
+                                        "published_date": "2024-01-14"
+                                    }
+                                },
+                                {
+                                    "url": "https://example.com/ml-applications",
+                                    "title": "Machine Learning Applications in Healthcare",
+                                    "content": "Machine learning is revolutionizing healthcare through predictive analytics, diagnostic imaging, and personalized treatment plans. This comprehensive review examines current applications and future potential.",
+                                    "html": "<html><head><title>Machine Learning Applications in Healthcare</title></head><body><h1>Machine Learning Applications in Healthcare</h1><p>Machine learning is revolutionizing healthcare...</p></body></html>",
+                                    "last_modified": "2024-01-13T15:30:00Z",
+                                    "content_type": "text/html",
+                                    "status_code": 200,
+                                    "headers": {
+                                        "content-type": "text/html; charset=utf-8"
+                                    },
+                                    "metadata": {
+                                        "word_count": 1100,
+                                        "language": "en",
+                                        "author": "Dr. Michael Rodriguez",
+                                        "description": "ML applications in healthcare sector",
+                                        "published_date": "2024-01-13"
+                                    }
+                                }
+                            ],
+                            "status_code": 200,
+                            "response_time": 2340,
+                            "timestamp": "2024-01-15T10:30:00Z"
+                        },
+                        "metadata": {
+                            "extraction_method": "beautifulsoup",
+                            "total_pages": 2,
+                            "successful_retrievals": 2
                         }
                     },
                     {

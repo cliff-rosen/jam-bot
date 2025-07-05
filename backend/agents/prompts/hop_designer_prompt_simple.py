@@ -45,10 +45,66 @@ The system has these specific tools available for hop implementation:
 
 ## Design Principles
 1. **Incremental Progress**: Each hop should make clear progress toward the mission goal
-- think in terms of workflow patterns such as: search, retrieve, process, summarize, etc.
 2. **Tractability**: Each hop should be implementable with available tools
 3. **Cohesive Goals**: Each hop should have a clear, focused purpose
 4. **Input/Output Focus**: Each hop should clearly map inputs to outputs
+
+## Common Workflow Patterns
+Understanding these patterns will help you design effective hops:
+
+### 1. Search → Retrieve → Process Pattern
+**Most Common for Web Research:**
+- **First hop**: Use `web_search` to find relevant URLs → produces `search_result` assets
+- **Second hop**: Use `web_retrieve` with URLs from search results → produces `webpage` assets
+- **Third hop**: Use `extract` or `summarize` to process the webpage content
+
+**Example Flow:**
+```
+web_search("AI research 2024") → search_results
+web_retrieve(search_results.urls) → webpage_content  
+extract(webpage_content, "key findings") → processed_data
+```
+
+### 2. Search → Filter → Retrieve Pattern
+**For More Targeted Research:**
+- **First hop**: Use `web_search` to get initial results
+- **Second hop**: Use `extract` to filter/rank search results by relevance
+- **Third hop**: Use `web_retrieve` on the filtered URLs
+- **Fourth hop**: Process the retrieved content
+
+### 3. Email → Extract → Summarize Pattern
+**For Email Analysis:**
+- **First hop**: Use `email_search` to find emails
+- **Second hop**: Use `extract` to pull specific information
+- **Third hop**: Use `summarize` to create consolidated reports
+
+### 4. Multi-Source Research Pattern
+**For Comprehensive Analysis:**
+- **Hop 1**: `web_search` for recent information
+- **Hop 2**: `web_retrieve` on selected URLs
+- **Hop 3**: `email_search` for internal communications
+- **Hop 4**: `group_reduce` to combine and analyze all sources
+
+### Key Pattern Insights:
+- **web_search** produces URLs that should be fed to **web_retrieve** for full content
+- **web_retrieve** now accepts arrays of URLs, so you can process multiple results at once
+- **extract** can process arrays of items (emails, webpages, etc.) to pull specific information
+- **group_reduce** can aggregate data from multiple sources
+- **summarize** works best with substantial content (from web_retrieve or extract outputs)
+
+### CRITICAL: Search Results Limitation
+**Search results only contain snippets, not full content!** 
+- ❌ **Don't extract** detailed information directly from search_result objects
+- ❌ **Don't try** to get "key points," "implications," or "detailed analysis" from search results
+- ✅ **Always use** web_retrieve first to get full webpage content, then extract
+- ✅ **Search results** are only good for filtering URLs or basic metadata extraction
+
+### Pattern Selection Guidelines:
+- For **current information**: Start with web_search → web_retrieve
+- For **internal data**: Start with email_search → extract
+- For **comprehensive analysis**: Combine multiple sources with group_reduce
+- For **large datasets**: Use extract to filter before processing
+- For **final outputs**: End with summarize to create readable reports
 
 ## CRITICAL: Asset Definition Requirements
 
@@ -198,16 +254,17 @@ Based on the provided context, design the next hop in the mission workflow. Use 
 
 """
 
-        # Initialize the base class with messages_placeholder=False since we don't need conversation history
+        # Initialize the base class with messages_placeholder=True to include conversation history
         super().__init__(
             response_model=HopDesignResponse,
             system_message=system_message,
-            messages_placeholder=False
+            messages_placeholder=True
         )
     
     async def invoke(
         self,
         mission: Mission,
+        messages: List[Dict[str, Any]] = None,
         **kwargs: Dict[str, Any]
     ) -> HopDesignResponse:
         """
@@ -215,6 +272,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         
         Args:
             mission: Current mission state (contains goal, outputs, and available assets)
+            messages: Full conversation history to provide context for hop design
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -259,9 +317,9 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         else:
             available_assets_str = "No assets available"
         
-        # Call base invoke with simplified variables
+        # Call base invoke with conversation history for context
         response = await super().invoke(
-            messages=[],  # Empty list since we don't need conversation history
+            messages=messages or [],  # Use provided messages or empty list as fallback
             tool_descriptions=tool_descriptions,
             current_time=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
             mission_goal=mission_goal,

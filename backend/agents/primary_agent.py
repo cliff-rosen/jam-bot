@@ -248,7 +248,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         promptCaller = HopDesignerPromptCaller()
         
         parsed_response = await promptCaller.invoke(
-            mission=state.mission
+            mission=state.mission,
+            messages=state.messages
         )
 
         # Create response message

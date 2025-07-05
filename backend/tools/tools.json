@@ -199,17 +199,17 @@
         {
             "id": "extract",
             "name": "extract",
-            "description": "Extract specific information from items using extraction functions. Works with single items or lists.",
+            "description": "Extract specific information from items using extraction functions. Works with single items or lists. Note: For detailed information extraction from web content, use web_retrieve first to get full content - search results only contain snippets.",
             "category": "data_processing",
             "parameters": [
                 {
                     "id": "items",
                     "name": "items",
-                    "description": "Single item or list of items to process",
+                    "description": "Single item or list of items to process. For web content analysis, use webpage objects from web_retrieve rather than search_result objects (which only contain snippets).",
                     "required": true,
                     "schema_definition": {
                         "type": "object",
-                        "description": "Items to extract from",
+                        "description": "Items to extract from - preferably full content objects",
                         "is_array": true
                     }
                 },
@@ -315,6 +315,31 @@
                         "is_error": true,
                         "error_message": "Failed to extract data from malformed input",
                         "outputs": {}
+                    },
+                    {
+                        "scenario": "limited_search_results",
+                        "description": "Extracting from search results with limited content",
+                        "outputs": {
+                            "extractions": [
+                                {
+                                    "item_id": "search_result_1",
+                                    "original_item": {
+                                        "title": "New AI Model Released",
+                                        "snippet": "Company X announced their latest AI model...",
+                                        "url": "https://example.com/ai-news"
+                                    },
+                                    "extraction": {
+                                        "title": "New AI Model Released",
+                                        "key_points": "Limited - only snippet available",
+                                        "implications": "Cannot extract - need full content from web_retrieve"
+                                    }
+                                }
+                            ]
+                        },
+                        "metadata": {
+                            "warning": "Search results only contain snippets. Use web_retrieve for detailed extraction.",
+                            "recommendation": "Use web_retrieve first, then extract from webpage content"
+                        }
                     }
                 ]
             }
@@ -631,7 +656,7 @@
         {
             "id": "web_search",
             "name": "web_search",
-            "description": "Search the web for real-time information about any topic",
+            "description": "Search the web for real-time information about any topic. Returns URLs and snippets that can be used with web_retrieve to get full webpage content.",
             "category": "data_retrieval",
             "parameters": [
                 {
@@ -694,11 +719,11 @@
                 {
                     "id": "search_results",
                     "name": "search_results",
-                    "description": "List of web search results using canonical CanonicalSearchResult schema",
+                    "description": "List of web search results with URLs that can be used with web_retrieve to get full webpage content",
                     "required": true,
                     "schema_definition": {
                         "type": "search_result",
-                        "description": "Canonical search result object",
+                        "description": "Search result objects with URLs for web_retrieve",
                         "is_array": true,
                         "canonical_type": "CanonicalSearchResult"
                     }
@@ -850,17 +875,17 @@
         {
             "id": "web_retrieve",
             "name": "web_retrieve",
-            "description": "Retrieve and extract content from one or more webpages given their URLs",
+            "description": "Retrieve and extract full content from webpages. Designed to work with web_search results - takes URLs from search results and retrieves complete webpage content including text, metadata, and structure.",
             "category": "data_retrieval",
             "parameters": [
                 {
                     "id": "url",
                     "name": "url",
-                    "description": "The URL(s) of the webpage(s) to retrieve and extract content from. Can be a single URL string or an array of URLs.",
+                    "description": "The URL(s) of the webpage(s) to retrieve and extract content from. Can be a single URL string or an array of URLs. Commonly used with URLs from web_search results.",
                     "required": true,
                     "schema_definition": {
                         "type": "string",
-                        "description": "Webpage URL(s)",
+                        "description": "Webpage URL(s) - often from web_search results",
                         "is_array": true
                     }
                 },
@@ -902,11 +927,11 @@
                 {
                     "id": "webpage",
                     "name": "webpage",
-                    "description": "Retrieved webpage content using canonical CanonicalWebpage schema. Returns an array of webpages when multiple URLs are provided.",
+                    "description": "Full webpage content with complete text, metadata, and structure. Complements web_search by providing detailed content beyond just snippets.",
                     "required": true,
                     "schema_definition": {
                         "type": "webpage",
-                        "description": "Canonical webpage object(s)",
+                        "description": "Complete webpage objects with full content",
                         "is_array": true,
                         "canonical_type": "CanonicalWebpage"
                     }
@@ -1014,7 +1039,8 @@
                         }
                     },
                     {
-                        "scenario": "multiple_urls",
+                        "scenario": "multiple_urls_from_search",
+                        "description": "Processing multiple URLs from web_search results",
                         "outputs": {
                             "webpage": [
                                 {
@@ -1063,7 +1089,8 @@
                         "metadata": {
                             "extraction_method": "beautifulsoup",
                             "total_pages": 2,
-                            "successful_retrievals": 2
+                            "successful_retrievals": 2,
+                            "workflow_pattern": "web_search → web_retrieve"
                         }
                     },
                     {

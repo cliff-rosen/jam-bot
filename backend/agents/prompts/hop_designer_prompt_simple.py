@@ -45,6 +45,7 @@ The system has these specific tools available for hop implementation:
 
 ## Design Principles
 1. **Incremental Progress**: Each hop should make clear progress toward the mission goal
+- think in terms of workflow patterns such as: search, retrieve, process, summarize, etc.
 2. **Tractability**: Each hop should be implementable with available tools
 3. **Cohesive Goals**: Each hop should have a clear, focused purpose
 4. **Input/Output Focus**: Each hop should clearly map inputs to outputs

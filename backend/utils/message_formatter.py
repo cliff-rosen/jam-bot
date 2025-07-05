@@ -86,7 +86,7 @@ def format_tool_descriptions_for_mission_design() -> str:
 
 
 def format_tool_descriptions_for_hop_design() -> str:
-    """Return a human readable list of tools (hop design view)."""
+    """Return a human readable list of tools with full input schemas (hop design view)."""
     from tools.tool_registry import TOOL_REGISTRY
     
     if not TOOL_REGISTRY:
@@ -97,10 +97,40 @@ def format_tool_descriptions_for_hop_design() -> str:
         desc = f"### {tool_def.name} (ID: {tool_def.id})\n"
         desc += f"**Purpose**: {tool_def.description}\n"
         desc += f"**Category**: {tool_def.category}\n"
+        
+        # Add input parameters with full schema details
+        desc += "**Input Parameters**:\n"
+        if tool_def.parameters:
+            for param in tool_def.parameters:
+                param_type = param.schema_definition.type if param.schema_definition else "object"
+                is_array = param.schema_definition.is_array if param.schema_definition else False
+                type_str = f"Array<{param_type}>" if is_array else param_type
+                
+                line = f"  - {param.name} ({type_str}): {param.description}"
+                if not param.required:
+                    line += " [Optional]"
+                desc += line + "\n"
+                
+                # Add nested field details for object types
+                if param.schema_definition and param.schema_definition.fields:
+                    for field_name, field_schema in param.schema_definition.fields.items():
+                        field_type = field_schema.type
+                        field_is_array = field_schema.is_array
+                        field_type_str = f"Array<{field_type}>" if field_is_array else field_type
+                        desc += f"    - {field_name} ({field_type_str}): {field_schema.description or 'No description'}\n"
+        else:
+            desc += "  No input parameters\n"
 
-        outputs_with_types = [f"{o.name} ({o.schema_definition.type if o.schema_definition else 'object'})" for o in tool_def.outputs]
-        if outputs_with_types:
-            desc += f"**Outputs**: {', '.join(outputs_with_types)}\n"
+        # Add outputs with types
+        desc += "**Outputs**:\n"
+        if tool_def.outputs:
+            for output in tool_def.outputs:
+                output_type = output.schema_definition.type if output.schema_definition else "object"
+                is_array = output.schema_definition.is_array if output.schema_definition else False
+                type_str = f"Array<{output_type}>" if is_array else output_type
+                desc += f"  - {output.name} ({type_str}): {output.description}\n"
+        else:
+            desc += "  No outputs defined\n"
 
         desc += "\n"
         descriptions.append(desc)
@@ -109,7 +139,7 @@ def format_tool_descriptions_for_hop_design() -> str:
 
 
 def format_tool_descriptions_for_implementation() -> str:
-    """Return a human readable list of tools (implementation view)."""
+    """Return a human readable list of tools with full input schemas (implementation view)."""
     from tools.tool_registry import TOOL_REGISTRY
     
     if not TOOL_REGISTRY:
@@ -120,17 +150,36 @@ def format_tool_descriptions_for_implementation() -> str:
         desc = f"### Tool Name: {tool_def.name} (ID: {tool_def.id})\n"
         desc += f"Description: {tool_def.description}\n"
         desc += "Input Parameters:\n"
-        for param in tool_def.parameters:
-            param_type = param.schema_definition.type if param.schema_definition else "object"
-            line = f"  - {param.name} ({param_type}): {param.description}"
-            if not param.required:
-                line += " [Optional]"
-            desc += line + "\n"
+        if tool_def.parameters:
+            for param in tool_def.parameters:
+                param_type = param.schema_definition.type if param.schema_definition else "object"
+                is_array = param.schema_definition.is_array if param.schema_definition else False
+                type_str = f"Array<{param_type}>" if is_array else param_type
+                
+                line = f"  - {param.name} ({type_str}): {param.description}"
+                if not param.required:
+                    line += " [Optional]"
+                desc += line + "\n"
+                
+                # Add nested field details for object types
+                if param.schema_definition and param.schema_definition.fields:
+                    for field_name, field_schema in param.schema_definition.fields.items():
+                        field_type = field_schema.type
+                        field_is_array = field_schema.is_array
+                        field_type_str = f"Array<{field_type}>" if field_is_array else field_type
+                        desc += f"    - {field_name} ({field_type_str}): {field_schema.description or 'No description'}\n"
+        else:
+            desc += "  No input parameters\n"
 
         desc += "Outputs:\n"
-        for output in tool_def.outputs:
-            output_type = output.schema_definition.type if output.schema_definition else "object"
-            desc += f"  - {output.name} ({output_type}): {output.description}\n"
+        if tool_def.outputs:
+            for output in tool_def.outputs:
+                output_type = output.schema_definition.type if output.schema_definition else "object"
+                is_array = output.schema_definition.is_array if output.schema_definition else False
+                type_str = f"Array<{output_type}>" if is_array else output_type
+                desc += f"  - {output.name} ({type_str}): {output.description}\n"
+        else:
+            desc += "  No outputs defined\n"
 
         desc += "\n"
         descriptions.append(desc)

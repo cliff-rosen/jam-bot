@@ -65,7 +65,21 @@ When defining output assets, you must provide BOTH:
 
 ### Examples of GOOD Asset Definitions:
 
-**Example 1 - Structured Data Asset:**
+**Example 1 - Search Results (Using Canonical Type):**
+```json
+{{
+  "asset": {{
+    "name": "ai_news_search_results",
+    "description": "Search results for current news articles about generative AI models and breakthroughs",
+    "agent_specification": "Array of search result objects returned from web search, each containing title, url, snippet, published_date, source, rank, and relevance_score fields. Results must be from today's date and specifically relate to generative AI model releases or research breakthroughs. Minimum 3 relevant results required for validation.",
+    "type": "search_result",
+    "is_array": true,
+    "role": "intermediate"
+  }}
+}}
+```
+
+**Example 2 - Structured Data Asset:**
 ```json
 {{
   "asset": {{
@@ -74,13 +88,13 @@ When defining output assets, you must provide BOTH:
     "agent_specification": "A comprehensive JSON object with contacts array and metadata object. Each contact must have name plus email or phone. All fields validated and normalized to standard formats.",
     "type": "object",
     "subtype": "json",
-    "is_collection": false,
+    "is_array": false,
     "role": "intermediate"
   }}
 }}
 ```
 
-**Example 2 - Document Asset:**
+**Example 3 - Document Asset:**
 ```json
 {{
   "asset": {{
@@ -88,13 +102,13 @@ When defining output assets, you must provide BOTH:
     "description": "Final research report with findings and recommendations",
     "agent_specification": "A clean, well-formatted markdown document containing the final research report. Must include: executive summary, methodology section, findings organized by theme with supporting evidence, conclusions with actionable recommendations, and bibliography with properly formatted citations. Document should be 2000-4000 words, use consistent heading hierarchy, include data visualizations as markdown tables where appropriate, and maintain professional academic tone suitable for stakeholder presentation.",
     "type": "markdown",
-    "is_collection": false,
+    "is_array": false,
     "role": "output"
   }}
 }}
 ```
 
-**Example 3 - Configuration Asset:**
+**Example 4 - Configuration Asset:**
 ```json
 {{
   "asset": {{
@@ -119,7 +133,7 @@ When defining output assets, you must provide BOTH:
 2. Valid complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
 3. For arrays:
    - Set is_array=true in the schema definition
-   - Use appropriate base types (e.g., 'object' for array of objects, 'string' for array of strings)
+   - Use appropriate base types (e.g., 'search_result' for array of search results, 'string' for array of strings)
    - NEVER use 'collection' as a type
 
 ## Asset Categories and Usage
@@ -181,11 +195,6 @@ Mission Goal: {mission_goal}
 
 Based on the provided context, design the next hop in the mission workflow. Use the available assets to make progress toward the desired assets. Remember: Asset definitions must include both user-friendly descriptions and detailed agent specifications for proper implementation.
 
-5. **Valid Asset Types and Collection Handling**:
-   - Primitive types: 'string', 'number', 'boolean', 'primitive'
-   - Complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
-   - For arrays of items: Set is_array=true in the asset schema
-   - Use appropriate base types (e.g., 'object' for array of objects, 'string' for array of strings)
 """
 
         # Initialize the base class with messages_placeholder=False since we don't need conversation history

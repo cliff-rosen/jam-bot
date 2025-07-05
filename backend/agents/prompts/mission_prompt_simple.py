@@ -48,6 +48,7 @@ A mission consists of:
 
 ## Asset Types and Roles
 1. **Mission Inputs** (role: "input"):
+   - **USER CONTEXT (REQUIRED)**: Always include an input asset that captures the user's original question, request, or parameters that started the mission. This can be named "User Context", "User Request", "Initial Context", "Mission Context", or similar.
    - User-provided data (files, text, config values)
    - External system credentials (type: "config")
    - Must specify external_system_for if providing credentials
@@ -66,6 +67,9 @@ A mission consists of:
    - Complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
    - For arrays: Set is_array=true in the asset definition
    - NEVER use 'collection' as a type
+
+## CRITICAL REQUIREMENT
+Every mission MUST include an initial input asset that contains the user's original question, request, or parameters. This provides essential context for the mission execution and ensures that the user's intent is always available as a reference point. If the user hasn't explicitly provided context information, create an input asset that captures their implied request or question.
 
 ## Current Context
 Mission Goal: {{mission_goal}}

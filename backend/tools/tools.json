@@ -846,6 +846,183 @@
                     }
                 ]
             }
+        },
+        {
+            "id": "web_retrieve",
+            "name": "web_retrieve",
+            "description": "Retrieve and extract content from a webpage given its URL",
+            "category": "data_retrieval",
+            "parameters": [
+                {
+                    "id": "url",
+                    "name": "url",
+                    "description": "The URL of the webpage to retrieve and extract content from",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Webpage URL",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "extract_text_only",
+                    "name": "extract_text_only",
+                    "description": "Whether to extract only text content (true) or include HTML (false)",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "boolean",
+                        "description": "Extract text only flag (default: true)",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "timeout",
+                    "name": "timeout",
+                    "description": "Request timeout in seconds",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "Timeout in seconds (default: 30)",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "user_agent",
+                    "name": "user_agent",
+                    "description": "User agent string to use for the request",
+                    "required": false,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "User agent string (default: standard browser user agent)",
+                        "is_array": false
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "id": "webpage",
+                    "name": "webpage",
+                    "description": "Retrieved webpage content using canonical CanonicalWebpage schema",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "webpage",
+                        "description": "Canonical webpage object",
+                        "is_array": false,
+                        "canonical_type": "CanonicalWebpage"
+                    }
+                },
+                {
+                    "id": "status_code",
+                    "name": "status_code",
+                    "description": "HTTP status code from the request",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "HTTP status code",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "response_time",
+                    "name": "response_time",
+                    "description": "Response time in milliseconds",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "number",
+                        "description": "Response time in milliseconds",
+                        "is_array": false
+                    }
+                },
+                {
+                    "id": "timestamp",
+                    "name": "timestamp",
+                    "description": "Retrieval timestamp",
+                    "required": true,
+                    "schema_definition": {
+                        "type": "string",
+                        "description": "Retrieval timestamp (ISO format)",
+                        "is_array": false
+                    }
+                }
+            ],
+            "stub_config": {
+                "enabled": true,
+                "default_scenario": "success",
+                "requires_external_calls": true,
+                "sample_responses": [
+                    {
+                        "scenario": "success",
+                        "outputs": {
+                            "webpage": {
+                                "url": "https://example.com/article",
+                                "title": "Understanding Machine Learning Fundamentals",
+                                "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. This comprehensive guide covers the fundamental concepts, algorithms, and applications of machine learning in today's technology landscape.",
+                                "html": "<html><head><title>Understanding Machine Learning Fundamentals</title></head><body><h1>Understanding Machine Learning Fundamentals</h1><p>Machine learning is a subset of artificial intelligence...</p></body></html>",
+                                "last_modified": "2024-01-15T08:00:00Z",
+                                "content_type": "text/html",
+                                "status_code": 200,
+                                "headers": {
+                                    "content-type": "text/html; charset=utf-8",
+                                    "server": "nginx/1.18.0"
+                                },
+                                "metadata": {
+                                    "word_count": 1250,
+                                    "language": "en",
+                                    "author": "Dr. Sarah Johnson",
+                                    "description": "A comprehensive guide to machine learning fundamentals",
+                                    "published_date": "2024-01-15"
+                                }
+                            },
+                            "status_code": 200,
+                            "response_time": 1250,
+                            "timestamp": "2024-01-15T10:30:00Z"
+                        },
+                        "metadata": {
+                            "extraction_method": "beautifulsoup",
+                            "content_length": 15420
+                        }
+                    },
+                    {
+                        "scenario": "not_found",
+                        "outputs": {
+                            "webpage": {
+                                "url": "https://example.com/nonexistent-page",
+                                "title": "Page Not Found",
+                                "content": "The requested page could not be found.",
+                                "html": "<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested page could not be found.</p></body></html>",
+                                "last_modified": null,
+                                "content_type": "text/html",
+                                "status_code": 404,
+                                "headers": {
+                                    "content-type": "text/html; charset=utf-8"
+                                },
+                                "metadata": {
+                                    "word_count": 8,
+                                    "language": "en"
+                                }
+                            },
+                            "status_code": 404,
+                            "response_time": 890,
+                            "timestamp": "2024-01-15T10:30:00Z"
+                        },
+                        "metadata": {
+                            "error": "Page not found"
+                        }
+                    },
+                    {
+                        "scenario": "timeout",
+                        "is_error": true,
+                        "error_message": "Request timed out after 30 seconds",
+                        "outputs": {}
+                    },
+                    {
+                        "scenario": "invalid_url",
+                        "is_error": true,
+                        "error_message": "Invalid URL format provided",
+                        "outputs": {}
+                    }
+                ]
+            }
         }
     ]
 }

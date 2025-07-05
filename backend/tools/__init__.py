@@ -18,6 +18,7 @@ from .handlers import (  # noqa: F401
     map_reduce_handlers,
     summarize_handlers,
     web_search_handlers,
+    web_retrieval_handlers,
 )
 
 __all__ = [

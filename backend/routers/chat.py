@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
+from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 import uuid
@@ -7,11 +8,13 @@ from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
+from database import get_db
+from services.auth_service import validate_token
 from schemas import Message, MessageRole, ChatRequest, ChatResponse
 from schemas.workflow import Mission
-#from agents.mission_agent import graph, State
 from agents.primary_agent import graph as primary_agent, State
 from services.ai_service import ai_service, LLMRequest
+from utils.mission_utils import enrich_chat_context_with_assets
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -25,7 +28,11 @@ class ResponsesAPIRequest(BaseModel):
     max_output_tokens: Optional[int] = None
 
 @router.post("/stream")
-async def chat_stream(chat_request: ChatRequest):
+async def chat_stream(
+    chat_request: ChatRequest, 
+    db: Session = Depends(get_db),
+    current_user = Depends(validate_token)
+):
     """Endpoint that streams responses from the graph"""
     
     async def event_generator():
@@ -35,12 +42,20 @@ async def chat_stream(chat_request: ChatRequest):
             mission_dict = chat_request.payload.get("mission", {})
             mission = Mission(**mission_dict) if mission_dict else None
             
-            # Initialize state with all messages
+            # Enrich the payload with asset summaries from backend
+            enriched_payload = await enrich_chat_context_with_assets(
+                chat_request.payload or {}, 
+                current_user.user_id, 
+                db
+            )
+            
+            # Initialize state with all messages and enriched payload
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
                 tool_params={},
                 next_node="supervisor_node",
+                asset_summaries=enriched_payload.get("asset_summaries", {})
             )
             
             # Run the graph

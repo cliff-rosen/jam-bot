@@ -1,5 +1,4 @@
 import { Asset, AssetStatus } from '@/types/asset';
-import { AssetReference } from '@/types/chat';
 import { api } from '@/lib/api';
 
 // Asset persistence information for tracking database state
@@ -103,11 +102,7 @@ export const assetApi = {
         }));
     },
 
-    // Get asset summaries for chat context
-    async getAssetSummaries(): Promise<AssetReference[]> {
-        const response = await api.get('/api/assets/summaries');
-        return response.data;
-    },
+
 
     // Get a specific asset
     async getAsset(id: string): Promise<AssetWithPersistence> {

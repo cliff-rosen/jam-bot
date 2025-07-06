@@ -8,6 +8,7 @@ import { AssetStatus } from '@/types/asset';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { assetApi } from '@/lib/api/assetApi';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
+import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -754,85 +755,14 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 msg.role !== MessageRole.STATUS && msg.role !== MessageRole.TOOL
             );
 
-            // Get asset summaries from backend instead of sending full asset data
-            let assetSummaries: any[] = [];
-            try {
-                assetSummaries = await assetApi.getAssetSummaries();
-            } catch (error) {
-                console.warn('Failed to fetch asset summaries, continuing without them:', error);
-            }
-
-            // Create a clean mission payload with asset summaries instead of full assets
-            const cleanMission = state.mission ? {
-                ...state.mission,
-                // Remove large asset data from mission_state and current_hop
-                mission_state: Object.keys(state.mission.mission_state).reduce((acc, key) => {
-                    const asset = state.mission!.mission_state[key];
-                    acc[key] = {
-                        id: asset.id,
-                        name: asset.name,
-                        description: asset.description,
-                        schema_definition: asset.schema_definition,
-                        status: asset.status,
-                        subtype: asset.subtype,
-                        role: asset.role,
-                        // No value field - this reduces payload size significantly
-                        asset_metadata: {
-                            ...asset.asset_metadata,
-                            token_count: asset.asset_metadata?.token_count || 0
-                        }
-                    };
-                    return acc;
-                }, {} as Record<string, any>),
-                current_hop: state.mission.current_hop ? {
-                    ...state.mission.current_hop,
-                    hop_state: Object.keys(state.mission.current_hop.hop_state).reduce((acc, key) => {
-                        const asset = state.mission!.current_hop!.hop_state[key];
-                        acc[key] = {
-                            id: asset.id,
-                            name: asset.name,
-                            description: asset.description,
-                            schema_definition: asset.schema_definition,
-                            status: asset.status,
-                            subtype: asset.subtype,
-                            role: asset.role,
-                            // No value field - this reduces payload size significantly
-                            asset_metadata: {
-                                ...asset.asset_metadata,
-                                token_count: asset.asset_metadata?.token_count || 0
-                            }
-                        };
-                        return acc;
-                    }, {} as Record<string, any>)
-                } : undefined,
-                hop_history: state.mission.hop_history.map(hop => ({
-                    ...hop,
-                    hop_state: Object.keys(hop.hop_state).reduce((acc, key) => {
-                        const asset = hop.hop_state[key];
-                        acc[key] = {
-                            id: asset.id,
-                            name: asset.name,
-                            description: asset.description,
-                            schema_definition: asset.schema_definition,
-                            status: asset.status,
-                            subtype: asset.subtype,
-                            role: asset.role,
-                            // No value field - this reduces payload size significantly
-                            asset_metadata: {
-                                ...asset.asset_metadata,
-                                token_count: asset.asset_metadata?.token_count || 0
-                            }
-                        };
-                        return acc;
-                    }, {} as Record<string, any>)
-                }))
-            } : defaultMission;
+            // Use utility to sanitize mission for chat context
+            const sanitizedMission = sanitizeMissionForChat(state.mission);
 
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
                 payload: {
-                    mission: cleanMission,
-                    asset_summaries: assetSummaries
+                    mission: sanitizedMission
+                    // Backend will fetch its own asset summaries
                 }
             };
 

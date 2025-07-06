@@ -44,6 +44,7 @@ class State(BaseModel):
     mission: Mission
     tool_params: Dict[str, Any] = {}
     next_node: str
+    asset_summaries: Dict[str, str] = {}  # Add asset summaries directly to state
   
     class Config:
         arbitrary_types_allowed = True
@@ -130,7 +131,8 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "next_node": next_node,
-            "tool_params": state.tool_params
+            "tool_params": state.tool_params,
+            "asset_summaries": state.asset_summaries
         }
 
         # Stream response and return command
@@ -189,6 +191,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             "mission": state.mission,  # Keep existing mission state unchanged
             "tool_params": {},
             "next_node": next_node,
+            "asset_summaries": state.asset_summaries
         }
 
         if writer:
@@ -279,6 +282,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 "mission": state.mission,
                 "tool_params": {},
                 "next_node": next_node,
+                "asset_summaries": state.asset_summaries
             }
 
             if writer:
@@ -310,6 +314,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 "mission": state.mission,
                 "tool_params": {},
                 "next_node": next_node,
+                "asset_summaries": state.asset_summaries
             }
 
             if writer:
@@ -411,7 +416,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
             "tool_params": {},
-            "next_node": next_node
+            "next_node": next_node,
+            "asset_summaries": state.asset_summaries
         }
 
         if writer:
@@ -501,7 +507,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             "mission": state.mission,
             "next_node": next_node,
             "tool_params": state.tool_params,
-            "available_assets": state.available_assets
+            "asset_summaries": state.asset_summaries
         }
 
         if writer:

@@ -192,7 +192,7 @@ class WebRetrievalService:
         try:
             result = urlparse(url)
             return all([result.scheme, result.netloc])
-        except:
+        except Exception:
             return False
 
     def _detect_encoding(self, content: bytes, headers: Dict[str, str]) -> str:
@@ -203,7 +203,7 @@ class WebRetrievalService:
             try:
                 charset = content_type.split('charset=')[1].split(';')[0].strip()
                 return charset
-            except:
+            except Exception:
                 pass
         
         # Check HTML meta tags
@@ -223,7 +223,7 @@ class WebRetrievalService:
                 content_attr = meta_content_type.get('content', '')
                 if 'charset=' in content_attr:
                     return content_attr.split('charset=')[1].split(';')[0].strip()
-        except:
+        except Exception:
             pass
         
         return 'utf-8'  # Default fallback
@@ -353,7 +353,7 @@ class WebRetrievalService:
             # Parse RFC 2822 format: Wed, 21 Oct 2015 07:28:00 GMT
             from email.utils import parsedate_to_datetime
             return parsedate_to_datetime(last_modified_header)
-        except:
+        except Exception:
             return None
 
     async def retrieve_multiple_pages(

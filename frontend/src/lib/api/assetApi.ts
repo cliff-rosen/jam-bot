@@ -1,4 +1,5 @@
 import { Asset, AssetStatus } from '@/types/asset';
+import { AssetReference } from '@/types/chat';
 import { api } from '@/lib/api';
 
 // Asset persistence information for tracking database state
@@ -15,12 +16,15 @@ interface AssetWithPersistence extends Asset {
     persistence: AssetPersistence;
 }
 
-// Type for creating an asset - using string types for API compatibility
+// Type for creating an asset - matching backend CreateAssetRequest
 interface CreateAssetParams {
+    name: string;
+    description?: string;
     type: string; // legacy API still uses string types
     subtype?: string;
+    role?: string;
     content?: any;
-    metadata?: Record<string, any>;
+    asset_metadata?: Record<string, any>;
 }
 
 // Type for updating an asset - using string types for API compatibility  
@@ -97,6 +101,12 @@ export const assetApi = {
                 version: 1
             }
         }));
+    },
+
+    // Get asset summaries for chat context
+    async getAssetSummaries(): Promise<AssetReference[]> {
+        const response = await api.get('/api/assets/summaries');
+        return response.data;
     },
 
     // Get a specific asset

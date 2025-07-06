@@ -5,8 +5,10 @@ from datetime import datetime
 
 from database import get_db
 from services.asset_service import AssetService
+from services.asset_summary_service import AssetSummaryService
 from services import auth_service
 from schemas.asset import Asset, CreateAssetRequest, DatabaseEntityMetadata
+from schemas.chat import AssetReference
 from models import User, Asset as AssetModel
 from services.db_entity_service import DatabaseEntityService
 
@@ -88,6 +90,26 @@ async def update_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
     return asset
 
+# ASSET SUMMARIES FOR CHAT CONTEXT
+@router.get("/summaries", response_model=List[AssetReference])
+async def get_asset_summaries(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth_service.validate_token)
+):
+    """Get lightweight asset summaries for chat context"""
+    asset_service = AssetService(db)
+    summary_service = AssetSummaryService()
+    
+    # Get all user assets
+    assets = await asset_service.get_user_assets(current_user.user_id)
+    
+    # Create summaries
+    summaries = []
+    for asset in assets:
+        summaries.append(summary_service.create_asset_summary(asset))
+    
+    return summaries
+
 # DELETE ASSET
 @router.delete("/{asset_id}")
 async def delete_asset(
@@ -97,7 +119,7 @@ async def delete_asset(
 ):
     """Delete an asset"""
     asset_service = AssetService(db)
-    success = asset_service.delete_asset(asset_id, current_user.user_id)
+    success = await asset_service.delete_asset(asset_id, current_user.user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Asset not found")
     return {"message": "Asset deleted successfully"} 

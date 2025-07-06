@@ -6,6 +6,7 @@ import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
 import { toolsApi } from '@/lib/api/toolsApi';
+import { assetApi } from '@/lib/api/assetApi';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 
 interface JamBotState {
@@ -71,6 +72,24 @@ const sanitizeHopState = (hopState: Record<string, Asset>): Record<string, Asset
     );
 };
 
+// Helper function to create asset on backend
+const createAssetOnBackend = async (asset: Asset): Promise<void> => {
+    try {
+        await assetApi.createAsset({
+            name: asset.name,
+            description: asset.description,
+            type: asset.schema_definition.type,
+            subtype: asset.subtype,
+            role: asset.role,
+            content: asset.value,
+            asset_metadata: asset.asset_metadata
+        });
+        console.log('Successfully created asset on backend:', asset.name);
+    } catch (error) {
+        console.error('Failed to create asset on backend:', asset.name, error);
+    }
+};
+
 const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState => {
     switch (action.type) {
         case 'SET_STATE':
@@ -129,12 +148,23 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             if (!state.mission) return state;
             const { hop: acceptedHop, proposedAssets } = action.payload;
 
-            // Add proposed assets to mission state
+            // Add proposed assets to mission state and convert from PROPOSED to PENDING
             const updatedMissionState = { ...state.mission.mission_state };
             if (proposedAssets && Array.isArray(proposedAssets)) {
                 proposedAssets.forEach((assetData: any) => {
                     if (assetData && assetData.id) {
-                        updatedMissionState[assetData.id] = assetData;
+                        // Convert PROPOSED assets to PENDING when accepted
+                        const acceptedAsset = {
+                            ...assetData,
+                            status: assetData.status === AssetStatus.PROPOSED ? AssetStatus.PENDING : assetData.status
+                        };
+                        updatedMissionState[assetData.id] = acceptedAsset;
+
+                        // Create asset on backend if it was proposed
+                        if (assetData.status === AssetStatus.PROPOSED) {
+                            // Create asset on backend asynchronously
+                            createAssetOnBackend(acceptedAsset).catch(console.error);
+                        }
                     }
                 });
             }
@@ -724,54 +754,85 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 msg.role !== MessageRole.STATUS && msg.role !== MessageRole.TOOL
             );
 
-            // Create a sanitized mission payload with truncated asset values for backend
-            const sanitizedMission = state.mission ? {
+            // Get asset summaries from backend instead of sending full asset data
+            let assetSummaries: any[] = [];
+            try {
+                assetSummaries = await assetApi.getAssetSummaries();
+            } catch (error) {
+                console.warn('Failed to fetch asset summaries, continuing without them:', error);
+            }
+
+            // Create a clean mission payload with asset summaries instead of full assets
+            const cleanMission = state.mission ? {
                 ...state.mission,
-                mission_state: Object.fromEntries(
-                    Object.entries(state.mission.mission_state).map(([key, asset]) => [
-                        key,
-                        {
-                            ...asset,
-                            value: typeof asset.value === 'string'
-                                ? asset.value.substring(0, 100)
-                                : JSON.stringify(asset.value).substring(0, 100)
+                // Remove large asset data from mission_state and current_hop
+                mission_state: Object.keys(state.mission.mission_state).reduce((acc, key) => {
+                    const asset = state.mission!.mission_state[key];
+                    acc[key] = {
+                        id: asset.id,
+                        name: asset.name,
+                        description: asset.description,
+                        schema_definition: asset.schema_definition,
+                        status: asset.status,
+                        subtype: asset.subtype,
+                        role: asset.role,
+                        // No value field - this reduces payload size significantly
+                        asset_metadata: {
+                            ...asset.asset_metadata,
+                            token_count: asset.asset_metadata?.token_count || 0
                         }
-                    ])
-                ),
+                    };
+                    return acc;
+                }, {} as Record<string, any>),
                 current_hop: state.mission.current_hop ? {
                     ...state.mission.current_hop,
-                    hop_state: Object.fromEntries(
-                        Object.entries(state.mission.current_hop.hop_state).map(([key, asset]) => [
-                            key,
-                            {
-                                ...asset,
-                                value: typeof asset.value === 'string'
-                                    ? asset.value.substring(0, 100)
-                                    : JSON.stringify(asset.value).substring(0, 100)
+                    hop_state: Object.keys(state.mission.current_hop.hop_state).reduce((acc, key) => {
+                        const asset = state.mission!.current_hop!.hop_state[key];
+                        acc[key] = {
+                            id: asset.id,
+                            name: asset.name,
+                            description: asset.description,
+                            schema_definition: asset.schema_definition,
+                            status: asset.status,
+                            subtype: asset.subtype,
+                            role: asset.role,
+                            // No value field - this reduces payload size significantly
+                            asset_metadata: {
+                                ...asset.asset_metadata,
+                                token_count: asset.asset_metadata?.token_count || 0
                             }
-                        ])
-                    )
+                        };
+                        return acc;
+                    }, {} as Record<string, any>)
                 } : undefined,
                 hop_history: state.mission.hop_history.map(hop => ({
                     ...hop,
-                    hop_state: Object.fromEntries(
-                        Object.entries(hop.hop_state).map(([key, asset]) => [
-                            key,
-                            {
-                                ...asset,
-                                value: typeof asset.value === 'string'
-                                    ? asset.value.substring(0, 100)
-                                    : JSON.stringify(asset.value).substring(0, 100)
+                    hop_state: Object.keys(hop.hop_state).reduce((acc, key) => {
+                        const asset = hop.hop_state[key];
+                        acc[key] = {
+                            id: asset.id,
+                            name: asset.name,
+                            description: asset.description,
+                            schema_definition: asset.schema_definition,
+                            status: asset.status,
+                            subtype: asset.subtype,
+                            role: asset.role,
+                            // No value field - this reduces payload size significantly
+                            asset_metadata: {
+                                ...asset.asset_metadata,
+                                token_count: asset.asset_metadata?.token_count || 0
                             }
-                        ])
-                    )
+                        };
+                        return acc;
+                    }, {} as Record<string, any>)
                 }))
             } : defaultMission;
 
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
                 payload: {
-                    mission: sanitizedMission,
+                    mission: cleanMission,
+                    asset_summaries: assetSummaries
                 }
             };
 

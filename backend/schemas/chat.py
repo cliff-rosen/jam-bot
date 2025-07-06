@@ -43,7 +43,7 @@ class ChatRequest(BaseModel):
     messages: List[Message] = Field(description="All messages in the conversation")
     payload: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description="Optional payload including assets, workflow info, and context"
+        description="Optional payload including assets, workflow info, context, and asset summaries"
     )
 
 class ChatResponse(BaseModel):

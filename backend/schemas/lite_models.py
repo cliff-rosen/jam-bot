@@ -120,7 +120,8 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     )
     
     # Determine initial status based on type and subtype
-    initial_status = AssetStatus.PENDING
+    # Assets created from lite models start as PROPOSED (frontend only)
+    initial_status = AssetStatus.PROPOSED
     if asset_lite.role == 'input':
         # Config values and system credentials are ready by default
         if (asset_lite.type in ['config', 'object'] or 

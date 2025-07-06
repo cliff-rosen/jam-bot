@@ -33,6 +33,7 @@ export interface ChatRequest {
     messages: ChatMessage[];
     payload?: {
         mission?: Mission;
+        asset_summaries?: AssetReference[];
     };
 }
 

@@ -10,6 +10,7 @@ import { SchemaEntity, AssetRole, CustomType } from './base';
 // --- Asset-Specific Enums and Interfaces ---
 
 export enum AssetStatus {
+    PROPOSED = "proposed",  // Asset exists only on frontend, not yet accepted
     PENDING = "pending",
     IN_PROGRESS = "in_progress",
     READY = "ready",
@@ -45,6 +46,10 @@ export function getPendingAssets(assets: Asset[]): Asset[] {
     return assets.filter(asset => asset.status === AssetStatus.PENDING);
 }
 
+export function getProposedAssets(assets: Asset[]): Asset[] {
+    return assets.filter(asset => asset.status === AssetStatus.PROPOSED);
+}
+
 export function getReadyAssets(assets: Asset[]): Asset[] {
     return assets.filter(asset => asset.status === AssetStatus.READY);
 }
@@ -55,6 +60,10 @@ export function getFailedAssets(assets: Asset[]): Asset[] {
 
 export function isAssetAvailable(asset: Asset): boolean {
     return asset.status === AssetStatus.READY;
+}
+
+export function isAssetProposed(asset: Asset): boolean {
+    return asset.status === AssetStatus.PROPOSED;
 }
 
 export function assetNeedsAttention(asset: Asset): boolean {

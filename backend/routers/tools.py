@@ -72,7 +72,7 @@ async def execute_tool(
     try:
         # Execute the tool step
         print(f"Executing tool step {step.id} for tool {step.tool_id}")
-        result = await step.execute(hop_state)
+        result = await step.execute(hop_state, user_id=user.user_id, db=db)
         return result
     except ToolExecutionError as e:
         raise HTTPException(

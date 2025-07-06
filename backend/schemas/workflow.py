@@ -186,12 +186,14 @@ class ToolStep(BaseModel):
             return datetime.utcnow()
         return v
 
-    async def execute(self, hop_state: Dict[str, Asset]) -> Dict[str, Any]:
+    async def execute(self, hop_state: Dict[str, Asset], user_id: Optional[int] = None, db: Optional[Any] = None) -> Dict[str, Any]:
         """
         Execute this tool step and return the results.
         
         Args:
             hop_state: Current state of the hop containing all assets
+            user_id: User ID for asset persistence (optional)
+            db: Database session for asset persistence (optional)
             
         Returns:
             Dict containing the execution results
@@ -204,7 +206,7 @@ class ToolStep(BaseModel):
         
         try:
             self.status = ExecutionStatus.RUNNING
-            result = await execute_tool_step(self, hop_state)
+            result = await execute_tool_step(self, hop_state, user_id=user_id, db=db)
             self.status = ExecutionStatus.COMPLETED
             return result
         except Exception as e:

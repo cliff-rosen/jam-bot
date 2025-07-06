@@ -8,11 +8,13 @@ including the execute_tool_step function and related utilities.
 from __future__ import annotations
 from typing import Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
-from schemas.asset import Asset
+from schemas.asset import Asset, AssetStatus
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
 from schemas.schema_utils import serialize_canonical_object, create_typed_response
 from tools.tool_registry import TOOL_REGISTRY, get_tool_definition
 from tools.tool_stubbing import ToolStubbing
+from services.asset_service import AssetService
+from datetime import datetime
 
 class ToolExecutionError(Exception):
     """Raised when tool execution fails."""
@@ -122,13 +124,21 @@ def _resolve_asset_path(value: Any, path: str, asset_name: str, tool_id: str) ->
         
         return current_value
 
-async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Dict[str, Any]:
+async def execute_tool_step(
+    step: "ToolStep", 
+    hop_state: Dict[str, Asset], 
+    user_id: Optional[int] = None,
+    db: Optional[Any] = None
+) -> Dict[str, Any]:
     """
     Execute a tool step and return the results with proper canonical type handling.
+    Also persists updated assets to the database if user_id and db are provided.
     
     Args:
         step: The tool step to execute
         hop_state: Current state of the hop containing all assets
+        user_id: User ID for asset persistence (optional)
+        db: Database session for asset persistence (optional)
         
     Returns:
         Dict containing the execution results with canonical types preserved
@@ -191,26 +201,91 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
         # Handle different result types while preserving canonical types
         if isinstance(result, ToolExecutionResult):
             # New typed result format - use schema utilities for proper handling
-            return create_typed_response(
+            execution_response = create_typed_response(
                 success=True,
                 outputs=result.outputs,
                 metadata=result.metadata
             )
         elif isinstance(result, dict) and "outputs" in result:
             # Legacy result format - handle gracefully
-            return create_typed_response(
+            execution_response = create_typed_response(
                 success=True,
                 outputs=result["outputs"],
                 metadata=result.get("metadata")
             )
         else:
             # Direct result format - treat as outputs
-            return create_typed_response(
+            execution_response = create_typed_response(
                 success=True,
                 outputs=result,
                 metadata=None
             )
+        
+        # Persist assets to database if user_id and db are provided
+        if user_id is not None and db is not None:
+            await _persist_updated_assets(step, hop_state, execution_response, user_id, db)
+            
+        return execution_response
             
     except Exception as e:
         print(f"execute_tool_step: Error executing tool: {e}")
-        raise ToolExecutionError(str(e), step.tool_id) 
+        raise ToolExecutionError(str(e), step.tool_id)
+
+async def _persist_updated_assets(
+    step: "ToolStep", 
+    hop_state: Dict[str, Asset], 
+    execution_response: Dict[str, Any], 
+    user_id: int, 
+    db: Any
+) -> None:
+    """
+    Persist updated assets to the database after successful tool execution.
+    
+    Args:
+        step: The executed tool step
+        hop_state: Current hop state
+        execution_response: The tool execution response
+        user_id: User ID for asset creation
+        db: Database session
+    """
+    try:
+        asset_service = AssetService(db)
+        
+        # Find assets that were updated by this tool execution
+        for result_name, mapping in step.result_mapping.items():
+            if mapping.type == "asset_field":
+                asset_name = mapping.state_asset
+                asset = hop_state.get(asset_name)
+                
+                if asset and asset.status == AssetStatus.READY:
+                    # Check if asset is PROPOSED (frontend-only) and needs to be created
+                    if hasattr(asset, 'original_status') and asset.original_status == AssetStatus.PROPOSED:
+                        # Create new asset on backend
+                        await asset_service.create_asset(
+                            user_id=user_id,
+                            name=asset.name,
+                            type=asset.schema_definition.type,
+                            subtype=asset.subtype,
+                            is_array=asset.schema_definition.is_array,
+                            description=asset.description,
+                            content=asset.value,
+                            asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None
+                        )
+                        print(f"Created new asset {asset.name} on backend")
+                    else:
+                        # Update existing asset
+                        await asset_service.update_asset(
+                            asset_id=asset.id,
+                            user_id=user_id,
+                            updates={
+                                'content': asset.value,
+                                'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
+                                'updated_at': datetime.utcnow()
+                            }
+                        )
+                        print(f"Updated existing asset {asset.name} on backend")
+                        
+    except Exception as e:
+        print(f"Error persisting assets to database: {e}")
+        # Don't fail the tool execution if asset persistence fails
+        pass 

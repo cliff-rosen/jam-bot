@@ -39,24 +39,6 @@ class User(Base):
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resource_credentials = relationship("ResourceCredentials", back_populates="user", cascade="all, delete-orphan")
 
-# class GoogleOAuth2Credentials(Base):
-#     __tablename__ = "google_oauth2_credentials"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
-#     token = Column(String(255))
-#     refresh_token = Column(String(255))
-#     token_uri = Column(String(255))
-#     client_id = Column(String(255))
-#     client_secret = Column(String(255))
-#     scopes = Column(JSON)  # Store scopes as JSON array
-#     expiry = Column(DateTime)
-#     created_at = Column(DateTime, default=datetime.utcnow)
-#     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-#     # Relationship
-#     user = relationship("User", back_populates="google_credentials")
-
 class Asset(Base):
     __tablename__ = "assets"
     

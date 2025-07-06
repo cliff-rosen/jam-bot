@@ -18,6 +18,7 @@ from .base import SchemaEntity, AssetRole, ValueType, is_custom_type, SchemaType
 
 class AssetStatus(str, Enum):
     """Defines the lifecycle status of an Asset during execution."""
+    PROPOSED = "proposed"  # Asset exists only on frontend, not yet accepted
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     READY = "ready"

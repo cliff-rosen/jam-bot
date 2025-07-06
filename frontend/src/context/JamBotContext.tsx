@@ -539,8 +539,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             // Get tool definition to access output schema information
             const toolDefinition = await toolsApi.getToolDefinition(step.tool_id);
 
-            // Execute the tool
-            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state);
+            // Execute the tool using streamlined approach with mission_id
+            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_state, state.mission?.id);
 
             if (result.success) {
                 // Add success message to chat

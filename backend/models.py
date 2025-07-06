@@ -18,6 +18,22 @@ class CollectionType(str, PyEnum):
     SET = "set"
     NONE = "null"
 
+class MissionStatus(str, PyEnum):
+    """Status of a mission"""
+    PENDING = "pending"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ToolExecutionStatus(str, PyEnum):
+    """Status of a tool execution"""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
 Base = declarative_base()
 
 # Constants
@@ -38,6 +54,8 @@ class User(Base):
     # google_credentials = relationship("GoogleOAuth2Credentials", back_populates="user", uselist=False)
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resource_credentials = relationship("ResourceCredentials", back_populates="user", cascade="all, delete-orphan")
+    missions = relationship("Mission", back_populates="user", cascade="all, delete-orphan")
+    tool_executions = relationship("ToolExecution", cascade="all, delete-orphan")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -80,4 +98,55 @@ class ResourceCredentials(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'resource_id', name='uix_user_resource'),
     )
+
+class Mission(Base):
+    __tablename__ = "missions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    goal = Column(Text, nullable=True)
+    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.PENDING)
+    
+    # JSON fields for complex data
+    success_criteria = Column(JSON, nullable=True)  # List of strings
+    current_hop = Column(JSON, nullable=True)  # Full hop object
+    hop_history = Column(JSON, nullable=True)  # List of hop objects
+    input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
+    output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
+    mission_state_asset_ids = Column(JSON, nullable=True)  # Dict of asset_name -> asset_id
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="missions")
+
+class ToolExecution(Base):
+    __tablename__ = "tool_executions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
+    tool_id = Column(String(255), nullable=False)
+    step_id = Column(String(255), nullable=False)
+    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PENDING)
+    
+    # JSON fields for execution data
+    tool_step = Column(JSON, nullable=False)  # Full ToolStep object
+    hop_state_asset_ids = Column(JSON, nullable=True)  # Dict of asset_name -> asset_id
+    parameter_mapping = Column(JSON, nullable=True)  # Tool parameter mappings
+    result_mapping = Column(JSON, nullable=True)  # Tool result mappings
+    execution_result = Column(JSON, nullable=True)  # Tool execution results
+    error_message = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    user = relationship("User")
+    mission = relationship("Mission")
 

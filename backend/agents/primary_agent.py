@@ -1,4 +1,4 @@
-from typing import Dict, Any, AsyncIterator, List
+from typing import Dict, Any, AsyncIterator, List, Optional
 import json
 import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
@@ -29,6 +29,9 @@ from utils.state_serializer import (
     create_agent_response
 )
 
+from services.mission_service import MissionService
+from database import get_db
+
 
 
 # Use settings from config
@@ -42,6 +45,7 @@ class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
     mission: Mission
+    mission_id: Optional[str] = None  # Add mission_id for persistence
     tool_params: Dict[str, Any] = {}
     next_node: str
     asset_summaries: Dict[str, str] = {}  # Add asset summaries directly to state
@@ -68,6 +72,28 @@ def serialize_state(state: State) -> dict:
 
     state_dict = state.model_dump()
     return convert_datetime(state_dict)
+
+async def persist_mission_if_needed(state: State, config: Dict[str, Any]) -> None:
+    """Persist mission changes to database if mission_id is provided"""
+    if not state.mission_id or not state.mission:
+        return
+    
+    try:
+        # Get database session from config
+        db = config.get('db')
+        user_id = config.get('user_id')
+        
+        if not db or not user_id:
+            print("Warning: Cannot persist mission - missing db or user_id in config")
+            return
+        
+        mission_service = MissionService(db)
+        await mission_service.update_mission(state.mission_id, user_id, state.mission)
+        print(f"Successfully persisted mission {state.mission_id}")
+        
+    except Exception as e:
+        print(f"Failed to persist mission {state.mission_id}: {e}")
+        # Continue without failing the workflow
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
@@ -130,6 +156,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
+            "mission_id": state.mission_id,
             "next_node": next_node,
             "tool_params": state.tool_params,
             "asset_summaries": state.asset_summaries
@@ -189,6 +216,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,  # Keep existing mission state unchanged
+            "mission_id": state.mission_id,
             "tool_params": {},
             "next_node": next_node,
             "asset_summaries": state.asset_summaries
@@ -280,6 +308,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             state_update = {
                 "messages": [*state.messages, response_message.model_dump()],
                 "mission": state.mission,
+                "mission_id": state.mission_id,
                 "tool_params": {},
                 "next_node": next_node,
                 "asset_summaries": state.asset_summaries
@@ -312,6 +341,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             state_update = {
                 "messages": [*state.messages, response_message.model_dump()],
                 "mission": state.mission,
+                "mission_id": state.mission_id,
                 "tool_params": {},
                 "next_node": next_node,
                 "asset_summaries": state.asset_summaries
@@ -409,12 +439,16 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
         
+        # Persist mission changes to database
+        await persist_mission_if_needed(state, config)
+        
         # Route back to supervisor
         next_node = END
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
+            "mission_id": state.mission_id,
             "tool_params": {},
             "next_node": next_node,
             "asset_summaries": state.asset_summaries
@@ -505,6 +539,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
+            "mission_id": state.mission_id,
             "next_node": next_node,
             "tool_params": state.tool_params,
             "asset_summaries": state.asset_summaries

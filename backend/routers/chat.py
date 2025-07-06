@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from services.auth_service import validate_token
+from services.mission_service import MissionService
 from schemas import Message, MessageRole, ChatRequest, ChatResponse
 from schemas.workflow import Mission
 from agents.primary_agent import graph as primary_agent, State
@@ -38,9 +39,14 @@ async def chat_stream(
     async def event_generator():
         """Generate SSE events from graph outputs"""
         try:
-            # Get mission from payload
-            mission_dict = chat_request.payload.get("mission", {})
-            mission = Mission(**mission_dict) if mission_dict else None
+            # Get mission from database if mission_id is provided
+            mission = None
+            if chat_request.mission_id:
+                mission_service = MissionService(db)
+                mission = await mission_service.get_mission(chat_request.mission_id, current_user.user_id)
+                
+                if not mission:
+                    raise HTTPException(status_code=404, detail="Mission not found")
             
             # Enrich the payload with asset summaries from backend
             enriched_payload = await enrich_chat_context_with_assets(
@@ -53,13 +59,20 @@ async def chat_stream(
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
+                mission_id=chat_request.mission_id,
                 tool_params={},
                 next_node="supervisor_node",
                 asset_summaries=enriched_payload.get("asset_summaries", {})
             )
             
+            # Create config for graph execution with database access
+            graph_config = {
+                "db": db,
+                "user_id": current_user.user_id
+            }
+            
             # Run the graph
-            async for output in primary_agent.astream(state, stream_mode="custom"):
+            async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
                 if isinstance(output, dict):
                     # Convert any Message objects in the dict to their dict representation
                     processed_output = {}

@@ -1,5 +1,4 @@
 import { Mission } from '@/types/workflow';
-import { SanitizedMission } from '@/lib/utils/missionUtils';
 
 export enum MessageRole {
     USER = 'user',
@@ -32,8 +31,9 @@ export type AssetReference = {
 
 export interface ChatRequest {
     messages: ChatMessage[];
+    mission_id?: string | null;
     payload?: {
-        mission?: Mission | SanitizedMission | null;
+        // Additional context data
     };
 }
 

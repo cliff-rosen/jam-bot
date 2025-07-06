@@ -11,6 +11,18 @@ export interface ToolExecutionResult {
     metadata?: Record<string, any>;  // Additional metadata about the execution
 }
 
+export interface ToolExecutionStatus {
+    id: string;
+    tool_id: string;
+    step_id: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    error_message?: string;
+    execution_result?: ToolExecutionResult;
+    created_at: string;
+    started_at?: string;
+    completed_at?: string;
+}
+
 export const toolsApi = {
     /**
      * Get list of available tools
@@ -29,9 +41,59 @@ export const toolsApi = {
     },
 
     /**
-     * Execute a tool step
+     * Create a tool execution record (new streamlined approach)
+     */
+    createToolExecution: async (
+        toolStep: ToolStep,
+        hopState: Record<string, Asset>,
+        missionId?: string
+    ): Promise<{ execution_id: string }> => {
+        const response = await api.post<{ execution_id: string }>('/api/tools/execution/create', {
+            tool_step: toolStep,
+            hop_state: hopState,
+            mission_id: missionId
+        });
+        return response.data;
+    },
+
+    /**
+     * Execute a tool by execution ID (new streamlined approach)
+     */
+    executeToolById: async (executionId: string): Promise<ToolExecutionResult> => {
+        const response = await api.post<ToolExecutionResult>(`/api/tools/execution/${executionId}/execute`);
+        return response.data;
+    },
+
+    /**
+     * Get tool execution status and results
+     */
+    getToolExecutionStatus: async (executionId: string): Promise<ToolExecutionStatus> => {
+        const response = await api.get<ToolExecutionStatus>(`/api/tools/execution/${executionId}`);
+        return response.data;
+    },
+
+    /**
+     * Execute a tool step (streamlined - uses create + execute pattern)
      */
     executeTool: async (
+        toolId: string,
+        step: ToolStep,
+        hopState: Record<string, Asset>,
+        missionId?: string
+    ): Promise<ToolExecutionResult> => {
+        // Create tool execution record
+        const createResponse = await toolsApi.createToolExecution(step, hopState, missionId);
+
+        // Execute the tool
+        const result = await toolsApi.executeToolById(createResponse.execution_id);
+
+        return result;
+    },
+
+    /**
+     * Execute a tool step (legacy - direct execution)
+     */
+    executeToolLegacy: async (
         toolId: string,
         step: ToolStep,
         hopState: Record<string, Asset>

@@ -33,7 +33,7 @@ def sanitize_asset_for_chat(asset: Asset) -> dict:
         "subtype": asset.subtype,
         "role": asset.role,
         "asset_metadata": {
-            **asset.asset_metadata.model_dump() if asset.asset_metadata else {},
+            **(asset.asset_metadata.model_dump() if asset.asset_metadata else {}),
             "token_count": getattr(asset.asset_metadata, 'token_count', 0) if asset.asset_metadata else 0
         }
     }

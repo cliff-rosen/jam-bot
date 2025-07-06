@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 # from routers import search, auth, workflow, tools, files, bot, email, asset
-from routers import auth, email, asset, chat, newsletter, llm, tools, search
+from routers import auth, email, asset, chat, newsletter, llm, tools, search, web_retrieval
 from database import init_db
 from config import settings, setup_logging
 from middleware import LoggingMiddleware
@@ -52,14 +52,7 @@ app.include_router(asset.router, prefix="/api")
 app.include_router(llm.router, prefix="/api")
 app.include_router(tools.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
-# app.include_router(
-#     workflow.router,
-#     prefix="/api/workflows",
-#     tags=["workflows"],
-#     responses={401: {"description": "Not authenticated"}}
-# )
-# app.include_router(tools.router)
-# app.include_router(files.router)
+app.include_router(web_retrieval.router, prefix="/api")
 logger.info("Routers included")
 
 

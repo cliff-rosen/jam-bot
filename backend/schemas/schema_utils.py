@@ -28,22 +28,26 @@ CANONICAL_TYPE_MAP = {
     "daily_newsletter_recap": CanonicalDailyNewsletterRecap
 }
 
-def serialize_canonical_object(obj: Any) -> Any:
+def serialize_canonical_object(obj: Any, preserve_search_results: bool = False) -> Any:
     """
     Recursively serialize canonical Pydantic objects to dictionaries.
     
     Args:
         obj: Object to serialize (can be Pydantic model, list, dict, or primitive)
+        preserve_search_results: If True, preserves CanonicalSearchResult objects without serializing them
         
     Returns:
-        Serialized object with Pydantic models converted to dictionaries
+        Serialized object with Pydantic models converted to dictionaries (except search results if preserved)
     """
     if isinstance(obj, BaseModel):
+        # Skip serialization for CanonicalSearchResult objects if preserve_search_results is True
+        if preserve_search_results and isinstance(obj, CanonicalSearchResult):
+            return obj
         return obj.model_dump()
     elif isinstance(obj, list):
-        return [serialize_canonical_object(item) for item in obj]
+        return [serialize_canonical_object(item, preserve_search_results) for item in obj]
     elif isinstance(obj, dict):
-        return {key: serialize_canonical_object(value) for key, value in obj.items()}
+        return {key: serialize_canonical_object(value, preserve_search_results) for key, value in obj.items()}
     else:
         return obj
 
@@ -225,12 +229,34 @@ def create_typed_response(
     Returns:
         Standardized response dictionary
     """
+    # Check if outputs contain search results that should be preserved
+    preserve_search_results = _has_search_results(outputs)
+    
     response = {
         "success": success,
         "errors": errors or [],
-        "outputs": serialize_canonical_object(outputs),
+        "outputs": serialize_canonical_object(outputs, preserve_search_results=preserve_search_results),
         "canonical_outputs": outputs,
         "metadata": metadata
     }
     
-    return response 
+    return response
+
+def _has_search_results(obj: Any) -> bool:
+    """
+    Check if an object or its nested structures contain CanonicalSearchResult objects.
+    
+    Args:
+        obj: Object to check
+        
+    Returns:
+        True if search results are found, False otherwise
+    """
+    if isinstance(obj, CanonicalSearchResult):
+        return True
+    elif isinstance(obj, list):
+        return any(_has_search_results(item) for item in obj)
+    elif isinstance(obj, dict):
+        return any(_has_search_results(value) for value in obj.values())
+    else:
+        return False 

@@ -31,10 +31,6 @@ class HopDesignerPromptCaller(BasePromptCaller):
 3. **Design** the next hop in the workflow
 4. **Validate** that the hop is implementable
 
-## IMPORTANT: Asset ID Usage
-When specifying inputs for a hop, you MUST use the exact asset IDs shown in the "Available Assets" section. 
-Do NOT create new asset definitions for inputs - only reference existing asset IDs.
-
 ## Current Date and Time
 {current_time}
 
@@ -106,12 +102,15 @@ extract(webpage_content, "key findings") → processed_data
 - For **large datasets**: Use extract to filter before processing
 - For **final outputs**: End with summarize to create readable reports
 
-## CRITICAL: Asset Definition Requirements
+## Asset Definition Requirements
+
+When specifying inputs for a hop:
+- you MUST use the exact asset IDs shown in the "Available Assets" section. 
+- Do NOT create new asset definitions for inputs - only reference existing asset IDs.
 
 When defining output assets, you must provide BOTH:
-1. **description**: User-friendly explanation of what the asset contains (for end users)
-2. **agent_specification**: Detailed technical specification for agents and tools
-
+- **description**: User-friendly explanation of what the asset contains (for end users)
+- **agent_specification**: Detailed technical specification for agents and tools
 ### Agent Specification Requirements - Include ALL of these details:
 1. **Data Structure**: Describe the exact structure, fields, and hierarchy
 2. **Format Specifications**: File formats, data formats, encoding, etc.

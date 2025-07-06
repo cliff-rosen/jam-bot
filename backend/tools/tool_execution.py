@@ -19,6 +19,109 @@ class ToolExecutionError(Exception):
     def __init__(self, message: str, tool_id: str):
         super().__init__(f"Tool {tool_id} execution failed: {message}")
 
+def _resolve_asset_path(value: Any, path: str, asset_name: str, tool_id: str) -> Any:
+    """
+    Resolve a path within an asset value, handling both object and array access patterns.
+    
+    Supported patterns:
+    - 'field' - access field in object
+    - 'field.subfield' - nested object access
+    - '[].field' - extract field from each item in array
+    - '[index]' - access specific array index
+    - '[index].field' - access field in specific array item
+    
+    Args:
+        value: The value to resolve the path in
+        path: The path to resolve (e.g., 'field', '[].url', '[0].title')
+        asset_name: Name of the asset (for error messages)
+        tool_id: ID of the tool (for error messages)
+        
+    Returns:
+        The resolved value
+        
+    Raises:
+        ToolExecutionError: If the path cannot be resolved
+    """
+    current_value = value
+    
+    # Handle array access patterns
+    if path.startswith('[]'):
+        # Extract field from each item in array
+        if not isinstance(current_value, list):
+            raise ToolExecutionError(
+                f"Cannot access array path {path} in asset {asset_name}: value is not an array",
+                tool_id
+            )
+        
+        # Handle [].field pattern
+        if path.startswith('[].'):
+            field_path = path[3:]  # Remove '[].'' prefix
+            result = []
+            for item in current_value:
+                if field_path:
+                    # Recursively resolve the field path in each item
+                    item_value = _resolve_asset_path(item, field_path, asset_name, tool_id)
+                    result.append(item_value)
+                else:
+                    result.append(item)
+            return result
+        else:
+            # Just [] - return the array as is
+            return current_value
+    
+    # Handle specific array index access [index]
+    elif path.startswith('[') and ']' in path:
+        if not isinstance(current_value, list):
+            raise ToolExecutionError(
+                f"Cannot access array index in path {path} in asset {asset_name}: value is not an array",
+                tool_id
+            )
+        
+        # Extract index and remaining path
+        end_bracket = path.index(']')
+        index_str = path[1:end_bracket]
+        remaining_path = path[end_bracket + 1:]
+        
+        try:
+            index = int(index_str)
+            if index < 0 or index >= len(current_value):
+                raise ToolExecutionError(
+                    f"Array index {index} out of bounds in path {path} in asset {asset_name}",
+                    tool_id
+                )
+            current_value = current_value[index]
+            
+            # If there's a remaining path (like '.field'), resolve it
+            if remaining_path.startswith('.'):
+                remaining_path = remaining_path[1:]  # Remove leading dot
+                return _resolve_asset_path(current_value, remaining_path, asset_name, tool_id)
+            else:
+                return current_value
+                
+        except ValueError:
+            raise ToolExecutionError(
+                f"Invalid array index '{index_str}' in path {path} in asset {asset_name}",
+                tool_id
+            )
+    
+    # Handle regular object field access
+    else:
+        for part in path.split('.'):
+            if isinstance(current_value, dict):
+                current_value = current_value.get(part)
+                if current_value is None:
+                    raise ToolExecutionError(
+                        f"Cannot access path {path} in asset {asset_name}: field '{part}' not found",
+                        tool_id
+                    )
+            else:
+                raise ToolExecutionError(
+                    f"Cannot access path {path} in asset {asset_name}: cannot access field '{part}' on {type(current_value).__name__}",
+                    tool_id
+                )
+        
+        return current_value
+
 async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Dict[str, Any]:
     """
     Execute a tool step and return the results with proper canonical type handling.
@@ -56,14 +159,7 @@ async def execute_tool_step(step: "ToolStep", hop_state: Dict[str, Asset]) -> Di
             # Get value from asset, following path if specified
             value = asset.value
             if mapping.path:
-                for part in mapping.path.split('.'):
-                    if isinstance(value, dict):
-                        value = value.get(part)
-                    else:
-                        raise ToolExecutionError(
-                            f"Cannot access path {mapping.path} in asset {mapping.state_asset}",
-                            step.tool_id
-                        )
+                value = _resolve_asset_path(value, mapping.path, mapping.state_asset, step.tool_id)
             
             params[param_name] = value
     

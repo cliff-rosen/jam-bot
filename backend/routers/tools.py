@@ -12,7 +12,7 @@ from schemas.tool import ToolDefinition
 from schemas.tool_execution import (
     CreateToolExecutionRequest, 
     CreateToolExecutionResponse,
-    ToolExecutionResult,
+    ToolExecutionResponse,
     ToolExecutionStatusResponse
 )
 from tools.tool_execution import ToolExecutionError, execute_tool_step
@@ -73,7 +73,7 @@ async def create_tool_execution(
             detail=f"Error creating tool execution: {str(e)}"
         )
 
-@router.post("/execution/{execution_id}/execute", response_model=ToolExecutionResult)
+@router.post("/execution/{execution_id}/execute", response_model=ToolExecutionResponse)
 async def execute_tool_by_id(
     execution_id: str,
     user = Depends(validate_token),
@@ -88,7 +88,7 @@ async def execute_tool_by_id(
         db: Database session
         
     Returns:
-        ToolExecutionResult containing execution results
+        ToolExecutionResponse containing execution results
     """
     try:
         tool_execution_service = ToolExecutionService(db)

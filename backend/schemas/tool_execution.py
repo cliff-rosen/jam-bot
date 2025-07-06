@@ -21,8 +21,8 @@ class CreateToolExecutionResponse(BaseModel):
     """Response from creating a tool execution"""
     execution_id: str = Field(description="Unique tool execution ID")
 
-class ToolExecutionResult(BaseModel):
-    """Result of a tool execution"""
+class ToolExecutionResponse(BaseModel):
+    """Response from a tool execution"""
     success: bool = Field(description="Whether the execution was successful")
     errors: list[str] = Field(default=[], description="List of error messages")
     outputs: Dict[str, Any] = Field(default={}, description="Tool execution outputs")
@@ -36,7 +36,7 @@ class ToolExecutionStatusResponse(BaseModel):
     step_id: str = Field(description="Step ID")
     status: ToolExecutionStatus = Field(description="Current status")
     error_message: Optional[str] = Field(None, description="Error message if failed")
-    execution_result: Optional[ToolExecutionResult] = Field(None, description="Execution result if completed")
+    execution_result: Optional[ToolExecutionResponse] = Field(None, description="Execution result if completed")
     created_at: datetime = Field(description="Creation timestamp")
     started_at: Optional[datetime] = Field(None, description="Start timestamp")
     completed_at: Optional[datetime] = Field(None, description="Completion timestamp") 

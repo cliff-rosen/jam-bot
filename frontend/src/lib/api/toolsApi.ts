@@ -3,7 +3,7 @@ import { ToolStep } from '../../types/workflow';
 import { Asset } from '../../types/asset';
 import { ToolDefinition } from '../../types/tool';
 
-export interface ToolExecutionResult {
+export interface ToolExecutionResponse {
     success: boolean;
     errors: string[];
     outputs: Record<string, any>;  // Maps output parameter names to their values (serialized)
@@ -17,7 +17,7 @@ export interface ToolExecutionStatus {
     step_id: string;
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     error_message?: string;
-    execution_result?: ToolExecutionResult;
+    execution_result?: ToolExecutionResponse;
     created_at: string;
     started_at?: string;
     completed_at?: string;
@@ -59,8 +59,8 @@ export const toolsApi = {
     /**
      * Execute a tool by execution ID (new streamlined approach)
      */
-    executeToolById: async (executionId: string): Promise<ToolExecutionResult> => {
-        const response = await api.post<ToolExecutionResult>(`/api/tools/execution/${executionId}/execute`);
+    executeToolById: async (executionId: string): Promise<ToolExecutionResponse> => {
+        const response = await api.post<ToolExecutionResponse>(`/api/tools/execution/${executionId}/execute`);
         return response.data;
     },
 
@@ -73,14 +73,14 @@ export const toolsApi = {
     },
 
     /**
-     * Execute a tool step (streamlined - uses create + execute pattern)
-     */
+ * Execute a tool step (streamlined - uses create + execute pattern)
+ */
     executeTool: async (
         toolId: string,
         step: ToolStep,
         hopState: Record<string, Asset>,
         missionId?: string
-    ): Promise<ToolExecutionResult> => {
+    ): Promise<ToolExecutionResponse> => {
         // Create tool execution record
         const createResponse = await toolsApi.createToolExecution(step, hopState, missionId);
 
@@ -97,8 +97,8 @@ export const toolsApi = {
         toolId: string,
         step: ToolStep,
         hopState: Record<string, Asset>
-    ): Promise<ToolExecutionResult> => {
-        const response = await api.post<ToolExecutionResult>(`/api/tools/execute/${toolId}`, {
+    ): Promise<ToolExecutionResponse> => {
+        const response = await api.post<ToolExecutionResponse>(`/api/tools/execute/${toolId}`, {
             step,
             hop_state: hopState
         });

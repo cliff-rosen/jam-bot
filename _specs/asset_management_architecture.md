@@ -40,13 +40,16 @@ class AssetWithFullContent(Asset):
 ### Value Representation Examples
 
 ```python
-# Large email list
+# Small assets (< 1KB) - store full content
+value_representation = json.dumps([{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}])
+
+# Large email list - generate summary
 value_representation = "Array of 127 emails (2019-2024), preview: [{subject: 'Q4 Report', from: 'boss@company.com'}, {subject: 'Meeting Notes', from: 'team@company.com'}, ...]"
 
-# Large document
+# Large document - generate summary
 value_representation = "Document: 'Project Proposal' (4,200 words), begins: 'Executive Summary: This proposal outlines our strategy for...'"
 
-# Large dataset
+# Large dataset - generate summary
 value_representation = "CSV dataset: 15,340 rows × 8 columns (customer_id, name, email, purchase_date, amount, product, category, region)"
 ```
 
@@ -60,7 +63,6 @@ CREATE TABLE assets (
     user_id INT NOT NULL,
     scope_type VARCHAR(50) NOT NULL,     -- 'mission' or 'hop'
     scope_id VARCHAR(255) NOT NULL,      -- mission_id or hop_id
-    asset_key VARCHAR(255) NOT NULL,     -- The key name within the scope
     name VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL,
     content JSON,                        -- Full content stored here
@@ -70,8 +72,7 @@ CREATE TABLE assets (
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     INDEX idx_scope_assets (scope_type, scope_id, status),
-    INDEX idx_scope_role (scope_type, scope_id, role),
-    UNIQUE KEY unique_asset_in_scope (scope_type, scope_id, asset_key)
+    INDEX idx_scope_role (scope_type, scope_id, role)
 );
 
 CREATE TABLE tool_steps (
@@ -108,20 +109,20 @@ class Mission(Base):
 {
   "id": "hop_123",
   "name": "Filter important emails",
-  "hop_state_keys": [
-    "emails",
-    "important_emails", 
-    "temp_filtered"
+  "hop_state_asset_ids": [
+    "asset_abc123",
+    "asset_def456", 
+    "asset_ghi789"
   ],
   "tool_steps": [
     {
       "id": "step_1",
       "tool_id": "email_filter",
       "parameter_mapping": {
-        "emails": {"type": "asset_field", "state_asset": "emails"}
+        "emails": {"type": "asset_field", "state_asset": "asset_abc123"}
       },
       "result_mapping": {
-        "filtered": {"type": "asset_field", "state_asset": "important_emails"}
+        "filtered": {"type": "asset_field", "state_asset": "asset_def456"}
       }
     }
   ]
@@ -131,13 +132,13 @@ class Mission(Base):
 ### Asset Scoping Examples
 ```sql
 -- Mission-level assets
-INSERT INTO assets (id, user_id, scope_type, scope_id, asset_key, name, type, role, content) VALUES
-('asset_abc123', 1, 'mission', 'mission_456', 'emails', 'Email Dataset', 'email', 'input', '[{...}]'),
-('asset_def456', 1, 'mission', 'mission_456', 'important_emails', 'Important Emails', 'email', 'output', '[{...}]');
+INSERT INTO assets (id, user_id, scope_type, scope_id, name, type, role, content) VALUES
+('asset_abc123', 1, 'mission', 'mission_456', 'Email Dataset', 'email', 'input', '[{...}]'),
+('asset_def456', 1, 'mission', 'mission_456', 'Important Emails', 'email', 'output', '[{...}]');
 
 -- Hop-level assets (intermediate results)
-INSERT INTO assets (id, user_id, scope_type, scope_id, asset_key, name, type, role, content) VALUES
-('asset_ghi789', 1, 'hop', 'hop_123', 'temp_filtered', 'Temp Filtered Results', 'email', 'intermediate', '[{...}]');
+INSERT INTO assets (id, user_id, scope_type, scope_id, name, type, role, content) VALUES
+('asset_ghi789', 1, 'hop', 'hop_123', 'Temp Filtered Results', 'email', 'intermediate', '[{...}]');
 ```
 
 ## Layer 2: Backend Schema/Application Logic
@@ -204,12 +205,18 @@ class AssetSummaryService:
     """Generate intelligent value representations for assets"""
     
     def generate_value_representation(self, asset: AssetWithContent) -> str:
-        """Generate a concise representation of asset content"""
+        """Generate representation - full content for small assets, summary for large ones"""
         content = asset.value
         
         if content is None:
-            return "No content"
-            
+            return "null"
+        
+        # For small content (< 1KB), store full content
+        content_size = len(json.dumps(content, default=str))
+        if content_size < 1024:
+            return json.dumps(content, default=str)
+        
+        # For large content, generate summary
         if isinstance(content, list):
             return self._summarize_array(content, asset.type)
         elif isinstance(content, dict):
@@ -254,24 +261,19 @@ class AssetService:
         role: str,
         scope_type: str,
         scope_id: str,
-        asset_key: str,
         subtype: Optional[str] = None,
         description: Optional[str] = None,
         asset_metadata: Optional[Dict[str, Any]] = None
     ) -> Asset:
         """Create asset with scope-based organization"""
-        # Implementation creates asset with scope fields
         pass
     
-    async def get_asset_by_scope(
+    async def get_asset(
         self,
-        user_id: int,
-        scope_type: str,
-        scope_id: str,
-        asset_key: str
+        asset_id: str,
+        user_id: int
     ) -> Optional[Asset]:
-        """Get asset by scope and key"""
-        # SELECT * FROM assets WHERE user_id = ? AND scope_type = ? AND scope_id = ? AND asset_key = ?
+        """Get asset by ID (includes value_representation)"""
         pass
     
     async def get_assets_for_scope(
@@ -281,7 +283,6 @@ class AssetService:
         scope_id: str
     ) -> List[Asset]:
         """Get all assets for a given scope"""
-        # SELECT * FROM assets WHERE user_id = ? AND scope_type = ? AND scope_id = ?
         pass
     
     async def get_asset_with_content(
@@ -289,8 +290,16 @@ class AssetService:
         asset_id: str,
         user_id: int
     ) -> Optional[AssetWithContent]:
-        """Get asset with full content loaded"""
-        # Used for tool execution - includes full content
+        """Get asset with full content loaded (for tool execution)"""
+        pass
+    
+    async def update_asset(
+        self,
+        asset_id: str,
+        user_id: int,
+        updates: Dict[str, Any]
+    ) -> Optional[Asset]:
+        """Update asset content and metadata"""
         pass
 ```
 
@@ -313,34 +322,15 @@ async def execute_tool_step(
     resolved_assets = {}
     for param_name, mapping in step.parameter_mapping.items():
         if mapping.type == "asset_field":
-            asset_key = mapping.state_asset
+            asset_id = mapping.state_asset
             
-            # First check hop-level assets
-            hop_asset = await asset_service.get_asset_by_scope(
-                user_id=current_user.user_id,
-                scope_type="hop",
-                scope_id=hop.id,
-                asset_key=asset_key
+            # Fetch asset with full content
+            full_asset = await asset_service.get_asset_with_content(
+                asset_id, current_user.user_id
             )
             
-            if hop_asset:
-                full_asset = await asset_service.get_asset_with_content(
-                    hop_asset.id, current_user.user_id
-                )
+            if full_asset:
                 resolved_assets[param_name] = full_asset.value
-            else:
-                # Fall back to mission-level assets
-                mission_asset = await asset_service.get_asset_by_scope(
-                    user_id=current_user.user_id,
-                    scope_type="mission",
-                    scope_id=mission.id,
-                    asset_key=asset_key
-                )
-                if mission_asset:
-                    full_asset = await asset_service.get_asset_with_content(
-                        mission_asset.id, current_user.user_id
-                    )
-                    resolved_assets[param_name] = full_asset.value
     
     # Execute tool with full content
     result = await execute_tool(step.tool_id, resolved_assets, step.resource_configs)
@@ -349,41 +339,29 @@ async def execute_tool_step(
     updated_asset_ids = []
     for output_name, mapping in step.result_mapping.items():
         if mapping.type == "asset_field":
-            asset_key = mapping.state_asset
+            asset_id = mapping.state_asset
             
-            # Check if asset already exists at hop level
-            existing_asset = await asset_service.get_asset_by_scope(
-                user_id=current_user.user_id,
-                scope_type="hop",
-                scope_id=hop.id,
-                asset_key=asset_key
+            # Check if asset already exists
+            existing_asset = await asset_service.get_asset(
+                asset_id, current_user.user_id
             )
             
             if existing_asset:
                 # Update existing asset
                 await asset_service.update_asset(
-                    asset_id=existing_asset.id,
+                    asset_id=asset_id,
                     user_id=current_user.user_id,
                     updates={
                         "content": result[output_name], 
                         "status": "ready",
-                        "content_summary": summary_service.generate_summary(result[output_name])
+                        "content_summary": summary_service.generate_value_representation(result[output_name])
                     }
                 )
-                updated_asset_ids.append(existing_asset.id)
+                updated_asset_ids.append(asset_id)
             else:
-                # Create new hop-level asset
-                asset = await asset_service.create_asset(
-                    user_id=current_user.user_id,
-                    name=f"hop_{hop.id}_{asset_key}",
-                    type="intermediate",
-                    content=result[output_name],
-                    role="intermediate",
-                    scope_type="hop",
-                    scope_id=hop.id,
-                    asset_key=asset_key
-                )
-                updated_asset_ids.append(asset.id)
+                # This shouldn't happen - assets should be pre-created
+                # But handle gracefully
+                raise ValueError(f"Asset {asset_id} not found for output mapping")
     
     return ToolExecutionResponse(
         success=True,
@@ -517,10 +495,10 @@ export const assetApi = {
 
 ### 2. **Database Models**: Scope-based approach with content summary
 - ✅ `assets.scope_type` ('mission' or 'hop') and `assets.scope_id` define asset scope
-- ✅ `assets.asset_key` defines the name within the scope
+- ✅ `assets.id` (UUID) is the only identifier needed - no separate asset_key field
 - ✅ `content` stores full data, `content_summary` for value_representation
 - ✅ Asset `role` field indicates purpose within mission/hop
-- ✅ Unique constraint on (scope_type, scope_id, asset_key) prevents duplicates
+- ✅ Value representation includes full content for small assets (< 1KB)
 
 ### 3. **Tool Execution**: Only step_id required, smart content loading
 - ✅ `POST /tools/steps/{step_id}/execute`
@@ -542,18 +520,18 @@ export const assetApi = {
 - ✅ Consistent scoping mechanism across all asset types
 - ✅ No separate mission_id/hop_id foreign keys needed
 
-### 2. **Flexible Asset Resolution**
-- ✅ Tool execution can check hop-level assets first, fall back to mission-level
-- ✅ Asset keys can be reused across different scopes
-- ✅ Natural hierarchy: hop assets override mission assets with same key
+### 2. **Direct Asset References**
+- ✅ Tools reference assets by ID directly - no name resolution needed
+- ✅ Asset IDs are assigned when asset is conceptually created
+- ✅ No redundant asset_key field - asset.name serves display purposes
 
 ### 3. **Simplified Queries**
 - ✅ Get all assets for a mission: `WHERE scope_type='mission' AND scope_id=mission_id`
 - ✅ Get all assets for a hop: `WHERE scope_type='hop' AND scope_id=hop_id`
-- ✅ Find specific asset: `WHERE scope_type=? AND scope_id=? AND asset_key=?`
+- ✅ Find specific asset: `WHERE id=asset_id`
 
 ### 4. **Database Efficiency**
-- ✅ Unique constraint prevents duplicate asset keys within same scope
+- ✅ Single unique identifier (asset_id) for all references
 - ✅ Efficient indexes on (scope_type, scope_id) for fast scoped queries
 - ✅ No need for complex foreign key relationships or junction tables
 - ✅ Full content loaded only when explicitly requested

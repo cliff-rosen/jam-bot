@@ -119,14 +119,15 @@ class Mission(BaseModel):
     id: str
     name: str
     description: str
+    goal: str = Field(default="", description="The main goal of the mission")
+    success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
+    mission_status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
+
     current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")
     hop_history: List[Hop] = Field(default_factory=list, description="List of completed hops")
     inputs: List[Asset]
     outputs: List[Asset]
     mission_state: Dict[str, Asset] = Field(default_factory=dict)
-    mission_status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
-    goal: str = Field(default="", description="The main goal of the mission")
-    success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     
     # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict)

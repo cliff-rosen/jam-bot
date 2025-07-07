@@ -56,13 +56,14 @@ class AssetService:
 
         metadata_dict = model.get('asset_metadata', {})
         
-        # Map database is_collection to schema is_array
-        is_collection_db = model.get('is_collection', False)
+        # Determine if array from the type itself or schema logic
+        # For now, default to False - this should be determined by type semantics
+        is_array = False  # Will be determined by schema definition logic
         
         schema = SchemaType(
             type=model.get('type'),
             description=model.get('description'),
-            is_array=is_collection_db,  # Map database field to schema field
+            is_array=is_array,
             fields=None
         )
         
@@ -110,7 +111,6 @@ class AssetService:
         name: str,
         type: str,
         subtype: Optional[str] = None,
-        is_array: bool = False,
         description: Optional[str] = None,
         content: Optional[Any] = None,
         asset_metadata: Optional[Dict[str, Any]] = None
@@ -126,8 +126,8 @@ class AssetService:
         asset_metadata_dict["token_count"] = token_count
 
         query = """
-            INSERT INTO assets (id, user_id, name, description, type, subtype, is_collection, collection_type, content, asset_metadata)
-            VALUES (:id, :user_id, :name, :description, :type, :subtype, :is_collection, :collection_type, :content, :asset_metadata)
+            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata)
+            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata)
             RETURNING *
         """
         values = {
@@ -137,8 +137,6 @@ class AssetService:
             "description": description,
             "type": type,
             "subtype": subtype,
-            "is_collection": is_array,
-            "collection_type": "array" if is_array else None,
             "content": content,
             "asset_metadata": asset_metadata_dict
         }

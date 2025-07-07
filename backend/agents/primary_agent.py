@@ -813,7 +813,6 @@ def _process_implementation_plan(
                 description=f"Intermediate result from hop implementation: {asset_name}"
             ),
             status=AssetStatus.PENDING,
-            is_collection=False,
             role='intermediate',
             asset_metadata=AssetMetadata(
                 created_at=datetime.utcnow(),

@@ -10,14 +10,6 @@ import json
 from enum import Enum as PyEnum
 
 # Define enums directly in models to break circular dependency
-class CollectionType(str, PyEnum):
-    """Type of collection if asset is a collection"""
-
-    ARRAY = "array"
-    MAP = "map"
-    SET = "set"
-    NONE = "null"
-
 class MissionStatus(str, PyEnum):
     """Status of a mission"""
     PENDING = "pending"
@@ -65,21 +57,22 @@ class Asset(Base):
     description = Column(Text, nullable=True)
     type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
-    is_collection = Column(Boolean, default=False)
-    collection_type = Column(
-        Enum(CollectionType, values_callable=lambda obj: [e.value for e in obj]),
-        nullable=True,
-    )
     role = Column(String(50), nullable=True)  # Role of asset in workflow: input, output, intermediate
     content = Column(JSON, nullable=True)
     asset_metadata = Column(JSON, nullable=False, default=dict)
     db_entity_metadata = Column(JSON, nullable=True)
+    
+    # Mission relationship
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
+    mission_asset_name = Column(String(255), nullable=True)  # Name within mission_state
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="assets")
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    mission = relationship("Mission", back_populates="assets")
 
 class ResourceCredentials(Base):
     __tablename__ = "resource_credentials"
@@ -115,13 +108,14 @@ class Mission(Base):
     hop_history = Column(JSON, nullable=True)  # List of hop objects
     input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
     output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
-    mission_state_asset_ids = Column(JSON, nullable=True)  # Dict of asset_name -> asset_id
+    # mission_state_asset_ids removed - now using Asset.mission_id link-back
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = relationship("User", back_populates="missions")
+    assets = relationship("Asset", back_populates="mission", cascade="all, delete-orphan")
 
 class ToolExecution(Base):
     __tablename__ = "tool_executions"

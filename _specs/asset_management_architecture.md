@@ -54,21 +54,24 @@ value_representation = "CSV dataset: 15,340 rows × 8 columns (customer_id, name
 
 ### Asset Storage Strategy
 ```sql
--- Child points to parent approach
+-- Unified scope-based approach for mission and hop level assets
 CREATE TABLE assets (
     id VARCHAR(36) PRIMARY KEY,
     user_id INT NOT NULL,
-    mission_id VARCHAR(36) REFERENCES missions(id), -- Child points to parent
+    scope_type VARCHAR(50) NOT NULL,     -- 'mission' or 'hop'
+    scope_id VARCHAR(255) NOT NULL,      -- mission_id or hop_id
+    asset_key VARCHAR(255) NOT NULL,     -- The key name within the scope
     name VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL,
-    content JSON,                    -- Full content stored here
-    content_summary TEXT,            -- Generated summary for value_representation
+    content JSON,                        -- Full content stored here
+    content_summary TEXT,                -- Generated summary for value_representation
     status ENUM('pending', 'ready', 'error'),
     role ENUM('input', 'output', 'intermediate'),
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
-    INDEX idx_mission_assets (mission_id, status),
-    INDEX idx_mission_role (mission_id, role)
+    INDEX idx_scope_assets (scope_type, scope_id, status),
+    INDEX idx_scope_role (scope_type, scope_id, role),
+    UNIQUE KEY unique_asset_in_scope (scope_type, scope_id, asset_key)
 );
 
 CREATE TABLE tool_steps (
@@ -94,11 +97,10 @@ class Mission(Base):
     
     # JSON fields for complex data (no asset content)
     success_criteria = Column(JSON)  # List of strings
-    current_hop = Column(JSON)       # Hop structure with asset IDs only
+    current_hop = Column(JSON)       # Hop structure with asset keys only
     hop_history = Column(JSON)       # List of hop structures
     
-    # Relationships (ORM convenience)
-    assets = relationship("Asset", back_populates="mission")
+    # Note: No direct asset relationship - assets link to missions via scope_type='mission', scope_id=mission.id
 ```
 
 ### Hop Storage (in Mission.current_hop JSON)
@@ -106,11 +108,11 @@ class Mission(Base):
 {
   "id": "hop_123",
   "name": "Filter important emails",
-  "hop_state_asset_ids": {
-    "emails": "mission_asset_abc123",
-    "important_emails": "mission_asset_def456", 
-    "temp_filtered": "mission_asset_ghi789"
-  },
+  "hop_state_keys": [
+    "emails",
+    "important_emails", 
+    "temp_filtered"
+  ],
   "tool_steps": [
     {
       "id": "step_1",
@@ -124,6 +126,18 @@ class Mission(Base):
     }
   ]
 }
+```
+
+### Asset Scoping Examples
+```sql
+-- Mission-level assets
+INSERT INTO assets (id, user_id, scope_type, scope_id, asset_key, name, type, role, content) VALUES
+('asset_abc123', 1, 'mission', 'mission_456', 'emails', 'Email Dataset', 'email', 'input', '[{...}]'),
+('asset_def456', 1, 'mission', 'mission_456', 'important_emails', 'Important Emails', 'email', 'output', '[{...}]');
+
+-- Hop-level assets (intermediate results)
+INSERT INTO assets (id, user_id, scope_type, scope_id, asset_key, name, type, role, content) VALUES
+('asset_ghi789', 1, 'hop', 'hop_123', 'temp_filtered', 'Temp Filtered Results', 'email', 'intermediate', '[{...}]');
 ```
 
 ## Layer 2: Backend Schema/Application Logic
@@ -226,6 +240,60 @@ class AssetSummaryService:
         return f"Text ({len(content)} chars): {content[:150]}..."
 ```
 
+### Asset Service Interface
+```python
+class AssetService:
+    """Service for managing assets with scope-based organization"""
+    
+    async def create_asset(
+        self,
+        user_id: int,
+        name: str,
+        type: str,
+        content: Any,
+        role: str,
+        scope_type: str,
+        scope_id: str,
+        asset_key: str,
+        subtype: Optional[str] = None,
+        description: Optional[str] = None,
+        asset_metadata: Optional[Dict[str, Any]] = None
+    ) -> Asset:
+        """Create asset with scope-based organization"""
+        # Implementation creates asset with scope fields
+        pass
+    
+    async def get_asset_by_scope(
+        self,
+        user_id: int,
+        scope_type: str,
+        scope_id: str,
+        asset_key: str
+    ) -> Optional[Asset]:
+        """Get asset by scope and key"""
+        # SELECT * FROM assets WHERE user_id = ? AND scope_type = ? AND scope_id = ? AND asset_key = ?
+        pass
+    
+    async def get_assets_for_scope(
+        self,
+        user_id: int,
+        scope_type: str,
+        scope_id: str
+    ) -> List[Asset]:
+        """Get all assets for a given scope"""
+        # SELECT * FROM assets WHERE user_id = ? AND scope_type = ? AND scope_id = ?
+        pass
+    
+    async def get_asset_with_content(
+        self,
+        asset_id: str,
+        user_id: int
+    ) -> Optional[AssetWithContent]:
+        """Get asset with full content loaded"""
+        # Used for tool execution - includes full content
+        pass
+```
+
 ### Tool Execution Interface
 ```python
 @router.post("/tools/steps/{step_id}/execute")
@@ -245,13 +313,34 @@ async def execute_tool_step(
     resolved_assets = {}
     for param_name, mapping in step.parameter_mapping.items():
         if mapping.type == "asset_field":
-            asset_with_repr = hop.hop_state.get(mapping.state_asset)
-            if asset_with_repr:
-                # Fetch full content for tool execution
+            asset_key = mapping.state_asset
+            
+            # First check hop-level assets
+            hop_asset = await asset_service.get_asset_by_scope(
+                user_id=current_user.user_id,
+                scope_type="hop",
+                scope_id=hop.id,
+                asset_key=asset_key
+            )
+            
+            if hop_asset:
                 full_asset = await asset_service.get_asset_with_content(
-                    asset_with_repr.id, current_user.user_id
+                    hop_asset.id, current_user.user_id
                 )
                 resolved_assets[param_name] = full_asset.value
+            else:
+                # Fall back to mission-level assets
+                mission_asset = await asset_service.get_asset_by_scope(
+                    user_id=current_user.user_id,
+                    scope_type="mission",
+                    scope_id=mission.id,
+                    asset_key=asset_key
+                )
+                if mission_asset:
+                    full_asset = await asset_service.get_asset_with_content(
+                        mission_asset.id, current_user.user_id
+                    )
+                    resolved_assets[param_name] = full_asset.value
     
     # Execute tool with full content
     result = await execute_tool(step.tool_id, resolved_assets, step.resource_configs)
@@ -260,12 +349,20 @@ async def execute_tool_step(
     updated_asset_ids = []
     for output_name, mapping in step.result_mapping.items():
         if mapping.type == "asset_field":
-            asset_with_repr = hop.hop_state.get(mapping.state_asset)
+            asset_key = mapping.state_asset
             
-            if asset_with_repr:
+            # Check if asset already exists at hop level
+            existing_asset = await asset_service.get_asset_by_scope(
+                user_id=current_user.user_id,
+                scope_type="hop",
+                scope_id=hop.id,
+                asset_key=asset_key
+            )
+            
+            if existing_asset:
                 # Update existing asset
                 await asset_service.update_asset(
-                    asset_id=asset_with_repr.id,
+                    asset_id=existing_asset.id,
                     user_id=current_user.user_id,
                     updates={
                         "content": result[output_name], 
@@ -273,32 +370,19 @@ async def execute_tool_step(
                         "content_summary": summary_service.generate_summary(result[output_name])
                     }
                 )
-                updated_asset_ids.append(asset_with_repr.id)
+                updated_asset_ids.append(existing_asset.id)
             else:
-                # Create new intermediate asset
+                # Create new hop-level asset
                 asset = await asset_service.create_asset(
                     user_id=current_user.user_id,
-                    mission_id=mission.id,
-                    name=f"hop_{hop.id}_{mapping.state_asset}",
+                    name=f"hop_{hop.id}_{asset_key}",
                     type="intermediate",
                     content=result[output_name],
-                    role="intermediate"
+                    role="intermediate",
+                    scope_type="hop",
+                    scope_id=hop.id,
+                    asset_key=asset_key
                 )
-                
-                # Update hop_state with new asset (value_representation only)
-                new_asset_summary = Asset(
-                    id=asset.id,
-                    name=asset.name,
-                    type=asset.type,
-                    status=AssetStatus.READY,
-                    role=AssetRole.INTERMEDIATE,
-                    description=asset.description,
-                    schema_definition=asset.schema_definition,
-                    value_representation=summary_service.generate_value_representation(asset),
-                    asset_metadata=asset.asset_metadata
-                )
-                
-                await update_hop_state(hop.id, mapping.state_asset, new_asset_summary)
                 updated_asset_ids.append(asset.id)
     
     return ToolExecutionResponse(
@@ -431,10 +515,12 @@ export const assetApi = {
 - ✅ `value_representation` provides rich preview for UX and LLM consumption
 - ✅ Full content loaded on-demand for tool execution
 
-### 2. **Database Models**: Relational approach with content summary
-- ✅ `assets.mission_id` points to mission
+### 2. **Database Models**: Scope-based approach with content summary
+- ✅ `assets.scope_type` ('mission' or 'hop') and `assets.scope_id` define asset scope
+- ✅ `assets.asset_key` defines the name within the scope
 - ✅ `content` stores full data, `content_summary` for value_representation
 - ✅ Asset `role` field indicates purpose within mission/hop
+- ✅ Unique constraint on (scope_type, scope_id, asset_key) prevents duplicates
 
 ### 3. **Tool Execution**: Only step_id required, smart content loading
 - ✅ `POST /tools/steps/{step_id}/execute`
@@ -448,6 +534,28 @@ export const assetApi = {
 
 ### 5. **Frontend**: Same schema as backend, lazy full content loading
 - ✅ Rich asset previews immediately available
+
+## Benefits of Scope-Based System
+
+### 1. **Unified Asset Management**
+- ✅ Single asset table handles both mission and hop level assets
+- ✅ Consistent scoping mechanism across all asset types
+- ✅ No separate mission_id/hop_id foreign keys needed
+
+### 2. **Flexible Asset Resolution**
+- ✅ Tool execution can check hop-level assets first, fall back to mission-level
+- ✅ Asset keys can be reused across different scopes
+- ✅ Natural hierarchy: hop assets override mission assets with same key
+
+### 3. **Simplified Queries**
+- ✅ Get all assets for a mission: `WHERE scope_type='mission' AND scope_id=mission_id`
+- ✅ Get all assets for a hop: `WHERE scope_type='hop' AND scope_id=hop_id`
+- ✅ Find specific asset: `WHERE scope_type=? AND scope_id=? AND asset_key=?`
+
+### 4. **Database Efficiency**
+- ✅ Unique constraint prevents duplicate asset keys within same scope
+- ✅ Efficient indexes on (scope_type, scope_id) for fast scoped queries
+- ✅ No need for complex foreign key relationships or junction tables
 - ✅ Full content loaded only when explicitly requested
 - ✅ Excellent UX with progressive disclosure
 

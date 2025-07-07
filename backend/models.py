@@ -62,9 +62,10 @@ class Asset(Base):
     asset_metadata = Column(JSON, nullable=False, default=dict)
     db_entity_metadata = Column(JSON, nullable=True)
     
-    # Mission relationship
-    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
-    mission_asset_name = Column(String(255), nullable=True)  # Name within mission_state
+    # Scope information - unified approach for mission and hop level assets
+    scope_type = Column(String(50), nullable=False)  # "mission" or "hop"
+    scope_id = Column(String(255), nullable=False)   # mission_id or hop_id
+    asset_key = Column(String(255), nullable=False)  # The key name within the scope
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -72,7 +73,6 @@ class Asset(Base):
     # Relationships
     user = relationship("User", back_populates="assets")
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    mission = relationship("Mission", back_populates="assets")
 
 class ResourceCredentials(Base):
     __tablename__ = "resource_credentials"
@@ -115,7 +115,6 @@ class Mission(Base):
     
     # Relationships
     user = relationship("User", back_populates="missions")
-    assets = relationship("Asset", back_populates="mission", cascade="all, delete-orphan")
 
 class ToolExecution(Base):
     __tablename__ = "tool_executions"

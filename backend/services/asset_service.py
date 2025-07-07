@@ -113,9 +113,12 @@ class AssetService:
         subtype: Optional[str] = None,
         description: Optional[str] = None,
         content: Optional[Any] = None,
-        asset_metadata: Optional[Dict[str, Any]] = None
+        asset_metadata: Optional[Dict[str, Any]] = None,
+        scope_type: str = "mission",
+        scope_id: str = "orphaned",
+        asset_key: Optional[str] = None
     ) -> Asset:
-        """Create a new asset"""
+        """Create a new asset with scope-based organization"""
 
         token_count = self._calculate_token_count(content)
 
@@ -125,9 +128,13 @@ class AssetService:
         asset_metadata_dict.setdefault("version", 1)
         asset_metadata_dict["token_count"] = token_count
 
+        # Use name as asset_key if not provided
+        if asset_key is None:
+            asset_key = name
+
         query = """
-            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata)
-            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata)
+            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata, scope_type, scope_id, asset_key)
+            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata, :scope_type, :scope_id, :asset_key)
             RETURNING *
         """
         values = {
@@ -138,7 +145,10 @@ class AssetService:
             "type": type,
             "subtype": subtype,
             "content": content,
-            "asset_metadata": asset_metadata_dict
+            "asset_metadata": asset_metadata_dict,
+            "scope_type": scope_type,
+            "scope_id": scope_id,
+            "asset_key": asset_key
         }
         
         new_asset_model = await self.db.execute(query, values)

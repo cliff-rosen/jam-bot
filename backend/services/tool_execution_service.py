@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from uuid import uuid4
 
-from models import ToolExecution, ToolExecutionStatus
+from models import ToolStep as ToolStepModel, ToolExecutionStatus
 from schemas.workflow import ToolStep
 from schemas.asset import Asset
 from services.asset_service import AssetService
@@ -23,7 +23,7 @@ class ToolExecutionService:
         mission_id: Optional[str],
         tool_step: ToolStep,
         hop_state: Dict[str, Asset]
-    ) -> ToolExecution:
+    ) -> ToolStepModel:
         """
         Create a new tool execution record
         
@@ -34,7 +34,7 @@ class ToolExecutionService:
             hop_state: Current hop state with assets
             
         Returns:
-            Created ToolExecution object
+            Created ToolStepModel object
         """
         try:
             # Extract asset IDs from hop_state
@@ -42,13 +42,13 @@ class ToolExecutionService:
                 asset_name: asset.id for asset_name, asset in hop_state.items()
             }
             
-            tool_execution = ToolExecution(
+            tool_execution = ToolStepModel(
                 id=str(uuid4()),
                 user_id=user_id,
                 mission_id=mission_id,
                 tool_id=tool_step.tool_id,
                 step_id=tool_step.id,
-                status=ToolExecutionStatus.PENDING,
+                status=ToolExecutionStatus.PROPOSED,
                 tool_step=tool_step.model_dump(),
                 hop_state_asset_ids=hop_state_asset_ids,
                 parameter_mapping=tool_step.parameter_mapping,
@@ -66,11 +66,11 @@ class ToolExecutionService:
             self.db.rollback()
             raise Exception(f"Failed to create tool execution: {str(e)}")
 
-    async def get_tool_execution(self, execution_id: str, user_id: int) -> Optional[ToolExecution]:
+    async def get_tool_execution(self, execution_id: str, user_id: int) -> Optional[ToolStepModel]:
         """Get a tool execution by ID"""
-        return self.db.query(ToolExecution).filter(
-            ToolExecution.id == execution_id,
-            ToolExecution.user_id == user_id
+        return self.db.query(ToolStepModel).filter(
+            ToolStepModel.id == execution_id,
+            ToolStepModel.user_id == user_id
         ).first()
 
     async def get_tool_execution_with_assets(

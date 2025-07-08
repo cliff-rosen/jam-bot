@@ -28,9 +28,11 @@ class ExecutionStatus(str, Enum):
 
 class MissionStatus(str, Enum):
     """Status of a mission"""
-    PENDING = "pending"
-    READY_TO_DESIGN = "ready_to_design"
-    ACTIVE = "active"
+    PROPOSED = "proposed"
+    READY_FOR_NEXT_HOP = "ready_for_next_hop"
+    BUILDING_HOP = "building_hop"
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"
+    EXECUTING_HOP = "executing_hop"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -38,7 +40,8 @@ class MissionStatus(str, Enum):
 
 class HopStatus(str, Enum):
     """Status of a hop"""
-    PENDING = "pending"
+    PROPOSED = "proposed"
+    READY_TO_RESOLVE = "ready_to_resolve"
     READY_TO_EXECUTE = "ready_to_execute"
     EXECUTING = "executing"
     COMPLETED = "completed"
@@ -78,7 +81,7 @@ class Mission(BaseModel):
     description: str
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
-    status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
+    status: MissionStatus = Field(default=MissionStatus.PROPOSED, description="Status of the mission")
     input_asset_ids: List[str] = Field(default_factory=list)
     output_asset_ids: List[str] = Field(default_factory=list)
     

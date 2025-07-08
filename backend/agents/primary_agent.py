@@ -112,7 +112,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         next_node = None
         routing_message = ""
 
-        if state.mission.mission_status == MissionStatus.PENDING:
+        if state.mission.mission_status == MissionStatus.PROPOSED:
             next_node = "mission_specialist_node"
             routing_message = "Mission pending - routing to mission specialist"
         elif state.mission.mission_status == MissionStatus.ACTIVE:
@@ -876,7 +876,7 @@ class PrimaryAgent:
             inputs=[],
             outputs=[],
             mission_state={},
-            mission_status=MissionStatus.PENDING
+            mission_status=MissionStatus.PROPOSED
         )
 
     async def run(self):

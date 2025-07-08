@@ -115,13 +115,13 @@ class Mission(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=True)
-    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.PENDING)
+    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.PROPOSED)
     
     # JSON fields for complex data
     success_criteria = Column(JSON, nullable=True)  # List of strings
     input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
     output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
-    metadata = Column(JSON, nullable=True)  # Additional metadata
+    mission_metadata = Column(JSON, nullable=True)  # Additional metadata
     
     # Remove current_hop and hop_history - these are now in hops table
     
@@ -156,7 +156,7 @@ class Hop(Base):
     success_criteria = Column(JSON, nullable=True)  # List of strings
     input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
     output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
-    metadata = Column(JSON, nullable=True)  # Additional metadata
+    hop_metadata = Column(JSON, nullable=True)  # Additional metadata
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -176,7 +176,7 @@ class ToolStep(Base):
     # Basic tool step information
     tool_id = Column(String(255), nullable=False)
     sequence_order = Column(Integer, nullable=False)
-    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PENDING)
+    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PROPOSED)
     
     # Tool step configuration
     description = Column(Text, nullable=True)

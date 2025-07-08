@@ -161,23 +161,23 @@ class MissionService:
     def _map_schema_status_to_model(self, schema_status: SchemaMissionStatus) -> MissionStatus:
         """Map schema status to model status"""
         mapping = {
-            SchemaMissionStatus.PENDING: MissionStatus.PENDING,
+            SchemaMissionStatus.PROPOSED: MissionStatus.PROPOSED,
             SchemaMissionStatus.READY_TO_DESIGN: MissionStatus.READY_TO_DESIGN,
             SchemaMissionStatus.ACTIVE: MissionStatus.ACTIVE,
             SchemaMissionStatus.COMPLETED: MissionStatus.COMPLETED,
             SchemaMissionStatus.FAILED: MissionStatus.FAILED,
             SchemaMissionStatus.CANCELLED: MissionStatus.CANCELLED
         }
-        return mapping.get(schema_status, MissionStatus.PENDING)
+        return mapping.get(schema_status, MissionStatus.PROPOSED)
     
     def _map_model_status_to_schema(self, model_status: MissionStatus) -> SchemaMissionStatus:
         """Map model status to schema status"""
         mapping = {
-            MissionStatus.PENDING: SchemaMissionStatus.PENDING,
+            MissionStatus.PROPOSED: SchemaMissionStatus.PROPOSED,
             MissionStatus.READY_TO_DESIGN: SchemaMissionStatus.READY_TO_DESIGN,
             MissionStatus.ACTIVE: SchemaMissionStatus.ACTIVE,
             MissionStatus.COMPLETED: SchemaMissionStatus.COMPLETED,
             MissionStatus.FAILED: SchemaMissionStatus.FAILED,
             MissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED
         }
-        return mapping.get(model_status, SchemaMissionStatus.PENDING) 
+        return mapping.get(model_status, SchemaMissionStatus.PROPOSED) 

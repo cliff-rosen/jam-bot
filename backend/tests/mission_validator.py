@@ -91,7 +91,7 @@ def test_mission_validation():
         mission_state={},
         hop_history=[],
         current_hop_index=0,
-        mission_status=MissionStatus.PENDING,
+        mission_status=MissionStatus.PROPOSED,
         metadata={},
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()

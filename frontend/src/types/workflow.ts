@@ -17,9 +17,11 @@ export enum ExecutionStatus {
 }
 
 export enum MissionStatus {
-    PENDING = "pending",
-    READY_TO_DESIGN = "ready_to_design",
-    ACTIVE = "active",
+    PROPOSED = "proposed",
+    READY_FOR_NEXT_HOP = "ready_for_next_hop",
+    BUILDING_HOP = "building_hop",
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute",
+    EXECUTING_HOP = "executing_hop",
     COMPLETED = "completed",
     FAILED = "failed",
     CANCELLED = "cancelled"
@@ -108,7 +110,7 @@ export const defaultMission: Mission = {
     description: "A new mission to be defined.",
     goal: "",
     success_criteria: [],
-    status: MissionStatus.PENDING,
+    status: MissionStatus.PROPOSED,
     input_asset_ids: [],
     output_asset_ids: [],
     metadata: {},

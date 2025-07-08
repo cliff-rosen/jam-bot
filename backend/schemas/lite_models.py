@@ -164,7 +164,7 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
         hop_history=[],
         mission_state={},
         status=ExecutionStatus.PENDING,
-        mission_status=MissionStatus.PENDING,
+        mission_status=MissionStatus.PROPOSED,
         created_at=current_time,
         updated_at=current_time,
         metadata=mission_lite.metadata

@@ -64,7 +64,7 @@ class ToolStepService:
             resource_configs=resource_configs or {},
             parameter_mapping=parameter_mapping or {},
             result_mapping=result_mapping or {},
-            status=ToolExecutionStatus.PENDING,
+            status=ToolExecutionStatus.PROPOSED,
             validation_errors=validation_errors
         )
         
@@ -175,7 +175,7 @@ class ToolStepService:
             and_(
                 ToolStepModel.hop_id == hop_id,
                 ToolStepModel.user_id == user_id,
-                ToolStepModel.status == ToolExecutionStatus.PENDING
+                ToolStepModel.status == ToolExecutionStatus.PROPOSED
             )
         ).order_by(ToolStepModel.sequence_order).first()
         

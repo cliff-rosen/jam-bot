@@ -26,7 +26,7 @@ export interface StatusDisplay {
 
 export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
     switch (status) {
-        case MissionStatus.PENDING:
+        case MissionStatus.PROPOSED:
             return {
                 color: 'yellow',
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),

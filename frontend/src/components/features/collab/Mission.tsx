@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useJamBot } from '@/context/JamBotContext';
-import { defaultMission, MissionStatus } from '@/types/workflow';
-import { getMissionStatusDisplay, getHopStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+
+import { useJamBot } from '@/context/JamBotContext';
+import { Mission as MissionType, defaultMission, MissionStatus } from '@/types/workflow';
+import { getMissionStatusDisplay, getHopStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionProps {
     className?: string;
@@ -11,12 +12,12 @@ interface MissionProps {
 
 export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
     const { state, setCollabArea } = useJamBot();
-    const mission = state.mission || defaultMission;
+    const mission: MissionType = state.mission || defaultMission;
     const missionStatusDisplay = getMissionStatusDisplay(mission.mission_status);
     const [expanded, setExpanded] = useState(false);
 
     // Don't render anything if mission is pending
-    if (mission.mission_status === MissionStatus.PENDING) {
+    if (mission.mission_status === MissionStatus.PROPOSED) {
         return null;
     }
 

@@ -169,7 +169,7 @@ async def _persist_updated_assets(
                         # Check if asset needs to be created or updated
                         if asset.status == AssetStatus.PROPOSED:
                             # Create new asset on backend
-                            await asset_service.create_asset(
+                            asset_service.create_asset(
                                 user_id=user_id,
                                 name=asset.name,
                                 type=asset.schema_definition.type,
@@ -183,7 +183,7 @@ async def _persist_updated_assets(
                             print(f"Created new asset {asset.name} on backend")
                         elif asset.status in [AssetStatus.READY, AssetStatus.IN_PROGRESS]:
                             # Update existing asset
-                            await asset_service.update_asset(
+                            asset_service.update_asset(
                                 asset_id=asset.id,
                                 user_id=user_id,
                                 updates={

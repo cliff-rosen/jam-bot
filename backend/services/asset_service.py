@@ -1,35 +1,49 @@
 from typing import List, Optional, Dict, Any
 from schemas.asset import Asset, DatabaseEntityMetadata
 from schemas.base import SchemaType
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
-from database import get_db
+from database import SessionLocal
 from uuid import uuid4
+from models import Asset as AssetModel
 
 # In-memory storage for assets
 ASSET_DB: Dict[str, Asset] = {}
 
 class AssetService:
     def __init__(self):
-        db = get_db()
-        self.db = db
+        self.db = SessionLocal()
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.db_entity_service = DatabaseEntityService(db)
+        self.db_entity_service = DatabaseEntityService(self.db)
 
-    async def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.db.close()
+
+    def close(self):
+        """Close the database session"""
+        self.db.close()
+
+    def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
         """Get an asset with all its details, including database entity content if applicable"""
-        asset_model = await self.db.fetch_one("SELECT * FROM assets WHERE id = :id", {"id": asset_id})
+        result = self.db.execute(text("SELECT * FROM assets WHERE id = :id"), {"id": asset_id})
+        asset_model = result.first()
         if not asset_model:
             return None
 
-        # Convert to schema
-        asset = self._model_to_schema(asset_model)
+        # Convert to schema (asset_model is now a Row object, convert to dict)
+        asset_dict = dict(asset_model._mapping)
+        asset = self._model_to_schema(asset_dict)
 
-        if asset.schema_definition.type == "database_entity" and hasattr(asset_model, 'db_entity_metadata') and asset_model.db_entity_metadata:
-            db_metadata = DatabaseEntityMetadata(**asset_model.db_entity_metadata)
-            content = await self.db_entity_service.fetch_entities(db_metadata)
+        if asset.schema_definition.type == "database_entity" and asset_dict.get('db_entity_metadata'):
+            db_metadata = DatabaseEntityMetadata(**asset_dict['db_entity_metadata'])
+            content = self.db_entity_service.fetch_entities(db_metadata)
             asset.value = content
 
         return asset
@@ -105,7 +119,7 @@ class AssetService:
             asset_metadata=asset_metadata
         )
 
-    async def create_asset(
+    def create_asset(
         self,
         user_id: int,
         name: str,
@@ -127,59 +141,74 @@ class AssetService:
         asset_metadata_dict.setdefault("version", 1)
         asset_metadata_dict["token_count"] = token_count
 
-        query = """
-            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata, scope_type, scope_id)
-            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata, :scope_type, :scope_id)
-            RETURNING *
-        """
-        values = {
-            "id": str(uuid4()),
-            "user_id": user_id,
-            "name": name,
-            "description": description,
-            "type": type,
-            "subtype": subtype,
-            "content": content,
-            "asset_metadata": asset_metadata_dict,
-            "scope_type": scope_type,
-            "scope_id": scope_id
+        asset_id = str(uuid4())
+        
+        # Use SQLAlchemy ORM to create the asset
+        new_asset = AssetModel(
+            id=asset_id,
+            user_id=user_id,
+            name=name,
+            description=description,
+            type=type,
+            subtype=subtype,
+            content=content,
+            asset_metadata=asset_metadata_dict,
+            scope_type=scope_type,
+            scope_id=scope_id
+        )
+        
+        self.db.add(new_asset)
+        self.db.commit()
+        self.db.refresh(new_asset)
+        
+        # Convert to dict for schema conversion
+        asset_dict = {
+            "id": new_asset.id,
+            "user_id": new_asset.user_id,
+            "name": new_asset.name,
+            "description": new_asset.description,
+            "type": new_asset.type,
+            "subtype": new_asset.subtype,
+            "content": new_asset.content,
+            "asset_metadata": new_asset.asset_metadata,
+            "scope_type": new_asset.scope_type,
+            "scope_id": new_asset.scope_id
         }
         
-        new_asset_model = await self.db.execute(query, values)
-        return self._model_to_schema(new_asset_model)
+        return self._model_to_schema(asset_dict)
 
-    async def get_asset(self, asset_id: str, user_id: int) -> Optional[Asset]:
+    def get_asset(self, asset_id: str, user_id: int) -> Optional[Asset]:
         """Get an asset by ID"""
-        query = "SELECT * FROM assets WHERE id = :id AND user_id = :user_id"
-        values = {"id": asset_id, "user_id": user_id}
-        asset_model = await self.db.fetch_one(query, values)
+        result = self.db.execute(text("SELECT * FROM assets WHERE id = :id AND user_id = :user_id"), 
+                               {"id": asset_id, "user_id": user_id})
+        asset_model = result.first()
         if not asset_model:
             return None
-        return self._model_to_schema(asset_model)
+        return self._model_to_schema(dict(asset_model._mapping))
 
-    async def get_user_assets(
+    def get_user_assets(
         self,
         user_id: int,
     ) -> List[Asset]:
         """Get all assets for a user"""
-        query = "SELECT * FROM assets WHERE user_id = :user_id"
-        values = {"user_id": user_id}
-        asset_models = await self.db.fetch_all(query, values)
-        return [self._model_to_schema(model) for model in asset_models]
+        result = self.db.execute(text("SELECT * FROM assets WHERE user_id = :user_id"), 
+                               {"user_id": user_id})
+        asset_models = result.fetchall()
+        return [self._model_to_schema(dict(model._mapping)) for model in asset_models]
 
-    async def get_assets_by_scope(
+    def get_assets_by_scope(
         self,
         user_id: int,
         scope_type: str,
         scope_id: str
     ) -> List[Asset]:
         """Get all assets for a specific scope"""
-        query = "SELECT * FROM assets WHERE user_id = :user_id AND scope_type = :scope_type AND scope_id = :scope_id"
-        values = {"user_id": user_id, "scope_type": scope_type, "scope_id": scope_id}
-        asset_models = await self.db.fetch_all(query, values)
-        return [self._model_to_schema(model) for model in asset_models]
+        result = self.db.execute(text("SELECT * FROM assets WHERE user_id = :user_id AND scope_type = :scope_type AND scope_id = :scope_id"), 
+                               {"user_id": user_id, "scope_type": scope_type, "scope_id": scope_id})
+        asset_models = result.fetchall()
+        return [self._model_to_schema(dict(model._mapping)) for model in asset_models]
 
-    async def get_assets_by_ids(
+    def get_assets_by_ids(
         self,
         user_id: int,
         asset_ids: List[str]
@@ -195,10 +224,11 @@ class AssetService:
         for i, asset_id in enumerate(asset_ids):
             values[f"id_{i}"] = asset_id
         
-        asset_models = await self.db.fetch_all(query, values)
-        return [self._model_to_schema(model) for model in asset_models]
+        result = self.db.execute(text(query), values)
+        asset_models = result.fetchall()
+        return [self._model_to_schema(dict(model._mapping)) for model in asset_models]
 
-    async def update_asset(
+    def update_asset(
         self,
         asset_id: str,
         user_id: int,
@@ -210,7 +240,7 @@ class AssetService:
             new_token_count = self._calculate_token_count(updates['content'])
             
             if 'asset_metadata' not in updates:
-                current_asset = await self.get_asset(asset_id, user_id)
+                current_asset = self.get_asset(asset_id, user_id)
                 updates['asset_metadata'] = current_asset.asset_metadata if current_asset else {}
 
             updates['asset_metadata']['token_count'] = new_token_count
@@ -218,22 +248,41 @@ class AssetService:
 
         updates['updated_at'] = datetime.utcnow()
         
-        set_clause = ", ".join(f"{key} = :{key}" for key in updates.keys())
-        query = f"UPDATE assets SET {set_clause} WHERE id = :id AND user_id = :user_id RETURNING *"
-        
-        values = updates.copy()
-        values['id'] = asset_id
-        values['user_id'] = user_id
-
-        updated_asset_model = await self.db.execute(query, values)
-        if not updated_asset_model:
+        # Use SQLAlchemy ORM to update the asset
+        asset = self.db.query(AssetModel).filter(AssetModel.id == asset_id, AssetModel.user_id == user_id).first()
+        if not asset:
             return None
-        return self._model_to_schema(updated_asset_model)
+        
+        # Update the asset with new values
+        for key, value in updates.items():
+            setattr(asset, key, value)
+        
+        self.db.commit()
+        self.db.refresh(asset)
+        
+        # Convert to dict for schema conversion
+        asset_dict = {
+            "id": asset.id,
+            "user_id": asset.user_id,
+            "name": asset.name,
+            "description": asset.description,
+            "type": asset.type,
+            "subtype": asset.subtype,
+            "content": asset.content,
+            "asset_metadata": asset.asset_metadata,
+            "scope_type": asset.scope_type,
+            "scope_id": asset.scope_id
+        }
+        
+        return self._model_to_schema(asset_dict)
 
-    async def delete_asset(self, asset_id: str, user_id: int) -> bool:
+    def delete_asset(self, asset_id: str, user_id: int) -> bool:
         """Delete an asset"""
-        query = "DELETE FROM assets WHERE id = :id AND user_id = :user_id"
-        values = {"id": asset_id, "user_id": user_id}
-        result = await self.db.execute(query, values)
-        return result is not None
+        asset = self.db.query(AssetModel).filter(AssetModel.id == asset_id, AssetModel.user_id == user_id).first()
+        if not asset:
+            return False
+        
+        self.db.delete(asset)
+        self.db.commit()
+        return True
     

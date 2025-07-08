@@ -125,7 +125,7 @@ async def enrich_chat_context_with_assets(
         summary_service = AssetSummaryService()
         
         # Get all user assets
-        assets = await asset_service.get_user_assets(user_id)
+        assets = asset_service.get_user_assets(user_id)
         
         # Create summaries as a dictionary with asset_id as key
         asset_summaries = {}

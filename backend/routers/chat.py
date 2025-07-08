@@ -55,6 +55,10 @@ async def chat_stream(
                 db
             )
             
+            # Use mission from payload if no database mission found
+            if not mission and enriched_payload and enriched_payload.get("mission"):
+                mission = enriched_payload["mission"]
+            
             # Initialize state with all messages and enriched payload
             state = State(
                 messages=chat_request.messages,

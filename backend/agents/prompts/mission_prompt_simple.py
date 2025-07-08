@@ -103,11 +103,11 @@ Based on the conversation history and available tools, analyze what information 
         # Format tool descriptions
         tool_descriptions = format_tool_descriptions_for_mission_design()
         
-        # Extract mission goal
-        mission_goal = mission.goal if mission.goal else "No goal specified"
+        # Extract mission goal (handle None mission)
+        mission_goal = mission.goal if mission and mission.goal else "No goal specified"
         
         # Format desired assets (mission outputs)
-        if mission.outputs:
+        if mission and mission.outputs:
             desired_assets = "\n".join([
                 f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
                 for asset in mission.outputs
@@ -116,7 +116,7 @@ Based on the conversation history and available tools, analyze what information 
             desired_assets = "No specific outputs defined yet"
         
         # Format existing inputs from the mission (if any)
-        if mission.inputs:
+        if mission and mission.inputs:
             existing_inputs = "\n".join([
                 f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
                 for asset in mission.inputs

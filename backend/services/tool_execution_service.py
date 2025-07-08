@@ -98,7 +98,7 @@ class ToolExecutionService:
         hop_state = {}
         if tool_execution.hop_state_asset_ids:
             for asset_name, asset_id in tool_execution.hop_state_asset_ids.items():
-                asset = await self.asset_service.get_asset(asset_id, user_id)
+                asset = self.asset_service.get_asset(asset_id, user_id)
                 if asset:
                     hop_state[asset_name] = asset
                     

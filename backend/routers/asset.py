@@ -24,7 +24,7 @@ async def create_asset(
 ):
     """Create a new asset"""
     asset_service = AssetService()
-    return await asset_service.create_asset(
+    return asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
         type=request.type,
@@ -101,7 +101,7 @@ async def get_asset_summaries(
     summary_service = AssetSummaryService()
     
     # Get all user assets
-    assets = await asset_service.get_user_assets(current_user.user_id)
+    assets = asset_service.get_user_assets(current_user.user_id)
     
     # Create summaries
     summaries = []
@@ -119,7 +119,7 @@ async def delete_asset(
 ):
     """Delete an asset"""
     asset_service = AssetService()
-    success = await asset_service.delete_asset(asset_id, current_user.user_id)
+    success = asset_service.delete_asset(asset_id, current_user.user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Asset not found")
     return {"message": "Asset deleted successfully"} 

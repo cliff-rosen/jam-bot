@@ -44,7 +44,7 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[Message]
-    mission: Mission
+    mission: Optional[Mission] = None
     mission_id: Optional[str] = None  # Add mission_id for persistence
     tool_params: Dict[str, Any] = {}
     next_node: str
@@ -98,8 +98,8 @@ async def persist_mission_if_needed(state: State, config: Dict[str, Any]) -> Non
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
     print("Supervisor - Routing based on mission and hop status")
-    print(f"DEBUG: Mission status: {state.mission.mission_status}")
-    print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No current hop'}")
+    print(f"DEBUG: Mission status: {state.mission.status if state.mission else 'No mission'}")
+    print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}")
     
     if writer:
         writer({
@@ -112,33 +112,36 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         next_node = None
         routing_message = ""
 
-        if state.mission.mission_status == MissionStatus.PROPOSED:
+        if not state.mission:
+            next_node = "mission_specialist_node"
+            routing_message = "No mission found - routing to mission specialist to create one"
+        elif state.mission.status == MissionStatus.PROPOSED:
             next_node = "mission_specialist_node"
             routing_message = "Mission pending - routing to mission specialist"
-        elif state.mission.mission_status == MissionStatus.ACTIVE:
-            if not state.mission.current_hop or state.mission.current_hop.status == HopStatus.READY_TO_DESIGN:
+        elif state.mission.status == MissionStatus.READY_FOR_NEXT_HOP:
+            if not state.mission.current_hop or state.mission.current_hop.status == HopStatus.PROPOSED:
                 next_node = "hop_designer_node"
                 routing_message = "Ready to design next hop - routing to hop designer"
-            elif state.mission.current_hop.status == HopStatus.HOP_PROPOSED:
+            elif state.mission.current_hop.status == HopStatus.PROPOSED:
                 next_node = "hop_implementer_node"
                 routing_message = "Hop proposed - routing to hop implementer"
-            elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_RESOLVE:
+            elif state.mission.current_hop.status == HopStatus.READY_TO_RESOLVE:
                 next_node = "hop_implementer_node"
                 routing_message = "Hop ready to resolve - routing to hop implementer"
-            elif state.mission.current_hop.status == HopStatus.HOP_READY_TO_EXECUTE:
+            elif state.mission.current_hop.status == HopStatus.READY_TO_EXECUTE:
                 next_node = "hop_executor_node"
                 routing_message = "Hop ready to execute - routing to hop executor"
-            elif state.mission.current_hop.status == HopStatus.HOP_RUNNING:
+            elif state.mission.current_hop.status == HopStatus.EXECUTING:
                 next_node = "hop_executor_node"
                 routing_message = "Hop running - routing to hop executor"
-            elif state.mission.current_hop.status == HopStatus.ALL_HOPS_COMPLETE:
+            elif state.mission.current_hop.status == HopStatus.COMPLETED:
                 next_node = "mission_specialist_node"
                 routing_message = "All hops complete - routing to mission specialist"
             else:
                 routing_message = f"Unknown hop status: {state.mission.current_hop.status}"
                 next_node = "mission_specialist_node"
         else:
-            routing_message = f"Unknown mission status: {state.mission.mission_status}"
+            routing_message = f"Unknown mission status: {state.mission.status}"
             next_node = "mission_specialist_node"
 
         # Log routing decision
@@ -169,7 +172,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 response_text=routing_message,
                 status="supervisor_routing_completed",
                 error=None,
-                debug=f"Mission: {state.mission.mission_status}, Hop: {state.mission.current_hop.status if state.mission.current_hop else 'No current hop'}, Routing to: {next_node}",
+                debug=f"Mission: {state.mission.status if state.mission else 'No mission'}, Hop: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}, Routing to: {next_node}",
                 payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())

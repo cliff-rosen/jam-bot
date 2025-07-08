@@ -110,7 +110,7 @@ Based on the conversation history and available tools, analyze what information 
         outputs = mission.get_outputs() if mission else []
         if outputs:
             desired_assets = "\n".join([
-                f"- {asset.name} ({asset.type}): {asset.description}"
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
                 for asset in outputs
             ])
         else:
@@ -120,7 +120,7 @@ Based on the conversation history and available tools, analyze what information 
         inputs = mission.get_inputs() if mission else []
         if inputs:
             existing_inputs = "\n".join([
-                f"- {asset.name} ({asset.type}): {asset.description}"
+                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
                 for asset in inputs
             ])
         else:

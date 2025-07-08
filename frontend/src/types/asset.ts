@@ -5,7 +5,7 @@
  * managing Assets. Assets are the data containers that flow between hops.
  */
 
-import { SchemaType } from './base';
+import { SchemaEntity } from './base';
 
 // --- Asset-Specific Enums and Interfaces ---
 
@@ -29,14 +29,8 @@ export enum AssetScopeType {
     HOP = "hop"
 }
 
-export interface Asset {
-    // Inherited from SchemaEntity: id, name, description, schema_definition
-    id: string;
-    name: string;
-    description: string;
-    schema_definition: SchemaType;
-
-    // Additional fields beyond SchemaEntity
+export interface Asset extends SchemaEntity {
+    // Additional fields beyond SchemaEntity (id, name, description, schema_definition)
     subtype?: string;
 
     // Scope information

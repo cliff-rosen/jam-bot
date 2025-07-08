@@ -293,7 +293,7 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         outputs = mission.get_outputs()
         if outputs:
             desired_assets = "\n".join([
-                f"- {asset.name} (ID: {asset.id}, Type: {asset.type}): {asset.description}"
+                f"- {asset.name} (ID: {asset.id}, Type: {asset.schema_definition.type}): {asset.description}"
                 for asset in outputs
             ])
         else:

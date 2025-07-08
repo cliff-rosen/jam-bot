@@ -45,7 +45,7 @@ class MissionService:
                     asset_service.create_asset(
                         user_id=user_id,
                         name=asset.name,
-                        type=asset.type,
+                        type=asset.schema_definition.type,
                         subtype=asset.subtype,
                         description=asset.description,
                         content=asset.value_representation,

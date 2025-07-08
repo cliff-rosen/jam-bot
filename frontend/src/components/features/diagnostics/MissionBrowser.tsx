@@ -78,7 +78,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         <tr key={input.id || idx} className="border-b border-gray-100 dark:border-gray-700">
                                             <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{input.name}</td>
                                             <td className="py-1 px-2 font-mono text-orange-600 dark:text-orange-400">{input.id}</td>
-                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{input.type || 'unknown'}</td>
+                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{input.schema_definition.type || 'unknown'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{input.role || 'input'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
                                                 <VariableRenderer value={input.value_representation} />
@@ -109,7 +109,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         <tr key={output.id || idx} className="border-b border-gray-100 dark:border-gray-700">
                                             <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{output.name}</td>
                                             <td className="py-1 px-2 font-mono text-orange-600 dark:text-orange-400">{output.id}</td>
-                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.type || 'unknown'}</td>
+                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.schema_definition.type || 'unknown'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{output.role || 'output'}</td>
                                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
                                                 <VariableRenderer value={output.value_representation} isMarkdown={typeof output.value_representation === 'string' && /[\*#\|\n`>-]/.test(output.value_representation)} />
@@ -144,7 +144,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                 <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                     <td className="py-1 px-2 font-mono text-orange-600 dark:text-orange-400">{asset.id}</td>
-                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.type || 'unknown'}</td>
+                                    <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.schema_definition.type || 'unknown'}</td>
                                     <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.role || 'intermediate'}</td>
                                     <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
                                         <VariableRenderer value={asset.value_representation} />
@@ -184,7 +184,7 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                             <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
                                                 <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                                 <td className="py-1 px-2 font-mono text-green-600 dark:text-green-400">{asset.id}</td>
-                                                <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.type || 'unknown'}</td>
+                                                <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.schema_definition.type || 'unknown'}</td>
                                                 <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.role || 'intermediate'}</td>
                                                 <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
                                                     <VariableRenderer value={asset.value_representation} />

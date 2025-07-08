@@ -351,6 +351,27 @@ class Hop(BaseModel):
     hop_state: Dict[str, 'Asset'] = Field(default_factory=dict)
 ```
 
+### Mapping Type Definitions
+
+```python
+class AssetFieldMapping(BaseModel):
+    """Maps a tool parameter to a specific asset by ID."""
+    type: Literal["asset_field"] = "asset_field"
+    state_asset: str
+
+class LiteralMapping(BaseModel):
+    """Provides a literal value directly to a tool parameter."""
+    type: Literal["literal"] = "literal"
+    value: Any
+
+class DiscardMapping(BaseModel):
+    """Indicates that a tool output should be discarded."""
+    type: Literal["discard"] = "discard"
+
+ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
+ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
+```
+
 ### ToolStep Schema
 
 ```python
@@ -364,9 +385,9 @@ class ToolStep(BaseModel):
     status: ToolExecutionStatus = ToolExecutionStatus.PROPOSED
     
     # Tool configuration
-    parameter_mapping: Dict[str, Any] = Field(default_factory=dict)  # ParameterMapping objects
-    result_mapping: Dict[str, Any] = Field(default_factory=dict)     # ResultMapping objects
-    resource_configs: Dict[str, Any] = Field(default_factory=dict)   # Resource objects
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
+    result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict)
+    resource_configs: Dict[str, Resource] = Field(default_factory=dict)
     
     # Execution data
     validation_errors: List[str] = Field(default_factory=list)
@@ -531,6 +552,28 @@ export interface Hop {
 }
 ```
 
+### Mapping Type Definitions
+
+```typescript
+// Tool parameter mapping types
+export interface AssetFieldMapping {
+    type: "asset_field";
+    state_asset: string;
+}
+
+export interface LiteralMapping {
+    type: "literal";
+    value: any;
+}
+
+export interface DiscardMapping {
+    type: "discard";
+}
+
+export type ParameterMappingValue = AssetFieldMapping | LiteralMapping;
+export type ResultMappingValue = AssetFieldMapping | DiscardMapping;
+```
+
 ### ToolStep Interface
 
 ```typescript
@@ -544,9 +587,9 @@ export interface ToolStep {
     status: ToolExecutionStatus;
     
     // Tool configuration
-    parameter_mapping: Record<string, any>;  // ParameterMapping objects
-    result_mapping: Record<string, any>;     // ResultMapping objects  
-    resource_configs: Record<string, any>;   // Resource objects
+    parameter_mapping: Record<string, ParameterMappingValue>;
+    result_mapping: Record<string, ResultMappingValue>;
+    resource_configs: Record<string, Resource>;
     
     // Execution data
     validation_errors: string[];

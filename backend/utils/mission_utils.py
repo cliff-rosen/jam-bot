@@ -28,7 +28,7 @@ def sanitize_asset_for_chat(asset: Asset) -> dict:
         "id": asset.id,
         "name": asset.name,
         "description": asset.description,
-        "type": asset.type,
+        "type": asset.schema_definition.type,
         "subtype": asset.subtype,
         "status": asset.status.value if asset.status else None,
         "role": asset.role,

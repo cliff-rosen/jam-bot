@@ -79,7 +79,7 @@ const createAssetOnBackend = async (asset: Asset): Promise<void> => {
         await assetApi.createAsset({
             name: asset.name,
             description: asset.description,
-            type: asset.type,
+            type: asset.schema_definition.type,
             subtype: asset.subtype,
             role: asset.role,
             content: asset.value_representation,
@@ -130,7 +130,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 payload_history: [...state.payload_history, action.payload]
             };
         case 'ACCEPT_MISSION_PROPOSAL':
-            if (!state.mission) return state;
             const proposedMission = action.payload;
             if (!proposedMission) return state;
 
@@ -469,6 +468,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const acceptMissionProposal = useCallback(async () => {
         // Get the proposed mission from the collab area content
         const proposedMission = state.collabArea.content?.mission;
+        console.log('Accepting mission proposal:', proposedMission);
+
         if (proposedMission) {
             try {
                 // Create mission with status READY_FOR_NEXT_HOP
@@ -486,6 +487,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     id: response.mission_id
                 };
 
+                console.log('Mission persisted with ID:', response.mission_id);
                 dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: persistedMission });
             } catch (error) {
                 console.error('Error accepting mission proposal:', error);
@@ -497,6 +499,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                 });
             }
+        } else {
+            console.log('No proposed mission found in collab area');
         }
     }, [state.collabArea.content]);
 
@@ -606,7 +610,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                         }
                     }
                 }
- 
+
                 // Update hop with new state
                 const updatedHop = {
                     ...hop,

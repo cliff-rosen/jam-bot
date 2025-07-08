@@ -65,6 +65,7 @@ class AssetService:
     def _model_to_schema(self, model: Dict[str, Any]) -> Asset:
         """Convert database model to unified Asset schema"""
         from schemas.asset import Asset as BackendAsset, AssetStatus, AssetRole, AssetScopeType
+        from schemas.base import SchemaType
         
         # Get content from full content or summary
         content = model.get('content') or model.get('content_summary')
@@ -72,12 +73,19 @@ class AssetService:
         # Parse metadata
         metadata_dict = model.get('asset_metadata', {})
         
+        # Create schema_definition from the legacy type field
+        schema_definition = SchemaType(
+            type=model.get('type', 'object'),
+            description=model.get('description', ""),
+            is_array=False
+        )
+        
         # Create proper backend Asset using the schema
         return BackendAsset(
             id=str(model.get('id')),
             name=model.get('name'),
             description=model.get('description', ""),
-            type=model.get('type'),
+            schema_definition=schema_definition,
             subtype=model.get('subtype'),
             scope_type=AssetScopeType(model.get('scope_type', 'mission')),
             scope_id=str(model.get('scope_id')),
@@ -145,7 +153,9 @@ class AssetService:
             "content": new_asset.content,
             "asset_metadata": new_asset.asset_metadata,
             "scope_type": new_asset.scope_type,
-            "scope_id": new_asset.scope_id
+            "scope_id": new_asset.scope_id,
+            "role": new_asset.role,
+            "status": new_asset.status
         }
         
         return self._model_to_schema(asset_dict)
@@ -244,7 +254,9 @@ class AssetService:
             "content": asset.content,
             "asset_metadata": asset.asset_metadata,
             "scope_type": asset.scope_type,
-            "scope_id": asset.scope_id
+            "scope_id": asset.scope_id,
+            "role": asset.role,
+            "status": asset.status
         }
         
         return self._model_to_schema(asset_dict)

@@ -140,12 +140,20 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     if asset_lite.example_value is not None:
         value_representation += f" (Example: {asset_lite.example_value})"
     
+    # Create schema definition from AssetLite type information
+    from schemas.base import SchemaType
+    schema_definition = SchemaType(
+        type=asset_lite.type,
+        description=asset_lite.agent_specification,
+        is_array=asset_lite.is_array
+    )
+    
     # Create the full Asset object with correct field mapping
     return Asset(
         id=str(uuid.uuid4()),
         name=asset_lite.name,
         description=asset_lite.description,
-        type=asset_lite.type,  # Direct mapping to type field
+        schema_definition=schema_definition,
         subtype=asset_lite.subtype,
         scope_type=AssetScopeType.MISSION,  # Assets from lite models are mission-scoped
         scope_id="system",  # Default scope_id for mission assets

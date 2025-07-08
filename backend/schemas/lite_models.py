@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator
 import uuid
 
-from schemas.asset import Asset, AssetStatus
+from schemas.asset import Asset, AssetStatus, AssetRole, AssetScopeType
 from schemas.workflow import ToolStep, Hop, HopStatus, ToolExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
 from schemas.base import SchemaType, ValueType, PrimitiveType, ComplexType, CanonicalType
 from utils.string_utils import canonical_key
@@ -99,18 +99,16 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     """Convert an AssetLite object to a full Asset object with unified schema"""
     current_time = datetime.utcnow()
     
-    # Create the unified schema
-    unified_schema = SchemaType(
-        type=asset_lite.type,  # type is already a ValueType string
-        description=asset_lite.agent_specification or asset_lite.description,
-        is_array=asset_lite.is_array,
-        fields=None  # TODO: Could extract fields from agent_specification or example_value if structured
-    )
-
     # Create metadata for the asset
     custom_metadata = {}
     if asset_lite.external_system_for:
         custom_metadata['external_system_for'] = asset_lite.external_system_for
+    if asset_lite.agent_specification:
+        custom_metadata['agent_specification'] = asset_lite.agent_specification
+    if asset_lite.example_value is not None:
+        custom_metadata['example_value'] = asset_lite.example_value
+    if asset_lite.is_array:
+        custom_metadata['is_array'] = asset_lite.is_array
 
     asset_metadata = {
         "created_at": current_time,
@@ -129,18 +127,34 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
             asset_lite.external_system_for is not None):
             initial_status = AssetStatus.READY
     
-    # Create the full Asset object
+    # Convert role string to AssetRole enum
+    if asset_lite.role == 'input':
+        role = AssetRole.INPUT
+    elif asset_lite.role == 'output':
+        role = AssetRole.OUTPUT
+    else:
+        role = AssetRole.INTERMEDIATE
+    
+    # Create value representation from description and example value
+    value_representation = asset_lite.description
+    if asset_lite.example_value is not None:
+        value_representation += f" (Example: {asset_lite.example_value})"
+    
+    # Create the full Asset object with correct field mapping
     return Asset(
         id=str(uuid.uuid4()),
         name=asset_lite.name,
         description=asset_lite.description,
-        schema_definition=unified_schema,
-        agent_specification=asset_lite.agent_specification,
-        value=asset_lite.example_value,
-        status=initial_status,
+        type=asset_lite.type,  # Direct mapping to type field
         subtype=asset_lite.subtype,
-        role=asset_lite.role or 'intermediate',
+        scope_type=AssetScopeType.MISSION,  # Assets from lite models are mission-scoped
+        scope_id="system",  # Default scope_id for mission assets
+        status=initial_status,
+        role=role,
+        value_representation=value_representation,
         asset_metadata=asset_metadata,
+        created_at=current_time,
+        updated_at=current_time,
     )
 
 def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
@@ -158,21 +172,19 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
         description=mission_lite.description,
         goal=mission_lite.goal,
         success_criteria=mission_lite.success_criteria,
-        inputs=inputs,
-        outputs=outputs,
+        status=MissionStatus.PROPOSED,
+        current_hop_id=None,
         current_hop=None,
-        hop_history=[],
+        hops=[],
         mission_state={},
-        status=ToolExecutionStatus.PROPOSED,
-        mission_status=MissionStatus.PROPOSED,
+        mission_metadata=mission_lite.metadata,
         created_at=current_time,
         updated_at=current_time,
-        metadata=mission_lite.metadata
     )
     
     # Initialize mission state with input and output assets
     for asset in inputs + outputs:
-        mission.mission_state[asset.id] = asset
+        mission.mission_state[asset.name] = asset
     
     return mission
 
@@ -223,6 +235,8 @@ def create_tool_step_from_lite(step_lite: ToolStepLite) -> ToolStep:
     return ToolStep(
         id=step_lite.id,
         tool_id=step_lite.tool_id,
+        sequence_order=0,  # Default sequence order, will be set properly when added to hop
+        name=step_lite.description,  # Use description as name
         description=step_lite.description,
         resource_configs=resource_configs,
         parameter_mapping=step_lite.parameter_mapping,
@@ -276,15 +290,19 @@ def create_hop_from_lite(hop_lite: HopLite, mission_state: Dict[str, Asset] = No
     # Create the full Hop object
     return Hop(
         id=str(uuid.uuid4()),
+        sequence_order=0,  # Default sequence order, will be set properly when added to mission
         name=hop_lite.name,
         description=hop_lite.description,
-        input_mapping=input_mapping,
-        output_mapping=output_mapping,
-        tool_steps=[],  # Tool steps will be added by the implementer
-        hop_state={},   # State will be populated when the hop is implemented
-        status=HopStatus.READY_TO_DESIGN,
+        goal=None,  # Will be set later
+        success_criteria=[],  # Will be set later  
+        rationale=hop_lite.rationale,
+        status=HopStatus.PROPOSED,
         is_final=hop_lite.is_final,
         is_resolved=False,
+        error_message=None,
+        hop_metadata={},
+        tool_steps=[],  # Tool steps will be added by the implementer
+        hop_state={},   # State will be populated when the hop is implemented
         created_at=current_time,
         updated_at=current_time
     ) 

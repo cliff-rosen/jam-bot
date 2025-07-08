@@ -21,9 +21,30 @@
    - **Example**: DB has `hop.mission_id`, Schema has `mission.hops[]`
    - **Rationale**: Schemas represent fully-loaded business objects with resolved relationships
 
+3. **Session-Based Persistence**:
+   - **Chat Sessions**: Each user session contains a chat conversation and optionally a mission
+   - **Full Context**: Chat messages, mission state, and hop progress all persisted
+   - **Rationale**: Enable session recovery, context preservation, and historical analysis
+
 ## 1. Logical Model
 
 ### Core Entities
+
+**ChatSession**: A user interaction session containing chat and optional mission
+- Top-level container for user interactions
+- Links chat conversations to missions
+- Enables session recovery and persistence
+- Tracks session metadata and lifecycle
+
+**Chat**: A conversation within a session
+- Contains ordered sequence of messages
+- Tracks conversation metadata and context
+- Scoped to a specific session
+
+**ChatMessage**: Individual messages in a conversation
+- Supports multiple roles (user, assistant, system, tool, status)
+- Contains content, metadata, and timestamps
+- Preserves full conversation history
 
 **Mission**: A high-level goal requiring multiple execution steps
 - Tracks overall progress through status transitions
@@ -51,6 +72,9 @@
 ### Key Relationships
 
 ```
+ChatSession 1→1 Chat
+ChatSession 1→1 Mission (optional)
+Chat 1→* ChatMessage
 Mission 1→1 Hop (current_hop_id)
 Mission 1→* Hop (hop_history via mission_id)
 Mission 1→* Asset (scope_type='mission', scope_id=mission.id)
@@ -64,6 +88,19 @@ ToolStep references Asset (via parameter/result mappings)
 ### Required Enums
 
 ```python
+class MessageRole(str, PyEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    TOOL = "tool"
+    STATUS = "status"
+
+class ChatSessionStatus(str, PyEnum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+    ARCHIVED = "archived"
+
 class MissionStatus(str, PyEnum):
     PROPOSED = "proposed"
     READY_FOR_NEXT_HOP = "ready_for_next_hop"
@@ -110,6 +147,109 @@ class AssetScopeType(str, PyEnum):
     HOP = "hop"
 ```
 
+### ChatSession Model
+
+```python
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    name = Column(String(255), nullable=True)  # Optional user-provided name
+    status = Column(Enum(ChatSessionStatus), nullable=False, default=ChatSessionStatus.ACTIVE)
+    
+    # Relationships
+    chat_id = Column(String(36), ForeignKey("chats.id"), nullable=False)
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
+    
+    # Session metadata
+    session_metadata = Column(JSON, nullable=True)  # Dict[str, Any]
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="chat_sessions")
+    chat = relationship("Chat", back_populates="session")
+    mission = relationship("Mission", back_populates="session")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_chat_sessions_user_id', 'user_id'),
+        Index('idx_chat_sessions_status', 'status'),
+        Index('idx_chat_sessions_last_activity', 'last_activity_at'),
+    )
+```
+
+### Chat Model
+
+```python
+class Chat(Base):
+    __tablename__ = "chats"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    title = Column(String(255), nullable=True)  # Optional title for the conversation
+    
+    # Chat context
+    context_data = Column(JSON, nullable=True)  # Dict[str, Any] - payload history, etc.
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="chats")
+    session = relationship("ChatSession", back_populates="chat", uselist=False)
+    messages = relationship("ChatMessage", back_populates="chat", cascade="all, delete-orphan", 
+                          order_by="ChatMessage.sequence_order")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_chats_user_id', 'user_id'),
+        Index('idx_chats_created_at', 'created_at'),
+    )
+```
+
+### ChatMessage Model
+
+```python
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    chat_id = Column(String(36), ForeignKey("chats.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    sequence_order = Column(Integer, nullable=False)
+    
+    # Message content
+    role = Column(Enum(MessageRole), nullable=False)
+    content = Column(Text, nullable=False)
+    
+    # Message metadata
+    message_metadata = Column(JSON, nullable=True)  # Dict[str, Any]
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    chat = relationship("Chat", back_populates="messages")
+    user = relationship("User")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_chat_messages_chat_id', 'chat_id'),
+        Index('idx_chat_messages_sequence', 'chat_id', 'sequence_order'),
+        Index('idx_chat_messages_role', 'role'),
+        Index('idx_chat_messages_created_at', 'created_at'),
+    )
+```
+
 ### Mission Model
 
 ```python
@@ -135,6 +275,7 @@ class Mission(Base):
     
     # Relationships
     user = relationship("User", back_populates="missions")
+    session = relationship("ChatSession", back_populates="mission", uselist=False)
     current_hop = relationship("Hop", foreign_keys=[current_hop_id], post_update=True)
     hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", 
                        order_by="Hop.sequence_order", foreign_keys="Hop.mission_id")
@@ -268,6 +409,68 @@ class Asset(Base):
 ```
 
 ## 3. Python Schema (Pydantic)
+
+### ChatSession Schema
+
+```python
+class ChatSession(BaseModel):
+    # Core fields
+    id: str
+    name: Optional[str] = None
+    status: ChatSessionStatus = ChatSessionStatus.ACTIVE
+    
+    # Relationships
+    chat_id: str
+    mission_id: Optional[str] = None
+    
+    # Session metadata
+    session_metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_activity_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships (populated by services) - Parent manages child context
+    chat: Optional['Chat'] = None
+    mission: Optional['Mission'] = None
+```
+
+### Chat Schema
+
+```python
+class Chat(BaseModel):
+    # Core fields
+    id: str
+    title: Optional[str] = None
+    
+    # Chat context
+    context_data: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships (populated by services) - Parent manages child context
+    messages: List['ChatMessage'] = Field(default_factory=list)
+```
+
+### ChatMessage Schema
+
+```python
+class ChatMessage(BaseModel):
+    # Core fields
+    id: str
+    sequence_order: int
+    role: MessageRole
+    content: str
+    
+    # Message metadata
+    message_metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+```
 
 ### Asset Collection Philosophy
 
@@ -439,6 +642,21 @@ class AssetWithContent(Asset):
 ### Enums
 
 ```typescript
+export enum MessageRole {
+    USER = "user",
+    ASSISTANT = "assistant",
+    SYSTEM = "system",
+    TOOL = "tool",
+    STATUS = "status"
+}
+
+export enum ChatSessionStatus {
+    ACTIVE = "active",
+    COMPLETED = "completed",
+    ABANDONED = "abandoned",
+    ARCHIVED = "archived"
+}
+
 export enum MissionStatus {
     PROPOSED = "proposed",
     READY_FOR_NEXT_HOP = "ready_for_next_hop",
@@ -488,6 +706,71 @@ export enum AssetRole {
 export enum AssetScopeType {
     MISSION = "mission",
     HOP = "hop"
+}
+```
+
+### ChatSession Interface
+
+```typescript
+export interface ChatSession {
+    // Core fields
+    id: string;
+    name?: string;
+    status: ChatSessionStatus;
+    
+    // Relationships
+    chat_id: string;
+    mission_id?: string;
+    
+    // Session metadata
+    session_metadata: Record<string, any>;
+    
+    // Timestamps
+    created_at: string;
+    updated_at: string;
+    last_activity_at: string;
+    
+    // Relationships - Parent manages child context
+    chat?: Chat;
+    mission?: Mission;
+}
+```
+
+### Chat Interface
+
+```typescript
+export interface Chat {
+    // Core fields
+    id: string;
+    title?: string;
+    
+    // Chat context
+    context_data: Record<string, any>;
+    
+    // Timestamps
+    created_at: string;
+    updated_at: string;
+    
+    // Relationships - Parent manages child context
+    messages: ChatMessage[];
+}
+```
+
+### ChatMessage Interface
+
+```typescript
+export interface ChatMessage {
+    // Core fields
+    id: string;
+    sequence_order: number;
+    role: MessageRole;
+    content: string;
+    
+    // Message metadata
+    message_metadata: Record<string, any>;
+    
+    // Timestamps
+    created_at: string;
 }
 ```
 
@@ -641,7 +924,27 @@ export interface AssetWithContent extends Asset {
 }
 ```
 
-## 5. Asset Query Patterns
+## 5. Query Patterns
+
+### Chat Session Queries
+```sql
+-- Get user's active sessions
+SELECT * FROM chat_sessions WHERE user_id=? AND status='active' ORDER BY last_activity_at DESC;
+
+-- Get session with chat and mission
+SELECT cs.*, c.title, m.name as mission_name 
+FROM chat_sessions cs 
+LEFT JOIN chats c ON cs.chat_id = c.id 
+LEFT JOIN missions m ON cs.mission_id = m.id 
+WHERE cs.id=?;
+
+-- Get session messages
+SELECT cm.* FROM chat_messages cm 
+JOIN chats c ON cm.chat_id = c.id 
+JOIN chat_sessions cs ON c.id = cs.chat_id 
+WHERE cs.id=? 
+ORDER BY cm.sequence_order;
+```
 
 ### Mission Assets
 ```sql
@@ -668,6 +971,13 @@ SELECT * FROM hops WHERE id = (SELECT current_hop_id FROM missions WHERE id=?);
 ```
 
 ## 6. Status Sequences
+
+### ChatSession Status Flow
+```
+ACTIVE → COMPLETED (mission completed successfully)
+      → ABANDONED (user stops interacting)
+      → ARCHIVED (user manually archives)
+```
 
 ### Mission Status Flow
 ```
@@ -722,3 +1032,56 @@ intermediates = [a for a in hop.hop_state.values() if a.role == AssetRole.INTERM
 ```
 
 This architecture provides efficient asset management with rich metadata while maintaining a single source of truth for asset roles and eliminating redundant collections.
+
+## 8. Session-Based Architecture
+
+### Session Management Strategy
+
+**Session Lifecycle:**
+1. **Creation**: New ChatSession created when user starts conversation
+2. **Chat Persistence**: All messages stored in ChatMessage table with sequence order
+3. **Mission Linking**: Mission created and linked to session when user accepts mission proposal
+4. **Context Preservation**: Full conversation and mission state persisted for recovery
+5. **Session Completion**: Session marked as completed when mission finished or user archives
+
+**Key Benefits:**
+- **Full Context Recovery**: Users can resume conversations exactly where they left off
+- **Historical Analysis**: Complete record of user interactions and decision-making
+- **Session Isolation**: Each session maintains its own chat and mission context
+- **Scalable Storage**: Efficient storage with proper indexing and cleanup strategies
+
+### Session Access Patterns
+
+**Frontend Context Loading:**
+```python
+# Load session for user
+session = get_user_session(user_id, session_id)
+chat_messages = session.chat.messages
+mission_state = session.mission.mission_state if session.mission else None
+```
+
+**Real-time Updates:**
+```python
+# Update session activity
+session.last_activity_at = datetime.utcnow()
+session.save()
+
+# Add new message
+new_message = ChatMessage(
+    chat_id=session.chat_id,
+    sequence_order=len(session.chat.messages) + 1,
+    role=MessageRole.USER,
+    content=message_content
+)
+```
+
+**Session Cleanup:**
+```python
+# Archive inactive sessions older than 30 days
+UPDATE chat_sessions 
+SET status = 'archived' 
+WHERE status = 'active' 
+AND last_activity_at < NOW() - INTERVAL '30 days';
+```
+
+This session-based architecture ensures complete persistence of user interactions while maintaining efficient access patterns and enabling rich contextual experiences.

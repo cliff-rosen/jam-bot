@@ -20,7 +20,7 @@ class ToolExecutionService:
     async def create_tool_execution(
         self,
         user_id: int,
-        mission_id: Optional[str],
+        hop_id: str,
         tool_step: ToolStep,
         hop_state: Dict[str, Asset]
     ) -> ToolStepModel:
@@ -29,7 +29,7 @@ class ToolExecutionService:
         
         Args:
             user_id: User ID
-            mission_id: Mission ID (optional)
+            hop_id: Hop ID
             tool_step: Tool step configuration
             hop_state: Current hop state with assets
             
@@ -44,15 +44,17 @@ class ToolExecutionService:
             
             tool_execution = ToolStepModel(
                 id=str(uuid4()),
+                hop_id=hop_id,
                 user_id=user_id,
-                mission_id=mission_id,
                 tool_id=tool_step.tool_id,
-                step_id=tool_step.id,
+                sequence_order=tool_step.sequence_order,
                 status=ToolExecutionStatus.PROPOSED,
-                tool_step=tool_step.model_dump(),
-                hop_state_asset_ids=hop_state_asset_ids,
+                description=tool_step.description,
+                template=tool_step.template,
                 parameter_mapping=tool_step.parameter_mapping,
                 result_mapping=tool_step.result_mapping,
+                resource_configs=tool_step.resource_configs,
+                hop_state_asset_ids=hop_state_asset_ids,
                 created_at=datetime.utcnow()
             )
             
@@ -103,7 +105,7 @@ class ToolExecutionService:
         return {
             "tool_execution": tool_execution,
             "hop_state": hop_state,
-            "tool_step": ToolStep.model_validate(tool_execution.tool_step)
+            "tool_step": ToolStep.model_validate(tool_execution.__dict__)
         }
 
     async def update_tool_execution_status(
@@ -113,7 +115,7 @@ class ToolExecutionService:
         status: ToolExecutionStatus,
         error_message: Optional[str] = None,
         execution_result: Optional[Dict[str, Any]] = None
-    ) -> Optional[ToolExecution]:
+    ) -> Optional[ToolStepModel]:
         """
         Update tool execution status and results
         
@@ -125,7 +127,7 @@ class ToolExecutionService:
             execution_result: Execution results if completed
             
         Returns:
-            Updated ToolExecution object or None if not found
+            Updated ToolStepModel object or None if not found
         """
         try:
             tool_execution = await self.get_tool_execution(execution_id, user_id)
@@ -135,7 +137,7 @@ class ToolExecutionService:
             tool_execution.status = status
             tool_execution.updated_at = datetime.utcnow()
             
-            if status == ToolExecutionStatus.RUNNING and not tool_execution.started_at:
+            if status == ToolExecutionStatus.EXECUTING and not tool_execution.started_at:
                 tool_execution.started_at = datetime.utcnow()
                 
             if status in [ToolExecutionStatus.COMPLETED, ToolExecutionStatus.FAILED]:
@@ -162,7 +164,7 @@ class ToolExecutionService:
         mission_id: Optional[str] = None,
         status: Optional[ToolExecutionStatus] = None,
         limit: int = 100
-    ) -> List[ToolExecution]:
+    ) -> List[ToolStepModel]:
         """
         Get user's tool executions with optional filtering
         
@@ -173,17 +175,17 @@ class ToolExecutionService:
             limit: Maximum number of results
             
         Returns:
-            List of ToolExecution objects
+            List of ToolStepModel objects
         """
-        query = self.db.query(ToolExecution).filter(ToolExecution.user_id == user_id)
+        query = self.db.query(ToolStepModel).filter(ToolStepModel.user_id == user_id)
         
         if mission_id:
-            query = query.filter(ToolExecution.mission_id == mission_id)
+            query = query.filter(ToolStepModel.hop_id == mission_id)
             
         if status:
-            query = query.filter(ToolExecution.status == status)
+            query = query.filter(ToolStepModel.status == status)
             
-        return query.order_by(ToolExecution.created_at.desc()).limit(limit).all()
+        return query.order_by(ToolStepModel.created_at.desc()).limit(limit).all()
 
     async def cleanup_old_executions(self, user_id: int, days_old: int = 30):
         """
@@ -196,10 +198,10 @@ class ToolExecutionService:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days_old)
             
-            deleted_count = self.db.query(ToolExecution).filter(
-                ToolExecution.user_id == user_id,
-                ToolExecution.created_at < cutoff_date,
-                ToolExecution.status.in_([
+            deleted_count = self.db.query(ToolStepModel).filter(
+                ToolStepModel.user_id == user_id,
+                ToolStepModel.created_at < cutoff_date,
+                ToolStepModel.status.in_([
                     ToolExecutionStatus.COMPLETED,
                     ToolExecutionStatus.FAILED,
                     ToolExecutionStatus.CANCELLED

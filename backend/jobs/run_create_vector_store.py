@@ -26,7 +26,7 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 async def upload_assets():
     db = next(get_db())
-    asset_service = AssetService(db)
+    asset_service = AssetService()
 
     # get all assets
     assets = db.query(AssetModel).all()

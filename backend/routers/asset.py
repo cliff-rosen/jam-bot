@@ -118,7 +118,7 @@ async def delete_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Delete an asset"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     success = await asset_service.delete_asset(asset_id, current_user.user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Asset not found")

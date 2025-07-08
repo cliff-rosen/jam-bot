@@ -1,15 +1,14 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, Hop, HopStatus, defaultMission, ToolStep, ToolExecutionStatus } from '@/types/workflow';
+import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
-import { toolsApi } from '@/lib/api/toolsApi';
-import { assetApi } from '@/lib/api/assetApi';
-import { missionApi } from '@/lib/api/missionApi';
+import { toolsApi, assetApi, missionApi } from '@/lib/api';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
+import { AssetRole } from '@/types/asset';
 
 interface JamBotState {
     currentMessages: ChatMessage[];
@@ -318,6 +317,15 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             if (!state.mission) return state;
             const { hop, updatedMissionOutputs } = action.payload;
 
+            // Check if all hop outputs are ready
+            const allHopOutputsReady = Object.values(hop.hop_state).every(asset => {
+                // Only check assets with output role
+                if (asset.role === AssetRole.OUTPUT) {
+                    return asset.status === AssetStatus.READY;
+                }
+                return true; // Non-output assets don't need to be ready for hop completion
+            });
+
             // Create updated mission
             const updatedMission = {
                 ...state.mission,
@@ -325,13 +333,16 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
 
             // Check if all hop outputs are ready
-            const allHopOutputsReady = Object.entries(hop.output_mapping).every(([hopAssetKey]) => {
-                const asset = hop.hop_state[hopAssetKey];
-                return asset && asset.status === AssetStatus.READY;
+            const allOutputsReady = Object.values(hop.hop_state).every(asset => {
+                // Only check assets with output role
+                if (asset.role === AssetRole.OUTPUT) {
+                    return asset.status === AssetStatus.READY;
+                }
+                return true; // Non-output assets don't need to be ready for hop completion
             });
 
             // If hop is complete, add it to history and clear current hop
-            if (allHopOutputsReady) {
+            if (allOutputsReady) {
                 // Sanitize the hop state before adding to history
                 const sanitizedHop = {
                     ...hop,
@@ -348,9 +359,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 (updatedMission as any).current_hop = undefined;
 
                 // Check if all mission outputs are ready
-                const allMissionOutputsReady = Object.values(updatedMission.mission_state).every(output => {
-                    const updatedOutput = updatedMissionOutputs.get(output.id);
-                    return updatedOutput?.status === AssetStatus.READY;
+                const allMissionOutputsReady = Object.values(updatedMission.mission_state).every(asset => {
+                    if (asset.role === AssetRole.OUTPUT) {
+                        return asset.status === AssetStatus.READY;
+                    }
+                    return true; // Non-output assets don't need to be ready for mission completion
                 });
 
                 // Update mission status
@@ -359,11 +372,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 }
             }
 
-            // Update any mission outputs that were modified
-            if (updatedMissionOutputs.size > 0) {
-                // Update mission outputs
-                updatedMission.mission_state = Object.fromEntries(updatedMissionOutputs);
-            }
+            // No need to update mission outputs since they're managed within mission_state
+            // The hop_state contains hop-scoped assets, mission_state contains mission-scoped assets
 
             return {
                 ...state,
@@ -589,27 +599,21 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
                             newHopState[(mapping as AssetFieldMapping).state_asset] = {
                                 ...existingAsset,
-                                value: value,
                                 status: AssetStatus.READY,
-                                // Preserve canonical type information if available
-                                schema_definition: outputSchema ? {
-                                    ...existingAsset.schema_definition,
-                                    type: outputSchema.type,
-                                    is_array: outputSchema.is_array,
-                                    fields: outputSchema.fields
-                                } : existingAsset.schema_definition
+                                // Update the value_representation with the result
+                                value_representation: typeof value === 'string' ? value : JSON.stringify(value).substring(0, 100)
                             };
                         }
                     }
                 }
-
+ 
                 // Update hop with new state
                 const updatedHop = {
                     ...hop,
                     hop_state: newHopState,
                     tool_steps: hop.tool_steps.map(s =>
                         s.id === step.id
-                            ? { ...s, status: ExecutionStatus.COMPLETED }
+                            ? { ...s, status: ToolExecutionStatus.COMPLETED }
                             : s
                     )
                 };
@@ -617,41 +621,42 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 // Check if any updated assets are mapped to mission outputs
                 const updatedMissionOutputs = new Map<string, Asset>();
                 for (const [hopAssetKey, asset] of Object.entries(newHopState)) {
-                    const missionOutputId = hop.output_mapping[hopAssetKey];
-                    if (missionOutputId) {
-                        // Determine the correct mission-level role for this asset
-                        // Check if this asset ID exists in the mission state to get its original role
-                        const originalMissionAsset = state.mission?.mission_state[missionOutputId];
-                        const missionRole = originalMissionAsset?.role || 'intermediate';
+                    // Check if this hop asset should update a mission asset
+                    // This would need to be configured in the hop design phase
+                    // For now, we'll assume hop output assets with matching names update mission assets
+                    if (asset.role === AssetRole.OUTPUT) {
+                        const matchingMissionAsset = Object.values(state.mission?.mission_state || {}).find(
+                            missionAsset => missionAsset.name === asset.name && missionAsset.role === AssetRole.OUTPUT
+                        );
 
-                        // Create a complete copy of the asset with the mission asset ID
-                        const missionAsset: Asset = {
-                            id: missionOutputId,
-                            status: AssetStatus.READY,
-                            value: asset.value,
-                            name: asset.name,
-                            description: asset.description,
-                            schema_definition: asset.schema_definition,
-                            subtype: asset.subtype,
-                            role: missionRole, // Use the original mission-level role, not the hop-level role
-                            asset_metadata: {
-                                ...asset.asset_metadata,
-                                updatedAt: new Date().toISOString()
-                            }
-                        };
-                        updatedMissionOutputs.set(missionOutputId, missionAsset);
+                        if (matchingMissionAsset) {
+                            const missionAsset: Asset = {
+                                ...matchingMissionAsset,
+                                status: AssetStatus.READY,
+                                value_representation: asset.value_representation,
+                                asset_metadata: {
+                                    ...matchingMissionAsset.asset_metadata,
+                                    updatedAt: new Date().toISOString()
+                                },
+                                updated_at: new Date().toISOString()
+                            };
+                            updatedMissionOutputs.set(matchingMissionAsset.id, missionAsset);
+                        }
                     }
                 }
 
                 // Check if all hop outputs are ready
-                const allOutputsReady = Object.entries(hop.output_mapping).every(([hopAssetKey]) => {
-                    const asset = newHopState[hopAssetKey];
-                    return asset && asset.status === AssetStatus.READY;
+                const allOutputsReady = Object.values(newHopState).every(asset => {
+                    // Only check assets with output role
+                    if (asset.role === AssetRole.OUTPUT) {
+                        return asset.status === AssetStatus.READY;
+                    }
+                    return true; // Non-output assets don't need to be ready for hop completion
                 });
 
                 if (allOutputsReady) {
                     // Mark hop as complete
-                    updatedHop.status = HopStatus.ALL_HOPS_COMPLETE;
+                    updatedHop.status = HopStatus.COMPLETED;
                     updatedHop.is_resolved = true;
                 }
 
@@ -663,7 +668,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     ...hop,
                     tool_steps: hop.tool_steps.map(s =>
                         s.id === step.id
-                            ? { ...s, status: ExecutionStatus.FAILED, error: result.errors.join('\n') }
+                            ? { ...s, status: ToolExecutionStatus.FAILED, error: result.errors.join('\n') }
                             : s
                     )
                 };
@@ -675,7 +680,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 ...hop,
                 tool_steps: hop.tool_steps.map(s =>
                     s.id === step.id
-                        ? { ...s, status: ExecutionStatus.FAILED, error: error instanceof Error ? error.message : 'Failed to execute tool step' }
+                        ? { ...s, status: ToolExecutionStatus.FAILED, error: error instanceof Error ? error.message : 'Failed to execute tool step' }
                         : s
                 )
             };

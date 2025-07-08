@@ -12,6 +12,8 @@ from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
 
+from .base import SchemaEntity
+
 # --- Asset-Specific Enums and Models ---
 
 class AssetStatus(str, Enum):
@@ -34,13 +36,9 @@ class AssetScopeType(str, Enum):
     MISSION = "mission"
     HOP = "hop"
 
-class Asset(BaseModel):
+class Asset(SchemaEntity):
     """Asset with metadata and value representation (no full content)"""
-    # Core fields
-    id: str
-    name: str
-    description: Optional[str] = None
-    type: str
+    # Additional fields beyond SchemaEntity (id, name, description, schema_definition)
     subtype: Optional[str] = None
     
     # Scope information

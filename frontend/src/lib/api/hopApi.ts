@@ -1,6 +1,5 @@
+import { api } from './index';
 import { Hop, HopStatus, ToolStep } from '@/types/workflow';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export interface CreateHopRequest {
     name: string;
@@ -48,69 +47,37 @@ export interface ReorderToolStepsResponse {
     tool_steps: ToolStep[];
 }
 
-class HopApiError extends Error {
-    constructor(public status: number, message: string) {
-        super(message);
-        this.name = 'HopApiError';
-    }
-}
-
-async function makeApiCall<T>(
-    endpoint: string,
-    options: RequestInit = {}
-): Promise<T> {
-    const token = localStorage.getItem('token');
-
-    const response = await fetch(`${API_BASE}/api${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-            ...options.headers,
-        },
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new HopApiError(response.status, errorText);
-    }
-
-    return response.json();
-}
-
 export const hopApi = {
     /**
      * Create a new hop for a mission
      */
     async createHop(missionId: string, hopRequest: CreateHopRequest): Promise<Hop> {
-        return makeApiCall<Hop>(`/hops/missions/${missionId}/hops`, {
-            method: 'POST',
-            body: JSON.stringify(hopRequest),
-        });
+        const response = await api.post<Hop>(`/api/hops/missions/${missionId}/hops`, hopRequest);
+        return response.data;
     },
 
     /**
      * Get all hops for a mission
      */
     async getMissionHops(missionId: string): Promise<Hop[]> {
-        return makeApiCall<Hop[]>(`/hops/missions/${missionId}/hops`);
+        const response = await api.get<Hop[]>(`/api/hops/missions/${missionId}/hops`);
+        return response.data;
     },
 
     /**
      * Get a hop by ID
      */
     async getHop(hopId: string): Promise<Hop> {
-        return makeApiCall<Hop>(`/hops/${hopId}`);
+        const response = await api.get<Hop>(`/api/hops/${hopId}`);
+        return response.data;
     },
 
     /**
      * Update a hop
      */
     async updateHop(hopId: string, hopRequest: UpdateHopRequest): Promise<Hop> {
-        return makeApiCall<Hop>(`/hops/${hopId}`, {
-            method: 'PUT',
-            body: JSON.stringify(hopRequest),
-        });
+        const response = await api.put<Hop>(`/api/hops/${hopId}`, hopRequest);
+        return response.data;
     },
 
     /**
@@ -122,45 +89,39 @@ export const hopApi = {
             body.error_message = errorMessage;
         }
 
-        return makeApiCall<HopApiResponse>(`/hops/${hopId}/status`, {
-            method: 'PATCH',
-            body: JSON.stringify(body),
-        });
+        const response = await api.patch<HopApiResponse>(`/api/hops/${hopId}/status`, body);
+        return response.data;
     },
 
     /**
      * Delete a hop
      */
     async deleteHop(hopId: string): Promise<HopApiResponse> {
-        return makeApiCall<HopApiResponse>(`/hops/${hopId}`, {
-            method: 'DELETE',
-        });
+        const response = await api.delete<HopApiResponse>(`/api/hops/${hopId}`);
+        return response.data;
     },
 
     /**
      * Create a tool step for a hop
      */
     async createToolStep(hopId: string, toolStepRequest: CreateToolStepRequest): Promise<ToolStep> {
-        return makeApiCall<ToolStep>(`/hops/${hopId}/tool-steps`, {
-            method: 'POST',
-            body: JSON.stringify(toolStepRequest),
-        });
+        const response = await api.post<ToolStep>(`/api/hops/${hopId}/tool-steps`, toolStepRequest);
+        return response.data;
     },
 
     /**
      * Get all tool steps for a hop
      */
     async getHopToolSteps(hopId: string): Promise<ToolStep[]> {
-        return makeApiCall<ToolStep[]>(`/hops/${hopId}/tool-steps`);
+        const response = await api.get<ToolStep[]>(`/api/hops/${hopId}/tool-steps`);
+        return response.data;
     },
 
     /**
      * Reorder tool steps within a hop
      */
     async reorderToolSteps(hopId: string, toolStepIds: string[]): Promise<ReorderToolStepsResponse> {
-        return makeApiCall<ReorderToolStepsResponse>(`/hops/${hopId}/reorder-tool-steps`, {
-            method: 'POST',
-            body: JSON.stringify(toolStepIds),
-        });
+        const response = await api.post<ReorderToolStepsResponse>(`/api/hops/${hopId}/reorder-tool-steps`, toolStepIds);
+        return response.data;
     },
 }; 

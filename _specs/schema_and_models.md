@@ -234,28 +234,28 @@ class Asset(Base):
     # Core fields
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    scope_type = Column(Enum(AssetScopeType), nullable=False)
-    scope_id = Column(String(255), nullable=False)
-
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
     
+    # Scope information - unified approach for mission and hop level assets
+    scope_type = Column(Enum(AssetScopeType), nullable=False)
+    scope_id = Column(String(255), nullable=False)   # mission_id or hop_id
+    
     # Asset lifecycle
     status = Column(Enum(AssetStatus), nullable=False, default=AssetStatus.PENDING)
-    role = Column(Enum(AssetRole), nullable=False)
+    role = Column(Enum(AssetRole), nullable=False)  # Role of asset in workflow: input, output, intermediate
     
     # Content strategy
     content = Column(JSON, nullable=True)            # Full content
     content_summary = Column(Text, nullable=True)    # For value_representation
-    db_entity_metadata = Column(JSON, nullable=True)
-   
-    # Metadata
     asset_metadata = Column(JSON, nullable=False, default=dict)
+    db_entity_metadata = Column(JSON, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     user = relationship("User", back_populates="assets")
     
@@ -383,13 +383,11 @@ class ToolStep(BaseModel):
 ### Asset Schema (Value Representation)
 
 ```python
-class Asset(BaseModel):
+class Asset(SchemaEntity):
     """Asset with metadata and value representation (no full content)"""
-    # Core fields
-    id: str
-    name: str
-    description: Optional[str] = None
-    type: str
+    # Inherits from SchemaEntity: id, name, description, schema_definition
+    
+    # Additional fields beyond SchemaEntity
     subtype: Optional[str] = None
     
     # Scope information
@@ -567,11 +565,13 @@ export interface ToolStep {
 
 ```typescript
 export interface Asset {
-    // Core fields
+    // Inherited from SchemaEntity: id, name, description, schema_definition
     id: string;
     name: string;
-    description?: string;
-    type: string;
+    description: string;
+    schema_definition: SchemaType;
+    
+    // Additional fields beyond SchemaEntity
     subtype?: string;
     
     // Scope information
@@ -582,7 +582,7 @@ export interface Asset {
     status: AssetStatus;
     role: AssetRole;
     
-    // Value representation
+    // Value representation (generated from content_summary)
     value_representation: string;
     
     // Metadata

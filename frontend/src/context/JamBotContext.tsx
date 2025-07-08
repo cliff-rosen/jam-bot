@@ -131,9 +131,14 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             };
         case 'ACCEPT_MISSION_PROPOSAL':
             const proposedMission = action.payload;
-            if (!proposedMission) return state;
+            console.log('Reducer ACCEPT_MISSION_PROPOSAL:', proposedMission);
 
-            return {
+            if (!proposedMission) {
+                console.log('No proposed mission payload, returning state');
+                return state;
+            }
+
+            const newState = {
                 ...state,
                 mission: {
                     ...proposedMission,
@@ -144,6 +149,9 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     content: null
                 }
             };
+
+            console.log('New state after accepting mission:', newState);
+            return newState;
         case 'ACCEPT_HOP_PROPOSAL':
             if (!state.mission) return state;
             const { hop: acceptedHop, proposedAssets } = action.payload;

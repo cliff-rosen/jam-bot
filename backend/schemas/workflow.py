@@ -18,12 +18,15 @@ if TYPE_CHECKING:
     from tools.tool_execution import execute_tool_step, ToolExecutionError
 
 
-class ExecutionStatus(str, Enum):
+class ToolExecutionStatus(str, Enum):
     """Status of tool step execution"""
-    PENDING = "pending"
-    RUNNING = "running"
+    PROPOSED = "proposed"
+    READY_TO_CONFIGURE = "ready_to_configure"
+    READY_TO_EXECUTE = "ready_to_execute"
+    EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class MissionStatus(str, Enum):
@@ -54,50 +57,62 @@ class Hop(BaseModel):
     Represents one step in a mission, containing a sequence of tool steps
     to be executed.
     """
+    # Core fields
     id: str
+    mission_id: str
+    user_id: int
+    sequence_order: int
     name: str
-    description: str
+    description: Optional[str] = None
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
-    sequence_order: int
+    rationale: Optional[str] = None
     status: HopStatus = Field(default=HopStatus.PROPOSED)
+    
+    # Hop state
     is_final: bool = Field(default=False)
     is_resolved: bool = Field(default=False)
-    rationale: Optional[str] = Field(default=None, description="Explanation of why this hop is needed and how it contributes to the mission")
     error_message: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    hop_metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Assets are queried by scope: scope_type='hop' AND scope_id=hop.id
-    # NO input_asset_ids or output_asset_ids fields needed
+    # Relationships (populated by services)
+    tool_steps: List['ToolStep'] = Field(default_factory=list)
+    
+    # Asset collections (all hop-scoped assets by name)
+    hop_state: Dict[str, 'Asset'] = Field(default_factory=dict)
 
 
 class Mission(BaseModel):
     """
     Represents the overall goal or workflow, composed of a series of hops.
     """
+    # Core fields
     id: str
+    user_id: int
     name: str
-    description: str
-    goal: str = Field(default="", description="The main goal of the mission")
-    success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
-    status: MissionStatus = Field(default=MissionStatus.PROPOSED, description="Status of the mission")
+    description: Optional[str] = None
+    goal: Optional[str] = None
+    success_criteria: List[str] = Field(default_factory=list)
+    status: MissionStatus = Field(default=MissionStatus.PROPOSED)
     
     # Current hop tracking
-    current_hop_id: Optional[str] = Field(default=None, description="ID of the currently active hop")
+    current_hop_id: Optional[str] = None
     
     # Metadata
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    mission_metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relationships (populated by queries)
-    current_hop: Optional[Hop] = Field(default=None, description="Currently active hop")
-    hop_history: List[Hop] = Field(default_factory=list, description="All hops in execution order")
+    # Relationships (populated by services)
+    current_hop: Optional['Hop'] = None
+    hops: List['Hop'] = Field(default_factory=list)  # hop_history
     
-    # Assets are queried by scope: scope_type='mission' AND scope_id=mission.id
-    # NO input_asset_ids or output_asset_ids fields needed
+    # Asset collection - unified approach (filter by Asset.role for inputs/outputs)
+    mission_state: Dict[str, 'Asset'] = Field(default_factory=dict)  # all mission assets by name
 
     @validator('created_at', 'updated_at', pre=True)
     def handle_empty_datetime(cls, v):
@@ -132,19 +147,31 @@ class ToolStep(BaseModel):
     """
     Represents an atomic unit of work: a single tool execution within a hop.
     """
+    # Core fields
     id: str
+    hop_id: str
+    user_id: int
     tool_id: str
-    description: str
-    template: Optional[str] = None
     sequence_order: int
+    name: str
+    description: Optional[str] = None
+    status: ToolExecutionStatus = Field(default=ToolExecutionStatus.PROPOSED)
+    
+    # Tool configuration
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
+    result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict)
     resource_configs: Dict[str, Resource] = Field(default_factory=dict)
-    parameter_mapping: Dict[str, ParameterMappingValue]
-    result_mapping: Dict[str, ResultMappingValue]
-    status: ExecutionStatus = Field(default=ExecutionStatus.PENDING, description="Status of the tool step")
+    
+    # Execution data
+    validation_errors: List[str] = Field(default_factory=list)
+    execution_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
-    validation_errors: Optional[List[str]] = None
+    
+    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
     @validator('created_at', 'updated_at', pre=True)
     def handle_empty_datetime(cls, v):
@@ -172,12 +199,12 @@ class ToolStep(BaseModel):
         from tools.tool_execution import execute_tool_step, ToolExecutionError
         
         try:
-            self.status = ExecutionStatus.RUNNING
+            self.status = ToolExecutionStatus.EXECUTING
             result = await execute_tool_step(self, hop_state, user_id=user_id, db=db)
-            self.status = ExecutionStatus.COMPLETED
+            self.status = ToolExecutionStatus.COMPLETED
             return result
         except Exception as e:
-            self.status = ExecutionStatus.FAILED
+            self.status = ToolExecutionStatus.FAILED
             self.error_message = str(e)
             raise ToolExecutionError(str(e), self.tool_id)
 

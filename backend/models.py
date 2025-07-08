@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean, UniqueConstraint, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, foreign, remote, validates
 from datetime import datetime
@@ -41,6 +41,26 @@ class ToolExecutionStatus(str, PyEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+class AssetStatus(str, PyEnum):
+    """Status of an asset"""
+    PROPOSED = "proposed"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    READY = "ready"
+    ERROR = "error"
+    EXPIRED = "expired"
+
+class AssetRole(str, PyEnum):
+    """Role of an asset in workflow"""
+    INPUT = "input"
+    OUTPUT = "output"
+    INTERMEDIATE = "intermediate"
+
+class AssetScopeType(str, PyEnum):
+    """Scope type for asset"""
+    MISSION = "mission"
+    HOP = "hop"
+
 Base = declarative_base()
 
 # Constants
@@ -69,25 +89,38 @@ class Asset(Base):
     __tablename__ = "assets"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     type = Column(String(255), nullable=False)
     subtype = Column(String(255), nullable=True)
-    role = Column(String(50), nullable=True)  # Role of asset in workflow: input, output, intermediate
-    content = Column(JSON, nullable=True)
-    asset_metadata = Column(JSON, nullable=False, default=dict)
-    db_entity_metadata = Column(JSON, nullable=True)
     
     # Scope information - unified approach for mission and hop level assets
-    scope_type = Column(String(50), nullable=False)  # "mission" or "hop"
+    scope_type = Column(Enum(AssetScopeType), nullable=False)
     scope_id = Column(String(255), nullable=False)   # mission_id or hop_id
+    
+    # Asset lifecycle
+    status = Column(Enum(AssetStatus), nullable=False, default=AssetStatus.PENDING)
+    role = Column(Enum(AssetRole), nullable=False)  # Role of asset in workflow: input, output, intermediate
+    
+    # Content strategy
+    content = Column(JSON, nullable=True)            # Full content
+    content_summary = Column(Text, nullable=True)    # For value_representation
+    asset_metadata = Column(JSON, nullable=False, default=dict)
+    db_entity_metadata = Column(JSON, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="assets")
-    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_assets_scope', 'scope_type', 'scope_id'),
+        Index('idx_assets_role', 'role'),
+        Index('idx_assets_status', 'status'),
+    )
 
 class ResourceCredentials(Base):
     __tablename__ = "resource_credentials"

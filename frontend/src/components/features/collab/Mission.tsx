@@ -17,7 +17,7 @@ export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
     const [expanded, setExpanded] = useState(false);
 
     // Don't render anything if mission is pending
-    if (mission.mission_status === MissionStatus.PROPOSED) {
+    if (mission.status === MissionStatus.PROPOSED) {
         return null;
     }
 

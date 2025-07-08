@@ -59,8 +59,6 @@ class Hop(BaseModel):
     description: str
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
-    input_asset_ids: List[str] = Field(default_factory=list)
-    output_asset_ids: List[str] = Field(default_factory=list)
     sequence_order: int
     status: HopStatus = Field(default=HopStatus.PROPOSED)
     is_final: bool = Field(default=False)
@@ -70,6 +68,9 @@ class Hop(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Assets are queried by scope: scope_type='hop' AND scope_id=hop.id
+    # NO input_asset_ids or output_asset_ids fields needed
 
 
 class Mission(BaseModel):
@@ -82,13 +83,21 @@ class Mission(BaseModel):
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
     status: MissionStatus = Field(default=MissionStatus.PROPOSED, description="Status of the mission")
-    input_asset_ids: List[str] = Field(default_factory=list)
-    output_asset_ids: List[str] = Field(default_factory=list)
+    
+    # Current hop tracking
+    current_hop_id: Optional[str] = Field(default=None, description="ID of the currently active hop")
     
     # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships (populated by queries)
+    current_hop: Optional[Hop] = Field(default=None, description="Currently active hop")
+    hop_history: List[Hop] = Field(default_factory=list, description="All hops in execution order")
+    
+    # Assets are queried by scope: scope_type='mission' AND scope_id=mission.id
+    # NO input_asset_ids or output_asset_ids fields needed
 
     @validator('created_at', 'updated_at', pre=True)
     def handle_empty_datetime(cls, v):

@@ -69,10 +69,8 @@ export function sanitizeAssetForChat(asset: Asset): SanitizedAsset {
 export function sanitizeHopForChat(hop: Hop): any {
     return {
         ...hop,
-        hop_state: Object.keys(hop.hop_state).reduce((acc, key) => {
-            acc[key] = sanitizeAssetForChat(hop.hop_state[key]);
-            return acc;
-        }, {} as Record<string, SanitizedAsset>)
+        // hop_state will be computed from assets with scope_type='hop' and scope_id=hop.id
+        hop_state: {} // Will be populated from assets relationship
     };
 }
 
@@ -89,25 +87,17 @@ export function sanitizeMissionForChat(mission: Mission | null): SanitizedMissio
         name: mission.name,
         description: mission.description,
         goal: mission.goal,
-        success_criteria: mission.success_criteria,
-        mission_status: mission.mission_status,
+        success_criteria: mission.success_criteria || [],
+        mission_status: mission.status, // Fixed: use 'status' instead of 'mission_status'
         created_at: typeof mission.created_at === 'string' ? mission.created_at : new Date().toISOString(),
         updated_at: typeof mission.updated_at === 'string' ? mission.updated_at : new Date().toISOString(),
 
-        // Sanitize mission state assets
-        mission_state: Object.keys(mission.mission_state).reduce((acc, key) => {
-            acc[key] = sanitizeAssetForChat(mission.mission_state[key]);
-            return acc;
-        }, {} as Record<string, SanitizedAsset>),
-
-        // Sanitize current hop
-        current_hop: mission.current_hop ? sanitizeHopForChat(mission.current_hop) : undefined,
-
-        // Sanitize hop history
-        hop_history: mission.hop_history.map(hop => sanitizeHopForChat(hop)),
-
-        // Sanitize input and output assets
-        inputs: mission.inputs.map(asset => sanitizeAssetForChat(asset)),
-        outputs: mission.outputs.map(asset => sanitizeAssetForChat(asset))
+        // These fields need to be computed from the Mission's relationships
+        // For now, return empty/default values until we implement the computed fields
+        mission_state: {}, // Will be populated from assets with scope_type='mission'
+        current_hop: undefined, // Will be computed from hops relationship
+        hop_history: [], // Will be populated from completed hops
+        inputs: [], // Will be populated from assets with role='input'
+        outputs: [] // Will be populated from assets with role='output'
     };
 } 

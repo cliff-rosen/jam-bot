@@ -413,7 +413,7 @@ async def get_newsletter_report_as_asset(
         
         # Create an asset
         print(f"Creating asset")
-        asset_service = AssetService(db)  # Initialize with the actual session
+        asset_service = AssetService()  # Initialize service
         asset = asset_service.create_asset(
             user_id=user.user_id,  # Keep as integer to match Asset model
             name=f"{period_type} newsletter report",

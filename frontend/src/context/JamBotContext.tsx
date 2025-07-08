@@ -49,7 +49,7 @@ const initialState: JamBotState = {
         type: null,
         content: null
     },
-    mission: defaultMission,
+    mission: null,
     payload_history: []
 };
 

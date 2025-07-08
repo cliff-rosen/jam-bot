@@ -23,7 +23,7 @@ async def create_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Create a new asset"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     return await asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
@@ -42,7 +42,7 @@ async def get_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get an asset by ID"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     asset = asset_service.get_asset(asset_id, current_user.user_id)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
@@ -55,7 +55,7 @@ async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dic
     For database entity assets, this will fetch the content from the database.
     """
     # Use AssetService to get the asset with unified schema format
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     asset = asset_service.get_asset_with_details(asset_id)
     
     if not asset:
@@ -70,7 +70,7 @@ async def get_user_assets(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get all assets for the current user"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     return asset_service.get_user_assets(
         user_id=current_user.user_id
     )
@@ -84,7 +84,7 @@ async def update_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Update an asset"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     asset = asset_service.update_asset(asset_id, current_user.user_id, updates)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
@@ -97,7 +97,7 @@ async def get_asset_summaries(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get lightweight asset summaries for chat context"""
-    asset_service = AssetService(db)
+    asset_service = AssetService()
     summary_service = AssetSummaryService()
     
     # Get all user assets

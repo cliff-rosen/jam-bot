@@ -197,7 +197,7 @@ class Hop(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    mission = relationship("Mission", back_populates="hops")
+    mission = relationship("Mission", foreign_keys=[mission_id], back_populates="hops")
     user = relationship("User", back_populates="hops")
     tool_steps = relationship("ToolStep", back_populates="hop", cascade="all, delete-orphan", order_by="ToolStep.sequence_order")
 

@@ -11,10 +11,10 @@ from pydantic import BaseModel
 from database import get_db
 from services.auth_service import validate_token
 from services.mission_service import MissionService
-from schemas import Message, MessageRole, ChatRequest, ChatResponse
-from schemas.workflow import Mission
-from agents.primary_agent import graph as primary_agent, State
 from services.ai_service import ai_service, LLMRequest
+
+from schemas import Message, MessageRole, ChatRequest, ChatResponse
+from agents.primary_agent import graph as primary_agent, State
 from utils.mission_utils import enrich_chat_context_with_assets
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

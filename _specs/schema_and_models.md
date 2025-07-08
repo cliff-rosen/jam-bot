@@ -80,9 +80,12 @@ class ToolExecutionStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 class AssetStatus(str, PyEnum):
+    PROPOSED = "proposed"
     PENDING = "pending"
+    IN_PROGRESS = "in_progress"
     READY = "ready"
     ERROR = "error"
+    EXPIRED = "expired"
 
 class AssetRole(str, PyEnum):
     INPUT = "input"
@@ -443,9 +446,12 @@ export enum ToolExecutionStatus {
 }
 
 export enum AssetStatus {
+    PROPOSED = "proposed",
     PENDING = "pending",
+    IN_PROGRESS = "in_progress",
     READY = "ready",
-    ERROR = "error"
+    ERROR = "error",
+    EXPIRED = "expired"
 }
 
 export enum AssetRole {
@@ -635,7 +641,7 @@ PROPOSED → READY_TO_RESOLVE → READY_TO_EXECUTE → EXECUTING → COMPLETED/F
 
 ### Asset Status Flow
 ```
-PENDING → READY → [ERROR]
+PROPOSED → PENDING → IN_PROGRESS → READY → [ERROR/EXPIRED]
 ```
 
 ## 7. Value Representation Strategy

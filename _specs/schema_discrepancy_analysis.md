@@ -12,16 +12,15 @@
 - `metadata: Dict[str, Any]` - General purpose metadata field
 - `inputs: List[Asset]` and `outputs: List[Asset]` - Separate arrays vs role-based filtering
 
-#### Status Enum Differences
+#### Status Enum Issues
 ```python
-# Pydantic Schema (workflow.py)
+# Pydantic Schema (workflow.py) - INCOMPLETE
 class MissionStatus(str, Enum):
     PENDING = "pending"
     ACTIVE = "active" 
-    COMPLETE = "complete"  # ← Different
+    COMPLETE = "complete"  # ← Missing mission-level statuses like "ready_to_design"
 
-# Database Model (proposed)
-ENUM('pending', 'active', 'completed', 'failed', 'cancelled')  # ← More statuses
+# PROBLEM: Mission-level statuses mixed into HopStatus enum instead
 ```
 
 ### Hop: Schema vs Database Model
@@ -35,20 +34,23 @@ ENUM('pending', 'active', 'completed', 'failed', 'cancelled')  # ← More status
 - `is_resolved: bool` - ✅ Keep: Whether hop tools have been resolved
 - `error: Optional[str]` - ✅ Keep: Error message if hop failed
 
-#### Status Enum Differences
+#### Status Enum Perspective Problem
 ```python
-# Pydantic Schema (workflow.py)
+# Pydantic Schema (workflow.py) - MIXED PERSPECTIVES
 class HopStatus(str, Enum):
-    READY_TO_DESIGN = "ready_to_design"
-    HOP_PROPOSED = "hop_proposed"  
-    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve"
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"
-    HOP_RUNNING = "hop_running"
-    ALL_HOPS_COMPLETE = "all_hops_complete"
+    READY_TO_DESIGN = "ready_to_design"      # 🚫 MISSION perspective - no current hop!
+    HOP_PROPOSED = "hop_proposed"            # ✅ HOP perspective - this hop is proposed
+    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve"  # ✅ HOP perspective 
+    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"  # ✅ HOP perspective
+    HOP_RUNNING = "hop_running"              # ✅ HOP perspective
+    ALL_HOPS_COMPLETE = "all_hops_complete"  # 🚫 MISSION perspective - mission is done!
 
-# Database Model (originally proposed)
-ENUM('pending', 'active', 'completed', 'failed', 'cancelled')  # ← Generic statuses
+# PROBLEM: Some statuses are mission-level, others are hop-level
 ```
+
+**Solution:** Separate into proper perspectives:
+- **MissionStatus**: `pending`, `ready_to_design`, `active`, `completed`, `failed`, `cancelled`
+- **HopStatus**: `proposed`, `ready_to_resolve`, `ready_to_execute`, `running`, `completed`, `failed`
 
 ### ToolStep: Schema vs Database Model
 
@@ -104,8 +106,11 @@ CREATE TABLE assets (
 - Eliminates input_mapping/output_mapping
 - Tools reference assets by ID directly
 
-### 2. Status Enum Complexity
-**QUESTION:** Use domain-specific detailed statuses vs generic statuses?
+### 2. Status Enum Perspective Correction
+**✅ DECIDED:** Separate Mission-level and Hop-level status enums by perspective
+- **Mission statuses**: Track overall mission state (pending, ready_to_design, active, completed, failed, cancelled)
+- **Hop statuses**: Track individual hop state (proposed, ready_to_resolve, ready_to_execute, running, completed, failed)
+- **Fixed confusion**: "ready_to_design" and "all_hops_complete" moved from HopStatus to MissionStatus
 
 ### 3. Direct Asset References
 **✅ DECIDED:** Tools reference assets by ID directly in parameter_mapping/result_mapping
@@ -122,7 +127,7 @@ CREATE TABLE missions (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     goal TEXT,
-    status ENUM('pending', 'active', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'ready_to_design', 'active', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'pending',
     success_criteria JSON,  -- Array of strings
     metadata JSON NOT NULL DEFAULT '{}',  -- General purpose metadata
     current_hop_id VARCHAR(36),
@@ -134,6 +139,14 @@ CREATE TABLE missions (
 );
 ```
 
+**Mission Status Meanings:**
+- `pending` - Mission not started
+- `ready_to_design` - Ready to design next hop (no current hop exists)
+- `active` - Has active hop running  
+- `completed` - All hops complete (replaces "all_hops_complete")
+- `failed` - Mission failed
+- `cancelled` - User cancelled
+
 ### Database Model: Hop Table  
 ```sql
 CREATE TABLE hops (
@@ -141,8 +154,7 @@ CREATE TABLE hops (
     mission_id VARCHAR(36) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('ready_to_design', 'hop_proposed', 'hop_ready_to_resolve', 
-                'hop_ready_to_execute', 'hop_running', 'all_hops_complete') NOT NULL DEFAULT 'hop_proposed',
+    status ENUM('proposed', 'ready_to_resolve', 'ready_to_execute', 'running', 'completed', 'failed') NOT NULL DEFAULT 'proposed',
     sequence_order INT NOT NULL,
     rationale TEXT,  -- Why this hop is needed
     is_final BOOLEAN DEFAULT FALSE,
@@ -155,6 +167,14 @@ CREATE TABLE hops (
     UNIQUE KEY uk_hops_mission_order (mission_id, sequence_order)
 );
 ```
+
+**Hop Status Meanings (Individual hop perspective):**
+- `proposed` - Hop designed, awaiting approval (was "hop_proposed")
+- `ready_to_resolve` - Approved, need to resolve tools
+- `ready_to_execute` - Tools resolved, ready to run  
+- `running` - Currently executing (was "hop_running")
+- `completed` - Finished successfully
+- `failed` - Execution failed
 
 ### Database Model: ToolStep Table
 ```sql  
@@ -239,11 +259,12 @@ CREATE TABLE assets (
 
 ## Key Decisions Made
 
-1. **Keep domain-specific status enums** - More expressive than generic statuses
-2. **Add useful fields only** - rationale, metadata, validation_errors, resource_configs  
-3. **Unified asset storage** - All assets in one table with scope references
-4. **Direct asset references** - Tools reference assets by ID, no mapping layers
-5. **Simplified hop architecture** - Eliminated input_mapping/output_mapping/hop_state
+1. **Separated status enum perspectives** - Mission-level vs Hop-level statuses properly separated
+2. **Keep domain-specific status values** - More expressive than generic statuses
+3. **Add useful fields only** - rationale, metadata, validation_errors, resource_configs  
+4. **Unified asset storage** - All assets in one table with scope references
+5. **Direct asset references** - Tools reference assets by ID, no mapping layers
+6. **Simplified hop architecture** - Eliminated input_mapping/output_mapping/hop_state
 
 ## Migration Impact
 

@@ -21,112 +21,9 @@ class ToolExecutionError(Exception):
     def __init__(self, message: str, tool_id: str):
         super().__init__(f"Tool {tool_id} execution failed: {message}")
 
-def _resolve_asset_path(value: Any, path: str, asset_name: str, tool_id: str) -> Any:
-    """
-    Resolve a path within an asset value, handling both object and array access patterns.
-    
-    Supported patterns:
-    - 'field' - access field in object
-    - 'field.subfield' - nested object access
-    - '[].field' - extract field from each item in array
-    - '[index]' - access specific array index
-    - '[index].field' - access field in specific array item
-    
-    Args:
-        value: The value to resolve the path in
-        path: The path to resolve (e.g., 'field', '[].url', '[0].title')
-        asset_name: Name of the asset (for error messages)
-        tool_id: ID of the tool (for error messages)
-        
-    Returns:
-        The resolved value
-        
-    Raises:
-        ToolExecutionError: If the path cannot be resolved
-    """
-    current_value = value
-    
-    # Handle array access patterns
-    if path.startswith('[]'):
-        # Extract field from each item in array
-        if not isinstance(current_value, list):
-            raise ToolExecutionError(
-                f"Cannot access array path {path} in asset {asset_name}: value is not an array",
-                tool_id
-            )
-        
-        # Handle [].field pattern
-        if path.startswith('[].'):
-            field_path = path[3:]  # Remove '[].'' prefix
-            result = []
-            for item in current_value:
-                if field_path:
-                    # Recursively resolve the field path in each item
-                    item_value = _resolve_asset_path(item, field_path, asset_name, tool_id)
-                    result.append(item_value)
-                else:
-                    result.append(item)
-            return result
-        else:
-            # Just [] - return the array as is
-            return current_value
-    
-    # Handle specific array index access [index]
-    elif path.startswith('[') and ']' in path:
-        if not isinstance(current_value, list):
-            raise ToolExecutionError(
-                f"Cannot access array index in path {path} in asset {asset_name}: value is not an array",
-                tool_id
-            )
-        
-        # Extract index and remaining path
-        end_bracket = path.index(']')
-        index_str = path[1:end_bracket]
-        remaining_path = path[end_bracket + 1:]
-        
-        try:
-            index = int(index_str)
-            if index < 0 or index >= len(current_value):
-                raise ToolExecutionError(
-                    f"Array index {index} out of bounds in path {path} in asset {asset_name}",
-                    tool_id
-                )
-            current_value = current_value[index]
-            
-            # If there's a remaining path (like '.field'), resolve it
-            if remaining_path.startswith('.'):
-                remaining_path = remaining_path[1:]  # Remove leading dot
-                return _resolve_asset_path(current_value, remaining_path, asset_name, tool_id)
-            else:
-                return current_value
-                
-        except ValueError:
-            raise ToolExecutionError(
-                f"Invalid array index '{index_str}' in path {path} in asset {asset_name}",
-                tool_id
-            )
-    
-    # Handle regular object field access
-    else:
-        for part in path.split('.'):
-            if isinstance(current_value, dict):
-                current_value = current_value.get(part)
-                if current_value is None:
-                    raise ToolExecutionError(
-                        f"Cannot access path {path} in asset {asset_name}: field '{part}' not found",
-                        tool_id
-                    )
-            else:
-                raise ToolExecutionError(
-                    f"Cannot access path {path} in asset {asset_name}: cannot access field '{part}' on {type(current_value).__name__}",
-                    tool_id
-                )
-        
-        return current_value
-
 async def execute_tool_step(
     step: "ToolStep", 
-    hop_state: Dict[str, Asset], 
+    asset_context: Dict[str, Any], 
     user_id: Optional[int] = None,
     db: Optional[Any] = None
 ) -> Dict[str, Any]:
@@ -136,7 +33,7 @@ async def execute_tool_step(
     
     Args:
         step: The tool step to execute
-        hop_state: Current state of the hop containing all assets
+        asset_context: Dictionary mapping asset IDs to Asset objects or asset data
         user_id: User ID for asset persistence (optional)
         db: Database session for asset persistence (optional)
         
@@ -159,17 +56,24 @@ async def execute_tool_step(
         if mapping.type == "literal":
             params[param_name] = mapping.value
         elif mapping.type == "asset_field":
-            asset = hop_state.get(mapping.state_asset)
-            if not asset:
+            asset_id = mapping.state_asset
+            
+            # Get asset from context (could be Asset object or asset data)
+            asset_data = asset_context.get(asset_id)
+            if not asset_data:
                 raise ToolExecutionError(
-                    f"Asset {mapping.state_asset} not found in hop state",
+                    f"Asset {asset_id} not found in asset context",
                     step.tool_id
                 )
             
-            # Get value from asset, following path if specified
-            value = asset.value
-            if mapping.path:
-                value = _resolve_asset_path(value, mapping.path, mapping.state_asset, step.tool_id)
+            # Extract value from asset
+            if isinstance(asset_data, Asset):
+                value = asset_data.value
+            elif isinstance(asset_data, dict) and 'value' in asset_data:
+                value = asset_data['value']
+            else:
+                # Assume the asset_data is the value itself
+                value = asset_data
             
             params[param_name] = value
     
@@ -223,7 +127,7 @@ async def execute_tool_step(
         
         # Persist assets to database if user_id and db are provided
         if user_id is not None and db is not None:
-            await _persist_updated_assets(step, hop_state, execution_response, user_id, db)
+            await _persist_updated_assets(step, asset_context, execution_response, user_id, db)
             
         return execution_response
             
@@ -233,7 +137,7 @@ async def execute_tool_step(
 
 async def _persist_updated_assets(
     step: "ToolStep", 
-    hop_state: Dict[str, Asset], 
+    asset_context: Dict[str, Any], 
     execution_response: Dict[str, Any], 
     user_id: int, 
     db: Any
@@ -243,47 +147,52 @@ async def _persist_updated_assets(
     
     Args:
         step: The executed tool step
-        hop_state: Current hop state
+        asset_context: Asset context mapping
         execution_response: The tool execution response
         user_id: User ID for asset creation
         db: Database session
     """
     try:
-        asset_service = AssetService(db)
+        asset_service = AssetService()
         
         # Find assets that were updated by this tool execution
         for result_name, mapping in step.result_mapping.items():
             if mapping.type == "asset_field":
-                asset_name = mapping.state_asset
-                asset = hop_state.get(asset_name)
+                asset_id = mapping.state_asset
+                asset_data = asset_context.get(asset_id)
                 
-                if asset and asset.status == AssetStatus.READY:
-                    # Check if asset is PROPOSED (frontend-only) and needs to be created
-                    if hasattr(asset, 'original_status') and asset.original_status == AssetStatus.PROPOSED:
-                        # Create new asset on backend
-                        await asset_service.create_asset(
-                            user_id=user_id,
-                            name=asset.name,
-                            type=asset.schema_definition.type,
-                            subtype=asset.subtype,
-                            is_array=asset.schema_definition.is_array,
-                            description=asset.description,
-                            content=asset.value,
-                            asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None
-                        )
-                        print(f"Created new asset {asset.name} on backend")
-                    else:
-                        # Update existing asset
-                        await asset_service.update_asset(
-                            asset_id=asset.id,
-                            user_id=user_id,
-                            updates={
-                                'content': asset.value,
-                                'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
-                                'updated_at': datetime.utcnow()
-                            }
-                        )
-                        print(f"Updated existing asset {asset.name} on backend")
+                if asset_data:
+                    # Check if this is an Asset object or just data
+                    if isinstance(asset_data, Asset):
+                        asset = asset_data
+                        
+                        # Check if asset needs to be created or updated
+                        if asset.status == AssetStatus.PROPOSED:
+                            # Create new asset on backend
+                            await asset_service.create_asset(
+                                user_id=user_id,
+                                name=asset.name,
+                                type=asset.schema_definition.type,
+                                subtype=asset.subtype,
+                                description=asset.description,
+                                content=asset.value,
+                                asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None,
+                                scope_type="hop",  # Default to hop scope for tool execution
+                                scope_id=step.hop_id if hasattr(step, 'hop_id') else "unknown"
+                            )
+                            print(f"Created new asset {asset.name} on backend")
+                        elif asset.status in [AssetStatus.READY, AssetStatus.IN_PROGRESS]:
+                            # Update existing asset
+                            await asset_service.update_asset(
+                                asset_id=asset.id,
+                                user_id=user_id,
+                                updates={
+                                    'content': asset.value,
+                                    'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
+                                    'updated_at': datetime.utcnow()
+                                }
+                            )
+                            print(f"Updated existing asset {asset.name} on backend")
                         
     except Exception as e:
         print(f"Error persisting assets to database: {e}")

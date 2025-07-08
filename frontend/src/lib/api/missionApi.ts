@@ -1,4 +1,4 @@
-import { Mission } from '@/types/workflow';
+import { Mission, MissionStatus } from '@/types/workflow';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -8,6 +8,15 @@ export interface CreateMissionResponse {
 
 export interface MissionApiResponse {
     message: string;
+}
+
+export interface MissionWithHopsResponse {
+    mission: Mission;
+    hops: any[]; // Will be typed properly when hop types are ready
+}
+
+export interface MissionStatusUpdate {
+    status: MissionStatus;
 }
 
 class MissionApiError extends Error {
@@ -59,12 +68,29 @@ export const missionApi = {
     },
 
     /**
+     * Get a mission with its hops and tool steps
+     */
+    async getMissionWithHops(missionId: string): Promise<MissionWithHopsResponse> {
+        return makeApiCall<MissionWithHopsResponse>(`/missions/${missionId}/full`);
+    },
+
+    /**
      * Update an existing mission
      */
     async updateMission(missionId: string, mission: Mission): Promise<MissionApiResponse> {
         return makeApiCall<MissionApiResponse>(`/missions/${missionId}`, {
             method: 'PUT',
             body: JSON.stringify(mission),
+        });
+    },
+
+    /**
+     * Update mission status only
+     */
+    async updateMissionStatus(missionId: string, status: MissionStatus): Promise<MissionApiResponse> {
+        return makeApiCall<MissionApiResponse>(`/missions/${missionId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
         });
     },
 

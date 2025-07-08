@@ -12,16 +12,29 @@ from enum import Enum as PyEnum
 # Define enums directly in models to break circular dependency
 class MissionStatus(str, PyEnum):
     """Status of a mission"""
-    PENDING = "pending"
-    ACTIVE = "active"
+    PROPOSED = "proposed"
+    READY_TO_DESIGN = "ready_to_design"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class HopStatus(str, PyEnum):
+    """Status of a hop"""
+    PROPOSED = "proposed"
+    READY_TO_RESOLVE = "ready_to_resolve"
+    READY_TO_EXECUTE = "ready_to_execute"
+    EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 class ToolExecutionStatus(str, PyEnum):
     """Status of a tool execution"""
-    PENDING = "pending"
-    RUNNING = "running"
+    PROPOSED = "proposed"
+    READY_TO_CONFIGURE = "ready_to_configure"
+    READY_TO_EXECUTE = "ready_to_execute"
+    EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -47,7 +60,8 @@ class User(Base):
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resource_credentials = relationship("ResourceCredentials", back_populates="user", cascade="all, delete-orphan")
     missions = relationship("Mission", back_populates="user", cascade="all, delete-orphan")
-    tool_executions = relationship("ToolExecution", cascade="all, delete-orphan")
+
+    hops = relationship("Hop", cascade="all, delete-orphan")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -65,7 +79,6 @@ class Asset(Base):
     # Scope information - unified approach for mission and hop level assets
     scope_type = Column(String(50), nullable=False)  # "mission" or "hop"
     scope_id = Column(String(255), nullable=False)   # mission_id or hop_id
-    asset_key = Column(String(255), nullable=False)  # The key name within the scope
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -104,34 +117,77 @@ class Mission(Base):
     
     # JSON fields for complex data
     success_criteria = Column(JSON, nullable=True)  # List of strings
-    current_hop = Column(JSON, nullable=True)  # Full hop object
-    hop_history = Column(JSON, nullable=True)  # List of hop objects
     input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
     output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
-    # mission_state_asset_ids removed - now using Asset.mission_id link-back
+    metadata = Column(JSON, nullable=True)  # Additional metadata
+    
+    # Remove current_hop and hop_history - these are now in hops table
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = relationship("User", back_populates="missions")
+    hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", order_by="Hop.sequence_order")
 
-class ToolExecution(Base):
-    __tablename__ = "tool_executions"
+class Hop(Base):
+    __tablename__ = "hops"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
+    
+    # Basic hop information
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    goal = Column(Text, nullable=True)
+    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.PROPOSED)
+    sequence_order = Column(Integer, nullable=False)
+    
+    # Hop-specific fields
+    rationale = Column(Text, nullable=True)
+    is_final = Column(Boolean, nullable=False, default=False)
+    is_resolved = Column(Boolean, nullable=False, default=False)
+    error_message = Column(Text, nullable=True)
+    
+    # JSON fields for complex data
+    success_criteria = Column(JSON, nullable=True)  # List of strings
+    input_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
+    output_asset_ids = Column(JSON, nullable=True)  # List of asset IDs
+    metadata = Column(JSON, nullable=True)  # Additional metadata
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    mission = relationship("Mission", back_populates="hops")
+    user = relationship("User", back_populates="hops")
+    tool_steps = relationship("ToolStep", back_populates="hop", cascade="all, delete-orphan", order_by="ToolStep.sequence_order")
+
+class ToolStep(Base):
+    __tablename__ = "tool_steps"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    hop_id = Column(String(36), ForeignKey("hops.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    
+    # Basic tool step information
     tool_id = Column(String(255), nullable=False)
-    step_id = Column(String(255), nullable=False)
+    sequence_order = Column(Integer, nullable=False)
     status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PENDING)
     
-    # JSON fields for execution data
-    tool_step = Column(JSON, nullable=False)  # Full ToolStep object
-    hop_state_asset_ids = Column(JSON, nullable=True)  # Dict of asset_name -> asset_id
-    parameter_mapping = Column(JSON, nullable=True)  # Tool parameter mappings
-    result_mapping = Column(JSON, nullable=True)  # Tool result mappings
+    # Tool step configuration
+    description = Column(Text, nullable=True)
+    template = Column(Text, nullable=True)
+    
+    # JSON fields for complex data
+    parameter_mapping = Column(JSON, nullable=True)  # Dict of parameter mappings
+    result_mapping = Column(JSON, nullable=True)  # Dict of result mappings
+    resource_configs = Column(JSON, nullable=True)  # Resource configurations
+    validation_errors = Column(JSON, nullable=True)  # List of validation errors
     execution_result = Column(JSON, nullable=True)  # Tool execution results
+    hop_state_asset_ids = Column(JSON, nullable=True)  # Dict of asset_name -> asset_id at execution time
+    
     error_message = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -140,6 +196,8 @@ class ToolExecution(Base):
     completed_at = Column(DateTime, nullable=True)
     
     # Relationships
+    hop = relationship("Hop", back_populates="tool_steps")
     user = relationship("User")
-    mission = relationship("Mission")
+
+
 

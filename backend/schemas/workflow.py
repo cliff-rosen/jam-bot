@@ -28,19 +28,22 @@ class ExecutionStatus(str, Enum):
 
 class MissionStatus(str, Enum):
     """Status of a mission"""
-    PENDING = "pending"  # Mission proposed but not yet approved by user
-    ACTIVE = "active"    # Mission approved and in progress
-    COMPLETE = "complete"  # Mission completed
+    PENDING = "pending"
+    READY_TO_DESIGN = "ready_to_design"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class HopStatus(str, Enum):
-    """Status of hops (only applies when mission is active)"""
-    READY_TO_DESIGN = "ready_to_design"      # Ready to design next hop
-    HOP_PROPOSED = "hop_proposed"            # Hop designer has proposed a hop
-    HOP_READY_TO_RESOLVE = "hop_ready_to_resolve"  # User accepted hop, ready to resolve with tools
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"  # Hop resolved with tools, ready to run
-    HOP_RUNNING = "hop_running"              # Hop is executing
-    ALL_HOPS_COMPLETE = "all_hops_complete"  # No more hops needed
+    """Status of a hop"""
+    PENDING = "pending"
+    READY_TO_EXECUTE = "ready_to_execute"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Hop(BaseModel):
@@ -51,65 +54,19 @@ class Hop(BaseModel):
     id: str
     name: str
     description: str
-    input_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for input.")
-    output_mapping: Dict[str, str] = Field(description="Maps local hop state keys to mission asset IDs for output.")
-    hop_state: Dict[str, Asset] = Field(default_factory=dict)
-    tool_steps: List[ToolStep] = Field(default_factory=list)
-    status: HopStatus = Field(default=HopStatus.HOP_PROPOSED)
+    goal: Optional[str] = None
+    success_criteria: List[str] = Field(default_factory=list)
+    input_asset_ids: List[str] = Field(default_factory=list)
+    output_asset_ids: List[str] = Field(default_factory=list)
+    sequence_order: int
+    status: HopStatus = Field(default=HopStatus.PROPOSED)
     is_final: bool = Field(default=False)
     is_resolved: bool = Field(default=False)
     rationale: Optional[str] = Field(default=None, description="Explanation of why this hop is needed and how it contributes to the mission")
-    error: Optional[str] = None
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    @validator('input_mapping')
-    def validate_input_mapping_asset_ids(cls, v, values, **kwargs):
-        """Validate that input mapping values are valid asset IDs in mission state"""
-        if not v:
-            return v
-            
-        # Check if we have access to mission state
-        mission_state = values.get('mission_state')
-        if not mission_state:
-            return v
-            
-        # Validate each asset ID exists in mission state
-        invalid_ids = []
-        for local_key, mission_asset_id in v.items():
-            if mission_asset_id not in mission_state:
-                invalid_ids.append(f"{local_key}: {mission_asset_id}")
-                
-        if invalid_ids:
-            raise ValueError(
-                f"Input mapping contains invalid mission state asset IDs: {', '.join(invalid_ids)}"
-            )
-            
-        return v
-
-    @validator('output_mapping')
-    def validate_output_mapping_local_keys(cls, v, values, **kwargs):
-        """Validate that output mapping keys exist in hop state"""
-        if not v:
-            return v
-            
-        # Get the hop state
-        hop_state = values.get('hop_state', {})
-        if not hop_state:
-            return v
-            
-        # Validate each local key exists in hop state
-        invalid_keys = []
-        for local_key, mission_asset_id in v.items():
-            if local_key not in hop_state:
-                invalid_keys.append(f"{local_key} (maps to mission asset {mission_asset_id})")
-                
-        if invalid_keys:
-            raise ValueError(
-                f"Output mapping references local keys that don't exist in hop state: {', '.join(invalid_keys)}"
-            )
-            
-        return v
 
 
 class Mission(BaseModel):
@@ -121,13 +78,9 @@ class Mission(BaseModel):
     description: str
     goal: str = Field(default="", description="The main goal of the mission")
     success_criteria: List[str] = Field(default_factory=list, description="List of criteria that define mission success")
-    mission_status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
-
-    current_hop: Optional[Hop] = Field(default=None, description="Current hop being designed or executed")
-    hop_history: List[Hop] = Field(default_factory=list, description="List of completed hops")
-    inputs: List[Asset]
-    outputs: List[Asset]
-    mission_state: Dict[str, Asset] = Field(default_factory=dict)
+    status: MissionStatus = Field(default=MissionStatus.PENDING, description="Status of the mission")
+    input_asset_ids: List[str] = Field(default_factory=list)
+    output_asset_ids: List[str] = Field(default_factory=list)
     
     # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -143,10 +96,9 @@ class Mission(BaseModel):
 
 
 class AssetFieldMapping(BaseModel):
-    """Maps a tool parameter to a specific asset in the hop state."""
+    """Maps a tool parameter to a specific asset by ID."""
     type: Literal["asset_field"] = "asset_field"
     state_asset: str
-    path: Optional[str] = None
 
 
 class LiteralMapping(BaseModel):
@@ -171,11 +123,13 @@ class ToolStep(BaseModel):
     id: str
     tool_id: str
     description: str
+    template: Optional[str] = None
+    sequence_order: int
     resource_configs: Dict[str, Resource] = Field(default_factory=dict)
     parameter_mapping: Dict[str, ParameterMappingValue]
     result_mapping: Dict[str, ResultMappingValue]
     status: ExecutionStatus = Field(default=ExecutionStatus.PENDING, description="Status of the tool step")
-    error: Optional[str] = None
+    error_message: Optional[str] = None
     validation_errors: Optional[List[str]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -212,7 +166,7 @@ class ToolStep(BaseModel):
             return result
         except Exception as e:
             self.status = ExecutionStatus.FAILED
-            self.error = str(e)
+            self.error_message = str(e)
             raise ToolExecutionError(str(e), self.tool_id)
 
 

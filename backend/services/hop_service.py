@@ -1,0 +1,223 @@
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, desc
+from datetime import datetime
+from uuid import uuid4
+
+from models import Hop as HopModel, HopStatus
+from schemas.workflow import Hop, HopStatus as HopStatusSchema
+from services.asset_service import AssetService
+
+
+class HopService:
+    def __init__(self, db: Session):
+        self.db = db
+        self.asset_service = AssetService()
+
+    def _model_to_schema(self, hop_model: HopModel) -> Hop:
+        """Convert database model to Hop schema"""
+        return Hop(
+            id=hop_model.id,
+            name=hop_model.name,
+            description=hop_model.description or "",
+            goal=hop_model.goal,
+            success_criteria=hop_model.success_criteria or [],
+            input_asset_ids=hop_model.input_asset_ids or [],
+            output_asset_ids=hop_model.output_asset_ids or [],
+            sequence_order=hop_model.sequence_order,
+            status=HopStatusSchema(hop_model.status.value),
+            is_final=hop_model.is_final,
+            is_resolved=hop_model.is_resolved,
+            rationale=hop_model.rationale,
+            error_message=hop_model.error_message,
+            metadata=hop_model.metadata or {},
+            created_at=hop_model.created_at,
+            updated_at=hop_model.updated_at
+        )
+
+    async def create_hop(
+        self,
+        mission_id: str,
+        user_id: int,
+        name: str,
+        description: str,
+        goal: Optional[str] = None,
+        success_criteria: Optional[List[str]] = None,
+        input_asset_ids: Optional[List[str]] = None,
+        output_asset_ids: Optional[List[str]] = None,
+        rationale: Optional[str] = None,
+        is_final: bool = False,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Hop:
+        """Create a new hop with automatic sequence ordering"""
+        
+        # Get the next sequence order for this mission
+        latest_hop = self.db.query(HopModel).filter(
+            HopModel.mission_id == mission_id
+        ).order_by(desc(HopModel.sequence_order)).first()
+        
+        next_sequence = (latest_hop.sequence_order + 1) if latest_hop else 1
+        
+        hop_model = HopModel(
+            id=str(uuid4()),
+            mission_id=mission_id,
+            user_id=user_id,
+            name=name,
+            description=description,
+            goal=goal,
+            success_criteria=success_criteria or [],
+            input_asset_ids=input_asset_ids or [],
+            output_asset_ids=output_asset_ids or [],
+            sequence_order=next_sequence,
+            status=HopStatus.PROPOSED,
+            is_final=is_final,
+            is_resolved=False,
+            rationale=rationale,
+            metadata=metadata or {}
+        )
+        
+        self.db.add(hop_model)
+        self.db.commit()
+        self.db.refresh(hop_model)
+        
+        return self._model_to_schema(hop_model)
+
+    async def get_hop(self, hop_id: str, user_id: int) -> Optional[Hop]:
+        """Get a hop by ID"""
+        hop_model = self.db.query(HopModel).filter(
+            and_(HopModel.id == hop_id, HopModel.user_id == user_id)
+        ).first()
+        
+        if not hop_model:
+            return None
+        
+        return self._model_to_schema(hop_model)
+
+    async def get_hops_by_mission(self, mission_id: str, user_id: int) -> List[Hop]:
+        """Get all hops for a mission, ordered by sequence"""
+        hop_models = self.db.query(HopModel).filter(
+            and_(HopModel.mission_id == mission_id, HopModel.user_id == user_id)
+        ).order_by(HopModel.sequence_order).all()
+        
+        return [self._model_to_schema(hop_model) for hop_model in hop_models]
+
+    async def update_hop(
+        self,
+        hop_id: str,
+        user_id: int,
+        updates: Dict[str, Any]
+    ) -> Optional[Hop]:
+        """Update a hop"""
+        hop_model = self.db.query(HopModel).filter(
+            and_(HopModel.id == hop_id, HopModel.user_id == user_id)
+        ).first()
+        
+        if not hop_model:
+            return None
+        
+        # Handle status updates
+        if 'status' in updates:
+            if isinstance(updates['status'], str):
+                updates['status'] = HopStatus(updates['status'])
+        
+        # Update fields
+        for key, value in updates.items():
+            if hasattr(hop_model, key):
+                setattr(hop_model, key, value)
+        
+        hop_model.updated_at = datetime.utcnow()
+        
+        self.db.commit()
+        self.db.refresh(hop_model)
+        
+        return self._model_to_schema(hop_model)
+
+    async def update_hop_status(
+        self,
+        hop_id: str,
+        user_id: int,
+        status: HopStatusSchema,
+        error_message: Optional[str] = None
+    ) -> Optional[Hop]:
+        """Update hop status with optional error message"""
+        updates = {
+            'status': HopStatus(status.value),
+            'updated_at': datetime.utcnow()
+        }
+        
+        if error_message:
+            updates['error_message'] = error_message
+        elif status == HopStatusSchema.COMPLETED:
+            # Clear error message on successful completion
+            updates['error_message'] = None
+        
+        return await self.update_hop(hop_id, user_id, updates)
+
+    async def delete_hop(self, hop_id: str, user_id: int) -> bool:
+        """Delete a hop"""
+        hop_model = self.db.query(HopModel).filter(
+            and_(HopModel.id == hop_id, HopModel.user_id == user_id)
+        ).first()
+        
+        if not hop_model:
+            return False
+        
+        self.db.delete(hop_model)
+        self.db.commit()
+        
+        return True
+
+    async def get_current_hop(self, mission_id: str, user_id: int) -> Optional[Hop]:
+        """Get the current active hop for a mission"""
+        # Get the first hop that is not completed
+        hop_model = self.db.query(HopModel).filter(
+            and_(
+                HopModel.mission_id == mission_id,
+                HopModel.user_id == user_id,
+                HopModel.status.notin_([HopStatus.COMPLETED, HopStatus.CANCELLED])
+            )
+        ).order_by(HopModel.sequence_order).first()
+        
+        if not hop_model:
+            return None
+        
+        return self._model_to_schema(hop_model)
+
+    async def get_completed_hops(self, mission_id: str, user_id: int) -> List[Hop]:
+        """Get all completed hops for a mission"""
+        hop_models = self.db.query(HopModel).filter(
+            and_(
+                HopModel.mission_id == mission_id,
+                HopModel.user_id == user_id,
+                HopModel.status == HopStatus.COMPLETED
+            )
+        ).order_by(HopModel.sequence_order).all()
+        
+        return [self._model_to_schema(hop_model) for hop_model in hop_models]
+
+    async def reorder_hops(
+        self,
+        mission_id: str,
+        user_id: int,
+        hop_id_order: List[str]
+    ) -> List[Hop]:
+        """Reorder hops by updating their sequence_order"""
+        updated_hops = []
+        
+        for i, hop_id in enumerate(hop_id_order):
+            hop_model = self.db.query(HopModel).filter(
+                and_(
+                    HopModel.id == hop_id,
+                    HopModel.mission_id == mission_id,
+                    HopModel.user_id == user_id
+                )
+            ).first()
+            
+            if hop_model:
+                hop_model.sequence_order = i + 1
+                hop_model.updated_at = datetime.utcnow()
+                updated_hops.append(self._model_to_schema(hop_model))
+        
+        self.db.commit()
+        
+        return updated_hops 

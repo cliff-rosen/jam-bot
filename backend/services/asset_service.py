@@ -107,7 +107,7 @@ class AssetService:
 
     async def create_asset(
         self,
-        user_id: str,
+        user_id: int,
         name: str,
         type: str,
         subtype: Optional[str] = None,
@@ -115,8 +115,7 @@ class AssetService:
         content: Optional[Any] = None,
         asset_metadata: Optional[Dict[str, Any]] = None,
         scope_type: str = "mission",
-        scope_id: str = "orphaned",
-        asset_key: Optional[str] = None
+        scope_id: str = "orphaned"
     ) -> Asset:
         """Create a new asset with scope-based organization"""
 
@@ -128,13 +127,9 @@ class AssetService:
         asset_metadata_dict.setdefault("version", 1)
         asset_metadata_dict["token_count"] = token_count
 
-        # Use name as asset_key if not provided
-        if asset_key is None:
-            asset_key = name
-
         query = """
-            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata, scope_type, scope_id, asset_key)
-            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata, :scope_type, :scope_id, :asset_key)
+            INSERT INTO assets (id, user_id, name, description, type, subtype, content, asset_metadata, scope_type, scope_id)
+            VALUES (:id, :user_id, :name, :description, :type, :subtype, :content, :asset_metadata, :scope_type, :scope_id)
             RETURNING *
         """
         values = {
@@ -147,8 +142,7 @@ class AssetService:
             "content": content,
             "asset_metadata": asset_metadata_dict,
             "scope_type": scope_type,
-            "scope_id": scope_id,
-            "asset_key": asset_key
+            "scope_id": scope_id
         }
         
         new_asset_model = await self.db.execute(query, values)
@@ -170,6 +164,37 @@ class AssetService:
         """Get all assets for a user"""
         query = "SELECT * FROM assets WHERE user_id = :user_id"
         values = {"user_id": user_id}
+        asset_models = await self.db.fetch_all(query, values)
+        return [self._model_to_schema(model) for model in asset_models]
+
+    async def get_assets_by_scope(
+        self,
+        user_id: int,
+        scope_type: str,
+        scope_id: str
+    ) -> List[Asset]:
+        """Get all assets for a specific scope"""
+        query = "SELECT * FROM assets WHERE user_id = :user_id AND scope_type = :scope_type AND scope_id = :scope_id"
+        values = {"user_id": user_id, "scope_type": scope_type, "scope_id": scope_id}
+        asset_models = await self.db.fetch_all(query, values)
+        return [self._model_to_schema(model) for model in asset_models]
+
+    async def get_assets_by_ids(
+        self,
+        user_id: int,
+        asset_ids: List[str]
+    ) -> List[Asset]:
+        """Get multiple assets by their IDs"""
+        if not asset_ids:
+            return []
+        
+        placeholders = ", ".join(f":id_{i}" for i in range(len(asset_ids)))
+        query = f"SELECT * FROM assets WHERE user_id = :user_id AND id IN ({placeholders})"
+        
+        values = {"user_id": user_id}
+        for i, asset_id in enumerate(asset_ids):
+            values[f"id_{i}"] = asset_id
+        
         asset_models = await self.db.fetch_all(query, values)
         return [self._model_to_schema(model) for model in asset_models]
 

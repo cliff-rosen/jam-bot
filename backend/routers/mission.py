@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Any
+from pydantic import BaseModel
 
 from database import get_db
 from services.auth_service import validate_token
 from services.mission_service import MissionService
-from schemas.workflow import Mission
+from schemas.workflow import Mission, MissionStatus
 
 router = APIRouter(prefix="/missions", tags=["missions"])
+
+
+class MissionStatusUpdate(BaseModel):
+    status: MissionStatus
 
 
 @router.post("/", response_model=dict)
@@ -44,6 +49,25 @@ async def get_mission(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{mission_id}/full", response_model=Dict[str, Any])
+async def get_mission_with_hops(
+    mission_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(validate_token)
+):
+    """Get a mission with its hops and tool steps"""
+    try:
+        mission_service = MissionService(db)
+        result = await mission_service.get_mission_with_hops(mission_id, current_user.user_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Mission not found")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/{mission_id}")
 async def update_mission(
     mission_id: str,
@@ -58,6 +82,30 @@ async def update_mission(
         if not success:
             raise HTTPException(status_code=404, detail="Mission not found")
         return {"message": "Mission updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{mission_id}/status")
+async def update_mission_status(
+    mission_id: str,
+    status_update: MissionStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(validate_token)
+):
+    """Update mission status"""
+    try:
+        mission_service = MissionService(db)
+        success = await mission_service.update_mission_status(
+            mission_id, 
+            current_user.user_id, 
+            status_update.status
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Mission not found")
+        return {"message": "Mission status updated successfully"}
     except HTTPException:
         raise
     except Exception as e:

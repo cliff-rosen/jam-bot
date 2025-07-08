@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator
 import uuid
 
-from schemas.asset import Asset, AssetStatus, AssetMetadata
+from schemas.asset import Asset, AssetStatus
 from schemas.workflow import ToolStep, Hop, HopStatus, ToolExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
 from schemas.base import SchemaType, ValueType, PrimitiveType, ComplexType, CanonicalType
 from utils.string_utils import canonical_key
@@ -112,12 +112,12 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
     if asset_lite.external_system_for:
         custom_metadata['external_system_for'] = asset_lite.external_system_for
 
-    asset_metadata = AssetMetadata(
-        created_at=current_time,
-        updated_at=current_time,
-        creator='mission_specialist',
-        custom_metadata=custom_metadata,
-    )
+    asset_metadata = {
+        "created_at": current_time,
+        "updated_at": current_time,
+        "creator": "mission_specialist",
+        "custom_metadata": custom_metadata,
+    }
     
     # Determine initial status based on type and subtype
     # Assets created from lite models start as PROPOSED (frontend only)

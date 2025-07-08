@@ -15,7 +15,7 @@ from config.settings import settings
 
 from schemas.chat import Message, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
-from schemas.asset import Asset, AssetStatus, AssetMetadata
+from schemas.asset import Asset, AssetStatus
 from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
 from schemas.base import SchemaType, ValueType
 
@@ -814,12 +814,12 @@ def _process_implementation_plan(
             ),
             status=AssetStatus.PENDING,
             role='intermediate',
-            asset_metadata=AssetMetadata(
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-                creator='hop_implementer',
-                custom_metadata={}
-            ),
+            asset_metadata={
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "creator": "hop_implementer",
+                "custom_metadata": {}
+            },
             value=None,  # Initialize with no value
             subtype=None
         )

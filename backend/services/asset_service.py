@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from schemas.asset import Asset, DatabaseEntityMetadata
 from schemas.base import SchemaType
-from schemas.asset import AssetMetadata
+
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
@@ -84,15 +84,15 @@ class AssetService:
             else:
                 return default
         
-        asset_metadata = AssetMetadata(
-            created_at=parse_datetime(metadata_dict.get('createdAt')),
-            updated_at=parse_datetime(metadata_dict.get('updatedAt')),
-            creator=metadata_dict.get('creator'),
-            tags=metadata_dict.get('tags', []),
-            agent_associations=metadata_dict.get('agent_associations', []),
-            version=metadata_dict.get('version', 1),
-            token_count=metadata_dict.get('token_count', 0)
-        )
+        asset_metadata = {
+            "created_at": parse_datetime(metadata_dict.get('createdAt')),
+            "updated_at": parse_datetime(metadata_dict.get('updatedAt')),
+            "creator": metadata_dict.get('creator'),
+            "tags": metadata_dict.get('tags', []),
+            "agent_associations": metadata_dict.get('agent_associations', []),
+            "version": metadata_dict.get('version', 1),
+            "token_count": metadata_dict.get('token_count', 0)
+        }
         
         return Asset(
             id=str(model.get('id')),
@@ -211,7 +211,7 @@ class AssetService:
             
             if 'asset_metadata' not in updates:
                 current_asset = await self.get_asset(asset_id, user_id)
-                updates['asset_metadata'] = current_asset.asset_metadata.dict() if current_asset else {}
+                updates['asset_metadata'] = current_asset.asset_metadata if current_asset else {}
 
             updates['asset_metadata']['token_count'] = new_token_count
             updates['asset_metadata']['updatedAt'] = datetime.utcnow().isoformat()

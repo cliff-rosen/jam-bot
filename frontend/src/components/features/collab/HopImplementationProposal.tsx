@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, XCircle, X, Settings, Play, ChevronDown, ChevronUp } from 'lucide-react';
-import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
+import { Hop, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 
 interface HopImplementationProposalProps {
     hop: Hop;
@@ -200,11 +200,11 @@ export const HopImplementationProposal: React.FC<HopImplementationProposalProps>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${step.status === ExecutionStatus.COMPLETED
+                                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${step.status === ToolExecutionStatus.COMPLETED
                                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
-                                                    : step.status === ExecutionStatus.RUNNING
+                                                    : step.status === ToolExecutionStatus.RUNNING
                                                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-                                                        : step.status === ExecutionStatus.FAILED
+                                                        : step.status === ToolExecutionStatus.FAILED
                                                             ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
                                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                                                     }`}>

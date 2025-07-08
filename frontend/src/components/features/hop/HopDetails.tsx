@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Hop, ToolStep, ExecutionStatus } from '@/types/workflow';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
+
 import { getExecutionStatusDisplay, getStatusBadgeClass, getHopStatusDisplay } from '@/utils/statusUtils';
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
+
+import { Hop, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { useJamBot } from '@/context/JamBotContext';
+import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
 
 interface HopDetailsProps {
     hop: Hop;
@@ -22,7 +24,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
     // Use HopStatus directly for display
     const statusDisplay = getHopStatusDisplay(hop.status);
-    const completedSteps = hop.tool_steps?.filter(step => step.status === ExecutionStatus.COMPLETED).length || 0;
+    const completedSteps = hop.tool_steps?.filter(step => step.status === ToolExecutionStatus.COMPLETED).length || 0;
     const totalSteps = hop.tool_steps?.length || 0;
 
     const handleExecuteToolStep = async (step: ToolStep) => {
@@ -173,7 +175,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                                         {index + 1}. {step.tool_id}
                                                     </span>
                                                     <div className="flex items-center gap-2">
-                                                        {step.status !== ExecutionStatus.COMPLETED && (
+                                                        {step.status !== ToolExecutionStatus.COMPLETED && (
                                                             <button
                                                                 onClick={() => handleExecuteToolStep(step)}
                                                                 disabled={executingStepId === step.id}

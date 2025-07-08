@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, Hop, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
+import { Mission, MissionStatus, Hop, HopStatus, defaultMission, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
@@ -57,9 +57,9 @@ const initialState: JamBotState = {
 const sanitizeAsset = (asset: Asset): Asset => {
     return {
         ...asset,
-        value: typeof asset.value === 'string'
-            ? asset.value.substring(0, 100)
-            : JSON.stringify(asset.value).substring(0, 100)
+        value_representation: typeof asset.value_representation === 'string'
+            ? asset.value_representation.substring(0, 100)
+            : JSON.stringify(asset.value_representation).substring(0, 100)
     };
 };
 
@@ -79,10 +79,10 @@ const createAssetOnBackend = async (asset: Asset): Promise<void> => {
         await assetApi.createAsset({
             name: asset.name,
             description: asset.description,
-            type: asset.schema_definition.type,
+            type: asset.type,
             subtype: asset.subtype,
             role: asset.role,
-            content: asset.value,
+            content: asset.value_representation,
             asset_metadata: asset.asset_metadata
         });
         console.log('Successfully created asset on backend:', asset.name);
@@ -138,7 +138,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: {
                     ...proposedMission,
-                    mission_status: MissionStatus.ACTIVE
+                    status: MissionStatus.READY_FOR_NEXT_HOP
                 },
                 collabArea: {
                     type: null,
@@ -177,7 +177,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     mission_state: updatedMissionState,
                     current_hop: {
                         ...acceptedHop,
-                        status: HopStatus.HOP_READY_TO_RESOLVE
+                        status: HopStatus.READY_TO_RESOLVE
                     }
                 }
             };
@@ -191,7 +191,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     current_hop: {
                         ...implementationHop,
-                        status: HopStatus.HOP_READY_TO_EXECUTE
+                        status: HopStatus.READY_TO_EXECUTE
                     }
                 }
             };
@@ -205,14 +205,14 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 mission: {
                     ...state.mission,
                     current_hop: undefined,
-                    hop_history: [
-                        ...(state.mission.hop_history || []),
+                    hops: [
+                        ...(state.mission.hops || []),
                         {
                             ...completedHop,
-                            status: HopStatus.ALL_HOPS_COMPLETE
+                            status: HopStatus.COMPLETED
                         }
                     ],
-                    mission_status: isFinalHop ? MissionStatus.COMPLETE : state.mission.mission_status
+                    status: isFinalHop ? MissionStatus.COMPLETED : state.mission.status
                 }
             };
         case 'START_HOP_EXECUTION':
@@ -226,10 +226,10 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     current_hop: {
                         ...state.mission.current_hop,
-                        status: HopStatus.HOP_RUNNING,
+                        status: HopStatus.EXECUTING,
                         tool_steps: state.mission.current_hop.tool_steps?.map((step, index) => {
                             if (index === 0) {
-                                return { ...step, status: ExecutionStatus.RUNNING };
+                                return { ...step, status: ToolExecutionStatus.EXECUTING };
                             }
                             return step;
                         }) || []
@@ -243,10 +243,10 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             const completedHopForExecution = {
                 ...state.mission.current_hop,
-                status: HopStatus.ALL_HOPS_COMPLETE,
+                status: HopStatus.COMPLETED,
                 tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                     ...step,
-                    status: ExecutionStatus.COMPLETED
+                    status: ToolExecutionStatus.COMPLETED
                 })) || []
             };
 
@@ -255,8 +255,8 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 mission: {
                     ...state.mission,
                     current_hop: undefined,
-                    hop_history: [
-                        ...(state.mission.hop_history || []),
+                    hops: [
+                        ...(state.mission.hops || []),
                         completedHopForExecution
                     ]
                 }
@@ -268,11 +268,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             const failedHop = {
                 ...state.mission.current_hop,
-                status: HopStatus.HOP_READY_TO_EXECUTE,
+                status: HopStatus.READY_TO_EXECUTE,
                 error,
                 tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                     ...step,
-                    status: ExecutionStatus.FAILED
+                    status: ToolExecutionStatus.FAILED
                 })) || []
             };
 
@@ -290,11 +290,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             const retriedHop = {
                 ...state.mission.current_hop,
-                status: HopStatus.HOP_READY_TO_EXECUTE,
+                status: HopStatus.READY_TO_EXECUTE,
                 error: undefined,
                 tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                     ...step,
-                    status: ExecutionStatus.PENDING
+                    status: ToolExecutionStatus.PROPOSED
                 })) || []
             };
 
@@ -335,42 +335,33 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 const sanitizedHop = {
                     ...hop,
                     hop_state: sanitizeHopState(hop.hop_state),
-                    status: HopStatus.ALL_HOPS_COMPLETE,
+                    status: HopStatus.COMPLETED,
                     is_resolved: true
                 };
 
-                updatedMission.hop_history = [
-                    ...(state.mission.hop_history || []),
+                updatedMission.hops = [
+                    ...(state.mission.hops || []),
                     sanitizedHop
                 ];
                 // Use type assertion to handle current_hop
                 (updatedMission as any).current_hop = undefined;
 
                 // Check if all mission outputs are ready
-                const allMissionOutputsReady = updatedMission.outputs.every(output => {
+                const allMissionOutputsReady = Object.values(updatedMission.mission_state).every(output => {
                     const updatedOutput = updatedMissionOutputs.get(output.id);
                     return updatedOutput?.status === AssetStatus.READY;
                 });
 
                 // Update mission status
                 if (allMissionOutputsReady) {
-                    updatedMission.mission_status = MissionStatus.COMPLETE;
+                    updatedMission.status = MissionStatus.COMPLETED;
                 }
             }
 
             // Update any mission outputs that were modified
             if (updatedMissionOutputs.size > 0) {
                 // Update mission outputs
-                updatedMission.outputs = state.mission.outputs.map(output => {
-                    const updatedOutput = updatedMissionOutputs.get(output.id);
-                    return updatedOutput || output;
-                });
-
-                // Update mission state
-                updatedMission.mission_state = {
-                    ...state.mission.mission_state,
-                    ...Object.fromEntries(updatedMissionOutputs)
-                };
+                updatedMission.mission_state = Object.fromEntries(updatedMissionOutputs);
             }
 
             return {
@@ -390,7 +381,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                         ...hop,
                         tool_steps: hop.tool_steps.map(s =>
                             s.id === step.id
-                                ? { ...s, status: ExecutionStatus.RUNNING }
+                                ? { ...s, status: ToolExecutionStatus.EXECUTING }
                                 : s
                         )
                     }

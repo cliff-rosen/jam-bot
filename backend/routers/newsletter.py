@@ -13,7 +13,7 @@ from services.newsletter_summary_service import NewsletterSummaryService
 from services.newsletter_summary_report_service import NewsletterSummaryReportService
 from schemas.newsletter import Newsletter, NewsletterExtractionRange, TimePeriodType
 from schemas.email import EmailAgentResponse
-from schemas.asset import Asset, AssetType, AssetStatus, AssetMetadata
+from schemas.asset import Asset, AssetType, AssetStatus
 from schemas.base import ValueType
 from schemas.workflow import Mission, MissionStatus
 from schemas.lite_models import AssetLite, create_asset_from_lite
@@ -448,12 +448,12 @@ def create_asset(name: str, description: str, value: Any = None) -> Asset:
     current_time = datetime.utcnow()
     
     # Create metadata
-    asset_metadata = AssetMetadata(
-        created_at=current_time,
-        updated_at=current_time,
-        creator='newsletter_service',
-        custom_metadata={}
-    )
+    asset_metadata = {
+        "created_at": current_time,
+        "updated_at": current_time,
+        "creator": "newsletter_service",
+        "custom_metadata": {}
+    }
     
     # Create the asset
     return Asset(

@@ -12,9 +12,10 @@ from enum import Enum as PyEnum
 # Define enums directly in models to break circular dependency
 class MissionStatus(str, PyEnum):
     """Status of a mission"""
-    PROPOSED = "proposed"
-    READY_TO_DESIGN = "ready_to_design"
-    EXECUTING = "executing"
+    PROPOSED = "proposed" # once user accepts mission status advances to READY_FOR_NEXT_HOP
+    READY_FOR_NEXT_HOP = "ready_for_next_hop" # 
+
+    EXECUTING_HOP = "executing_hop"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

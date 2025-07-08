@@ -64,59 +64,29 @@ class AssetService:
 
     def _model_to_schema(self, model: Dict[str, Any]) -> Asset:
         """Convert database model to unified Asset schema"""
-        content = model.get('content')
-        if isinstance(content, str):
-            content = content
-
+        from schemas.asset import Asset as BackendAsset, AssetStatus, AssetRole, AssetScopeType
+        
+        # Get content from full content or summary
+        content = model.get('content') or model.get('content_summary')
+        
+        # Parse metadata
         metadata_dict = model.get('asset_metadata', {})
         
-        # Determine if array from the type itself or schema logic
-        # For now, default to False - this should be determined by type semantics
-        is_array = False  # Will be determined by schema definition logic
-        
-        schema = SchemaType(
-            type=model.get('type'),
-            description=model.get('description'),
-            is_array=is_array,
-            fields=None
-        )
-        
-        def parse_datetime(date_value, default=None):
-            if default is None:
-                default = datetime.utcnow()
-            
-            if isinstance(date_value, datetime):
-                return date_value
-            elif isinstance(date_value, str):
-                try:
-                    return datetime.fromisoformat(date_value.replace('Z', '+00:00'))
-                except (ValueError, TypeError):
-                    try:
-                        return datetime.fromisoformat(date_value)
-                    except (ValueError, TypeError):
-                        return default
-            else:
-                return default
-        
-        asset_metadata = {
-            "created_at": parse_datetime(metadata_dict.get('createdAt')),
-            "updated_at": parse_datetime(metadata_dict.get('updatedAt')),
-            "creator": metadata_dict.get('creator'),
-            "tags": metadata_dict.get('tags', []),
-            "agent_associations": metadata_dict.get('agent_associations', []),
-            "version": metadata_dict.get('version', 1),
-            "token_count": metadata_dict.get('token_count', 0)
-        }
-        
-        return Asset(
+        # Create proper backend Asset using the schema
+        return BackendAsset(
             id=str(model.get('id')),
             name=model.get('name'),
             description=model.get('description', ""),
-            schema_definition=schema,
-            value=content,
+            type=model.get('type'),
             subtype=model.get('subtype'),
-            role=model.get('role'),
-            asset_metadata=asset_metadata
+            scope_type=AssetScopeType(model.get('scope_type', 'mission')),
+            scope_id=str(model.get('scope_id')),
+            status=AssetStatus(model.get('status', 'pending')),
+            role=AssetRole(model.get('role', 'intermediate')),
+            value_representation=str(content) if content else "",
+            asset_metadata=metadata_dict,
+            created_at=model.get('created_at', datetime.utcnow()),
+            updated_at=model.get('updated_at', datetime.utcnow())
         )
 
     def create_asset(
@@ -129,7 +99,8 @@ class AssetService:
         content: Optional[Any] = None,
         asset_metadata: Optional[Dict[str, Any]] = None,
         scope_type: str = "mission",
-        scope_id: str = "orphaned"
+        scope_id: str = "orphaned",
+        role: str = "intermediate"
     ) -> Asset:
         """Create a new asset with scope-based organization"""
 
@@ -152,9 +123,11 @@ class AssetService:
             type=type,
             subtype=subtype,
             content=content,
+            content_summary=str(content) if content else None,
             asset_metadata=asset_metadata_dict,
             scope_type=scope_type,
-            scope_id=scope_id
+            scope_id=scope_id,
+            role=role
         )
         
         self.db.add(new_asset)

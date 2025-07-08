@@ -13,7 +13,7 @@ interface MissionProps {
 export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
     const { state, setCollabArea } = useJamBot();
     const mission: MissionType = state.mission || defaultMission;
-    const missionStatusDisplay = getMissionStatusDisplay(mission.mission_status);
+    const missionStatusDisplay = getMissionStatusDisplay(mission.status);
     const [expanded, setExpanded] = useState(false);
 
     // Don't render anything if mission is pending
@@ -55,9 +55,9 @@ export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
                     )}
                     <div>
                         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Hop History</h4>
-                        {mission.hop_history.length > 0 ? (
+                        {mission.hops.length > 0 ? (
                             <div className="space-y-2">
-                                {mission.hop_history.map((hop, idx) => (
+                                {mission.hops.map((hop: any, idx: number) => (
                                     <button
                                         key={hop.id}
                                         className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center gap-6 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none shadow-sm"

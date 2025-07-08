@@ -213,7 +213,7 @@ Is Final: {hop.is_final}"""
             # Get the asset from hop state if available
             if local_key in hop.hop_state:
                 asset = hop.hop_state[local_key]
-                asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
+                asset_type = asset.type
                 
                 # Enhanced formatting with agent specification
                 asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
@@ -221,16 +221,10 @@ Is Final: {hop.is_final}"""
                 # Add agent specification if available
                 if hasattr(asset, 'agent_specification') and asset.agent_specification:
                     asset_info += f"\n  Agent Spec: {asset.agent_specification}"
-                elif asset.schema_definition and asset.schema_definition.description:
-                    asset_info += f"\n  Schema: {asset.schema_definition.description}"
                 
                 # Add subtype if available
                 if asset.subtype:
                     asset_info += f"\n  Subtype: {asset.subtype}"
-                
-                # Add collection info if applicable
-                if asset.schema_definition.is_array:
-                    asset_info += f"\n  Array: true"
                 
                 output_assets.append(asset_info)
             else:
@@ -251,15 +245,13 @@ Is Final: {hop.is_final}"""
         # Format input assets with enhanced detail
         input_assets = []
         for asset in input_assets_list:
-            asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
+            asset_type = asset.type
             asset_info = f"- **{asset.name}** ({asset_type}): {asset.description}"
             input_details = [asset_info]
             
             # Add agent specification if available
             if hasattr(asset, 'agent_specification') and asset.agent_specification:
                 input_details.append(f"  Agent Spec: {asset.agent_specification}")
-            elif asset.schema_definition and asset.schema_definition.description:
-                input_details.append(f"  Schema: {asset.schema_definition.description}")
             
             if asset.status != "ready":
                 input_details.append(f"  Status: {asset.status}")
@@ -272,12 +264,12 @@ Is Final: {hop.is_final}"""
         # Format output assets
         output_assets = []
         for asset in output_assets_list:
-            output_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
+            output_assets.append(f"- **{asset.name}** ({asset.type}): {asset.description}")
         
         # Format intermediate assets  
         intermediate_assets = []
         for asset in intermediate_assets_list:
-            intermediate_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
+            intermediate_assets.append(f"- **{asset.name}** ({asset.type}): {asset.description}")
         
         # Build formatted string
         sections = []

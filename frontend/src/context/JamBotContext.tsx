@@ -7,6 +7,7 @@ import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
 import { toolsApi } from '@/lib/api/toolsApi';
 import { assetApi } from '@/lib/api/assetApi';
+import { missionApi } from '@/lib/api/missionApi';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
 
@@ -455,11 +456,37 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
     }, []);
 
-    const acceptMissionProposal = useCallback(() => {
+    const acceptMissionProposal = useCallback(async () => {
         // Get the proposed mission from the collab area content
         const proposedMission = state.collabArea.content?.mission;
         if (proposedMission) {
-            dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: proposedMission });
+            try {
+                // Create mission with status READY_FOR_NEXT_HOP
+                const missionToCreate = {
+                    ...proposedMission,
+                    status: MissionStatus.READY_FOR_NEXT_HOP
+                };
+
+                // Call backend API to persist the mission
+                const response = await missionApi.createMission(missionToCreate);
+
+                // Update the mission with the returned ID
+                const persistedMission = {
+                    ...missionToCreate,
+                    id: response.mission_id
+                };
+
+                dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: persistedMission });
+            } catch (error) {
+                console.error('Error accepting mission proposal:', error);
+                // Fall back to local state update if API call fails
+                dispatch({
+                    type: 'ACCEPT_MISSION_PROPOSAL', payload: {
+                        ...proposedMission,
+                        status: MissionStatus.READY_FOR_NEXT_HOP
+                    }
+                });
+            }
         }
     }, [state.collabArea.content]);
 

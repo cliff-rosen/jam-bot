@@ -28,9 +28,9 @@ def sanitize_asset_for_chat(asset: Asset) -> dict:
         "id": asset.id,
         "name": asset.name,
         "description": asset.description,
-        "schema_definition": asset.schema_definition.model_dump() if asset.schema_definition else None,
-        "status": asset.status.value if asset.status else None,
+        "type": asset.type,
         "subtype": asset.subtype,
+        "status": asset.status.value if asset.status else None,
         "role": asset.role,
         "asset_metadata": {
             **(asset.asset_metadata.model_dump() if asset.asset_metadata else {}),
@@ -86,8 +86,8 @@ def sanitize_mission_for_chat(mission: Mission) -> dict:
         mission_dict['current_hop'] = sanitize_hop_for_chat(mission.current_hop)
     
     # Sanitize hop history
-    mission_dict['hop_history'] = [
-        sanitize_hop_for_chat(hop) for hop in mission.hop_history
+    mission_dict['hops'] = [
+        sanitize_hop_for_chat(hop) for hop in mission.hops
     ]
     
     # Sanitize input and output assets using helper methods

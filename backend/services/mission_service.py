@@ -31,12 +31,32 @@ class MissionService:
             goal=mission.goal,
             status=status,
             success_criteria=mission.success_criteria,
-            input_asset_ids=mission.input_asset_ids,
-            output_asset_ids=mission.output_asset_ids,
-            metadata=mission.metadata
+            mission_metadata=mission.mission_metadata
         )
         
         self.db.add(mission_model)
+        self.db.flush()  # Get the mission_id but don't commit yet
+        
+        # Create assets if they exist in mission_state
+        if mission.mission_state:
+            asset_service = AssetService()
+            try:
+                for asset_name, asset in mission.mission_state.items():
+                    asset_service.create_asset(
+                        user_id=user_id,
+                        name=asset.name,
+                        type=asset.type,
+                        subtype=asset.subtype,
+                        description=asset.description,
+                        content=asset.value_representation,
+                        asset_metadata=asset.asset_metadata,
+                        scope_type="mission",
+                        scope_id=mission_id,
+                        role=asset.role.value
+                    )
+            finally:
+                asset_service.close()
+        
         self.db.commit()
         self.db.refresh(mission_model)
         
@@ -70,9 +90,7 @@ class MissionService:
         mission_model.goal = mission.goal
         mission_model.status = self._map_schema_status_to_model(mission.status)
         mission_model.success_criteria = mission.success_criteria
-        mission_model.input_asset_ids = mission.input_asset_ids
-        mission_model.output_asset_ids = mission.output_asset_ids
-        mission_model.metadata = mission.metadata
+        mission_model.mission_metadata = mission.mission_metadata
         mission_model.updated_at = datetime.utcnow()
         
         self.db.commit()
@@ -144,6 +162,16 @@ class MissionService:
     
     def _model_to_mission(self, mission_model: MissionModel) -> Mission:
         """Convert database model to Mission schema object"""
+        # Load assets from database
+        assets = self.asset_service.get_assets_by_scope(
+            user_id=mission_model.user_id,
+            scope_type="mission",
+            scope_id=mission_model.id
+        )
+        
+        # Create mission_state dict
+        mission_state = {asset.name: asset for asset in assets}
+        
         return Mission(
             id=mission_model.id,
             name=mission_model.name,
@@ -151,9 +179,8 @@ class MissionService:
             goal=mission_model.goal,
             status=self._map_model_status_to_schema(mission_model.status),
             success_criteria=mission_model.success_criteria or [],
-            input_asset_ids=mission_model.input_asset_ids or [],
-            output_asset_ids=mission_model.output_asset_ids or [],
-            metadata=mission_model.metadata or {},
+            mission_metadata=mission_model.mission_metadata or {},
+            mission_state=mission_state,
             created_at=mission_model.created_at,
             updated_at=mission_model.updated_at
         )
@@ -162,8 +189,10 @@ class MissionService:
         """Map schema status to model status"""
         mapping = {
             SchemaMissionStatus.PROPOSED: MissionStatus.PROPOSED,
-            SchemaMissionStatus.READY_TO_DESIGN: MissionStatus.READY_TO_DESIGN,
-            SchemaMissionStatus.ACTIVE: MissionStatus.ACTIVE,
+            SchemaMissionStatus.READY_FOR_NEXT_HOP: MissionStatus.READY_FOR_NEXT_HOP,
+            SchemaMissionStatus.BUILDING_HOP: MissionStatus.BUILDING_HOP,
+            SchemaMissionStatus.HOP_READY_TO_EXECUTE: MissionStatus.HOP_READY_TO_EXECUTE,
+            SchemaMissionStatus.EXECUTING_HOP: MissionStatus.EXECUTING_HOP,
             SchemaMissionStatus.COMPLETED: MissionStatus.COMPLETED,
             SchemaMissionStatus.FAILED: MissionStatus.FAILED,
             SchemaMissionStatus.CANCELLED: MissionStatus.CANCELLED
@@ -174,8 +203,10 @@ class MissionService:
         """Map model status to schema status"""
         mapping = {
             MissionStatus.PROPOSED: SchemaMissionStatus.PROPOSED,
-            MissionStatus.READY_TO_DESIGN: SchemaMissionStatus.READY_TO_DESIGN,
-            MissionStatus.ACTIVE: SchemaMissionStatus.ACTIVE,
+            MissionStatus.READY_FOR_NEXT_HOP: SchemaMissionStatus.READY_FOR_NEXT_HOP,
+            MissionStatus.BUILDING_HOP: SchemaMissionStatus.BUILDING_HOP,
+            MissionStatus.HOP_READY_TO_EXECUTE: SchemaMissionStatus.HOP_READY_TO_EXECUTE,
+            MissionStatus.EXECUTING_HOP: SchemaMissionStatus.EXECUTING_HOP,
             MissionStatus.COMPLETED: SchemaMissionStatus.COMPLETED,
             MissionStatus.FAILED: SchemaMissionStatus.FAILED,
             MissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED

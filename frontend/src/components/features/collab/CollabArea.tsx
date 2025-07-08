@@ -42,7 +42,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                         </div>
                     );
                 }
-                const isAlreadyAccepted = state?.mission?.mission_status === MissionStatus.ACTIVE;
+                const isAlreadyAccepted = state?.mission?.status === MissionStatus.EXECUTING_HOP;
                 return (
                     <MissionProposal
                         mission={mission}
@@ -62,11 +62,11 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                         </div>
                     );
                 }
-                const isHopAlreadyAccepted = state?.mission?.hop_history.some(existingHop =>
+                const isHopAlreadyAccepted = state?.mission?.hops.some((existingHop: any) =>
                     existingHop.id === hop.id &&
-                    existingHop.status === HopStatus.HOP_READY_TO_RESOLVE
+                    existingHop.status === HopStatus.READY_TO_RESOLVE
                 ) || false;
-                const needsAcceptance = hop.status === HopStatus.HOP_PROPOSED && !isHopAlreadyAccepted;
+                const needsAcceptance = hop.status === HopStatus.PROPOSED && !isHopAlreadyAccepted;
                 return (
                     <HopProposal
                         hop={hop}
@@ -120,7 +120,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
         const actionButtons = [];
 
         // Add action buttons based on hop status
-        if (currentHop.status === HopStatus.HOP_READY_TO_EXECUTE) {
+        if (currentHop.status === HopStatus.READY_TO_EXECUTE) {
             actionButtons.push(
                 <button
                     key="start"
@@ -131,7 +131,7 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
                     Start Execution
                 </button>
             );
-        } else if (currentHop.status === HopStatus.HOP_RUNNING) {
+        } else if (currentHop.status === HopStatus.EXECUTING) {
             actionButtons.push(
                 <button
                     key="stop"

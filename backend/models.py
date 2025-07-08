@@ -177,10 +177,9 @@ class ToolStep(Base):
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     sequence_order = Column(Integer, nullable=False)
 
+    # Basic tool step information
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    
-    # Basic tool step information
     status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PROPOSED)
     
     parameter_mapping = Column(JSON, nullable=True)  # Dict of parameter mappings

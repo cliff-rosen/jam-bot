@@ -8,6 +8,19 @@
 - **Python Schema** = Business logic layer (Pydantic)
 - **TypeScript Types** = Frontend representations
 
+**Core Design Principles:**
+
+1. **User Context Separation**:
+   - **Database Models**: Include `user_id` fields everywhere for security/isolation
+   - **Schemas**: User context is already established; `user_id` fields are optional/omitted
+   - **Rationale**: Schemas operate after authentication in trusted business logic layer
+
+2. **Parent/Child Context Management**:
+   - **Database Models**: Child entities store parent IDs (foreign key relationships)
+   - **Schemas**: Parent entities contain/manage child context (relationships loaded)
+   - **Example**: DB has `hop.mission_id`, Schema has `mission.hops[]`
+   - **Rationale**: Schemas represent fully-loaded business objects with resolved relationships
+
 ## 1. Logical Model
 
 ### Core Entities
@@ -285,7 +298,6 @@ all_mission_assets = list(mission.mission_state.values())
 class Mission(BaseModel):
     # Core fields
     id: str
-    user_id: int
     name: str
     description: Optional[str] = None
     goal: Optional[str] = None
@@ -300,7 +312,7 @@ class Mission(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relationships (populated by services)
+    # Relationships (populated by services) - Parent manages child context
     current_hop: Optional['Hop'] = None
     hops: List['Hop'] = Field(default_factory=list)  # hop_history
     
@@ -314,8 +326,6 @@ class Mission(BaseModel):
 class Hop(BaseModel):
     # Core fields
     id: str
-    mission_id: str
-    user_id: int
     sequence_order: int
     name: str
     description: Optional[str] = None
@@ -334,7 +344,7 @@ class Hop(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relationships (populated by services)
+    # Relationships (populated by services) - Parent manages child context
     tool_steps: List['ToolStep'] = Field(default_factory=list)
     
     # Asset collections (all hop-scoped assets by name)
@@ -347,8 +357,6 @@ class Hop(BaseModel):
 class ToolStep(BaseModel):
     # Core fields
     id: str
-    hop_id: str
-    user_id: int
     tool_id: str
     sequence_order: int
     name: str
@@ -379,7 +387,6 @@ class Asset(BaseModel):
     """Asset with metadata and value representation (no full content)"""
     # Core fields
     id: str
-    user_id: int
     name: str
     description: Optional[str] = None
     type: str
@@ -406,7 +413,6 @@ class Asset(BaseModel):
 class AssetWithContent(Asset):
     """Asset with full content for tool execution"""
     content: Any  # Full content included
-    content_summary: Optional[str] = None  # Generated summary for value_representation
 ```
 
 ## 4. TypeScript Types
@@ -472,7 +478,6 @@ export enum AssetScopeType {
 export interface Mission {
     // Core fields
     id: string;
-    user_id: number;
     name: string;
     description?: string;
     goal?: string;
@@ -487,7 +492,7 @@ export interface Mission {
     created_at: string;
     updated_at: string;
     
-    // Relationships
+    // Relationships - Parent manages child context
     current_hop?: Hop;
     hops: Hop[];  // hop_history
     
@@ -502,8 +507,6 @@ export interface Mission {
 export interface Hop {
     // Core fields
     id: string;
-    mission_id: string;
-    user_id: number;
     sequence_order: number;
     name: string;
     description?: string;
@@ -522,7 +525,7 @@ export interface Hop {
     created_at: string;
     updated_at: string;
     
-    // Relationships
+    // Relationships - Parent manages child context
     tool_steps: ToolStep[];
     
     // Asset collections (all hop-scoped assets by name)
@@ -536,8 +539,6 @@ export interface Hop {
 export interface ToolStep {
     // Core fields
     id: string;
-    hop_id: string;
-    user_id: number;
     tool_id: string;
     sequence_order: number;
     name: string;
@@ -568,7 +569,6 @@ export interface ToolStep {
 export interface Asset {
     // Core fields
     id: string;
-    user_id: number;
     name: string;
     description?: string;
     type: string;
@@ -595,7 +595,6 @@ export interface Asset {
 
 export interface AssetWithContent extends Asset {
     content: any;  // Full content for tool execution
-    content_summary?: string;  // Generated summary
 }
 ```
 
@@ -647,15 +646,15 @@ PROPOSED → PENDING → IN_PROGRESS → READY → [ERROR/EXPIRED]
 ## 7. Value Representation Strategy
 
 ### Content Summary Generation
-- **Small assets (< 1KB)**: Full content in `content_summary`
+- **Small assets (< 1KB)**: Full content used directly for `value_representation`
 - **Large arrays**: "Array of N items, preview: [first 3 items]"
 - **Large objects**: "Object with N fields: [key names]"
 - **Large text**: "Text (N chars): [first 150 chars]..."
 
 ### Asset Loading Strategy
-- **Default**: Asset with `value_representation` only
-- **Tool execution**: Asset with full `content` loaded
-- **Frontend**: Progressive disclosure - summary first, full content on demand
+- **Default**: Asset with `value_representation` only (lightweight)
+- **Tool execution**: AssetWithContent with full `content` loaded
+- **Frontend**: Progressive disclosure - value_representation first, full content on demand
 
 ### Asset Collection Access Patterns
 
@@ -679,4 +678,4 @@ inputs = [a for a in hop.hop_state.values() if a.role == AssetRole.INPUT]
 intermediates = [a for a in hop.hop_state.values() if a.role == AssetRole.INTERMEDIATE]
 ```
 
-This architecture provides efficient asset management with rich metadata while maintaining a single source of truth for asset roles and eliminating redundant collections. 
+This architecture provides efficient asset management with rich metadata while maintaining a single source of truth for asset roles and eliminating redundant collections.

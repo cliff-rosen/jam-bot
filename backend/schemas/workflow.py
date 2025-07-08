@@ -59,8 +59,6 @@ class Hop(BaseModel):
     """
     # Core fields
     id: str
-    mission_id: str
-    user_id: int
     sequence_order: int
     name: str
     description: Optional[str] = None
@@ -79,7 +77,7 @@ class Hop(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relationships (populated by services)
+    # Relationships (populated by services) - Parent manages child context
     tool_steps: List['ToolStep'] = Field(default_factory=list)
     
     # Asset collections (all hop-scoped assets by name)
@@ -92,7 +90,6 @@ class Mission(BaseModel):
     """
     # Core fields
     id: str
-    user_id: int
     name: str
     description: Optional[str] = None
     goal: Optional[str] = None
@@ -107,7 +104,7 @@ class Mission(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Relationships (populated by services)
+    # Relationships (populated by services) - Parent manages child context
     current_hop: Optional['Hop'] = None
     hops: List['Hop'] = Field(default_factory=list)  # hop_history
     
@@ -149,8 +146,6 @@ class ToolStep(BaseModel):
     """
     # Core fields
     id: str
-    hop_id: str
-    user_id: int
     tool_id: str
     sequence_order: int
     name: str

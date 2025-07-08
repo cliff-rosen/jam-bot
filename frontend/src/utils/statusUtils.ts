@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle, XCircle, PlayCircle, AlertCircle } from 'lucide-react';
-import { ExecutionStatus, MissionStatus, HopStatus } from '@/types/workflow';
+import { MissionStatus, HopStatus } from '@/types/workflow';
 
 /**
  * STATUS LEVELS - Simple and Clear:

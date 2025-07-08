@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
-import { Mission, MissionStatus, Hop, ExecutionStatus, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
+import { Mission, MissionStatus, Hop, HopStatus, defaultMission, ToolStep } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';

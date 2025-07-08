@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, validator
 import uuid
 
 from schemas.asset import Asset, AssetStatus, AssetMetadata
-from schemas.workflow import ToolStep, Hop, HopStatus, ExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
+from schemas.workflow import ToolStep, Hop, HopStatus, ToolExecutionStatus, Mission, MissionStatus, AssetFieldMapping, LiteralMapping, DiscardMapping, ParameterMappingValue, ResultMappingValue
 from schemas.base import SchemaType, ValueType, PrimitiveType, ComplexType, CanonicalType
 from utils.string_utils import canonical_key
 
@@ -163,7 +163,7 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
         current_hop=None,
         hop_history=[],
         mission_state={},
-        status=ExecutionStatus.PENDING,
+        status=ToolExecutionStatus.PROPOSED,
         mission_status=MissionStatus.PROPOSED,
         created_at=current_time,
         updated_at=current_time,
@@ -227,7 +227,7 @@ def create_tool_step_from_lite(step_lite: ToolStepLite) -> ToolStep:
         resource_configs=resource_configs,
         parameter_mapping=step_lite.parameter_mapping,
         result_mapping=step_lite.result_mapping,
-        status=ExecutionStatus.PENDING,
+        status=ToolExecutionStatus.PROPOSED,
         created_at=current_time,
         updated_at=current_time
     )

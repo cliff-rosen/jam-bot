@@ -5,12 +5,10 @@
  * managing Assets. Assets are the data containers that flow between hops.
  */
 
-import { SchemaEntity, AssetRole, CustomType } from './base';
-
 // --- Asset-Specific Enums and Interfaces ---
 
 export enum AssetStatus {
-    PROPOSED = "proposed",  // Asset exists only on frontend, not yet accepted
+    PROPOSED = "proposed",
     PENDING = "pending",
     IN_PROGRESS = "in_progress",
     READY = "ready",
@@ -18,26 +16,46 @@ export enum AssetStatus {
     EXPIRED = "expired"
 }
 
-export interface AssetMetadata {
-    createdAt: string;
-    updatedAt: string;
-    creator: string | null;
-    tags: string[];
-    agent_associations: string[];
-    version: number;
-    token_count: number;
+export enum AssetRole {
+    INPUT = "input",
+    OUTPUT = "output",
+    INTERMEDIATE = "intermediate"
 }
 
-export interface Asset extends SchemaEntity {
-    value?: any;
+export enum AssetScopeType {
+    MISSION = "mission",
+    HOP = "hop"
+}
+
+export interface Asset {
+    // Core fields
+    id: string;
+    name: string;
+    description?: string;
+    type: string;
+    subtype?: string;
+
+    // Scope information
+    scope_type: AssetScopeType;
+    scope_id: string;
+
+    // Asset lifecycle
     status: AssetStatus;
-    subtype?: CustomType;
-    role?: AssetRole;
-    agent_specification?: string;
-    error_message?: string;
-    last_updated_by?: string;
-    ready_at?: string;
-    asset_metadata: AssetMetadata;
+    role: AssetRole;
+
+    // Value representation (generated from content_summary)
+    value_representation: string;
+
+    // Metadata
+    asset_metadata: Record<string, any>;
+
+    // Timestamps
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AssetWithContent extends Asset {
+    content: any;  // Full content for tool execution
 }
 
 // --- Asset-Specific Utility Functions ---

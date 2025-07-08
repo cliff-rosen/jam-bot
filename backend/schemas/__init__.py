@@ -35,7 +35,7 @@ from .workflow import (
     Mission,
     MissionStatus,
     HopStatus,
-    ExecutionStatus,
+    ToolExecutionStatus,
     Hop,
     ToolStep
 )
@@ -75,7 +75,8 @@ __all__ = [
     # Workflow schemas
     'Mission',
     'MissionStatus',
-    'HopStatus', 
+    'HopStatus',
+    'ToolExecutionStatus',
     'Hop',
     'ToolStep',
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
-from schemas.workflow import ToolStep, ExecutionStatus
+from schemas.workflow import ToolStep
 from services.asset_service import AssetService
 
 
@@ -25,7 +25,7 @@ class ToolStepService:
             resource_configs=tool_step_model.resource_configs or {},
             parameter_mapping=tool_step_model.parameter_mapping or {},
             result_mapping=tool_step_model.result_mapping or {},
-            status=ExecutionStatus(tool_step_model.status.value),
+            status=ToolExecutionStatus(tool_step_model.status.value),
             error_message=tool_step_model.error_message,
             validation_errors=tool_step_model.validation_errors,
             created_at=tool_step_model.created_at,
@@ -128,7 +128,7 @@ class ToolStepService:
         self,
         tool_step_id: str,
         user_id: int,
-        status: ExecutionStatus,
+        status: ToolExecutionStatus,
         error_message: Optional[str] = None,
         execution_result: Optional[Dict[str, Any]] = None
     ) -> Optional[ToolStep]:
@@ -140,7 +140,7 @@ class ToolStepService:
         
         if error_message:
             updates['error_message'] = error_message
-        elif status == ExecutionStatus.COMPLETED:
+        elif status == ToolExecutionStatus.COMPLETED:
             # Clear error message on successful completion
             updates['error_message'] = None
         
@@ -148,9 +148,9 @@ class ToolStepService:
             updates['execution_result'] = execution_result
         
         # Update timing fields
-        if status == ExecutionStatus.RUNNING:
+        if status == ToolExecutionStatus.EXECUTING:
             updates['started_at'] = datetime.utcnow()
-        elif status == ExecutionStatus.COMPLETED:
+        elif status == ToolExecutionStatus.COMPLETED:
             updates['completed_at'] = datetime.utcnow()
         
         return await self.update_tool_step(tool_step_id, user_id, updates)
@@ -241,7 +241,7 @@ class ToolStepService:
         await self.update_tool_step_status(
             tool_step_id, 
             user_id, 
-            ExecutionStatus.RUNNING
+            ToolExecutionStatus.EXECUTING
         )
         
         try:
@@ -263,7 +263,7 @@ class ToolStepService:
             return await self.update_tool_step_status(
                 tool_step_id,
                 user_id,
-                ExecutionStatus.COMPLETED,
+                ToolExecutionStatus.COMPLETED,
                 execution_result=result
             )
             
@@ -272,6 +272,6 @@ class ToolStepService:
             return await self.update_tool_step_status(
                 tool_step_id,
                 user_id,
-                ExecutionStatus.FAILED,
+                ToolExecutionStatus.FAILED,
                 error_message=str(e)
             ) 

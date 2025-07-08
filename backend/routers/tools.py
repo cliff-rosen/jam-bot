@@ -110,7 +110,7 @@ async def execute_tool_by_id(
         
         # Update status to running
         await tool_execution_service.update_tool_execution_status(
-            execution_id, user.user_id, ToolExecutionStatus.RUNNING
+            execution_id, user.user_id, ToolExecutionStatus.EXECUTING
         )
         
         # Execute the tool step

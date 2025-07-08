@@ -6,6 +6,7 @@
  */
 
 import { Resource } from './resource';
+import { Asset } from './asset';
 
 // --- Workflow Execution Enums ---
 
@@ -59,21 +60,25 @@ export type ParameterMappingValue = AssetFieldMapping | LiteralMapping;
 export type ResultMappingValue = AssetFieldMapping | DiscardMapping;
 
 export interface ToolStep {
+    // Core fields
     id: string;
-    hop_id: string;
-    user_id: number;
     tool_id: string;
     sequence_order: number;
-    status: ToolExecutionStatus;
+    name: string;
     description?: string;
-    template?: string;
-    parameter_mapping?: Record<string, ParameterMappingValue>;
-    result_mapping?: Record<string, ResultMappingValue>;
-    resource_configs?: Record<string, Resource>;
-    validation_errors?: string[];
-    execution_result?: any;
-    hop_state_asset_ids?: Record<string, string>;
+    status: ToolExecutionStatus;
+
+    // Tool configuration
+    parameter_mapping: Record<string, ParameterMappingValue>;
+    result_mapping: Record<string, ResultMappingValue>;
+    resource_configs: Record<string, Resource>;
+
+    // Execution data
+    validation_errors: string[];
+    execution_result?: Record<string, any>;
     error_message?: string;
+
+    // Timestamps
     created_at: string;
     updated_at: string;
     started_at?: string;
@@ -81,52 +86,60 @@ export interface ToolStep {
 }
 
 export interface Hop {
+    // Core fields
     id: string;
-    mission_id: string;
-    user_id: number;
     sequence_order: number;
     name: string;
     description?: string;
     goal?: string;
-    success_criteria?: string[];
+    success_criteria: string[];
     rationale?: string;
     status: HopStatus;
-    tool_steps?: ToolStep[];
+
+    // Hop state
     is_final: boolean;
     is_resolved: boolean;
     error_message?: string;
-    hop_metadata?: Record<string, any>;
+    hop_metadata: Record<string, any>;
+
+    // Timestamps
     created_at: string;
     updated_at: string;
+
+    // Relationships (populated by services) - Parent manages child context
+    tool_steps: ToolStep[];
+
+    // Asset collections (all hop-scoped assets by name)
+    hop_state: Record<string, Asset>;
 }
 
 export interface Mission {
+    // Core fields
     id: string;
-    user_id: number;
     name: string;
     description?: string;
     goal?: string;
+    success_criteria: string[];
     status: MissionStatus;
-    success_criteria?: string[];
 
     // Current hop tracking
     current_hop_id?: string;
 
-    mission_metadata?: Record<string, any>;
+    // Metadata
+    mission_metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
 
-    // Relationships (populated by queries)
+    // Relationships (populated by services) - Parent manages child context
     current_hop?: Hop;
-    hops?: Hop[];  // hop_history in logical model
+    hops: Hop[];  // hop_history
 
-    // Assets are queried by scope: scope_type='mission' AND scope_id=mission.id
-    // NO input_asset_ids or output_asset_ids fields needed
+    // Asset collection - unified approach (filter by Asset.role for inputs/outputs)
+    mission_state: Record<string, Asset>;  // all mission assets by name
 }
 
 export const defaultMission: Mission = {
     id: "default-mission-1",
-    user_id: 1,
     name: "New Mission",
     description: "A new mission to be defined.",
     goal: "",
@@ -135,7 +148,9 @@ export const defaultMission: Mission = {
     current_hop_id: undefined,
     mission_metadata: {},
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    hops: [],
+    mission_state: {}
 };
 
 

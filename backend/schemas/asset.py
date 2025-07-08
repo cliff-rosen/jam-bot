@@ -12,79 +12,58 @@ from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
 from enum import Enum
 
-from .base import SchemaEntity, AssetRole, ValueType, is_custom_type, SchemaType
-
 # --- Asset-Specific Enums and Models ---
 
 class AssetStatus(str, Enum):
-    """Defines the lifecycle status of an Asset during execution."""
-    PROPOSED = "proposed"  # Asset exists only on frontend, not yet accepted
+    """Status of an asset"""
+    PROPOSED = "proposed"
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     READY = "ready"
     ERROR = "error"
     EXPIRED = "expired"
 
-class AssetMetadata(BaseModel):
-    """Contains metadata about an asset, such as creation and update times."""
-    created_at: datetime = Field(default_factory=datetime.utcnow, alias='createdAt')
-    updated_at: datetime = Field(default_factory=datetime.utcnow, alias='updatedAt')
-    creator: Optional[str] = None
-    custom_metadata: Dict[str, Any] = Field(default_factory=dict)
+class AssetRole(str, Enum):
+    """Role of an asset in workflow"""
+    INPUT = "input"
+    OUTPUT = "output"
+    INTERMEDIATE = "intermediate"
 
-class Asset(SchemaEntity):
-    """
-    Represents a data asset in the system. It extends the base SchemaEntity
-    with a value, execution status, and detailed metadata.
-    """
-    value: Optional[Any] = None
-    status: AssetStatus = Field(default=AssetStatus.PENDING)
+class AssetScopeType(str, Enum):
+    """Scope type for asset"""
+    MISSION = "mission"
+    HOP = "hop"
+
+class Asset(BaseModel):
+    """Asset with metadata and value representation (no full content)"""
+    # Core fields
+    id: str
+    name: str
+    description: Optional[str] = None
+    type: str
     subtype: Optional[str] = None
-    role: Optional[AssetRole] = None
-    agent_specification: Optional[str] = Field(default=None, description="Detailed technical specification for agents including data structure, format requirements, validation criteria, and tool integration details")
-    error_message: Optional[str] = None
-    last_updated_by: Optional[str] = None
-    ready_at: Optional[datetime] = None
-    asset_metadata: AssetMetadata = Field(default_factory=AssetMetadata)
-
-    # --- Lifecycle Methods ---
-
-    def mark_ready(self, updated_by: Optional[str] = None):
-        """Marks the asset as ready and updates its timestamps."""
-        self.status = AssetStatus.READY
-        self.ready_at = datetime.utcnow()
-        self.last_updated_by = updated_by
-        self.error_message = None
-        self.asset_metadata.updated_at = datetime.utcnow()
-
-    def mark_error(self, error_message: str, updated_by: Optional[str] = None):
-        """Marks the asset as having an error."""
-        self.status = AssetStatus.ERROR
-        self.error_message = error_message
-        self.last_updated_by = updated_by
-        self.asset_metadata.updated_at = datetime.utcnow()
-
-    def mark_in_progress(self, updated_by: Optional[str] = None):
-        """Marks the asset as currently being processed."""
-        self.status = AssetStatus.IN_PROGRESS
-        self.last_updated_by = updated_by
-        self.error_message = None
-        self.asset_metadata.updated_at = datetime.utcnow()
-
-    def is_available(self) -> bool:
-        """Checks if the asset is in a READY state."""
-        return self.status == AssetStatus.READY
-
-    def needs_attention(self) -> bool:
-        """Checks if the asset is in a state that requires attention."""
-        return self.status in [AssetStatus.ERROR, AssetStatus.EXPIRED]
-
-    # --- Convenience Properties ---
     
-    @property
-    def is_collection(self) -> bool:
-        """Backward compatibility property - returns schema_definition.is_array"""
-        return self.schema_definition.is_array if self.schema_definition else False
+    # Scope information
+    scope_type: AssetScopeType
+    scope_id: str
+    
+    # Asset lifecycle
+    status: AssetStatus = AssetStatus.PENDING
+    role: AssetRole
+    
+    # Value representation (generated from content_summary)
+    value_representation: str
+    
+    # Metadata
+    asset_metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AssetWithContent(Asset):
+    """Asset with full content for tool execution"""
+    content: Any  # Full content included
 
 # --- Asset-Specific Utility Functions ---
 
@@ -173,23 +152,19 @@ class CreateAssetRequest(BaseModel):
     content: Optional[Any] = None
     asset_metadata: Optional[Dict[str, Any]] = None
 
-# Pre-defined asset instances using unified Asset
-DAILY_NEWSLETTER_RECAP_ASSET = Asset(
-    id="daily_newsletter_recap",
-    name="Daily Newsletter Recap",
-    description="A collection of daily newsletter summaries",
-    schema_definition=SchemaType(
-        type="database_entity",
-        description="A collection of daily newsletter summaries",
-        is_array=True
-    ),
-    value=None,
-    subtype="daily_newsletter_recap",
-    asset_metadata=AssetMetadata(
-        creator="system",
-        tags=["newsletter", "summary", "daily"],
-        version=1,
-        token_count=0
-    )
-)
+# Pre-defined asset instances can be added here if needed
+# Example:
+# DAILY_NEWSLETTER_RECAP_ASSET = Asset(
+#     id="daily_newsletter_recap",
+#     user_id=0,
+#     name="Daily Newsletter Recap", 
+#     description="A collection of daily newsletter summaries",
+#     type="database_entity",
+#     subtype="daily_newsletter_recap",
+#     scope_type=AssetScopeType.MISSION,
+#     scope_id="system",
+#     role=AssetRole.OUTPUT,
+#     value_representation="Daily newsletter summaries collection",
+#     asset_metadata={"creator": "system"}
+# )
     

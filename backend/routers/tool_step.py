@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from database import get_db
 from services.auth_service import validate_token
 from services.tool_step_service import ToolStepService
-from schemas.workflow import ToolStep, ExecutionStatus
+from schemas.workflow import ToolStep, ToolExecutionStatus
 
 router = APIRouter(prefix="/tool-steps", tags=["tool-steps"])
 
@@ -18,7 +18,7 @@ class UpdateToolStepRequest(BaseModel):
     resource_configs: Optional[Dict[str, Any]] = None
     parameter_mapping: Optional[Dict[str, Any]] = None
     result_mapping: Optional[Dict[str, Any]] = None
-    status: Optional[ExecutionStatus] = None
+    status: Optional[ToolExecutionStatus] = None
     error_message: Optional[str] = None
     validation_errors: Optional[List[str]] = None
 
@@ -28,7 +28,7 @@ class ExecuteToolStepRequest(BaseModel):
 
 
 class UpdateToolStepStatusRequest(BaseModel):
-    status: ExecutionStatus
+    status: ToolExecutionStatus
     error_message: Optional[str] = None
     execution_result: Optional[Dict[str, Any]] = None
 

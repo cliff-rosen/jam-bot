@@ -290,10 +290,11 @@ Based on the provided context, design the next hop in the mission workflow. Use 
             success_criteria = "No specific success criteria defined"
         
         # Format desired assets (mission outputs)
-        if mission.outputs:
+        outputs = mission.get_outputs()
+        if outputs:
             desired_assets = "\n".join([
-                f"- {asset.name} (ID: {asset.id}, Type: {asset.schema_definition.type}): {asset.description}"
-                for asset in mission.outputs
+                f"- {asset.name} (ID: {asset.id}, Type: {asset.type}): {asset.description}"
+                for asset in outputs
             ])
         else:
             desired_assets = "No specific outputs defined yet"

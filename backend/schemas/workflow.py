@@ -82,6 +82,24 @@ class Hop(BaseModel):
     
     # Asset collections (all hop-scoped assets by name)
     hop_state: Dict[str, 'Asset'] = Field(default_factory=dict)
+    
+    def get_hop_inputs(self) -> List[Asset]:
+        """Get all input assets from hop_state"""
+        if not self.hop_state:
+            return []
+        return [asset for asset in self.hop_state.values() if asset.role.value == 'input']
+    
+    def get_hop_outputs(self) -> List[Asset]:
+        """Get all output assets from hop_state"""
+        if not self.hop_state:
+            return []
+        return [asset for asset in self.hop_state.values() if asset.role.value == 'output']
+    
+    def get_hop_intermediates(self) -> List[Asset]:
+        """Get all intermediate assets from hop_state"""
+        if not self.hop_state:
+            return []
+        return [asset for asset in self.hop_state.values() if asset.role.value == 'intermediate']
 
 
 class Mission(BaseModel):
@@ -117,6 +135,24 @@ class Mission(BaseModel):
         if v == "" or v is None:
             return datetime.utcnow()
         return v
+    
+    def get_inputs(self) -> List[Asset]:
+        """Get all input assets from mission_state"""
+        if not self.mission_state:
+            return []
+        return [asset for asset in self.mission_state.values() if asset.role.value == 'input']
+    
+    def get_outputs(self) -> List[Asset]:
+        """Get all output assets from mission_state"""
+        if not self.mission_state:
+            return []
+        return [asset for asset in self.mission_state.values() if asset.role.value == 'output']
+    
+    def get_intermediates(self) -> List[Asset]:
+        """Get all intermediate assets from mission_state"""
+        if not self.mission_state:
+            return []
+        return [asset for asset in self.mission_state.values() if asset.role.value == 'intermediate']
 
 
 class AssetFieldMapping(BaseModel):

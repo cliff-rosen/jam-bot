@@ -90,12 +90,12 @@ def sanitize_mission_for_chat(mission: Mission) -> dict:
         sanitize_hop_for_chat(hop) for hop in mission.hop_history
     ]
     
-    # Sanitize input and output assets
+    # Sanitize input and output assets using helper methods
     mission_dict['inputs'] = [
-        sanitize_asset_for_chat(asset) for asset in mission.inputs
+        sanitize_asset_for_chat(asset) for asset in mission.get_inputs()
     ]
     mission_dict['outputs'] = [
-        sanitize_asset_for_chat(asset) for asset in mission.outputs
+        sanitize_asset_for_chat(asset) for asset in mission.get_outputs()
     ]
     
     return mission_dict

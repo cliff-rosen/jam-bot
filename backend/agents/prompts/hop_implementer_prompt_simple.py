@@ -243,34 +243,41 @@ Is Final: {hop.is_final}"""
         if not hop.hop_state:
             return "No assets available in hop state"
         
-        # Categorize assets by their role in the hop
-        input_assets = []
-        output_assets = []
-        intermediate_assets = []
+        # Categorize assets by their role in the hop using helper methods
+        input_assets_list = hop.get_hop_inputs()
+        output_assets_list = hop.get_hop_outputs()
+        intermediate_assets_list = hop.get_hop_intermediates()
         
-        for local_key, asset in hop.hop_state.items():
-            if asset.role == 'input':
-                asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
-                asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
-                input_details = [asset_info]
-                
-                # Add agent specification if available
-                if hasattr(asset, 'agent_specification') and asset.agent_specification:
-                    input_details.append(f"  Agent Spec: {asset.agent_specification}")
-                elif asset.schema_definition and asset.schema_definition.description:
-                    input_details.append(f"  Schema: {asset.schema_definition.description}")
-                
-                if asset.status != "ready":
-                    input_details.append(f"  Status: {asset.status}")
-                    if asset.error_message:
-                        input_details.append(f"  Error: {asset.error_message}")
-                
-                input_assets_str = "\n".join(input_details) if input_details else "None"
-                input_assets.append(input_assets_str)
-            elif asset.role == 'output':
-                output_assets.append(f"- **{local_key}** ({asset.schema_definition.type}): {asset.description}")
-            else:
-                intermediate_assets.append(f"- **{local_key}** ({asset.schema_definition.type}): {asset.description}")
+        # Format input assets with enhanced detail
+        input_assets = []
+        for asset in input_assets_list:
+            asset_type = f"{asset.schema_definition.type}{'[]' if asset.schema_definition.is_array else ''}"
+            asset_info = f"- **{asset.name}** ({asset_type}): {asset.description}"
+            input_details = [asset_info]
+            
+            # Add agent specification if available
+            if hasattr(asset, 'agent_specification') and asset.agent_specification:
+                input_details.append(f"  Agent Spec: {asset.agent_specification}")
+            elif asset.schema_definition and asset.schema_definition.description:
+                input_details.append(f"  Schema: {asset.schema_definition.description}")
+            
+            if asset.status != "ready":
+                input_details.append(f"  Status: {asset.status}")
+                if asset.error_message:
+                    input_details.append(f"  Error: {asset.error_message}")
+            
+            input_assets_str = "\n".join(input_details) if input_details else "None"
+            input_assets.append(input_assets_str)
+        
+        # Format output assets
+        output_assets = []
+        for asset in output_assets_list:
+            output_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
+        
+        # Format intermediate assets  
+        intermediate_assets = []
+        for asset in intermediate_assets_list:
+            intermediate_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
         
         # Build formatted string
         sections = []

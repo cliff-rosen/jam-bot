@@ -29,42 +29,42 @@ def validate_mission(mission: Mission) -> List[str]:
         errors.append("Mission must have success criteria")
 
     # 2. Asset Validation
-    # Check for duplicate asset IDs
+    # Check for duplicate asset IDs in mission_state
     asset_ids = set()
-    for asset in mission.inputs + mission.outputs:
-        if asset.id in asset_ids:
-            errors.append(f"Duplicate asset ID found: {asset.id}")
-        asset_ids.add(asset.id)
+    if mission.mission_state:
+        for asset in mission.mission_state.values():
+            if asset.id in asset_ids:
+                errors.append(f"Duplicate asset ID found: {asset.id}")
+            asset_ids.add(asset.id)
 
     # 3. State Validation
-    # Check that all input assets are in state
-    for input_asset in mission.inputs:
-        if input_asset.id not in mission.mission_state:
-            errors.append(f"Input asset {input_asset.id} not found in mission state")
+    # Check that mission_state assets have consistent names and IDs
+    if mission.mission_state:
+        for asset_name, asset in mission.mission_state.items():
+            if asset.name != asset_name:
+                errors.append(f"Asset key '{asset_name}' does not match asset name '{asset.name}'")
 
     # 4. Hop Validation
-    if mission.hop_history:
+    if mission.hops:
         # Check hop status consistency
-        for i, hop in enumerate(mission.hop_history):
+        for i, hop in enumerate(mission.hops):
             # Check hop status consistency with mission status
-            if hop.status == HopStatus.HOP_PROPOSED and mission.current_hop and mission.current_hop.status != HopStatus.HOP_READY_TO_EXECUTE:
+            if hop.status == HopStatus.PROPOSED and mission.current_hop and mission.current_hop.status != HopStatus.READY_TO_EXECUTE:
                 errors.append(f"Inconsistent status: hop {hop.id} is PROPOSED but mission current_hop status is {mission.current_hop.status}")
             
             # Check hop order
             if i > 0:
-                prev_hop = mission.hop_history[i-1]
+                prev_hop = mission.hops[i-1]
                 if prev_hop.created_at > hop.created_at:
                     errors.append(f"Hop {hop.id} created before previous hop {prev_hop.id}")
 
     # 5. Status Validation
-    if mission.mission_status == MissionStatus.ACTIVE:
-        if not mission.hop_status:
-            errors.append("Active mission must have a hop_status")
+    if mission.status == MissionStatus.EXECUTING_HOP:
         if not mission.current_hop:
             errors.append("Active mission must have a current_hop")
 
     # 6. Metadata Validation
-    if not isinstance(mission.metadata, dict):
+    if not isinstance(mission.mission_metadata, dict):
         errors.append("Mission metadata must be a dictionary")
 
     # 7. Timestamp Validation
@@ -86,13 +86,12 @@ def test_mission_validation():
         description="A test mission",
         goal="Test the mission validator",
         success_criteria=["Test passes"],
-        inputs=[],
-        outputs=[],
+        status=MissionStatus.PROPOSED,
+        current_hop_id=None,
+        mission_metadata={},
+        current_hop=None,
+        hops=[],
         mission_state={},
-        hop_history=[],
-        current_hop_index=0,
-        mission_status=MissionStatus.PROPOSED,
-        metadata={},
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

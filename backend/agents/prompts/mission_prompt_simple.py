@@ -107,19 +107,21 @@ Based on the conversation history and available tools, analyze what information 
         mission_goal = mission.goal if mission and mission.goal else "No goal specified"
         
         # Format desired assets (mission outputs)
-        if mission and mission.outputs:
+        outputs = mission.get_outputs() if mission else []
+        if outputs:
             desired_assets = "\n".join([
-                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
-                for asset in mission.outputs
+                f"- {asset.name} ({asset.type}): {asset.description}"
+                for asset in outputs
             ])
         else:
             desired_assets = "No specific outputs defined yet"
         
         # Format existing inputs from the mission (if any)
-        if mission and mission.inputs:
+        inputs = mission.get_inputs() if mission else []
+        if inputs:
             existing_inputs = "\n".join([
-                f"- {asset.name} ({asset.schema_definition.type}): {asset.description}"
-                for asset in mission.inputs
+                f"- {asset.name} ({asset.type}): {asset.description}"
+                for asset in inputs
             ])
         else:
             existing_inputs = "No existing inputs defined"

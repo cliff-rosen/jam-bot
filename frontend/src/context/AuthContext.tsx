@@ -20,6 +20,7 @@ interface AuthContextType {
     // Session methods
     updateSessionMission: (missionId: string) => Promise<void>
     updateSessionMetadata: (metadata: Record<string, any>) => Promise<void>
+    switchToNewSession: (sessionData: { session_id: string; chat_id: string; mission_id?: string; session_metadata: Record<string, any> }) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -157,6 +158,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
+    const switchToNewSession = (sessionData: { session_id: string; chat_id: string; mission_id?: string; session_metadata: Record<string, any> }) => {
+        setSessionId(sessionData.session_id)
+        setChatId(sessionData.chat_id)
+        setMissionId(sessionData.mission_id || null)
+        setSessionMetadata(sessionData.session_metadata)
+    }
+
     const logout = () => {
         localStorage.removeItem('authToken')
         localStorage.removeItem('user')
@@ -193,7 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Session methods
             updateSessionMission,
-            updateSessionMetadata
+            updateSessionMetadata,
+            switchToNewSession
         }}>
             {children}
         </AuthContext.Provider>

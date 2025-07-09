@@ -30,8 +30,9 @@ class ResponsesAPIRequest(BaseModel):
     include: Optional[List[str]] = None
     max_output_tokens: Optional[int] = None
 
-async def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
+def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
     """Helper function to save a ChatMessage object to the database."""
+    print(f"Saving message to database: {message.role}")
     existing_count = db.query(ChatMessageModel).filter(
         ChatMessageModel.chat_id == chat_id
     ).count()
@@ -73,24 +74,7 @@ async def chat_stream(
             if chat_request.messages:
                 latest_message = chat_request.messages[-1]  # Get the newest message
                 if latest_message.role == MessageRole.USER:
-                    # Get next sequence order
-                    existing_count = db.query(ChatMessageModel).filter(
-                        ChatMessageModel.chat_id == chat_id
-                    ).count()
-                    
-                    # Create and save user message
-                    user_message = ChatMessageModel(
-                        id=str(uuid.uuid4()),
-                        chat_id=chat_id,
-                        user_id=current_user.user_id,
-                        sequence_order=existing_count + 1,
-                        role=MessageRole.USER,
-                        content=latest_message.content,
-                        message_metadata=latest_message.message_metadata or {},
-                        created_at=datetime.utcnow()
-                    )
-                    db.add(user_message)
-                    db.commit()
+                    save_message_to_db(db, chat_id, current_user.user_id, latest_message)
             
             # Get mission from database if mission_id is provided
             mission = None
@@ -130,13 +114,38 @@ async def chat_stream(
             
             # Run the graph
             async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
+                # Debug logging to see what we're getting
+                print(f"DEBUG: output type: {type(output)}")
+                print(f"DEBUG: output content: {output}")
+                
                 if isinstance(output, dict):
+                    # Check for response_text which contains the AI's complete response
+                    if "response_text" in output and output["response_text"]:
+                        response_content = output["response_text"]
+                        print(f"DEBUG: Found response_text: {response_content[:100]}...")
+                        
+                        # Create ChatMessage from response_text and save it
+                        ai_message = ChatMessage(
+                            id=str(uuid.uuid4()),
+                            chat_id=chat_id,  # Use actual chat_id
+                            role=MessageRole.ASSISTANT,
+                            content=response_content,
+                            message_metadata={},
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow()
+                        )
+                        save_message_to_db(db, chat_id, current_user.user_id, ai_message)
+                        print(f"DEBUG: Saved response_text as ChatMessage to DB")
+                    
                     # Check for ChatMessage objects in the dict and save them
                     for key, value in output.items():
+                        print(f"DEBUG: dict key={key}, value type={type(value)}")
                         if isinstance(value, ChatMessage):
+                            print(f"DEBUG: Found ChatMessage in dict: role={value.role}, content={value.content[:100]}...")
                             # Save ChatMessage to database
                             if value.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
-                                await save_message_to_db(db, chat_id, current_user.user_id, value)
+                                save_message_to_db(db, chat_id, current_user.user_id, value)
+                                print(f"DEBUG: Saved message to DB")
                     
                     # Convert any ChatMessage objects in the dict to their dict representation
                     processed_output = {}
@@ -151,9 +160,11 @@ async def chat_stream(
                         "data": json.dumps(processed_output)
                     }
                 elif isinstance(output, ChatMessage):
+                    print(f"DEBUG: Found direct ChatMessage: role={output.role}, content={output.content[:100]}...")
                     # Save ChatMessage to database
                     if output.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
-                        await save_message_to_db(db, chat_id, current_user.user_id, output)
+                        save_message_to_db(db, chat_id, current_user.user_id, output)
+                        print(f"DEBUG: Saved direct ChatMessage to DB")
                     
                     # Convert ChatMessage object to dict before JSON serialization
                     yield {
@@ -161,6 +172,7 @@ async def chat_stream(
                         "data": json.dumps(output.model_dump())
                     }
                 else:
+                    print(f"DEBUG: Other output type: {type(output)}, content: {str(output)[:100]}...")
                     # Handle other output types
                     yield {
                         "event": "message",
@@ -238,6 +250,53 @@ async def invoke_llm(
         raise HTTPException(
             status_code=500,
             detail=f"Error invoking LLM: {str(e)}"
+        )
+
+@router.get("/{chat_id}/messages")
+async def get_chat_messages(
+    chat_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(validate_token)
+):
+    """
+    Get all messages for a specific chat.
+    
+    Args:
+        chat_id: The ID of the chat to retrieve messages for
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        Dictionary containing list of chat messages
+    """
+    try:
+        # Query messages for this chat_id, ordered by sequence_order
+        messages = db.query(ChatMessageModel).filter(
+            ChatMessageModel.chat_id == chat_id,
+            ChatMessageModel.user_id == current_user.user_id  # Ensure user can only see their own messages
+        ).order_by(ChatMessageModel.sequence_order).all()
+        
+        # Convert database models to Pydantic schemas
+        message_schemas = []
+        for msg in messages:
+            message_schema = ChatMessage(
+                id=msg.id,
+                chat_id=msg.chat_id,
+                role=msg.role,
+                content=msg.content,
+                message_metadata=msg.message_metadata or {},
+                created_at=msg.created_at,
+                updated_at=msg.created_at  # Use created_at since ChatMessage model doesn't have updated_at
+            )
+            message_schemas.append(message_schema)
+        
+        return {"messages": message_schemas}
+        
+    except Exception as e:
+        print(f"Error retrieving chat messages: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving chat messages: {str(e)}"
         )
 
 @router.post("/responses")

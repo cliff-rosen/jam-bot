@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
-import { toolsApi, assetApi, missionApi } from '@/lib/api';
+import { toolsApi, assetApi, missionApi, sessionApi } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
@@ -444,6 +444,7 @@ interface JamBotContextType {
     executeToolStep: (step: ToolStep, hop: Hop) => Promise<void>;
     setError: (error: string) => void;
     clearError: () => void;
+    createNewSession: () => Promise<void>;
 }
 
 const JamBotContext = createContext<JamBotContextType | null>(null);
@@ -458,7 +459,7 @@ export const useJamBot = () => {
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
-    const { chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata } = useAuth();
+    const { user, sessionId, chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata, switchToNewSession } = useAuth();
     const isInitializing = useRef(false);
 
     // Load data when session changes
@@ -917,6 +918,41 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [state, addMessage, processBotMessage, updateStreamingMessage]);
 
+    const createNewSession = useCallback(async () => {
+        try {
+            // Create new session
+            const newSessionResponse = await sessionApi.initializeSession(
+                `${user?.username}'s Session - ${new Date().toLocaleDateString()}`
+            );
+
+            // Clear current state
+            dispatch({
+                type: 'SET_STATE',
+                payload: {
+                    currentMessages: [],
+                    currentStreamingMessage: '',
+                    collabArea: {
+                        type: null,
+                        content: null
+                    },
+                    mission: null,
+                    payload_history: []
+                }
+            });
+
+            // Switch to the new session
+            switchToNewSession({
+                session_id: newSessionResponse.user_session.id,
+                chat_id: newSessionResponse.chat.id,
+                mission_id: newSessionResponse.user_session.mission?.id,
+                session_metadata: newSessionResponse.user_session.session_metadata
+            });
+
+        } catch (error) {
+            console.error('Error creating new session:', error);
+            dispatch({ type: 'SET_ERROR', payload: 'Failed to create new session' });
+        }
+    }, [user, switchToNewSession]);
 
     return (
         <JamBotContext.Provider value={{
@@ -939,7 +975,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             setState,
             executeToolStep,
             setError,
-            clearError
+            clearError,
+            createNewSession
         }}>
             {children}
         </JamBotContext.Provider>

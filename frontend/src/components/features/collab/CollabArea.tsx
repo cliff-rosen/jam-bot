@@ -4,6 +4,7 @@ import { Play, Square, RotateCcw } from 'lucide-react';
 import { useJamBot } from '@/context/JamBotContext';
 
 import { Mission } from './Mission';
+import { SessionManagement } from './SessionManagement';
 import { HopDetails } from '@/components/features/hop';
 import { Hop, HopStatus, MissionStatus } from '@/types/workflow';
 import { ApprovalContent } from '@/types/collabArea';
@@ -178,6 +179,9 @@ const CollabArea: React.FC<CollabAreaProps> = ({ type, content }) => {
 
     return (
         <div className="h-full w-full flex flex-col">
+            {/* Session Management */}
+            <SessionManagement />
+            
             {/* Mission Header */}
             <Mission className="flex-shrink-0" />
 

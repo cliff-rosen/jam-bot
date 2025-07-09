@@ -31,7 +31,8 @@ def sanitize_asset_for_chat(asset: Asset) -> dict:
         "type": asset.schema_definition.type,
         "subtype": asset.subtype,
         "status": asset.status.value if asset.status else None,
-        "role": asset.role,
+        "role": asset.role.value if asset.role else None,
+        "scope_type": asset.scope_type.value if asset.scope_type else None,
         "asset_metadata": {
             **(asset.asset_metadata.model_dump() if asset.asset_metadata else {}),
             "token_count": getattr(asset.asset_metadata, 'token_count', 0) if asset.asset_metadata else 0
@@ -88,14 +89,6 @@ def sanitize_mission_for_chat(mission: Mission) -> dict:
     # Sanitize hop history
     mission_dict['hops'] = [
         sanitize_hop_for_chat(hop) for hop in mission.hops
-    ]
-    
-    # Sanitize input and output assets using helper methods
-    mission_dict['inputs'] = [
-        sanitize_asset_for_chat(asset) for asset in mission.get_inputs()
-    ]
-    mission_dict['outputs'] = [
-        sanitize_asset_for_chat(asset) for asset in mission.get_outputs()
     ]
     
     return mission_dict

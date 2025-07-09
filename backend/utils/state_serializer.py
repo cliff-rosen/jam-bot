@@ -60,10 +60,6 @@ def serialize_mission(mission: Mission) -> dict:
     # Serialize mission state assets
     mission_dict['mission_state'] = serialize_assets(mission.mission_state)
     
-    # Serialize inputs and outputs using helper methods
-    mission_dict['inputs'] = serialize_asset_list(mission.get_inputs())
-    mission_dict['outputs'] = serialize_asset_list(mission.get_outputs())
-    
     # Ensure status is serialized as string value
     mission_dict['status'] = mission.status.value if mission.status else None
     

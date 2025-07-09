@@ -69,31 +69,37 @@ export const MissionProposal: React.FC<MissionProposalProps> = ({
                 <div className="grid grid-cols-2 gap-6">
                     <div>
                         <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 uppercase tracking-wide">Inputs</h4>
-                        {mission.inputs && mission.inputs.length > 0 ? (
-                            <ul className="space-y-2">
-                                {mission.inputs.map((input: any, idx: number) => (
-                                    <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
-                                        {input.name || JSON.stringify(input)}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No inputs required</p>
-                        )}
+                        {(() => {
+                            const inputs = Object.values(mission.mission_state || {}).filter(asset => asset.role === 'input');
+                            return inputs.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {inputs.map((input, idx) => (
+                                        <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                                            {input.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No inputs required</p>
+                            );
+                        })()}
                     </div>
                     <div>
                         <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 uppercase tracking-wide">Outputs</h4>
-                        {mission.outputs && mission.outputs.length > 0 ? (
-                            <ul className="space-y-2">
-                                {mission.outputs.map((output: any, idx: number) => (
-                                    <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
-                                        {output.name || JSON.stringify(output)}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No outputs defined</p>
-                        )}
+                        {(() => {
+                            const outputs = Object.values(mission.mission_state || {}).filter(asset => asset.role === 'output');
+                            return outputs.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {outputs.map((output, idx) => (
+                                        <li key={idx} className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                                            {output.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No outputs defined</p>
+                            );
+                        })()}
                     </div>
                 </div>
 

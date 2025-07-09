@@ -806,6 +806,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
+                mission_id: state.mission?.id || null,
                 payload: {
                     mission: sanitizedMission
                     // Backend will fetch its own asset summaries

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { toolsApi, assetApi, missionApi } from '@/lib/api';
@@ -459,6 +459,7 @@ export const useJamBot = () => {
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
     const { chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata } = useAuth();
+    const isInitializing = useRef(false);
 
     // Load data when session changes
     useEffect(() => {
@@ -475,12 +476,19 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         if (sessionMetadata) {
+            isInitializing.current = true;
             loadSessionState(sessionMetadata);
+            // Allow auto-save after a brief delay to ensure state is loaded
+            setTimeout(() => {
+                isInitializing.current = false;
+            }, 100);
         }
     }, [sessionMetadata]);
 
-    // Auto-save session metadata when state changes
+    // Auto-save session metadata when state changes (but not during initial load)
     useEffect(() => {
+        if (isInitializing.current) return;
+
         if (state.collabArea || state.payload_history.length > 0) {
             const metadata = {
                 collabArea: state.collabArea,

@@ -57,6 +57,17 @@ class UserSessionService:
     def create_user_session(self, user_id: int, request: CreateUserSessionRequest) -> CreateUserSessionResponse:
         """Create a new user session with associated chat"""
         try:
+            # Mark all existing active sessions as completed
+            self.db.query(UserSession).filter(
+                and_(
+                    UserSession.user_id == user_id,
+                    UserSession.status == UserSessionStatus.ACTIVE
+                )
+            ).update({
+                UserSession.status: UserSessionStatus.COMPLETED,
+                UserSession.updated_at: datetime.utcnow()
+            })
+            
             # Generate session name if not provided
             session_name = request.name if request.name else self._generate_next_session_name(user_id)
             

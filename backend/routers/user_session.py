@@ -20,7 +20,7 @@ from schemas.user_session import (
     UserSession as UserSessionSchema
 )
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 @router.post("/initialize")

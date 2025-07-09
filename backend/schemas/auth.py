@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -23,6 +23,12 @@ class Token(BaseModel):
     access_token: str = Field(description="JWT access token")
     token_type: str = Field(default="bearer", description="Type of token")
     username: str = Field(description="User's username")
+    
+    # Session information included in login response
+    session_id: str = Field(description="User's active session ID")
+    chat_id: str = Field(description="Associated chat conversation ID")
+    mission_id: Optional[str] = Field(None, description="Associated mission ID if exists")
+    session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Session metadata")
 
 class TokenData(BaseModel):
     email: Optional[str] = Field(None, description="User's email from token")

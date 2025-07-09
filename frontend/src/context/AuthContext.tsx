@@ -86,8 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: data.email
             })
 
-            // Load or create session
-            await loadOrCreateSession(data.username)
+            // Set session information directly from login response
+            setSessionId(data.session_id)
+            setChatId(data.chat_id)
+            setMissionId(data.mission_id)
+            setSessionMetadata(data.session_metadata || {})
 
             setIsAuthenticated(true)
         },
@@ -125,43 +128,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })
 
     // Session management functions
-    const loadOrCreateSession = async (username: string) => {
-        try {
-            // Try to get active session
-            const response = await api.get('/api/sessions/active')
-            const session = response.data
-
-            setSessionId(session.id)
-            setChatId(session.chat_id)
-            setMissionId(session.mission_id)
-            setSessionMetadata(session.session_metadata || {})
-
-        } catch (error: any) {
-            if (error.response?.status === 404) {
-                // No active session - create new one
-                const newSession = await createNewSession(username)
-                setSessionId(newSession.id)
-                setChatId(newSession.chat_id)
-                setMissionId(null)
-                setSessionMetadata({})
-            } else {
-                console.error('Error loading session:', error)
-                throw error
-            }
-        }
-    }
-
-    const createNewSession = async (username: string) => {
-        const response = await api.post('/api/sessions/initialize', {
-            name: `${username}'s Session`,
-            session_metadata: {
-                created_via: 'login',
-                initialized_at: new Date().toISOString()
-            }
-        })
-        return response.data
-    }
-
     const updateSessionMission = async (newMissionId: string) => {
         if (!sessionId) return
 

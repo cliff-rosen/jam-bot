@@ -8,11 +8,15 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models import User
 from schemas import UserCreate, Token
+from schemas.user_session import CreateUserSessionRequest
 from config.settings import settings
 from database import get_db
 import logging
 import time
 import traceback
+
+# Import for session management
+from services.user_session_service import UserSessionService
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = settings.JWT_SECRET_KEY
@@ -76,7 +80,7 @@ async def create_user(db: Session, user: UserCreate):
 
 async def login_user(db: Session, email: str, password: str) -> Token:
     """
-    Authenticate user and return JWT token
+    Authenticate user and return JWT token with session information
     """
     logger.info(f"Login attempt for email: {email}")
     try:
@@ -117,12 +121,46 @@ async def login_user(db: Session, email: str, password: str) -> Token:
         logger.debug(f"Token data: {token_data}")
 
         access_token = create_access_token(data=token_data)
-        logger.info(f"Successfully logged in user: {email}")
+        
+        # Load or create session
+        logger.debug("Loading or creating user session")
+        session_service = UserSessionService(db)
+        session = session_service.get_active_session(user.user_id)
+        
+        if session:
+            logger.debug(f"Found active session: {session.id}")
+            # Update session activity
+            session_service.update_session_activity(user.user_id, session.id)
+            session_id = session.id
+            chat_id = session.chat_id
+            mission_id = session.mission_id
+            session_metadata = session.session_metadata or {}
+        else:
+            logger.debug("No active session found, creating new session")
+            # Create new session
+            session_request = CreateUserSessionRequest(
+                name=f"{username}'s Session",
+                session_metadata={
+                    "created_via": "login",
+                    "initialized_at": datetime.utcnow().isoformat()
+                }
+            )
+            session_response = session_service.create_user_session(user.user_id, session_request)
+            session_id = session_response.user_session.id
+            chat_id = session_response.user_session.chat_id
+            mission_id = session_response.user_session.mission_id
+            session_metadata = session_response.user_session.session_metadata or {}
+
+        logger.info(f"Successfully logged in user: {email} with session: {session_id}")
 
         return Token(
             access_token=access_token,
             token_type="bearer",
-            username=username
+            username=username,
+            session_id=session_id,
+            chat_id=chat_id,
+            mission_id=mission_id,
+            session_metadata=session_metadata
         )
 
     except HTTPException:

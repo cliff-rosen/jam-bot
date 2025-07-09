@@ -26,7 +26,6 @@ class UserSession(BaseModel):
     id: str = Field(description="Unique identifier for the session")
     user_id: int = Field(description="ID of the user who owns this session")
     name: str = Field(description="Name/title of the session")
-    description: Optional[str] = Field(default=None, description="Optional description of the session")
     status: UserSessionStatus = Field(default=UserSessionStatus.ACTIVE, description="Current status of the session")
     session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional session metadata")
     created_at: datetime = Field(description="When the session was created")
@@ -42,7 +41,6 @@ class UserSession(BaseModel):
 class CreateUserSessionRequest(BaseModel):
     """Request to create a new user session"""
     name: str = Field(description="Name for the new session")
-    description: Optional[str] = Field(default=None, description="Optional description")
     session_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional metadata")
 
 
@@ -55,7 +53,6 @@ class CreateUserSessionResponse(BaseModel):
 class UpdateUserSessionRequest(BaseModel):
     """Request to update an existing user session"""
     name: Optional[str] = Field(default=None, description="Updated name")
-    description: Optional[str] = Field(default=None, description="Updated description")
     status: Optional[UserSessionStatus] = Field(default=None, description="Updated status")
     mission_id: Optional[str] = Field(default=None, description="Updated mission ID")
     session_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Updated metadata")
@@ -75,7 +72,6 @@ class UserSessionSummary(BaseModel):
     id: str = Field(description="Unique identifier for the session")
     user_id: int = Field(description="ID of the user who owns this session")
     name: str = Field(description="Name/title of the session")
-    description: Optional[str] = Field(default=None, description="Optional description")
     status: UserSessionStatus = Field(description="Current status of the session")
     created_at: datetime = Field(description="When the session was created")
     updated_at: datetime = Field(description="When the session was last updated")

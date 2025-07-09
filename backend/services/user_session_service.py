@@ -51,7 +51,6 @@ class UserSessionService:
                 id=str(uuid4()),
                 user_id=user_id,
                 name=request.name,
-                description=request.description,
                 status=UserSessionStatus.ACTIVE,
                 chat_id=chat.id,
                 session_metadata=request.session_metadata or {},
@@ -169,8 +168,6 @@ class UserSessionService:
         # Update fields
         if request.name is not None:
             user_session.name = request.name
-        if request.description is not None:
-            user_session.description = request.description
         if request.status is not None:
             user_session.status = request.status
         if request.mission_id is not None:
@@ -201,8 +198,6 @@ class UserSessionService:
         # Update fields
         if request.name is not None:
             user_session.name = request.name
-        if request.description is not None:
-            user_session.description = request.description
         if request.status is not None:
             user_session.status = request.status
         if request.mission_id is not None:
@@ -357,7 +352,6 @@ class UserSessionService:
             'id': user_session.id,
             'user_id': user_session.user_id,
             'name': user_session.name,
-            'description': user_session.description,
             'status': user_session.status,
             'session_metadata': user_session.session_metadata,
             'created_at': user_session.created_at.isoformat(),

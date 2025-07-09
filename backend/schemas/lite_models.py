@@ -155,7 +155,7 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         description=asset_lite.description,
         schema_definition=schema_definition,
         subtype=asset_lite.subtype,
-        scope_type=AssetScopeType.MISSION,  # Assets from lite models are mission-scoped
+        scope_type="mission",  # Assets from lite models are mission-scoped
         scope_id="system",  # Default scope_id for mission assets
         status=initial_status,
         role=role,

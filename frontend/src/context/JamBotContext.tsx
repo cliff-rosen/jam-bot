@@ -792,17 +792,19 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const processBotMessage = useCallback((data: AgentResponse) => {
-        console.log("data", data);
+        console.log("processBotMessage data", data);
 
         let token: string = "";
         let newCollabAreaContent: any;
         let lastMessageId: string | null = null;
 
         if (data.token) {
+            console.log("data.token", data.token);
             token = data.token;
         }
 
         if (data.status) {
+            console.log("data.status", data.status);
             const statusMessage: ChatMessage = {
                 id: `status_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 chat_id: "temp", // This will be updated when sessions are integrated
@@ -816,11 +818,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             lastMessageId = statusMessage.id;
 
             if (data.payload) {
-                addPayloadHistory({ [lastMessageId]: data.payload });
+                // addPayloadHistory({ [lastMessageId]: data.payload });
             }
         }
 
         if (data.response_text) {
+            console.log("data.response_text", data.response_text);
             const chatMessage: ChatMessage = {
                 id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 chat_id: "temp", // This will be updated when sessions are integrated
@@ -870,15 +873,15 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             if (lastMessageId) {
-                addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
+                // addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
             }
 
-            return token;
+            return token || "";
         }
     }, [addMessage, updateStreamingMessage, addPayloadHistory, state.collabArea.type]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
-        addMessage(message);
+
         let finalContent = '';
         let streamingContent = '';
 

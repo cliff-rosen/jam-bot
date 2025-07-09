@@ -41,9 +41,9 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                     className={message.role === MessageRole.STATUS ? '' : 'prose-sm'}
                 />
                 <div className="flex items-center justify-between mt-1">
-                    {message.metadata?.type && (
+                    {message.message_metadata?.type && (
                         <div className="text-xs opacity-75">
-                            {message.metadata.type}
+                            {message.message_metadata.type}
                         </div>
                     )}
                     {hasPayload && (

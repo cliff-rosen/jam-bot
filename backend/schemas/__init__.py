@@ -12,13 +12,26 @@ from .auth import (
 )
 
 from .chat import (
-    Message,
     MessageRole,
     ChatResponse,
     AgentResponse,
     ChatRequest,
-    AssetReference
+    AssetReference,
+    Chat,
+    ChatMessage,
+    CreateChatMessageRequest,
+    CreateChatMessageResponse
  )
+
+from .user_session import (
+    UserSession,
+    UserSessionStatus,
+    UserSessionSummary,
+    CreateUserSessionRequest,
+    CreateUserSessionResponse,
+    UpdateUserSessionRequest,
+    ListUserSessionsResponse
+)
 
 from .asset import (
     Asset,
@@ -56,12 +69,24 @@ __all__ = [
     'TokenData',
     
     # Chat schemas
-    'Message',
     'MessageRole',
     'ChatRequest',
     'ChatResponse',
     'AgentResponse',
     'AssetReference',
+    'Chat',
+    'ChatMessage',
+    'CreateChatMessageRequest',
+    'CreateChatMessageResponse',
+
+    # User Session schemas
+    'UserSession',
+    'UserSessionStatus',
+    'UserSessionSummary',
+    'CreateUserSessionRequest',
+    'CreateUserSessionResponse',
+    'UpdateUserSessionRequest',
+    'ListUserSessionsResponse',
 
     # Newsletter schemas
     'Newsletter',

@@ -13,20 +13,42 @@ class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    TOOL = "tool"
+    STATUS = "status"
 
-class Message(BaseModel):
+# Chat persistence models
+class Chat(BaseModel):
+    """Chat conversation within a user session"""
+    id: str = Field(description="Unique identifier for the chat")
+    user_session_id: str = Field(description="ID of the parent user session")
+    title: Optional[str] = Field(default=None, description="Optional title for the chat")
+    chat_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional chat metadata")
+    created_at: datetime = Field(description="When the chat was created")
+    updated_at: datetime = Field(description="When the chat was last updated")
+    
+    # Relationships (populated by services)
+    messages: List['ChatMessage'] = Field(default_factory=list, description="Messages in this chat")
+
+class ChatMessage(BaseModel):
+    """Individual message within a chat"""
     id: str = Field(description="Unique identifier for the message")
-    role: MessageRole = Field(description="Role of the message sender (user/assistant/system)")
+    chat_id: str = Field(description="ID of the parent chat")
+    role: MessageRole = Field(description="Role of the message sender")
     content: str = Field(description="Content of the message")
-    timestamp: str = Field(description="When the message was sent in ISO format")
+    message_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional message metadata")
+    created_at: datetime = Field(description="When the message was created")
+    updated_at: datetime = Field(description="When the message was last updated")
 
-    @classmethod
-    def create(cls, **data):
-        if 'timestamp' not in data:
-            data['timestamp'] = datetime.utcnow().isoformat()
-        elif isinstance(data['timestamp'], datetime):
-            data['timestamp'] = data['timestamp'].isoformat()
-        return cls(**data)
+# Chat API Request/Response models
+class CreateChatMessageRequest(BaseModel):
+    """Request to create a new chat message"""
+    role: MessageRole = Field(description="Role of the message sender")
+    content: str = Field(description="Content of the message")
+    message_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional metadata")
+
+class CreateChatMessageResponse(BaseModel):
+    """Response when creating a new chat message"""
+    message: ChatMessage = Field(description="Created chat message")
 
 class AssetReference(BaseModel):
     """Lightweight asset reference for chat requests"""
@@ -40,7 +62,7 @@ class AssetReference(BaseModel):
     )
 
 class ChatRequest(BaseModel):
-    messages: List[Message] = Field(description="All messages in the conversation")
+    messages: List[ChatMessage] = Field(description="All messages in the conversation")
     mission_id: Optional[str] = Field(
         default=None,
         description="Optional mission ID for the chat context"
@@ -51,7 +73,7 @@ class ChatRequest(BaseModel):
     )
 
 class ChatResponse(BaseModel):
-    message: Message = Field(description="The bot's response message")
+    message: ChatMessage = Field(description="The bot's response message")
     payload: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Optional payload including assets, workflow info, and context"

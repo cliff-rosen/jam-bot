@@ -22,7 +22,7 @@
    - **Rationale**: Schemas represent fully-loaded business objects with resolved relationships
 
 3. **Session-Based Persistence**:
-   - **Chat Sessions**: Each user session contains a chat conversation and optionally a mission
+   - **User Sessions**: Each user session contains a chat conversation and optionally a mission
    - **Full Context**: Chat messages, mission state, and hop progress all persisted
    - **Rationale**: Enable session recovery, context preservation, and historical analysis
 
@@ -30,11 +30,12 @@
 
 ### Core Entities
 
-**ChatSession**: A user interaction session containing chat and optional mission
-- Top-level container for user interactions
+**UserSession**: A user working session containing chat and optional mission
+- Top-level workspace container for user interactions
 - Links chat conversations to missions
-- Enables session recovery and persistence
-- Tracks session metadata and lifecycle
+- Enables session recovery and persistence across app restarts
+- Tracks session metadata, lifecycle, and activity timestamps
+- Starts when user begins conversation, ends when completed/abandoned/archived
 
 **Chat**: A conversation within a session
 - Contains ordered sequence of messages
@@ -72,8 +73,8 @@
 ### Key Relationships
 
 ```
-ChatSession 1→1 Chat
-ChatSession 1→1 Mission (optional)
+UserSession 1→1 Chat
+UserSession 1→1 Mission (optional)
 Chat 1→* ChatMessage
 Mission 1→1 Hop (current_hop_id)
 Mission 1→* Hop (hop_history via mission_id)
@@ -95,7 +96,7 @@ class MessageRole(str, PyEnum):
     TOOL = "tool"
     STATUS = "status"
 
-class ChatSessionStatus(str, PyEnum):
+class UserSessionStatus(str, PyEnum):
     ACTIVE = "active"
     COMPLETED = "completed"
     ABANDONED = "abandoned"
@@ -147,17 +148,17 @@ class AssetScopeType(str, PyEnum):
     HOP = "hop"
 ```
 
-### ChatSession Model
+### UserSession Model
 
 ```python
-class ChatSession(Base):
-    __tablename__ = "chat_sessions"
+class UserSession(Base):
+    __tablename__ = "user_sessions"
     
     # Core fields
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     name = Column(String(255), nullable=True)  # Optional user-provided name
-    status = Column(Enum(ChatSessionStatus), nullable=False, default=ChatSessionStatus.ACTIVE)
+    status = Column(Enum(UserSessionStatus), nullable=False, default=UserSessionStatus.ACTIVE)
     
     # Relationships
     chat_id = Column(String(36), ForeignKey("chats.id"), nullable=False)
@@ -172,15 +173,15 @@ class ChatSession(Base):
     last_activity_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", back_populates="chat_sessions")
+    user = relationship("User", back_populates="user_sessions")
     chat = relationship("Chat", back_populates="session")
     mission = relationship("Mission", back_populates="session")
     
     # Indexes
     __table_args__ = (
-        Index('idx_chat_sessions_user_id', 'user_id'),
-        Index('idx_chat_sessions_status', 'status'),
-        Index('idx_chat_sessions_last_activity', 'last_activity_at'),
+        Index('idx_user_sessions_user_id', 'user_id'),
+        Index('idx_user_sessions_status', 'status'),
+        Index('idx_user_sessions_last_activity', 'last_activity_at'),
     )
 ```
 
@@ -204,7 +205,7 @@ class Chat(Base):
     
     # Relationships
     user = relationship("User", back_populates="chats")
-    session = relationship("ChatSession", back_populates="chat", uselist=False)
+    session = relationship("UserSession", back_populates="chat", uselist=False)
     messages = relationship("ChatMessage", back_populates="chat", cascade="all, delete-orphan", 
                           order_by="ChatMessage.sequence_order")
     
@@ -275,7 +276,7 @@ class Mission(Base):
     
     # Relationships
     user = relationship("User", back_populates="missions")
-    session = relationship("ChatSession", back_populates="mission", uselist=False)
+    session = relationship("UserSession", back_populates="mission", uselist=False)
     current_hop = relationship("Hop", foreign_keys=[current_hop_id], post_update=True)
     hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", 
                        order_by="Hop.sequence_order", foreign_keys="Hop.mission_id")
@@ -410,14 +411,14 @@ class Asset(Base):
 
 ## 3. Python Schema (Pydantic)
 
-### ChatSession Schema
+### UserSession Schema
 
 ```python
-class ChatSession(BaseModel):
+class UserSession(BaseModel):
     # Core fields
     id: str
     name: Optional[str] = None
-    status: ChatSessionStatus = ChatSessionStatus.ACTIVE
+    status: UserSessionStatus = UserSessionStatus.ACTIVE
     
     # Relationships
     chat_id: str
@@ -650,7 +651,7 @@ export enum MessageRole {
     STATUS = "status"
 }
 
-export enum ChatSessionStatus {
+export enum UserSessionStatus {
     ACTIVE = "active",
     COMPLETED = "completed",
     ABANDONED = "abandoned",
@@ -709,14 +710,14 @@ export enum AssetScopeType {
 }
 ```
 
-### ChatSession Interface
+### UserSession Interface
 
 ```typescript
-export interface ChatSession {
+export interface UserSession {
     // Core fields
     id: string;
     name?: string;
-    status: ChatSessionStatus;
+    status: UserSessionStatus;
     
     // Relationships
     chat_id: string;
@@ -926,23 +927,23 @@ export interface AssetWithContent extends Asset {
 
 ## 5. Query Patterns
 
-### Chat Session Queries
+### User Session Queries
 ```sql
 -- Get user's active sessions
-SELECT * FROM chat_sessions WHERE user_id=? AND status='active' ORDER BY last_activity_at DESC;
+SELECT * FROM user_sessions WHERE user_id=? AND status='active' ORDER BY last_activity_at DESC;
 
 -- Get session with chat and mission
-SELECT cs.*, c.title, m.name as mission_name 
-FROM chat_sessions cs 
-LEFT JOIN chats c ON cs.chat_id = c.id 
-LEFT JOIN missions m ON cs.mission_id = m.id 
-WHERE cs.id=?;
+SELECT us.*, c.title, m.name as mission_name 
+FROM user_sessions us 
+LEFT JOIN chats c ON us.chat_id = c.id 
+LEFT JOIN missions m ON us.mission_id = m.id 
+WHERE us.id=?;
 
 -- Get session messages
 SELECT cm.* FROM chat_messages cm 
 JOIN chats c ON cm.chat_id = c.id 
-JOIN chat_sessions cs ON c.id = cs.chat_id 
-WHERE cs.id=? 
+JOIN user_sessions us ON c.id = us.chat_id 
+WHERE us.id=? 
 ORDER BY cm.sequence_order;
 ```
 
@@ -972,11 +973,11 @@ SELECT * FROM hops WHERE id = (SELECT current_hop_id FROM missions WHERE id=?);
 
 ## 6. Status Sequences
 
-### ChatSession Status Flow
+### UserSession Status Flow
 ```
 ACTIVE → COMPLETED (mission completed successfully)
-      → ABANDONED (user stops interacting)
-      → ARCHIVED (user manually archives)
+      → ABANDONED (user stops interacting after 24+ hours)
+      → ARCHIVED (user manually archives or system cleanup after 7+ days)
 ```
 
 ### Mission Status Flow
@@ -1035,14 +1036,33 @@ This architecture provides efficient asset management with rich metadata while m
 
 ## 8. Session-Based Architecture
 
-### Session Management Strategy
+### UserSession Lifecycle Management
 
-**Session Lifecycle:**
-1. **Creation**: New ChatSession created when user starts conversation
-2. **Chat Persistence**: All messages stored in ChatMessage table with sequence order
-3. **Mission Linking**: Mission created and linked to session when user accepts mission proposal
-4. **Context Preservation**: Full conversation and mission state persisted for recovery
-5. **Session Completion**: Session marked as completed when mission finished or user archives
+**When a UserSession Starts:**
+```python
+# User opens app or starts new conversation
+chat = Chat.create(user_id=user_id)
+user_session = UserSession.create(
+    user_id=user_id,
+    chat_id=chat.id,
+    status=UserSessionStatus.ACTIVE,
+    mission_id=None  # No mission initially
+)
+```
+
+**UserSession Progression:**
+1. **Pure Chat Phase**: User chats, messages accumulate in `chat.messages`
+2. **Mission Proposal**: Bot proposes mission, stored in chat messages
+3. **Mission Acceptance**: Mission created and linked via `user_session.mission_id`
+4. **Active Work**: User progresses through mission hops while chat continues
+5. **Session Updates**: `last_activity_at` updated on every interaction
+
+**When a UserSession Ends:**
+- **COMPLETED**: Mission completes successfully
+- **ABANDONED**: No activity for 24+ hours (background job)
+- **ARCHIVED**: User manually archives or system cleanup after 7+ days
+
+### Session Management Strategy
 
 **Key Benefits:**
 - **Full Context Recovery**: Users can resume conversations exactly where they left off
@@ -1054,7 +1074,7 @@ This architecture provides efficient asset management with rich metadata while m
 
 **Frontend Context Loading:**
 ```python
-# Load session for user
+# Load complete session context
 session = get_user_session(user_id, session_id)
 chat_messages = session.chat.messages
 mission_state = session.mission.mission_state if session.mission else None
@@ -1075,13 +1095,36 @@ new_message = ChatMessage(
 )
 ```
 
-**Session Cleanup:**
+**Session Cleanup Strategy:**
 ```python
-# Archive inactive sessions older than 30 days
-UPDATE chat_sessions 
-SET status = 'archived' 
-WHERE status = 'active' 
-AND last_activity_at < NOW() - INTERVAL '30 days';
+# Daily cleanup job
+def cleanup_user_sessions():
+    # Mark abandoned sessions after 24 hours of inactivity
+    UserSession.query.filter(
+        UserSession.status == UserSessionStatus.ACTIVE,
+        UserSession.last_activity_at < (datetime.now() - timedelta(hours=24))
+    ).update({UserSession.status: UserSessionStatus.ABANDONED})
+    
+    # Archive abandoned sessions after 7 days
+    UserSession.query.filter(
+        UserSession.status == UserSessionStatus.ABANDONED,
+        UserSession.updated_at < (datetime.now() - timedelta(days=7))
+    ).update({UserSession.status: UserSessionStatus.ARCHIVED})
+    
+    # Delete archived sessions after 90 days
+    UserSession.query.filter(
+        UserSession.status == UserSessionStatus.ARCHIVED,
+        UserSession.updated_at < (datetime.now() - timedelta(days=90))
+    ).delete()
 ```
 
-This session-based architecture ensures complete persistence of user interactions while maintaining efficient access patterns and enabling rich contextual experiences.
+### User Experience Flow
+
+**Starting**: User opens app → New UserSession + Chat created automatically
+**Working**: User chats → Messages saved, mission created if accepted
+**Leaving**: User closes app → UserSession remains ACTIVE, can resume later
+**Returning**: User opens app → Can resume existing session or start new one
+**Completing**: Mission finishes → UserSession marked COMPLETED
+**Cleanup**: System manages session lifecycle automatically
+
+This session-based architecture ensures complete persistence of user interactions while maintaining efficient access patterns and enabling seamless resumption of work across app sessions.

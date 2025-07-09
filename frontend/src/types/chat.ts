@@ -8,15 +8,38 @@ export enum MessageRole {
     STATUS = 'status'
 }
 
-export type ChatMessage = {
+// Chat persistence models
+export interface Chat {
     id: string;
+    user_session_id: string;
+    title?: string;
+    chat_metadata: Record<string, any>;
+    created_at: string;
+    updated_at: string;
+
+    // Relationships (populated by services)
+    messages: ChatMessage[];
+}
+
+export interface ChatMessage {
+    id: string;
+    chat_id: string;
     role: MessageRole;
     content: string;
-    timestamp: string;
-    metadata?: {
-        type?: string;
-        [key: string]: any;
-    };
+    message_metadata: Record<string, any>;
+    created_at: string;
+    updated_at: string;
+}
+
+// Chat API Request/Response types
+export interface CreateChatMessageRequest {
+    role: MessageRole;
+    content: string;
+    message_metadata?: Record<string, any>;
+}
+
+export interface CreateChatMessageResponse {
+    message: ChatMessage;
 }
 
 // Lightweight asset reference for chat requests

@@ -61,6 +61,21 @@ class AssetScopeType(str, PyEnum):
     MISSION = "mission"
     HOP = "hop"
 
+class MessageRole(str, PyEnum):
+    """Role of a message in chat"""
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    TOOL = "tool"
+    STATUS = "status"
+
+class UserSessionStatus(str, PyEnum):
+    """Status of a user session"""
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+    ARCHIVED = "archived"
+
 Base = declarative_base()
 
 # Constants
@@ -82,6 +97,8 @@ class User(Base):
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resource_credentials = relationship("ResourceCredentials", back_populates="user", cascade="all, delete-orphan")
     missions = relationship("Mission", back_populates="user", cascade="all, delete-orphan")
+    user_sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    chats = relationship("Chat", back_populates="user", cascade="all, delete-orphan")
 
     hops = relationship("Hop", cascade="all, delete-orphan")
 
@@ -165,6 +182,7 @@ class Mission(Base):
     
     # Relationships
     user = relationship("User", back_populates="missions")
+    session = relationship("UserSession", back_populates="mission", uselist=False)
     current_hop = relationship("Hop", foreign_keys=[current_hop_id], post_update=True)
     hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", order_by="Hop.sequence_order", foreign_keys="Hop.mission_id")
 
@@ -232,5 +250,93 @@ class ToolStep(Base):
     hop = relationship("Hop", back_populates="tool_steps")
     user = relationship("User")
 
+class Chat(Base):
+    __tablename__ = "chats"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    title = Column(String(255), nullable=True)  # Optional title for the conversation
+    
+    # Chat context
+    context_data = Column(JSON, nullable=True)  # Dict[str, Any] - payload history, etc.
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="chats")
+    session = relationship("UserSession", back_populates="chat", uselist=False)
+    messages = relationship("ChatMessage", back_populates="chat", cascade="all, delete-orphan", 
+                          order_by="ChatMessage.sequence_order")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_chats_user_id', 'user_id'),
+        Index('idx_chats_created_at', 'created_at'),
+    )
 
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    name = Column(String(255), nullable=True)  # Optional user-provided name
+    status = Column(Enum(UserSessionStatus), nullable=False, default=UserSessionStatus.ACTIVE)
+    
+    # Relationships
+    chat_id = Column(String(36), ForeignKey("chats.id"), nullable=False)
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)
+    
+    # Session metadata
+    session_metadata = Column(JSON, nullable=True)  # Dict[str, Any]
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="user_sessions")
+    chat = relationship("Chat", back_populates="session")
+    mission = relationship("Mission", back_populates="session")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_user_sessions_user_id', 'user_id'),
+        Index('idx_user_sessions_status', 'status'),
+        Index('idx_user_sessions_last_activity', 'last_activity_at'),
+    )
 
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    
+    # Core fields
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    chat_id = Column(String(36), ForeignKey("chats.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    sequence_order = Column(Integer, nullable=False)
+    
+    # Message content
+    role = Column(Enum(MessageRole), nullable=False)
+    content = Column(Text, nullable=False)
+    
+    # Message metadata
+    message_metadata = Column(JSON, nullable=True)  # Dict[str, Any]
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    chat = relationship("Chat", back_populates="messages")
+    user = relationship("User")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_chat_messages_chat_id', 'chat_id'),
+        Index('idx_chat_messages_sequence', 'chat_id', 'sequence_order'),
+        Index('idx_chat_messages_role', 'role'),
+        Index('idx_chat_messages_created_at', 'created_at'),
+    )

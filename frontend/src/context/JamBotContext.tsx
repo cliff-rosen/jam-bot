@@ -17,7 +17,6 @@ interface JamBotState {
     currentStreamingMessage: string;
     collabArea: CollabAreaState;
     mission: Mission | null;
-    payload_history: Record<string, any>[];
     error?: string;
 }
 
@@ -30,7 +29,6 @@ type JamBotAction =
     | { type: 'CLEAR_COLLAB_AREA' }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
-    | { type: 'ADD_PAYLOAD_HISTORY'; payload: Record<string, any> }
     | { type: 'ACCEPT_MISSION_PROPOSAL'; payload?: Mission }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: { hop: Hop; proposedAssets: any[] } }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
@@ -52,8 +50,7 @@ const initialState: JamBotState = {
         type: null,
         content: null
     },
-    mission: null,
-    payload_history: []
+    mission: null
 };
 
 // Helper function to sanitize asset values
@@ -132,11 +129,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...action.payload
                 }
             };
-        case 'ADD_PAYLOAD_HISTORY':
-            return {
-                ...state,
-                payload_history: [...state.payload_history, action.payload]
-            };
+
         case 'ACCEPT_MISSION_PROPOSAL':
             const proposedMission = action.payload;
             console.log('Reducer ACCEPT_MISSION_PROPOSAL:', proposedMission);
@@ -436,7 +429,6 @@ interface JamBotContextType {
     sendMessage: (message: ChatMessage) => void;
     setCollabArea: (type: CollabAreaState['type'], content: CollabAreaState['content']) => void;
     clearCollabArea: () => void;
-    addPayloadHistory: (payload: Record<string, any>) => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: (hop: Hop, proposedAssets?: any[]) => void;
     acceptHopImplementationProposal: (hop: Hop) => void;
@@ -496,14 +488,13 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (isInitializing.current) return;
 
-        if (state.collabArea || state.payload_history.length > 0) {
+        if (state.collabArea) {
             const metadata = {
-                collabArea: state.collabArea,
-                payload_history: state.payload_history
+                collabArea: state.collabArea
             };
             updateSessionMetadata(metadata);
         }
-    }, [state.collabArea, state.payload_history, updateSessionMetadata]);
+    }, [state.collabArea, updateSessionMetadata]);
 
     // Data loading functions
     const loadChatMessages = async (chatId: string) => {
@@ -535,8 +526,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({
             type: 'SET_STATE', payload: {
                 ...state,
-                collabArea: metadata.collabArea || { type: null, content: null },
-                payload_history: metadata.payload_history || []
+                collabArea: metadata.collabArea || { type: null, content: null }
             }
         });
     };
@@ -553,9 +543,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
     }, []);
 
-    const addPayloadHistory = useCallback((payload: Record<string, any>) => {
-        dispatch({ type: 'ADD_PAYLOAD_HISTORY', payload });
-    }, []);
+
 
     const acceptMissionProposal = useCallback(async () => {
         // Get the proposed mission from the collab area content
@@ -872,16 +860,13 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
             }
 
-            if (lastMessageId) {
-                // addPayloadHistory({ [lastMessageId]: newCollabAreaContent });
-            }
-
             return token || "";
         }
-    }, [addMessage, updateStreamingMessage, addPayloadHistory, state.collabArea.type]);
+    }, [addMessage, updateStreamingMessage, state.collabArea.type]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
 
+        addMessage(message);
         let finalContent = '';
         let streamingContent = '';
 
@@ -937,17 +922,16 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                         type: null,
                         content: null
                     },
-                    mission: null,
-                    payload_history: []
+                    mission: null
                 }
             });
 
             // Switch to the new session
             switchToNewSession({
                 session_id: newSessionResponse.user_session.id,
-                session_name: newSessionResponse.user_session.name,
+                session_name: newSessionResponse.user_session.name || "New Session",
                 chat_id: newSessionResponse.chat.id,
-                mission_id: newSessionResponse.user_session.mission?.id,
+                mission_id: newSessionResponse.user_session.mission?.id || undefined,
                 session_metadata: newSessionResponse.user_session.session_metadata
             });
 
@@ -965,7 +949,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             sendMessage,
             setCollabArea,
             clearCollabArea,
-            addPayloadHistory,
             acceptMissionProposal,
             acceptHopProposal,
             acceptHopImplementationProposal,

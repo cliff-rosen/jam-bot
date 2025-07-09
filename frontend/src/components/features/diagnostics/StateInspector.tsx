@@ -57,7 +57,7 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
             }
 
             // Validate required fields
-            const requiredFields = ['currentMessages', 'currentStreamingMessage', 'collabArea', 'mission', 'payload_history'];
+            const requiredFields = ['currentMessages', 'currentStreamingMessage', 'collabArea', 'mission'];
             const missingFields = requiredFields.filter(field => !(field in newState));
 
             if (missingFields.length > 0) {
@@ -71,8 +71,8 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
             }
 
             // Validate arrays
-            if (!Array.isArray(newState.currentMessages) || !Array.isArray(newState.payload_history)) {
-                throw new Error('currentMessages and payload_history must be arrays');
+            if (!Array.isArray(newState.currentMessages)) {
+                throw new Error('currentMessages must be an array');
             }
 
             // Apply the state if all validations pass

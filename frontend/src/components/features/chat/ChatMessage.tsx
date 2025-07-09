@@ -1,5 +1,4 @@
 import React from 'react';
-import { ExternalLink } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { MessageRole } from '@/types/chat';
 import { MarkdownRenderer } from '../../common/MarkdownRenderer';
@@ -7,13 +6,10 @@ import { MarkdownRenderer } from '../../common/MarkdownRenderer';
 interface ChatMessageItemProps {
     message: ChatMessage;
     onCollabClick: (messageId: string) => void;
-    hasPayload: boolean;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
-    message,
-    onCollabClick,
-    hasPayload
+    message
 }) => {
     const getMessageStyles = () => {
         switch (message.role) {
@@ -45,15 +41,6 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                         <div className="text-xs opacity-75">
                             {message.message_metadata.type}
                         </div>
-                    )}
-                    {hasPayload && (
-                        <button
-                            onClick={() => onCollabClick(message.id)}
-                            className="text-xs opacity-75 hover:opacity-100 transition-opacity flex items-center gap-1"
-                        >
-                            <ExternalLink className="w-3 h-3" />
-                            View in Collab
-                        </button>
                     )}
                 </div>
             </div>

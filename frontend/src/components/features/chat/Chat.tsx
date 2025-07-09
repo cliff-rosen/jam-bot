@@ -24,22 +24,6 @@ export default function Chat() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Add this logging
-    useEffect(() => {
-        console.log("==========================================================")
-        console.log('🔄 Chat component mounted/updated');
-        console.log('📊 Current state:', {
-            isLoading,
-            inputLength: input.length,
-            messagesCount: currentMessages.length
-        });
-    });
-
-    useEffect(() => {
-        console.log('🔵 isLoading changed to:', isLoading);
-    }, [isLoading]);
-
-
     useEffect(() => {
         scrollToBottom();
     }, [currentMessages, currentStreamingMessage]);
@@ -63,10 +47,6 @@ export default function Chat() {
         setIsLoading(false);
     };
 
-    const hasPayload = (messageId: string) => {
-        return state.payload_history.some(item => item[messageId]);
-    };
-
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800 shadow-sm">
             <ChatHeader
@@ -80,8 +60,7 @@ export default function Chat() {
                     <ChatMessageItem
                         key={message.id}
                         message={message}
-                        onCollabClick={() => { }} // Removed functionality due to type incompatibility
-                        hasPayload={hasPayload(message.id)}
+                        onCollabClick={() => { }}
                     />
                 ))}
 

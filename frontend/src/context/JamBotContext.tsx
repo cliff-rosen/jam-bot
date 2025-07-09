@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 
-import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { toolsApi, assetApi, missionApi } from '@/lib/api';
 
@@ -801,15 +800,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 msg.role !== MessageRole.STATUS && msg.role !== MessageRole.TOOL
             );
 
-            // Use utility to sanitize mission for chat context
-            const sanitizedMission = sanitizeMissionForChat(state.mission);
-
             const chatRequest: ChatRequest = {
                 messages: [...filteredMessages, message],
                 mission_id: state.mission?.id || null,
                 payload: {
-                    mission: sanitizedMission
-                    // Backend will fetch its own asset summaries
                 }
             };
 

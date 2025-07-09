@@ -23,6 +23,7 @@ interface JamBotState {
 
 type JamBotAction =
     | { type: 'ADD_MESSAGE'; payload: ChatMessage }
+    | { type: 'SET_MESSAGES'; payload: ChatMessage[] }
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
     | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
@@ -101,6 +102,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             return {
                 ...state,
                 currentMessages: [...state.currentMessages, action.payload],
+            };
+        case 'SET_MESSAGES':
+            return {
+                ...state,
+                currentMessages: action.payload
             };
         case 'UPDATE_STREAMING_MESSAGE':
             return {
@@ -502,22 +508,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     // Data loading functions
     const loadChatMessages = async (chatId: string) => {
         try {
+            console.log('Loading chat messages for chatId:', chatId);
             const response = await chatApi.getMessages(chatId);
+            console.log('Loaded messages:', response.messages?.length || 0);
+
             dispatch({
-                type: 'SET_STATE', payload: {
-                    ...state,
-                    currentMessages: response.messages || []
-                }
+                type: 'SET_MESSAGES',
+                payload: response.messages || []
             });
         } catch (error) {
             console.error('Error loading chat messages:', error);
-            // Start with empty messages if loading fails
-            dispatch({
-                type: 'SET_STATE', payload: {
-                    ...state,
-                    currentMessages: []
-                }
-            });
+            // Don't clear messages if loading fails - just log the error
         }
     };
 
@@ -943,6 +944,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             // Switch to the new session
             switchToNewSession({
                 session_id: newSessionResponse.user_session.id,
+                session_name: newSessionResponse.user_session.name,
                 chat_id: newSessionResponse.chat.id,
                 mission_id: newSessionResponse.user_session.mission?.id,
                 session_metadata: newSessionResponse.user_session.session_metadata

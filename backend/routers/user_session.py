@@ -36,6 +36,7 @@ async def initialize_session(
         # Return lightweight response - just the pointers
         return {
             "id": response.user_session.id,
+            "name": response.user_session.name,
             "chat_id": response.user_session.chat_id,
             "mission_id": response.user_session.mission_id,
             "session_metadata": response.user_session.session_metadata
@@ -83,6 +84,7 @@ async def get_active_session(
     # Return just the pointers - no heavy relationship loading
     return {
         "id": session.id,
+        "name": session.name,
         "chat_id": session.chat_id,
         "mission_id": session.mission_id,
         "session_metadata": session.session_metadata
@@ -127,6 +129,7 @@ async def update_session(
     
     return {
         "id": session.id,
+        "name": session.name,
         "chat_id": session.chat_id,
         "mission_id": session.mission_id,
         "session_metadata": session.session_metadata
@@ -153,6 +156,7 @@ async def link_mission_to_session(
         
         return {
             "id": session.id,
+            "name": session.name,
             "chat_id": session.chat_id,
             "mission_id": session.mission_id,
             "session_metadata": session.session_metadata

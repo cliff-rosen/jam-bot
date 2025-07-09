@@ -26,6 +26,7 @@ class Token(BaseModel):
     
     # Session information included in login response
     session_id: str = Field(description="User's active session ID")
+    session_name: Optional[str] = Field(None, description="User's session name")
     chat_id: str = Field(description="Associated chat conversation ID")
     mission_id: Optional[str] = Field(None, description="Associated mission ID if exists")
     session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Session metadata")

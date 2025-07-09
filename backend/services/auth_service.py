@@ -132,6 +132,7 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             # Update session activity
             session_service.update_session_activity(user.user_id, session.id)
             session_id = session.id
+            session_name = session.name
             chat_id = session.chat_id
             mission_id = session.mission_id
             session_metadata = session.session_metadata or {}
@@ -147,6 +148,7 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             )
             session_response = session_service.create_user_session(user.user_id, session_request)
             session_id = session_response.user_session.id
+            session_name = session_response.user_session.name
             chat_id = session_response.user_session.chat_id
             mission_id = session_response.user_session.mission_id
             session_metadata = session_response.user_session.session_metadata or {}
@@ -158,6 +160,7 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             token_type="bearer",
             username=username,
             session_id=session_id,
+            session_name=session_name,
             chat_id=chat_id,
             mission_id=mission_id,
             session_metadata=session_metadata

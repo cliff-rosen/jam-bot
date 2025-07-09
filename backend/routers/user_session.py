@@ -23,16 +23,23 @@ from schemas.user_session import (
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
-@router.post("/", response_model=CreateUserSessionResponse)
-async def create_session(
+@router.post("/initialize")
+async def initialize_session(
     request: CreateUserSessionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
-    """Create a new user session"""
+    """Create new session with fresh chat when none exists"""
     service = UserSessionService(db)
     try:
-        return service.create_user_session(current_user.user_id, request)
+        response = service.create_user_session(current_user.user_id, request)
+        # Return lightweight response - just the pointers
+        return {
+            "id": response.user_session.id,
+            "chat_id": response.user_session.chat_id,
+            "mission_id": response.user_session.mission_id,
+            "session_metadata": response.user_session.session_metadata
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -58,14 +65,28 @@ async def list_sessions(
     )
 
 
-@router.get("/active", response_model=Optional[UserSessionSchema])
+@router.get("/active")
 async def get_active_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
-    """Get the user's current active session"""
+    """Get the user's current active session - returns lightweight pointers"""
     service = UserSessionService(db)
-    return service.get_active_session(current_user.user_id)
+    session = service.get_active_session(current_user.user_id)
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active session found"
+        )
+    
+    # Return just the pointers - no heavy relationship loading
+    return {
+        "id": session.id,
+        "chat_id": session.chat_id,
+        "mission_id": session.mission_id,
+        "session_metadata": session.session_metadata
+    }
 
 
 @router.get("/{session_id}", response_model=UserSessionSchema)
@@ -87,16 +108,16 @@ async def get_session(
     return session
 
 
-@router.put("/{session_id}", response_model=UserSessionSchema)
+@router.put("/{session_id}")
 async def update_session(
     session_id: str,
     request: UpdateUserSessionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
-    """Update an existing user session"""
+    """Update an existing user session - returns lightweight response"""
     service = UserSessionService(db)
-    session = service.update_user_session(current_user.user_id, session_id, request)
+    session = service.update_user_session_lightweight(current_user.user_id, session_id, request)
     
     if not session:
         raise HTTPException(
@@ -104,20 +125,25 @@ async def update_session(
             detail="Session not found"
         )
     
-    return session
+    return {
+        "id": session.id,
+        "chat_id": session.chat_id,
+        "mission_id": session.mission_id,
+        "session_metadata": session.session_metadata
+    }
 
 
-@router.post("/{session_id}/link-mission/{mission_id}", response_model=UserSessionSchema)
+@router.post("/{session_id}/link-mission/{mission_id}")
 async def link_mission_to_session(
     session_id: str,
     mission_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
-    """Link a mission to a user session"""
+    """Link a mission to a user session - returns lightweight response"""
     service = UserSessionService(db)
     try:
-        session = service.link_mission_to_session(current_user.user_id, session_id, mission_id)
+        session = service.link_mission_to_session_lightweight(current_user.user_id, session_id, mission_id)
         
         if not session:
             raise HTTPException(
@@ -125,7 +151,12 @@ async def link_mission_to_session(
                 detail="Session not found"
             )
         
-        return session
+        return {
+            "id": session.id,
+            "chat_id": session.chat_id,
+            "mission_id": session.mission_id,
+            "session_metadata": session.session_metadata
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

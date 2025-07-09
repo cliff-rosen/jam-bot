@@ -67,6 +67,11 @@ export const chatApi = {
         yield* makeStreamRequest('/api/chat/stream', chatRequest, 'POST');
     },
 
+    getMessages: async function(chatId: string): Promise<{ messages: ChatMessage[] }> {
+        const response = await api.get(`/api/chat/${chatId}/messages`);
+        return response.data;
+    },
+
 
 
 }; 

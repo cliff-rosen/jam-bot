@@ -76,6 +76,10 @@ class UserSessionService:
             user_session_schema = self._convert_to_schema(user_session)
             user_session_schema.chat = chat_schema
             
+            # For simplified approach, also return the raw session model
+            user_session_schema.chat_id = chat.id
+            user_session_schema.mission_id = None
+            
             return CreateUserSessionResponse(
                 user_session=user_session_schema,
                 chat=chat_schema
@@ -132,11 +136,8 @@ class UserSessionService:
         )
     
     def get_active_session(self, user_id: int) -> Optional[UserSession]:
-        """Get the user's current active session"""
-        user_session = self.db.query(UserSession).options(
-            joinedload(UserSession.chat).joinedload(Chat.messages),
-            joinedload(UserSession.mission)
-        ).filter(
+        """Get the user's current active session - lightweight, no relationships"""
+        user_session = self.db.query(UserSession).filter(
             and_(
                 UserSession.user_id == user_id,
                 UserSession.status == UserSessionStatus.ACTIVE
@@ -150,7 +151,7 @@ class UserSessionService:
         user_session.last_activity_at = datetime.utcnow()
         self.db.commit()
         
-        return self._convert_to_schema(user_session)
+        return user_session  # Return model directly, no schema conversion
     
     def update_user_session(self, user_id: int, session_id: str, 
                           request: UpdateUserSessionRequest) -> Optional[UserSession]:
@@ -172,6 +173,8 @@ class UserSessionService:
             user_session.description = request.description
         if request.status is not None:
             user_session.status = request.status
+        if request.mission_id is not None:
+            user_session.mission_id = request.mission_id
         if request.session_metadata is not None:
             user_session.session_metadata = request.session_metadata
         
@@ -181,6 +184,38 @@ class UserSessionService:
         self.db.commit()
         
         return self._convert_to_schema(user_session)
+    
+    def update_user_session_lightweight(self, user_id: int, session_id: str, 
+                                      request: UpdateUserSessionRequest) -> Optional[UserSession]:
+        """Update session and return lightweight model (no schema conversion)"""
+        user_session = self.db.query(UserSession).filter(
+            and_(
+                UserSession.id == session_id,
+                UserSession.user_id == user_id
+            )
+        ).first()
+        
+        if not user_session:
+            return None
+        
+        # Update fields
+        if request.name is not None:
+            user_session.name = request.name
+        if request.description is not None:
+            user_session.description = request.description
+        if request.status is not None:
+            user_session.status = request.status
+        if request.mission_id is not None:
+            user_session.mission_id = request.mission_id
+        if request.session_metadata is not None:
+            user_session.session_metadata = request.session_metadata
+        
+        user_session.updated_at = datetime.utcnow()
+        user_session.last_activity_at = datetime.utcnow()
+        
+        self.db.commit()
+        
+        return user_session  # Return model directly
     
     def link_mission_to_session(self, user_id: int, session_id: str, mission_id: str) -> Optional[UserSession]:
         """Link a mission to a user session"""
@@ -212,6 +247,37 @@ class UserSessionService:
         self.db.commit()
         
         return self._convert_to_schema(user_session)
+    
+    def link_mission_to_session_lightweight(self, user_id: int, session_id: str, mission_id: str) -> Optional[UserSession]:
+        """Link a mission to a user session - return lightweight model"""
+        user_session = self.db.query(UserSession).filter(
+            and_(
+                UserSession.id == session_id,
+                UserSession.user_id == user_id
+            )
+        ).first()
+        
+        if not user_session:
+            return None
+        
+        # Verify mission exists and belongs to user
+        mission = self.db.query(Mission).filter(
+            and_(
+                Mission.id == mission_id,
+                Mission.user_id == user_id
+            )
+        ).first()
+        
+        if not mission:
+            raise ValidationError("Mission not found or doesn't belong to user")
+        
+        user_session.mission_id = mission_id
+        user_session.updated_at = datetime.utcnow()
+        user_session.last_activity_at = datetime.utcnow()
+        
+        self.db.commit()
+        
+        return user_session  # Return model directly
     
     def update_session_activity(self, user_id: int, session_id: str):
         """Update session activity timestamp"""

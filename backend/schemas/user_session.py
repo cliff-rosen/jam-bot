@@ -57,6 +57,7 @@ class UpdateUserSessionRequest(BaseModel):
     name: Optional[str] = Field(default=None, description="Updated name")
     description: Optional[str] = Field(default=None, description="Updated description")
     status: Optional[UserSessionStatus] = Field(default=None, description="Updated status")
+    mission_id: Optional[str] = Field(default=None, description="Updated mission ID")
     session_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Updated metadata")
 
 

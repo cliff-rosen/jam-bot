@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
 import { toolsApi, assetApi, missionApi } from '@/lib/api';
+import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
@@ -457,6 +458,78 @@ export const useJamBot = () => {
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
+    const { chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata } = useAuth();
+
+    // Load data when session changes
+    useEffect(() => {
+        if (chatId) {
+            loadChatMessages(chatId);
+        }
+    }, [chatId]);
+
+    useEffect(() => {
+        if (missionId) {
+            loadMission(missionId);
+        }
+    }, [missionId]);
+
+    useEffect(() => {
+        if (sessionMetadata) {
+            loadSessionState(sessionMetadata);
+        }
+    }, [sessionMetadata]);
+
+    // Auto-save session metadata when state changes
+    useEffect(() => {
+        if (state.collabArea || state.payload_history.length > 0) {
+            const metadata = {
+                collabArea: state.collabArea,
+                payload_history: state.payload_history
+            };
+            updateSessionMetadata(metadata);
+        }
+    }, [state.collabArea, state.payload_history, updateSessionMetadata]);
+
+    // Data loading functions
+    const loadChatMessages = async (chatId: string) => {
+        try {
+            const response = await chatApi.getMessages(chatId);
+            dispatch({
+                type: 'SET_STATE', payload: {
+                    ...state,
+                    currentMessages: response.messages || []
+                }
+            });
+        } catch (error) {
+            console.error('Error loading chat messages:', error);
+            // Start with empty messages if loading fails
+            dispatch({
+                type: 'SET_STATE', payload: {
+                    ...state,
+                    currentMessages: []
+                }
+            });
+        }
+    };
+
+    const loadMission = async (missionId: string) => {
+        try {
+            const mission = await missionApi.getMission(missionId);
+            dispatch({ type: 'SET_MISSION', payload: mission });
+        } catch (error) {
+            console.error('Error loading mission:', error);
+        }
+    };
+
+    const loadSessionState = (metadata: Record<string, any>) => {
+        dispatch({
+            type: 'SET_STATE', payload: {
+                ...state,
+                collabArea: metadata.collabArea || { type: null, content: null },
+                payload_history: metadata.payload_history || []
+            }
+        });
+    };
 
     const setState = useCallback((newState: JamBotState) => {
         dispatch({ type: 'SET_STATE', payload: newState });
@@ -497,6 +570,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 };
 
                 console.log('Mission persisted with ID:', response.mission_id);
+
+                // Update session to point to new mission
+                await updateSessionMission(response.mission_id);
+
                 dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: persistedMission });
             } catch (error) {
                 console.error('Error accepting mission proposal:', error);
@@ -511,7 +588,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
             console.log('No proposed mission found in collab area');
         }
-    }, [state.collabArea.content]);
+    }, [state.collabArea.content, updateSessionMission]);
 
     const acceptHopProposal = useCallback((hop: Hop, proposedAssets?: any[]) => {
         dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });

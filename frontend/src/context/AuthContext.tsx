@@ -10,6 +10,16 @@ interface AuthContextType {
     logout: () => void
     error: string | null
     handleSessionExpired: () => void
+
+    // Session management
+    sessionId: string | null
+    chatId: string | null
+    missionId: string | null
+    sessionMetadata: Record<string, any>
+
+    // Session methods
+    updateSessionMission: (missionId: string) => Promise<void>
+    updateSessionMetadata: (metadata: Record<string, any>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -18,6 +28,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [user, setUser] = useState<{ id: string; username: string; email: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
+
+    // Session state
+    const [sessionId, setSessionId] = useState<string | null>(null)
+    const [chatId, setChatId] = useState<string | null>(null)
+    const [missionId, setMissionId] = useState<string | null>(null)
+    const [sessionMetadata, setSessionMetadata] = useState<Record<string, any>>({})
 
     useEffect(() => {
         const token = localStorage.getItem('authToken')
@@ -56,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             setError(null)
             localStorage.setItem('authToken', data.access_token)
             localStorage.setItem('user', JSON.stringify({
@@ -64,12 +80,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 username: data.username,
                 email: data.email
             }))
-            setIsAuthenticated(true)
             setUser({
                 id: data.user_id,
                 username: data.username,
                 email: data.email
             })
+
+            // Load or create session
+            await loadOrCreateSession(data.username)
+
+            setIsAuthenticated(true)
         },
         onError: (error: Error) => {
             setError(error.message)
@@ -104,11 +124,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     })
 
+    // Session management functions
+    const loadOrCreateSession = async (username: string) => {
+        try {
+            // Try to get active session
+            const response = await api.get('/api/sessions/active')
+            const session = response.data
+
+            setSessionId(session.id)
+            setChatId(session.chat_id)
+            setMissionId(session.mission_id)
+            setSessionMetadata(session.session_metadata || {})
+
+        } catch (error: any) {
+            if (error.response?.status === 404) {
+                // No active session - create new one
+                const newSession = await createNewSession(username)
+                setSessionId(newSession.id)
+                setChatId(newSession.chat_id)
+                setMissionId(null)
+                setSessionMetadata({})
+            } else {
+                console.error('Error loading session:', error)
+                throw error
+            }
+        }
+    }
+
+    const createNewSession = async (username: string) => {
+        const response = await api.post('/api/sessions/initialize', {
+            name: `${username}'s Session`,
+            session_metadata: {
+                created_via: 'login',
+                initialized_at: new Date().toISOString()
+            }
+        })
+        return response.data
+    }
+
+    const updateSessionMission = async (newMissionId: string) => {
+        if (!sessionId) return
+
+        try {
+            const response = await api.put(`/api/sessions/${sessionId}`, {
+                mission_id: newMissionId
+            })
+            setMissionId(response.data.mission_id)
+        } catch (error) {
+            console.error('Error updating session mission:', error)
+            throw error
+        }
+    }
+
+    const updateSessionMetadata = async (metadata: Record<string, any>) => {
+        if (!sessionId) return
+
+        try {
+            const updatedMetadata = { ...sessionMetadata, ...metadata }
+            const response = await api.put(`/api/sessions/${sessionId}`, {
+                session_metadata: updatedMetadata
+            })
+            setSessionMetadata(response.data.session_metadata)
+        } catch (error) {
+            console.error('Error updating session metadata:', error)
+            // Don't throw - metadata updates shouldn't break the app
+        }
+    }
+
     const logout = () => {
         localStorage.removeItem('authToken')
         localStorage.removeItem('user')
         setIsAuthenticated(false)
         setUser(null)
+
+        // Clear session data
+        setSessionId(null)
+        setChatId(null)
+        setMissionId(null)
+        setSessionMetadata({})
     }
 
     const handleSessionExpired = () => {
@@ -117,7 +210,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, error, handleSessionExpired }}>
+        <AuthContext.Provider value={{
+            isAuthenticated,
+            user,
+            login,
+            register,
+            logout,
+            error,
+            handleSessionExpired,
+
+            // Session management
+            sessionId,
+            chatId,
+            missionId,
+            sessionMetadata,
+
+            // Session methods
+            updateSessionMission,
+            updateSessionMetadata
+        }}>
             {children}
         </AuthContext.Provider>
     )

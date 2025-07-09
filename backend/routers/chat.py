@@ -13,7 +13,7 @@ from services.auth_service import validate_token
 from services.mission_service import MissionService
 from services.ai_service import ai_service, LLMRequest
 
-from schemas import Message, MessageRole, ChatRequest, ChatResponse
+from schemas import ChatMessage, MessageRole, ChatRequest, ChatResponse
 from agents.primary_agent import graph as primary_agent, State
 from utils.mission_utils import enrich_chat_context_with_assets
 
@@ -78,10 +78,10 @@ async def chat_stream(
             # Run the graph
             async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
                 if isinstance(output, dict):
-                    # Convert any Message objects in the dict to their dict representation
+                    # Convert any ChatMessage objects in the dict to their dict representation
                     processed_output = {}
                     for key, value in output.items():
-                        if isinstance(value, Message):
+                        if isinstance(value, ChatMessage):
                             processed_output[key] = value.model_dump()
                         else:
                             processed_output[key] = value
@@ -90,8 +90,8 @@ async def chat_stream(
                         "event": "message",
                         "data": json.dumps(processed_output)
                     }
-                elif isinstance(output, Message):
-                    # Convert Message object to dict before JSON serialization
+                elif isinstance(output, ChatMessage):
+                    # Convert ChatMessage object to dict before JSON serialization
                     yield {
                         "event": "message",
                         "data": json.dumps(output.model_dump())
@@ -155,11 +155,14 @@ async def invoke_llm(
             response = await ai_service.invoke_llm(request)
             
             # Create a response message
-            message = Message(
+            message = ChatMessage(
                 id=str(uuid.uuid4()),
+                chat_id="temp",  # This will need to be updated when we integrate sessions
                 role=MessageRole.ASSISTANT,
                 content=response,
-                timestamp=datetime.now().isoformat()
+                message_metadata={},
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             
             return ChatResponse(

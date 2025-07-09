@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
+
+import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
 import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
+import { toolsApi, assetApi, missionApi } from '@/lib/api';
+
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
 import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
-import { toolsApi, assetApi, missionApi } from '@/lib/api';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
-import { sanitizeMissionForChat } from '@/lib/utils/missionUtils';
 import { AssetRole } from '@/types/asset';
 
 interface JamBotState {
@@ -586,9 +588,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 // Add success message to chat
                 const successMessage: ChatMessage = {
                     id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    chat_id: "temp", // This will be updated when sessions are integrated
                     role: MessageRole.TOOL,
                     content: `Tool '${step.tool_id}' executed successfully`,
-                    timestamp: new Date().toISOString()
+                    message_metadata: {},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 };
                 addMessage(successMessage);
 
@@ -714,9 +719,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.status) {
             const statusMessage: ChatMessage = {
                 id: `status_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                chat_id: "temp", // This will be updated when sessions are integrated
                 role: MessageRole.STATUS,
                 content: data.status,
-                timestamp: new Date().toISOString()
+                message_metadata: {},
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             };
             addMessage(statusMessage);
             lastMessageId = statusMessage.id;
@@ -729,9 +737,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.response_text) {
             const chatMessage: ChatMessage = {
                 id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                chat_id: "temp", // This will be updated when sessions are integrated
                 role: MessageRole.ASSISTANT,
                 content: data.response_text,
-                timestamp: new Date().toISOString()
+                message_metadata: {},
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             };
             addMessage(chatMessage);
             lastMessageId = chatMessage.id;

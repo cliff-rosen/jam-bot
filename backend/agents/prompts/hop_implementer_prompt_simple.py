@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from schemas.chat import Message
+from schemas.chat import ChatMessage
 from schemas.workflow import Mission, Hop
 from schemas.lite_models import ToolStepLite
 

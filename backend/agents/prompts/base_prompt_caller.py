@@ -1,27 +1,27 @@
-from typing import Dict, Any, Type, List, Optional
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from openai import AsyncOpenAI
-from schemas.chat import Message
+from schemas.chat import ChatMessage
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
 
 class BasePromptCaller:
-    """A simplified base class for creating and using prompts"""
+    """Base class for creating and using prompt callers"""
     
     def __init__(
         self,
-        response_model: Type[BaseModel],
-        system_message: str,
+        response_model: type[BaseModel],
+        system_message: Optional[str] = None,
         messages_placeholder: bool = True
     ):
         """
-        Initialize a simple prompt.
+        Initialize a prompt caller.
         
         Args:
             response_model: The Pydantic model that defines the expected response structure
-            system_message: The system message to use in the prompt
+            system_message: The system message to use in the prompt (optional)
             messages_placeholder: Whether to include a messages placeholder in the prompt
         """
         self.response_model = response_model
@@ -34,14 +34,16 @@ class BasePromptCaller:
         
     def get_prompt_template(self) -> ChatPromptTemplate:
         """Get the prompt template with system message and optional messages placeholder"""
-        messages = [("system", self.system_message)]
+        messages = []
+        if self.system_message:
+            messages.append(("system", self.system_message))
         if self.messages_placeholder:
             messages.append(MessagesPlaceholder(variable_name="messages"))
         return ChatPromptTemplate.from_messages(messages)
     
     def get_formatted_messages(
         self,
-        messages: List[Message],
+        messages: List[ChatMessage],
         **kwargs: Dict[str, Any]
     ) -> List[Dict[str, str]]:
         """Format messages for the prompt"""
@@ -72,7 +74,7 @@ class BasePromptCaller:
     
     async def invoke(
         self,
-        messages: List[Message],
+        messages: List[ChatMessage] = None,
         log_prompt: bool = True,
         **kwargs: Dict[str, Any]
     ) -> BaseModel:
@@ -80,13 +82,17 @@ class BasePromptCaller:
         Invoke the prompt and get a parsed response.
         
         Args:
-            messages: List of conversation messages
+            messages: List of conversation messages (optional)
             log_prompt: Whether to log the prompt messages
             **kwargs: Additional variables to format into the prompt
             
         Returns:
             Parsed response as an instance of the response model
         """
+        # Use empty list if no messages provided
+        if messages is None:
+            messages = []
+        
         # Format messages
         formatted_messages = self.get_formatted_messages(messages, **kwargs)
         
@@ -103,7 +109,7 @@ class BasePromptCaller:
         
         # Get schema
         schema = self.get_schema()
-
+        
         # Call OpenAI
         response = await self.client.chat.completions.create(
             model="gpt-4o",

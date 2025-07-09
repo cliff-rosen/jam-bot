@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from schemas.chat import Message
+from schemas.chat import ChatMessage
 from schemas.workflow import Mission
 from schemas.lite_models import MissionLite
 
@@ -85,7 +85,7 @@ Based on the conversation history and available tools, analyze what information 
     
     async def invoke(
         self,
-        messages: List[Message],
+        messages: List[ChatMessage],
         mission: Mission,
         **kwargs: Dict[str, Any]
     ) -> MissionDefinitionResponse:

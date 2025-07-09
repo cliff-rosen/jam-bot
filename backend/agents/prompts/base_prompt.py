@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from openai import AsyncOpenAI
-from schemas.chat import Message
+from schemas.chat import ChatMessage
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
 
@@ -43,7 +43,7 @@ class BasePrompt:
     
     def get_formatted_messages(
         self,
-        messages: List[Message],
+        messages: List[ChatMessage],
         **kwargs: Dict[str, Any]
     ) -> List[Dict[str, str]]:
         """Format messages for the prompt"""
@@ -74,7 +74,7 @@ class BasePrompt:
     
     async def invoke(
         self,
-        messages: List[Message],
+        messages: List[ChatMessage],
         log_prompt: bool = True,
         **kwargs: Dict[str, Any]
     ) -> BaseModel:

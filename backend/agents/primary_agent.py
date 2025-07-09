@@ -13,7 +13,7 @@ from langgraph.types import StreamWriter, Send, Command
 
 from config.settings import settings
 
-from schemas.chat import Message, MessageRole, AgentResponse
+from schemas.chat import ChatMessage, MessageRole, AgentResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
 from schemas.asset import Asset, AssetStatus
 from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
@@ -43,7 +43,7 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 class State(BaseModel):
     """State for the RAVE workflow"""
-    messages: List[Message]
+    messages: List[ChatMessage]
     mission: Optional[Mission] = None
     mission_id: Optional[str] = None  # Add mission_id for persistence
     tool_params: Dict[str, Any] = {}
@@ -149,11 +149,14 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         print(f"DEBUG: Next node: {next_node}")
 
         # Create routing message
-        response_message = Message(
+        response_message = ChatMessage(
             id=str(uuid.uuid4()),
+            chat_id="temp",  # This will be updated when chat sessions are integrated
             role=MessageRole.ASSISTANT,
             content=routing_message,
-            timestamp=datetime.utcnow().isoformat()
+            message_metadata={},
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
         state_update = {
@@ -207,11 +210,14 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         )
 
         # Create response message
-        response_message = Message(
+        response_message = ChatMessage(
             id=str(uuid.uuid4()),
+            chat_id="temp",  # This will be updated when chat sessions are integrated
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.utcnow().isoformat()
+            message_metadata={},
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
         next_node = END
@@ -287,11 +293,14 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         )
 
         # Create response message
-        response_message = Message(
+        response_message = ChatMessage(
             id=str(uuid.uuid4()),
+            chat_id="temp",  # This will be updated when chat sessions are integrated
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.utcnow().isoformat()
+            message_metadata={},
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
         # Handle different response types
@@ -406,11 +415,14 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         )
 
         # Create response message from parsed response.response_content
-        response_message = Message(
+        response_message = ChatMessage(
             id=str(uuid.uuid4()),
+            chat_id="temp",  # This will be updated when chat sessions are integrated
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
-            timestamp=datetime.utcnow().isoformat()
+            message_metadata={},
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
         # Handle different response types
@@ -530,11 +542,14 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
 
         # Create a response message with the search results
         current_time = datetime.now().isoformat()
-        response_message = Message(
+        response_message = ChatMessage(
             id=str(uuid.uuid4()),
+            chat_id="temp",  # This will be updated when chat sessions are integrated
             role=MessageRole.ASSISTANT,
             content=search_results_string,
-            timestamp=current_time
+            message_metadata={"asset_search": True},
+            created_at=current_time,
+            updated_at=current_time
         )
 
         # Route back to supervisor with the results

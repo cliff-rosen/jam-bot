@@ -1,14 +1,14 @@
 from typing import List, Dict, Any, Union
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from schemas.chat import Message, MessageRole
+from schemas.chat import ChatMessage, MessageRole
 
 def format_messages_for_openai(messages: List[Any]) -> List[Dict[str, str]]:
     """
-    Convert a list of Message objects to OpenAI API format.
+    Convert a list of ChatMessage objects to OpenAI API format.
     
     Args:
-        messages: List of Message objects with role and content
+        messages: List of ChatMessage objects with role and content
         
     Returns:
         List of dictionaries in OpenAI message format
@@ -24,7 +24,7 @@ def format_messages_for_openai(messages: List[Any]) -> List[Dict[str, str]]:
             elif isinstance(msg, SystemMessage):
                 openai_messages.append({"role": "system", "content": msg.content})
         else:
-            # Handle our own Message type
+            # Handle our own ChatMessage type
             if msg.role == MessageRole.USER:
                 openai_messages.append({"role": "user", "content": msg.content})
             elif msg.role == MessageRole.ASSISTANT:
@@ -34,12 +34,12 @@ def format_messages_for_openai(messages: List[Any]) -> List[Dict[str, str]]:
     
     return openai_messages
 
-def format_langchain_messages(messages: List[Message]) -> List[Any]:
+def format_langchain_messages(messages: List[ChatMessage]) -> List[Any]:
     """
-    Convert a list of Message objects to LangChain message format.
+    Convert a list of ChatMessage objects to LangChain message format.
     
     Args:
-        messages: List of Message objects with role and content
+        messages: List of ChatMessage objects with role and content
         
     Returns:
         List of LangChain message objects (HumanMessage, AIMessage, SystemMessage)

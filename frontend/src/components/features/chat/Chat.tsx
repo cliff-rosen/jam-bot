@@ -35,9 +35,12 @@ export default function Chat() {
 
         const userMessage = {
             id: Date.now().toString(),
+            chat_id: "temp", // This will be updated when sessions are integrated
             role: MessageRole.USER as const,
             content: input,
-            timestamp: new Date().toISOString()
+            message_metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
         await sendMessage(userMessage);

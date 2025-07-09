@@ -34,7 +34,7 @@ export const SessionManagement: React.FC = () => {
         return 'Just started';
     };
 
-    const getSessionDisplayName = (name: string | null) => {
+    const getSessionDisplayName = (name: string | null | undefined) => {
         if (!name) return 'Unnamed Session';
         return name.length > 20 ? name.substring(0, 20) + '...' : name;
     };

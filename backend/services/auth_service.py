@@ -140,7 +140,6 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             logger.debug("No active session found, creating new session")
             # Create new session
             session_request = CreateUserSessionRequest(
-                name=f"{username}'s Session",
                 session_metadata={
                     "created_via": "login",
                     "initialized_at": datetime.utcnow().isoformat()

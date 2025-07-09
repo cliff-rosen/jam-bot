@@ -19,8 +19,7 @@ export enum UserSessionStatus {
 export interface UserSession {
     id: string;
     user_id: number;
-    name: string;
-    description?: string;
+    name?: string;
     status: UserSessionStatus;
     session_metadata: Record<string, any>;
     created_at: string;
@@ -34,8 +33,7 @@ export interface UserSession {
 
 // API Request/Response types
 export interface CreateUserSessionRequest {
-    name: string;
-    description?: string;
+    name?: string;
     session_metadata?: Record<string, any>;
 }
 
@@ -46,7 +44,6 @@ export interface CreateUserSessionResponse {
 
 export interface UpdateUserSessionRequest {
     name?: string;
-    description?: string;
     status?: UserSessionStatus;
     session_metadata?: Record<string, any>;
 }
@@ -62,8 +59,7 @@ export interface ListUserSessionsResponse {
 export interface UserSessionSummary {
     id: string;
     user_id: number;
-    name: string;
-    description?: string;
+    name?: string;
     status: UserSessionStatus;
     created_at: string;
     updated_at: string;

@@ -28,7 +28,7 @@ class SessionApiClient {
             user_session: {
                 id: data.id,
                 user_id: 0, // Will be populated by auth context
-                name: data.name || request.name,
+                name: data.name || request.name || 'Session',
                 status: 'active' as any,
                 session_metadata: data.session_metadata || {},
                 created_at: new Date().toISOString(),
@@ -39,7 +39,7 @@ class SessionApiClient {
             chat: {
                 id: data.chat_id,
                 user_session_id: data.id,
-                title: request.name,
+                title: data.name || request.name || 'Session',
                 chat_metadata: {},
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -121,7 +121,7 @@ class SessionApiClient {
      */
     async initializeSession(name?: string): Promise<CreateUserSessionResponse> {
         return this.createSession({
-            name: name || `Session ${new Date().toLocaleDateString()}`,
+            name: name, // Will be auto-generated as "Session N" if not provided
             session_metadata: {
                 source: 'web_app',
                 initialized_at: new Date().toISOString()

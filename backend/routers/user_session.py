@@ -37,8 +37,8 @@ async def initialize_session(
         return {
             "id": response.user_session.id,
             "name": response.user_session.name,
-            "chat_id": response.user_session.chat_id,
-            "mission_id": response.user_session.mission_id,
+            "chat_id": response.chat.id,
+            "mission_id": response.user_session.mission.id if response.user_session.mission else None,
             "session_metadata": response.user_session.session_metadata
         }
     except Exception as e:

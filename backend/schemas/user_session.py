@@ -40,7 +40,7 @@ class UserSession(BaseModel):
 # API Request/Response models for UserSession
 class CreateUserSessionRequest(BaseModel):
     """Request to create a new user session"""
-    name: str = Field(description="Name for the new session")
+    name: Optional[str] = Field(default=None, description="Name for the new session (auto-generated if not provided)")
     session_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional metadata")
 
 

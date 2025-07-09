@@ -11,8 +11,9 @@ This service handles all business logic for user sessions including:
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_, desc
+from sqlalchemy import and_, or_, desc, func
 from uuid import uuid4
+import re
 
 from models import UserSession, User, Chat, Mission, ChatMessage, UserSessionStatus
 from schemas.user_session import (
@@ -33,14 +34,37 @@ class UserSessionService:
     def __init__(self, db: Session):
         self.db = db
     
+    def _generate_next_session_name(self, user_id: int) -> str:
+        """Generate the next session name like 'Session 1', 'Session 2', etc."""
+        # Get all existing session names for this user
+        session_names = self.db.query(UserSession.name).filter(
+            UserSession.user_id == user_id
+        ).all()
+        
+        # Extract numbers from session names that match "Session N" pattern
+        session_numbers = []
+        for (name,) in session_names:
+            if name:
+                match = re.match(r'^Session (\d+)$', name)
+                if match:
+                    session_numbers.append(int(match.group(1)))
+        
+        # Find the next available number
+        next_number = max(session_numbers) + 1 if session_numbers else 1
+        
+        return f"Session {next_number}"
+    
     def create_user_session(self, user_id: int, request: CreateUserSessionRequest) -> CreateUserSessionResponse:
         """Create a new user session with associated chat"""
         try:
+            # Generate session name if not provided
+            session_name = request.name if request.name else self._generate_next_session_name(user_id)
+            
             # Create chat first
             chat = Chat(
                 id=str(uuid4()),
                 user_id=user_id,
-                title=request.name,
+                title=session_name,
                 context_data={}
             )
             self.db.add(chat)
@@ -50,7 +74,7 @@ class UserSessionService:
             user_session = UserSession(
                 id=str(uuid4()),
                 user_id=user_id,
-                name=request.name,
+                name=session_name,
                 status=UserSessionStatus.ACTIVE,
                 chat_id=chat.id,
                 session_metadata=request.session_metadata or {},
@@ -65,19 +89,16 @@ class UserSessionService:
             # Convert to schemas
             chat_schema = ChatSchema(
                 id=chat.id,
+                user_session_id=user_session.id,
                 title=chat.title,
-                context_data=chat.context_data,
-                created_at=chat.created_at.isoformat(),
-                updated_at=chat.updated_at.isoformat(),
+                chat_metadata=chat.context_data,
+                created_at=chat.created_at,
+                updated_at=chat.updated_at,
                 messages=[]
             )
             
             user_session_schema = self._convert_to_schema(user_session)
             user_session_schema.chat = chat_schema
-            
-            # For simplified approach, also return the raw session model
-            user_session_schema.chat_id = chat.id
-            user_session_schema.mission_id = None
             
             return CreateUserSessionResponse(
                 user_session=user_session_schema,
@@ -376,10 +397,11 @@ class UserSessionService:
             
             session_data['chat'] = ChatSchema(
                 id=user_session.chat.id,
+                user_session_id=user_session.id,
                 title=user_session.chat.title,
-                context_data=user_session.chat.context_data,
-                created_at=user_session.chat.created_at.isoformat(),
-                updated_at=user_session.chat.updated_at.isoformat(),
+                chat_metadata=user_session.chat.context_data,
+                created_at=user_session.chat.created_at,
+                updated_at=user_session.chat.updated_at,
                 messages=messages
             )
         

@@ -16,7 +16,7 @@ from services.mission_service import MissionService
 from services.ai_service import ai_service, LLMRequest
 from services.user_session_service import UserSessionService
 
-from schemas import ChatMessage, MessageRole, ChatRequest, ChatResponse
+from schemas import ChatMessage, MessageRole, ChatRequest
 from models import ChatMessage as ChatMessageModel
 
 from agents.primary_agent import graph as primary_agent, State
@@ -226,28 +226,5 @@ async def get_chat_messages(
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving chat messages: {str(e)}"
-        )
-
-@router.post("/responses")
-async def invoke_responses_api(query: str) -> Dict[str, Any]:
-    """
-    Invoke the OpenAI responses API with the given parameters.
-    
-    Args:
-        query: The input text to process
-        
-    Returns:
-        Dictionary containing the API response
-    """
-    try:
-        response = await ai_service.invoke_responses_api(
-            input_text=query
-        )
-        # Convert response object to dictionary using model_dump()
-        return response.model_dump(exclude_none=True)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error invoking responses API: {str(e)}"
         )
 

@@ -68,12 +68,8 @@ class ChatRequest(BaseModel):
         description="Optional payload including additional context data"
     )
 
-class ChatResponse(BaseModel):
-    message: ChatMessage = Field(description="The bot's response message")
-    payload: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Optional payload including assets, workflow info, and context"
-    )
+# class ChatResponse(BaseModel):
+# Chat ressponse is either AgentResponse or StatusResponse
 
 class AgentResponse(BaseModel):
     token: str | None = Field(description="The token for the agent")

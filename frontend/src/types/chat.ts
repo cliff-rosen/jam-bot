@@ -59,13 +59,8 @@ export interface ChatRequest {
     };
 }
 
-export interface ChatResponse {
-    message: ChatMessage;
-    payload?: {
-        assets?: AssetReference[];
-        mission?: Mission;
-    };
-}
+// export interface ChatResponse 
+// Chat ressponse is either AgentResponse or StatusResponse
 
 export interface MissionDefinitionResponse {
     response_type: 'MISSION_DEFINITION' | 'INTERVIEW_QUESTION';

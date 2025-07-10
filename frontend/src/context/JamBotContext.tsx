@@ -910,7 +910,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const createNewSession = useCallback(async () => {
         try {
             // Create new session (name will be auto-generated as "Session N")
-            const newSessionResponse = await sessionApi.initializeSession();
+            const newSessionResponse = await sessionApi.initializeSession({
+                session_metadata: {
+                    source: 'web_app',
+                    initialized_at: new Date().toISOString()
+                }
+            });
 
             // Clear current state
             dispatch({

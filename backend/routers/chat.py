@@ -13,7 +13,6 @@ from utils.mission_utils import enrich_chat_context_with_assets
 
 from services.auth_service import validate_token
 from services.mission_service import MissionService
-from services.ai_service import ai_service, LLMRequest
 from services.user_session_service import UserSessionService
 
 from schemas import ChatMessage, MessageRole, ChatRequest

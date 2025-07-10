@@ -13,7 +13,6 @@ from .auth import (
 
 from .chat import (
     MessageRole,
-    ChatResponse,
     AgentResponse,
     ChatRequest,
     AssetReference,

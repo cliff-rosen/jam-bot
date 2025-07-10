@@ -192,7 +192,7 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
     
     # Initialize mission state with input and output assets
     for asset in inputs + outputs:
-        mission.mission_state[asset.name] = asset
+        mission.mission_state[asset.id] = asset
     
     return mission
 

@@ -41,7 +41,7 @@ class MissionService:
         if mission.mission_state:
             asset_service = AssetService()
             try:
-                for asset_name, asset in mission.mission_state.items():
+                for asset_id, asset in mission.mission_state.items():
                     asset_service.create_asset(
                         user_id=user_id,
                         name=asset.name,
@@ -170,7 +170,7 @@ class MissionService:
         )
         
         # Create mission_state dict
-        mission_state = {asset.name: asset for asset in assets}
+        mission_state = {asset.id: asset for asset in assets}
         
         return Mission(
             id=mission_model.id,

@@ -40,9 +40,9 @@ def validate_mission(mission: Mission) -> List[str]:
     # 3. State Validation
     # Check that mission_state assets have consistent names and IDs
     if mission.mission_state:
-        for asset_name, asset in mission.mission_state.items():
-            if asset.name != asset_name:
-                errors.append(f"Asset key '{asset_name}' does not match asset name '{asset.name}'")
+        for asset_id, asset in mission.mission_state.items():
+            if asset.id != asset_id:
+                errors.append(f"Asset key '{asset_id}' does not match asset ID '{asset.id}'")
 
     # 4. Hop Validation
     if mission.hops:

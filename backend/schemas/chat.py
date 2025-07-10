@@ -85,3 +85,6 @@ class StatusResponse(BaseModel):
     error: str | None = Field(description="The error from the agent")
     debug: str | object | None = Field(description="The debug information from the agent")
 
+# Stream response union type for documentation
+ChatStreamResponse = AgentResponse | StatusResponse
+

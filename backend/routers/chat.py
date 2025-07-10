@@ -15,12 +15,21 @@ from services.auth_service import validate_token
 from services.mission_service import MissionService, get_mission_service
 from services.user_session_service import UserSessionService, get_user_session_service
 
-from schemas import ChatMessage, MessageRole, ChatRequest
+from schemas.chat import (
+    ChatMessage, 
+    MessageRole, 
+    ChatRequest, 
+    ChatStreamResponse,
+    AgentResponse,
+    StatusResponse
+)
 from models import ChatMessage as ChatMessageModel
 
 from agents.primary_agent import graph as primary_agent, State
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
 
 def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
     """Helper function to save a ChatMessage object to the database."""
@@ -42,54 +51,101 @@ def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMes
     db.add(chat_message)
     db.commit()
 
-@router.post("/stream")
+@router.post("/stream", 
+    response_class=EventSourceResponse,
+    responses={
+        200: {
+            "description": "Server-Sent Events stream of ChatStreamResponse objects (AgentResponse | StatusResponse)",
+            "content": {
+                "text/event-stream": {
+                    "schema": {
+                        "oneOf": [
+                            AgentResponse.model_json_schema(),
+                            StatusResponse.model_json_schema()
+                        ]
+                    },
+                    "example": "data: {\"token\": \"Hello\", \"response_text\": null, \"payload\": null, \"status\": \"processing\", \"error\": null, \"debug\": null}\n\n"
+                }
+            }
+        }
+    },
+    summary="Stream chat responses",
+    description="Streams ChatStreamResponse objects (AgentResponse | StatusResponse) in real-time using Server-Sent Events"
+)
 async def chat_stream(
     chat_request: ChatRequest,
     session_service: UserSessionService = Depends(get_user_session_service),
     mission_service: MissionService = Depends(get_mission_service),
     current_user = Depends(validate_token),
-    db: Session = Depends(get_db)  # Still needed for message saving and graph config
-):
-    """Endpoint that streams responses from the graph and persists messages"""
+    db: Session = Depends(get_db)
+) -> EventSourceResponse:
+    """
+    Stream chat responses from the AI agent.
+    
+    Returns Server-Sent Events where each event data contains a ChatStreamResponse object:
+    - AgentResponse: token, response_text, payload, status, error, debug
+    - StatusResponse: status, payload, error, debug
+    """
     
     async def event_generator():
-        """Generate SSE events from graph outputs"""
+        """Generate SSE events that are AgentResponse or StatusResponse objects"""
         try:
-            # Get user's active session to find chat_id and mission_id
             active_session = session_service.get_active_session(current_user.user_id)
             
             if not active_session:
-                raise HTTPException(status_code=404, detail="No active session found")
+                error_response = AgentResponse(
+                    token=None,
+                    response_text=None,
+                    payload=None,
+                    status=None,
+                    error="No active session found",
+                    debug=None
+                )
+                yield {
+                    "event": "message",
+                    "data": error_response.model_dump_json()
+                }
+                return
             
             chat_id = active_session.chat_id
-            mission_id = active_session.mission_id  # Get mission_id from session
+            mission_id = active_session.mission_id
             
-            # Save the user's message to database first
+            # Save user message to database
             if chat_request.messages:
-                latest_message = chat_request.messages[-1]  # Get the newest message
+                latest_message = chat_request.messages[-1]
                 if latest_message.role == MessageRole.USER:
                     save_message_to_db(db, chat_id, current_user.user_id, latest_message)
             
-            # Get mission from database if mission_id is available in session
+            # Get mission from database
             mission = None
             if mission_id:
                 mission = await mission_service.get_mission(mission_id, current_user.user_id)
-                
                 if not mission:
-                    raise HTTPException(status_code=404, detail="Mission not found")
+                    error_response = AgentResponse(
+                        token=None,
+                        response_text=None,
+                        payload=None,
+                        status=None,
+                        error="Mission not found",
+                        debug=None
+                    )
+                    yield {
+                        "event": "message",
+                        "data": error_response.model_dump_json()
+                    }
+                    return
             
-            # Enrich the payload with asset summaries from backend
+            # Enrich payload with asset summaries
             enriched_payload = await enrich_chat_context_with_assets(
                 chat_request.payload or {}, 
                 current_user.user_id, 
                 db
             )
             
-            # Use mission from payload if no database mission found
             if not mission and enriched_payload and enriched_payload.get("mission"):
                 mission = enriched_payload["mission"]
             
-            # Initialize state with all messages and enriched payload
+            # Initialize agent state
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
@@ -99,100 +155,93 @@ async def chat_stream(
                 asset_summaries=enriched_payload.get("asset_summaries", {})
             )
             
-            # Create config for graph execution with database access
             graph_config = {
                 "db": db,
                 "user_id": current_user.user_id
             }
             
-            # Run the graph
+            # Stream agent responses
             async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
-                # Debug logging to see what we're getting
-                print(f"CHAT OUTPUT LOOP: output type: {type(output)}")
-                
                 if isinstance(output, dict):
-                    # Check for response_text which contains the AI's complete response
+                    # Save AI message to database if response_text exists
                     if "response_text" in output and output["response_text"]:
-                        response_content = output["response_text"]
-                        print(f"DEBUG: Found response_text: {response_content[:100]}...")
-                        
-                        # Create ChatMessage from response_text and save it
                         ai_message = ChatMessage(
                             id=str(uuid.uuid4()),
-                            chat_id=chat_id,  # Use actual chat_id
+                            chat_id=chat_id,
                             role=MessageRole.ASSISTANT,
-                            content=response_content,
+                            content=output["response_text"],
                             message_metadata={},
                             created_at=datetime.utcnow(),
                             updated_at=datetime.utcnow()
                         )
                         save_message_to_db(db, chat_id, current_user.user_id, ai_message)
-                        print(f"DEBUG: Saved response_text as ChatMessage to DB")
                     
-                    # Check for ChatMessage objects in the dict and save them
+                    # Save ChatMessage objects from output
                     for key, value in output.items():
                         if isinstance(value, ChatMessage):
-                            # Save ChatMessage to database
                             if value.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
                                 save_message_to_db(db, chat_id, current_user.user_id, value)
-                                print(f"DEBUG: Saved message to DB")
                     
-                    # Convert any ChatMessage objects in the dict to their dict representation
-                    processed_output = {}
-                    for key, value in output.items():
-                        if isinstance(value, ChatMessage):
-                            processed_output[key] = value.model_dump()
-                        else:
-                            processed_output[key] = value
+                    # Create proper AgentResponse object
+                    agent_response = AgentResponse(
+                        token=output.get("token"),
+                        response_text=output.get("response_text"),
+                        payload=output.get("payload"),
+                        status=output.get("status"),
+                        error=output.get("error"),
+                        debug=output.get("debug")
+                    )
                     
                     yield {
                         "event": "message",
-                        "data": json.dumps(processed_output)
+                        "data": agent_response.model_dump_json()
                     }
                 else:
-                    print(f"DEBUG: Other output type: {type(output)}, content: {str(output)[:100]}...")
-                    # Handle other output types
+                    # Handle non-dict outputs as AgentResponse
+                    agent_response = AgentResponse(
+                        token=None,
+                        response_text=str(output),
+                        payload=None,
+                        status=None,
+                        error=None,
+                        debug={"output_type": type(output).__name__}
+                    )
+                    
                     yield {
                         "event": "message",
-                        "data": json.dumps({"content": str(output)})
+                        "data": agent_response.model_dump_json()
                     }
             
         except Exception as e:
-            # Log the error
             print(f"Error in chat_stream: {str(e)}")
-            # Send error event
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=None,
+                status=None,
+                error=str(e),
+                debug=None
+            )
             yield {
                 "event": "error",
-                "data": json.dumps({"error": str(e)})
+                "data": error_response.model_dump_json()
             }
     
     return EventSourceResponse(event_generator())
 
-@router.get("/{chat_id}/messages")
+@router.get("/{chat_id}/messages", response_model=Dict[str, List[ChatMessage]])
 async def get_chat_messages(
     chat_id: str,
     current_user = Depends(validate_token),
-    db: Session = Depends(get_db)  # Still needed for direct message querying
-):
-    """
-    Get all messages for a specific chat.
-    
-    Args:
-        chat_id: The ID of the chat to retrieve messages for
-        db: Database session
-        current_user: Current authenticated user
-        
-    Returns:
-        Dictionary containing list of chat messages
-    """
+    db: Session = Depends(get_db)
+) -> Dict[str, List[ChatMessage]]:
+    """Get all messages for a specific chat"""
     try:
-        # Query messages for this chat_id, ordered by sequence_order
         messages = db.query(ChatMessageModel).filter(
             ChatMessageModel.chat_id == chat_id,
-            ChatMessageModel.user_id == current_user.user_id  # Ensure user can only see their own messages
+            ChatMessageModel.user_id == current_user.user_id
         ).order_by(ChatMessageModel.sequence_order).all()
         
-        # Convert database models to Pydantic schemas
         message_schemas = []
         for msg in messages:
             message_schema = ChatMessage(
@@ -202,7 +251,7 @@ async def get_chat_messages(
                 content=msg.content,
                 message_metadata=msg.message_metadata or {},
                 created_at=msg.created_at,
-                updated_at=msg.created_at  # Use created_at since ChatMessage model doesn't have updated_at
+                updated_at=msg.created_at
             )
             message_schemas.append(message_schema)
         

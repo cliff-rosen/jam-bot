@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
-import { chatApi, getDataFromLine } from '@/lib/api/chatApi';
+import { chatApi } from '@/lib/api/chatApi';
 import { toolsApi, assetApi, missionApi, sessionApi } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
-import { ChatMessage, AgentResponse, ChatRequest, MessageRole } from '@/types/chat';
+import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } from '@/types/chat';
 import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
@@ -792,29 +792,38 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, [chatId]);
 
-    const processBotMessage = useCallback((data: AgentResponse) => {
+    const processBotMessage = useCallback((data: StreamResponse) => {
         console.log("processBotMessage data", data);
 
         let token: string = "";
         let newCollabAreaContent: any;
 
-        if (data.token) {
-            console.log("data.token", data.token);
-            token = data.token;
+        // Check if this is an AgentResponse (has token or response_text)
+        const isAgentResponse = 'token' in data || 'response_text' in data;
+
+        if (isAgentResponse) {
+            const agentData = data as AgentResponse;
+
+            if (agentData.token) {
+                console.log("agentData.token", agentData.token);
+                token = agentData.token;
+            }
+
+            if (agentData.response_text) {
+                console.log("agentData.response_text", agentData.response_text);
+                const chatMessage = createMessage(agentData.response_text, MessageRole.ASSISTANT);
+                addMessage(chatMessage);
+            }
         }
 
+        // Both AgentResponse and StatusResponse have status
         if (data.status) {
             console.log("data.status", data.status);
             const statusMessage = createMessage(data.status, MessageRole.STATUS);
             addMessage(statusMessage);
         }
 
-        if (data.response_text) {
-            console.log("data.response_text", data.response_text);
-            const chatMessage = createMessage(data.response_text, MessageRole.ASSISTANT);
-            addMessage(chatMessage);
-        }
-
+        // Both AgentResponse and StatusResponse have payload
         if (data.payload) {
 
             // set tracking variables
@@ -871,17 +880,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             };
 
-            for await (const update of chatApi.streamMessage(chatRequest)) {
-                const lines = update.data.split('\n');
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const data = getDataFromLine(line);
-                    const token = processBotMessage(data);
-                    if (token) {
-                        streamingContent += token;
-                        updateStreamingMessage(streamingContent);
-                        finalContent += token;
-                    }
+            for await (const response of chatApi.streamMessage(chatRequest)) {
+                const token = processBotMessage(response);
+                if (token) {
+                    streamingContent += token;
+                    updateStreamingMessage(streamingContent);
+                    finalContent += token;
                 }
             }
 

@@ -117,6 +117,70 @@ export interface StatusResponse {
 // Union type for all possible stream responses
 export type StreamResponse = AgentResponse | StatusResponse;
 
+// Stream Event Types (matching backend)
+export enum StreamEventType {
+    MESSAGE = 'message',
+    ERROR = 'error',
+    STATUS = 'status',
+    COMPLETION = 'completion'
+}
+
+// Stream Event Data (matching backend)
+export interface StreamEventData {
+    event_type: StreamEventType;
+    timestamp: string;
+}
+
+export interface ChatStreamMessageEvent extends StreamEventData {
+    event_type: StreamEventType.MESSAGE;
+
+    // Agent response fields
+    token?: string;
+    response_text?: string;
+    payload?: Record<string, any>;
+    status?: string;
+    debug?: Record<string, any>;
+}
+
+export interface ChatStreamErrorEvent extends StreamEventData {
+    event_type: StreamEventType.ERROR;
+    error: string;
+    error_code?: string;
+    traceback?: string;
+}
+
+export interface ChatStreamStatusEvent extends StreamEventData {
+    event_type: StreamEventType.STATUS;
+    status: string;
+    progress?: number;
+    details?: Record<string, any>;
+}
+
+export interface ChatStreamCompletionEvent extends StreamEventData {
+    event_type: StreamEventType.COMPLETION;
+    success: boolean;
+    summary?: string;
+    metadata?: Record<string, any>;
+}
+
+// Union type for all possible stream events
+export type ChatStreamEvent =
+    | ChatStreamMessageEvent
+    | ChatStreamErrorEvent
+    | ChatStreamStatusEvent
+    | ChatStreamCompletionEvent;
+
+// Stream response wrapper
+export interface ChatStreamResponse {
+    event: StreamEventType;
+    data: ChatStreamEvent;
+}
+
+// Response models for API endpoints
+export interface GetChatMessagesResponse {
+    messages: ChatMessage[];
+}
+
 // Helper type for stream data parsing
 export interface StreamParseResult {
     response: StreamResponse;

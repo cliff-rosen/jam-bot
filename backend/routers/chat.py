@@ -21,7 +21,6 @@ from models import ChatMessage as ChatMessageModel
 
 from agents.primary_agent import graph as primary_agent, State
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
@@ -181,68 +180,6 @@ async def chat_stream(
             }
     
     return EventSourceResponse(event_generator())
-
-
-@router.post("/llm", response_model=ChatResponse)
-async def invoke_llm(
-    request: LLMRequest,
-    stream: bool = False
-):
-    """
-    Invoke an LLM with the given request parameters.
-    
-    Args:
-        request: LLM request parameters including messages, model, etc.
-        stream: Whether to stream the response
-        
-    Returns:
-        ChatResponse with the LLM's response
-    """
-    try:
-        # Set streaming flag
-        request["stream"] = stream
-        
-        if stream:
-            # For streaming responses, return an EventSourceResponse
-            async def event_generator():
-                try:
-                    async for chunk in ai_service.invoke_llm(request):
-                        yield {
-                            "event": "message",
-                            "data": json.dumps({"content": chunk})
-                        }
-                except Exception as e:
-                    yield {
-                        "event": "error",
-                        "data": json.dumps({"error": str(e)})
-                    }
-            
-            return EventSourceResponse(event_generator())
-        else:
-            # For non-streaming responses, return a regular response
-            response = await ai_service.invoke_llm(request)
-            
-            # Create a response message
-            message = ChatMessage(
-                id=str(uuid.uuid4()),
-                chat_id="temp",  # This will need to be updated when we integrate sessions
-                role=MessageRole.ASSISTANT,
-                content=response,
-                message_metadata={},
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-            
-            return ChatResponse(
-                message=message,
-                payload={}
-            )
-            
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error invoking LLM: {str(e)}"
-        )
 
 @router.get("/{chat_id}/messages")
 async def get_chat_messages(

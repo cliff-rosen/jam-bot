@@ -47,17 +47,6 @@ export function getDataFromLine(line: string): AgentResponse {
 }
 
 
-export const invokeLLM = async (messages: ChatMessage[], model: string): Promise<string> => {
-    const response = await api.post('/api/chat/llm', {
-        messages,
-        model,
-        stream: false,
-        provider: 'openai'  // Default to OpenAI provider
-    });
-    return response.data.message.content;
-}
-
-
 export const chatApi = {
 
     streamMessage: async function* (
@@ -67,7 +56,7 @@ export const chatApi = {
         yield* makeStreamRequest('/api/chat/stream', chatRequest, 'POST');
     },
 
-    getMessages: async function(chatId: string): Promise<{ messages: ChatMessage[] }> {
+    getMessages: async function (chatId: string): Promise<{ messages: ChatMessage[] }> {
         const response = await api.get(`/api/chat/${chatId}/messages`);
         return response.data;
     },

@@ -14,7 +14,7 @@ from services.hop_service import HopService
 class MissionService:
     def __init__(self, db: Session):
         self.db = db
-        self.asset_service = AssetService()
+        self.asset_service = AssetService(db)
         self.hop_service = HopService(db)
     
     async def create_mission(self, user_id: int, mission: Mission) -> str:
@@ -41,23 +41,19 @@ class MissionService:
         
         # Create assets if they exist in mission_state
         if mission.mission_state:
-            asset_service = AssetService()
-            try:
-                for asset_id, asset in mission.mission_state.items():
-                    asset_service.create_asset(
-                        user_id=user_id,
-                        name=asset.name,
-                        type=asset.schema_definition.type,
-                        subtype=asset.subtype,
-                        description=asset.description,
-                        content=asset.value_representation,
-                        asset_metadata=asset.asset_metadata,
-                        scope_type="mission",
-                        scope_id=mission_id,
-                        role=asset.role.value
-                    )
-            finally:
-                asset_service.close()
+            for asset_id, asset in mission.mission_state.items():
+                self.asset_service.create_asset(
+                    user_id=user_id,
+                    name=asset.name,
+                    type=asset.schema_definition.type,
+                    subtype=asset.subtype,
+                    description=asset.description,
+                    content=asset.value_representation,
+                    asset_metadata=asset.asset_metadata,
+                    scope_type="mission",
+                    scope_id=mission_id,
+                    role=asset.role.value
+                )
         
         self.db.commit()
         self.db.refresh(mission_model)

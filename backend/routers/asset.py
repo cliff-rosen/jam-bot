@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from database import get_db
-from services.asset_service import AssetService
+from services.asset_service import AssetService, get_asset_service
 from services.asset_summary_service import AssetSummaryService
 from services import auth_service
 from schemas.asset import Asset, CreateAssetRequest, DatabaseEntityMetadata
@@ -19,11 +19,10 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 @router.post("/", response_model=Asset)
 async def create_asset(
     request: CreateAssetRequest,
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Create a new asset"""
-    asset_service = AssetService()
     return asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
@@ -38,24 +37,25 @@ async def create_asset(
 @router.get("/{asset_id}", response_model=Asset)
 async def get_asset(
     asset_id: str,
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get an asset by ID"""
-    asset_service = AssetService()
     asset = asset_service.get_asset(asset_id, current_user.user_id)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     return asset
 
 @router.get("/{asset_id}/details")
-async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def get_asset_details(
+    asset_id: str, 
+    asset_service: AssetService = Depends(get_asset_service)
+) -> Dict[str, Any]:
     """
     Get detailed information about an asset, including its content.
     For database entity assets, this will fetch the content from the database.
     """
     # Use AssetService to get the asset with unified schema format
-    asset_service = AssetService()
     asset = asset_service.get_asset_with_details(asset_id)
     
     if not asset:
@@ -66,11 +66,10 @@ async def get_asset_details(asset_id: str, db: Session = Depends(get_db)) -> Dic
 
 @router.get("/", response_model=List[Asset])
 async def get_user_assets(
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get all assets for the current user"""
-    asset_service = AssetService()
     return asset_service.get_user_assets(
         user_id=current_user.user_id
     )
@@ -80,11 +79,10 @@ async def get_user_assets(
 async def update_asset(
     asset_id: str,
     updates: dict,
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Update an asset"""
-    asset_service = AssetService()
     asset = asset_service.update_asset(asset_id, current_user.user_id, updates)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
@@ -93,11 +91,10 @@ async def update_asset(
 # ASSET SUMMARIES FOR CHAT CONTEXT
 @router.get("/summaries", response_model=List[AssetReference])
 async def get_asset_summaries(
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get lightweight asset summaries for chat context"""
-    asset_service = AssetService()
     summary_service = AssetSummaryService()
     
     # Get all user assets
@@ -114,11 +111,10 @@ async def get_asset_summaries(
 @router.delete("/{asset_id}")
 async def delete_asset(
     asset_id: str,
-    db: Session = Depends(get_db),
+    asset_service: AssetService = Depends(get_asset_service),
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Delete an asset"""
-    asset_service = AssetService()
     success = asset_service.delete_asset(asset_id, current_user.user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Asset not found")

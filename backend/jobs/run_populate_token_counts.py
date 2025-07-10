@@ -7,7 +7,7 @@ from database import get_db
 
 async def run_populate_token_counts():
     db = next(get_db())
-    asset_service = AssetService()
+    asset_service = AssetService(db)
 
     # get all assets
     assets = db.query(AssetModel).all()

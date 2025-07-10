@@ -12,7 +12,7 @@ from services.asset_service import AssetService
 class ToolStepService:
     def __init__(self, db: Session):
         self.db = db
-        self.asset_service = AssetService()
+        self.asset_service = AssetService(db)
 
     def _model_to_schema(self, tool_step_model: ToolStepModel) -> ToolStep:
         """Convert database model to ToolStep schema"""

@@ -153,7 +153,7 @@ async def _persist_updated_assets(
         db: Database session
     """
     try:
-        asset_service = AssetService()
+        asset_service = AssetService(db)
         
         # Find assets that were updated by this tool execution
         for result_name, mapping in step.result_mapping.items():

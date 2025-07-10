@@ -114,7 +114,7 @@ async def enrich_chat_context_with_assets(
     
     try:
         # Fetch asset summaries from the backend
-        asset_service = AssetService()
+        asset_service = AssetService(db)
         summary_service = AssetSummaryService()
         
         # Get all user assets

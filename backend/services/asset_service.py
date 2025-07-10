@@ -3,11 +3,12 @@ from schemas.asset import Asset, DatabaseEntityMetadata
 from schemas.base import SchemaType
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from fastapi import Depends
 
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
-from database import SessionLocal
+from database import get_db
 from uuid import uuid4
 from models import Asset as AssetModel
 
@@ -15,20 +16,10 @@ from models import Asset as AssetModel
 ASSET_DB: Dict[str, Asset] = {}
 
 class AssetService:
-    def __init__(self):
-        self.db = SessionLocal()
+    def __init__(self, db: Session):
+        self.db = db
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.db_entity_service = DatabaseEntityService(self.db)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.db.close()
-
-    def close(self):
-        """Close the database session"""
-        self.db.close()
 
     def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
         """Get an asset with all its details, including database entity content if applicable"""
@@ -310,4 +301,9 @@ class AssetService:
         self.db.delete(asset)
         self.db.commit()
         return True
-    
+
+
+# Dependency function for FastAPI dependency injection
+async def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
+    """FastAPI dependency that provides AssetService instance"""
+    return AssetService(db)

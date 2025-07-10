@@ -12,7 +12,7 @@ from services.asset_service import AssetService
 class HopService:
     def __init__(self, db: Session):
         self.db = db
-        self.asset_service = AssetService()
+        self.asset_service = AssetService(db)
 
     def _model_to_schema(self, hop_model: HopModel) -> Hop:
         """Convert database model to Hop schema"""

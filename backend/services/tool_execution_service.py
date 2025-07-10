@@ -14,7 +14,7 @@ import json
 class ToolExecutionService:
     def __init__(self, db: Session):
         self.db = db
-        self.asset_service = AssetService()
+        self.asset_service = AssetService(db)
         self.mission_service = MissionService(db)
 
     async def create_tool_execution(

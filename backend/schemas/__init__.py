@@ -25,12 +25,10 @@ from .chat import (
 
 from .user_session import (
     UserSession,
-    UserSessionStatus,
-    UserSessionSummary,
     CreateUserSessionRequest,
+    UserSessionStatus,
     CreateUserSessionResponse,
-    UpdateUserSessionRequest,
-    ListUserSessionsResponse
+    UpdateUserSessionRequest
 )
 
 from .asset import (
@@ -81,12 +79,10 @@ __all__ = [
 
     # User Session schemas
     'UserSession',
-    'UserSessionStatus',
-    'UserSessionSummary',
     'CreateUserSessionRequest',
+    'UserSessionStatus',
     'CreateUserSessionResponse',
     'UpdateUserSessionRequest',
-    'ListUserSessionsResponse',
 
     # Newsletter schemas
     'Newsletter',

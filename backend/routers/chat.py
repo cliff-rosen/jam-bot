@@ -27,9 +27,6 @@ from agents.primary_agent import graph as primary_agent, State
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-
-
-
 @router.post("/stream", 
     response_class=EventSourceResponse,
     responses={

@@ -33,7 +33,6 @@ from services.mission_service import MissionService
 from database import get_db
 
 
-
 # Use settings from config
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "vs_68347e57e7408191a5a775f40db83f44")  # Default to existing store

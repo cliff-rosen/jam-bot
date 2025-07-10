@@ -11,9 +11,11 @@ chat context preparation.
 """
 
 from typing import Dict, Any, Optional, List
+
 from schemas.workflow import Mission, Hop
 from schemas.asset import Asset
 from schemas.chat import AssetReference
+
 from services.asset_service import AssetService
 from services.mission_transformer import MissionTransformer
 from services.mission_context_builder import MissionContextBuilder
@@ -65,8 +67,7 @@ def sanitize_mission_for_chat(mission: Mission) -> dict:
         return {}
     
     transformer = get_mission_transformer()
-    sanitized_mission = transformer.sanitize_for_chat(mission)
-    return sanitized_mission.model_dump()
+    return transformer.sanitize_for_chat(mission)
 
 async def enrich_chat_context_with_assets(
     chat_payload: dict, 

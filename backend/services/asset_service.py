@@ -66,12 +66,22 @@ class AssetService:
         """Convert database model to unified Asset schema"""
         from schemas.asset import Asset as BackendAsset, AssetStatus, AssetRole, AssetScopeType
         from schemas.base import SchemaType
+        import json
         
         # Get content from full content or summary
         content = model.get('content') or model.get('content_summary')
         
-        # Parse metadata
-        metadata_dict = model.get('asset_metadata', {})
+        # Parse metadata - handle both dict and JSON string
+        raw_metadata = model.get('asset_metadata', {})
+        if isinstance(raw_metadata, str):
+            try:
+                metadata_dict = json.loads(raw_metadata)
+            except (json.JSONDecodeError, TypeError):
+                metadata_dict = {}
+        elif isinstance(raw_metadata, dict):
+            metadata_dict = raw_metadata
+        else:
+            metadata_dict = {}
         
         # Create schema_definition from the legacy type field
         schema_definition = SchemaType(
@@ -80,6 +90,36 @@ class AssetService:
             is_array=False
         )
         
+        # Handle scope_type - convert enum name to enum value if needed
+        raw_scope_type = model.get('scope_type', 'mission')
+        if raw_scope_type == 'MISSION':
+            scope_type_value = 'mission'
+        elif raw_scope_type == 'HOP':
+            scope_type_value = 'hop'
+        else:
+            scope_type_value = raw_scope_type
+        
+        # Handle status - convert enum name to enum value if needed
+        raw_status = model.get('status', 'pending')
+        status_mapping = {
+            'PROPOSED': 'proposed',
+            'PENDING': 'pending',
+            'IN_PROGRESS': 'in_progress',
+            'READY': 'ready',
+            'ERROR': 'error',
+            'EXPIRED': 'expired'
+        }
+        status_value = status_mapping.get(raw_status, raw_status)
+        
+        # Handle role - convert enum name to enum value if needed
+        raw_role = model.get('role', 'intermediate')
+        role_mapping = {
+            'INPUT': 'input',
+            'OUTPUT': 'output',
+            'INTERMEDIATE': 'intermediate'
+        }
+        role_value = role_mapping.get(raw_role, raw_role)
+        
         # Create proper backend Asset using the schema
         return BackendAsset(
             id=str(model.get('id')),
@@ -87,10 +127,10 @@ class AssetService:
             description=model.get('description', ""),
             schema_definition=schema_definition,
             subtype=model.get('subtype'),
-            scope_type=AssetScopeType(model.get('scope_type', 'mission')),
+            scope_type=AssetScopeType(scope_type_value),
             scope_id=str(model.get('scope_id')),
-            status=AssetStatus(model.get('status', 'pending')),
-            role=AssetRole(model.get('role', 'intermediate')),
+            status=AssetStatus(status_value),
+            role=AssetRole(role_value),
             value_representation=str(content) if content else "",
             asset_metadata=metadata_dict,
             created_at=model.get('created_at', datetime.utcnow()),

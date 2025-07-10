@@ -91,7 +91,6 @@ async def chat_stream(
         """Generate SSE events that are AgentResponse or StatusResponse objects"""
         try:
             active_session = session_service.get_active_session(current_user.user_id)
-            
             if not active_session:
                 error_response = AgentResponse(
                     token=None,
@@ -106,7 +105,6 @@ async def chat_stream(
                     "data": error_response.model_dump_json()
                 }
                 return
-            
             chat_id = active_session.chat_id
             mission_id = active_session.mission_id
             

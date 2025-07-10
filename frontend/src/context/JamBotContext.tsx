@@ -427,6 +427,7 @@ interface JamBotContextType {
     addMessage: (message: ChatMessage) => void;
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
+    createMessage: (content: string, role: MessageRole) => ChatMessage;
     setCollabArea: (type: CollabAreaState['type'], content: CollabAreaState['content']) => void;
     clearCollabArea: () => void;
     acceptMissionProposal: () => void;
@@ -779,12 +780,23 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const createMessage = useCallback((content: string, role: MessageRole): ChatMessage => {
+        return {
+            id: `${role}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            chat_id: chatId || "temp", // Use actual chatId from auth context
+            role,
+            content,
+            message_metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+    }, [chatId]);
+
     const processBotMessage = useCallback((data: AgentResponse) => {
         console.log("processBotMessage data", data);
 
         let token: string = "";
         let newCollabAreaContent: any;
-        let lastMessageId: string | null = null;
 
         if (data.token) {
             console.log("data.token", data.token);
@@ -793,36 +805,14 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (data.status) {
             console.log("data.status", data.status);
-            const statusMessage: ChatMessage = {
-                id: `status_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                chat_id: "temp", // This will be updated when sessions are integrated
-                role: MessageRole.STATUS,
-                content: data.status,
-                message_metadata: {},
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            };
+            const statusMessage = createMessage(data.status, MessageRole.STATUS);
             addMessage(statusMessage);
-            lastMessageId = statusMessage.id;
-
-            if (data.payload) {
-                // addPayloadHistory({ [lastMessageId]: data.payload });
-            }
         }
 
         if (data.response_text) {
             console.log("data.response_text", data.response_text);
-            const chatMessage: ChatMessage = {
-                id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                chat_id: "temp", // This will be updated when sessions are integrated
-                role: MessageRole.ASSISTANT,
-                content: data.response_text,
-                message_metadata: {},
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            };
+            const chatMessage = createMessage(data.response_text, MessageRole.ASSISTANT);
             addMessage(chatMessage);
-            lastMessageId = chatMessage.id;
         }
 
         if (data.payload) {
@@ -862,7 +852,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
             return token || "";
         }
-    }, [addMessage, updateStreamingMessage, state.collabArea.type]);
+    }, [addMessage, updateStreamingMessage, state.collabArea.type, createMessage]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
 
@@ -952,6 +942,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             addMessage,
             updateStreamingMessage,
             sendMessage,
+            createMessage,
             setCollabArea,
             clearCollabArea,
             acceptMissionProposal,

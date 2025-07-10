@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageRole } from '@/types/chat';
+import { ChatMessage, MessageRole } from '@/types/chat';
 import { useJamBot } from '@/context/JamBotContext';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessageItem } from './ChatMessage';
@@ -7,7 +7,7 @@ import { ChatInput } from './ChatInput';
 import { ChatLoadingIndicator } from './ChatLoadingIndicator';
 
 export default function Chat() {
-    const { state, sendMessage } = useJamBot();
+    const { state, sendMessage, createMessage } = useJamBot();
     const { currentMessages, currentStreamingMessage } = state;
 
     const [input, setInput] = useState('');
@@ -33,15 +33,7 @@ export default function Chat() {
         setInput('');
         setIsLoading(true);
 
-        const userMessage = {
-            id: Date.now().toString(),
-            chat_id: "temp", // This will be updated when sessions are integrated
-            role: MessageRole.USER as const,
-            content: input,
-            message_metadata: {},
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
+        const userMessage = createMessage(input, MessageRole.USER);
 
         await sendMessage(userMessage);
         setIsLoading(false);

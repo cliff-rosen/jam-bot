@@ -1,6 +1,11 @@
 """
 Mission Utilities
 
+DEPRECATED: This module is being replaced by centralized mission transformation services.
+Use the following services instead:
+- MissionTransformer for mission format conversions
+- MissionContextBuilder for context preparation
+
 This module provides utilities for mission processing, sanitization, and 
 chat context preparation.
 """
@@ -9,90 +14,59 @@ from typing import Dict, Any, Optional, List
 from schemas.workflow import Mission, Hop
 from schemas.asset import Asset
 from schemas.chat import AssetReference
-from services.asset_summary_service import AssetSummaryService
 from services.asset_service import AssetService
+from services.mission_transformer import MissionTransformer
+from services.mission_context_builder import MissionContextBuilder
 
+# Initialize centralized services
+_mission_transformer = None
+_mission_context_builder = None
 
+def get_mission_transformer(asset_service: Optional[AssetService] = None) -> MissionTransformer:
+    """Get or create mission transformer instance"""
+    global _mission_transformer
+    if _mission_transformer is None:
+        _mission_transformer = MissionTransformer(asset_service)
+    return _mission_transformer
+
+def get_mission_context_builder(asset_service: Optional[AssetService] = None) -> MissionContextBuilder:
+    """Get or create mission context builder instance"""
+    global _mission_context_builder
+    if _mission_context_builder is None:
+        _mission_context_builder = MissionContextBuilder(asset_service)
+    return _mission_context_builder
+
+# DEPRECATED FUNCTIONS - Use centralized services instead
 def sanitize_asset_for_chat(asset: Asset) -> dict:
     """
-    Sanitize an asset for chat context by removing large content values.
+    DEPRECATED: Use MissionTransformer._sanitize_asset instead
     
-    Args:
-        asset: The asset to sanitize
-        
-    Returns:
-        Dictionary with asset metadata but no content values
+    Sanitize an asset for chat context by removing large content values.
     """
-    # Explicitly exclude 'value' field to reduce payload size
-    return {
-        "id": asset.id,
-        "name": asset.name,
-        "description": asset.description,
-        "type": asset.schema_definition.type,
-        "subtype": asset.subtype,
-        "status": asset.status.value if asset.status else None,
-        "role": asset.role.value if asset.role else None,
-        "scope_type": asset.scope_type.value if asset.scope_type else None,
-        "asset_metadata": {
-            **(asset.asset_metadata.model_dump() if asset.asset_metadata else {}),
-            "token_count": getattr(asset.asset_metadata, 'token_count', 0) if asset.asset_metadata else 0
-        }
-    }
-
+    transformer = get_mission_transformer()
+    return transformer._sanitize_asset(asset)
 
 def sanitize_hop_for_chat(hop: Hop) -> dict:
     """
+    DEPRECATED: Use MissionTransformer._serialize_hop instead
+    
     Sanitize a hop for chat context by removing asset content values.
-    
-    Args:
-        hop: The hop to sanitize
-        
-    Returns:
-        Dictionary with hop data but sanitized assets
     """
-    hop_dict = hop.model_dump(mode='json')
-    
-    # Sanitize hop state assets
-    hop_dict['hop_state'] = {
-        key: sanitize_asset_for_chat(asset)
-        for key, asset in hop.hop_state.items()
-    }
-    
-    return hop_dict
-
+    transformer = get_mission_transformer()
+    return transformer._serialize_hop(hop)
 
 def sanitize_mission_for_chat(mission: Mission) -> dict:
     """
-    Sanitize a mission for chat context by removing large asset content values.
+    DEPRECATED: Use MissionTransformer.sanitize_for_chat instead
     
-    Args:
-        mission: The mission to sanitize
-        
-    Returns:
-        Dictionary with mission structure but no large asset values
+    Sanitize a mission for chat context by removing large asset content values.
     """
     if not mission:
         return {}
     
-    mission_dict = mission.model_dump(mode='json')
-    
-    # Sanitize mission state assets
-    mission_dict['mission_state'] = {
-        key: sanitize_asset_for_chat(asset)
-        for key, asset in mission.mission_state.items()
-    }
-    
-    # Sanitize current hop
-    if mission.current_hop:
-        mission_dict['current_hop'] = sanitize_hop_for_chat(mission.current_hop)
-    
-    # Sanitize hop history
-    mission_dict['hops'] = [
-        sanitize_hop_for_chat(hop) for hop in mission.hops
-    ]
-    
-    return mission_dict
-
+    transformer = get_mission_transformer()
+    sanitized_mission = transformer.sanitize_for_chat(mission)
+    return sanitized_mission.model_dump()
 
 async def enrich_chat_context_with_assets(
     chat_payload: dict, 
@@ -100,42 +74,22 @@ async def enrich_chat_context_with_assets(
     db: Any
 ) -> dict:
     """
+    DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
+    
     Enrich chat context with asset summaries fetched from the backend.
-    
-    Args:
-        chat_payload: The incoming chat payload
-        user_id: User ID for asset fetching
-        db: Database session
-        
-    Returns:
-        Enhanced payload with asset summaries
     """
-    enriched_payload = chat_payload.copy()
+    # For backward compatibility, extract mission from payload
+    mission = chat_payload.get('mission')
+    if isinstance(mission, dict):
+        # Convert dict back to Mission object if needed
+        # This is a simplified version - full conversion would require more work
+        mission = None
     
-    try:
-        # Fetch asset summaries from the backend
-        asset_service = AssetService(db)
-        summary_service = AssetSummaryService()
-        
-        # Get all user assets
-        assets = asset_service.get_user_assets(user_id)
-        
-        # Create summaries as a dictionary with asset_id as key
-        asset_summaries = {}
-        for asset in assets:
-            summary = summary_service.create_asset_summary(asset)
-            asset_summaries[asset.id] = summary.summary
-        
-        # Add to payload
-        enriched_payload['asset_summaries'] = asset_summaries
-        
-    except Exception as e:
-        print(f"Failed to enrich chat context with assets: {e}")
-        # Continue without asset summaries rather than failing
-        enriched_payload['asset_summaries'] = {}
+    asset_service = AssetService(db)
+    context_builder = get_mission_context_builder(asset_service)
     
-    return enriched_payload
-
+    # Use the new centralized approach
+    return await context_builder.prepare_chat_context(mission, user_id, db, chat_payload)
 
 async def prepare_chat_context(
     mission: Optional[Mission], 
@@ -144,25 +98,12 @@ async def prepare_chat_context(
     additional_payload: Optional[dict] = None
 ) -> dict:
     """
+    DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
+    
     Prepare complete chat context with sanitized mission and asset summaries.
-    
-    Args:
-        mission: The mission to include in context
-        user_id: User ID for asset fetching
-        db: Database session
-        additional_payload: Any additional payload data
-        
-    Returns:
-        Complete chat context payload
     """
-    # Start with sanitized mission
-    payload = {
-        "mission": sanitize_mission_for_chat(mission) if mission else None
-    }
+    asset_service = AssetService(db)
+    context_builder = get_mission_context_builder(asset_service)
     
-    # Add additional payload if provided
-    if additional_payload:
-        payload.update(additional_payload)
-    
-    # Enrich with asset summaries
-    return await enrich_chat_context_with_assets(payload, user_id, db) 
+    # Use the new centralized approach
+    return await context_builder.prepare_chat_context(mission, user_id, db, additional_payload) 

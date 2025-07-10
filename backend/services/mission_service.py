@@ -9,6 +9,7 @@ from models import Mission as MissionModel, MissionStatus
 from schemas.workflow import Mission, MissionStatus as SchemaMissionStatus
 from services.asset_service import AssetService
 from services.hop_service import HopService
+from services.mission_transformer import MissionTransformer, MissionTransformationError
 
 
 class MissionService:
@@ -16,49 +17,49 @@ class MissionService:
         self.db = db
         self.asset_service = AssetService(db)
         self.hop_service = HopService(db)
+        self.mission_transformer = MissionTransformer(self.asset_service)
     
     async def create_mission(self, user_id: int, mission: Mission) -> str:
         """Create a new mission in the database"""
-        mission_id = str(uuid4())
-        
-        # Map schema status to model status
-        status = self._map_schema_status_to_model(mission.status)
-        
-        # Create mission model
-        mission_model = MissionModel(
-            id=mission_id,
-            user_id=user_id,
-            name=mission.name,
-            description=mission.description,
-            goal=mission.goal,
-            status=status,
-            success_criteria=mission.success_criteria,
-            mission_metadata=mission.mission_metadata
-        )
-        
-        self.db.add(mission_model)
-        self.db.flush()  # Get the mission_id but don't commit yet
-        
-        # Create assets if they exist in mission_state
-        if mission.mission_state:
-            for asset_id, asset in mission.mission_state.items():
-                self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset.name,
-                    type=asset.schema_definition.type,
-                    subtype=asset.subtype,
-                    description=asset.description,
-                    content=asset.value_representation,
-                    asset_metadata=asset.asset_metadata,
-                    scope_type="mission",
-                    scope_id=mission_id,
-                    role=asset.role.value
-                )
-        
-        self.db.commit()
-        self.db.refresh(mission_model)
-        
-        return mission_id
+        try:
+            mission_id = str(uuid4())
+            
+            # Ensure mission has the correct ID
+            mission.id = mission_id
+            
+            # Use transformer to convert schema to model
+            mission_model = self.mission_transformer.schema_to_model(mission, user_id)
+            
+            self.db.add(mission_model)
+            self.db.flush()  # Get the mission_id but don't commit yet
+            
+            # Create assets if they exist in mission_state
+            if mission.mission_state:
+                for asset_id, asset in mission.mission_state.items():
+                    self.asset_service.create_asset(
+                        user_id=user_id,
+                        name=asset.name,
+                        type=asset.schema_definition.type,
+                        subtype=asset.subtype,
+                        description=asset.description,
+                        content=asset.value_representation,
+                        asset_metadata=asset.asset_metadata,
+                        scope_type="mission",
+                        scope_id=mission_id,
+                        role=asset.role.value
+                    )
+            
+            self.db.commit()
+            self.db.refresh(mission_model)
+            
+            return mission_id
+            
+        except MissionTransformationError as e:
+            self.db.rollback()
+            raise Exception(f"Failed to create mission: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"Failed to create mission: {str(e)}")
     
     async def get_mission(self, mission_id: str, user_id: int) -> Optional[Mission]:
         """Get a mission by ID"""
@@ -70,29 +71,40 @@ class MissionService:
         if not mission_model:
             return None
         
-        return self._model_to_mission(mission_model)
+        return await self.mission_transformer.model_to_schema(mission_model)
     
     async def update_mission(self, mission_id: str, user_id: int, mission: Mission) -> bool:
         """Update an existing mission"""
-        mission_model = self.db.query(MissionModel).filter(
-            MissionModel.id == mission_id,
-            MissionModel.user_id == user_id
-        ).first()
-        
-        if not mission_model:
-            return False
-        
-        # Update fields
-        mission_model.name = mission.name
-        mission_model.description = mission.description
-        mission_model.goal = mission.goal
-        mission_model.status = self._map_schema_status_to_model(mission.status)
-        mission_model.success_criteria = mission.success_criteria
-        mission_model.mission_metadata = mission.mission_metadata
-        mission_model.updated_at = datetime.utcnow()
-        
-        self.db.commit()
-        return True
+        try:
+            mission_model = self.db.query(MissionModel).filter(
+                MissionModel.id == mission_id,
+                MissionModel.user_id == user_id
+            ).first()
+            
+            if not mission_model:
+                return False
+            
+            # Use transformer to get updated model data
+            updated_model = self.mission_transformer.schema_to_model(mission, user_id)
+            
+            # Update fields
+            mission_model.name = updated_model.name
+            mission_model.description = updated_model.description
+            mission_model.goal = updated_model.goal
+            mission_model.status = updated_model.status
+            mission_model.success_criteria = updated_model.success_criteria
+            mission_model.mission_metadata = updated_model.mission_metadata
+            mission_model.updated_at = datetime.utcnow()
+            
+            self.db.commit()
+            return True
+            
+        except MissionTransformationError as e:
+            self.db.rollback()
+            raise Exception(f"Failed to update mission: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"Failed to update mission: {str(e)}")
     
     async def update_mission_status(
         self, 
@@ -101,19 +113,24 @@ class MissionService:
         status: SchemaMissionStatus
     ) -> bool:
         """Update mission status"""
-        mission_model = self.db.query(MissionModel).filter(
-            MissionModel.id == mission_id,
-            MissionModel.user_id == user_id
-        ).first()
-        
-        if not mission_model:
-            return False
-        
-        mission_model.status = self._map_schema_status_to_model(status)
-        mission_model.updated_at = datetime.utcnow()
-        
-        self.db.commit()
-        return True
+        try:
+            mission_model = self.db.query(MissionModel).filter(
+                MissionModel.id == mission_id,
+                MissionModel.user_id == user_id
+            ).first()
+            
+            if not mission_model:
+                return False
+            
+            mission_model.status = self.mission_transformer._map_schema_status_to_model(status)
+            mission_model.updated_at = datetime.utcnow()
+            
+            self.db.commit()
+            return True
+            
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"Failed to update mission status: {str(e)}")
     
     async def delete_mission(self, mission_id: str, user_id: int) -> bool:
         """Delete a mission"""
@@ -135,81 +152,48 @@ class MissionService:
             MissionModel.user_id == user_id
         ).order_by(MissionModel.updated_at.desc()).all()
         
-        return [self._model_to_mission(model) for model in mission_models]
+        missions = []
+        for model in mission_models:
+            try:
+                mission = await self.mission_transformer.model_to_schema(model)
+                missions.append(mission)
+            except MissionTransformationError as e:
+                print(f"Failed to transform mission {model.id}: {e}")
+                continue
+        
+        return missions
     
     async def get_mission_with_hops(self, mission_id: str, user_id: int) -> Optional[Dict[str, Any]]:
         """Get a mission with its hops and tool steps"""
-        mission_model = self.db.query(MissionModel).filter(
-            MissionModel.id == mission_id,
-            MissionModel.user_id == user_id
-        ).first()
-        
-        if not mission_model:
+        try:
+            mission_model = self.db.query(MissionModel).filter(
+                MissionModel.id == mission_id,
+                MissionModel.user_id == user_id
+            ).first()
+            
+            if not mission_model:
+                return None
+            
+            # Get mission using transformer
+            mission = await self.mission_transformer.model_to_schema(mission_model)
+            
+            # Get hops for this mission
+            hops = await self.hop_service.get_hops_by_mission(mission_id, user_id)
+            
+            return {
+                "mission": mission,
+                "hops": hops
+            }
+            
+        except MissionTransformationError as e:
+            print(f"Failed to get mission with hops: {e}")
             return None
-        
-        # Get mission
-        mission = self._model_to_mission(mission_model)
-        
-        # Get hops for this mission
-        hops = await self.hop_service.get_hops_by_mission(mission_id, user_id)
-        
-        return {
-            "mission": mission,
-            "hops": hops
-        }
     
-    def _model_to_mission(self, mission_model: MissionModel) -> Mission:
-        """Convert database model to Mission schema object"""
-        # Load assets from database
-        assets = self.asset_service.get_assets_by_scope(
-            user_id=mission_model.user_id,
-            scope_type="mission",
-            scope_id=mission_model.id
-        )
-        
-        # Create mission_state dict
-        mission_state = {asset.id: asset for asset in assets}
-        
-        return Mission(
-            id=mission_model.id,
-            name=mission_model.name,
-            description=mission_model.description,
-            goal=mission_model.goal,
-            status=self._map_model_status_to_schema(mission_model.status),
-            success_criteria=mission_model.success_criteria or [],
-            mission_metadata=mission_model.mission_metadata or {},
-            mission_state=mission_state,
-            created_at=mission_model.created_at,
-            updated_at=mission_model.updated_at
-        )
-    
-    def _map_schema_status_to_model(self, schema_status: SchemaMissionStatus) -> MissionStatus:
-        """Map schema status to model status"""
-        mapping = {
-            SchemaMissionStatus.PROPOSED: MissionStatus.PROPOSED,
-            SchemaMissionStatus.READY_FOR_NEXT_HOP: MissionStatus.READY_FOR_NEXT_HOP,
-            SchemaMissionStatus.BUILDING_HOP: MissionStatus.BUILDING_HOP,
-            SchemaMissionStatus.HOP_READY_TO_EXECUTE: MissionStatus.HOP_READY_TO_EXECUTE,
-            SchemaMissionStatus.EXECUTING_HOP: MissionStatus.EXECUTING_HOP,
-            SchemaMissionStatus.COMPLETED: MissionStatus.COMPLETED,
-            SchemaMissionStatus.FAILED: MissionStatus.FAILED,
-            SchemaMissionStatus.CANCELLED: MissionStatus.CANCELLED
-        }
-        return mapping.get(schema_status, MissionStatus.PROPOSED)
-    
-    def _map_model_status_to_schema(self, model_status: MissionStatus) -> SchemaMissionStatus:
-        """Map model status to schema status"""
-        mapping = {
-            MissionStatus.PROPOSED: SchemaMissionStatus.PROPOSED,
-            MissionStatus.READY_FOR_NEXT_HOP: SchemaMissionStatus.READY_FOR_NEXT_HOP,
-            MissionStatus.BUILDING_HOP: SchemaMissionStatus.BUILDING_HOP,
-            MissionStatus.HOP_READY_TO_EXECUTE: SchemaMissionStatus.HOP_READY_TO_EXECUTE,
-            MissionStatus.EXECUTING_HOP: SchemaMissionStatus.EXECUTING_HOP,
-            MissionStatus.COMPLETED: SchemaMissionStatus.COMPLETED,
-            MissionStatus.FAILED: SchemaMissionStatus.FAILED,
-            MissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED
-        }
-        return mapping.get(model_status, SchemaMissionStatus.PROPOSED)
+    # Old transformation methods removed - now handled by MissionTransformer
+    # The following methods are deprecated and replaced by centralized transformation:
+    # - _model_to_mission -> mission_transformer.model_to_schema
+    # - _map_schema_status_to_model -> mission_transformer._map_schema_status_to_model  
+    # - _map_model_status_to_schema -> mission_transformer._map_model_status_to_schema
 
 
 # Dependency function for FastAPI dependency injection

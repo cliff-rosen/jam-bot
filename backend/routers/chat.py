@@ -24,14 +24,6 @@ from agents.primary_agent import graph as primary_agent, State
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-class ResponsesAPIRequest(BaseModel):
-    """Request model for the responses API"""
-    input_text: str
-    model: str = "gpt-4o"
-    tools: Optional[List[Dict[str, Any]]] = None
-    include: Optional[List[str]] = None
-    max_output_tokens: Optional[int] = None
-
 def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
     """Helper function to save a ChatMessage object to the database."""
     print(f"Saving message to database: {message.role}")

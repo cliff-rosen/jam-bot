@@ -64,5 +64,15 @@ class UpdateUserSessionRequest(BaseModel):
     session_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Updated metadata")
 
 
+class UserSessionLightweightResponse(BaseModel):
+    """Lightweight response containing just session pointers/IDs"""
+    id: str = Field(description="Session ID")
+    user_id: int = Field(description="User ID")
+    name: Optional[str] = Field(description="Session name")
+    chat_id: str = Field(description="Associated chat ID")
+    mission_id: Optional[str] = Field(default=None, description="Associated mission ID if exists")
+    session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Session metadata")
+
+
 # Import Chat for forward references
 from .chat import Chat 

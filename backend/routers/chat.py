@@ -9,6 +9,8 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 from database import get_db
+from utils.mission_utils import enrich_chat_context_with_assets
+
 from services.auth_service import validate_token
 from services.mission_service import MissionService
 from services.ai_service import ai_service, LLMRequest
@@ -16,8 +18,8 @@ from services.user_session_service import UserSessionService
 
 from schemas import ChatMessage, MessageRole, ChatRequest, ChatResponse
 from models import ChatMessage as ChatMessageModel
+
 from agents.primary_agent import graph as primary_agent, State
-from utils.mission_utils import enrich_chat_context_with_assets
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 router = APIRouter(prefix="/chat", tags=["chat"])

@@ -8,6 +8,7 @@ import { api } from './index';
 import {
     CreateUserSessionRequest,
     CreateUserSessionResponse,
+    CreateUserSessionBackendResponse,
     UserSessionStatus
 } from '@/types/user_session';
 
@@ -20,7 +21,7 @@ class SessionApiClient {
 
         // Backend returns lightweight response with just IDs
         // Convert to expected format for compatibility
-        const data = response.data;
+        const data: CreateUserSessionBackendResponse = response.data;
         return {
             user_session: {
                 id: data.id,

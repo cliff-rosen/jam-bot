@@ -42,6 +42,16 @@ export interface CreateUserSessionResponse {
     chat: Chat;
 }
 
+// Backend response format - lightweight response with just IDs
+export interface CreateUserSessionBackendResponse {
+    id: string;
+    user_id: number;
+    name?: string;
+    chat_id: string;
+    mission_id?: string;
+    session_metadata: Record<string, any>;
+}
+
 export interface UpdateUserSessionRequest {
     name?: string;
     status?: UserSessionStatus;

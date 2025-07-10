@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from uuid import uuid4
 import re
+from fastapi import Depends
 
+from database import get_db
 from models import UserSession, User, Chat, Mission, ChatMessage, UserSessionStatus
 from schemas.user_session import (
     CreateUserSessionRequest, 
@@ -194,4 +196,10 @@ class UserSessionService:
             created_at=user_session.created_at,
             updated_at=user_session.updated_at,
             last_activity_at=user_session.last_activity_at
-        ) 
+        )
+
+
+# Dependency function for FastAPI dependency injection
+async def get_user_session_service(db: Session = Depends(get_db)) -> UserSessionService:
+    """FastAPI dependency that provides UserSessionService instance"""
+    return UserSessionService(db)

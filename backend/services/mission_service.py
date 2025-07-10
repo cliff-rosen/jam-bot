@@ -2,7 +2,9 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
 from uuid import uuid4
+from fastapi import Depends
 
+from database import get_db
 from models import Mission as MissionModel, MissionStatus
 from schemas.workflow import Mission, MissionStatus as SchemaMissionStatus
 from services.asset_service import AssetService
@@ -211,4 +213,10 @@ class MissionService:
             MissionStatus.FAILED: SchemaMissionStatus.FAILED,
             MissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED
         }
-        return mapping.get(model_status, SchemaMissionStatus.PROPOSED) 
+        return mapping.get(model_status, SchemaMissionStatus.PROPOSED)
+
+
+# Dependency function for FastAPI dependency injection
+async def get_mission_service(db: Session = Depends(get_db)) -> MissionService:
+    """FastAPI dependency that provides MissionService instance"""
+    return MissionService(db)

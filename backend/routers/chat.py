@@ -12,8 +12,8 @@ from database import get_db
 from utils.mission_utils import enrich_chat_context_with_assets
 
 from services.auth_service import validate_token
-from services.mission_service import MissionService
-from services.user_session_service import UserSessionService
+from services.mission_service import MissionService, get_mission_service
+from services.user_session_service import UserSessionService, get_user_session_service
 
 from schemas import ChatMessage, MessageRole, ChatRequest
 from models import ChatMessage as ChatMessageModel
@@ -44,9 +44,11 @@ def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMes
 
 @router.post("/stream")
 async def chat_stream(
-    chat_request: ChatRequest, 
-    db: Session = Depends(get_db),
-    current_user = Depends(validate_token)
+    chat_request: ChatRequest,
+    session_service: UserSessionService = Depends(get_user_session_service),
+    mission_service: MissionService = Depends(get_mission_service),
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)  # Still needed for message saving and graph config
 ):
     """Endpoint that streams responses from the graph and persists messages"""
     
@@ -54,7 +56,6 @@ async def chat_stream(
         """Generate SSE events from graph outputs"""
         try:
             # Get user's active session to find chat_id and mission_id
-            session_service = UserSessionService(db)
             active_session = session_service.get_active_session(current_user.user_id)
             
             if not active_session:
@@ -72,7 +73,6 @@ async def chat_stream(
             # Get mission from database if mission_id is available in session
             mission = None
             if mission_id:
-                mission_service = MissionService(db)
                 mission = await mission_service.get_mission(mission_id, current_user.user_id)
                 
                 if not mission:
@@ -149,18 +149,6 @@ async def chat_stream(
                         "event": "message",
                         "data": json.dumps(processed_output)
                     }
-                elif isinstance(output, ChatMessage):
-                    print(f"DEBUG: Found direct ChatMessage: role={output.role}, content={output.content[:100]}...")
-                    # Save ChatMessage to database
-                    if output.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
-                        save_message_to_db(db, chat_id, current_user.user_id, output)
-                        print(f"DEBUG: Saved direct ChatMessage to DB")
-                    
-                    # Convert ChatMessage object to dict before JSON serialization
-                    yield {
-                        "event": "message",
-                        "data": json.dumps(output.model_dump())
-                    }
                 else:
                     print(f"DEBUG: Other output type: {type(output)}, content: {str(output)[:100]}...")
                     # Handle other output types
@@ -183,8 +171,8 @@ async def chat_stream(
 @router.get("/{chat_id}/messages")
 async def get_chat_messages(
     chat_id: str,
-    db: Session = Depends(get_db),
-    current_user = Depends(validate_token)
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)  # Still needed for direct message querying
 ):
     """
     Get all messages for a specific chat.

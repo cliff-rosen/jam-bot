@@ -63,10 +63,6 @@ class AssetReference(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(description="All messages in the conversation")
-    mission_id: Optional[str] = Field(
-        default=None,
-        description="Optional mission ID for the chat context"
-    )
     payload: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Optional payload including additional context data"

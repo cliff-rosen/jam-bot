@@ -54,7 +54,6 @@ export type AssetReference = {
 
 export interface ChatRequest {
     messages: ChatMessage[];
-    mission_id?: string | null;
     payload?: {
         // Additional context data
     };

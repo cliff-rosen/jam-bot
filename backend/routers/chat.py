@@ -63,7 +63,7 @@ async def chat_stream(
     async def event_generator():
         """Generate SSE events from graph outputs"""
         try:
-            # Get user's active session to find chat_id
+            # Get user's active session to find chat_id and mission_id
             session_service = UserSessionService(db)
             active_session = session_service.get_active_session(current_user.user_id)
             
@@ -71,6 +71,7 @@ async def chat_stream(
                 raise HTTPException(status_code=404, detail="No active session found")
             
             chat_id = active_session.chat_id
+            mission_id = active_session.mission_id  # Get mission_id from session
             
             # Save the user's message to database first
             if chat_request.messages:
@@ -78,11 +79,11 @@ async def chat_stream(
                 if latest_message.role == MessageRole.USER:
                     save_message_to_db(db, chat_id, current_user.user_id, latest_message)
             
-            # Get mission from database if mission_id is provided
+            # Get mission from database if mission_id is available in session
             mission = None
-            if chat_request.mission_id:
+            if mission_id:
                 mission_service = MissionService(db)
-                mission = await mission_service.get_mission(chat_request.mission_id, current_user.user_id)
+                mission = await mission_service.get_mission(mission_id, current_user.user_id)
                 
                 if not mission:
                     raise HTTPException(status_code=404, detail="Mission not found")
@@ -102,7 +103,7 @@ async def chat_stream(
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
-                mission_id=chat_request.mission_id,
+                mission_id=mission_id,
                 tool_params={},
                 next_node="supervisor_node",
                 asset_summaries=enriched_payload.get("asset_summaries", {})

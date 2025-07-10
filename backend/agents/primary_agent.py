@@ -1,4 +1,4 @@
-from typing import Dict, Any, AsyncIterator, List, Optional
+from typing import Dict, Any, AsyncIterator, List, Optional, Union
 import json
 import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
@@ -13,7 +13,7 @@ from langgraph.types import StreamWriter, Send, Command
 
 from config.settings import settings
 
-from schemas.chat import ChatMessage, MessageRole, AgentResponse
+from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
 from schemas.asset import Asset, AssetStatus
 from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
@@ -95,17 +95,20 @@ async def persist_mission_if_needed(state: State, config: Dict[str, Any]) -> Non
         print(f"Failed to persist mission {state.mission_id}: {e}")
         # Continue without failing the workflow
 
-async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
     print("Supervisor - Routing based on mission and hop status")
     print(f"DEBUG: Mission status: {state.mission.status if state.mission else 'No mission'}")
     print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}")
     
     if writer:
-        writer({
-            "status": "supervisor_routing",
-            "payload": serialize_state(state)
-        })
+        status_response = StatusResponse(
+            status="supervisor_routing",
+            payload=serialize_state(state),
+            error=None,
+            debug="Supervisor analyzing mission and hop status to determine routing"
+        )
+        writer(status_response.model_dump())
 
     try:
         # Determine next node based on mission and hop status
@@ -184,22 +187,29 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
     except Exception as e:
         if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state)
-            })
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=serialize_state(state),
+                status="supervisor_error",
+                error=str(e),
+                debug=f"Error in supervisor_node: {type(e).__name__}"
+            )
+            writer(error_response.model_dump())
         raise
 
-async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles mission specialist operations"""
     print("Mission specialist node")
 
     if writer:
-        writer({
-            "status": "mission_specialist_starting",
-            "payload": serialize_state(state)
-        })
+        status_response = StatusResponse(
+            status="mission_specialist_starting",
+            payload=serialize_state(state),
+            error=None,
+            debug="Mission specialist node starting analysis"
+        )
+        writer(status_response.model_dump())
     
     try:
         # Create and use the simplified prompt caller
@@ -263,24 +273,30 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         error_traceback = traceback.format_exc()
         print("Error in mission specialist node:", error_traceback)
         if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state),
-                "debug": error_traceback,
-            })
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=serialize_state(state),
+                status="mission_specialist_error",
+                error=str(e),
+                debug=error_traceback
+            )
+            writer(error_response.model_dump())
         raise
 
-async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Hop designer node that designs the next hop in the mission"""
     print("Hop designer node")
     print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop status'}")
 
     if writer:
-        writer({
-            "status": "hop_designer_started",
-            "payload": serialize_state(state)
-        })
+        status_response = StatusResponse(
+            status="hop_designer_started",
+            payload=serialize_state(state),
+            error=None,
+            debug="Hop designer node started - analyzing mission requirements"
+        )
+        writer(status_response.model_dump())
 
     try:
         # Create and use the simplified prompt caller
@@ -381,23 +397,29 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
         error_traceback = traceback.format_exc()
         print("Error in hop designer node:", error_traceback)
         if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state),
-                "debug": error_traceback,
-            })
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=serialize_state(state),
+                status="hop_designer_error",
+                error=str(e),
+                debug=error_traceback
+            )
+            writer(error_response.model_dump())
         raise
 
-async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles hop implementer operations"""
     print("Hop implementer node")
 
     if writer:
-        writer({
-            "status": "hop_implementer_starting",
-            "payload": serialize_state(state)
-        })
+        status_response = StatusResponse(
+            status="hop_implementer_starting",
+            payload=serialize_state(state),
+            error=None,
+            debug="Hop implementer node starting - analyzing hop implementation"
+        )
+        writer(status_response.model_dump())
     
     try:
         # Use mission's current_hop as the single source of truth
@@ -492,24 +514,30 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         error_traceback = traceback.format_exc()
         print("Error in hop implementer node:", error_traceback)
         if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state),
-                "debug": error_traceback,
-            })
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=serialize_state(state),
+                status="hop_implementer_error",
+                error=str(e),
+                debug=error_traceback
+            )
+            writer(error_response.model_dump())
         raise
 
-async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
+async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles asset search operations"""
     print("================================================")
     print("Asset search node")
 
     if writer:
-        writer({
-            "status": "asset_search_starting",
-            "payload": serialize_state(state)
-        })
+        status_response = StatusResponse(
+            status="asset_search_starting",
+            payload=serialize_state(state),
+            error=None,
+            debug="Asset search node starting - preparing to search for assets"
+        )
+        writer(status_response.model_dump())
     
     try:
 
@@ -563,10 +591,10 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
         if writer:
             agent_response = AgentResponse(
                 token=response_message.content[0:100],
-                message=response_message.content[0:100],
+                response_text=response_message.content,
                 status="asset_search_completed",
                 error=None,
-                debug="hello",
+                debug=f"Found {len(search_results)} search results for query: {search_params['query']}",
                 payload=serialize_state(State(**state_update))
             )
             writer(agent_response.model_dump())
@@ -576,11 +604,15 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
     except Exception as e:
         print("Error in asset search node:", e)
         if writer:
-            writer({
-                "status": "error",
-                "error": str(e),
-                "state": serialize_state(state)
-            })
+            error_response = AgentResponse(
+                token=None,
+                response_text=None,
+                payload=serialize_state(state),
+                status="asset_search_error",
+                error=str(e),
+                debug=f"Error in asset_search_node: {type(e).__name__}"
+            )
+            writer(error_response.model_dump())
         raise
 
 ### Graph

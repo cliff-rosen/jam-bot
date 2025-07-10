@@ -140,9 +140,7 @@ async def chat_stream(
                     
                     # Check for ChatMessage objects in the dict and save them
                     for key, value in output.items():
-                        print(f"DEBUG: dict key={key}, value type={type(value)}")
                         if isinstance(value, ChatMessage):
-                            print(f"DEBUG: Found ChatMessage in dict: role={value.role}, content={value.content[:100]}...")
                             # Save ChatMessage to database
                             if value.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
                                 save_message_to_db(db, chat_id, current_user.user_id, value)

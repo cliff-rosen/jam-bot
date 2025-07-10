@@ -90,13 +90,11 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                     <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                         <div>
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Inputs</div>
-                            {Object.keys(hop.input_mapping || {}).length > 0 ? (
-                                Object.entries(hop.input_mapping).map(([localKey, assetId]) => {
-                                    const asset = hop.hop_state?.[localKey];
-                                    const assetName = asset?.name || `Asset ${assetId}`;
+                            {hop.hop_state && Object.values(hop.hop_state).some(asset => asset.role === 'input') ? (
+                                Object.entries(hop.hop_state).filter(([_, asset]) => asset.role === 'input').map(([localKey, asset]) => {
+                                    const assetName = asset?.name || localKey;
                                     const tooltipText = [
                                         `Hop Variable: ${localKey}`,
-                                        `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
                                         asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null
@@ -119,13 +117,11 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
                         <div>
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Outputs</div>
-                            {Object.keys(hop.output_mapping || {}).length > 0 ? (
-                                Object.entries(hop.output_mapping).map(([localKey, assetId]) => {
-                                    const asset = hop.hop_state?.[localKey];
-                                    const assetName = asset?.name || `Asset ${assetId}`;
+                            {hop.hop_state && Object.values(hop.hop_state).some(asset => asset.role === 'output') ? (
+                                Object.entries(hop.hop_state).filter(([_, asset]) => asset.role === 'output').map(([localKey, asset]) => {
+                                    const assetName = asset?.name || localKey;
                                     const tooltipText = [
                                         `Hop Variable: ${localKey}`,
-                                        `Asset ID: ${assetId}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
                                         asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null

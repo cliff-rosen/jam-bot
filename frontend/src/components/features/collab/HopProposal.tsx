@@ -21,17 +21,15 @@ export const HopProposal: React.FC<HopProposalProps> = ({
     onReject,
     onClose
 }) => {
-    // Get input assets from hop state
-    const inputAssets = Object.entries(hop.input_mapping).map(([localKey, missionAssetId]) => {
-        const asset = hop.hop_state[localKey];
-        return { localKey, missionAssetId, asset };
-    }).filter(item => item.asset);
+    // Get input assets from hop state (assets with role 'input')
+    const inputAssets = hop.hop_state ? Object.entries(hop.hop_state).map(([localKey, asset]) => {
+        return { localKey, asset };
+    }).filter(item => item.asset && item.asset.role === 'input') : [];
 
-    // Get output assets from hop state
-    const outputAssets = Object.entries(hop.output_mapping).map(([localKey, missionAssetId]) => {
-        const asset = hop.hop_state[localKey];
-        return { localKey, missionAssetId, asset };
-    }).filter(item => item.asset);
+    // Get output assets from hop state (assets with role 'output')
+    const outputAssets = hop.hop_state ? Object.entries(hop.hop_state).map(([localKey, asset]) => {
+        return { localKey, asset };
+    }).filter(item => item.asset && item.asset.role === 'output') : [];
 
     return (
         <div className="h-full overflow-auto">

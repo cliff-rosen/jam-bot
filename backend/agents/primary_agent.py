@@ -392,8 +392,6 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Node that handles hop implementer operations"""
     print("Hop implementer node")
-    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
-    print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission else 'No hop status'}")
 
     if writer:
         writer({

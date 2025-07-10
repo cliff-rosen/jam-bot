@@ -117,8 +117,7 @@ async def chat_stream(
             # Run the graph
             async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
                 # Debug logging to see what we're getting
-                print(f"DEBUG: output type: {type(output)}")
-                print(f"DEBUG: output content: {output}")
+                print(f"CHAT OUTPUT LOOP: output type: {type(output)}")
                 
                 if isinstance(output, dict):
                     # Check for response_text which contains the AI's complete response

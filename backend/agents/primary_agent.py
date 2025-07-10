@@ -274,7 +274,6 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> AsyncIterator[Dict[str, Any]]:
     """Hop designer node that designs the next hop in the mission"""
     print("Hop designer node")
-    print(f"DEBUG: Current hop: {state.mission.current_hop.name if state.mission and state.mission.current_hop else 'None'}")
     print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop status'}")
 
     if writer:
@@ -312,7 +311,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             hop_lite: HopLite = parsed_response.hop_proposal
             
             # Process the hop proposal
-            new_hop, proposed_assets = _process_hop_proposal(hop_lite, state.mission.mission_state)
+            new_hop, proposed_assets = _process_hop_proposal(hop_lite, state.mission.mission_state, state.mission)
 
             # Route back to supervisor
             next_node = END
@@ -443,8 +442,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
-            current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
-            state.mission.current_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+            current_hop.status = HopStatus.READY_TO_RESOLVE
+            state.mission.current_hop.status = HopStatus.READY_TO_RESOLVE
             
             # Create clarification message with reasoning
             missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
@@ -474,7 +473,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
             # Include hop in payload if it's successfully implemented (ready to execute)
             include_hop = (parsed_response.response_type == 'IMPLEMENTATION_PLAN' and 
-                          current_hop.status == HopStatus.HOP_READY_TO_EXECUTE)
+                          current_hop.status == HopStatus.READY_TO_EXECUTE)
             
             agent_response = AgentResponse(**create_agent_response(
                 token=response_message.content[0:100],
@@ -729,13 +728,14 @@ def _process_output_asset(hop_lite: HopLite, mission_state: Dict[str, Asset]) ->
     
     return output_mapping, hop_state_assets, proposed_assets
 
-def _process_hop_proposal(hop_lite: HopLite, mission_state: Dict[str, Asset]) -> tuple[Hop, List[Asset]]:
+def _process_hop_proposal(hop_lite: HopLite, mission_state: Dict[str, Asset], mission: 'Mission') -> tuple[Hop, List[Asset]]:
     """
     Process a hop proposal and create a full Hop object with proper asset mappings.
     
     Args:
         hop_lite: The simplified hop proposal from the AI
         mission_state: Current mission state containing available assets
+        mission: The mission this hop belongs to (for sequence ordering)
         
     Returns:
         tuple: (new_hop, proposed_assets)
@@ -749,19 +749,26 @@ def _process_hop_proposal(hop_lite: HopLite, mission_state: Dict[str, Asset]) ->
     # Combine hop state assets
     hop_state = {**input_hop_state, **output_hop_state}
     
+    # Calculate next sequence order based on existing hops in the mission
+    if mission.hops:
+        # Find the highest sequence order in existing hops
+        max_sequence = max(hop.sequence_order for hop in mission.hops)
+        next_sequence = max_sequence + 1
+    else:
+        # First hop in the mission
+        next_sequence = 1
+    
     # Create the full Hop object
     new_hop = Hop(
         id=str(uuid.uuid4()),
+        sequence_order=next_sequence,
         name=hop_lite.name,
         description=hop_lite.description,
-        input_mapping=input_mapping,
-        output_mapping=output_mapping,
-        tool_steps=[],  # Tool steps will be added by the implementer
-        hop_state=hop_state,
-        status=HopStatus.HOP_PROPOSED,
+        rationale=hop_lite.rationale,  # Include rationale from HopLite
+        status=HopStatus.PROPOSED,
         is_final=hop_lite.is_final,
         is_resolved=False,
-        rationale=hop_lite.rationale,  # Include rationale from HopLite
+        hop_state=hop_state,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -848,7 +855,7 @@ def _process_implementation_plan(
     
     if validation_errors:
         # Validation failed - keep hop in ready to resolve state
-        updated_hop.status = HopStatus.HOP_READY_TO_RESOLVE
+        updated_hop.status = HopStatus.READY_TO_RESOLVE
         
         formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
         error_message = (
@@ -868,7 +875,7 @@ def _process_implementation_plan(
     from schemas.lite_models import create_tool_step_from_lite
     updated_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
     updated_hop.is_resolved = True
-    updated_hop.status = HopStatus.HOP_READY_TO_EXECUTE
+    updated_hop.status = HopStatus.READY_TO_EXECUTE
     updated_hop.updated_at = datetime.utcnow()
     
     # Create success message

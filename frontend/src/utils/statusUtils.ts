@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle, XCircle, PlayCircle, AlertCircle } from 'lucide-react';
-import { MissionStatus, HopStatus } from '@/types/workflow';
+import { MissionStatus, HopStatus, ToolExecutionStatus } from '@/types/workflow';
 
 /**
  * STATUS LEVELS - Simple and Clear:
@@ -30,15 +30,27 @@ export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
             return {
                 color: 'yellow',
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),
-                text: 'Pending'
+                text: 'Proposed'
             };
-        case MissionStatus.ACTIVE:
+        case MissionStatus.READY_FOR_NEXT_HOP:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Active'
+                text: 'Ready for Next Hop'
             };
-        case MissionStatus.COMPLETE:
+        case MissionStatus.BUILDING_HOP:
+            return {
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Building Hop'
+            };
+        case MissionStatus.EXECUTING_HOP:
+            return {
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Executing Hop'
+            };
+        case MissionStatus.COMPLETED:
             return {
                 color: 'green',
                 icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
@@ -49,6 +61,12 @@ export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
                 color: 'red',
                 icon: React.createElement(XCircle, { className: "w-4 h-4" }),
                 text: 'Failed'
+            };
+        case MissionStatus.CANCELLED:
+            return {
+                color: 'gray',
+                icon: React.createElement(XCircle, { className: "w-4 h-4" }),
+                text: 'Cancelled'
             };
         default:
             return {
@@ -61,35 +79,47 @@ export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
 
 export function getHopStatusDisplay(status: HopStatus): StatusDisplay {
     switch (status) {
-        case HopStatus.HOP_PROPOSED:
+        case HopStatus.PROPOSED:
             return {
                 color: 'yellow',
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),
                 text: 'Proposed'
             };
-        case HopStatus.HOP_READY_TO_RESOLVE:
+        case HopStatus.READY_TO_RESOLVE:
             return {
                 color: 'blue',
                 icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
                 text: 'Ready to Resolve'
             };
-        case HopStatus.HOP_READY_TO_EXECUTE:
+        case HopStatus.READY_TO_EXECUTE:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
                 text: 'Ready to Execute'
             };
-        case HopStatus.HOP_RUNNING:
+        case HopStatus.EXECUTING:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Running'
+                text: 'Executing'
             };
-        case HopStatus.ALL_HOPS_COMPLETE:
+        case HopStatus.COMPLETED:
             return {
                 color: 'green',
                 icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
                 text: 'Complete'
+            };
+        case HopStatus.FAILED:
+            return {
+                color: 'red',
+                icon: React.createElement(XCircle, { className: "w-4 h-4" }),
+                text: 'Failed'
+            };
+        case HopStatus.CANCELLED:
+            return {
+                color: 'gray',
+                icon: React.createElement(XCircle, { className: "w-4 h-4" }),
+                text: 'Cancelled'
             };
         default:
             return {
@@ -100,27 +130,27 @@ export function getHopStatusDisplay(status: HopStatus): StatusDisplay {
     }
 }
 
-export function getExecutionStatusDisplay(status: ExecutionStatus): StatusDisplay {
+export function getExecutionStatusDisplay(status: ToolExecutionStatus): StatusDisplay {
     switch (status) {
-        case ExecutionStatus.PENDING:
+        case ToolExecutionStatus.PROPOSED:
             return {
                 color: 'yellow',
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),
                 text: 'Pending'
             };
-        case ExecutionStatus.RUNNING:
+        case ToolExecutionStatus.RUNNING:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
                 text: 'Running'
             };
-        case ExecutionStatus.COMPLETED:
+        case ToolExecutionStatus.COMPLETED:
             return {
                 color: 'green',
                 icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
                 text: 'Completed'
             };
-        case ExecutionStatus.FAILED:
+        case ToolExecutionStatus.FAILED:
             return {
                 color: 'red',
                 icon: React.createElement(XCircle, { className: "w-4 h-4" }),

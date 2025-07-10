@@ -7,7 +7,8 @@
 import { api } from './index';
 import {
     CreateUserSessionRequest,
-    CreateUserSessionResponse
+    CreateUserSessionResponse,
+    UserSessionStatus
 } from '@/types/user_session';
 
 class SessionApiClient {
@@ -25,13 +26,13 @@ class SessionApiClient {
                 id: data.id,
                 user_id: data.user_id,
                 name: data.name || request.name || 'Session',
-                status: 'active' as any,
+                status: UserSessionStatus.ACTIVE,
                 session_metadata: data.session_metadata || {},
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                last_activity_at: new Date().toISOString(),
-                mission: data.mission_id ? undefined : undefined
-            } as any,
+                last_activity_at: new Date().toISOString()
+                // mission is optional and will be undefined by default
+            },
             chat: {
                 id: data.chat_id,
                 user_session_id: data.id,

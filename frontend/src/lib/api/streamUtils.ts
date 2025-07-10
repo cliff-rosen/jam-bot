@@ -2,6 +2,14 @@ import settings from '../../config/settings';
 
 export interface StreamUpdate {
     data: string;
+    timestamp?: number;
+    chunkIndex?: number;
+}
+
+export interface StreamError {
+    error: string;
+    timestamp: number;
+    endpoint: string;
 }
 
 // Add this to store the handleSessionExpired callback

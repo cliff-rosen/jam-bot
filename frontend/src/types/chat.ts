@@ -83,10 +83,25 @@ export interface SupervisorResponse {
     result_details: any;
 }
 
+// Streaming response types
+export interface MissionPayload {
+    mission: Mission;
+}
+
+export interface HopPayload {
+    hop: any; // Could be more specific if Hop type is available
+}
+
+export interface StreamResponsePayload {
+    mission?: Mission;
+    hop?: any;
+    [key: string]: any;
+}
+
 export interface AgentResponse {
     token: string | null;
     response_text: string | null;
-    payload: string | object | null;
+    payload: StreamResponsePayload | string | null;
     status: string | null;
     error: string | null;
     debug: string | object | null;
@@ -97,4 +112,14 @@ export interface StatusResponse {
     payload: string | object | null;
     error: string | null;
     debug: string | object | null;
+}
+
+// Union type for all possible stream responses
+export type StreamResponse = AgentResponse | StatusResponse;
+
+// Helper type for stream data parsing
+export interface StreamParseResult {
+    response: StreamResponse;
+    isValid: boolean;
+    parseError?: string;
 }

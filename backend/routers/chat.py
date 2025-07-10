@@ -1,12 +1,9 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
-import json
 import uuid
-import os
 from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
 
 from database import get_db
 from utils.mission_utils import enrich_chat_context_with_assets
@@ -14,6 +11,7 @@ from utils.mission_utils import enrich_chat_context_with_assets
 from services.auth_service import validate_token
 from services.mission_service import MissionService, get_mission_service
 from services.user_session_service import UserSessionService, get_user_session_service
+from services.chat_service import ChatService, get_chat_service
 
 from schemas.chat import (
     ChatMessage, 
@@ -23,7 +21,6 @@ from schemas.chat import (
     AgentResponse,
     StatusResponse
 )
-from models import ChatMessage as ChatMessageModel
 
 from agents.primary_agent import graph as primary_agent, State
 
@@ -31,25 +28,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 
-def save_message_to_db(db: Session, chat_id: str, user_id: str, message: ChatMessage):
-    """Helper function to save a ChatMessage object to the database."""
-    print(f"Saving message to database: {message.role}")
-    existing_count = db.query(ChatMessageModel).filter(
-        ChatMessageModel.chat_id == chat_id
-    ).count()
-    
-    chat_message = ChatMessageModel(
-        id=str(uuid.uuid4()),
-        chat_id=chat_id,
-        user_id=user_id,
-        sequence_order=existing_count + 1,
-        role=message.role,  # Both use the same MessageRole enum
-        content=message.content,
-        message_metadata=message.message_metadata or {},
-        created_at=datetime.utcnow()
-    )
-    db.add(chat_message)
-    db.commit()
+
 
 @router.post("/stream", 
     response_class=EventSourceResponse,
@@ -76,6 +55,7 @@ async def chat_stream(
     chat_request: ChatRequest,
     session_service: UserSessionService = Depends(get_user_session_service),
     mission_service: MissionService = Depends(get_mission_service),
+    chat_service: ChatService = Depends(get_chat_service),
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> EventSourceResponse:
@@ -112,7 +92,7 @@ async def chat_stream(
             if chat_request.messages:
                 latest_message = chat_request.messages[-1]
                 if latest_message.role == MessageRole.USER:
-                    save_message_to_db(db, chat_id, current_user.user_id, latest_message)
+                    chat_service.save_message(chat_id, current_user.user_id, latest_message)
             
             # Get mission from database
             mission = None
@@ -172,13 +152,13 @@ async def chat_stream(
                             created_at=datetime.utcnow(),
                             updated_at=datetime.utcnow()
                         )
-                        save_message_to_db(db, chat_id, current_user.user_id, ai_message)
+                        chat_service.save_message(chat_id, current_user.user_id, ai_message)
                     
                     # Save ChatMessage objects from output
                     for key, value in output.items():
                         if isinstance(value, ChatMessage):
                             if value.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
-                                save_message_to_db(db, chat_id, current_user.user_id, value)
+                                chat_service.save_message(chat_id, current_user.user_id, value)
                     
                     # Create proper AgentResponse object
                     agent_response = AgentResponse(
@@ -231,29 +211,12 @@ async def chat_stream(
 async def get_chat_messages(
     chat_id: str,
     current_user = Depends(validate_token),
-    db: Session = Depends(get_db)
+    chat_service: ChatService = Depends(get_chat_service)
 ) -> Dict[str, List[ChatMessage]]:
     """Get all messages for a specific chat"""
     try:
-        messages = db.query(ChatMessageModel).filter(
-            ChatMessageModel.chat_id == chat_id,
-            ChatMessageModel.user_id == current_user.user_id
-        ).order_by(ChatMessageModel.sequence_order).all()
-        
-        message_schemas = []
-        for msg in messages:
-            message_schema = ChatMessage(
-                id=msg.id,
-                chat_id=msg.chat_id,
-                role=msg.role,
-                content=msg.content,
-                message_metadata=msg.message_metadata or {},
-                created_at=msg.created_at,
-                updated_at=msg.created_at
-            )
-            message_schemas.append(message_schema)
-        
-        return {"messages": message_schemas}
+        messages = chat_service.get_chat_messages(chat_id, current_user.user_id)
+        return {"messages": messages}
         
     except Exception as e:
         print(f"Error retrieving chat messages: {str(e)}")

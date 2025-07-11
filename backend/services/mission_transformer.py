@@ -24,11 +24,18 @@ Usage:
     sanitized_dict = transformer.sanitize_for_chat(mission)
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 
 from models import Mission as MissionModel, MissionStatus as ModelMissionStatus
-from schemas.workflow import Mission, MissionStatus as SchemaMissionStatus
+from schemas.workflow import (
+    Mission, 
+    MissionStatus as SchemaMissionStatus, 
+    Hop,
+    SanitizedAsset,
+    SanitizedHop,
+    SanitizedMission
+)
 from schemas.lite_models import MissionLite, create_mission_from_lite
 from schemas.asset import Asset, AssetRole
 from services.asset_service import AssetService
@@ -42,7 +49,7 @@ class MissionTransformationError(Exception):
 class MissionTransformer:
     """Simplified mission transformation service"""
     
-    def __init__(self, asset_service: Optional[AssetService] = None):
+    def __init__(self, asset_service: Optional[AssetService] = None) -> None:
         self.asset_service = asset_service
         # Status mapping - the only enum mapping we actually need
         self._model_to_schema_status_map = {
@@ -113,14 +120,14 @@ class MissionTransformer:
         except Exception as e:
             raise MissionTransformationError(f"Failed to convert lite to schema: {str(e)}")
     
-    def sanitize_for_chat(self, mission: Mission) -> Dict[str, Any]:
+    def sanitize_for_chat(self, mission: Optional[Mission]) -> Union[SanitizedMission, Dict[str, Any]]:
         """Create simple sanitized dict for chat contexts (removes large content values)"""
         if not mission:
             return {}
         
         try:
             # Simple asset sanitization - just metadata, no content
-            def sanitize_asset(asset: Asset) -> Dict[str, Any]:
+            def sanitize_asset(asset: Asset) -> SanitizedAsset:
                 return {
                     "id": asset.id,
                     "name": asset.name,
@@ -177,6 +184,30 @@ class MissionTransformer:
             }
         except Exception as e:
             raise MissionTransformationError(f"Failed to sanitize mission: {str(e)}")
+    
+    def sanitize_asset(self, asset: Asset) -> SanitizedAsset:
+        """Sanitize an asset for chat context by removing large content values"""
+        return {
+            "id": asset.id,
+            "name": asset.name,
+            "description": asset.description,
+            "type": asset.schema_definition.type,
+            "subtype": asset.subtype,
+            "status": asset.status.value,
+            "role": asset.role.value,
+            "scope_type": asset.scope_type.value,
+            "token_count": asset.asset_metadata.get('token_count', 0) if asset.asset_metadata else 0
+        }
+    
+    def sanitize_hop(self, hop: Hop) -> SanitizedHop:
+        """Sanitize a hop for chat context by removing large content values"""
+        return {
+            "id": hop.id,
+            "name": hop.name,
+            "description": hop.description,
+            "status": hop.status.value,
+            "sequence_order": hop.sequence_order
+        }
     
     def _map_schema_status_to_model(self, schema_status: SchemaMissionStatus) -> ModelMissionStatus:
         """Map schema status to model status"""

@@ -7,7 +7,7 @@ and managing workflows, including Missions, Hops, and ToolSteps.
 
 from __future__ import annotations
 from pydantic import BaseModel, Field, validator
-from typing import Dict, Any, Optional, List, Union, Literal, TYPE_CHECKING
+from typing import Dict, Any, Optional, List, Union, Literal, TYPE_CHECKING, TypedDict
 from datetime import datetime
 from enum import Enum
 
@@ -50,6 +50,46 @@ class HopStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+# Sanitized Types for Chat Contexts
+class SanitizedAsset(TypedDict):
+    """Sanitized asset structure for chat contexts"""
+    id: str
+    name: str
+    description: str
+    type: str
+    subtype: str
+    status: str
+    role: str
+    scope_type: str
+    token_count: int
+
+
+class SanitizedHop(TypedDict):
+    """Sanitized hop structure for chat contexts"""
+    id: str
+    name: str
+    description: str
+    status: str
+    sequence_order: int
+
+
+class SanitizedMission(TypedDict):
+    """Sanitized mission structure for chat contexts"""
+    id: str
+    name: str
+    description: str
+    goal: str
+    success_criteria: List[str]
+    status: str
+    current_hop_id: Optional[str]
+    current_hop: Optional[SanitizedHop]
+    hops: List[SanitizedHop]
+    mission_state: Dict[str, SanitizedAsset]
+    mission_metadata: Dict[str, Any]
+    created_at: str
+    updated_at: str
 
 
 class Hop(BaseModel):

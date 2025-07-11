@@ -10,9 +10,9 @@ This module provides utilities for mission processing, sanitization, and
 chat context preparation.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
-from schemas.workflow import Mission, Hop
+from schemas.workflow import Mission, Hop, SanitizedMission, SanitizedAsset, SanitizedHop
 from schemas.asset import Asset
 from schemas.chat import AssetReference
 
@@ -39,25 +39,25 @@ def get_mission_context_builder(asset_service: Optional[AssetService] = None) ->
     return _mission_context_builder
 
 # DEPRECATED FUNCTIONS - Use centralized services instead
-def sanitize_asset_for_chat(asset: Asset) -> dict:
+def sanitize_asset_for_chat(asset: Asset) -> SanitizedAsset:
     """
-    DEPRECATED: Use MissionTransformer._sanitize_asset instead
+    DEPRECATED: Use MissionTransformer.sanitize_asset instead
     
     Sanitize an asset for chat context by removing large content values.
     """
     transformer = get_mission_transformer()
-    return transformer._sanitize_asset(asset)
+    return transformer.sanitize_asset(asset)
 
-def sanitize_hop_for_chat(hop: Hop) -> dict:
+def sanitize_hop_for_chat(hop: Hop) -> SanitizedHop:
     """
-    DEPRECATED: Use MissionTransformer._serialize_hop instead
+    DEPRECATED: Use MissionTransformer.sanitize_hop instead
     
     Sanitize a hop for chat context by removing asset content values.
     """
     transformer = get_mission_transformer()
-    return transformer._serialize_hop(hop)
+    return transformer.sanitize_hop(hop)
 
-def sanitize_mission_for_chat(mission: Mission) -> dict:
+def sanitize_mission_for_chat(mission: Optional[Mission]) -> Union[SanitizedMission, Dict[str, Any]]:
     """
     DEPRECATED: Use MissionTransformer.sanitize_for_chat instead
     
@@ -70,10 +70,10 @@ def sanitize_mission_for_chat(mission: Mission) -> dict:
     return transformer.sanitize_for_chat(mission)
 
 async def enrich_chat_context_with_assets(
-    chat_payload: dict, 
+    chat_payload: Dict[str, Any], 
     user_id: int, 
     db: Any
-) -> dict:
+) -> Dict[str, Any]:
     """
     DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
     
@@ -96,8 +96,8 @@ async def prepare_chat_context(
     mission: Optional[Mission], 
     user_id: int, 
     db: Any,
-    additional_payload: Optional[dict] = None
-) -> dict:
+    additional_payload: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
     DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
     

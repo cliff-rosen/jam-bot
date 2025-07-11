@@ -9,12 +9,12 @@ Usage:
     chat_context = await builder.prepare_chat_context(mission, user_id, db)
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
 from database import get_db
-from schemas.workflow import Mission
+from schemas.workflow import Mission, SanitizedMission
 from services.asset_service import AssetService
 from services.asset_summary_service import AssetSummaryService
 from services.mission_transformer import MissionTransformer
@@ -23,7 +23,7 @@ from services.mission_transformer import MissionTransformer
 class MissionContextBuilder:
     """Simple mission context preparation for chat"""
     
-    def __init__(self, asset_service: Optional[AssetService] = None):
+    def __init__(self, asset_service: Optional[AssetService] = None) -> None:
         self.asset_service = asset_service
         self.mission_transformer = MissionTransformer(asset_service)
         self.asset_summary_service = AssetSummaryService() if asset_service else None

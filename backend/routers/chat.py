@@ -21,6 +21,7 @@ from schemas.chat import (
     AgentResponse,
     StatusResponse
 )
+from schemas.workflow import ChatContextPayload, Mission, UserSession
 
 from agents.primary_agent import graph as primary_agent, State
 
@@ -60,15 +61,24 @@ async def chat_stream(
     """
     Stream chat responses from the AI agent.
     
-    Returns Server-Sent Events where each event data contains a ChatStreamResponse object:
+    Returns Server-Sent Events where each event is structured as a wrapper around a ChatStreamResponse object:
     - AgentResponse: token, response_text, payload, status, error, debug
     - StatusResponse: status, payload, error, debug
+    
+    The wrapper format is:
+    {
+        "event": "message",
+        "data": ChatStreamResponse.model_dump_json()
+    }
+
+    The event field is used to indicate the type of response.
+
     """
     
     async def event_generator():
         """Generate SSE events that are AgentResponse or StatusResponse objects"""
         try:
-            active_session = session_service.get_active_session(current_user.user_id)
+            active_session: Optional[UserSession] = session_service.get_active_session(current_user.user_id)
             if not active_session:
                 error_response = AgentResponse(
                     token=None,
@@ -93,7 +103,7 @@ async def chat_stream(
                     chat_service.save_message(chat_id, current_user.user_id, latest_message)
             
             # Get mission from database
-            mission = None
+            mission: Optional[Mission] = None
             if mission_id:
                 mission = await mission_service.get_mission(mission_id, current_user.user_id)
                 if not mission:
@@ -112,7 +122,7 @@ async def chat_stream(
                     return
             
             # Enrich payload with asset summaries using MissionContextBuilder
-            enriched_payload = await context_builder.prepare_chat_context(
+            enriched_payload: ChatContextPayload = await context_builder.prepare_chat_context(
                 mission,
                 current_user.user_id,
                 db,

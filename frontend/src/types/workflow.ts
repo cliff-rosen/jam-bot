@@ -11,20 +11,20 @@ import { Asset } from './asset';
 // --- Workflow Execution Enums ---
 
 export enum MissionStatus {
-    PROPOSED = "proposed",
-    READY_FOR_NEXT_HOP = "ready_for_next_hop",
-    BUILDING_HOP = "building_hop",
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute",
-    EXECUTING_HOP = "executing_hop",
+    AWAITING_APPROVAL = "awaiting_approval",
+    IN_PROGRESS = "in_progress",
     COMPLETED = "completed",
     FAILED = "failed",
     CANCELLED = "cancelled"
 }
 
 export enum HopStatus {
-    PROPOSED = "proposed",
-    READY_TO_RESOLVE = "ready_to_resolve",
-    READY_TO_EXECUTE = "ready_to_execute",
+    HOP_PLAN_STARTED = "hop_plan_started",
+    HOP_PLAN_PROPOSED = "hop_plan_proposed",
+    HOP_PLAN_READY = "hop_plan_ready",
+    HOP_IMPL_STARTED = "hop_impl_started",
+    HOP_IMPL_PROPOSED = "hop_impl_proposed",
+    HOP_IMPL_READY = "hop_impl_ready",
     EXECUTING = "executing",
     COMPLETED = "completed",
     FAILED = "failed",
@@ -144,7 +144,7 @@ export const defaultMission: Mission = {
     description: "A new mission to be defined.",
     goal: "",
     success_criteria: [],
-    status: MissionStatus.PROPOSED,
+    status: MissionStatus.AWAITING_APPROVAL,
     current_hop_id: undefined,
     mission_metadata: {},
     created_at: new Date().toISOString(),

@@ -6,15 +6,15 @@ import { MissionStatus, HopStatus, ToolExecutionStatus } from '@/types/workflow'
  * STATUS LEVELS - Simple and Clear:
  * 
  * 1. MISSION STATUS (MissionStatus)
- *    - Overall mission state: PENDING → ACTIVE → COMPLETE/FAILED
- *    - Shown as: "Mission: ACTIVE"
+ *    - Overall mission state: AWAITING_APPROVAL → IN_PROGRESS → COMPLETED/FAILED/CANCELLED
+ *    - Shown as: "Mission: IN_PROGRESS"
  * 
  * 2. HOP STATUS (HopStatus)
- *    - Hop lifecycle state: PROPOSED → READY_TO_RESOLVE → READY_TO_EXECUTE → RUNNING → ALL_HOPS_COMPLETE
+ *    - Hop lifecycle state: HOP_PLAN_STARTED → HOP_PLAN_PROPOSED → HOP_PLAN_READY → HOP_IMPL_STARTED → HOP_IMPL_PROPOSED → HOP_IMPL_READY → EXECUTING → COMPLETED/FAILED/CANCELLED
  *    - Shown in hop list and details as status badge
  * 
  * 3. EXECUTION STATUS (ExecutionStatus)
- *    - Individual step state: PENDING → RUNNING → COMPLETED/FAILED  
+ *    - Individual step state: PROPOSED → READY_TO_CONFIGURE → READY_TO_EXECUTE → EXECUTING → COMPLETED/FAILED/CANCELLED
  *    - Shown in step details as status badge
  */
 
@@ -26,35 +26,23 @@ export interface StatusDisplay {
 
 export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
     switch (status) {
-        case MissionStatus.PROPOSED:
+        case MissionStatus.AWAITING_APPROVAL:
             return {
                 color: 'yellow',
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),
-                text: 'Proposed'
+                text: 'Awaiting Approval'
             };
-        case MissionStatus.READY_FOR_NEXT_HOP:
+        case MissionStatus.IN_PROGRESS:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Ready for Next Hop'
-            };
-        case MissionStatus.BUILDING_HOP:
-            return {
-                color: 'blue',
-                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Building Hop'
-            };
-        case MissionStatus.EXECUTING_HOP:
-            return {
-                color: 'blue',
-                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Executing Hop'
+                text: 'In Progress'
             };
         case MissionStatus.COMPLETED:
             return {
                 color: 'green',
                 icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
-                text: 'Complete'
+                text: 'Completed'
             };
         case MissionStatus.FAILED:
             return {
@@ -79,23 +67,41 @@ export function getMissionStatusDisplay(status: MissionStatus): StatusDisplay {
 
 export function getHopStatusDisplay(status: HopStatus): StatusDisplay {
     switch (status) {
-        case HopStatus.PROPOSED:
-            return {
-                color: 'yellow',
-                icon: React.createElement(Clock, { className: "w-4 h-4" }),
-                text: 'Proposed'
-            };
-        case HopStatus.READY_TO_RESOLVE:
-            return {
-                color: 'blue',
-                icon: React.createElement(AlertCircle, { className: "w-4 h-4" }),
-                text: 'Ready to Resolve'
-            };
-        case HopStatus.READY_TO_EXECUTE:
+        case HopStatus.HOP_PLAN_STARTED:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Ready to Execute'
+                text: 'Planning Started'
+            };
+        case HopStatus.HOP_PLAN_PROPOSED:
+            return {
+                color: 'yellow',
+                icon: React.createElement(Clock, { className: "w-4 h-4" }),
+                text: 'Plan Proposed'
+            };
+        case HopStatus.HOP_PLAN_READY:
+            return {
+                color: 'green',
+                icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
+                text: 'Plan Ready'
+            };
+        case HopStatus.HOP_IMPL_STARTED:
+            return {
+                color: 'blue',
+                icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
+                text: 'Implementation Started'
+            };
+        case HopStatus.HOP_IMPL_PROPOSED:
+            return {
+                color: 'yellow',
+                icon: React.createElement(Clock, { className: "w-4 h-4" }),
+                text: 'Implementation Proposed'
+            };
+        case HopStatus.HOP_IMPL_READY:
+            return {
+                color: 'green',
+                icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
+                text: 'Implementation Ready'
             };
         case HopStatus.EXECUTING:
             return {
@@ -107,7 +113,7 @@ export function getHopStatusDisplay(status: HopStatus): StatusDisplay {
             return {
                 color: 'green',
                 icon: React.createElement(CheckCircle, { className: "w-4 h-4" }),
-                text: 'Complete'
+                text: 'Completed'
             };
         case HopStatus.FAILED:
             return {
@@ -138,11 +144,11 @@ export function getExecutionStatusDisplay(status: ToolExecutionStatus): StatusDi
                 icon: React.createElement(Clock, { className: "w-4 h-4" }),
                 text: 'Pending'
             };
-        case ToolExecutionStatus.RUNNING:
+        case ToolExecutionStatus.EXECUTING:
             return {
                 color: 'blue',
                 icon: React.createElement(PlayCircle, { className: "w-4 h-4" }),
-                text: 'Running'
+                text: 'Executing'
             };
         case ToolExecutionStatus.COMPLETED:
             return {

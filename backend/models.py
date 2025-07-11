@@ -12,20 +12,20 @@ from enum import Enum as PyEnum
 # Define enums directly in models to break circular dependency
 class MissionStatus(str, PyEnum):
     """Status of a mission"""
-    PROPOSED = "proposed"
-    READY_FOR_NEXT_HOP = "ready_for_next_hop" # 
-    BUILDING_HOP = "building_hop"
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"
-    EXECUTING_HOP = "executing_hop"
+    AWAITING_APPROVAL = "awaiting_approval"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 class HopStatus(str, PyEnum):
     """Status of a hop"""
-    PROPOSED = "proposed"
-    READY_TO_RESOLVE = "ready_to_resolve"
-    READY_TO_EXECUTE = "ready_to_execute"
+    HOP_PLAN_STARTED = "hop_plan_started"
+    HOP_PLAN_PROPOSED = "hop_plan_proposed"
+    HOP_PLAN_READY = "hop_plan_ready"
+    HOP_IMPL_STARTED = "hop_impl_started"
+    HOP_IMPL_PROPOSED = "hop_impl_proposed"
+    HOP_IMPL_READY = "hop_impl_ready"
     EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -165,7 +165,7 @@ class Mission(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=True)
-    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.PROPOSED)
+    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.AWAITING_APPROVAL)
     
     # Current hop tracking
     current_hop_id = Column(String(36), ForeignKey("hops.id"), nullable=True)
@@ -200,7 +200,7 @@ class Hop(Base):
     goal = Column(Text, nullable=True)
     success_criteria = Column(JSON, nullable=True)  # List of strings
     rationale = Column(Text, nullable=True)
-    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.PROPOSED)
+    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.HOP_PLAN_STARTED)
     
     # metadata
     is_final = Column(Boolean, nullable=False, default=False)

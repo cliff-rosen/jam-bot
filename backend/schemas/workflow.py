@@ -32,11 +32,8 @@ class ToolExecutionStatus(str, Enum):
 
 class MissionStatus(str, Enum):
     """Status of a mission"""
-    PROPOSED = "proposed"
-    READY_FOR_NEXT_HOP = "ready_for_next_hop"
-    BUILDING_HOP = "building_hop"
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"
-    EXECUTING_HOP = "executing_hop"
+    AWAITING_APPROVAL = "awaiting_approval"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -44,9 +41,12 @@ class MissionStatus(str, Enum):
 
 class HopStatus(str, Enum):
     """Status of a hop"""
-    PROPOSED = "proposed"
-    READY_TO_RESOLVE = "ready_to_resolve"
-    READY_TO_EXECUTE = "ready_to_execute"
+    HOP_PLAN_STARTED = "hop_plan_started"
+    HOP_PLAN_PROPOSED = "hop_plan_proposed"
+    HOP_PLAN_READY = "hop_plan_ready"
+    HOP_IMPL_STARTED = "hop_impl_started"
+    HOP_IMPL_PROPOSED = "hop_impl_proposed"
+    HOP_IMPL_READY = "hop_impl_ready"
     EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -123,7 +123,7 @@ class Hop(BaseModel):
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
     rationale: Optional[str] = None
-    status: HopStatus = Field(default=HopStatus.PROPOSED)
+    status: HopStatus = Field(default=HopStatus.HOP_PLAN_PROPOSED)
     
     # Hop state
     is_final: bool = Field(default=False)
@@ -170,7 +170,7 @@ class Mission(BaseModel):
     description: Optional[str] = None
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
-    status: MissionStatus = Field(default=MissionStatus.PROPOSED)
+    status: MissionStatus = Field(default=MissionStatus.AWAITING_APPROVAL)
     
     # Current hop tracking
     current_hop_id: Optional[str] = None

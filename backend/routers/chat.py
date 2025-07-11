@@ -16,8 +16,7 @@ from services.mission_context_builder import MissionContextBuilder, get_mission_
 from schemas.chat import (
     ChatMessage, 
     MessageRole, 
-    ChatRequest, 
-    ChatStreamResponse,
+    ChatRequest,
     AgentResponse,
     StatusResponse
 )
@@ -33,7 +32,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
     response_class=EventSourceResponse,
     responses={
         200: {
-            "description": "Server-Sent Events stream of ChatStreamResponse objects (AgentResponse | StatusResponse)",
+            "description": "Server-Sent Events stream of AgentResponse objects (AgentResponse | StatusResponse)",
             "content": {
                 "text/event-stream": {
                     "schema": {
@@ -62,14 +61,13 @@ async def chat_stream(
     """
     Stream chat responses from the AI agent.
     
-    Returns Server-Sent Events where each event is structured as a wrapper around a ChatStreamResponse object:
+    Returns Server-Sent Events where each event is structured as a wrapper around an AgentResponse object:
     - AgentResponse: token, response_text, payload, status, error, debug
-    - StatusResponse: status, payload, error, debug
     
     The wrapper format is:
     {
         "event": "message",
-        "data": ChatStreamResponse.model_dump_json()
+        "data": AgentResponse.model_dump_json()
     }
 
     The event field is used to indicate the type of response.

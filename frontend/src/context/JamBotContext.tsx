@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
 import { chatApi } from '@/lib/api/chatApi';
-import { toolsApi, assetApi, missionApi, sessionApi } from '@/lib/api';
+import { toolsApi, assetApi, missionApi, sessionApi, hopApi } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } from '@/types/chat';
@@ -544,8 +544,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'UPDATE_STREAMING_MESSAGE', payload: message });
     }, []);
 
-
-
     const acceptMissionProposal = useCallback(async () => {
         // Get the proposed mission from the collab area content
         const proposedMission = state.collabArea.content?.mission;
@@ -589,14 +587,42 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [state.collabArea.content, updateSessionMission]);
 
-    const acceptHopProposal = useCallback((hop: Hop, proposedAssets?: any[]) => {
-        dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+    const acceptHopProposal = useCallback(async (hop: Hop, proposedAssets?: any[]) => {
+        try {
+            // Update hop status to READY_TO_RESOLVE on backend
+            if (hop.id) {
+                await hopApi.updateHopStatus(hop.id, HopStatus.READY_TO_RESOLVE);
+                console.log(`Hop ${hop.id} status updated to READY_TO_RESOLVE on backend`);
+            }
+
+            // Update frontend state
+            dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+        } catch (error) {
+            console.error('Error accepting hop proposal:', error);
+            // Still update frontend state if backend fails
+            dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+        }
     }, []);
 
-    const acceptHopImplementationProposal = useCallback((hop: Hop) => {
-        dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+    const acceptHopImplementationProposal = useCallback(async (hop: Hop) => {
+        try {
+            // Update hop status to READY_TO_EXECUTE on backend
+            if (hop.id) {
+                await hopApi.updateHopStatus(hop.id, HopStatus.READY_TO_EXECUTE);
+                console.log(`Hop ${hop.id} status updated to READY_TO_EXECUTE on backend`);
+            }
+
+            // Update frontend state
+            dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+        } catch (error) {
+            console.error('Error accepting hop implementation proposal:', error);
+            // Still update frontend state if backend fails
+            dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
+        }
     }, []);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {

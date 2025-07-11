@@ -139,7 +139,7 @@ class HopService:
         status: HopStatusSchema,
         error_message: Optional[str] = None
     ) -> Optional[Hop]:
-        """Update hop status with optional error message"""
+        """Update hop status with optional error message and coordinate with mission status"""
         updates = {
             'status': HopStatus(status.value),
             'updated_at': datetime.utcnow()
@@ -151,7 +151,32 @@ class HopService:
             # Clear error message on successful completion
             updates['error_message'] = None
         
-        return await self.update_hop(hop_id, user_id, updates)
+        hop = await self.update_hop(hop_id, user_id, updates)
+        
+        # Coordinate mission status with hop status change
+        if hop:
+            try:
+                # Import here to avoid circular imports
+                from services.mission_service import MissionService
+                
+                # Get the mission ID from the hop
+                hop_model = self.db.query(HopModel).filter(
+                    HopModel.id == hop_id
+                ).first()
+                
+                if hop_model and hop_model.mission_id:
+                    mission_service = MissionService(self.db)
+                    await mission_service.coordinate_mission_status_with_hop(
+                        hop_model.mission_id, 
+                        user_id, 
+                        status
+                    )
+                    print(f"Mission status coordinated for hop {hop_id} with status {status}")
+            except Exception as e:
+                print(f"Failed to coordinate mission status for hop {hop_id}: {str(e)}")
+                # Don't fail the hop update if mission coordination fails
+        
+        return hop
 
     async def delete_hop(self, hop_id: str, user_id: int) -> bool:
         """Delete a hop"""

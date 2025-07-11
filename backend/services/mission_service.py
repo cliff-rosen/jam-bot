@@ -190,6 +190,83 @@ class MissionService:
             print(f"Failed to get mission with hops: {e}")
             return None
     
+    async def coordinate_mission_status_with_hop(
+        self, 
+        mission_id: str, 
+        user_id: int, 
+        hop_status: 'HopStatus'
+    ) -> bool:
+        """
+        Coordinate mission status based on hop status changes according to state transition rules.
+        
+        Rules:
+        - Hop PROPOSED → Mission BUILDING_HOP (if mission was READY_FOR_NEXT_HOP)
+        - Hop READY_TO_RESOLVE → Mission BUILDING_HOP (if mission was READY_FOR_NEXT_HOP)
+        - Hop READY_TO_EXECUTE → Mission HOP_READY_TO_EXECUTE (if mission was BUILDING_HOP)
+        - Hop EXECUTING → Mission EXECUTING_HOP (if mission was HOP_READY_TO_EXECUTE)
+        - Hop COMPLETED → Mission READY_FOR_NEXT_HOP (if not final hop) or COMPLETED (if final hop)
+        - Hop FAILED → Mission FAILED
+        - Hop CANCELLED → Mission CANCELLED
+        """
+        from schemas.workflow import HopStatus
+        
+        try:
+            # Get current mission
+            mission = await self.get_mission(mission_id, user_id)
+            if not mission:
+                return False
+            
+            # Determine new mission status based on hop status
+            new_mission_status = None
+            
+            if hop_status == HopStatus.PROPOSED:
+                # Hop proposed - mission should be in BUILDING_HOP state
+                if mission.status == SchemaMissionStatus.READY_FOR_NEXT_HOP:
+                    new_mission_status = SchemaMissionStatus.BUILDING_HOP
+            
+            elif hop_status == HopStatus.READY_TO_RESOLVE:
+                # Hop ready to resolve - mission should be in BUILDING_HOP state
+                if mission.status == SchemaMissionStatus.READY_FOR_NEXT_HOP:
+                    new_mission_status = SchemaMissionStatus.BUILDING_HOP
+            
+            elif hop_status == HopStatus.READY_TO_EXECUTE:
+                # Hop ready to execute - mission should be in HOP_READY_TO_EXECUTE state
+                if mission.status == SchemaMissionStatus.BUILDING_HOP:
+                    new_mission_status = SchemaMissionStatus.HOP_READY_TO_EXECUTE
+            
+            elif hop_status == HopStatus.EXECUTING:
+                # Hop executing - mission should be in EXECUTING_HOP state
+                if mission.status == SchemaMissionStatus.HOP_READY_TO_EXECUTE:
+                    new_mission_status = SchemaMissionStatus.EXECUTING_HOP
+            
+            elif hop_status == HopStatus.COMPLETED:
+                # Hop completed - check if it's the final hop
+                if mission.status == SchemaMissionStatus.EXECUTING_HOP:
+                    # Check if this is the final hop
+                    if mission.current_hop and mission.current_hop.is_final:
+                        new_mission_status = SchemaMissionStatus.COMPLETED
+                    else:
+                        new_mission_status = SchemaMissionStatus.READY_FOR_NEXT_HOP
+            
+            elif hop_status == HopStatus.FAILED:
+                # Hop failed - mission should fail
+                new_mission_status = SchemaMissionStatus.FAILED
+            
+            elif hop_status == HopStatus.CANCELLED:
+                # Hop cancelled - mission should be cancelled
+                new_mission_status = SchemaMissionStatus.CANCELLED
+            
+            # Update mission status if needed
+            if new_mission_status and new_mission_status != mission.status:
+                print(f"Coordinating mission status: {mission.status} → {new_mission_status} (hop status: {hop_status})")
+                return await self.update_mission_status(mission_id, user_id, new_mission_status)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Failed to coordinate mission status: {str(e)}")
+            return False
+    
     # Old transformation methods removed - now handled by MissionTransformer
     # The following methods are deprecated and replaced by centralized transformation:
     # - _model_to_mission -> mission_transformer.model_to_schema

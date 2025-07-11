@@ -121,24 +121,24 @@ async def chat_stream(
                     return
             
             # Enrich payload with asset summaries using MissionContextBuilder
-            enriched_payload: ChatContextPayload = await context_builder.prepare_chat_context(
+            context_payload: ChatContextPayload = await context_builder.prepare_chat_context(
                 mission,
                 current_user.user_id,
                 db,
                 chat_request.payload or {}
             )
             
-            if not mission and enriched_payload and enriched_payload.get("mission"):
-                mission = enriched_payload["mission"]
+            if not mission and context_payload and context_payload.get("mission"):
+                mission = context_payload["mission"]
             
             # Initialize agent state
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
                 mission_id=mission_id,
+                asset_summaries=context_payload.get("asset_summaries", {}),
                 tool_params={},
-                next_node="supervisor_node",
-                asset_summaries=enriched_payload.get("asset_summaries", {})
+                next_node="supervisor_node"
             )
             
             graph_config = {
@@ -161,12 +161,7 @@ async def chat_stream(
                             updated_at=datetime.utcnow()
                         )
                         chat_service.save_message(chat_id, current_user.user_id, ai_message)
-                    
-                    # Save ChatMessage objects from output
-                    for key, value in output.items():
-                        if isinstance(value, ChatMessage):
-                            if value.role in [MessageRole.ASSISTANT, MessageRole.SYSTEM, MessageRole.TOOL, MessageRole.STATUS]:
-                                chat_service.save_message(chat_id, current_user.user_id, value)
+                      
                     
                     # Create proper AgentResponse object
                     agent_response = AgentResponse(

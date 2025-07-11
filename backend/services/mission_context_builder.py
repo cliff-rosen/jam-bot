@@ -9,7 +9,7 @@ Usage:
     chat_context = await builder.prepare_chat_context(mission, user_id, db)
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from fastapi import Depends
 

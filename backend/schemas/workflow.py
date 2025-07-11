@@ -16,6 +16,7 @@ from .resource import Resource
 
 if TYPE_CHECKING:
     from tools.tool_execution import execute_tool_step, ToolExecutionError
+    from .chat import AssetReference
 
 
 class ToolExecutionStatus(str, Enum):
@@ -95,7 +96,7 @@ class SanitizedMission(TypedDict):
 class ChatContextPayloadBase(TypedDict):
     """Core guaranteed fields in chat context payload"""
     mission: Optional[SanitizedMission]
-    asset_summaries: Dict[str, str]
+    asset_summaries: Dict[str, 'AssetReference']
 
 
 class ChatContextPayload(ChatContextPayloadBase, total=False):

@@ -15,6 +15,7 @@ from fastapi import Depends
 
 from database import get_db
 from schemas.workflow import Mission, SanitizedMission, ChatContextPayload
+from schemas.chat import AssetReference
 from services.asset_service import AssetService
 from services.asset_summary_service import AssetSummaryService
 from services.mission_transformer import MissionTransformer
@@ -75,15 +76,15 @@ class MissionContextBuilder:
         
         return payload
     
-    async def _get_asset_summaries(self, user_id: int) -> Dict[str, str]:
-        """Get simple asset summaries for context enrichment"""
+    async def _get_asset_summaries(self, user_id: int) -> Dict[str, AssetReference]:
+        """Get asset summaries for context enrichment"""
         try:
             assets = self.asset_service.get_user_assets(user_id)
             asset_summaries = {}
             
             for asset in assets:
-                summary = self.asset_summary_service.create_asset_summary(asset)
-                asset_summaries[asset.id] = summary.summary
+                asset_reference: AssetReference = self.asset_summary_service.create_asset_summary(asset)
+                asset_summaries[asset.id] = asset_reference
             
             return asset_summaries
         except Exception as e:

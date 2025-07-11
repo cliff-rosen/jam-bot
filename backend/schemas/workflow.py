@@ -92,6 +92,23 @@ class SanitizedMission(TypedDict):
     updated_at: str
 
 
+class ChatContextPayloadBase(TypedDict):
+    """Core guaranteed fields in chat context payload"""
+    mission: Optional[SanitizedMission]
+    asset_summaries: Dict[str, str]
+
+
+class ChatContextPayload(ChatContextPayloadBase, total=False):
+    """
+    Chat context payload structure returned by prepare_chat_context.
+    
+    Core fields (mission, asset_summaries) are guaranteed to be present.
+    Additional fields may be included from the original chat request payload.
+    """
+    # Additional arbitrary fields from additional_payload are allowed
+    # but not defined here since they're dynamic
+
+
 class Hop(BaseModel):
     """
     Represents one step in a mission, containing a sequence of tool steps

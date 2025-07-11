@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends
 
 from database import get_db
-from schemas.workflow import Mission, SanitizedMission
+from schemas.workflow import Mission, SanitizedMission, ChatContextPayload
 from services.asset_service import AssetService
 from services.asset_summary_service import AssetSummaryService
 from services.mission_transformer import MissionTransformer
@@ -34,7 +34,7 @@ class MissionContextBuilder:
         user_id: int, 
         db: Session,
         additional_payload: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> ChatContextPayload:
         """
         Prepare simple chat context with sanitized mission and asset summaries.
         
@@ -45,10 +45,10 @@ class MissionContextBuilder:
             additional_payload: Any additional payload data
             
         Returns:
-            Simple chat context payload
+            Chat context payload with guaranteed mission and asset_summaries fields
         """
         # Start with base payload
-        payload = {
+        payload: ChatContextPayload = {
             "mission": None,
             "asset_summaries": {}
         }
@@ -69,7 +69,7 @@ class MissionContextBuilder:
                 print(f"Failed to get asset summaries: {e}")
                 payload["asset_summaries"] = {}
         
-        # Add additional payload if provided
+        # Add additional payload if provided (may include extra fields beyond core payload)
         if additional_payload:
             payload.update(additional_payload)
         

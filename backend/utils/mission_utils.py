@@ -12,7 +12,7 @@ chat context preparation.
 
 from typing import Dict, Any, Optional, List, Union
 
-from schemas.workflow import Mission, Hop, SanitizedMission, SanitizedAsset, SanitizedHop
+from schemas.workflow import Mission, Hop, SanitizedMission, SanitizedAsset, SanitizedHop, ChatContextPayload
 from schemas.asset import Asset
 from schemas.chat import AssetReference
 
@@ -73,7 +73,7 @@ async def enrich_chat_context_with_assets(
     chat_payload: Dict[str, Any], 
     user_id: int, 
     db: Any
-) -> Dict[str, Any]:
+) -> ChatContextPayload:
     """
     DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
     
@@ -97,7 +97,7 @@ async def prepare_chat_context(
     user_id: int, 
     db: Any,
     additional_payload: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+) -> ChatContextPayload:
     """
     DEPRECATED: Use MissionContextBuilder.prepare_chat_context instead
     

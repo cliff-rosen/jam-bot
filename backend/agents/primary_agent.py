@@ -109,39 +109,101 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         writer(status_response.model_dump())
 
     try:
-        # Determine next node based on mission and hop status
+        # Determine next node based on valid mission-hop status combinations
         next_node = None
         routing_message = ""
 
         if not state.mission:
+            # No mission - route to mission specialist
             next_node = "mission_specialist_node"
             routing_message = "No mission found - routing to mission specialist to create one"
+        
         elif state.mission.status == MissionStatus.PROPOSED:
+            # Mission proposed - route to mission specialist
             next_node = "mission_specialist_node"
-            routing_message = "Mission pending - routing to mission specialist"
+            routing_message = "Mission proposed - routing to mission specialist for processing"
+        
         elif state.mission.status == MissionStatus.READY_FOR_NEXT_HOP:
-            if not state.mission.current_hop or state.mission.current_hop.status == HopStatus.PROPOSED:
+            # Mission ready for next hop - check if we have a hop to design
+            if not state.mission.current_hop:
+                # No current hop - route to hop designer to create one
                 next_node = "hop_designer_node"
-                routing_message = "Ready to design next hop - routing to hop designer"
+                routing_message = "No current hop - routing to hop designer to create next hop"
             elif state.mission.current_hop.status == HopStatus.PROPOSED:
-                next_node = "hop_implementer_node"
-                routing_message = "Hop proposed - routing to hop implementer"
+                # Hop proposed - route to hop designer
+                next_node = "hop_designer_node"
+                routing_message = "Hop proposed - routing to hop designer for processing"
+            else:
+                # Invalid combination - hop should be None or PROPOSED
+                routing_message = f"Invalid state combination: Mission READY_FOR_NEXT_HOP with hop {state.mission.current_hop.status}"
+                next_node = "mission_specialist_node"
+        
+        elif state.mission.status == MissionStatus.BUILDING_HOP:
+            # Mission building hop - current hop should be PROPOSED or READY_TO_RESOLVE
+            if not state.mission.current_hop:
+                # No current hop - should not happen in this state
+                routing_message = "Invalid state: Mission BUILDING_HOP with no current hop"
+                next_node = "mission_specialist_node"
+            elif state.mission.current_hop.status == HopStatus.PROPOSED:
+                # Hop proposed - route to hop designer
+                next_node = "hop_designer_node"
+                routing_message = "Hop proposed - routing to hop designer for processing"
             elif state.mission.current_hop.status == HopStatus.READY_TO_RESOLVE:
+                # Hop ready to resolve - route to hop implementer
                 next_node = "hop_implementer_node"
                 routing_message = "Hop ready to resolve - routing to hop implementer"
-            elif state.mission.current_hop.status == HopStatus.READY_TO_EXECUTE:
-                next_node = "hop_executor_node"
-                routing_message = "Hop ready to execute - routing to hop executor"
-            elif state.mission.current_hop.status == HopStatus.EXECUTING:
-                next_node = "hop_executor_node"
-                routing_message = "Hop running - routing to hop executor"
-            elif state.mission.current_hop.status == HopStatus.COMPLETED:
-                next_node = "mission_specialist_node"
-                routing_message = "All hops complete - routing to mission specialist"
             else:
-                routing_message = f"Unknown hop status: {state.mission.current_hop.status}"
+                # Invalid combination
+                routing_message = f"Invalid state combination: Mission BUILDING_HOP with hop {state.mission.current_hop.status}"
                 next_node = "mission_specialist_node"
+        
+        elif state.mission.status == MissionStatus.HOP_READY_TO_EXECUTE:
+            # Mission hop ready to execute - current hop should be READY_TO_EXECUTE
+            if not state.mission.current_hop:
+                # No current hop - should not happen in this state
+                routing_message = "Invalid state: Mission HOP_READY_TO_EXECUTE with no current hop"
+                next_node = "mission_specialist_node"
+            elif state.mission.current_hop.status == HopStatus.READY_TO_EXECUTE:
+                # Hop ready to execute - route to hop executor (when implemented)
+                next_node = "hop_implementer_node"  # Using hop_implementer as placeholder until hop_executor is implemented
+                routing_message = "Hop ready to execute - routing to hop executor"
+            else:
+                # Invalid combination
+                routing_message = f"Invalid state combination: Mission HOP_READY_TO_EXECUTE with hop {state.mission.current_hop.status}"
+                next_node = "mission_specialist_node"
+        
+        elif state.mission.status == MissionStatus.EXECUTING_HOP:
+            # Mission executing hop - current hop should be EXECUTING
+            if not state.mission.current_hop:
+                # No current hop - should not happen in this state
+                routing_message = "Invalid state: Mission EXECUTING_HOP with no current hop"
+                next_node = "mission_specialist_node"
+            elif state.mission.current_hop.status == HopStatus.EXECUTING:
+                # Hop executing - route to hop executor (when implemented)
+                next_node = "hop_implementer_node"  # Using hop_implementer as placeholder until hop_executor is implemented
+                routing_message = "Hop executing - routing to hop executor"
+            else:
+                # Invalid combination
+                routing_message = f"Invalid state combination: Mission EXECUTING_HOP with hop {state.mission.current_hop.status}"
+                next_node = "mission_specialist_node"
+        
+        elif state.mission.status == MissionStatus.COMPLETED:
+            # Mission completed - route to mission specialist
+            next_node = "mission_specialist_node"
+            routing_message = "Mission completed - routing to mission specialist for final processing"
+        
+        elif state.mission.status == MissionStatus.FAILED:
+            # Mission failed - route to mission specialist for error handling
+            next_node = "mission_specialist_node"
+            routing_message = "Mission failed - routing to mission specialist for error handling"
+        
+        elif state.mission.status == MissionStatus.CANCELLED:
+            # Mission cancelled - route to mission specialist
+            next_node = "mission_specialist_node"
+            routing_message = "Mission cancelled - routing to mission specialist for cleanup"
+        
         else:
+            # Unknown mission status
             routing_message = f"Unknown mission status: {state.mission.status}"
             next_node = "mission_specialist_node"
 

@@ -5,12 +5,13 @@ This service provides intelligent summarization of assets for use in chat contex
 where full asset values would be too large or inappropriate.
 """
 
+import json
+from datetime import datetime
 from typing import List, Dict, Any, Optional
+
 from schemas.asset import Asset, AssetStatus
 from schemas.chat import AssetReference
 from schemas.base import SchemaType
-import json
-from datetime import datetime
 
 
 class AssetSummaryService:

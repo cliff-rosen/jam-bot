@@ -11,7 +11,9 @@ Usage:
 
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
+from fastapi import Depends
 
+from database import get_db
 from schemas.workflow import Mission
 from services.asset_service import AssetService
 from services.asset_summary_service import AssetSummaryService
@@ -86,4 +88,10 @@ class MissionContextBuilder:
             return asset_summaries
         except Exception as e:
             print(f"Failed to create asset summaries: {e}")
-            return {} 
+            return {}
+
+
+async def get_mission_context_builder_service(db: Session = Depends(get_db)) -> MissionContextBuilder:
+    """Dependency injection for MissionContextBuilder service"""
+    asset_service = AssetService(db)
+    return MissionContextBuilder(asset_service) 

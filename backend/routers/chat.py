@@ -6,12 +6,12 @@ from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
 
 from database import get_db
-from utils.mission_utils import enrich_chat_context_with_assets
 
 from services.auth_service import validate_token
 from services.mission_service import MissionService, get_mission_service
 from services.user_session_service import UserSessionService, get_user_session_service
 from services.chat_service import ChatService, get_chat_service
+from services.mission_context_builder import MissionContextBuilder, get_mission_context_builder_service
 
 from schemas.chat import (
     ChatMessage, 
@@ -53,6 +53,7 @@ async def chat_stream(
     session_service: UserSessionService = Depends(get_user_session_service),
     mission_service: MissionService = Depends(get_mission_service),
     chat_service: ChatService = Depends(get_chat_service),
+    context_builder: MissionContextBuilder = Depends(get_mission_context_builder_service),
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> EventSourceResponse:
@@ -110,11 +111,12 @@ async def chat_stream(
                     }
                     return
             
-            # Enrich payload with asset summaries
-            enriched_payload = await enrich_chat_context_with_assets(
-                chat_request.payload or {}, 
-                current_user.user_id, 
-                db
+            # Enrich payload with asset summaries using MissionContextBuilder
+            enriched_payload = await context_builder.prepare_chat_context(
+                mission,
+                current_user.user_id,
+                db,
+                chat_request.payload or {}
             )
             
             if not mission and enriched_payload and enriched_payload.get("mission"):

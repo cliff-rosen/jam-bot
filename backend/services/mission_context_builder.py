@@ -9,13 +9,16 @@ Usage:
     chat_context = await builder.prepare_chat_context(mission, user_id, db)
 """
 
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
 from database import get_db
-from schemas.workflow import Mission, SanitizedMission, ChatContextPayload
+
+from schemas.workflow import Mission, ChatContextPayload, SanitizedMission
 from schemas.chat import AssetReference
+from schemas.asset import Asset
+
 from services.asset_service import AssetService
 from services.asset_summary_service import AssetSummaryService
 from services.mission_transformer import MissionTransformer
@@ -57,7 +60,8 @@ class MissionContextBuilder:
         # Add sanitized mission if available
         if mission:
             try:
-                payload["mission"] = self.mission_transformer.sanitize_for_chat(mission)
+                sanitized_mission: SanitizedMission = self.mission_transformer.sanitize_for_chat(mission)
+                payload["mission"] = sanitized_mission
             except Exception as e:
                 print(f"Failed to sanitize mission for chat: {e}")
                 payload["mission"] = None
@@ -65,7 +69,8 @@ class MissionContextBuilder:
         # Add asset summaries
         if self.asset_service and self.asset_summary_service:
             try:
-                payload["asset_summaries"] = await self._get_asset_summaries(user_id)
+                asset_summaries: Dict[str, AssetReference] = await self._get_asset_summaries(user_id)
+                payload["asset_summaries"] = asset_summaries
             except Exception as e:
                 print(f"Failed to get asset summaries: {e}")
                 payload["asset_summaries"] = {}
@@ -79,8 +84,8 @@ class MissionContextBuilder:
     async def _get_asset_summaries(self, user_id: int) -> Dict[str, AssetReference]:
         """Get asset summaries for context enrichment"""
         try:
-            assets = self.asset_service.get_user_assets(user_id)
-            asset_summaries = {}
+            assets: List[Asset] = self.asset_service.get_user_assets(user_id)
+            asset_summaries: Dict[str, AssetReference] = {}
             
             for asset in assets:
                 asset_reference: AssetReference = self.asset_summary_service.create_asset_summary(asset)

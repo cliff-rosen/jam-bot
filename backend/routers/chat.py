@@ -21,7 +21,8 @@ from schemas.chat import (
     AgentResponse,
     StatusResponse
 )
-from schemas.workflow import ChatContextPayload, Mission, UserSession
+from schemas.workflow import ChatContextPayload, Mission
+from schemas.user_session import UserSession
 
 from agents.primary_agent import graph as primary_agent, State
 

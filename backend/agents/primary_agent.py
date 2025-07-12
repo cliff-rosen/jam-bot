@@ -329,11 +329,11 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             if _mission_service and _user_id:
                 await _mission_service.create_mission(_user_id, state.mission)
                 print(f"Successfully created mission {state.mission_id}")
+                
+                # Assign mission to user's active session in same transaction context
+                await assign_mission_to_session(state.mission_id)
             else:
                 print("Warning: Cannot create mission - services not initialized")
-            
-            # Assign mission to user's active session
-            await assign_mission_to_session(state.mission_id)
             
             # Update response message
             response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."

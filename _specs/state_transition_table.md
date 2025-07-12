@@ -1,31 +1,27 @@
 # State Transition Table
 
-This table shows every state transition in the mission and hop system, with one row per transition.
+This table shows every state transition in the mission and hop system. Each trigger may cause updates to multiple entities simultaneously.
 
-| Step | Entity | Trigger | From State | To State | Actor | Notes |
-|------|--------|---------|------------|----------|-------|-------|
-| 1.1 | Mission | Agent proposes mission | *None* | AWAITING_APPROVAL | Agent | Mission created with input/output assets |
-| 1.2 | Mission | User approves mission | AWAITING_APPROVAL | IN_PROGRESS | User | Mission ready for hop work |
-| 2.1 | Mission | Agent starts first hop | IN_PROGRESS | IN_PROGRESS | Agent | current_hop_id set to new hop |
-| 2.1 | Hop #1 | Agent starts hop planning | *None* | HOP_PLAN_STARTED | Agent | First hop created and linked |
-| 2.2 | Hop #1 | Agent completes hop plan | HOP_PLAN_STARTED | HOP_PLAN_PROPOSED | Agent | Plan ready for user review |
-| 2.3 | Hop #1 | User approves hop plan | HOP_PLAN_PROPOSED | HOP_PLAN_READY | User | Plan approved, ready for implementation |
-| 2.4 | Hop #1 | Agent starts implementation | HOP_PLAN_READY | HOP_IMPL_STARTED | Agent | Implementation phase begins |
-| 2.5 | Hop #1 | Agent completes implementation | HOP_IMPL_STARTED | HOP_IMPL_PROPOSED | Agent | Implementation ready for review |
-| 2.6 | Hop #1 | User approves implementation | HOP_IMPL_PROPOSED | HOP_IMPL_READY | User | Implementation approved |
-| 2.7 | Hop #1 | User triggers execution | HOP_IMPL_READY | EXECUTING | User | Hop execution begins |
-| 2.8 | Hop #1 | Hop execution completes | EXECUTING | COMPLETED | System | All tool steps completed successfully |
-| 2.8 | Mission | First hop completes | IN_PROGRESS | IN_PROGRESS | System | current_hop_id reset to null |
-| 3.1 | Mission | Agent starts second hop | IN_PROGRESS | IN_PROGRESS | Agent | current_hop_id set to new hop |
-| 3.1 | Hop #2 | Agent starts hop planning | *None* | HOP_PLAN_STARTED | Agent | Second hop created and linked |
-| 3.2 | Hop #2 | Agent completes hop plan | HOP_PLAN_STARTED | HOP_PLAN_PROPOSED | Agent | Plan ready for user review |
-| 3.3 | Hop #2 | User approves hop plan | HOP_PLAN_PROPOSED | HOP_PLAN_READY | User | Plan approved, ready for implementation |
-| 3.4 | Hop #2 | Agent starts implementation | HOP_PLAN_READY | HOP_IMPL_STARTED | Agent | Implementation phase begins |
-| 3.4 | Hop #2 | Agent completes implementation | HOP_IMPL_STARTED | HOP_IMPL_PROPOSED | Agent | Implementation ready for review |
-| 3.5 | Hop #2 | User approves implementation | HOP_IMPL_PROPOSED | HOP_IMPL_READY | User | Final implementation approved |
-| 3.6 | Hop #2 | User triggers execution | HOP_IMPL_READY | EXECUTING | User | Final hop execution begins |
-| 3.7 | Hop #2 | Final hop execution completes | EXECUTING | COMPLETED | System | Final hop completed (is_final=true) |
-| 3.7 | Mission | Final hop completes | IN_PROGRESS | COMPLETED | System | Mission completes when final hop done |
+| Step | Trigger | Actor | Mission State | Hop State | Entity Updates | Notes |
+|------|---------|-------|---------------|-----------|----------------|-------|
+| 1.1 | Agent proposes mission | Agent | *None* → AWAITING_APPROVAL | *None* | Mission created | Mission created with input/output assets |
+| 1.2 | User approves mission | User | AWAITING_APPROVAL → IN_PROGRESS | *None* | Mission updated | Mission ready for hop work |
+| 2.1 | User requests hop plan | User | IN_PROGRESS → IN_PROGRESS | *None* → HOP_PLAN_STARTED | Mission: current_hop_id set<br>Hop #1: created and linked | User clicks button, agent creates hop |
+| 2.2 | Agent completes hop plan | Agent | IN_PROGRESS (no change) | HOP_PLAN_STARTED → HOP_PLAN_PROPOSED | Hop #1 updated | Agent finishes planning, proposes to user |
+| 2.3 | User approves hop plan | User | IN_PROGRESS (no change) | HOP_PLAN_PROPOSED → HOP_PLAN_READY | Hop #1 updated | Plan approved, ready for implementation |
+| 2.4 | User requests implementation | User | IN_PROGRESS (no change) | HOP_PLAN_READY → HOP_IMPL_STARTED | Hop #1 updated | User clicks button, agent starts implementing |
+| 2.5 | Agent completes implementation | Agent | IN_PROGRESS (no change) | HOP_IMPL_STARTED → HOP_IMPL_PROPOSED | Hop #1 updated | Agent finishes implementation, proposes to user |
+| 2.6 | User approves implementation | User | IN_PROGRESS (no change) | HOP_IMPL_PROPOSED → HOP_IMPL_READY | Hop #1 updated | Implementation approved |
+| 2.7 | User triggers execution | User | IN_PROGRESS (no change) | HOP_IMPL_READY → EXECUTING | Hop #1 updated | Hop execution begins |
+| 2.8 | First hop execution completes | System | IN_PROGRESS → IN_PROGRESS | EXECUTING → COMPLETED | Mission: current_hop_id reset to null<br>Hop #1: marked completed | Hop done, mission ready for next hop |
+| 3.1 | User requests second hop plan | User | IN_PROGRESS → IN_PROGRESS | *None* → HOP_PLAN_STARTED | Mission: current_hop_id set<br>Hop #2: created and linked | User clicks button, agent creates second hop |
+| 3.2 | Agent completes hop plan | Agent | IN_PROGRESS (no change) | HOP_PLAN_STARTED → HOP_PLAN_PROPOSED | Hop #2 updated | Agent finishes planning, proposes to user |
+| 3.3 | User approves hop plan | User | IN_PROGRESS (no change) | HOP_PLAN_PROPOSED → HOP_PLAN_READY | Hop #2 updated | Plan approved, ready for implementation |
+| 3.4 | User requests implementation | User | IN_PROGRESS (no change) | HOP_PLAN_READY → HOP_IMPL_STARTED | Hop #2 updated | User clicks button, agent starts implementing |
+| 3.5 | Agent completes implementation | Agent | IN_PROGRESS (no change) | HOP_IMPL_STARTED → HOP_IMPL_PROPOSED | Hop #2 updated | Agent finishes implementation, proposes to user |
+| 3.6 | User approves implementation | User | IN_PROGRESS (no change) | HOP_IMPL_PROPOSED → HOP_IMPL_READY | Hop #2 updated | Final implementation approved |
+| 3.7 | User triggers execution | User | IN_PROGRESS (no change) | HOP_IMPL_READY → EXECUTING | Hop #2 updated | Final hop execution begins |
+| 3.8 | Final hop execution completes | System | IN_PROGRESS → COMPLETED | EXECUTING → COMPLETED | Mission: marked completed<br>Hop #2: marked completed | Mission completes when final hop done |
 
 ## State Summary
 
@@ -44,16 +40,40 @@ This table shows every state transition in the mission and hop system, with one 
 - **EXECUTING**: Hop running tool steps
 - **COMPLETED**: Hop finished successfully
 
-## Key Patterns
+## Coordinated Update Patterns
 
-1. **User Approval Gates**: Steps 2.3, 2.6, 3.3, 3.5 require user approval
-2. **User Execution Triggers**: Steps 2.7, 3.6 require user to start execution
-3. **Mission Coordination**: Mission state updates when hops complete
-4. **Hop Lifecycle**: Each hop follows identical 7-state progression
-5. **Final Hop**: Last hop completion triggers mission completion
+### Single Entity Updates
+Most triggers update only one entity:
+- Steps 2.2-2.7, 3.2-3.7: Only hop state changes
+- Step 1.2: Only mission state changes
+
+### Multi-Entity Updates  
+Some triggers coordinate updates across multiple entities:
+- **Step 2.1, 3.1**: Mission links new hop (current_hop_id) + Hop created
+- **Step 2.8**: Mission unlinks hop (current_hop_id=null) + Hop marked completed  
+- **Step 3.8**: Mission completes + Final hop completes
+
+### Critical Coordination Points
+1. **Hop Creation** (2.1, 3.1): Mission.current_hop_id must be set when hop created
+2. **Hop Completion** (2.8): Mission.current_hop_id must reset to null when hop completes
+3. **Mission Completion** (3.8): Both mission and final hop transition to COMPLETED simultaneously
+
+## Implementation Requirements
+
+### Atomic Transactions
+Coordinated updates must be atomic:
+- Steps 2.1, 2.8, 3.1, 3.8 require database transactions
+- If hop creation fails, mission.current_hop_id should not be set
+- If hop completion fails, mission.current_hop_id should not reset
+
+### State Validation  
+Before transitions, validate:
+- Mission is IN_PROGRESS before creating hops
+- current_hop_id matches the hop being updated
+- Final hop (is_final=true) completion triggers mission completion
 
 ## Actor Responsibilities
 
 - **Agent**: Proposes missions, creates plans, implements tool steps
-- **User**: Approves plans/implementations, triggers execution
-- **System**: Handles completion events and state coordination
+- **User**: Approves plans/implementations, triggers execution  
+- **System**: Handles completion events and coordinates mission/hop state updates

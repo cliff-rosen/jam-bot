@@ -51,18 +51,22 @@ class MissionTransformer:
     
     def __init__(self, asset_service: Optional[AssetService] = None) -> None:
         self.asset_service = asset_service
-        # Status mapping - the only enum mapping we actually need
+        # Status mappings between models and schemas
         self._model_to_schema_status_map = {
-            ModelMissionStatus.PROPOSED: SchemaMissionStatus.PROPOSED,
-            ModelMissionStatus.READY_FOR_NEXT_HOP: SchemaMissionStatus.READY_FOR_NEXT_HOP,
-            ModelMissionStatus.BUILDING_HOP: SchemaMissionStatus.BUILDING_HOP,
-            ModelMissionStatus.HOP_READY_TO_EXECUTE: SchemaMissionStatus.HOP_READY_TO_EXECUTE,
-            ModelMissionStatus.EXECUTING_HOP: SchemaMissionStatus.EXECUTING_HOP,
+            ModelMissionStatus.AWAITING_APPROVAL: SchemaMissionStatus.AWAITING_APPROVAL,
+            ModelMissionStatus.IN_PROGRESS: SchemaMissionStatus.IN_PROGRESS,
             ModelMissionStatus.COMPLETED: SchemaMissionStatus.COMPLETED,
             ModelMissionStatus.FAILED: SchemaMissionStatus.FAILED,
-            ModelMissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED
+            ModelMissionStatus.CANCELLED: SchemaMissionStatus.CANCELLED,
         }
-        self._schema_to_model_status_map = {v: k for k, v in self._model_to_schema_status_map.items()}
+        
+        self._schema_to_model_status_map = {
+            SchemaMissionStatus.AWAITING_APPROVAL: ModelMissionStatus.AWAITING_APPROVAL,
+            SchemaMissionStatus.IN_PROGRESS: ModelMissionStatus.IN_PROGRESS,
+            SchemaMissionStatus.COMPLETED: ModelMissionStatus.COMPLETED,
+            SchemaMissionStatus.FAILED: ModelMissionStatus.FAILED,
+            SchemaMissionStatus.CANCELLED: ModelMissionStatus.CANCELLED,
+        }
     
     def schema_to_model(self, mission: Mission, user_id: int) -> MissionModel:
         """Convert Mission schema to MissionModel for database persistence"""
@@ -211,8 +215,8 @@ class MissionTransformer:
     
     def _map_schema_status_to_model(self, schema_status: SchemaMissionStatus) -> ModelMissionStatus:
         """Map schema status to model status"""
-        return self._schema_to_model_status_map.get(schema_status, ModelMissionStatus.PROPOSED)
+        return self._schema_to_model_status_map.get(schema_status, ModelMissionStatus.AWAITING_APPROVAL)
     
     def _map_model_status_to_schema(self, model_status: ModelMissionStatus) -> SchemaMissionStatus:
         """Map model status to schema status"""
-        return self._model_to_schema_status_map.get(model_status, SchemaMissionStatus.PROPOSED) 
+        return self._model_to_schema_status_map.get(model_status, SchemaMissionStatus.AWAITING_APPROVAL) 

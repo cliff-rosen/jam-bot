@@ -69,7 +69,7 @@ class HopService:
             input_asset_ids=input_asset_ids or [],
             output_asset_ids=output_asset_ids or [],
             sequence_order=next_sequence,
-            status=HopStatus.PROPOSED,
+            status=HopStatus.HOP_PLAN_STARTED,
             is_final=is_final,
             is_resolved=False,
             rationale=rationale,

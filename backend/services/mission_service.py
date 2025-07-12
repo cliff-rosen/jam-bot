@@ -197,16 +197,12 @@ class MissionService:
         hop_status: 'HopStatus'
     ) -> bool:
         """
-        Coordinate mission status based on hop status changes according to state transition rules.
+        Coordinate mission status based on hop status changes according to new state transition rules.
         
-        Rules:
-        - Hop PROPOSED → Mission BUILDING_HOP (if mission was READY_FOR_NEXT_HOP)
-        - Hop READY_TO_RESOLVE → Mission BUILDING_HOP (if mission was READY_FOR_NEXT_HOP)
-        - Hop READY_TO_EXECUTE → Mission HOP_READY_TO_EXECUTE (if mission was BUILDING_HOP)
-        - Hop EXECUTING → Mission EXECUTING_HOP (if mission was HOP_READY_TO_EXECUTE)
-        - Hop COMPLETED → Mission READY_FOR_NEXT_HOP (if not final hop) or COMPLETED (if final hop)
-        - Hop FAILED → Mission FAILED
-        - Hop CANCELLED → Mission CANCELLED
+        With the new simplified mission states:
+        - Mission is either AWAITING_APPROVAL, IN_PROGRESS, or terminal (COMPLETED/FAILED/CANCELLED)
+        - When mission is IN_PROGRESS, all work happens at hop level
+        - Mission status changes are minimal - mainly when hop completes final hop
         """
         from schemas.workflow import HopStatus
         
@@ -219,52 +215,60 @@ class MissionService:
             # Determine new mission status based on hop status
             new_mission_status = None
             
-            if hop_status == HopStatus.PROPOSED:
-                # Hop proposed - mission should be in BUILDING_HOP state
-                if mission.status == SchemaMissionStatus.READY_FOR_NEXT_HOP:
-                    new_mission_status = SchemaMissionStatus.BUILDING_HOP
+            # For most hop status changes, mission stays IN_PROGRESS
+            # Only change mission status for significant events
             
-            elif hop_status == HopStatus.READY_TO_RESOLVE:
-                # Hop ready to resolve - mission should be in BUILDING_HOP state
-                if mission.status == SchemaMissionStatus.READY_FOR_NEXT_HOP:
-                    new_mission_status = SchemaMissionStatus.BUILDING_HOP
-            
-            elif hop_status == HopStatus.READY_TO_EXECUTE:
-                # Hop ready to execute - mission should be in HOP_READY_TO_EXECUTE state
-                if mission.status == SchemaMissionStatus.BUILDING_HOP:
-                    new_mission_status = SchemaMissionStatus.HOP_READY_TO_EXECUTE
-            
-            elif hop_status == HopStatus.EXECUTING:
-                # Hop executing - mission should be in EXECUTING_HOP state
-                if mission.status == SchemaMissionStatus.HOP_READY_TO_EXECUTE:
-                    new_mission_status = SchemaMissionStatus.EXECUTING_HOP
-            
-            elif hop_status == HopStatus.COMPLETED:
-                # Hop completed - check if it's the final hop
-                if mission.status == SchemaMissionStatus.EXECUTING_HOP:
-                    # Check if this is the final hop
-                    if mission.current_hop and mission.current_hop.is_final:
-                        new_mission_status = SchemaMissionStatus.COMPLETED
-                    else:
-                        new_mission_status = SchemaMissionStatus.READY_FOR_NEXT_HOP
+            if hop_status == HopStatus.COMPLETED:
+                # Hop completed - check if final hop
+                current_hop = mission.current_hop
+                if current_hop and current_hop.is_final:
+                    # Final hop completed - mission is complete
+                    new_mission_status = SchemaMissionStatus.COMPLETED
+                else:
+                    # Non-final hop completed - mission stays in progress
+                    new_mission_status = SchemaMissionStatus.IN_PROGRESS
             
             elif hop_status == HopStatus.FAILED:
-                # Hop failed - mission should fail
+                # Hop failed - mission fails
                 new_mission_status = SchemaMissionStatus.FAILED
             
             elif hop_status == HopStatus.CANCELLED:
-                # Hop cancelled - mission should be cancelled
+                # Hop cancelled - mission cancelled
                 new_mission_status = SchemaMissionStatus.CANCELLED
+            
+            # For all other hop statuses (planning, implementation phases), mission stays IN_PROGRESS
+            # No mission status change needed for:
+            # - HOP_PLAN_STARTED, HOP_PLAN_PROPOSED, HOP_PLAN_READY
+            # - HOP_IMPL_STARTED, HOP_IMPL_PROPOSED, HOP_IMPL_READY
+            # - EXECUTING
             
             # Update mission status if needed
             if new_mission_status and new_mission_status != mission.status:
-                print(f"Coordinating mission status: {mission.status} → {new_mission_status} (hop status: {hop_status})")
-                return await self.update_mission_status(mission_id, user_id, new_mission_status)
+                mission.status = new_mission_status
+                mission.updated_at = datetime.utcnow()
+                
+                # Update database
+                db_mission = self.db.query(Mission).filter(
+                    Mission.id == mission_id,
+                    Mission.user_id == user_id
+                ).first()
+                
+                if db_mission:
+                    db_mission.status = self.mission_transformer.schema_to_model_status(new_mission_status)
+                    db_mission.updated_at = datetime.utcnow()
+                    self.db.commit()
+                    
+                    print(f"Mission {mission_id} status updated to {new_mission_status} due to hop status {hop_status}")
+                    return True
+                else:
+                    print(f"Mission {mission_id} not found in database")
+                    return False
             
+            # No mission status change needed
             return True
             
         except Exception as e:
-            print(f"Failed to coordinate mission status: {str(e)}")
+            print(f"Failed to coordinate mission status with hop: {e}")
             return False
     
     # Old transformation methods removed - now handled by MissionTransformer

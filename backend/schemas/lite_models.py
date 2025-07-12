@@ -180,7 +180,7 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
         description=mission_lite.description,
         goal=mission_lite.goal,
         success_criteria=mission_lite.success_criteria,
-        status=MissionStatus.PROPOSED,
+        status=MissionStatus.AWAITING_APPROVAL,
         current_hop_id=None,
         current_hop=None,
         hops=[],
@@ -304,7 +304,7 @@ def create_hop_from_lite(hop_lite: HopLite, mission_state: Dict[str, Asset] = No
         goal=None,  # Will be set later
         success_criteria=[],  # Will be set later  
         rationale=hop_lite.rationale,
-        status=HopStatus.PROPOSED,
+        status=HopStatus.HOP_PLAN_PROPOSED,
         is_final=hop_lite.is_final,
         is_resolved=False,
         error_message=None,

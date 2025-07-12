@@ -118,73 +118,66 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             next_node = "mission_specialist_node"
             routing_message = "No mission found - routing to mission specialist to create one"
         
-        elif state.mission.status == MissionStatus.PROPOSED:
-            # Mission proposed - route to mission specialist
+        elif state.mission.status == MissionStatus.AWAITING_APPROVAL:
+            # Mission awaiting approval - route to mission specialist
             next_node = "mission_specialist_node"
-            routing_message = "Mission proposed - routing to mission specialist for processing"
+            routing_message = "Mission awaiting approval - routing to mission specialist for processing"
         
-        elif state.mission.status == MissionStatus.READY_FOR_NEXT_HOP:
-            # Mission ready for next hop - check if we have a hop to design
+        elif state.mission.status == MissionStatus.IN_PROGRESS:
+            # Mission in progress - check hop state for detailed workflow routing
             if not state.mission.current_hop:
-                # No current hop - route to hop designer to create one
+                # No current hop - route to hop designer to start planning
                 next_node = "hop_designer_node"
-                routing_message = "No current hop - routing to hop designer to create next hop"
-            elif state.mission.current_hop.status == HopStatus.PROPOSED:
-                # Hop proposed - route to hop designer
+                routing_message = "Mission in progress with no current hop - routing to hop designer to start planning"
+            elif state.mission.current_hop.status == HopStatus.HOP_PLAN_STARTED:
+                # Hop planning started - route to hop designer
                 next_node = "hop_designer_node"
-                routing_message = "Hop proposed - routing to hop designer for processing"
-            else:
-                # Invalid combination - hop should be None or PROPOSED
-                routing_message = f"Invalid state combination: Mission READY_FOR_NEXT_HOP with hop {state.mission.current_hop.status}"
-                next_node = "mission_specialist_node"
-        
-        elif state.mission.status == MissionStatus.BUILDING_HOP:
-            # Mission building hop - current hop should be PROPOSED or READY_TO_RESOLVE
-            if not state.mission.current_hop:
-                # No current hop - should not happen in this state
-                routing_message = "Invalid state: Mission BUILDING_HOP with no current hop"
-                next_node = "mission_specialist_node"
-            elif state.mission.current_hop.status == HopStatus.PROPOSED:
-                # Hop proposed - route to hop designer
+                routing_message = "Hop planning started - routing to hop designer to continue planning"
+            elif state.mission.current_hop.status == HopStatus.HOP_PLAN_PROPOSED:
+                # Hop plan proposed - route to hop designer
                 next_node = "hop_designer_node"
-                routing_message = "Hop proposed - routing to hop designer for processing"
-            elif state.mission.current_hop.status == HopStatus.READY_TO_RESOLVE:
-                # Hop ready to resolve - route to hop implementer
+                routing_message = "Hop plan proposed - routing to hop designer for processing"
+            elif state.mission.current_hop.status == HopStatus.HOP_PLAN_READY:
+                # Hop plan ready - route to hop designer to start implementation
+                next_node = "hop_designer_node"
+                routing_message = "Hop plan ready - routing to hop designer to start implementation"
+            elif state.mission.current_hop.status == HopStatus.HOP_IMPL_STARTED:
+                # Hop implementation started - route to hop implementer
                 next_node = "hop_implementer_node"
-                routing_message = "Hop ready to resolve - routing to hop implementer"
-            else:
-                # Invalid combination
-                routing_message = f"Invalid state combination: Mission BUILDING_HOP with hop {state.mission.current_hop.status}"
-                next_node = "mission_specialist_node"
-        
-        elif state.mission.status == MissionStatus.HOP_READY_TO_EXECUTE:
-            # Mission hop ready to execute - current hop should be READY_TO_EXECUTE
-            if not state.mission.current_hop:
-                # No current hop - should not happen in this state
-                routing_message = "Invalid state: Mission HOP_READY_TO_EXECUTE with no current hop"
-                next_node = "mission_specialist_node"
-            elif state.mission.current_hop.status == HopStatus.READY_TO_EXECUTE:
-                # Hop ready to execute - route to hop executor (when implemented)
-                next_node = "hop_implementer_node"  # Using hop_implementer as placeholder until hop_executor is implemented
-                routing_message = "Hop ready to execute - routing to hop executor"
-            else:
-                # Invalid combination
-                routing_message = f"Invalid state combination: Mission HOP_READY_TO_EXECUTE with hop {state.mission.current_hop.status}"
-                next_node = "mission_specialist_node"
-        
-        elif state.mission.status == MissionStatus.EXECUTING_HOP:
-            # Mission executing hop - current hop should be EXECUTING
-            if not state.mission.current_hop:
-                # No current hop - should not happen in this state
-                routing_message = "Invalid state: Mission EXECUTING_HOP with no current hop"
-                next_node = "mission_specialist_node"
+                routing_message = "Hop implementation started - routing to hop implementer"
+            elif state.mission.current_hop.status == HopStatus.HOP_IMPL_PROPOSED:
+                # Hop implementation proposed - route to hop implementer
+                next_node = "hop_implementer_node"
+                routing_message = "Hop implementation proposed - routing to hop implementer for processing"
+            elif state.mission.current_hop.status == HopStatus.HOP_IMPL_READY:
+                # Hop implementation ready - route to hop implementer (ready to execute)
+                next_node = "hop_implementer_node"
+                routing_message = "Hop implementation ready - routing to hop implementer for execution"
             elif state.mission.current_hop.status == HopStatus.EXECUTING:
-                # Hop executing - route to hop executor (when implemented)
-                next_node = "hop_implementer_node"  # Using hop_implementer as placeholder until hop_executor is implemented
-                routing_message = "Hop executing - routing to hop executor"
+                # Hop executing - route to hop implementer (as executor placeholder)
+                next_node = "hop_implementer_node"
+                routing_message = "Hop executing - routing to hop implementer as executor"
+            elif state.mission.current_hop.status == HopStatus.COMPLETED:
+                # Hop completed - check if final hop or continue to next hop
+                if state.mission.current_hop.is_final:
+                    # Final hop completed - route to mission specialist for completion
+                    next_node = "mission_specialist_node"
+                    routing_message = "Final hop completed - routing to mission specialist for mission completion"
+                else:
+                    # Non-final hop completed - route to hop designer for next hop
+                    next_node = "hop_designer_node"
+                    routing_message = "Hop completed (non-final) - routing to hop designer for next hop"
+            elif state.mission.current_hop.status == HopStatus.FAILED:
+                # Hop failed - route to mission specialist for error handling
+                next_node = "mission_specialist_node"
+                routing_message = "Hop failed - routing to mission specialist for error handling"
+            elif state.mission.current_hop.status == HopStatus.CANCELLED:
+                # Hop cancelled - route to mission specialist
+                next_node = "mission_specialist_node"
+                routing_message = "Hop cancelled - routing to mission specialist for processing"
             else:
-                # Invalid combination
-                routing_message = f"Invalid state combination: Mission EXECUTING_HOP with hop {state.mission.current_hop.status}"
+                # Unknown hop status
+                routing_message = f"Unknown hop status: {state.mission.current_hop.status}"
                 next_node = "mission_specialist_node"
         
         elif state.mission.status == MissionStatus.COMPLETED:
@@ -522,8 +515,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification
-            current_hop.status = HopStatus.READY_TO_RESOLVE
-            state.mission.current_hop.status = HopStatus.READY_TO_RESOLVE
+            current_hop.status = HopStatus.HOP_IMPL_STARTED
+            state.mission.current_hop.status = HopStatus.HOP_IMPL_STARTED
             
             # Create clarification message with reasoning
             missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
@@ -553,13 +546,13 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
             # Include hop in payload if it's successfully implemented (ready to execute)
             include_hop = (parsed_response.response_type == 'IMPLEMENTATION_PLAN' and 
-                          current_hop.status == HopStatus.READY_TO_EXECUTE)
+                          current_hop.status == HopStatus.HOP_IMPL_READY)
             
             agent_response = AgentResponse(**create_agent_response(
                 token=response_message.content[0:100],
                 response_text=response_message.content,
                 status="hop_implementer_completed",
-                error=current_hop.error if current_hop.status == HopStatus.READY_TO_DESIGN else None,
+                error=current_hop.error if current_hop.status == HopStatus.HOP_IMPL_STARTED else None,
                 debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, {next_status}",
                 payload={
                     "hop": serialize_hop(current_hop) if include_hop else None
@@ -848,20 +841,20 @@ def _process_hop_proposal(hop_lite: HopLite, mission_state: Dict[str, Asset], mi
         # First hop in the mission
         next_sequence = 1
     
-    # Create the full Hop object
-    new_hop = Hop(
-        id=str(uuid.uuid4()),
-        sequence_order=next_sequence,
-        name=hop_lite.name,
-        description=hop_lite.description,
-        rationale=hop_lite.rationale,  # Include rationale from HopLite
-        status=HopStatus.PROPOSED,
-        is_final=hop_lite.is_final,
-        is_resolved=False,
-        hop_state=hop_state,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            # Create the full Hop object
+        new_hop = Hop(
+            id=str(uuid.uuid4()),
+            sequence_order=next_sequence,
+            name=hop_lite.name,
+            description=hop_lite.description,
+            rationale=hop_lite.rationale,  # Include rationale from HopLite
+            status=HopStatus.HOP_PLAN_PROPOSED,
+            is_final=hop_lite.is_final,
+            is_resolved=False,
+            hop_state=hop_state,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     
     return new_hop, proposed_assets
 
@@ -944,8 +937,8 @@ def _process_implementation_plan(
     validation_errors = validate_tool_chain(parsed_response.tool_steps, updated_hop.hop_state)
     
     if validation_errors:
-        # Validation failed - keep hop in ready to resolve state
-        updated_hop.status = HopStatus.READY_TO_RESOLVE
+        # Validation failed - keep hop in implementation started state
+        updated_hop.status = HopStatus.HOP_IMPL_STARTED
         
         formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
         error_message = (
@@ -965,7 +958,7 @@ def _process_implementation_plan(
     from schemas.lite_models import create_tool_step_from_lite
     updated_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
     updated_hop.is_resolved = True
-    updated_hop.status = HopStatus.READY_TO_EXECUTE
+    updated_hop.status = HopStatus.HOP_IMPL_READY
     updated_hop.updated_at = datetime.utcnow()
     
     # Create success message
@@ -991,7 +984,7 @@ class PrimaryAgent:
             inputs=[],
             outputs=[],
             mission_state={},
-            mission_status=MissionStatus.PROPOSED
+            mission_status=MissionStatus.AWAITING_APPROVAL
         )
 
     async def run(self):

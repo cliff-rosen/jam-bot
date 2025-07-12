@@ -54,7 +54,7 @@ Some triggers coordinate updates across multiple entities:
 - **Step 3.8**: Mission completes + Final hop completes
 
 ### Critical Coordination Points
-1. **Hop Creation** (2.1, 3.1): Mission.current_hop_id must be set when hop created
+1. **Hop Creation** (2.1, 3.1): User button click triggers hop creation + mission.current_hop_id update
 2. **Hop Completion** (2.8): Mission.current_hop_id must reset to null when hop completes
 3. **Mission Completion** (3.8): Both mission and final hop transition to COMPLETED simultaneously
 
@@ -74,6 +74,24 @@ Before transitions, validate:
 
 ## Actor Responsibilities
 
-- **Agent**: Proposes missions, creates plans, implements tool steps
-- **User**: Approves plans/implementations, triggers execution  
+- **Agent**: Proposes missions, creates hop plans, implements tool steps, completes planning/implementation work
+- **User**: Approves missions/plans/implementations, requests hop planning via button clicks, triggers execution  
 - **System**: Handles completion events and coordinates mission/hop state updates
+
+## User Interaction Patterns
+
+### Button Clicks (UI Triggers)
+- **Step 2.1, 3.1**: User clicks "Create Next Hop" button → Agent starts planning
+- **Step 2.4, 3.4**: User clicks "Start Implementation" button → Agent begins implementation
+
+### Approval Actions (Chat/UI)
+- **Step 1.2**: User approves mission proposal
+- **Step 2.3, 3.3**: User approves hop plans
+- **Step 2.6, 3.6**: User approves implementations
+
+### Execution Triggers (UI)
+- **Step 2.7, 3.7**: User clicks "Execute Hop" button → Hop execution begins
+
+### Agent Responses (Automatic)
+- **Step 2.2, 3.2**: Agent automatically completes planning and proposes to user
+- **Step 2.5, 3.5**: Agent automatically completes implementation and proposes to user

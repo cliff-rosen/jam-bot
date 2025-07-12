@@ -30,6 +30,7 @@ from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller
 from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
 
 from services.mission_service import MissionService
+from services.user_session_service import UserSessionService
 
 
 # Use settings from config
@@ -41,13 +42,19 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Module-level service instances
 _mission_service: Optional[MissionService] = None
+_session_service: Optional[UserSessionService] = None
 _user_id: Optional[int] = None
 
 def initialize_services(config: Dict[str, Any]) -> None:
     """Initialize module-level services from config"""
-    global _mission_service, _user_id
-    _mission_service = config.get('mission_service')
-    _user_id = config.get('user_id')
+    global _mission_service, _session_service, _user_id
+    configurable = config.get('configurable', {})
+    _mission_service = configurable.get('mission_service')
+    _session_service = configurable.get('session_service')
+    _user_id = configurable.get('user_id')
+    print(f"DEBUG: initialize_services called with config keys: {list(config.keys())}")
+    print(f"DEBUG: configurable keys: {list(configurable.keys())}")
+    print(f"DEBUG: mission_service type: {type(_mission_service)}, user_id: {_user_id}")
 
 async def update_mission(mission_id: str, mission: Mission) -> None:
     """Update mission using module-level service"""
@@ -56,6 +63,21 @@ async def update_mission(mission_id: str, mission: Mission) -> None:
         print(f"Successfully persisted mission {mission_id}")
     else:
         print("Warning: Cannot persist mission - services not initialized")
+
+async def assign_mission_to_session(mission_id: str) -> None:
+    """Assign mission to user's active session"""
+    if _session_service and _user_id and mission_id:
+        try:
+            active_session = _session_service.get_active_session(_user_id)
+            if active_session:
+                _session_service.update_session_mission(active_session.id, mission_id)
+                print(f"Successfully assigned mission {mission_id} to session {active_session.id}")
+            else:
+                print("Warning: No active session found to assign mission")
+        except Exception as e:
+            print(f"Error assigning mission to session: {e}")
+    else:
+        print("Warning: Cannot assign mission to session - services not initialized")
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -304,8 +326,15 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission = proposed_mission
             state.mission_id = proposed_mission.id
             
-            # Persist mission using module-level service
-            await update_mission(state.mission_id, state.mission)
+            # Create mission in database using module-level service
+            if _mission_service and _user_id:
+                await _mission_service.create_mission(state.mission, _user_id)
+                print(f"Successfully created mission {state.mission_id}")
+            else:
+                print("Warning: Cannot create mission - services not initialized")
+            
+            # Assign mission to user's active session
+            await assign_mission_to_session(state.mission_id)
             
             # Update response message
             response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."

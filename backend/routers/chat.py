@@ -142,8 +142,11 @@ async def chat_stream(
             )
             
             graph_config = {
-                "mission_service": mission_service,
-                "user_id": current_user.user_id
+                "configurable": {
+                    "mission_service": mission_service,
+                    "session_service": session_service,
+                    "user_id": current_user.user_id
+                }
             }
             
             # Stream agent responses

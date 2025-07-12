@@ -151,7 +151,7 @@ const sections: Section[] = [
                                     <li><strong>Output Mapping:</strong> Maps local hop state keys to mission asset IDs</li>
                                     <li><strong>Tool Steps:</strong> Individual operations within the hop</li>
                                     <li><strong>Hop State:</strong> Data objects used within the hop</li>
-                                    <li><strong>Status:</strong> Current state (proposed, ready to resolve, ready to execute, running, complete)</li>
+                                    <li><strong>Status:</strong> Current state (plan proposed, implementation ready, executing, completed)</li>
                                 </ul>
                             </li>
                             <li><strong>Tool Step:</strong> An individual operation within a hop

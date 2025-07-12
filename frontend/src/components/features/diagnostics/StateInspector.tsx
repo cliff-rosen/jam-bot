@@ -57,22 +57,16 @@ export default function StateInspector({ isOpen, onClose }: StateInspectorProps)
             }
 
             // Validate required fields
-            const requiredFields = ['currentMessages', 'currentStreamingMessage', 'collabArea', 'mission'];
+            const requiredFields = ['currentMessages', 'currentStreamingMessage', 'mission'];
             const missingFields = requiredFields.filter(field => !(field in newState));
 
             if (missingFields.length > 0) {
                 throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
             }
 
-            // Validate collabArea structure
-            if (!newState.collabArea || typeof newState.collabArea !== 'object' ||
-                !('type' in newState.collabArea) || !('content' in newState.collabArea)) {
-                throw new Error('Invalid collabArea structure');
-            }
-
-            // Validate arrays
-            if (!Array.isArray(newState.currentMessages)) {
-                throw new Error('currentMessages must be an array');
+            // Validate mission structure if present
+            if (newState.mission !== null && (typeof newState.mission !== 'object' || !newState.mission.id)) {
+                throw new Error('Invalid mission structure - must be null or object with id');
             }
 
             // Apply the state if all validations pass

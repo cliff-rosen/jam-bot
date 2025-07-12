@@ -6,7 +6,6 @@ import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } from '@/types/chat';
 import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
-import { CollabAreaState } from '@/types/collabArea';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
 import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
@@ -15,7 +14,6 @@ import { AssetRole } from '@/types/asset';
 interface JamBotState {
     currentMessages: ChatMessage[];
     currentStreamingMessage: string;
-    collabArea: CollabAreaState;
     mission: Mission | null;
     error?: string;
 }
@@ -25,8 +23,6 @@ type JamBotAction =
     | { type: 'SET_MESSAGES'; payload: ChatMessage[] }
     | { type: 'UPDATE_STREAMING_MESSAGE'; payload: string }
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
-    | { type: 'SET_COLLAB_AREA'; payload: CollabAreaState }
-    | { type: 'CLEAR_COLLAB_AREA' }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
     | { type: 'ACCEPT_MISSION_PROPOSAL'; payload?: Mission }
@@ -46,10 +42,6 @@ type JamBotAction =
 const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
-    collabArea: {
-        type: null,
-        content: null
-    },
     mission: null
 };
 
@@ -110,11 +102,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 currentStreamingMessage: action.payload,
             };
-        case 'SET_COLLAB_AREA':
-            return {
-                ...state,
-                collabArea: action.payload
-            };
         case 'SET_MISSION':
             return {
                 ...state,
@@ -143,11 +130,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 mission: {
                     ...proposedMission,
-                    status: MissionStatus.READY_FOR_NEXT_HOP
-                },
-                collabArea: {
-                    type: null,
-                    content: null
+                    status: MissionStatus.IN_PROGRESS
                 }
             };
 
@@ -185,7 +168,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     mission_state: updatedMissionState,
                     current_hop: {
                         ...acceptedHop,
-                        status: HopStatus.READY_TO_RESOLVE
+                        status: HopStatus.HOP_PLAN_READY
                     }
                 }
             };
@@ -199,7 +182,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     ...state.mission,
                     current_hop: {
                         ...implementationHop,
-                        status: HopStatus.READY_TO_EXECUTE
+                        status: HopStatus.HOP_IMPL_READY
                     }
                 }
             };
@@ -276,7 +259,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             const failedHop = {
                 ...state.mission.current_hop,
-                status: HopStatus.READY_TO_EXECUTE,
+                status: HopStatus.HOP_IMPL_READY,
                 error,
                 tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                     ...step,
@@ -298,7 +281,7 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
 
             const retriedHop = {
                 ...state.mission.current_hop,
-                status: HopStatus.READY_TO_EXECUTE,
+                status: HopStatus.HOP_IMPL_READY,
                 error: undefined,
                 tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
                     ...step,
@@ -311,14 +294,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 mission: {
                     ...state.mission,
                     current_hop: retriedHop
-                }
-            };
-        case 'CLEAR_COLLAB_AREA':
-            return {
-                ...state,
-                collabArea: {
-                    type: null,
-                    content: null
                 }
             };
         case 'UPDATE_HOP_STATE':
@@ -428,8 +403,6 @@ interface JamBotContextType {
     updateStreamingMessage: (message: string) => void;
     sendMessage: (message: ChatMessage) => void;
     createMessage: (content: string, role: MessageRole) => ChatMessage;
-    setCollabArea: (type: CollabAreaState['type'], content: CollabAreaState['content']) => void;
-    clearCollabArea: () => void;
     acceptMissionProposal: () => void;
     acceptHopProposal: (hop: Hop, proposedAssets?: any[]) => void;
     acceptHopImplementationProposal: (hop: Hop) => void;
@@ -444,6 +417,7 @@ interface JamBotContextType {
     setError: (error: string) => void;
     clearError: () => void;
     createNewSession: () => Promise<void>;
+
 }
 
 const JamBotContext = createContext<JamBotContextType | null>(null);
@@ -489,13 +463,13 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (isInitializing.current) return;
 
-        if (state.collabArea) {
+        if (state.mission) {
             const metadata = {
-                collabArea: state.collabArea
+                mission: state.mission
             };
             updateSessionMetadata(metadata);
         }
-    }, [state.collabArea, updateSessionMetadata]);
+    }, [state.mission, updateSessionMetadata]);
 
     // Data loading functions
     const loadChatMessages = async (chatId: string) => {
@@ -527,7 +501,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({
             type: 'SET_STATE', payload: {
                 ...state,
-                collabArea: metadata.collabArea || { type: null, content: null }
+                mission: metadata.mission || null
             }
         });
     };
@@ -545,89 +519,70 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const acceptMissionProposal = useCallback(async () => {
-        // Get the proposed mission from the collab area content
-        const proposedMission = state.collabArea.content?.mission;
-        console.log('Accepting mission proposal:', proposedMission);
-
-        if (proposedMission) {
+        // Accept the current mission by updating its status
+        if (state.mission && state.mission.status === MissionStatus.AWAITING_APPROVAL) {
             try {
-                // Create mission with status READY_FOR_NEXT_HOP
-                const missionToCreate = {
-                    ...proposedMission,
-                    status: MissionStatus.READY_FOR_NEXT_HOP
+                // Update mission status to IN_PROGRESS
+                const updatedMission = {
+                    ...state.mission,
+                    status: MissionStatus.IN_PROGRESS
                 };
 
-                // Call backend API to persist the mission
-                const response = await missionApi.createMission(missionToCreate);
+                // Update session to point to the mission
+                await updateSessionMission(state.mission.id);
 
-                // Update the mission with the returned ID
-                const persistedMission = {
-                    ...missionToCreate,
-                    id: response.mission_id
-                };
-
-                console.log('Mission persisted with ID:', response.mission_id);
-
-                // Update session to point to new mission
-                await updateSessionMission(response.mission_id);
-
-                dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: persistedMission });
+                dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: updatedMission });
             } catch (error) {
                 console.error('Error accepting mission proposal:', error);
                 // Fall back to local state update if API call fails
                 dispatch({
                     type: 'ACCEPT_MISSION_PROPOSAL', payload: {
-                        ...proposedMission,
-                        status: MissionStatus.READY_FOR_NEXT_HOP
+                        ...state.mission,
+                        status: MissionStatus.IN_PROGRESS
                     }
                 });
             }
         } else {
-            console.log('No proposed mission found in collab area');
+            console.log('No mission awaiting approval found');
         }
-    }, [state.collabArea.content, updateSessionMission]);
+    }, [state.mission, updateSessionMission]);
 
     const acceptHopProposal = useCallback(async (hop: Hop, proposedAssets?: any[]) => {
         try {
-            // Update hop status to READY_TO_RESOLVE on backend
+            // Update hop status to HOP_PLAN_READY on backend
             if (hop.id) {
-                await hopApi.updateHopStatus(hop.id, HopStatus.READY_TO_RESOLVE);
-                console.log(`Hop ${hop.id} status updated to READY_TO_RESOLVE on backend`);
+                await hopApi.updateHopStatus(hop.id, HopStatus.HOP_PLAN_READY);
+                console.log(`Hop ${hop.id} status updated to HOP_PLAN_READY on backend`);
             }
 
             // Update frontend state
             dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
         } catch (error) {
             console.error('Error accepting hop proposal:', error);
             // Still update frontend state if backend fails
             dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
         }
     }, []);
 
     const acceptHopImplementationProposal = useCallback(async (hop: Hop) => {
         try {
-            // Update hop status to READY_TO_EXECUTE on backend
+            // Update hop status to HOP_IMPL_READY on backend
             if (hop.id) {
-                await hopApi.updateHopStatus(hop.id, HopStatus.READY_TO_EXECUTE);
-                console.log(`Hop ${hop.id} status updated to READY_TO_EXECUTE on backend`);
+                await hopApi.updateHopStatus(hop.id, HopStatus.HOP_IMPL_READY);
+                console.log(`Hop ${hop.id} status updated to HOP_IMPL_READY on backend`);
             }
 
             // Update frontend state
             dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
         } catch (error) {
             console.error('Error accepting hop implementation proposal:', error);
             // Still update frontend state if backend fails
             dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-            dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
         }
     }, []);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'current-hop', content: null } });
     }, []);
 
     const startHopExecution = useCallback((hopId: string) => {
@@ -666,13 +621,54 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'CLEAR_ERROR' });
     }, []);
 
-    const setCollabArea = useCallback((type: CollabAreaState['type'], content: CollabAreaState['content']) => {
-        dispatch({ type: 'SET_COLLAB_AREA', payload: { type, content } });
-    }, []);
+    const createMessage = useCallback((content: string, role: MessageRole): ChatMessage => {
+        return {
+            id: `${role}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            chat_id: chatId || "temp", // Use actual chatId from auth context
+            role,
+            content,
+            message_metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+    }, [chatId]);
 
-    const clearCollabArea = useCallback(() => {
-        dispatch({ type: 'CLEAR_COLLAB_AREA' });
-    }, []);
+
+
+    const processBotMessage = useCallback((data: StreamResponse) => {
+        console.log("processBotMessage data", data);
+
+        let token: string = "";
+
+        // Check if this is an AgentResponse (has token or response_text)
+        const isAgentResponse = 'token' in data || 'response_text' in data;
+
+        if (isAgentResponse) {
+            const agentData = data as AgentResponse;
+
+            if (agentData.token) {
+                console.log("agentData.token", agentData.token);
+                token = agentData.token;
+            }
+
+            if (agentData.response_text) {
+                console.log("agentData.response_text", agentData.response_text);
+                const chatMessage = createMessage(agentData.response_text, MessageRole.ASSISTANT);
+                addMessage(chatMessage);
+            }
+        }
+
+        // Both AgentResponse and StatusResponse have status
+        if (data.status) {
+            console.log("data.status", data.status);
+            const statusMessage = createMessage(data.status, MessageRole.STATUS);
+            addMessage(statusMessage);
+        }
+
+        // In the new architecture, we don't process payload for collab area
+        // The mission/hop state is managed directly in the backend
+        return token || "";
+    }, [addMessage, createMessage]);
 
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
         try {
@@ -806,89 +802,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const createMessage = useCallback((content: string, role: MessageRole): ChatMessage => {
-        return {
-            id: `${role}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            chat_id: chatId || "temp", // Use actual chatId from auth context
-            role,
-            content,
-            message_metadata: {},
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-    }, [chatId]);
-
-    const processBotMessage = useCallback((data: StreamResponse) => {
-        console.log("processBotMessage data", data);
-
-        let token: string = "";
-        let newCollabAreaContent: any;
-
-        // Check if this is an AgentResponse (has token or response_text)
-        const isAgentResponse = 'token' in data || 'response_text' in data;
-
-        if (isAgentResponse) {
-            const agentData = data as AgentResponse;
-
-            if (agentData.token) {
-                console.log("agentData.token", agentData.token);
-                token = agentData.token;
-            }
-
-            if (agentData.response_text) {
-                console.log("agentData.response_text", agentData.response_text);
-                const chatMessage = createMessage(agentData.response_text, MessageRole.ASSISTANT);
-                addMessage(chatMessage);
-            }
-        }
-
-        // Both AgentResponse and StatusResponse have status
-        if (data.status) {
-            console.log("data.status", data.status);
-            const statusMessage = createMessage(data.status, MessageRole.STATUS);
-            addMessage(statusMessage);
-        }
-
-        // Both AgentResponse and StatusResponse have payload
-        if (data.payload) {
-
-            // set tracking variables
-            let isMissionProposal = false
-            let isHopProposal = false;
-            let isHopImplementationProposal = false;
-            let hopPayload: Partial<Hop> | null = null;
-            let missionPayload: Partial<Mission> | null = null;
-
-            // determine proposal type
-            if (typeof data.payload === 'object' && data.payload !== null && 'mission' in data.payload) {
-                missionPayload = data.payload.mission as Partial<Mission>;
-            }
-            if (typeof data.payload === 'object' && data.payload !== null && 'hop' in data.payload && data.payload.hop) {
-                hopPayload = data.payload.hop as Partial<Hop>;
-            }
-            if (data.status === 'mission_specialist_completed' && missionPayload) {
-                isMissionProposal = true
-            } else if (data.status === 'hop_designer_completed' && hopPayload) {
-                isHopProposal = true;
-            } else if (data.status === 'hop_implementer_completed' && hopPayload) {
-                isHopImplementationProposal = true;
-            }
-
-            // process proposal based on type
-            newCollabAreaContent = data.payload;
-
-            if (isMissionProposal) {
-                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'mission-proposal', content: newCollabAreaContent } });
-            } else if (isHopImplementationProposal) {
-                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-implementation-proposal', content: newCollabAreaContent } });
-            } else if (isHopProposal) {
-                dispatch({ type: 'SET_COLLAB_AREA', payload: { type: 'hop-proposal', content: newCollabAreaContent } });
-            }
-
-            return token || "";
-        }
-    }, [addMessage, updateStreamingMessage, state.collabArea.type, createMessage]);
-
     const sendMessage = useCallback(async (message: ChatMessage) => {
 
         addMessage(message);
@@ -942,10 +855,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 payload: {
                     currentMessages: [],
                     currentStreamingMessage: '',
-                    collabArea: {
-                        type: null,
-                        content: null
-                    },
                     mission: null
                 }
             });
@@ -972,8 +881,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             updateStreamingMessage,
             sendMessage,
             createMessage,
-            setCollabArea,
-            clearCollabArea,
             acceptMissionProposal,
             acceptHopProposal,
             acceptHopImplementationProposal,

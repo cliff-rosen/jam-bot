@@ -7,7 +7,8 @@ from database import get_db
 from services.auth_service import validate_token
 from services.hop_service import HopService
 from services.tool_step_service import ToolStepService
-from schemas.workflow import Hop, HopStatus, ToolStep
+from services.mission_service import MissionService
+from schemas.workflow import Hop, HopStatus, ToolStep, Mission
 
 router = APIRouter(prefix="/hops", tags=["hops"])
 
@@ -47,6 +48,7 @@ class CreateToolStepRequest(BaseModel):
     parameter_mapping: Optional[Dict[str, Any]] = None
     result_mapping: Optional[Dict[str, Any]] = None
     validation_errors: Optional[List[str]] = None
+
 
 
 @router.post("/missions/{mission_id}/hops", response_model=Hop)

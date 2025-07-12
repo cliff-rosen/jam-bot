@@ -267,9 +267,10 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
     try:
         # Create and use the simplified prompt caller
         promptCaller = MissionDefinitionPromptCaller()
+        
         parsed_response = await promptCaller.invoke(
-            messages=state.messages,
-            mission=state.mission
+            mission=state.mission,
+            messages=state.messages
         )
 
         # Create response message
@@ -283,11 +284,30 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             updated_at=datetime.utcnow()
         )
 
+        # Route back to supervisor
         next_node = END
+
+        # Handle mission proposal creation
+        if parsed_response.mission_proposal:
+            # Create a full mission from the proposal and update state directly
+            proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
+            
+            # Set mission status to AWAITING_APPROVAL
+            proposed_mission.status = MissionStatus.AWAITING_APPROVAL
+            
+            # Update state with the new mission
+            state.mission = proposed_mission
+            state.mission_id = proposed_mission.id
+            
+            # Persist to database
+            await persist_mission_if_needed(state, config)
+            
+            # Update response message
+            response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
-            "mission": state.mission,  # Keep existing mission state unchanged
+            "mission": state.mission,  # Use updated mission state
             "mission_id": state.mission_id,
             "tool_params": {},
             "next_node": next_node,
@@ -295,28 +315,14 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         }
 
         if writer:
-            # If we have a mission proposal, send it to frontend for approval
-            if parsed_response.mission_proposal:
-                # Create a full mission from the proposal (but don't update state yet)
-                proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
-                
-                agent_response = AgentResponse(**create_agent_response(
-                    token=response_message.content[0:100],
-                    response_text=parsed_response.response_content,
-                    status="mission_specialist_completed",
-                    payload={"mission": serialize_mission(proposed_mission)},
-                    debug=f"Mission proposal created: {proposed_mission.name}, waiting for user approval"
-                ))
-            else:
-                # No mission proposal (e.g., clarification needed)
-                agent_response = AgentResponse(**create_agent_response(
-                    token=response_message.content[0:100],
-                    response_text=parsed_response.response_content,
-                    status="mission_specialist_completed",
-                    payload={},
-                    debug="No mission proposal - clarification needed"
-                ))
-            
+            # Send simplified response without proposal payload
+            agent_response = AgentResponse(**create_agent_response(
+                token=response_message.content[0:100],
+                response_text=response_message.content,
+                status="mission_specialist_completed",
+                payload={},  # No proposal payload - mission is now directly in state
+                debug=f"Mission proposal created: {state.mission.name if state.mission else 'No mission'}, status: {state.mission.status if state.mission else 'No status'}"
+            ))
             writer(agent_response.model_dump())
 
         return Command(goto=next_node, update=state_update)
@@ -371,6 +377,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             updated_at=datetime.utcnow()
         )
 
+        # Route back to supervisor
+        next_node = END
+
         # Handle different response types
         if parsed_response.response_type == "HOP_PROPOSAL":
             if not parsed_response.hop_proposal:
@@ -381,69 +390,54 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             
             # Process the hop proposal
             new_hop, proposed_assets = _process_hop_proposal(hop_lite, state.mission.mission_state, state.mission)
-
-            # Route back to supervisor
-            next_node = END
-
-            state_update = {
-                "messages": [*state.messages, response_message.model_dump()],
-                "mission": state.mission,
-                "mission_id": state.mission_id,
-                "tool_params": {},
-                "next_node": next_node,
-                "asset_summaries": state.asset_summaries
-            }
-
-            if writer:
-                agent_response = AgentResponse(**create_agent_response(
-                    token=response_message.content[0:100],
-                    response_text=response_message.content,
-                    status="hop_designer_completed",
-                    debug=f"Response type: {parsed_response.response_type}, Hop proposed: {new_hop.name if parsed_response.response_type == 'HOP_PROPOSAL' else 'No hop proposed'}, waiting for user approval",
-                    payload={
-                        "hop": serialize_hop(new_hop) if parsed_response.response_type == 'HOP_PROPOSAL' else None,
-                        "mission": serialize_mission(state.mission),
-                        "proposed_assets": [asset.model_dump(mode='json') for asset in proposed_assets] if parsed_response.response_type == 'HOP_PROPOSAL' else []
-                    }
-                ))
-                writer(agent_response.model_dump())
-
-            return Command(goto=next_node, update=state_update)
+            
+            # Set hop status to HOP_PLAN_PROPOSED
+            new_hop.status = HopStatus.HOP_PLAN_PROPOSED
+            
+            # Add the new hop to the mission as current_hop
+            state.mission.current_hop = new_hop
+            state.mission.current_hop_id = new_hop.id
+            
+            # Add any proposed assets to mission state
+            if proposed_assets:
+                for asset in proposed_assets:
+                    state.mission.mission_state[asset.id] = asset
+            
+            # Persist to database
+            await persist_mission_if_needed(state, config)
+            
+            # Update response message
+            response_message.content = f"Hop plan proposed: {new_hop.name}. Please review and approve to proceed with implementation."
 
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # For clarification needed, we don't create a new hop
             # Just update the response message with the reasoning
             response_message.content = f"{parsed_response.response_content}\n\nReasoning: {parsed_response.reasoning}"
-            
-            # Route back to supervisor
-            next_node = END
 
-            state_update = {
-                "messages": [*state.messages, response_message.model_dump()],
-                "mission": state.mission,
-                "mission_id": state.mission_id,
-                "tool_params": {},
-                "next_node": next_node,
-                "asset_summaries": state.asset_summaries
-            }
-
-            if writer:
-                agent_response = AgentResponse(**create_agent_response(
-                    token=response_message.content[0:100],
-                    response_text=response_message.content,
-                    status="hop_designer_completed",
-                    debug=f"Response type: {parsed_response.response_type}, clarification needed",
-                    payload={
-                        "hop": None,
-                        "mission": serialize_mission(state.mission),
-                        "proposed_assets": []
-                    }
-                ))
-                writer(agent_response.model_dump())
-
-            return Command(goto=next_node, update=state_update)
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
+
+        state_update = {
+            "messages": [*state.messages, response_message.model_dump()],
+            "mission": state.mission,
+            "mission_id": state.mission_id,
+            "tool_params": {},
+            "next_node": next_node,
+            "asset_summaries": state.asset_summaries
+        }
+
+        if writer:
+            # Send simplified response without proposal payload
+            agent_response = AgentResponse(**create_agent_response(
+                token=response_message.content[0:100],
+                response_text=response_message.content,
+                status="hop_designer_completed",
+                debug=f"Response type: {parsed_response.response_type}, Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop'}, {state.mission.current_hop.name if state.mission.current_hop else 'No hop name'}",
+                payload={}  # No proposal payload - hop is now directly in mission state
+            ))
+            writer(agent_response.model_dump())
+
+        return Command(goto=next_node, update=state_update)
 
     except Exception as e:
         import traceback
@@ -508,6 +502,13 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                 state.mission.current_hop = result.updated_hop
                 # Also update the local reference for consistency
                 current_hop = result.updated_hop
+                
+                # Set hop status to HOP_IMPL_PROPOSED for user approval
+                current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                
+                # Update response message
+                response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
             else:
                 # If validation failed, we still need to update status for clarification
                 current_hop.status = result.updated_hop.status
@@ -542,21 +543,14 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         }
 
         if writer:
-            next_status = "ready for next hop" if not current_hop.is_final else "mission complete"
-            
-            # Include hop in payload if it's successfully implemented (ready to execute)
-            include_hop = (parsed_response.response_type == 'IMPLEMENTATION_PLAN' and 
-                          current_hop.status == HopStatus.HOP_IMPL_READY)
-            
+            # Send simplified response without proposal payload
             agent_response = AgentResponse(**create_agent_response(
                 token=response_message.content[0:100],
                 response_text=response_message.content,
                 status="hop_implementer_completed",
-                error=current_hop.error if current_hop.status == HopStatus.HOP_IMPL_STARTED else None,
-                debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, {next_status}",
-                payload={
-                    "hop": serialize_hop(current_hop) if include_hop else None
-                }
+                error=current_hop.error_message if current_hop.status == HopStatus.HOP_IMPL_STARTED else None,
+                debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, hop: {current_hop.name}",
+                payload={}  # No proposal payload - hop is now directly in mission state
             ))
             writer(agent_response.model_dump())
 

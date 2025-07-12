@@ -30,7 +30,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         if (!mission) return;
 
         const planningMessage = createMessage(
-            "I'm ready to start planning the first hop for this mission. Please help me design the hop plan.",
+            "Please help me design a hop plan.",
             MessageRole.USER
         );
 

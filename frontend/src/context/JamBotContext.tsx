@@ -529,6 +529,10 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         // Accept the current mission by updating its status
         if (state.mission && state.mission.status === MissionStatus.AWAITING_APPROVAL) {
             try {
+                // Update mission status to IN_PROGRESS in the database
+                await missionApi.updateMissionStatus(state.mission.id, MissionStatus.IN_PROGRESS);
+                console.log(`Mission ${state.mission.id} status updated to IN_PROGRESS in database`);
+
                 // Update mission status to IN_PROGRESS
                 const updatedMission = {
                     ...state.mission,

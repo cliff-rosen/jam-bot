@@ -11,7 +11,7 @@ interface MissionProps {
 }
 
 export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
-    const { state } = useJamBot();
+    const { state, setCollabArea } = useJamBot();
     const mission: MissionType = state.mission || defaultMission;
     const missionStatusDisplay = getMissionStatusDisplay(mission.status);
     const [expanded, setExpanded] = useState(false);
@@ -35,62 +35,51 @@ export const Mission: React.FC<MissionProps> = ({ className = '' }) => {
                     {expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                 </div>
             </CardHeader>
-
             {expanded && (
-                <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-6">
+                    {mission.goal && (
                         <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Current Hop</h4>
-                            {mission.current_hop ? (
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center">
-                                    <div>
-                                        <div className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                                            {mission.current_hop.name || 'Current Hop'}
-                                        </div>
-                                        {mission.current_hop.description && (
-                                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                {mission.current_hop.description}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(getHopStatusDisplay(mission.current_hop.status).color)}`}>
-                                        {getHopStatusDisplay(mission.current_hop.status).text}
-                                    </span>
-                                </div>
-                            ) : (
-                                <div className="text-gray-500 italic">No current hop</div>
-                            )}
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Goal</h4>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{mission.goal}</p>
                         </div>
-
+                    )}
+                    {mission.success_criteria && mission.success_criteria.length > 0 && (
                         <div>
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Hop History</h4>
-                            {mission.hops.length > 0 ? (
-                                <div className="space-y-2">
-                                    {mission.hops.map((hop: any, idx: number) => (
-                                        <div
-                                            key={hop.id}
-                                            className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center gap-6"
-                                        >
-                                            <div>
-                                                <div className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                                                    {hop.name || `Hop ${idx + 1}`}
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Success Criteria</h4>
+                            <ul className="list-disc list-inside space-y-1">
+                                {mission.success_criteria.map((criteria: string, idx: number) => (
+                                    <li key={idx} className="text-sm text-gray-800 dark:text-gray-200">{criteria}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    <div>
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Hop History</h4>
+                        {mission.hops.length > 0 ? (
+                            <div className="space-y-2">
+                                {mission.hops.map((hop: any, idx: number) => (
+                                    <button
+                                        key={hop.id}
+                                        className="w-full text-left bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center gap-6 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none shadow-sm"
+                                        onClick={() => setCollabArea('current-hop', hop)}
+                                    >
+                                        <div>
+                                            <div className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                {hop.name || `Hop ${idx + 1}`}
+                                            </div>
+                                            {hop.description && (
+                                                <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                    {hop.description}
                                                 </div>
-                                                {hop.description && (
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                        {hop.description}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <span className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(getHopStatusDisplay(hop.status).color)}`}>
-                                                {getHopStatusDisplay(hop.status).text}
-                                            </span>
+                                            )}
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-gray-500 italic">No hops defined</div>
-                            )}
-                        </div>
+                                        <span className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(getHopStatusDisplay(hop.status).color)}`}>{getHopStatusDisplay(hop.status).text}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-gray-500 italic">No hops defined</div>
+                        )}
                     </div>
                 </CardContent>
             )}

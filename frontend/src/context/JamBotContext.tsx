@@ -417,7 +417,6 @@ interface JamBotContextType {
     setError: (error: string) => void;
     clearError: () => void;
     createNewSession: () => Promise<void>;
-
 }
 
 const JamBotContext = createContext<JamBotContextType | null>(null);
@@ -621,54 +620,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'CLEAR_ERROR' });
     }, []);
 
-    const createMessage = useCallback((content: string, role: MessageRole): ChatMessage => {
-        return {
-            id: `${role}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            chat_id: chatId || "temp", // Use actual chatId from auth context
-            role,
-            content,
-            message_metadata: {},
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-    }, [chatId]);
 
-
-
-    const processBotMessage = useCallback((data: StreamResponse) => {
-        console.log("processBotMessage data", data);
-
-        let token: string = "";
-
-        // Check if this is an AgentResponse (has token or response_text)
-        const isAgentResponse = 'token' in data || 'response_text' in data;
-
-        if (isAgentResponse) {
-            const agentData = data as AgentResponse;
-
-            if (agentData.token) {
-                console.log("agentData.token", agentData.token);
-                token = agentData.token;
-            }
-
-            if (agentData.response_text) {
-                console.log("agentData.response_text", agentData.response_text);
-                const chatMessage = createMessage(agentData.response_text, MessageRole.ASSISTANT);
-                addMessage(chatMessage);
-            }
-        }
-
-        // Both AgentResponse and StatusResponse have status
-        if (data.status) {
-            console.log("data.status", data.status);
-            const statusMessage = createMessage(data.status, MessageRole.STATUS);
-            addMessage(statusMessage);
-        }
-
-        // In the new architecture, we don't process payload for collab area
-        // The mission/hop state is managed directly in the backend
-        return token || "";
-    }, [addMessage, createMessage]);
 
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
         try {
@@ -801,6 +753,53 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
         }
     };
+
+    const createMessage = useCallback((content: string, role: MessageRole): ChatMessage => {
+        return {
+            id: `${role}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            chat_id: chatId || "temp", // Use actual chatId from auth context
+            role,
+            content,
+            message_metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+    }, [chatId]);
+
+    const processBotMessage = useCallback((data: StreamResponse) => {
+        console.log("processBotMessage data", data);
+
+        let token: string = "";
+
+        // Check if this is an AgentResponse (has token or response_text)
+        const isAgentResponse = 'token' in data || 'response_text' in data;
+
+        if (isAgentResponse) {
+            const agentData = data as AgentResponse;
+
+            if (agentData.token) {
+                console.log("agentData.token", agentData.token);
+                token = agentData.token;
+            }
+
+            if (agentData.response_text) {
+                console.log("agentData.response_text", agentData.response_text);
+                const chatMessage = createMessage(agentData.response_text, MessageRole.ASSISTANT);
+                addMessage(chatMessage);
+            }
+        }
+
+        // Both AgentResponse and StatusResponse have status
+        if (data.status) {
+            console.log("data.status", data.status);
+            const statusMessage = createMessage(data.status, MessageRole.STATUS);
+            addMessage(statusMessage);
+        }
+
+        // In the new architecture, we don't process payload for collab area
+        // The mission/hop state is managed directly in the backend
+        return token || "";
+    }, [addMessage, createMessage]);
 
     const sendMessage = useCallback(async (message: ChatMessage) => {
 

@@ -61,22 +61,7 @@ async def update_mission(mission_id: str, mission: Mission) -> None:
     else:
         print("Warning: Cannot persist mission - services not initialized")
 
-async def assign_mission_to_session(mission_id: str) -> None:
-    """Assign mission to user's active session"""
-    if _session_service and _user_id and mission_id:
-        try:
-            active_session = _session_service.get_active_session(_user_id)
-            if active_session:
-                from schemas.user_session import UpdateUserSessionRequest
-                update_request = UpdateUserSessionRequest(mission_id=mission_id)
-                _session_service.update_user_session_lightweight(_user_id, active_session.id, update_request)
-                print(f"Successfully assigned mission {mission_id} to session {active_session.id}")
-            else:
-                print("Warning: No active session found to assign mission")
-        except Exception as e:
-            print(f"Error assigning mission to session: {e}")
-    else:
-        print("Warning: Cannot assign mission to session - services not initialized")
+
 
 class State(BaseModel):
     """State for the RAVE workflow"""
@@ -325,13 +310,21 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission = proposed_mission
             state.mission_id = proposed_mission.id
             
-            # Create mission in database using module-level service
-            if _mission_service and _user_id:
-                await _mission_service.create_mission(_user_id, state.mission)
-                print(f"Successfully created mission {state.mission_id}")
-                
-                # Assign mission to user's active session in same transaction context
-                await assign_mission_to_session(state.mission_id)
+            # Create mission and update session atomically using session service
+            if _session_service and _user_id:
+                try:
+                    mission_id, updated_session = await _session_service.create_mission_and_update_session(
+                        _user_id, state.mission
+                    )
+                    print(f"Successfully created mission {mission_id} and updated session {updated_session.id}")
+                    
+                    # Update state with the actual mission_id from the database
+                    state.mission_id = mission_id
+                    state.mission.id = mission_id
+                    
+                except Exception as e:
+                    print(f"Error creating mission and updating session: {e}")
+                    raise e
             else:
                 print("Warning: Cannot create mission - services not initialized")
             

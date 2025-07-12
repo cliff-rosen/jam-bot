@@ -439,7 +439,7 @@ export const useJamBot = () => {
 
 export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(jamBotReducer, initialState);
-    const { user, sessionId, chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata, switchToNewSession } = useAuth();
+    const { user, sessionId, chatId, missionId, sessionMetadata, updateSessionMission, updateSessionMetadata, switchToNewSession, fetchActiveSession } = useAuth();
     const isInitializing = useRef(false);
 
     // Load data when session changes
@@ -843,17 +843,15 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } finally {
             updateStreamingMessage('');
 
-            // Refresh mission data after agent processing completes
-            if (missionId) {
-                try {
-                    console.log('Refreshing mission data after agent processing...');
-                    await loadMission(missionId);
-                } catch (refreshError) {
-                    console.error('Error refreshing mission data:', refreshError);
-                }
+            // Always refresh session after agent processing to pick up new missions
+            try {
+                console.log('Refreshing session after agent processing...');
+                await fetchActiveSession();
+            } catch (refreshError) {
+                console.error('Error refreshing session:', refreshError);
             }
         }
-    }, [state, addMessage, processBotMessage, updateStreamingMessage, missionId, loadMission]);
+    }, [state, addMessage, processBotMessage, updateStreamingMessage, fetchActiveSession]);
 
     const createNewSession = useCallback(async () => {
         try {

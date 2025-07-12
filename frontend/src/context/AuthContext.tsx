@@ -22,6 +22,7 @@ interface AuthContextType {
     updateSessionMission: (missionId: string) => Promise<void>
     updateSessionMetadata: (metadata: Record<string, any>) => Promise<void>
     switchToNewSession: (sessionData: { session_id: string; session_name: string; chat_id: string; mission_id?: string; session_metadata: Record<string, any> }) => void
+    fetchActiveSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -291,7 +292,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Session methods
             updateSessionMission,
             updateSessionMetadata,
-            switchToNewSession
+            switchToNewSession,
+            fetchActiveSession
         }}>
             {children}
         </AuthContext.Provider>

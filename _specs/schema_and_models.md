@@ -103,27 +103,26 @@ class UserSessionStatus(str, PyEnum):
     ARCHIVED = "archived"
 
 class MissionStatus(str, PyEnum):
-    PROPOSED = "proposed"
-    READY_FOR_NEXT_HOP = "ready_for_next_hop"
-    BUILDING_HOP = "building_hop"
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute"
-    EXECUTING_HOP = "executing_hop"
+    AWAITING_APPROVAL = "awaiting_approval"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 class HopStatus(str, PyEnum):
-    PROPOSED = "proposed"
-    READY_TO_RESOLVE = "ready_to_resolve"
-    READY_TO_EXECUTE = "ready_to_execute"
+    HOP_PLAN_STARTED = "hop_plan_started"
+    HOP_PLAN_PROPOSED = "hop_plan_proposed"
+    HOP_PLAN_READY = "hop_plan_ready"
+    HOP_IMPL_STARTED = "hop_impl_started"
+    HOP_IMPL_PROPOSED = "hop_impl_proposed"
+    HOP_IMPL_READY = "hop_impl_ready"
     EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 class ToolExecutionStatus(str, PyEnum):
-    PROPOSED = "proposed"
-    READY_TO_CONFIGURE = "ready_to_configure"
+    AWAITING_CONFIGURATION = "awaiting_configuration"
     READY_TO_EXECUTE = "ready_to_execute"
     EXECUTING = "executing"
     COMPLETED = "completed"
@@ -131,9 +130,9 @@ class ToolExecutionStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 class AssetStatus(str, PyEnum):
-    PROPOSED = "proposed"
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
+    AWAITING_APPROVAL = "awaiting_approval"
+    READY_FOR_PROCESSING = "ready_for_processing"
+    PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
     EXPIRED = "expired"
@@ -264,7 +263,7 @@ class Mission(Base):
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=True)
     success_criteria = Column(JSON, nullable=True)  # List[str]
-    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.PROPOSED)
+    status = Column(Enum(MissionStatus), nullable=False, default=MissionStatus.AWAITING_APPROVAL)
     
     # Current hop tracking
     current_hop_id = Column(String(36), ForeignKey("hops.id"), nullable=True)
@@ -304,7 +303,7 @@ class Hop(Base):
     goal = Column(Text, nullable=True)
     success_criteria = Column(JSON, nullable=True)  # List[str]
     rationale = Column(Text, nullable=True)
-    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.PROPOSED)
+    status = Column(Enum(HopStatus), nullable=False, default=HopStatus.HOP_PLAN_STARTED)
     
     # Hop state
     is_final = Column(Boolean, nullable=False, default=False)
@@ -344,7 +343,7 @@ class ToolStep(Base):
     # Tool step information
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PROPOSED)
+    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.AWAITING_CONFIGURATION)
     
     # Tool configuration
     parameter_mapping = Column(JSON, nullable=True)  # Dict[str, ParameterMapping]
@@ -506,7 +505,7 @@ class Mission(BaseModel):
     description: Optional[str] = None
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
-    status: MissionStatus = MissionStatus.PROPOSED
+    status: MissionStatus = MissionStatus.AWAITING_APPROVAL
     
     # Current hop tracking
     current_hop_id: Optional[str] = None
@@ -536,7 +535,7 @@ class Hop(BaseModel):
     goal: Optional[str] = None
     success_criteria: List[str] = Field(default_factory=list)
     rationale: Optional[str] = None
-    status: HopStatus = HopStatus.PROPOSED
+    status: HopStatus = HopStatus.HOP_PLAN_STARTED
     
     # Hop state
     is_final: bool = False
@@ -586,7 +585,7 @@ class ToolStep(BaseModel):
     sequence_order: int
     name: str
     description: Optional[str] = None
-    status: ToolExecutionStatus = ToolExecutionStatus.PROPOSED
+    status: ToolExecutionStatus = ToolExecutionStatus.AWAITING_CONFIGURATION
     
     # Tool configuration
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
@@ -620,7 +619,7 @@ class Asset(SchemaEntity):
     scope_id: str
     
     # Asset lifecycle
-    status: AssetStatus = AssetStatus.PENDING
+    status: AssetStatus = AssetStatus.AWAITING_APPROVAL
     role: AssetRole
     
     # Value representation (generated from content_summary)
@@ -659,20 +658,20 @@ export enum UserSessionStatus {
 }
 
 export enum MissionStatus {
-    PROPOSED = "proposed",
-    READY_FOR_NEXT_HOP = "ready_for_next_hop",
-    BUILDING_HOP = "building_hop",
-    HOP_READY_TO_EXECUTE = "hop_ready_to_execute",
-    EXECUTING_HOP = "executing_hop",
+    AWAITING_APPROVAL = "awaiting_approval",
+    IN_PROGRESS = "in_progress",
     COMPLETED = "completed",
     FAILED = "failed",
     CANCELLED = "cancelled"
 }
 
 export enum HopStatus {
-    PROPOSED = "proposed",
-    READY_TO_RESOLVE = "ready_to_resolve",
-    READY_TO_EXECUTE = "ready_to_execute",
+    HOP_PLAN_STARTED = "hop_plan_started",
+    HOP_PLAN_PROPOSED = "hop_plan_proposed",
+    HOP_PLAN_READY = "hop_plan_ready",
+    HOP_IMPL_STARTED = "hop_impl_started",
+    HOP_IMPL_PROPOSED = "hop_impl_proposed",
+    HOP_IMPL_READY = "hop_impl_ready",
     EXECUTING = "executing",
     COMPLETED = "completed",
     FAILED = "failed",
@@ -680,8 +679,7 @@ export enum HopStatus {
 }
 
 export enum ToolExecutionStatus {
-    PROPOSED = "proposed",
-    READY_TO_CONFIGURE = "ready_to_configure",
+    AWAITING_CONFIGURATION = "awaiting_configuration",
     READY_TO_EXECUTE = "ready_to_execute",
     EXECUTING = "executing",
     COMPLETED = "completed",
@@ -690,9 +688,9 @@ export enum ToolExecutionStatus {
 }
 
 export enum AssetStatus {
-    PROPOSED = "proposed",
-    PENDING = "pending",
-    IN_PROGRESS = "in_progress",
+    AWAITING_APPROVAL = "awaiting_approval",
+    READY_FOR_PROCESSING = "ready_for_processing",
+    PROCESSING = "processing",
     READY = "ready",
     ERROR = "error",
     EXPIRED = "expired"

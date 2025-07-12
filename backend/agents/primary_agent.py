@@ -31,6 +31,7 @@ from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCal
 
 from services.mission_service import MissionService
 from services.user_session_service import UserSessionService
+from services.state_transition_service import StateTransitionService, TransactionType, StateTransitionError
 
 
 # Use settings from config
@@ -43,14 +44,16 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 # Module-level service instances
 _mission_service: Optional[MissionService] = None
 _session_service: Optional[UserSessionService] = None
+_state_transition_service: Optional[StateTransitionService] = None
 _user_id: Optional[int] = None
 
 def initialize_services(config: Dict[str, Any]) -> None:
     """Initialize module-level services from config"""
-    global _mission_service, _session_service, _user_id
+    global _mission_service, _session_service, _state_transition_service, _user_id
     configurable = config.get('configurable', {})
     _mission_service = configurable.get('mission_service')
     _session_service = configurable.get('session_service')
+    _state_transition_service = configurable.get('state_transition_service')
     _user_id = configurable.get('user_id')
 
 async def update_mission(mission_id: str, mission: Mission) -> None:
@@ -104,7 +107,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     # Initialize services from config (supervisor is always called first)
     print(f"DEBUG: Config keys: {list(config.keys())}")
     initialize_services(config)
-    print(f"DEBUG: Services initialized - mission_service: {_mission_service is not None}, user_id: {_user_id}")
+    print(f"DEBUG: Services initialized - mission_service: {_mission_service is not None}, state_transition_service: {_state_transition_service is not None}, user_id: {_user_id}")
     
     if writer:
         status_response = StatusResponse(
@@ -359,36 +362,64 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
         # Handle mission proposal creation
         if parsed_response.mission_proposal:
             print("Mission proposal created")
-            # Create a full mission from the proposal and update state directly
+            # Create a full mission from the proposal
             proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
             
-            # Set mission status to AWAITING_APPROVAL
-            proposed_mission.status = MissionStatus.AWAITING_APPROVAL
-            
-            # Update state with the new mission
-            state.mission = proposed_mission
-            state.mission_id = proposed_mission.id
-            
-            # Create mission and update session atomically using session service
-            if _session_service and _user_id:
+            # Use StateTransitionService to properly persist the mission proposal
+            if _state_transition_service and _user_id:
                 try:
-                    mission_id, updated_session = await _session_service.create_mission_and_update_session(
-                        _user_id, state.mission
+                    # Prepare mission data for transaction service
+                    mission_data = {
+                        'name': proposed_mission.name,
+                        'description': proposed_mission.description,
+                        'goal': proposed_mission.goal,
+                        'success_criteria': proposed_mission.success_criteria,
+                        'mission_state': {asset_id: asset.model_dump() for asset_id, asset in proposed_mission.mission_state.items()}
+                    }
+                    
+                    # Use transaction service to create mission - it handles status and session automatically
+                    result = await _state_transition_service.updateState(
+                        TransactionType.PROPOSE_MISSION,
+                        {
+                            'user_id': _user_id,
+                            'mission': mission_data
+                        }
                     )
-                    print(f"Successfully created mission {mission_id} and updated session {updated_session.id}")
                     
-                    # Update state with the actual mission_id from the database
-                    state.mission_id = mission_id
-                    state.mission.id = mission_id
+                    print(f"Successfully created mission via transaction service: {result.entity_id}")
                     
+                    # Fetch the persisted mission from database to get correct state
+                    if _mission_service:
+                        persisted_mission = await _mission_service.get_mission(result.entity_id, _user_id)
+                        if persisted_mission:
+                            state.mission = persisted_mission
+                            state.mission_id = result.entity_id
+                        else:
+                            # Fallback - update local state but warn
+                            print("Warning: Could not fetch persisted mission, using local state")
+                            proposed_mission.id = result.entity_id
+                            state.mission = proposed_mission
+                            state.mission_id = result.entity_id
+                    else:
+                        # Fallback if mission service not available
+                        proposed_mission.id = result.entity_id
+                        state.mission = proposed_mission
+                        state.mission_id = result.entity_id
+                    
+                    # Success message
+                    response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
+                    
+                except StateTransitionError as e:
+                    print(f"State transition error creating mission: {e}")
+                    response_message.content = f"Error creating mission proposal: {str(e)}"
+                    raise e
                 except Exception as e:
-                    print(f"Error creating mission and updating session: {e}")
+                    print(f"Unexpected error creating mission: {e}")
+                    response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
                     raise e
             else:
-                print("Warning: Cannot create mission - services not initialized")
-            
-            # Update response message
-            response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
+                print("Warning: Cannot create mission - StateTransitionService not initialized")
+                response_message.content = "Error: Unable to create mission proposal - service not available"
 
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],

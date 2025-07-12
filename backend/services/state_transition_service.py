@@ -20,6 +20,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from uuid import uuid4
 from sqlalchemy.orm import Session
+from dataclasses import dataclass, field
+from enum import Enum
 
 from database import get_db
 from models import (
@@ -37,7 +39,41 @@ from schemas.workflow import (
 )
 from services.asset_service import AssetService
 from services.mission_transformer import MissionTransformer
+from services.user_session_service import UserSessionService
 from exceptions import ValidationError
+
+
+class TransactionType(str, Enum):
+    """Enum for all supported transaction types"""
+    PROPOSE_MISSION = "propose_mission"
+    ACCEPT_MISSION = "accept_mission"
+    PROPOSE_HOP_PLAN = "propose_hop_plan"
+    ACCEPT_HOP_PLAN = "accept_hop_plan"
+    PROPOSE_HOP_IMPL = "propose_hop_impl"
+    ACCEPT_HOP_IMPL = "accept_hop_impl"
+    EXECUTE_HOP = "execute_hop"
+    COMPLETE_HOP = "complete_hop"
+    COMPLETE_MISSION = "complete_mission"
+
+
+@dataclass
+class TransactionResult:
+    """Standardized result for all state transitions"""
+    success: bool
+    entity_id: str
+    status: str
+    message: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            "success": self.success,
+            "entity_id": self.entity_id,
+            "status": self.status,
+            "message": self.message,
+            **self.metadata
+        }
 
 
 class StateTransitionError(Exception):
@@ -48,12 +84,13 @@ class StateTransitionError(Exception):
 class StateTransitionService:
     """Unified interface for all state transitions"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, session_service: UserSessionService = None):
         self.db = db
         self.asset_service = AssetService(db)
         self.mission_transformer = MissionTransformer(self.asset_service)
+        self.session_service = session_service
     
-    async def updateState(self, transaction_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def updateState(self, transaction_type: TransactionType, data: Dict[str, Any]) -> TransactionResult:
         """
         Unified interface for all state transitions
         
@@ -69,23 +106,23 @@ class StateTransitionService:
         """
         try:
             # Route to appropriate handler based on transaction type
-            if transaction_type == "propose_mission":
+            if transaction_type == TransactionType.PROPOSE_MISSION:
                 return await self._propose_mission(data)
-            elif transaction_type == "accept_mission":
+            elif transaction_type == TransactionType.ACCEPT_MISSION:
                 return await self._accept_mission(data)
-            elif transaction_type == "propose_hop_plan":
+            elif transaction_type == TransactionType.PROPOSE_HOP_PLAN:
                 return await self._propose_hop_plan(data)
-            elif transaction_type == "accept_hop_plan":
+            elif transaction_type == TransactionType.ACCEPT_HOP_PLAN:
                 return await self._accept_hop_plan(data)
-            elif transaction_type == "propose_hop_impl":
+            elif transaction_type == TransactionType.PROPOSE_HOP_IMPL:
                 return await self._propose_hop_impl(data)
-            elif transaction_type == "accept_hop_impl":
+            elif transaction_type == TransactionType.ACCEPT_HOP_IMPL:
                 return await self._accept_hop_impl(data)
-            elif transaction_type == "execute_hop":
+            elif transaction_type == TransactionType.EXECUTE_HOP:
                 return await self._execute_hop(data)
-            elif transaction_type == "complete_hop":
+            elif transaction_type == TransactionType.COMPLETE_HOP:
                 return await self._complete_hop(data)
-            elif transaction_type == "complete_mission":
+            elif transaction_type == TransactionType.COMPLETE_MISSION:
                 return await self._complete_mission(data)
             else:
                 raise StateTransitionError(f"Unknown transaction type: {transaction_type}")
@@ -94,9 +131,21 @@ class StateTransitionService:
             self.db.rollback()
             raise StateTransitionError(f"State transition failed [{transaction_type}]: {str(e)}")
     
+    def _validate_transition(self, entity_type: str, entity_id: str, current_status: str, expected_status: str, user_id: int) -> None:
+        """Validate that a state transition is allowed"""
+        if current_status != expected_status:
+            raise StateTransitionError(
+                f"{entity_type} {entity_id} must be {expected_status}, current: {current_status}"
+            )
+    
+    def _validate_entity_exists(self, entity, entity_type: str, entity_id: str) -> None:
+        """Validate that an entity exists"""
+        if not entity:
+            raise StateTransitionError(f"{entity_type} {entity_id} not found")
+    
     # Individual transaction handlers
     
-    async def _propose_mission(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _propose_mission(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle mission proposal: Create mission with AWAITING_APPROVAL status"""
         user_id = data['user_id']
         mission_data = data['mission']
@@ -125,16 +174,25 @@ class StateTransitionService:
                     role=asset_data.get('role', 'input')
                 )
         
+        # Link mission to user's active session automatically
+        if self.session_service:
+            try:
+                await self.session_service.link_mission_to_session(user_id, mission_id)
+            except Exception as e:
+                # Log but don't fail the transaction
+                print(f"Warning: Could not link mission to session: {e}")
+        
         self.db.commit()
         
-        return {
-            "success": True,
-            "mission_id": mission_id,
-            "status": "AWAITING_APPROVAL",
-            "message": "Mission proposed and awaiting user approval"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=mission_id,
+            status="AWAITING_APPROVAL",
+            message="Mission proposed and awaiting user approval",
+            metadata={"mission_id": mission_id}
+        )
     
-    async def _accept_mission(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _accept_mission(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle mission acceptance: AWAITING_APPROVAL → IN_PROGRESS"""
         mission_id = data['mission_id']
         user_id = data['user_id']
@@ -145,25 +203,23 @@ class StateTransitionService:
             MissionModel.user_id == user_id
         ).first()
         
-        if not mission_model:
-            raise StateTransitionError(f"Mission {mission_id} not found")
-        
-        if mission_model.status != MissionStatus.AWAITING_APPROVAL:
-            raise StateTransitionError(f"Mission must be AWAITING_APPROVAL, current: {mission_model.status}")
+        self._validate_entity_exists(mission_model, "Mission", mission_id)
+        self._validate_transition("Mission", mission_id, mission_model.status.value, "awaiting_approval", user_id)
         
         mission_model.status = MissionStatus.IN_PROGRESS
         mission_model.updated_at = datetime.utcnow()
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "mission_id": mission_id,
-            "status": "IN_PROGRESS",
-            "message": "Mission accepted and ready for hop planning"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=mission_id,
+            status="IN_PROGRESS",
+            message="Mission accepted and ready for hop planning",
+            metadata={"mission_id": mission_id}
+        )
     
-    async def _propose_hop_plan(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _propose_hop_plan(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop plan proposal: Create hop + link to mission"""
         mission_id = data['mission_id']
         user_id = data['user_id']
@@ -175,11 +231,8 @@ class StateTransitionService:
             MissionModel.user_id == user_id
         ).first()
         
-        if not mission_model:
-            raise StateTransitionError(f"Mission {mission_id} not found")
-        
-        if mission_model.status != MissionStatus.IN_PROGRESS:
-            raise StateTransitionError(f"Mission must be IN_PROGRESS, current: {mission_model.status}")
+        self._validate_entity_exists(mission_model, "Mission", mission_id)
+        self._validate_transition("Mission", mission_id, mission_model.status.value, "in_progress", user_id)
         
         # Create hop
         hop_id = str(uuid4())
@@ -212,15 +265,15 @@ class StateTransitionService:
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "mission_id": mission_id,
-            "status": "HOP_PLAN_PROPOSED",
-            "message": "Hop plan proposed and awaiting user approval"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="HOP_PLAN_PROPOSED",
+            message="Hop plan proposed and awaiting user approval",
+            metadata={"hop_id": hop_id, "mission_id": mission_id}
+        )
     
-    async def _accept_hop_plan(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _accept_hop_plan(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop plan acceptance: HOP_PLAN_PROPOSED → HOP_PLAN_READY"""
         hop_id = data['hop_id']
         user_id = data['user_id']
@@ -230,25 +283,23 @@ class StateTransitionService:
             HopModel.user_id == user_id
         ).first()
         
-        if not hop_model:
-            raise StateTransitionError(f"Hop {hop_id} not found")
-        
-        if hop_model.status != HopStatus.HOP_PLAN_PROPOSED:
-            raise StateTransitionError(f"Hop must be HOP_PLAN_PROPOSED, current: {hop_model.status}")
+        self._validate_entity_exists(hop_model, "Hop", hop_id)
+        self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_plan_proposed", user_id)
         
         hop_model.status = HopStatus.HOP_PLAN_READY
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "status": "HOP_PLAN_READY",
-            "message": "Hop plan accepted and ready for implementation"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="HOP_PLAN_READY",
+            message="Hop plan accepted and ready for implementation",
+            metadata={"hop_id": hop_id}
+        )
     
-    async def _propose_hop_impl(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _propose_hop_impl(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop implementation proposal: HOP_PLAN_READY → HOP_IMPL_PROPOSED"""
         hop_id = data['hop_id']
         user_id = data['user_id']
@@ -259,11 +310,8 @@ class StateTransitionService:
             HopModel.user_id == user_id
         ).first()
         
-        if not hop_model:
-            raise StateTransitionError(f"Hop {hop_id} not found")
-        
-        if hop_model.status != HopStatus.HOP_PLAN_READY:
-            raise StateTransitionError(f"Hop must be HOP_PLAN_READY, current: {hop_model.status}")
+        self._validate_entity_exists(hop_model, "Hop", hop_id)
+        self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_plan_ready", user_id)
         
         # Create tool steps
         for i, tool_step_data in enumerate(tool_steps):
@@ -289,15 +337,15 @@ class StateTransitionService:
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "status": "HOP_IMPL_PROPOSED",
-            "tool_steps_created": len(tool_steps),
-            "message": "Hop implementation proposed and awaiting user approval"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="HOP_IMPL_PROPOSED",
+            message="Hop implementation proposed and awaiting user approval",
+            metadata={"hop_id": hop_id, "tool_steps_created": len(tool_steps)}
+        )
     
-    async def _accept_hop_impl(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _accept_hop_impl(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop implementation acceptance: HOP_IMPL_PROPOSED → HOP_IMPL_READY"""
         hop_id = data['hop_id']
         user_id = data['user_id']
@@ -307,25 +355,23 @@ class StateTransitionService:
             HopModel.user_id == user_id
         ).first()
         
-        if not hop_model:
-            raise StateTransitionError(f"Hop {hop_id} not found")
-        
-        if hop_model.status != HopStatus.HOP_IMPL_PROPOSED:
-            raise StateTransitionError(f"Hop must be HOP_IMPL_PROPOSED, current: {hop_model.status}")
+        self._validate_entity_exists(hop_model, "Hop", hop_id)
+        self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_impl_proposed", user_id)
         
         hop_model.status = HopStatus.HOP_IMPL_READY
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "status": "HOP_IMPL_READY",
-            "message": "Hop implementation accepted and ready for execution"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="HOP_IMPL_READY",
+            message="Hop implementation accepted and ready for execution",
+            metadata={"hop_id": hop_id}
+        )
     
-    async def _execute_hop(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_hop(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop execution start: HOP_IMPL_READY → EXECUTING"""
         hop_id = data['hop_id']
         user_id = data['user_id']
@@ -335,25 +381,23 @@ class StateTransitionService:
             HopModel.user_id == user_id
         ).first()
         
-        if not hop_model:
-            raise StateTransitionError(f"Hop {hop_id} not found")
-        
-        if hop_model.status != HopStatus.HOP_IMPL_READY:
-            raise StateTransitionError(f"Hop must be HOP_IMPL_READY, current: {hop_model.status}")
+        self._validate_entity_exists(hop_model, "Hop", hop_id)
+        self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_impl_ready", user_id)
         
         hop_model.status = HopStatus.EXECUTING
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "status": "EXECUTING",
-            "message": "Hop execution started"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="EXECUTING",
+            message="Hop execution started",
+            metadata={"hop_id": hop_id}
+        )
     
-    async def _complete_hop(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _complete_hop(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle hop completion: EXECUTING → COMPLETED"""
         hop_id = data['hop_id']
         user_id = data['user_id']
@@ -364,11 +408,8 @@ class StateTransitionService:
             HopModel.user_id == user_id
         ).first()
         
-        if not hop_model:
-            raise StateTransitionError(f"Hop {hop_id} not found")
-        
-        if hop_model.status != HopStatus.EXECUTING:
-            raise StateTransitionError(f"Hop must be EXECUTING, current: {hop_model.status}")
+        self._validate_entity_exists(hop_model, "Hop", hop_id)
+        self._validate_transition("Hop", hop_id, hop_model.status.value, "executing", user_id)
         
         # Complete hop
         hop_model.status = HopStatus.COMPLETED
@@ -406,17 +447,21 @@ class StateTransitionService:
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "hop_id": hop_id,
-            "mission_id": hop_model.mission_id,
-            "hop_status": "COMPLETED",
-            "mission_status": mission_status,
-            "is_final": hop_model.is_final,
-            "message": message
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=hop_id,
+            status="COMPLETED",
+            message=message,
+            metadata={
+                "hop_id": hop_id,
+                "mission_id": hop_model.mission_id,
+                "hop_status": "COMPLETED",
+                "mission_status": mission_status,
+                "is_final": hop_model.is_final
+            }
+        )
     
-    async def _complete_mission(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _complete_mission(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle mission completion: IN_PROGRESS → COMPLETED"""
         mission_id = data['mission_id']
         user_id = data['user_id']
@@ -426,20 +471,20 @@ class StateTransitionService:
             MissionModel.user_id == user_id
         ).first()
         
-        if not mission_model:
-            raise StateTransitionError(f"Mission {mission_id} not found")
+        self._validate_entity_exists(mission_model, "Mission", mission_id)
         
         mission_model.status = MissionStatus.COMPLETED
         mission_model.updated_at = datetime.utcnow()
         
         self.db.commit()
         
-        return {
-            "success": True,
-            "mission_id": mission_id,
-            "status": "COMPLETED",
-            "message": "Mission completed successfully"
-        }
+        return TransactionResult(
+            success=True,
+            entity_id=mission_id,
+            status="COMPLETED",
+            message="Mission completed successfully",
+            metadata={"mission_id": mission_id}
+        )
     
     # Helper methods
     
@@ -495,8 +540,10 @@ class StateTransitionService:
 
 
 # Dependency function for FastAPI
-async def get_state_transition_service(db: Session = None) -> StateTransitionService:
+async def get_state_transition_service(db: Session = None, session_service: UserSessionService = None) -> StateTransitionService:
     """Get StateTransitionService instance"""
     if db is None:
         db = next(get_db())
-    return StateTransitionService(db) 
+    if session_service is None:
+        session_service = UserSessionService(db)
+    return StateTransitionService(db, session_service) 

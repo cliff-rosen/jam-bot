@@ -145,9 +145,9 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 next_node = "hop_designer_node"
                 routing_message = "Hop plan proposed - routing to hop designer for processing"
             elif state.mission.current_hop.status == HopStatus.HOP_PLAN_READY:
-                # Hop plan ready - route to hop designer to start implementation
-                next_node = "hop_designer_node"
-                routing_message = "Hop plan ready - routing to hop designer to start implementation"
+                # Hop plan ready - route to hop implementer to start implementation
+                next_node = "hop_implementer_node"
+                routing_message = "Hop plan ready - routing to hop implementer to start implementation"
             elif state.mission.current_hop.status == HopStatus.HOP_IMPL_STARTED:
                 # Hop implementation started - route to hop implementer
                 next_node = "hop_implementer_node"
@@ -161,17 +161,26 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 next_node = "hop_implementer_node"
                 routing_message = "Hop implementation ready - routing to hop implementer for execution"
             elif state.mission.current_hop.status == HopStatus.EXECUTING:
-                # Hop executing - route to hop implementer (as executor placeholder)
-                next_node = "hop_implementer_node"
-                routing_message = "Hop executing - routing to hop implementer as executor"
+                # Hop executing - wait for completion (no active routing needed)
+                next_node = END
+                routing_message = "Hop is executing - waiting for tool steps to complete"
             elif state.mission.current_hop.status == HopStatus.COMPLETED:
                 # Hop completed - check if final hop or continue to next hop
                 if state.mission.current_hop.is_final:
-                    # Final hop completed - route to mission specialist for completion
+                    # Final hop completed - complete the mission and route to mission specialist
+                    state.mission.status = MissionStatus.COMPLETED
+                    state.mission.updated_at = datetime.utcnow()
+                    # Persist mission completion
+                    await update_mission(state.mission_id, state.mission)
                     next_node = "mission_specialist_node"
-                    routing_message = "Final hop completed - routing to mission specialist for mission completion"
+                    routing_message = "Final hop completed - mission completed, routing to mission specialist for final processing"
                 else:
-                    # Non-final hop completed - route to hop designer for next hop
+                    # Non-final hop completed - clear current hop and route to hop designer for next hop
+                    state.mission.current_hop = None
+                    state.mission.current_hop_id = None
+                    state.mission.updated_at = datetime.utcnow()
+                    # Persist mission state
+                    await update_mission(state.mission_id, state.mission)
                     next_node = "hop_designer_node"
                     routing_message = "Hop completed (non-final) - routing to hop designer for next hop"
             elif state.mission.current_hop.status == HopStatus.FAILED:
@@ -188,7 +197,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 next_node = "mission_specialist_node"
         
         elif state.mission.status == MissionStatus.COMPLETED:
-            # Mission completed - route to mission specialist
+            # Mission completed - route to mission specialist for final processing
             next_node = "mission_specialist_node"
             routing_message = "Mission completed - routing to mission specialist for final processing"
         
@@ -198,7 +207,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             routing_message = "Mission failed - routing to mission specialist for error handling"
         
         elif state.mission.status == MissionStatus.CANCELLED:
-            # Mission cancelled - route to mission specialist
+            # Mission cancelled - route to mission specialist for cleanup
             next_node = "mission_specialist_node"
             routing_message = "Mission cancelled - routing to mission specialist for cleanup"
         
@@ -206,6 +215,12 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             # Unknown mission status
             routing_message = f"Unknown mission status: {state.mission.status}"
             next_node = "mission_specialist_node"
+
+        # Validate state coordination per specification
+        validation_errors = _validate_state_coordination(state.mission)
+        if validation_errors:
+            print(f"WARNING: State coordination issues detected: {', '.join(validation_errors)}")
+            # Log but don't fail - continue with routing
 
         # Log routing decision
         print(f"DEBUG: Routing decision - {routing_message}")
@@ -257,6 +272,50 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             )
             writer(error_response.model_dump())
         raise
+
+def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:
+    """
+    Validate state coordination per the status system specification.
+    
+    Returns list of validation errors (empty if valid).
+    """
+    errors = []
+    
+    if not mission:
+        return errors
+    
+    # Mission-Hop Coordination Rules from spec
+    if mission.status == MissionStatus.AWAITING_APPROVAL:
+        # Mission awaiting approval should have no current hop
+        if mission.current_hop:
+            errors.append(f"Mission AWAITING_APPROVAL should not have current hop, but found hop with status {mission.current_hop.status}")
+    
+    elif mission.status == MissionStatus.IN_PROGRESS:
+        # Mission in progress can have various hop states or no hop
+        if mission.current_hop:
+            valid_hop_states = {
+                HopStatus.HOP_PLAN_STARTED,
+                HopStatus.HOP_PLAN_PROPOSED,
+                HopStatus.HOP_PLAN_READY,
+                HopStatus.HOP_IMPL_STARTED,
+                HopStatus.HOP_IMPL_PROPOSED,
+                HopStatus.HOP_IMPL_READY,
+                HopStatus.EXECUTING,
+                HopStatus.COMPLETED
+            }
+            if mission.current_hop.status not in valid_hop_states:
+                errors.append(f"Mission IN_PROGRESS has invalid hop status: {mission.current_hop.status}")
+    
+    elif mission.status == MissionStatus.COMPLETED:
+        # Mission completed should have completed final hop or no hop
+        if mission.current_hop and mission.current_hop.status != HopStatus.COMPLETED:
+            errors.append(f"Mission COMPLETED should have completed hop or no hop, but found hop with status {mission.current_hop.status}")
+    
+    elif mission.status in [MissionStatus.FAILED, MissionStatus.CANCELLED]:
+        # Failed/cancelled missions can have various hop states
+        pass
+    
+    return errors
 
 async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles mission specialist operations"""

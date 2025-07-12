@@ -1,4 +1,4 @@
-# New Status System
+# Status System
 
 This document defines the complete new status system with simplified mission states and detailed hop workflow states.
 
@@ -38,7 +38,6 @@ This document defines the complete new status system with simplified mission sta
 | State | Description | What Happens Next |
 |-------|-------------|-------------------|
 | `AWAITING_CONFIGURATION` | Tool step created during implementation | System configures parameters |
-| `READY_TO_CONFIGURE` | Tool selected, needs parameter configuration | System validates and configures |
 | `READY_TO_EXECUTE` | Configuration complete, ready to run | Execution begins |
 | `EXECUTING` | Tool is running | Wait for completion |
 | `COMPLETED` | Tool execution finished successfully | Tool step is done |

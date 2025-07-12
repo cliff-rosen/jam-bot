@@ -52,9 +52,6 @@ def initialize_services(config: Dict[str, Any]) -> None:
     _mission_service = configurable.get('mission_service')
     _session_service = configurable.get('session_service')
     _user_id = configurable.get('user_id')
-    print(f"DEBUG: initialize_services called with config keys: {list(config.keys())}")
-    print(f"DEBUG: configurable keys: {list(configurable.keys())}")
-    print(f"DEBUG: mission_service type: {type(_mission_service)}, user_id: {_user_id}")
 
 async def update_mission(mission_id: str, mission: Mission) -> None:
     """Update mission using module-level service"""
@@ -70,7 +67,9 @@ async def assign_mission_to_session(mission_id: str) -> None:
         try:
             active_session = _session_service.get_active_session(_user_id)
             if active_session:
-                _session_service.update_session_mission(active_session.id, mission_id)
+                from schemas.user_session import UpdateUserSessionRequest
+                update_request = UpdateUserSessionRequest(mission_id=mission_id)
+                _session_service.update_user_session_lightweight(_user_id, active_session.id, update_request)
                 print(f"Successfully assigned mission {mission_id} to session {active_session.id}")
             else:
                 print("Warning: No active session found to assign mission")
@@ -328,7 +327,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             
             # Create mission in database using module-level service
             if _mission_service and _user_id:
-                await _mission_service.create_mission(state.mission, _user_id)
+                await _mission_service.create_mission(_user_id, state.mission)
                 print(f"Successfully created mission {state.mission_id}")
             else:
                 print("Warning: Cannot create mission - services not initialized")
@@ -957,8 +956,8 @@ def _process_implementation_plan(
             status=AssetStatus.PENDING,
             role='intermediate',
             asset_metadata={
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat(),
                 "creator": "hop_implementer",
                 "custom_metadata": {}
             },

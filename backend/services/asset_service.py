@@ -145,7 +145,7 @@ class AssetService:
 
         token_count = self._calculate_token_count(content)
 
-        asset_metadata_dict = asset_metadata or {}
+        asset_metadata_dict = (asset_metadata or {}).copy()
         asset_metadata_dict.setdefault("createdAt", datetime.utcnow().isoformat())
         asset_metadata_dict.setdefault("updatedAt", datetime.utcnow().isoformat())
         asset_metadata_dict.setdefault("version", 1)

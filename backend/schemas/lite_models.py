@@ -111,8 +111,8 @@ def create_asset_from_lite(asset_lite: AssetLite) -> Asset:
         custom_metadata['is_array'] = asset_lite.is_array
 
     asset_metadata = {
-        "created_at": current_time,
-        "updated_at": current_time,
+        "created_at": current_time.isoformat(),
+        "updated_at": current_time.isoformat(),
         "creator": "mission_specialist",
         "custom_metadata": custom_metadata,
     }

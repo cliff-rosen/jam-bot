@@ -140,6 +140,28 @@ class HopService:
         error_message: Optional[str] = None
     ) -> Optional[Hop]:
         """Update hop status with optional error message and coordinate with mission status"""
+        # For completion status, use StateTransitionService for atomic coordination
+        if status == HopStatusSchema.COMPLETED:
+            try:
+                from services.state_transition_service import StateTransitionService
+                state_service = StateTransitionService(self.db)
+                
+                # Use atomic completion operation
+                mission, hop = await state_service.complete_hop_and_update_mission(
+                    hop_id=hop_id,
+                    user_id=user_id,
+                    execution_result=None
+                )
+                
+                print(f"Hop {hop_id} completed with atomic mission coordination")
+                return hop
+                
+            except Exception as e:
+                print(f"Failed to complete hop with coordination: {str(e)}")
+                # Fall back to simple update if coordination fails
+                pass
+        
+        # For other status updates, use simple update
         updates = {
             'status': HopStatus(status.value),
             'updated_at': datetime.utcnow()
@@ -153,8 +175,8 @@ class HopService:
         
         hop = await self.update_hop(hop_id, user_id, updates)
         
-        # Coordinate mission status with hop status change
-        if hop:
+        # For non-completion updates, still coordinate mission status
+        if hop and status != HopStatusSchema.COMPLETED:
             try:
                 # Import here to avoid circular imports
                 from services.mission_service import MissionService

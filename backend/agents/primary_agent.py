@@ -39,6 +39,24 @@ VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "vs_68347e57e7408191a5a775f40db83
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
+# Module-level service instances
+_mission_service: Optional[MissionService] = None
+_user_id: Optional[int] = None
+
+def initialize_services(config: Dict[str, Any]) -> None:
+    """Initialize module-level services from config"""
+    global _mission_service, _user_id
+    _mission_service = config.get('mission_service')
+    _user_id = config.get('user_id')
+
+async def update_mission(mission_id: str, mission: Mission) -> None:
+    """Update mission using module-level service"""
+    if _mission_service and _user_id and mission_id:
+        await _mission_service.update_mission(mission_id, _user_id, mission)
+        print(f"Successfully persisted mission {mission_id}")
+    else:
+        print("Warning: Cannot persist mission - services not initialized")
+
 class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[ChatMessage]
@@ -71,33 +89,16 @@ def serialize_state(state: State) -> dict:
     state_dict = state.model_dump()
     return convert_datetime(state_dict)
 
-async def persist_mission_if_needed(state: State, config: Dict[str, Any]) -> None:
-    """Persist mission changes to database if mission_id is provided"""
-    if not state.mission_id or not state.mission:
-        return
-    
-    try:
-        # Get database session from config
-        db = config.get('db')
-        user_id = config.get('user_id')
-        
-        if not db or not user_id:
-            print("Warning: Cannot persist mission - missing db or user_id in config")
-            return
-        
-        mission_service = MissionService(db)
-        await mission_service.update_mission(state.mission_id, user_id, state.mission)
-        print(f"Successfully persisted mission {state.mission_id}")
-        
-    except Exception as e:
-        print(f"Failed to persist mission {state.mission_id}: {e}")
-        # Continue without failing the workflow
-
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
     print("Supervisor - Routing based on mission and hop status")
     print(f"DEBUG: Mission status: {state.mission.status if state.mission else 'No mission'}")
     print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}")
+    
+    # Initialize services from config (supervisor is always called first)
+    print(f"DEBUG: Config keys: {list(config.keys())}")
+    initialize_services(config)
+    print(f"DEBUG: Services initialized - mission_service: {_mission_service is not None}, user_id: {_user_id}")
     
     if writer:
         status_response = StatusResponse(
@@ -254,6 +255,9 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles mission specialist operations"""
     print("Mission specialist node")
+    
+    # Initialize services from config
+    initialize_services(config)
 
     if writer:
         status_response = StatusResponse(
@@ -289,6 +293,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         # Handle mission proposal creation
         if parsed_response.mission_proposal:
+            print("Mission proposal created")
             # Create a full mission from the proposal and update state directly
             proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
             
@@ -299,8 +304,8 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             state.mission = proposed_mission
             state.mission_id = proposed_mission.id
             
-            # Persist to database
-            await persist_mission_if_needed(state, config)
+            # Persist mission using module-level service
+            await update_mission(state.mission_id, state.mission)
             
             # Update response message
             response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
@@ -347,6 +352,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
     """Hop designer node that designs the next hop in the mission"""
     print("Hop designer node")
     print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop status'}")
+
+    # Initialize services from config
+    initialize_services(config)
 
     if writer:
         status_response = StatusResponse(
@@ -403,8 +411,8 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                 for asset in proposed_assets:
                     state.mission.mission_state[asset.id] = asset
             
-            # Persist to database
-            await persist_mission_if_needed(state, config)
+            # Persist mission using module-level service
+            await update_mission(state.mission_id, state.mission)
             
             # Update response message
             response_message.content = f"Hop plan proposed: {new_hop.name}. Please review and approve to proceed with implementation."
@@ -458,6 +466,9 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles hop implementer operations"""
     print("Hop implementer node")
+
+    # Initialize services from config
+    initialize_services(config)
 
     if writer:
         status_response = StatusResponse(
@@ -527,9 +538,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         else:
             raise ValueError(f"Invalid response type: {parsed_response.response_type}")
         
-        # Persist mission changes to database
-        await persist_mission_if_needed(state, config)
-        
+        # Persist mission using module-level service
+        await update_mission(state.mission_id, state.mission)
+
         # Route back to supervisor
         next_node = END
 

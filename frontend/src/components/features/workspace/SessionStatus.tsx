@@ -2,7 +2,6 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useJamBot } from '@/context/JamBotContext';
-import { getMissionStatusDisplay, getHopStatusDisplay } from '@/utils/statusUtils';
 
 const SessionStatus: React.FC = () => {
     const { sessionName } = useAuth();
@@ -16,8 +15,56 @@ const SessionStatus: React.FC = () => {
         }
     };
 
-    const missionStatusDisplay = state.mission ? getMissionStatusDisplay(state.mission.status) : null;
-    const hopStatusDisplay = state.mission?.current_hop ? getHopStatusDisplay(state.mission.current_hop.status) : null;
+    // Mission status logic
+    const getMissionStatus = () => {
+        if (!state.mission || state.mission.status === 'awaiting_approval') {
+            return { text: 'MISSION PENDING', color: 'yellow' };
+        }
+        if (state.mission.status === 'in_progress') {
+            return { text: 'MISSION IN PROGRESS', color: 'blue' };
+        }
+        if (state.mission.status === 'completed') {
+            return { text: 'MISSION COMPLETED', color: 'green' };
+        }
+        if (state.mission.status === 'failed') {
+            return { text: 'MISSION FAILED', color: 'red' };
+        }
+        return { text: 'MISSION PENDING', color: 'yellow' };
+    };
+
+    // Hop status logic - only show when mission is in progress
+    const getHopStatus = () => {
+        if (!state.mission || state.mission.status !== 'in_progress' || !state.mission.current_hop) {
+            return null;
+        }
+
+        const hop = state.mission.current_hop;
+        switch (hop.status) {
+            case 'hop_plan_started':
+                return { text: 'Planning Hop', color: 'blue' };
+            case 'hop_plan_proposed':
+                return { text: 'Hop Plan Ready', color: 'yellow' };
+            case 'hop_plan_ready':
+                return { text: 'Hop Ready', color: 'green' };
+            case 'hop_impl_started':
+                return { text: 'Designing Implementation', color: 'blue' };
+            case 'hop_impl_proposed':
+                return { text: 'Implementation Ready', color: 'yellow' };
+            case 'hop_impl_ready':
+                return { text: 'Ready to Execute', color: 'green' };
+            case 'executing':
+                return { text: 'Executing Hop', color: 'blue' };
+            case 'completed':
+                return { text: 'Hop Completed', color: 'green' };
+            case 'failed':
+                return { text: 'Hop Failed', color: 'red' };
+            default:
+                return { text: 'Hop Pending', color: 'yellow' };
+        }
+    };
+
+    const missionStatus = getMissionStatus();
+    const hopStatus = getHopStatus();
 
     return (
         <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
@@ -27,37 +74,38 @@ const SessionStatus: React.FC = () => {
                         {sessionName || 'No Session'}
                     </span>
 
-                    {missionStatusDisplay && (
-                        <div className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${missionStatusDisplay.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
-                                missionStatusDisplay.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
-                                    missionStatusDisplay.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' :
-                                        missionStatusDisplay.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400' :
-                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400'
-                            }`}>
-                            {missionStatusDisplay.icon}
-                            Mission: {missionStatusDisplay.text}
-                        </div>
-                    )}
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${missionStatus.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
+                        missionStatus.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                            missionStatus.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' :
+                                missionStatus.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400'
+                        }`}>
+                        {missionStatus.text}
+                    </div>
 
-                    {hopStatusDisplay && (
-                        <div className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${hopStatusDisplay.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
-                                hopStatusDisplay.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
-                                    hopStatusDisplay.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' :
-                                        hopStatusDisplay.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400' :
-                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400'
+                    {hopStatus && (
+                        <div className={`px-2 py-1 rounded text-xs font-medium ${hopStatus.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
+                            hopStatus.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                                hopStatus.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' :
+                                    hopStatus.color === 'blue' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400' :
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-400'
                             }`}>
-                            {hopStatusDisplay.icon}
-                            Hop: {hopStatusDisplay.text}
+                            {hopStatus.text}
                         </div>
                     )}
                 </div>
 
                 <button
                     onClick={handleNewSession}
-                    className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-300 dark:border-gray-600"
+                    disabled={state.isCreatingSession}
+                    className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Plus className="w-4 h-4" />
-                    <span>New Session</span>
+                    {state.isCreatingSession ? (
+                        <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                        <Plus className="w-4 h-4" />
+                    )}
+                    <span>{state.isCreatingSession ? 'Creating...' : 'New Session'}</span>
                 </button>
             </div>
         </div>

@@ -16,6 +16,7 @@ interface JamBotState {
     currentStreamingMessage: string;
     mission: Mission | null;
     error?: string;
+    isCreatingSession: boolean;
 }
 
 type JamBotAction =
@@ -37,12 +38,14 @@ type JamBotAction =
     | { type: 'SET_STATE'; payload: JamBotState }
     | { type: 'EXECUTE_TOOL_STEP'; payload: { step: ToolStep; hop: Hop } }
     | { type: 'SET_ERROR'; payload: string }
-    | { type: 'CLEAR_ERROR' };
+    | { type: 'CLEAR_ERROR' }
+    | { type: 'SET_CREATING_SESSION'; payload: boolean };
 
 const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
-    mission: null
+    mission: null,
+    isCreatingSession: false
 };
 
 // Helper function to sanitize asset values
@@ -392,6 +395,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                 ...state,
                 error: undefined
             };
+        case 'SET_CREATING_SESSION':
+            return {
+                ...state,
+                isCreatingSession: action.payload
+            };
         default:
             return state;
     }
@@ -621,7 +629,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
 
-
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
         try {
             // Update step status to running
@@ -835,11 +842,23 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('Error streaming message:', error);
         } finally {
             updateStreamingMessage('');
+
+            // Refresh mission data after agent processing completes
+            if (missionId) {
+                try {
+                    console.log('Refreshing mission data after agent processing...');
+                    await loadMission(missionId);
+                } catch (refreshError) {
+                    console.error('Error refreshing mission data:', refreshError);
+                }
+            }
         }
-    }, [state, addMessage, processBotMessage, updateStreamingMessage]);
+    }, [state, addMessage, processBotMessage, updateStreamingMessage, missionId, loadMission]);
 
     const createNewSession = useCallback(async () => {
         try {
+            dispatch({ type: 'SET_CREATING_SESSION', payload: true });
+
             // Create new session (name will be auto-generated as "Session N")
             const newSessionResponse = await sessionApi.initializeSession({
                 session_metadata: {
@@ -854,7 +873,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 payload: {
                     currentMessages: [],
                     currentStreamingMessage: '',
-                    mission: null
+                    mission: null,
+                    isCreatingSession: false
                 }
             });
 
@@ -870,6 +890,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
             console.error('Error creating new session:', error);
             dispatch({ type: 'SET_ERROR', payload: 'Failed to create new session' });
+        } finally {
+            dispatch({ type: 'SET_CREATING_SESSION', payload: false });
         }
     }, [user, switchToNewSession]);
 

@@ -142,7 +142,7 @@ async def chat_stream(
             )
             
             graph_config = {
-                "db": db,
+                "mission_service": mission_service,
                 "user_id": current_user.user_id
             }
             

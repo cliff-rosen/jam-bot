@@ -86,10 +86,15 @@ export const SessionManagement: React.FC = () => {
                 </div>
                 <button
                     onClick={createNewSession}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                    disabled={state.isCreatingSession}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Plus className="w-4 h-4 mr-1" />
-                    New Session
+                    {state.isCreatingSession ? (
+                        <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-1" />
+                    ) : (
+                        <Plus className="w-4 h-4 mr-1" />
+                    )}
+                    {state.isCreatingSession ? 'Creating...' : 'New Session'}
                 </button>
             </div>
         </div>

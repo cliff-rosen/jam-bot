@@ -13,7 +13,7 @@ class HopDesignResponse(BaseModel):
     response_type: str = Field(description="Type of response: HOP_PROPOSAL or CLARIFICATION_NEEDED")
     response_content: str = Field(description="The main response text to add to the conversation")
     hop_proposal: Optional[HopLite] = Field(default=None, description="Proposed hop details")
-    reasoning: str = Field(description="Explanation of the design decisions made")
+    reasoning: Optional[str] = Field(default=None, description="Explanation of the design decisions made")
 
 class HopDesignerPromptCaller(BasePromptCaller):
     """A simplified prompt caller for hop design"""

@@ -517,7 +517,7 @@ class StateTransitionService:
                     type=asset.schema_definition.type,
                     subtype=asset.subtype,
                     description=asset.description,
-                    content=asset.content,
+                    content=asset.value_representation,
                     asset_metadata=asset.asset_metadata,
                     scope_type='hop',
                     scope_id=hop_id,
@@ -540,7 +540,7 @@ class StateTransitionService:
                     type=asset.schema_definition.type,
                     subtype=asset.subtype,
                     description=asset.description,
-                    content=asset.content,
+                    content=asset.value_representation,
                     asset_metadata={
                         **asset.asset_metadata,
                         'promoted_from_hop': hop_id,

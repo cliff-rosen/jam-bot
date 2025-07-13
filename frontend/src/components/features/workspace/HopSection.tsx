@@ -198,7 +198,7 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
                     </h4>
                     <ToolStepSection
                         toolSteps={hop.tool_steps}
-                        canCollapse={isImplementationProposed}
+                        canCollapse={true}
                     />
                 </div>
             )}

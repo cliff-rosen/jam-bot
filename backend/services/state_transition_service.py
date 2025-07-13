@@ -257,7 +257,7 @@ class StateTransitionService:
             description=hop_data.get('description'),
             goal=hop_data.get('goal'),
             sequence_order=hop_data.get('sequence_order', 1),
-            status=HopStatus.HOP_PLAN_PROPOSED,  # Agent completed planning
+            status=HopStatus.HOP_PLAN_PROPOSED.value,  # Explicitly use enum value string
             success_criteria=hop_data.get('success_criteria', []),
             rationale=hop_data.get('rationale'),
             is_final=hop_data.get('is_final', False),
@@ -299,7 +299,7 @@ class StateTransitionService:
         self._validate_entity_exists(hop_model, "Hop", hop_id)
         self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_plan_proposed", user_id)
         
-        hop_model.status = HopStatus.HOP_PLAN_READY
+        hop_model.status = HopStatus.HOP_PLAN_READY.value
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
@@ -345,7 +345,7 @@ class StateTransitionService:
             self.db.add(tool_step_model)
         
         # Update hop status
-        hop_model.status = HopStatus.HOP_IMPL_PROPOSED
+        hop_model.status = HopStatus.HOP_IMPL_PROPOSED.value
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
@@ -371,7 +371,7 @@ class StateTransitionService:
         self._validate_entity_exists(hop_model, "Hop", hop_id)
         self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_impl_proposed", user_id)
         
-        hop_model.status = HopStatus.HOP_IMPL_READY
+        hop_model.status = HopStatus.HOP_IMPL_READY.value
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
@@ -397,7 +397,7 @@ class StateTransitionService:
         self._validate_entity_exists(hop_model, "Hop", hop_id)
         self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_impl_ready", user_id)
         
-        hop_model.status = HopStatus.EXECUTING
+        hop_model.status = HopStatus.EXECUTING.value
         hop_model.updated_at = datetime.utcnow()
         
         self.db.commit()
@@ -425,7 +425,7 @@ class StateTransitionService:
         self._validate_transition("Hop", hop_id, hop_model.status.value, "executing", user_id)
         
         # Complete hop
-        hop_model.status = HopStatus.COMPLETED
+        hop_model.status = HopStatus.COMPLETED.value
         hop_model.is_resolved = True
         hop_model.updated_at = datetime.utcnow()
         

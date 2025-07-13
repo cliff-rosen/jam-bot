@@ -33,6 +33,7 @@ const Workspace: React.FC = () => {
                 startHopExecution={startHopExecution}
                 failHopExecution={failHopExecution}
                 retryHopExecution={retryHopExecution}
+                isProcessing={state.isProcessing}
             />
         </div>
     );

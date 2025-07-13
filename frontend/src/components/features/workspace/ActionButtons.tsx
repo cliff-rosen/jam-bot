@@ -13,6 +13,7 @@ interface ActionButtonsProps {
     startHopExecution: (hopId: string) => void;
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
+    isProcessing: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -25,6 +26,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     startHopExecution,
     failHopExecution,
     retryHopExecution,
+    isProcessing,
 }) => {
     const handleStartHopPlanning = async () => {
         if (!mission) return;
@@ -76,10 +78,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 <button
                     key="start-planning"
                     onClick={handleStartHopPlanning}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    disabled={isProcessing}
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                        isProcessing 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                    }`}
                 >
                     <Play className="w-4 h-4 mr-2" />
-                    Start Hop Planning
+                    {isProcessing ? 'Planning...' : 'Start Hop Planning'}
                 </button>
             );
         } else {

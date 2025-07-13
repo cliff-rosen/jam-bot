@@ -19,7 +19,7 @@ from utils.state_serializer import (
     create_agent_response
 )
 
-from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse
+from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse, AssetReference
 from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
 from schemas.asset import Asset, AssetStatus
 from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
@@ -73,7 +73,7 @@ class State(BaseModel):
     mission_id: Optional[str] = None  # Add mission_id for persistence
     tool_params: Dict[str, Any] = {}
     next_node: str
-    asset_summaries: Dict[str, str] = {}  # Add asset summaries directly to state
+    asset_summaries: Dict[str, AssetReference] = {}  # Add asset summaries directly to state
   
     class Config:
         arbitrary_types_allowed = True

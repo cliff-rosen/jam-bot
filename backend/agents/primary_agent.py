@@ -656,21 +656,58 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             
             # Apply the changes to the state if processing was successful
             if result.success:
-                # Update the current hop in the mission state
-                state.mission.current_hop = result.updated_hop
-                # Also update the local reference for consistency
-                current_hop = result.updated_hop
-                
-                # Set hop status to HOP_IMPL_PROPOSED for user approval
-                current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                
-                # Update response message
-                response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
+                # Use StateTransitionService to properly create hop implementation proposal (step 2.4)
+                if _state_transition_service and _user_id:
+                    try:
+                        # Prepare tool steps data for transaction service
+                        tool_steps_data = []
+                        for step in parsed_response.tool_steps:
+                            tool_step_data = {
+                                'tool_id': step.tool_id,
+                                'name': step.name,
+                                'description': step.description,
+                                'parameter_mapping': step.parameter_mapping,
+                                'result_mapping': step.result_mapping,
+                                'resource_configs': step.resource_configs
+                            }
+                            tool_steps_data.append(tool_step_data)
+                        
+                        # Use transaction service to propose hop implementation
+                        transaction_result = await _state_transition_service.updateState(
+                            TransactionType.PROPOSE_HOP_IMPL,
+                            {
+                                'hop_id': current_hop.id,
+                                'user_id': _user_id,
+                                'tool_steps': tool_steps_data
+                            }
+                        )
+                        
+                        print(f"Successfully proposed hop implementation via StateTransitionService: {transaction_result.entity_id}")
+                        
+                        # Fetch the updated mission to get correct state
+                        if _mission_service:
+                            updated_mission = await _mission_service.get_mission(state.mission_id, _user_id)
+                            if updated_mission:
+                                state.mission = updated_mission
+                                current_hop = updated_mission.current_hop
+                        
+                        response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
+                        
+                    except Exception as e:
+                        print(f"Failed to use StateTransitionService for hop implementation: {str(e)}")
+                        # Fallback to manual status update
+                        current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                        state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                        response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
+                else:
+                    # Fallback if StateTransitionService not available
+                    current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                    state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
+                    response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
             else:
-                # If validation failed, we still need to update status for clarification
-                current_hop.status = result.updated_hop.status
-                state.mission.current_hop.status = result.updated_hop.status
+                # If validation failed, keep hop in started state for clarification
+                current_hop.status = HopStatus.HOP_IMPL_STARTED
+                state.mission.current_hop.status = HopStatus.HOP_IMPL_STARTED
             
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # Keep hop in current state but mark as needing clarification

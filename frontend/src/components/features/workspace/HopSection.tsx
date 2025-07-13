@@ -122,10 +122,18 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
     const outputAssets = hopAssets.filter(asset => asset.role === 'output');
     const intermediateAssets = hopAssets.filter(asset => asset.role === 'intermediate');
     
-    // Show asset details for proposed and ready states
-    const showAssetDetails = hop.status === HopStatus.HOP_PLAN_PROPOSED || hop.status === HopStatus.HOP_PLAN_READY;
+    // Show asset details for planning and implementation states
+    const showAssetDetails = [
+        HopStatus.HOP_PLAN_PROPOSED,
+        HopStatus.HOP_PLAN_READY,
+        HopStatus.HOP_IMPL_PROPOSED,
+        HopStatus.HOP_IMPL_READY
+    ].includes(hop.status);
+    
     const isProposedState = hop.status === HopStatus.HOP_PLAN_PROPOSED;
     const isReadyState = hop.status === HopStatus.HOP_PLAN_READY;
+    const isImplementationReady = hop.status === HopStatus.HOP_IMPL_READY;
+    const isSubtleDisplay = isReadyState || isImplementationReady;
 
     return (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
@@ -169,15 +177,15 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
                 </div>
             )}
 
-            {showAssetDetails && hopAssets.length > 0 && (
+            {showAssetDetails && (
                 <div className="mb-4">
-                    <h4 className={`font-medium mb-3 ${isReadyState ? 'text-gray-600 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                    <h4 className={`font-medium mb-3 ${isSubtleDisplay ? 'text-gray-600 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
                         Assets Involved
                     </h4>
-                    <div className={`rounded-lg p-4 ${isReadyState ? 'bg-gray-25 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-900'}`}>
-                        <AssetSection title="Input Assets" assets={inputAssets} isSubtle={isReadyState} />
-                        <AssetSection title="Output Assets" assets={outputAssets} isSubtle={isReadyState} />
-                        <AssetSection title="Intermediate Assets" assets={intermediateAssets} isSubtle={isReadyState} />
+                    <div className={`rounded-lg p-4 ${isSubtleDisplay ? 'bg-gray-25 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-900'}`}>
+                        <AssetSection title="Input Assets" assets={inputAssets} isSubtle={isSubtleDisplay} />
+                        <AssetSection title="Output Assets" assets={outputAssets} isSubtle={isSubtleDisplay} />
+                        <AssetSection title="Intermediate Assets" assets={intermediateAssets} isSubtle={isSubtleDisplay} />
                         {hopAssets.length === 0 && (
                             <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
                                 No assets associated with this hop.

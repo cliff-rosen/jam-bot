@@ -77,22 +77,22 @@ class AssetSummaryService:
         Returns:
             String preview of the content
         """
-        if asset.value is None:
+        if asset.value_representation is None:
             return "<no content>"
         
         try:
             # Handle different content types intelligently
             if asset.schema_definition and asset.schema_definition.is_array:
-                return self._summarize_array_content(asset.value)
+                return self._summarize_array_content(asset.value_representation)
             elif asset.schema_definition and asset.schema_definition.type == "object":
-                return self._summarize_object_content(asset.value)
-            elif isinstance(asset.value, str):
-                return self._truncate_string_content(asset.value)
-            elif isinstance(asset.value, (int, float, bool)):
-                return str(asset.value)
+                return self._summarize_object_content(asset.value_representation)
+            elif isinstance(asset.value_representation, str):
+                return self._truncate_string_content(asset.value_representation)
+            elif isinstance(asset.value_representation, (int, float, bool)):
+                return str(asset.value_representation)
             else:
                 # For complex types, try JSON serialization
-                return self._summarize_complex_content(asset.value)
+                return self._summarize_complex_content(asset.value_representation)
                 
         except Exception as e:
             return f"<preview error: {str(e)}>"

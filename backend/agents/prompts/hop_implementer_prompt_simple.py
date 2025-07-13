@@ -205,32 +205,28 @@ Is Final: {hop.is_final}"""
 
     def _format_desired_assets(self, hop: Hop) -> str:
         """Format desired (output) assets for the prompt with enhanced detail"""
-        if not hop.output_mapping:
+        output_assets = hop.get_hop_outputs()
+        if not output_assets:
             return "No output assets defined"
         
-        output_assets = []
-        for local_key, asset_id in hop.output_mapping.items():
-            # Get the asset from hop state if available
-            if local_key in hop.hop_state:
-                asset = hop.hop_state[local_key]
-                asset_type = asset.schema_definition.type
-                
-                # Enhanced formatting with agent specification
-                asset_info = f"- **{local_key}** ({asset_type}): {asset.description}"
-                
-                # Add agent specification if available
-                if hasattr(asset, 'agent_specification') and asset.agent_specification:
-                    asset_info += f"\n  Agent Spec: {asset.agent_specification}"
-                
-                # Add subtype if available
-                if asset.subtype:
-                    asset_info += f"\n  Subtype: {asset.subtype}"
-                
-                output_assets.append(asset_info)
-            else:
-                output_assets.append(f"- {local_key}: Asset ID {asset_id} (not in hop state)")
+        formatted_assets = []
+        for asset in output_assets:
+            asset_type = asset.schema_definition.type if asset.schema_definition else "unknown"
+            
+            # Enhanced formatting with agent specification
+            asset_info = f"- **{asset.name}** ({asset_type}): {asset.description}"
+            
+            # Add agent specification if available
+            if hasattr(asset, 'agent_specification') and asset.agent_specification:
+                asset_info += f"\n  Agent Spec: {asset.agent_specification}"
+            
+            # Add subtype if available
+            if asset.subtype:
+                asset_info += f"\n  Subtype: {asset.subtype}"
+            
+            formatted_assets.append(asset_info)
         
-        return "\n\n".join(output_assets)
+        return "\n\n".join(formatted_assets)
 
     def _format_available_assets(self, hop: Hop) -> str:
         """Format available (input) assets for the prompt with enhanced detail"""

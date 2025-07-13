@@ -42,7 +42,7 @@ class AssetSummaryService:
                 "status": asset.status.value,
                 "content_preview": content_preview,
                 "token_count": getattr(asset.asset_metadata, 'token_count', 0) if asset.asset_metadata else 0,
-                "last_updated": asset.asset_metadata.updated_at.isoformat() if asset.asset_metadata else None,
+                "last_updated": asset.updated_at.isoformat() if asset.updated_at else None,
                 "is_array": asset.schema_definition.is_array if asset.schema_definition else False,
                 "subtype": asset.subtype,
                 "role": asset.role

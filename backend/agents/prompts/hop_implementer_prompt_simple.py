@@ -251,8 +251,8 @@ Is Final: {hop.is_final}"""
             
             if asset.status != "ready":
                 input_details.append(f"  Status: {asset.status}")
-                if asset.error_message:
-                    input_details.append(f"  Error: {asset.error_message}")
+                # Note: Asset schema doesn't have error_message field
+                # Error details would be in asset_metadata if needed
             
             input_assets_str = "\n".join(input_details) if input_details else "None"
             input_assets.append(input_assets_str)

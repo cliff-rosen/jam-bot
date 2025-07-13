@@ -12,6 +12,7 @@ from services.mission_service import MissionService, get_mission_service
 from services.user_session_service import UserSessionService, get_user_session_service
 from services.chat_service import ChatService, get_chat_service
 from services.mission_context_builder import MissionContextBuilder, get_mission_context_builder_service
+from services.state_transition_service import StateTransitionService, get_state_transition_service
 
 from schemas.chat import (
     ChatMessage, 
@@ -55,6 +56,7 @@ async def chat_stream(
     mission_service: MissionService = Depends(get_mission_service),
     chat_service: ChatService = Depends(get_chat_service),
     context_builder: MissionContextBuilder = Depends(get_mission_context_builder_service),
+    state_transition_service: StateTransitionService = Depends(get_state_transition_service),
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> EventSourceResponse:
@@ -145,6 +147,7 @@ async def chat_stream(
                 "configurable": {
                     "mission_service": mission_service,
                     "session_service": session_service,
+                    "state_transition_service": state_transition_service,
                     "user_id": current_user.user_id
                 }
             }

@@ -22,6 +22,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from dataclasses import dataclass, field
 from enum import Enum
+from fastapi import Depends
 
 from database import get_db
 from models import (
@@ -155,8 +156,20 @@ class StateTransitionService:
         mission_data['id'] = mission_id
         mission_data['status'] = SchemaMissionStatus.AWAITING_APPROVAL
         
+        # Convert dictionary to Mission object
+        mission_schema = Mission(
+            id=mission_id,
+            name=mission_data['name'],
+            description=mission_data.get('description'),
+            goal=mission_data.get('goal'),
+            success_criteria=mission_data.get('success_criteria', []),
+            status=SchemaMissionStatus.AWAITING_APPROVAL,
+            mission_metadata=mission_data.get('mission_metadata', {}),
+            mission_state={}  # Assets will be created separately
+        )
+        
         # Use transformer to create mission
-        mission_model = self.mission_transformer.schema_to_model(mission_data, user_id)
+        mission_model = self.mission_transformer.schema_to_model(mission_schema, user_id)
         self.db.add(mission_model)
         
         # Create mission assets if provided
@@ -174,10 +187,10 @@ class StateTransitionService:
                     role=asset_data.get('role', 'input')
                 )
         
-        # Link mission to user's active session automatically
+        # Link mission to user's active session automatically (before commit)
         if self.session_service:
             try:
-                await self.session_service.link_mission_to_session(user_id, mission_id)
+                await self.session_service.link_mission_to_session(user_id, mission_id, commit=False)
             except Exception as e:
                 # Log but don't fail the transaction
                 print(f"Warning: Could not link mission to session: {e}")
@@ -540,10 +553,8 @@ class StateTransitionService:
 
 
 # Dependency function for FastAPI
-async def get_state_transition_service(db: Session = None, session_service: UserSessionService = None) -> StateTransitionService:
+def get_state_transition_service(db: Session = Depends(get_db)) -> StateTransitionService:
     """Get StateTransitionService instance"""
-    if db is None:
-        db = next(get_db())
-    if session_service is None:
-        session_service = UserSessionService(db)
+    from services.user_session_service import UserSessionService
+    session_service = UserSessionService(db)
     return StateTransitionService(db, session_service) 

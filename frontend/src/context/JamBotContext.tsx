@@ -632,7 +632,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'CLEAR_ERROR' });
     }, []);
 
-
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
         try {
             // Update step status to running

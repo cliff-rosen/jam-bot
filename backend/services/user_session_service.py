@@ -108,6 +108,48 @@ class UserSessionService:
             self.db.rollback()
             raise ValidationError(f"Failed to create mission and update session: {str(e)}")
     
+    async def link_mission_to_session(self, user_id: int, mission_id: str, commit: bool = True) -> bool:
+        """
+        Link a mission to the user's active session
+        
+        Args:
+            user_id: The user ID
+            mission_id: The mission ID to link to the session
+            commit: Whether to commit the transaction (default: True)
+            
+        Returns:
+            bool: True if successful, False if no active session found
+            
+        Raises:
+            ValidationError: If the operation fails
+        """
+        try:
+            # Get the user's active session
+            user_session = self.db.query(UserSession).filter(
+                and_(
+                    UserSession.user_id == user_id,
+                    UserSession.status == UserSessionStatus.ACTIVE
+                )
+            ).order_by(desc(UserSession.last_activity_at)).first()
+            
+            if not user_session:
+                raise ValidationError("No active session found to link mission to")
+            
+            # Update the session with the mission ID
+            user_session.mission_id = mission_id
+            user_session.updated_at = datetime.utcnow()
+            user_session.last_activity_at = datetime.utcnow()
+            
+            if commit:
+                self.db.commit()
+            
+            return True
+            
+        except Exception as e:
+            if commit:
+                self.db.rollback()
+            raise ValidationError(f"Failed to link mission to session: {str(e)}")
+
     def create_user_session(self, user_id: int, request: CreateUserSessionRequest) -> CreateUserSessionResponse:
         """Create a new user session with associated chat"""
         try:

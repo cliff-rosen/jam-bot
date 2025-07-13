@@ -451,14 +451,34 @@ class StateTransitionService:
         hop_model.status = HopStatus.EXECUTING.value
         hop_model.updated_at = datetime.utcnow()
         
+        # Start the first tool step execution
+        from models import ToolExecutionStatus
+        first_tool_step = self.db.query(ToolStepModel).filter(
+            ToolStepModel.hop_id == hop_id,
+            ToolStepModel.user_id == user_id,
+            ToolStepModel.sequence_order == 1
+        ).first()
+        
+        first_step_updated = False
+        if first_tool_step and first_tool_step.status == ToolExecutionStatus.READY_TO_EXECUTE:
+            first_tool_step.status = ToolExecutionStatus.EXECUTING
+            first_tool_step.started_at = datetime.utcnow()
+            first_tool_step.updated_at = datetime.utcnow()
+            first_step_updated = True
+        
         self.db.commit()
         
         return TransactionResult(
             success=True,
             entity_id=hop_id,
             status="EXECUTING",
-            message="Hop execution started",
-            metadata={"hop_id": hop_id}
+            message="Hop execution started - first tool step now executing",
+            metadata={
+                "hop_id": hop_id,
+                "first_step_updated": first_step_updated,
+                "first_step_id": first_tool_step.id if first_tool_step else None,
+                "first_step_status": "EXECUTING" if first_step_updated else "NOT_FOUND"
+            }
         )
     
     async def _complete_hop(self, data: Dict[str, Any]) -> TransactionResult:

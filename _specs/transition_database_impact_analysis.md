@@ -14,8 +14,23 @@ This document provides a detailed table of database entity updates for each impl
 | **2.4 PROPOSE_HOP_IMPL** | No changes | No changes | Updates `status=HOP_IMPL_PROPOSED`, `updated_at=now()` | Creates tool steps with `hop_id=hop_id`, serialized `parameter_mapping`, `result_mapping`, `resource_configs` | No changes | Tool steps define execution plan |
 | **2.5 Agent completes implementation** | No changes | No changes | Updates via agent logic (not StateTransitionService) | No changes | No changes | Handled internally by hop_implementer_node |
 | **2.6 ACCEPT_HOP_IMPL** | No changes | No changes | Updates `status=HOP_IMPL_READY`, `updated_at=now()` | Updates all tool steps with `status=PROPOSED` to `status=READY_TO_EXECUTE`, `updated_at=now()` | No changes | Hop and tool steps ready for execution |
-| **2.7 EXECUTE_HOP** | No changes | No changes | Updates `status=EXECUTING`, `updated_at=now()` | No changes | No changes | Execution begins |
-| **2.8 COMPLETE_HOP** | No changes | If `is_final=true`: `status=COMPLETED`<br>If `is_final=false`: `current_hop_id=null`, `updated_at=now()` | Updates `status=COMPLETED`, `is_resolved=true`, adds execution result to `hop_metadata`, `updated_at=now()` | No direct updates (status managed by execution engine) | Promotes hop output assets to mission scope: `scope_type=mission`, adds `promoted_from_hop` metadata | Asset promotion makes hop outputs available for subsequent hops |
+| **2.7 EXECUTE_HOP** | No changes | No changes | Updates `status=EXECUTING`, `updated_at=now()` | Updates **first tool step** from `READY_TO_EXECUTE` to `EXECUTING`, sets `started_at=now()`, `updated_at=now()` | No changes | First tool step begins execution |
+| **2.8 COMPLETE_HOP** | No changes | If `is_final=true`: `status=COMPLETED`<br>If `is_final=false`: `current_hop_id=null`, `updated_at=now()` | Updates `status=COMPLETED`, `is_resolved=true`, adds execution result to `hop_metadata`, `updated_at=now()` | **Prerequisite**: All tool steps must already be `status=COMPLETED` (verified, not changed) | Promotes hop output assets to mission scope: `scope_type=mission`, adds `promoted_from_hop` metadata | Asset promotion makes hop outputs available for subsequent hops |
+
+## Sequential Tool Step Execution (Between 2.7 and 2.8)
+
+During hop execution, tool steps progress sequentially **outside** of StateTransitionService:
+
+| Event | Tool Step Updates | Trigger |
+|-------|------------------|---------|
+| **Step N Completes** | Current step: `EXECUTING` → `COMPLETED`, sets `completed_at=now()`<br>Next step: `READY_TO_EXECUTE` → `EXECUTING`, sets `started_at=now()` | Tool execution engine |
+| **All Steps Complete** | All tool steps: `status=COMPLETED` | Triggers 2.8 COMPLETE_HOP |
+
+**Example 3-step execution flow:**
+1. **2.7 EXECUTE_HOP**: Step 1: `READY_TO_EXECUTE` → `EXECUTING`
+2. **Step 1 completes**: Step 1: `EXECUTING` → `COMPLETED`, Step 2: `READY_TO_EXECUTE` → `EXECUTING`  
+3. **Step 2 completes**: Step 2: `EXECUTING` → `COMPLETED`, Step 3: `READY_TO_EXECUTE` → `EXECUTING`
+4. **Step 3 completes**: Step 3: `EXECUTING` → `COMPLETED` → **Triggers 2.8 COMPLETE_HOP**
 
 ## Key Database Patterns
 

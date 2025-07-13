@@ -865,11 +865,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             try {
                 console.log('Refreshing session after agent processing...');
                 await fetchActiveSession();
+                
+                // Also force mission reload if we have a current mission to pick up state changes
+                if (state.mission?.id) {
+                    console.log('Force reloading mission after agent processing...');
+                    await loadMission(state.mission.id);
+                }
             } catch (refreshError) {
                 console.error('Error refreshing session:', refreshError);
             }
         }
-    }, [state, addMessage, processBotMessage, updateStreamingMessage, fetchActiveSession]);
+    }, [state, addMessage, processBotMessage, updateStreamingMessage, fetchActiveSession, loadMission]);
 
     const createNewSession = useCallback(async () => {
         try {

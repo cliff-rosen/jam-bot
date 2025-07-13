@@ -1,10 +1,67 @@
 import React from 'react';
-import { Hop } from '@/types/workflow';
+import { Hop, HopStatus } from '@/types/workflow';
+import { Asset } from '@/types/asset';
 import { getHopStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface HopSectionProps {
     hop: Hop | null;
 }
+
+// Helper component to render a single asset card (similar to AssetLibraryPanel)
+const AssetCard: React.FC<{ asset: Asset }> = ({ asset }) => (
+    <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+        <div className="font-medium truncate text-sm text-gray-900 dark:text-gray-100">{asset.name}</div>
+        <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 min-h-[32px] mt-1">{asset.description || 'No description'}</div>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <div className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 w-fit border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                {asset.schema_definition?.type?.toUpperCase() || 'UNKNOWN'}
+            </div>
+            {/* Show role badge */}
+            {asset.role && (
+                <div className={`text-[10px] px-2 py-0.5 rounded w-fit border ${asset.role === 'input' ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                    asset.role === 'output' ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' :
+                        'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                    }`}>
+                    {asset.role}
+                </div>
+            )}
+            {/* Show status badge */}
+            <div className={`text-[10px] px-2 py-0.5 rounded w-fit border ${asset.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' :
+                asset.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300' :
+                    asset.status === 'error' ? 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' :
+                        'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
+                }`}>
+                {asset.status?.toUpperCase() || 'UNKNOWN'}
+            </div>
+            {asset.asset_metadata?.token_count !== undefined && (
+                <div className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 w-fit border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                    {asset.asset_metadata.token_count} tokens
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+// Helper component for rendering a section of assets
+const AssetSection: React.FC<{
+    title: string;
+    assets: Asset[];
+}> = ({ title, assets }) => {
+    if (assets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mb-4">
+            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{title} ({assets.length})</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {assets.map(asset => (
+                    <AssetCard key={asset.id} asset={asset} />
+                ))}
+            </div>
+        </div>
+    );
+};
 
 const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
     if (!hop) {
@@ -12,6 +69,15 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
     }
 
     const hopStatus = getHopStatusDisplay(hop.status);
+    
+    // Extract assets from hop_state and categorize them
+    const hopAssets = Object.values(hop.hop_state || {});
+    const inputAssets = hopAssets.filter(asset => asset.role === 'input');
+    const outputAssets = hopAssets.filter(asset => asset.role === 'output');
+    const intermediateAssets = hopAssets.filter(asset => asset.role === 'intermediate');
+    
+    // Show asset details for proposed state
+    const showAssetDetails = hop.status === HopStatus.HOP_PLAN_PROPOSED;
 
     return (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
@@ -45,6 +111,29 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
                             <li key={idx}>{criteria}</li>
                         ))}
                     </ul>
+                </div>
+            )}
+
+            {hop.rationale && (
+                <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Rationale</h4>
+                    <p className="text-gray-600 dark:text-gray-400">{hop.rationale}</p>
+                </div>
+            )}
+
+            {showAssetDetails && hopAssets.length > 0 && (
+                <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Assets Involved</h4>
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                        <AssetSection title="Input Assets" assets={inputAssets} />
+                        <AssetSection title="Output Assets" assets={outputAssets} />
+                        <AssetSection title="Intermediate Assets" assets={intermediateAssets} />
+                        {hopAssets.length === 0 && (
+                            <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                                No assets associated with this hop.
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

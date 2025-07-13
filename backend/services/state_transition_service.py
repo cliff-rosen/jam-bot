@@ -257,7 +257,7 @@ class StateTransitionService:
             description=hop_data.get('description'),
             goal=hop_data.get('goal'),
             sequence_order=hop_data.get('sequence_order', 1),
-            status=HopStatus.HOP_PLAN_PROPOSED.value,  # Explicitly use enum value string
+            status=HopStatus.HOP_PLAN_PROPOSED.value,
             success_criteria=hop_data.get('success_criteria', []),
             rationale=hop_data.get('rationale'),
             is_final=hop_data.get('is_final', False),

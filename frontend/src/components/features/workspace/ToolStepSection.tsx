@@ -21,11 +21,15 @@ const ToolStepSection: React.FC<ToolStepSectionProps> = ({ toolSteps, canCollaps
     };
 
     const extractTypeAndValue = (item: any): { type: string; value: any } => {
-        // If item has type and value properties, use those
-        if (item && typeof item === 'object' && 'type' in item && 'value' in item) {
-            return { type: item.type, value: item.value };
+        // Handle {type: "...", value: "..."} structure (for both parameters and outputs)
+        if (item && typeof item === 'object' && 'type' in item) {
+            return {
+                type: item.type,
+                value: 'value' in item ? item.value : '-'
+            };
         }
-        // Otherwise, fallback to inferring type
+
+        // Fallback for any other structure
         return {
             type: typeof item,
             value: item

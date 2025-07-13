@@ -45,4 +45,20 @@ export const stateTransitionApi = {
         const response = await api.post<StateTransitionResponse>(`/api/state-transitions/accept-hop-implementation/${hopId}`);
         return response.data;
     },
+
+    /**
+     * Execute a hop (steps 2.7, 3.7)
+     */
+    async executeHop(hopId: string): Promise<StateTransitionResponse> {
+        const response = await api.post<StateTransitionResponse>(`/api/state-transitions/execute-hop/${hopId}`);
+        return response.data;
+    },
+
+    /**
+     * Complete a hop (steps 2.8, 3.8)
+     */
+    async completeHop(hopId: string): Promise<StateTransitionResponse> {
+        const response = await api.post<StateTransitionResponse>(`/api/state-transitions/complete-hop/${hopId}`);
+        return response.data;
+    },
 };

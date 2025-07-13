@@ -519,11 +519,11 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                     hop_data = {
                         'name': hop_lite.name,
                         'description': hop_lite.description,
-                        'goal': hop_lite.goal,
+                        'goal': hop_lite.description,  # HopLite doesn't have goal, use description
                         'rationale': hop_lite.rationale,
                         'sequence_order': sequence_order,
                         'is_final': hop_lite.is_final,
-                        'success_criteria': hop_lite.success_criteria if hasattr(hop_lite, 'success_criteria') else [],
+                        'success_criteria': getattr(hop_lite, 'success_criteria', []),
                         'hop_metadata': {}
                     }
                     

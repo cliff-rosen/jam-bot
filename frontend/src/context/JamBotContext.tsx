@@ -17,6 +17,7 @@ interface JamBotState {
     mission: Mission | null;
     error?: string;
     isCreatingSession: boolean;
+    isProcessing: boolean;
 }
 
 type JamBotAction =
@@ -26,6 +27,7 @@ type JamBotAction =
     | { type: 'SEND_MESSAGE'; payload: ChatMessage }
     | { type: 'SET_MISSION'; payload: Mission }
     | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
+    | { type: 'SET_PROCESSING'; payload: boolean }
     | { type: 'ACCEPT_MISSION_PROPOSAL'; payload?: Mission }
     | { type: 'ACCEPT_HOP_PROPOSAL'; payload: { hop: Hop; proposedAssets: any[] } }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
@@ -45,7 +47,8 @@ const initialState: JamBotState = {
     currentMessages: [],
     currentStreamingMessage: '',
     mission: null,
-    isCreatingSession: false
+    isCreatingSession: false,
+    isProcessing: false
 };
 
 // Helper function to sanitize asset values
@@ -399,6 +402,11 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
             return {
                 ...state,
                 isCreatingSession: action.payload
+            };
+        case 'SET_PROCESSING':
+            return {
+                ...state,
+                isProcessing: action.payload
             };
         default:
             return state;
@@ -819,6 +827,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     const sendMessage = useCallback(async (message: ChatMessage) => {
 
         addMessage(message);
+        dispatch({ type: 'SET_PROCESSING', payload: true });
         let finalContent = '';
         let streamingContent = '';
 
@@ -850,6 +859,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('Error streaming message:', error);
         } finally {
             updateStreamingMessage('');
+            dispatch({ type: 'SET_PROCESSING', payload: false });
 
             // Always refresh session after agent processing to pick up new missions
             try {

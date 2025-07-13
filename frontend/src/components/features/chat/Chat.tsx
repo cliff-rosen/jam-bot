@@ -8,10 +8,9 @@ import { ChatLoadingIndicator } from './ChatLoadingIndicator';
 
 export default function Chat() {
     const { state, sendMessage, createMessage } = useJamBot();
-    const { currentMessages, currentStreamingMessage } = state;
+    const { currentMessages, currentStreamingMessage, isProcessing } = state;
 
     const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [showStatusMessages, setShowStatusMessages] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,14 +28,12 @@ export default function Chat() {
     }, [currentMessages, currentStreamingMessage]);
 
     const handleSendMessage = async () => {
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isProcessing) return;
         setInput('');
-        setIsLoading(true);
 
         const userMessage = createMessage(input, MessageRole.USER);
 
         await sendMessage(userMessage);
-        setIsLoading(false);
     };
 
     return (
@@ -56,7 +53,7 @@ export default function Chat() {
                     />
                 ))}
 
-                {isLoading && <ChatLoadingIndicator />}
+                {isProcessing && <ChatLoadingIndicator />}
                 <div ref={messagesEndRef} />
             </div>
 
@@ -64,7 +61,7 @@ export default function Chat() {
                 input={input}
                 setInput={setInput}
                 onSendMessage={handleSendMessage}
-                isLoading={isLoading}
+                isLoading={isProcessing}
             />
         </div>
     );

@@ -155,44 +155,50 @@ async def _persist_updated_assets(
     try:
         asset_service = AssetService(db)
         
+        # Extract tool outputs from execution response
+        tool_outputs = execution_response.get("outputs", {})
+        
         # Find assets that were updated by this tool execution
         for result_name, mapping in step.result_mapping.items():
             if mapping.type == "asset_field":
                 asset_id = mapping.state_asset
                 asset_data = asset_context.get(asset_id)
                 
-                if asset_data:
+                # Get the output value from tool execution
+                output_value = tool_outputs.get(result_name)
+                
+                if asset_data and output_value is not None:
                     # Check if this is an Asset object or just data
                     if isinstance(asset_data, Asset):
                         asset = asset_data
                         
                         # Check if asset needs to be created or updated
                         if asset.status == AssetStatus.PROPOSED:
-                            # Create new asset on backend
+                            # Create new asset on backend with tool output
                             asset_service.create_asset(
                                 user_id=user_id,
                                 name=asset.name,
                                 type=asset.schema_definition.type,
                                 subtype=asset.subtype,
                                 description=asset.description,
-                                content=asset.value,
+                                content=output_value,  # Use tool output, not old asset.value
                                 asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None,
                                 scope_type="hop",  # Default to hop scope for tool execution
                                 scope_id=step.hop_id if hasattr(step, 'hop_id') else "unknown"
                             )
-                            print(f"Created new asset {asset.name} on backend")
+                            print(f"Created new asset {asset.name} with tool output: {output_value}")
                         elif asset.status in [AssetStatus.READY, AssetStatus.IN_PROGRESS]:
-                            # Update existing asset
+                            # Update existing asset with tool output
                             asset_service.update_asset(
                                 asset_id=asset.id,
                                 user_id=user_id,
                                 updates={
-                                    'content': asset.value,
+                                    'content': output_value,  # Use tool output, not old asset.value
                                     'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
                                     'updated_at': datetime.utcnow()
                                 }
                             )
-                            print(f"Updated existing asset {asset.name} on backend")
+                            print(f"Updated existing asset {asset.name} with tool output: {output_value}")
                         
     except Exception as e:
         print(f"Error persisting assets to database: {e}")

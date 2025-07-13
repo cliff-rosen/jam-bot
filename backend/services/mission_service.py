@@ -62,8 +62,8 @@ class MissionService:
             self.db.rollback()
             raise Exception(f"Failed to create mission: {str(e)}")
     
-    async def get_mission(self, mission_id: str, user_id: int) -> Optional[Mission]:
-        """Get a mission by ID"""
+    async def get_mission(self, mission_id: str, user_id: int, load_hops: bool = True) -> Optional[Mission]:
+        """Get a mission by ID with optional hop loading"""
         mission_model = self.db.query(MissionModel).filter(
             MissionModel.id == mission_id,
             MissionModel.user_id == user_id
@@ -72,7 +72,7 @@ class MissionService:
         if not mission_model:
             return None
         
-        return await self.mission_transformer.model_to_schema(mission_model)
+        return await self.mission_transformer.model_to_schema(mission_model, load_hops=load_hops)
     
     async def update_mission(self, mission_id: str, user_id: int, mission: Mission) -> bool:
         """Update an existing mission"""

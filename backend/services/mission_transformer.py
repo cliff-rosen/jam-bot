@@ -87,10 +87,12 @@ class MissionTransformer:
         except Exception as e:
             raise MissionTransformationError(f"Failed to convert schema to model: {str(e)}")
     
-    async def model_to_schema(self, mission_model: MissionModel, load_assets: bool = True) -> Mission:
-        """Convert MissionModel to Mission schema with optional asset loading"""
+    async def model_to_schema(self, mission_model: MissionModel, load_assets: bool = True, load_hops: bool = False) -> Mission:
+        """Convert MissionModel to Mission schema with optional asset and hop loading"""
         try:
             mission_state = {}
+            current_hop = None
+            hops = []
             
             if load_assets and self.asset_service:
                 # Load mission assets
@@ -101,6 +103,18 @@ class MissionTransformer:
                 )
                 mission_state = {asset.id: asset for asset in assets}
             
+            if load_hops and self.asset_service:
+                # Load hops if requested
+                from services.hop_service import HopService
+                hop_service = HopService(self.asset_service.db)
+                
+                # Load all hops for the mission
+                hops = await hop_service.get_hops_by_mission(mission_model.id, mission_model.user_id)
+                
+                # Load current hop if specified
+                if mission_model.current_hop_id:
+                    current_hop = await hop_service.get_hop(mission_model.current_hop_id, mission_model.user_id)
+            
             return Mission(
                 id=mission_model.id,
                 name=mission_model.name,
@@ -109,6 +123,8 @@ class MissionTransformer:
                 status=self._map_model_status_to_schema(mission_model.status),
                 success_criteria=mission_model.success_criteria or [],
                 current_hop_id=mission_model.current_hop_id,
+                current_hop=current_hop,
+                hops=hops,
                 mission_metadata=mission_model.mission_metadata or {},
                 mission_state=mission_state,
                 created_at=mission_model.created_at,

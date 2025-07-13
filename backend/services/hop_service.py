@@ -14,23 +14,33 @@ class HopService:
         self.db = db
         self.asset_service = AssetService(db)
 
-    def _model_to_schema(self, hop_model: HopModel) -> Hop:
-        """Convert database model to Hop schema"""
+    def _model_to_schema(self, hop_model: HopModel, load_hop_state: bool = True) -> Hop:
+        """Convert database model to Hop schema with optional hop state loading"""
+        hop_state = {}
+        
+        if load_hop_state:
+            # Load hop-scoped assets
+            hop_assets = self.asset_service.get_assets_by_scope(
+                user_id=hop_model.user_id,
+                scope_type="hop",
+                scope_id=hop_model.id
+            )
+            hop_state = {asset.id: asset for asset in hop_assets}
+        
         return Hop(
             id=hop_model.id,
             name=hop_model.name,
             description=hop_model.description or "",
             goal=hop_model.goal,
             success_criteria=hop_model.success_criteria or [],
-            input_asset_ids=hop_model.input_asset_ids or [],
-            output_asset_ids=hop_model.output_asset_ids or [],
             sequence_order=hop_model.sequence_order,
             status=HopStatusSchema(hop_model.status.value),
             is_final=hop_model.is_final,
             is_resolved=hop_model.is_resolved,
             rationale=hop_model.rationale,
             error_message=hop_model.error_message,
-            metadata=hop_model.metadata or {},
+            hop_metadata=hop_model.hop_metadata or {},
+            hop_state=hop_state,
             created_at=hop_model.created_at,
             updated_at=hop_model.updated_at
         )

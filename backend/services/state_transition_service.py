@@ -511,6 +511,10 @@ class StateTransitionService:
         
         for asset in mission_assets:
             if asset.role in ['input', 'output']:
+                # Mission input assets become hop input assets
+                # Mission output assets become hop output assets (what the hop should produce)
+                hop_role = 'input' if asset.role == 'input' else 'output'
+                
                 self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset.name,
@@ -521,7 +525,7 @@ class StateTransitionService:
                     asset_metadata=asset.asset_metadata,
                     scope_type='hop',
                     scope_id=hop_id,
-                    role='input'
+                    role=hop_role
                 )
     
     async def _promote_hop_assets_to_mission(self, mission_id: str, hop_id: str, user_id: int):

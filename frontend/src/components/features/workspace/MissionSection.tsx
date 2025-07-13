@@ -1,6 +1,6 @@
 import React from 'react';
 import { Settings, CheckCircle } from 'lucide-react';
-import { Mission } from '@/types/workflow';
+import { Mission, HopStatus } from '@/types/workflow';
 import { getMissionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionSectionProps {
@@ -63,23 +63,27 @@ const MissionSection: React.FC<MissionSectionProps> = ({ mission }) => {
                 </div>
             )}
 
-            {mission.hops && mission.hops.length > 0 && (
-                <div>
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                        Completed Hops ({mission.hops.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                        {mission.hops.map((hop) => (
-                            <div key={hop.id} className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1">
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                    {hop.name}
-                                </span>
-                            </div>
-                        ))}
+            {(() => {
+                // Filter to only show actually completed hops
+                const completedHops = mission.hops?.filter(hop => hop.status === HopStatus.COMPLETED) || [];
+                return completedHops.length > 0 && (
+                    <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                            Completed Hops ({completedHops.length})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                            {completedHops.map((hop) => (
+                                <div key={hop.id} className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1">
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        {hop.name}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 };

@@ -91,6 +91,36 @@ class StateTransitionService:
         self.mission_transformer = MissionTransformer(self.asset_service)
         self.session_service = session_service
     
+    def _serialize_mapping_value(self, mapping_value: Any) -> Dict[str, Any]:
+        """
+        Serialize ParameterMappingValue or ResultMappingValue objects to JSON-compatible dictionaries.
+        
+        Args:
+            mapping_value: Can be AssetFieldMapping, LiteralMapping, DiscardMapping, or dict
+            
+        Returns:
+            JSON-compatible dictionary
+        """
+        if hasattr(mapping_value, 'model_dump'):
+            # It's a Pydantic model (AssetFieldMapping, LiteralMapping, etc.)
+            return mapping_value.model_dump()
+        elif isinstance(mapping_value, dict):
+            # Already a dictionary, return as-is
+            return mapping_value
+        else:
+            # Fallback for other types
+            return {"type": "unknown", "value": str(mapping_value)}
+    
+    def _serialize_mappings(self, mappings: Dict[str, Any]) -> Dict[str, Any]:
+        """Serialize parameter_mapping or result_mapping to JSON-compatible format"""
+        if not mappings:
+            return {}
+        
+        return {
+            key: self._serialize_mapping_value(value)
+            for key, value in mappings.items()
+        }
+    
     async def updateState(self, transaction_type: TransactionType, data: Dict[str, Any]) -> TransactionResult:
         """
         Unified interface for all state transitions
@@ -326,7 +356,7 @@ class StateTransitionService:
         self._validate_entity_exists(hop_model, "Hop", hop_id)
         self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_plan_ready", user_id)
         
-        # Create tool steps
+        # Create tool steps with serialized mappings
         for i, tool_step_data in enumerate(tool_steps):
             tool_step_model = ToolStepModel(
                 id=str(uuid4()),
@@ -336,8 +366,8 @@ class StateTransitionService:
                 sequence_order=i + 1,
                 name=tool_step_data.get('name', f'Step {i + 1}'),
                 description=tool_step_data.get('description'),
-                parameter_mapping=tool_step_data.get('parameter_mapping', {}),
-                result_mapping=tool_step_data.get('result_mapping', {}),
+                parameter_mapping=self._serialize_mappings(tool_step_data.get('parameter_mapping', {})),
+                result_mapping=self._serialize_mappings(tool_step_data.get('result_mapping', {})),
                 resource_configs=tool_step_data.get('resource_configs', {}),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()

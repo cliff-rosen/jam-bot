@@ -79,11 +79,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     key="start-planning"
                     onClick={handleStartHopPlanning}
                     disabled={isProcessing}
-                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        isProcessing 
-                            ? 'bg-gray-400 cursor-not-allowed' 
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${isProcessing
+                            ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                    }`}
+                        }`}
                 >
                     <Play className="w-4 h-4 mr-2" />
                     {isProcessing ? 'Planning...' : 'Start Hop Planning'}
@@ -110,10 +109,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                         <button
                             key="start-implementation"
                             onClick={handleStartHopImplementation}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                            disabled={isProcessing}
+                            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${isProcessing
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
+                                }`}
                         >
                             <Settings className="w-4 h-4 mr-2" />
-                            Start Implementation
+                            {isProcessing ? 'Processing...' : 'Start Implementation'}
                         </button>
                     );
                     break;

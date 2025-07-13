@@ -1,6 +1,6 @@
-import React from 'react';
-import { Settings, CheckCircle } from 'lucide-react';
-import { Mission, HopStatus } from '@/types/workflow';
+import React, { useState } from 'react';
+import { Settings, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Mission, HopStatus, MissionStatus } from '@/types/workflow';
 import { getMissionStatusDisplay, getStatusBadgeClass } from '@/utils/statusUtils';
 
 interface MissionSectionProps {
@@ -8,6 +8,8 @@ interface MissionSectionProps {
 }
 
 const MissionSection: React.FC<MissionSectionProps> = ({ mission }) => {
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
+
     if (!mission) {
         return (
             <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
@@ -27,14 +29,29 @@ const MissionSection: React.FC<MissionSectionProps> = ({ mission }) => {
     }
 
     const missionStatus = getMissionStatusDisplay(mission.status);
+    const isInProgress = mission.status === MissionStatus.IN_PROGRESS;
 
     return (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        {mission.name}
-                    </h2>
+                    <div className="flex items-center gap-2 mb-2">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                            {mission.name}
+                        </h2>
+                        {isInProgress && (
+                            <button
+                                onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                                className="flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                            >
+                                {isDetailsExpanded ? (
+                                    <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4" />
+                                )}
+                            </button>
+                        )}
+                    </div>
                     <p className="text-gray-600 dark:text-gray-400 mb-3">
                         {mission.description || 'No description provided'}
                     </p>
@@ -45,22 +62,26 @@ const MissionSection: React.FC<MissionSectionProps> = ({ mission }) => {
                 </div>
             </div>
 
-            {mission.goal && (
-                <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Goal</h4>
-                    <p className="text-gray-600 dark:text-gray-400">{mission.goal}</p>
-                </div>
-            )}
+            {(isDetailsExpanded || !isInProgress) && (
+                <>
+                    {mission.goal && (
+                        <div className="mb-4">
+                            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Goal</h4>
+                            <p className="text-gray-600 dark:text-gray-400">{mission.goal}</p>
+                        </div>
+                    )}
 
-            {mission.success_criteria && mission.success_criteria.length > 0 && (
-                <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Success Criteria</h4>
-                    <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400">
-                        {mission.success_criteria.map((criteria, idx) => (
-                            <li key={idx}>{criteria}</li>
-                        ))}
-                    </ul>
-                </div>
+                    {mission.success_criteria && mission.success_criteria.length > 0 && (
+                        <div className="mb-4">
+                            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Success Criteria</h4>
+                            <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400">
+                                {mission.success_criteria.map((criteria, idx) => (
+                                    <li key={idx}>{criteria}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </>
             )}
 
             {(() => {

@@ -650,9 +650,12 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         )
 
         # Handle different response types
+        print(f"DEBUG: Hop implementer response type: {parsed_response.response_type}")
         if parsed_response.response_type == "IMPLEMENTATION_PLAN":
+            print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
             result = _process_implementation_plan(parsed_response, current_hop)
             response_message.content = result.response_content
+            print(f"DEBUG: Implementation plan processing result.success = {result.success}")
             
             # Apply the changes to the state if processing was successful
             if result.success:
@@ -661,16 +664,18 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                     try:
                         # Prepare tool steps data for transaction service
                         tool_steps_data = []
-                        for step in parsed_response.tool_steps:
+                        for i, step in enumerate(parsed_response.tool_steps):
                             tool_step_data = {
                                 'tool_id': step.tool_id,
-                                'name': step.name,
+                                'name': f'Step {i + 1}: {step.tool_id}',  # Generate name since ToolStepLite doesn't have name field
                                 'description': step.description,
                                 'parameter_mapping': step.parameter_mapping,
                                 'result_mapping': step.result_mapping,
                                 'resource_configs': step.resource_configs
                             }
                             tool_steps_data.append(tool_step_data)
+                        
+                        print(f"DEBUG: Prepared {len(tool_steps_data)} tool steps for StateTransitionService")
                         
                         # Use transaction service to propose hop implementation
                         transaction_result = await _state_transition_service.updateState(
@@ -682,7 +687,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                             }
                         )
                         
-                        print(f"Successfully proposed hop implementation via StateTransitionService: {transaction_result.entity_id}")
+                        print(f"DEBUG: StateTransitionService completed successfully: {transaction_result.entity_id}")
+                        print(f"DEBUG: StateTransitionService result: {transaction_result.success}, {transaction_result.message}")
                         
                         # Fetch the updated mission to get correct state
                         if _mission_service:
@@ -694,7 +700,9 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
                         response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
                         
                     except Exception as e:
-                        print(f"Failed to use StateTransitionService for hop implementation: {str(e)}")
+                        print(f"DEBUG: Exception in StateTransitionService: {str(e)}")
+                        import traceback
+                        print(f"DEBUG: Full traceback: {traceback.format_exc()}")
                         # Fallback to manual status update
                         current_hop.status = HopStatus.HOP_IMPL_PROPOSED
                         state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED

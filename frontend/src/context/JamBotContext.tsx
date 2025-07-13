@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
 import { chatApi } from '@/lib/api/chatApi';
-import { toolsApi, assetApi, missionApi, sessionApi, hopApi } from '@/lib/api';
+import { toolsApi, assetApi, missionApi, sessionApi, hopApi, stateTransitionApi } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } from '@/types/chat';
@@ -526,23 +526,28 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const acceptMissionProposal = useCallback(async () => {
-        // Accept the current mission by updating its status
+        // Accept the current mission using StateTransitionService
         if (state.mission && state.mission.status === MissionStatus.AWAITING_APPROVAL) {
             try {
-                // Update mission status to IN_PROGRESS in the database
-                await missionApi.updateMissionStatus(state.mission.id, MissionStatus.IN_PROGRESS);
-                console.log(`Mission ${state.mission.id} status updated to IN_PROGRESS in database`);
+                // Use StateTransitionService to accept mission (step 1.2)
+                const result = await stateTransitionApi.acceptMission(state.mission.id);
+                console.log(`Mission accepted via StateTransitionService:`, result);
 
-                // Update mission status to IN_PROGRESS
-                const updatedMission = {
-                    ...state.mission,
-                    status: MissionStatus.IN_PROGRESS
-                };
+                if (result.success) {
+                    // Update local state with accepted mission
+                    const updatedMission = {
+                        ...state.mission,
+                        status: MissionStatus.IN_PROGRESS
+                    };
 
-                // Update session to point to the mission
-                await updateSessionMission(state.mission.id);
-
-                dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: updatedMission });
+                    dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: updatedMission });
+                    
+                    // Session linking is handled automatically by StateTransitionService
+                    console.log(`Mission ${state.mission.id} approved: ${result.message}`);
+                } else {
+                    console.error('StateTransitionService rejected mission acceptance:', result.message);
+                    throw new Error(result.message);
+                }
             } catch (error) {
                 console.error('Error accepting mission proposal:', error);
                 // Fall back to local state update if API call fails
@@ -556,7 +561,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
             console.log('No mission awaiting approval found');
         }
-    }, [state.mission, updateSessionMission]);
+    }, [state.mission]);
 
     const acceptHopProposal = useCallback(async (hop: Hop, proposedAssets?: any[]) => {
         try {

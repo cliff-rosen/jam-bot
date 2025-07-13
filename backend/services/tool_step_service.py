@@ -19,6 +19,7 @@ class ToolStepService:
         return ToolStep(
             id=tool_step_model.id,
             tool_id=tool_step_model.tool_id,
+            name=tool_step_model.name or tool_step_model.description or f"Step {tool_step_model.sequence_order}",
             description=tool_step_model.description or "",
             sequence_order=tool_step_model.sequence_order,
             resource_configs=tool_step_model.resource_configs or {},
@@ -26,7 +27,7 @@ class ToolStepService:
             result_mapping=tool_step_model.result_mapping or {},
             status=ToolExecutionStatus(tool_step_model.status.value),
             error_message=tool_step_model.error_message,
-            validation_errors=tool_step_model.validation_errors,
+            validation_errors=tool_step_model.validation_errors or [],
             created_at=tool_step_model.created_at,
             updated_at=tool_step_model.updated_at
         )

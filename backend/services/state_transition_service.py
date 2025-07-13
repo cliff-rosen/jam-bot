@@ -511,7 +511,7 @@ class StateTransitionService:
         
         for asset in mission_assets:
             if asset.role in ['input', 'output']:
-                await self.asset_service.create_asset(
+                self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset.name,
                     type=asset.schema_definition.type,
@@ -534,7 +534,7 @@ class StateTransitionService:
         
         for asset in hop_assets:
             if asset.role == 'output':
-                await self.asset_service.create_asset(
+                self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset.name,
                     type=asset.schema_definition.type,

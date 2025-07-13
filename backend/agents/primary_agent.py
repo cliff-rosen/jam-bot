@@ -524,7 +524,10 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
                         'sequence_order': sequence_order,
                         'is_final': hop_lite.is_final,
                         'success_criteria': getattr(hop_lite, 'success_criteria', []),
-                        'hop_metadata': {}
+                        'hop_metadata': {},
+                        # Add asset specifications for proper hop setup
+                        'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
+                        'output_asset_spec': hop_lite.output  # Output asset specification
                     }
                     
                     # Use StateTransitionService to create hop with proper coordination

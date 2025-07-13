@@ -306,8 +306,8 @@ class StateTransitionService:
         mission_model.current_hop_id = hop_id
         mission_model.updated_at = datetime.utcnow()
         
-        # Initialize hop assets from mission
-        await self._copy_mission_assets_to_hop(mission_id, hop_id, user_id)
+        # Initialize hop assets based on hop specification
+        await self._initialize_hop_assets(mission_id, hop_id, user_id, hop_data)
         
         self.db.commit()
         
@@ -629,8 +629,86 @@ class StateTransitionService:
     
     # Helper methods
     
+    async def _initialize_hop_assets(self, mission_id: str, hop_id: str, user_id: int, hop_data: Dict[str, Any]):
+        """Initialize hop assets based on hop specification"""
+        
+        # 1. Copy specified mission input assets to hop scope
+        input_asset_ids = hop_data.get('input_asset_ids', [])
+        for asset_id in input_asset_ids:
+            # Get the specific mission asset
+            mission_asset = self.asset_service.get_asset_by_id(asset_id, user_id)
+            if mission_asset and mission_asset.scope_type == 'mission' and mission_asset.scope_id == mission_id:
+                # Copy mission asset to hop scope as input
+                self.asset_service.create_asset(
+                    user_id=user_id,
+                    name=mission_asset.name,
+                    type=mission_asset.schema_definition.type,
+                    subtype=mission_asset.subtype,
+                    description=mission_asset.description,
+                    content=mission_asset.value_representation,
+                    asset_metadata={
+                        **mission_asset.asset_metadata,
+                        'copied_from_mission_asset': asset_id,
+                        'copied_at': datetime.utcnow().isoformat()
+                    },
+                    scope_type='hop',
+                    scope_id=hop_id,
+                    role='input'
+                )
+        
+        # 2. Create output asset based on output specification
+        output_spec = hop_data.get('output_asset_spec')
+        if output_spec:
+            if hasattr(output_spec, 'model_dump'):
+                output_spec = output_spec.model_dump()
+            
+            if isinstance(output_spec, dict):
+                if output_spec.get('type') == 'new_asset' or 'asset' in output_spec:
+                    # Create new output asset from specification
+                    asset_spec = output_spec.get('asset', output_spec)
+                    self.asset_service.create_asset(
+                        user_id=user_id,
+                        name=asset_spec.get('name', 'Hop Output'),
+                        type=asset_spec.get('schema_definition', {}).get('type', 'text'),
+                        subtype=asset_spec.get('subtype'),
+                        description=asset_spec.get('description', f'Output from {hop_data.get("name", "hop")}'),
+                        content="",  # Empty initially - will be populated during execution
+                        asset_metadata={
+                            'created_for_hop': hop_id,
+                            'hop_name': hop_data.get('name'),
+                            'created_at': datetime.utcnow().isoformat()
+                        },
+                        scope_type='hop',
+                        scope_id=hop_id,
+                        role='output'
+                    )
+                elif output_spec.get('type') == 'existing_asset' or 'mission_asset_id' in output_spec:
+                    # Reference existing mission asset as hop output target
+                    mission_asset_id = output_spec.get('mission_asset_id')
+                    if mission_asset_id:
+                        mission_asset = self.asset_service.get_asset_by_id(mission_asset_id, user_id)
+                        if mission_asset:
+                            # Copy mission output asset to hop scope
+                            self.asset_service.create_asset(
+                                user_id=user_id,
+                                name=mission_asset.name,
+                                type=mission_asset.schema_definition.type,
+                                subtype=mission_asset.subtype,
+                                description=mission_asset.description,
+                                content="",  # Empty initially - will be populated during execution
+                                asset_metadata={
+                                    **mission_asset.asset_metadata,
+                                    'targets_mission_asset': mission_asset_id,
+                                    'created_for_hop': hop_id,
+                                    'created_at': datetime.utcnow().isoformat()
+                                },
+                                scope_type='hop',
+                                scope_id=hop_id,
+                                role='output'
+                            )
+
     async def _copy_mission_assets_to_hop(self, mission_id: str, hop_id: str, user_id: int):
-        """Copy relevant mission assets to hop scope as inputs"""
+        """DEPRECATED: Copy relevant mission assets to hop scope as inputs - replaced by _initialize_hop_assets"""
         mission_assets = self.asset_service.get_assets_by_scope(
             user_id=user_id,
             scope_type='mission',

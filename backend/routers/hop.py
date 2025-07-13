@@ -43,7 +43,6 @@ class UpdateHopRequest(BaseModel):
 class CreateToolStepRequest(BaseModel):
     tool_id: str
     description: str
-    template: Optional[str] = None
     resource_configs: Optional[Dict[str, Any]] = None
     parameter_mapping: Optional[Dict[str, Any]] = None
     result_mapping: Optional[Dict[str, Any]] = None
@@ -181,7 +180,6 @@ async def create_tool_step(
             user_id=current_user.user_id,
             tool_id=tool_step_request.tool_id,
             description=tool_step_request.description,
-            template=tool_step_request.template,
             resource_configs=tool_step_request.resource_configs,
             parameter_mapping=tool_step_request.parameter_mapping,
             result_mapping=tool_step_request.result_mapping,

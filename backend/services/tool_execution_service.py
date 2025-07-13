@@ -50,7 +50,6 @@ class ToolExecutionService:
                 sequence_order=tool_step.sequence_order,
                 status=ToolExecutionStatus.PROPOSED,
                 description=tool_step.description,
-                template=tool_step.template,
                 parameter_mapping=tool_step.parameter_mapping,
                 result_mapping=tool_step.result_mapping,
                 resource_configs=tool_step.resource_configs,

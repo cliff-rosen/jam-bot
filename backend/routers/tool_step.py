@@ -14,7 +14,6 @@ router = APIRouter(prefix="/tool-steps", tags=["tool-steps"])
 class UpdateToolStepRequest(BaseModel):
     tool_id: Optional[str] = None
     description: Optional[str] = None
-    template: Optional[str] = None
     resource_configs: Optional[Dict[str, Any]] = None
     parameter_mapping: Optional[Dict[str, Any]] = None
     result_mapping: Optional[Dict[str, Any]] = None

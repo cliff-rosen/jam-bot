@@ -14,9 +14,10 @@ class HopService:
         self.db = db
         self.asset_service = AssetService(db)
 
-    def _model_to_schema(self, hop_model: HopModel, load_hop_state: bool = True) -> Hop:
+    async def _model_to_schema(self, hop_model: HopModel, load_hop_state: bool = True) -> Hop:
         """Convert database model to Hop schema with optional hop state loading"""
         hop_state = {}
+        tool_steps = []
         
         if load_hop_state:
             # Load hop-scoped assets
@@ -26,6 +27,15 @@ class HopService:
                 scope_id=hop_model.id
             )
             hop_state = {asset.id: asset for asset in hop_assets}
+        
+        # Load tool steps for this hop
+        from services.tool_step_service import ToolStepService
+        tool_step_service = ToolStepService(self.db)
+        try:
+            tool_steps = await tool_step_service.get_tool_steps_by_hop(hop_model.id, hop_model.user_id)
+        except Exception as e:
+            print(f"Warning: Failed to load tool steps for hop {hop_model.id}: {e}")
+            tool_steps = []
         
         return Hop(
             id=hop_model.id,
@@ -41,6 +51,7 @@ class HopService:
             error_message=hop_model.error_message,
             hop_metadata=hop_model.hop_metadata or {},
             hop_state=hop_state,
+            tool_steps=tool_steps,
             created_at=hop_model.created_at,
             updated_at=hop_model.updated_at
         )
@@ -90,7 +101,7 @@ class HopService:
         self.db.commit()
         self.db.refresh(hop_model)
         
-        return self._model_to_schema(hop_model)
+        return await self._model_to_schema(hop_model)
 
     async def get_hop(self, hop_id: str, user_id: int) -> Optional[Hop]:
         """Get a hop by ID"""
@@ -101,7 +112,7 @@ class HopService:
         if not hop_model:
             return None
         
-        return self._model_to_schema(hop_model)
+        return await self._model_to_schema(hop_model)
 
     async def get_hops_by_mission(self, mission_id: str, user_id: int) -> List[Hop]:
         """Get all hops for a mission, ordered by sequence"""
@@ -109,7 +120,9 @@ class HopService:
             and_(HopModel.mission_id == mission_id, HopModel.user_id == user_id)
         ).order_by(HopModel.sequence_order).all()
         
-        return [self._model_to_schema(hop_model) for hop_model in hop_models]
+        # Convert models to schemas using asyncio.gather for concurrent execution
+        import asyncio
+        return await asyncio.gather(*[self._model_to_schema(hop_model) for hop_model in hop_models])
 
     async def update_hop(
         self,
@@ -140,7 +153,7 @@ class HopService:
         self.db.commit()
         self.db.refresh(hop_model)
         
-        return self._model_to_schema(hop_model)
+        return await self._model_to_schema(hop_model)
 
     async def update_hop_status(
         self,
@@ -238,7 +251,7 @@ class HopService:
         if not hop_model:
             return None
         
-        return self._model_to_schema(hop_model)
+        return await self._model_to_schema(hop_model)
 
     async def get_completed_hops(self, mission_id: str, user_id: int) -> List[Hop]:
         """Get all completed hops for a mission"""
@@ -250,7 +263,9 @@ class HopService:
             )
         ).order_by(HopModel.sequence_order).all()
         
-        return [self._model_to_schema(hop_model) for hop_model in hop_models]
+        # Convert models to schemas using asyncio.gather for concurrent execution
+        import asyncio
+        return await asyncio.gather(*[self._model_to_schema(hop_model) for hop_model in hop_models])
 
     async def reorder_hops(
         self,
@@ -273,7 +288,7 @@ class HopService:
             if hop_model:
                 hop_model.sequence_order = i + 1
                 hop_model.updated_at = datetime.utcnow()
-                updated_hops.append(self._model_to_schema(hop_model))
+                updated_hops.append(await self._model_to_schema(hop_model))
         
         self.db.commit()
         

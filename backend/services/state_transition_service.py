@@ -55,6 +55,7 @@ class TransactionType(str, Enum):
     EXECUTE_HOP = "execute_hop"
     COMPLETE_HOP = "complete_hop"
     COMPLETE_MISSION = "complete_mission"
+    COMPLETE_TOOL_STEP = "complete_tool_step"
 
 
 @dataclass
@@ -155,6 +156,8 @@ class StateTransitionService:
                 return await self._complete_hop(data)
             elif transaction_type == TransactionType.COMPLETE_MISSION:
                 return await self._complete_mission(data)
+            elif transaction_type == TransactionType.COMPLETE_TOOL_STEP:
+                return await self._complete_tool_step(data)
             else:
                 raise StateTransitionError(f"Unknown transaction type: {transaction_type}")
                 
@@ -529,6 +532,63 @@ class StateTransitionService:
             metadata={"mission_id": mission_id}
         )
     
+    async def _complete_tool_step(self, data: Dict[str, Any]) -> TransactionResult:
+        """Handle tool step completion: Simulate successful tool execution for testing"""
+        tool_step_id = data['tool_step_id']
+        user_id = data['user_id']
+        simulated_output = data.get('simulated_output', {})
+        
+        # Get tool step
+        tool_step_model = self.db.query(ToolStepModel).filter(
+            ToolStepModel.id == tool_step_id,
+            ToolStepModel.user_id == user_id
+        ).first()
+        
+        self._validate_entity_exists(tool_step_model, "ToolStep", tool_step_id)
+        
+        # Validate tool step can be completed
+        from models import ToolExecutionStatus
+        valid_statuses = [ToolExecutionStatus.PROPOSED, ToolExecutionStatus.READY_TO_EXECUTE, ToolExecutionStatus.EXECUTING]
+        if tool_step_model.status not in valid_statuses:
+            raise StateTransitionError(
+                f"Tool step {tool_step_id} must be in {[s.value for s in valid_statuses]}, current: {tool_step_model.status.value}"
+            )
+        
+        # Generate simulated execution result
+        execution_result = await self._generate_simulated_execution_result(tool_step_model, simulated_output)
+        
+        # Update tool step status
+        tool_step_model.status = ToolExecutionStatus.COMPLETED
+        tool_step_model.execution_result = execution_result
+        tool_step_model.completed_at = datetime.utcnow()
+        tool_step_model.updated_at = datetime.utcnow()
+        
+        if not tool_step_model.started_at:
+            tool_step_model.started_at = datetime.utcnow()
+        
+        # Create output assets based on result_mapping
+        assets_created = await self._create_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
+        
+        # Check if all tool steps in the hop are completed
+        hop_model = self.db.query(HopModel).filter(HopModel.id == tool_step_model.hop_id).first()
+        hop_progress = await self._check_hop_progress(tool_step_model.hop_id, user_id)
+        
+        self.db.commit()
+        
+        return TransactionResult(
+            success=True,
+            entity_id=tool_step_id,
+            status="COMPLETED",
+            message="Tool step completed successfully (simulated)",
+            metadata={
+                "tool_step_id": tool_step_id,
+                "hop_id": tool_step_model.hop_id,
+                "assets_created": assets_created,
+                "hop_progress": hop_progress,
+                "execution_result": execution_result
+            }
+        )
+    
     # Helper methods
     
     async def _copy_mission_assets_to_hop(self, mission_id: str, hop_id: str, user_id: int):
@@ -584,6 +644,137 @@ class StateTransitionService:
                     scope_id=mission_id,
                     role='output'
                 )
+    
+    async def _generate_simulated_execution_result(self, tool_step_model: ToolStepModel, simulated_output: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate simulated execution result for testing purposes"""
+        # Get tool information to understand expected outputs
+        tool_id = tool_step_model.tool_id
+        result_mapping = tool_step_model.result_mapping or {}
+        
+        # Create realistic simulated output based on tool type and result mapping
+        execution_result = {
+            "success": True,
+            "outputs": {},
+            "metadata": {
+                "simulated": True,
+                "tool_id": tool_id,
+                "executed_at": datetime.utcnow().isoformat(),
+                "execution_duration": 1.5  # Simulated duration
+            }
+        }
+        
+        # Generate outputs based on result_mapping
+        for output_name, mapping_config in result_mapping.items():
+            if output_name in simulated_output:
+                # Use provided simulated output
+                execution_result["outputs"][output_name] = simulated_output[output_name]
+            else:
+                # Generate realistic output based on tool type
+                execution_result["outputs"][output_name] = self._generate_realistic_output(
+                    tool_id, output_name, mapping_config
+                )
+        
+        return execution_result
+    
+    def _generate_realistic_output(self, tool_id: str, output_name: str, mapping_config: Dict[str, Any]) -> Any:
+        """Generate realistic output data for a specific tool output"""
+        # Common realistic outputs based on tool patterns
+        if "text" in output_name.lower() or "content" in output_name.lower():
+            return f"Simulated {output_name} result from {tool_id}"
+        elif "json" in output_name.lower() or "data" in output_name.lower():
+            return {"status": "success", "data": f"Simulated data from {tool_id}"}
+        elif "file" in output_name.lower():
+            return {"filename": f"output_{tool_id}.txt", "content": f"Simulated file content from {tool_id}"}
+        elif "url" in output_name.lower() or "link" in output_name.lower():
+            return f"https://example.com/simulated/{tool_id}/output"
+        elif "count" in output_name.lower() or "number" in output_name.lower():
+            return 42
+        elif "list" in output_name.lower() or "array" in output_name.lower():
+            return [f"Item 1 from {tool_id}", f"Item 2 from {tool_id}"]
+        else:
+            return f"Simulated {output_name} from {tool_id}"
+    
+    async def _create_output_assets_from_tool_step(self, tool_step_model: ToolStepModel, execution_result: Dict[str, Any], user_id: int) -> List[str]:
+        """Create output assets based on tool step execution results"""
+        assets_created = []
+        result_mapping = tool_step_model.result_mapping or {}
+        outputs = execution_result.get("outputs", {})
+        
+        for output_name, asset_target in result_mapping.items():
+            if output_name in outputs:
+                # Extract asset information from mapping
+                asset_name = asset_target.get("asset_name", output_name) if isinstance(asset_target, dict) else str(asset_target)
+                
+                # Determine asset type and content based on output data
+                output_data = outputs[output_name]
+                asset_type = self._determine_asset_type(output_data)
+                
+                # Create the asset
+                asset_id = self.asset_service.create_asset(
+                    user_id=user_id,
+                    name=asset_name,
+                    type=asset_type,
+                    description=f"Output from tool step {tool_step_model.name}",
+                    content=output_data,
+                    asset_metadata={
+                        "generated_by_tool": tool_step_model.tool_id,
+                        "tool_step_id": tool_step_model.id,
+                        "output_name": output_name,
+                        "simulated": True,
+                        "created_at": datetime.utcnow().isoformat()
+                    },
+                    scope_type='hop',
+                    scope_id=tool_step_model.hop_id,
+                    role='output'
+                )
+                
+                assets_created.append(asset_id)
+        
+        return assets_created
+    
+    def _determine_asset_type(self, output_data: Any) -> str:
+        """Determine appropriate asset type based on output data"""
+        if isinstance(output_data, str):
+            return "text"
+        elif isinstance(output_data, dict):
+            return "json"
+        elif isinstance(output_data, list):
+            return "json"
+        elif isinstance(output_data, (int, float)):
+            return "number"
+        elif isinstance(output_data, bool):
+            return "boolean"
+        else:
+            return "text"  # Default fallback
+    
+    async def _check_hop_progress(self, hop_id: str, user_id: int) -> Dict[str, Any]:
+        """Check progress of all tool steps in a hop"""
+        tool_steps = self.db.query(ToolStepModel).filter(
+            ToolStepModel.hop_id == hop_id,
+            ToolStepModel.user_id == user_id
+        ).order_by(ToolStepModel.sequence_order).all()
+        
+        from models import ToolExecutionStatus
+        total_steps = len(tool_steps)
+        completed_steps = len([step for step in tool_steps if step.status == ToolExecutionStatus.COMPLETED])
+        
+        progress = {
+            "total_steps": total_steps,
+            "completed_steps": completed_steps,
+            "progress_percentage": (completed_steps / total_steps * 100) if total_steps > 0 else 0,
+            "all_completed": completed_steps == total_steps,
+            "step_statuses": [
+                {
+                    "step_id": step.id,
+                    "name": step.name,
+                    "status": step.status.value,
+                    "sequence_order": step.sequence_order
+                }
+                for step in tool_steps
+            ]
+        }
+        
+        return progress
 
 
 # Dependency function for FastAPI

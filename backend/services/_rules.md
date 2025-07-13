@@ -96,6 +96,56 @@ def mock_user_session_service():
 app.dependency_overrides[get_user_session_service] = mock_user_session_service
 ```
 
+## State Transition Service
+
+### Tool Step Completion for Testing
+
+The StateTransitionService now supports tool step completion for testing purposes through the `COMPLETE_TOOL_STEP` transaction type.
+
+#### Features
+- Simulates successful tool step execution without running actual tools
+- Generates realistic output data based on result_mapping
+- Creates output assets in the hop scope
+- Tracks hop progress and completion status
+- Updates tool step status to COMPLETED with timestamps
+
+#### Usage
+```python
+# Via API endpoint
+POST /state-transitions/execute
+{
+    "transaction_type": "complete_tool_step",
+    "data": {
+        "tool_step_id": "step-123",
+        "simulated_output": {
+            "custom_output": "Override default simulation"
+        }
+    }
+}
+
+# Via service directly
+result = await state_transition_service.updateState(
+    TransactionType.COMPLETE_TOOL_STEP,
+    {
+        "tool_step_id": tool_step_id,
+        "user_id": user_id,
+        "simulated_output": {"custom_data": "test"}
+    }
+)
+```
+
+#### Output Generation
+- Analyzes result_mapping to determine expected outputs
+- Creates realistic simulated data based on output name patterns
+- Supports text, JSON, file, URL, and numeric outputs
+- Allows custom output via `simulated_output` parameter
+
+#### Asset Creation
+- Creates output assets in hop scope based on result_mapping
+- Determines asset type automatically from output data
+- Includes metadata marking assets as simulated
+- Links assets to generating tool step
+
 ## Migration Strategy
 
 When refactoring existing services:

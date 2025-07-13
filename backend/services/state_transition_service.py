@@ -407,6 +407,20 @@ class StateTransitionService:
         hop_model.status = HopStatus.HOP_IMPL_READY.value
         hop_model.updated_at = datetime.utcnow()
         
+        # Update all tool steps from PROPOSED to READY_TO_EXECUTE
+        from models import ToolExecutionStatus
+        tool_steps = self.db.query(ToolStepModel).filter(
+            ToolStepModel.hop_id == hop_id,
+            ToolStepModel.user_id == user_id,
+            ToolStepModel.status == ToolExecutionStatus.PROPOSED
+        ).all()
+        
+        updated_tool_steps = 0
+        for tool_step in tool_steps:
+            tool_step.status = ToolExecutionStatus.READY_TO_EXECUTE
+            tool_step.updated_at = datetime.utcnow()
+            updated_tool_steps += 1
+        
         self.db.commit()
         
         return TransactionResult(
@@ -414,7 +428,11 @@ class StateTransitionService:
             entity_id=hop_id,
             status="HOP_IMPL_READY",
             message="Hop implementation accepted and ready for execution",
-            metadata={"hop_id": hop_id}
+            metadata={
+                "hop_id": hop_id,
+                "tool_steps_updated": updated_tool_steps,
+                "tool_steps_status": "READY_TO_EXECUTE"
+            }
         )
     
     async def _execute_hop(self, data: Dict[str, Any]) -> TransactionResult:

@@ -572,38 +572,70 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
     }, [state.mission]);
 
     const acceptHopProposal = useCallback(async (hop: Hop, proposedAssets?: any[]) => {
-        try {
-            // Update hop status to HOP_PLAN_READY on backend
-            if (hop.id) {
-                await hopApi.updateHopStatus(hop.id, HopStatus.HOP_PLAN_READY);
-                console.log(`Hop ${hop.id} status updated to HOP_PLAN_READY on backend`);
-            }
+        // Accept the current hop using StateTransitionService (step 2.3, 3.3)
+        if (hop && hop.status === HopStatus.HOP_PLAN_PROPOSED) {
+            try {
+                // Use StateTransitionService to accept hop plan
+                const result = await stateTransitionApi.acceptHopPlan(hop.id);
+                console.log(`Hop plan accepted via StateTransitionService:`, result);
 
-            // Update frontend state
-            dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
-        } catch (error) {
-            console.error('Error accepting hop proposal:', error);
-            // Still update frontend state if backend fails
-            dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
+                if (result.success) {
+                    // Update local state with accepted hop
+                    const updatedHop = {
+                        ...hop,
+                        status: HopStatus.HOP_PLAN_READY
+                    };
+                    dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop: updatedHop, proposedAssets: proposedAssets || [] } });
+                    
+                    // Force mission reload to pick up state changes
+                    if (state.mission?.id) {
+                        await loadMission(state.mission.id);
+                    }
+                } else {
+                    console.error('Failed to accept hop plan:', result.message);
+                }
+            } catch (error) {
+                console.error('Error accepting hop plan via StateTransitionService:', error);
+                // Still update frontend state if backend fails
+                dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop, proposedAssets: proposedAssets || [] } });
+            }
+        } else {
+            console.warn('Hop is not in HOP_PLAN_PROPOSED status, cannot accept');
         }
-    }, []);
+    }, [state.mission?.id, loadMission]);
 
     const acceptHopImplementationProposal = useCallback(async (hop: Hop) => {
-        try {
-            // Update hop status to HOP_IMPL_READY on backend
-            if (hop.id) {
-                await hopApi.updateHopStatus(hop.id, HopStatus.HOP_IMPL_READY);
-                console.log(`Hop ${hop.id} status updated to HOP_IMPL_READY on backend`);
-            }
+        // Accept the current hop implementation using StateTransitionService (step 2.6, 3.6)
+        if (hop && hop.status === HopStatus.HOP_IMPL_PROPOSED) {
+            try {
+                // Use StateTransitionService to accept hop implementation
+                const result = await stateTransitionApi.acceptHopImplementation(hop.id);
+                console.log(`Hop implementation accepted via StateTransitionService:`, result);
 
-            // Update frontend state
-            dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
-        } catch (error) {
-            console.error('Error accepting hop implementation proposal:', error);
-            // Still update frontend state if backend fails
-            dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+                if (result.success) {
+                    // Update local state with accepted hop
+                    const updatedHop = {
+                        ...hop,
+                        status: HopStatus.HOP_IMPL_READY
+                    };
+                    dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: updatedHop });
+                    
+                    // Force mission reload to pick up state changes
+                    if (state.mission?.id) {
+                        await loadMission(state.mission.id);
+                    }
+                } else {
+                    console.error('Failed to accept hop implementation:', result.message);
+                }
+            } catch (error) {
+                console.error('Error accepting hop implementation via StateTransitionService:', error);
+                // Still update frontend state if backend fails
+                dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: hop });
+            }
+        } else {
+            console.warn('Hop is not in HOP_IMPL_PROPOSED status, cannot accept');
         }
-    }, []);
+    }, [state.mission?.id, loadMission]);
 
     const acceptHopImplementationAsComplete = useCallback((hop: Hop) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });

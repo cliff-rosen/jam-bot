@@ -55,7 +55,8 @@ mission_lite = MissionLite(
                 }
             },
             role=AssetRole.INPUT,
-            content={
+            content=None,  # ✅ FIXED: Empty initially
+            asset_metadata={  # ✅ FIXED: Moved metadata here
                 "file_path": "/data/customer_feedback_q4_2024.csv",
                 "row_count": 15420,
                 "size_mb": 12.3
@@ -75,7 +76,7 @@ mission_lite = MissionLite(
                 }
             },
             role=AssetRole.OUTPUT,
-            content=""  # Empty initially, will be populated during execution
+            content=None  # ✅ FIXED: Empty initially, will be populated during execution
         )
     ]
 }
@@ -141,9 +142,9 @@ mission_id = "mission_def456"
 ### Database Entities Updated
 
 #### Mission Entity
-| id | name | status | current_hop_id |
-|---|---|---|---|
-| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | null |
+| id | name | status | current_hop_id | updated_at |
+|---|---|---|---|---|
+| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | null | 2024-01-15T10:35:00Z |
 
 ### Result State
 - **Mission**: Status changed from `AWAITING_APPROVAL` to `IN_PROGRESS`

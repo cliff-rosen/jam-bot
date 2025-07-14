@@ -818,7 +818,11 @@ class ExistingAssetOutput(BaseModel):
     mission_asset_id: str
 
 OutputAssetSpec = Union[NewAssetOutput, ExistingAssetOutput]
+```
 
+### Lite Representations
+
+```python
 class HopLite(BaseModel):
     """Simplified hop structure for hop planning operations"""
     name: str
@@ -850,8 +854,6 @@ class MissionLite(BaseModel):
     mission_metadata: Dict[str, Any] = Field(default_factory=dict)
     assets: List[AssetLite] = Field(default_factory=list)  # Asset specifications to be created
 ```
-
-
 
 
 ## 4. TypeScript Types

@@ -51,21 +51,24 @@
 - Tracks overall progress through status transitions
 - Maintains current_hop_id for active hop tracking
 - Contains hop_history for all hops in sequence
-- Assets scoped to mission level for persistent data
+- Has relationships to mission-scoped assets only (persistent deliverables and working artifacts)
 
 **Hop**: A single execution phase within a Mission
 - Sequential execution unit with unique sequence_order
 - Contains one or more tool_steps that execute as a chain
-- Assets scoped to hop level for intermediate data
+- Has relationships to BOTH mission-scoped assets (inherited access) AND hop-scoped assets (own working data)
 - Tracks resolution and completion state
+- Unique dual-scope asset access: can reference existing mission assets while creating temporary hop assets
 
 **ToolStep**: An atomic unit of work using a specific tool
 - References input and output assets directly by ID in parameter/result mappings
 - Executes within hop context
-- Creates/updates assets based on tool outputs
+- Creates/updates assets from both scopes based on tool outputs
 
 **Asset**: Data/content with lifecycle management and value representation
-- Scoped to mission or hop level via scope_type/scope_id
+- Explicitly scoped to either mission or hop via scope_type/scope_id fields
+- Mission-scoped assets: Persistent throughout mission lifecycle, visible to mission and all its hops
+- Hop-scoped assets: Temporary working data, visible only to the specific hop that created them
 - Has status (pending/ready/error) and role (input/output/intermediate)
 - Uses value representation strategy for efficient display/LLM consumption
 - Stores full content plus generated summary
@@ -78,10 +81,19 @@ UserSession 1→1 Mission (optional)
 Chat 1→* ChatMessage
 Mission 1→1 Hop (current_hop_id)
 Mission 1→* Hop (hop_history via mission_id)
-Mission 1→* Asset (scope_type='mission', scope_id=mission.id)
+
+Asset Scoping:
+Mission → Assets (scope_type='mission', scope_id=mission.id) [mission can only see mission-scoped]
+Hop → Assets (scope_type='mission', scope_id=mission.id) [hop can see mission-scoped assets]
+Hop → Assets (scope_type='hop', scope_id=hop.id) [hop can see hop-scoped assets]
+
+Execution Context:
 Hop 1→* ToolStep (hop_id)
-Hop 1→* Asset (scope_type='hop', scope_id=hop.id)
-ToolStep references Asset (via parameter/result mappings)
+ToolStep references Assets from both scopes (via parameter/result mappings)
+
+Asset-Entity Mapping:
+MissionAsset table: many-to-many Mission ↔ Asset (mission-scoped only)
+HopAsset table: many-to-many Hop ↔ Asset (both mission-scoped and hop-scoped)
 ```
 
 ## 2. Database Models (SQLAlchemy)

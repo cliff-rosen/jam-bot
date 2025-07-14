@@ -142,13 +142,12 @@ class ToolExecutionStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 class AssetStatus(str, PyEnum):
-    PENDING = "pending"  # Asset created but not yet ready
-    AWAITING_APPROVAL = "awaiting_approval"
-    READY_FOR_PROCESSING = "ready_for_processing"
-    PROCESSING = "processing"
-    READY = "ready"
-    ERROR = "error"
-    EXPIRED = "expired"
+    PROPOSED = "proposed"       # Asset created in mission/hop proposal, awaiting user approval
+    PENDING = "pending"         # User approved, asset ready to be worked on
+    IN_PROGRESS = "in_progress" # Tool is currently processing this asset
+    READY = "ready"            # Asset processing completed successfully
+    ERROR = "error"            # Asset processing failed
+    EXPIRED = "expired"        # Asset data is stale/invalid
 
 class AssetRole(str, PyEnum):
     INPUT = "input"

@@ -165,14 +165,14 @@ mission_id = "mission_def456"
 ### Database Entities Created/Updated
 
 #### New Hop Entity
-| id | name | status | sequence_order | mission_id | is_final |
-|---|---|---|---|---|---|
-| hop_abc123 | Hop 1 | HOP_PLAN_STARTED | 1 | mission_def456 | false |
+| id | name | status | sequence_order | mission_id | is_final | created_at | updated_at |
+|---|---|---|---|---|---|---|---|
+| hop_abc123 | Hop 1 | HOP_PLAN_STARTED | 1 | mission_def456 | false | 2024-01-15T10:40:00Z | 2024-01-15T10:40:00Z |
 
 #### Mission Entity Update
-| id | name | status | current_hop_id |
-|---|---|---|---|
-| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | hop_abc123 |
+| id | name | status | current_hop_id | updated_at |
+|---|---|---|---|---|
+| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | hop_abc123 | 2024-01-15T10:40:00Z |
 
 ### Result State
 - **Hop**: Created in `HOP_PLAN_STARTED` status
@@ -189,21 +189,14 @@ mission_id = "mission_def456"
 hop_lite = HopLite(
     name="Data Analysis Hop",
     description="Process customer feedback data and generate analysis",
-    goal="Transform raw feedback into structured insights",
     rationale="Need to clean and analyze the data before generating final report",
-    success_criteria=[
-        "Clean and validate customer feedback data",
-        "Perform trend analysis on feedback patterns",
-        "Generate intermediate analysis results"
-    ],
     is_final=False,
     inputs=["uuid_generated_1"],  # Use existing input dataset asset ID
     output=NewAssetOutput(
-        type="new_asset",
-        asset={
-            "name": "Analysis Results",
-            "description": "Structured analysis of customer feedback trends",
-            "schema_definition": {
+        asset=AssetLite(
+            name="Analysis Results",
+            description="Structured analysis of customer feedback trends",
+            schema_definition={
                 "type": "object",
                 "description": "Structured analysis results in JSON format",
                 "is_array": False,
@@ -213,9 +206,10 @@ hop_lite = HopLite(
                     "metrics": {"type": "object", "description": "Statistical metrics"}
                 }
             },
-            "role": AssetRole.INTERMEDIATE,
-            "asset_metadata": {}
-        }
+            role=AssetRole.INTERMEDIATE,
+            content=None,
+            asset_metadata={}
+        )
     ),
     hop_metadata={
         "estimated_duration": "45 minutes",
@@ -227,25 +221,25 @@ hop_lite = HopLite(
 ### Database Entities Created/Updated
 
 #### Hop Entity Update
-| id | name | status | description | goal | is_final |
-|---|---|---|---|---|---|
-| hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false |
+| id | name | status | description | rationale | is_final | updated_at |
+|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Need to clean and analyze the data before generating final report | false | 2024-01-15T10:45:00Z |
 
 #### New Asset Entity (from hop_lite.output.asset)
-| id | name | schema_definition | scope_type | scope_id | status | role |
-|---|---|---|---|---|---|---|
-| uuid_generated_3 | Analysis Results | {"type": "object", ...} | mission | mission_def456 | PROPOSED | INTERMEDIATE |
+| id | name | schema_definition | scope_type | scope_id | status | role | created_at | updated_at |
+|---|---|---|---|---|---|---|---|---|
+| uuid_generated_3 | Analysis Results | {"type": "object", ...} | mission | mission_def456 | PROPOSED | INTERMEDIATE | 2024-01-15T10:45:00Z | 2024-01-15T10:45:00Z |
 
 #### New MissionAsset Mapping
-| id | mission_id | asset_id | role |
-|---|---|---|---|
-| mission_asset_mapping_3 | mission_def456 | uuid_generated_3 | INTERMEDIATE |
+| id | mission_id | asset_id | role | created_at | updated_at |
+|---|---|---|---|---|---|
+| mission_asset_mapping_3 | mission_def456 | uuid_generated_3 | INTERMEDIATE | 2024-01-15T10:45:00Z | 2024-01-15T10:45:00Z |
 
 #### New HopAsset Mappings
-| id | hop_id | asset_id | role |
-|---|---|---|---|
-| hop_asset_mapping_1 | hop_abc123 | uuid_generated_1 | INPUT |
-| hop_asset_mapping_2 | hop_abc123 | uuid_generated_3 | OUTPUT |
+| id | hop_id | asset_id | role | created_at | updated_at |
+|---|---|---|---|---|---|
+| hop_asset_mapping_1 | hop_abc123 | uuid_generated_1 | INPUT | 2024-01-15T10:45:00Z | 2024-01-15T10:45:00Z |
+| hop_asset_mapping_2 | hop_abc123 | uuid_generated_3 | OUTPUT | 2024-01-15T10:45:00Z | 2024-01-15T10:45:00Z |
 
 ### Result State
 - **Hop**: Status changed to `HOP_PLAN_PROPOSED` with full plan details

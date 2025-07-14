@@ -5,7 +5,7 @@
  */
 
 import { Mission, Hop } from '@/types/workflow';
-import { Asset } from '@/types/asset';
+import { Asset, AssetMapSummary } from '@/types/asset';
 
 export interface SanitizedAsset {
     id: string;
@@ -33,7 +33,7 @@ export interface SanitizedMission {
     description: string;
     goal?: string;
     success_criteria?: string[];
-    mission_state: Record<string, SanitizedAsset>;
+    mission_asset_map: AssetMapSummary;
     current_hop?: any;
     hop_history: any[];
     inputs: SanitizedAsset[];
@@ -69,8 +69,8 @@ export function sanitizeAssetForChat(asset: Asset): SanitizedAsset {
 export function sanitizeHopForChat(hop: Hop): any {
     return {
         ...hop,
-        // hop_state will be computed from assets with scope_type='hop' and scope_id=hop.id
-        hop_state: {} // Will be populated from assets relationship
+        // hop_asset_map contains asset_id -> role mappings
+        hop_asset_map: hop.hop_asset_map || {}
     };
 }
 
@@ -92,9 +92,8 @@ export function sanitizeMissionForChat(mission: Mission | null): SanitizedMissio
         created_at: typeof mission.created_at === 'string' ? mission.created_at : new Date().toISOString(),
         updated_at: typeof mission.updated_at === 'string' ? mission.updated_at : new Date().toISOString(),
 
-        // These fields need to be computed from the Mission's relationships
-        // For now, return empty/default values until we implement the computed fields
-        mission_state: {}, // Will be populated from assets with scope_type='mission'
+        // Use asset mapping instead of direct state
+        mission_asset_map: mission.mission_asset_map || {},
         current_hop: undefined, // Will be computed from hops relationship
         hop_history: [], // Will be populated from completed hops
         inputs: [], // Will be populated from assets with role='input'

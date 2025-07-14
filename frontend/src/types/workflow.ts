@@ -6,7 +6,7 @@
  */
 
 import { Resource } from './resource';
-import { Asset } from './asset';
+import { Asset, AssetMapSummary } from './asset';
 
 // --- Workflow Execution Enums ---
 
@@ -109,8 +109,8 @@ export interface Hop {
     // Relationships (populated by services) - Parent manages child context
     tool_steps: ToolStep[];
 
-    // Asset collections (all hop-scoped assets by name)
-    hop_state: Record<string, Asset>;
+    // Asset mapping - tracks which assets belong to this hop by role
+    hop_asset_map: AssetMapSummary;
 }
 
 export interface Mission {
@@ -134,8 +134,8 @@ export interface Mission {
     current_hop?: Hop;
     hops: Hop[];  // hop_history
 
-    // Asset collection - unified approach (filter by Asset.role for inputs/outputs)
-    mission_state: Record<string, Asset>;  // all mission assets by name
+    // Asset mapping - tracks which assets belong to this mission by role
+    mission_asset_map: AssetMapSummary;
 }
 
 export const defaultMission: Mission = {
@@ -150,7 +150,7 @@ export const defaultMission: Mission = {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     hops: [],
-    mission_state: {}
+    mission_asset_map: {}
 };
 
 

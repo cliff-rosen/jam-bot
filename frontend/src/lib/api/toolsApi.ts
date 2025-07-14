@@ -1,7 +1,6 @@
-import { api } from './index';
-import { ToolStep } from '../../types/workflow';
-import { Asset } from '../../types/asset';
-import { ToolDefinition } from '../../types/tool';
+import { api } from '@/lib/api';
+import { ToolStep } from '@/types/workflow';
+import { Asset, AssetMapSummary } from '@/types/asset';
 
 export interface ToolExecutionResponse {
     success: boolean;
@@ -27,17 +26,30 @@ export const toolsApi = {
     /**
      * Get list of available tools
      */
-    getAvailableTools: async (): Promise<ToolDefinition[]> => {
-        const response = await api.get<{ tools: ToolDefinition[] }>('/api/tools/available');
-        return response.data.tools;
+    getTools: async (): Promise<any> => {
+        const response = await api.get('/api/tools/available');
+        return response.data;
     },
 
     /**
-     * Get a single tool definition by ID
+     * Convert asset mapping to hop_state format expected by backend
      */
-    getToolDefinition: async (toolId: string): Promise<ToolDefinition> => {
-        const response = await api.get<ToolDefinition>(`/api/tools/tools/${toolId}`);
-        return response.data;
+    convertAssetMapToHopState: async (assetMap: AssetMapSummary): Promise<Record<string, Asset>> => {
+        const hopState: Record<string, Asset> = {};
+
+        // For each asset_id in the mapping, fetch the asset and add to hop_state
+        for (const [assetId, role] of Object.entries(assetMap)) {
+            try {
+                const assetResponse = await api.get(`/api/assets/${assetId}`);
+                const asset = assetResponse.data;
+                // Use asset name as the key (backend expects hop_state by name)
+                hopState[asset.name] = asset;
+            } catch (error) {
+                console.warn(`Failed to fetch asset ${assetId} for hop state:`, error);
+            }
+        }
+
+        return hopState;
     },
 
     /**
@@ -45,9 +57,12 @@ export const toolsApi = {
      */
     createToolExecution: async (
         toolStep: ToolStep,
-        hopState: Record<string, Asset>,
+        assetMap: AssetMapSummary,
         missionId?: string
     ): Promise<{ execution_id: string }> => {
+        // Convert asset mapping to hop_state format
+        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
+
         const response = await api.post<{ execution_id: string }>('/api/tools/execution/create', {
             tool_step: toolStep,
             hop_state: hopState,
@@ -73,16 +88,16 @@ export const toolsApi = {
     },
 
     /**
- * Execute a tool step (streamlined - uses create + execute pattern)
- */
+     * Execute a tool step (streamlined - uses create + execute pattern)
+     */
     executeTool: async (
         toolId: string,
         step: ToolStep,
-        hopState: Record<string, Asset>,
+        assetMap: AssetMapSummary,
         missionId?: string
     ): Promise<ToolExecutionResponse> => {
         // Create tool execution record
-        const createResponse = await toolsApi.createToolExecution(step, hopState, missionId);
+        const createResponse = await toolsApi.createToolExecution(step, assetMap, missionId);
 
         // Execute the tool
         const result = await toolsApi.executeToolById(createResponse.execution_id);
@@ -96,8 +111,11 @@ export const toolsApi = {
     executeToolLegacy: async (
         toolId: string,
         step: ToolStep,
-        hopState: Record<string, Asset>
+        assetMap: AssetMapSummary
     ): Promise<ToolExecutionResponse> => {
+        // Convert asset mapping to hop_state format
+        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
+
         const response = await api.post<ToolExecutionResponse>(`/api/tools/execute/${toolId}`, {
             step,
             hop_state: hopState

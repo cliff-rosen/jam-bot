@@ -52,6 +52,16 @@ export interface Asset extends SchemaEntity {
     updated_at: string;
 }
 
+// Asset mapping types for the new asset mapping system
+export interface AssetMapping {
+    asset_id: string;
+    role: AssetRole;
+}
+
+export interface AssetMapSummary {
+    [asset_id: string]: AssetRole;
+}
+
 export interface AssetWithContent extends Asset {
     content: any;  // Full content for tool execution
 }

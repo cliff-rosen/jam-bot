@@ -396,7 +396,7 @@ class Asset(Base):
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    type = Column(String(255), nullable=False)
+    schema_definition = Column(JSON, nullable=False)  # Full schema definition from SchemaEntity
     subtype = Column(String(255), nullable=True)
     
     # Scope information - unified approach for mission and hop level assets
@@ -404,7 +404,7 @@ class Asset(Base):
     scope_id = Column(String(255), nullable=False)   # mission_id or hop_id
     
     # Asset lifecycle
-    status = Column(Enum(AssetStatus), nullable=False, default=AssetStatus.PENDING)
+    status = Column(Enum(AssetStatus), nullable=False, default=AssetStatus.PROPOSED)
     role = Column(Enum(AssetRole), nullable=False)  # Role of asset in workflow: input, output, intermediate
     
     # Content strategy
@@ -756,6 +756,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> 
 class Asset(SchemaEntity):
     """Asset with metadata and value representation (no full content)"""
     # Inherits from SchemaEntity: id, name, description, schema_definition
+    # Note: Database model includes these fields as columns for storage
     
     # Additional fields beyond SchemaEntity
     subtype: Optional[str] = None
@@ -765,7 +766,7 @@ class Asset(SchemaEntity):
     scope_id: str
     
     # Asset lifecycle
-    status: AssetStatus = AssetStatus.AWAITING_APPROVAL
+    status: AssetStatus = AssetStatus.PROPOSED
     role: AssetRole
     
     # Value representation (generated from content_summary)

@@ -40,12 +40,20 @@ mission_data = {
     },
     "mission_state": {
         "input_dataset": {
+            "id": "asset_input_789",
             "name": "Customer Feedback Dataset",
             "description": "Raw customer feedback data from Q4 2024",
             "schema_definition": {
-                "type": "dataset",
-                "format": "csv",
-                "columns": ["date", "customer_id", "feedback_text", "rating", "category"]
+                "type": "file",
+                "description": "CSV file containing customer feedback data",
+                "is_array": False,
+                "fields": {
+                    "date": {"type": "string", "description": "Feedback date"},
+                    "customer_id": {"type": "string", "description": "Customer identifier"},
+                    "feedback_text": {"type": "string", "description": "Customer feedback content"},
+                    "rating": {"type": "number", "description": "Customer rating 1-5"},
+                    "category": {"type": "string", "description": "Feedback category"}
+                }
             },
             "role": "input",
             "content": {
@@ -55,12 +63,18 @@ mission_data = {
             }
         },
         "analysis_report": {
+            "id": "asset_output_101",
             "name": "Customer Feedback Analysis Report",
             "description": "Comprehensive analysis report with trends and recommendations",
             "schema_definition": {
-                "type": "document",
-                "format": "markdown",
-                "sections": ["executive_summary", "trend_analysis", "recommendations"]
+                "type": "markdown",
+                "description": "Analysis report in markdown format",
+                "is_array": False,
+                "fields": {
+                    "executive_summary": {"type": "string", "description": "Executive summary section"},
+                    "trend_analysis": {"type": "string", "description": "Trend analysis section"},
+                    "recommendations": {"type": "string", "description": "Recommendations section"}
+                }
             },
             "role": "output",
             "content": ""  # Empty initially, will be populated during execution
@@ -85,8 +99,8 @@ active_session_id = "session_abc123"
 **Assets Table:**
 | id | name | type | scope_type | scope_id | status | role |
 |---|---|---|---|---|---|---|
-| asset_input_789 | Customer Feedback Dataset | dataset | mission | mission_def456 | PENDING | INPUT |
-| asset_output_101 | Customer Feedback Analysis Report | document | mission | mission_def456 | PENDING | OUTPUT |
+| asset_input_789 | Customer Feedback Dataset | file | mission | mission_def456 | PROPOSED | INPUT |
+| asset_output_101 | Customer Feedback Analysis Report | markdown | mission | mission_def456 | PROPOSED | OUTPUT |
 
 #### 3. MissionAsset Mapping Entries
 
@@ -108,7 +122,7 @@ active_session_id = "session_abc123"
 After this transition completes:
 
 - **Mission**: Created in `AWAITING_APPROVAL` status, linked to user session
-- **Assets**: 2 mission-scoped assets created (1 input, 1 output) with `PENDING` status
+- **Assets**: 2 mission-scoped assets created (1 input, 1 output) with `PROPOSED` status
 - **Mappings**: 2 mission-asset mappings created to track asset roles
 - **Session**: Updated to link the new mission for context preservation
 
@@ -118,19 +132,144 @@ The system is now ready for the user to review and approve the mission proposal 
 
 ## 2. ACCEPT_MISSION - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Context - continuing from transition 1
+user_id = 123
+mission_id = "mission_def456"
+# User clicked "Approve Mission" button
+```
+
+### Database Entities Updated
+
+#### Mission Entity
+| id | name | status | current_hop_id |
+|---|---|---|---|
+| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | null |
+
+### Result State
+- **Mission**: Status changed from `AWAITING_APPROVAL` to `IN_PROGRESS`
+- **System**: Ready for user to request hop planning
+
+---
 
 ## 3. START_HOP_PLAN - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Context - continuing from transition 2
+user_id = 123
+mission_id = "mission_def456"
+# User requests hop planning via chat: "Let's start planning the first hop"
+```
+
+### Database Entities Created/Updated
+
+#### New Hop Entity
+| id | name | status | sequence_order | mission_id | is_final |
+|---|---|---|---|---|---|
+| hop_abc123 | Hop 1 | HOP_PLAN_STARTED | 1 | mission_def456 | false |
+
+#### Mission Entity Update
+| id | name | status | current_hop_id |
+|---|---|---|---|
+| mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | hop_abc123 |
+
+### Result State
+- **Hop**: Created in `HOP_PLAN_STARTED` status
+- **Mission**: `current_hop_id` set to link active hop
+- **System**: Agent begins hop design planning
+
+---
 
 ## 4. PROPOSE_HOP_PLAN - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Agent completes hop design
+hop_data = {
+    "name": "Data Analysis Hop",
+    "description": "Process customer feedback data and generate analysis",
+    "goal": "Transform raw feedback into structured insights",
+    "rationale": "Need to clean and analyze the data before generating final report",
+    "success_criteria": [
+        "Clean and validate customer feedback data",
+        "Perform trend analysis on feedback patterns",
+        "Generate intermediate analysis results"
+    ],
+    "is_final": False,
+    "intended_input_asset_ids": ["asset_input_789"],  # Use existing input dataset
+    "intended_output_asset_specs": [
+        {
+            "id": "asset_inter_555",
+            "name": "Analysis Results",
+            "description": "Structured analysis of customer feedback trends",
+            "schema_definition": {
+                "type": "object",
+                "description": "Structured analysis results in JSON format",
+                "is_array": False,
+                "fields": {
+                    "trends": {"type": "object", "description": "Trend analysis data"},
+                    "insights": {"type": "object", "description": "Key insights extracted"},
+                    "metrics": {"type": "object", "description": "Statistical metrics"}
+                }
+            }
+        }
+    ]
+}
+```
+
+### Database Entities Created/Updated
+
+#### Hop Entity Update
+| id | name | status | description | goal | is_final |
+|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false |
+
+#### New Asset Entity (from intended_output_asset_specs)
+| id | name | type | scope_type | scope_id | status | role |
+|---|---|---|---|---|---|---|
+| asset_inter_555 | Analysis Results | object | mission | mission_def456 | PROPOSED | INTERMEDIATE |
+
+#### New MissionAsset Mapping
+| id | mission_id | asset_id | role |
+|---|---|---|---|
+| mission_asset_mapping_3 | mission_def456 | asset_inter_555 | INTERMEDIATE |
+
+#### New HopAsset Mappings
+| id | hop_id | asset_id | role |
+|---|---|---|---|
+| hop_asset_mapping_1 | hop_abc123 | asset_input_789 | INPUT |
+| hop_asset_mapping_2 | hop_abc123 | asset_inter_555 | OUTPUT |
+
+### Result State
+- **Hop**: Status changed to `HOP_PLAN_PROPOSED` with full plan details
+- **Assets**: New intermediate asset created for hop output
+- **Mappings**: Hop linked to input (existing) and output (new) assets
+- **System**: Ready for user to approve hop plan
+
+---
 
 ## 5. ACCEPT_HOP_PLAN - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Context - continuing from transition 4
+user_id = 123
+hop_id = "hop_abc123"
+# User clicked "Accept Hop Plan" button
+```
+
+### Database Entities Updated
+
+#### Hop Entity
+| id | name | status | description | goal | is_final |
+|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_PLAN_READY | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false |
+
+### Result State
+- **Hop**: Status changed from `HOP_PLAN_PROPOSED` to `HOP_PLAN_READY`
+- **System**: Ready for user to request hop implementation
 
 ## 6. START_HOP_IMPL - Entity Updates
 

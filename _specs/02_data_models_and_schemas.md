@@ -793,8 +793,15 @@ OutputAssetSpec = Union[NewAssetOutput, ExistingAssetOutput]
 
 class HopLite(BaseModel):
     """Simplified hop structure for hop planning operations"""
+    name: str
+    description: Optional[str] = None
+    goal: Optional[str] = None
+    rationale: Optional[str] = None
+    success_criteria: List[str] = Field(default_factory=list)
+    is_final: bool = False
     inputs: List[str]  # List of mission asset IDs to use as inputs
     output: OutputAssetSpec  # Either new asset specification or existing asset reference
+    hop_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class AssetLite(BaseModel):
     """Simplified asset structure for creation and LLM processing"""
@@ -914,8 +921,15 @@ export interface MissionLite {
 }
 
 export interface HopLite {
+    name: string;
+    description?: string;
+    goal?: string;
+    rationale?: string;
+    success_criteria?: string[];
+    is_final?: boolean;
     inputs: string[];
     output: OutputAssetSpec;
+    hop_metadata?: Record<string, any>;
 }
 ```
 

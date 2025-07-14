@@ -776,6 +776,27 @@ ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
 ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
 ```
 
+### Hop Output Types
+
+```python
+class NewAssetOutput(BaseModel):
+    """Specification for creating a new asset as hop output"""
+    type: Literal["new_asset"] = "new_asset"
+    asset: Dict[str, Any]  # Asset specification including name, schema_definition, etc.
+
+class ExistingAssetOutput(BaseModel):
+    """Reference to existing mission asset as hop output"""
+    type: Literal["existing_asset"] = "existing_asset"
+    mission_asset_id: str
+
+OutputAssetSpec = Union[NewAssetOutput, ExistingAssetOutput]
+
+class HopLite(BaseModel):
+    """Simplified hop structure for hop planning operations"""
+    inputs: List[str]  # List of mission asset IDs to use as inputs
+    output: OutputAssetSpec  # Either new asset specification or existing asset reference
+```
+
 
 
 
@@ -821,7 +842,8 @@ export enum HopStatus {
 }
 
 export enum ToolExecutionStatus {
-    AWAITING_CONFIGURATION = "awaiting_configuration",
+    PROPOSED = "proposed",
+    READY_TO_CONFIGURE = "ready_to_configure",
     READY_TO_EXECUTE = "ready_to_execute",
     EXECUTING = "executing",
     COMPLETED = "completed",
@@ -830,9 +852,9 @@ export enum ToolExecutionStatus {
 }
 
 export enum AssetStatus {
-    AWAITING_APPROVAL = "awaiting_approval",
-    READY_FOR_PROCESSING = "ready_for_processing",
-    PROCESSING = "processing",
+    PROPOSED = "proposed",
+    PENDING = "pending",
+    IN_PROGRESS = "in_progress",
     READY = "ready",
     ERROR = "error",
     EXPIRED = "expired"
@@ -847,6 +869,27 @@ export enum AssetRole {
 export enum AssetScopeType {
     MISSION = "mission",
     HOP = "hop"
+}
+```
+
+### Hop Output Types
+
+```typescript
+export interface NewAssetOutput {
+    type: "new_asset";
+    asset: Record<string, any>; // Asset specification
+}
+
+export interface ExistingAssetOutput {
+    type: "existing_asset";
+    mission_asset_id: string;
+}
+
+export type OutputAssetSpec = NewAssetOutput | ExistingAssetOutput;
+
+export interface HopLite {
+    inputs: string[]; // List of mission asset IDs
+    output: OutputAssetSpec; // Either new asset or existing asset reference
 }
 ```
 

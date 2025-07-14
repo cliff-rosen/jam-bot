@@ -64,7 +64,6 @@ This is the comprehensive reference for all state transitions in the system, con
    - Tools may create hop-scoped intermediate assets for working data
    - These assets exist only for the duration of the hop execution
    - They are NOT promoted to mission scope when the hop completes
-   - **Cleanup**: Hop-scoped intermediates are marked for deletion when hop status becomes COMPLETED
 
 3. **Key Distinction**:
    - **Mission-scoped intermediates**: Created by hops but persist at mission level (deliverables)
@@ -266,26 +265,6 @@ for output_name, mapping_config in result_mapping.items():
                 role=AssetRole.INTERMEDIATE
             )
 ```
-
-## Asset Status Progression Rules
-
-### Asset Status Flow
-```
-PENDING → AWAITING_APPROVAL → READY_FOR_PROCESSING → PROCESSING → READY
-                                    ↓
-                                  ERROR/EXPIRED
-```
-
-**Status Transitions:**
-- **PENDING**: Asset created but not yet validated
-- **AWAITING_APPROVAL**: Asset ready for user review (mission assets)
-- **READY_FOR_PROCESSING**: Asset approved and available for use
-- **PROCESSING**: Asset currently being modified by tool execution
-- **READY**: Asset has been successfully processed and is available
-- **ERROR**: Asset processing failed
-- **EXPIRED**: Asset is no longer valid
-
-**Default Status:** New assets are created with `status=PENDING`
 
 ## Critical Implementation Notes
 

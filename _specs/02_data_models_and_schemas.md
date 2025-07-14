@@ -545,37 +545,6 @@ class ChatMessage(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 ```
 
-### Asset Collection Philosophy
-
-**Core Principle**: Mission and Hop state are represented as unified asset collections. Since each Asset has a `role` field (input/output/intermediate), we do NOT maintain separate `inputs` and `outputs` collections.
-
-**Database Layer**: `MissionAsset` and `HopAsset` mapping tables provide proper many-to-many relationships with role tracking for database integrity and performance.
-
-**Schema Layer**: `mission_asset_map` and `hop_asset_map` provide business logic access to asset role mappings, populated from the mapping tables by services.
-
-**Why This Approach:**
-- **Single Source of Truth**: Asset role is stored once in the Asset.role field
-- **No Duplication**: Eliminates redundant storage of asset references
-- **Dynamic Filtering**: Can derive inputs/outputs on-demand by filtering assets by role
-- **Database Integrity**: Mapping tables ensure proper relationships and constraints
-- **Maintainability**: Changes to asset roles automatically reflected in all queries
-
-**Usage Pattern:**
-```python
-# Get input asset IDs from mission_asset_map
-input_asset_ids = mission.get_input_ids()
-
-# Get output asset IDs from hop_asset_map  
-output_asset_ids = hop.get_hop_output_ids()
-
-# Get all asset IDs for a mission
-all_mission_asset_ids = list(mission.mission_asset_map.keys())
-
-# Get asset summary
-mission_summary = mission.asset_summary
-hop_summary = hop.asset_summary
-```
-
 ### Mission Schema
 
 ```python
@@ -674,27 +643,6 @@ class Hop(BaseModel):
         return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.INTERMEDIATE]
 ```
 
-### Mapping Type Definitions
-
-```python
-class AssetFieldMapping(BaseModel):
-    """Maps a tool parameter to a specific asset by ID."""
-    type: Literal["asset_field"] = "asset_field"
-    state_asset: str
-
-class LiteralMapping(BaseModel):
-    """Provides a literal value directly to a tool parameter."""
-    type: Literal["literal"] = "literal"
-    value: Any
-
-class DiscardMapping(BaseModel):
-    """Indicates that a tool output should be discarded."""
-    type: Literal["discard"] = "discard"
-
-ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
-ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
-```
-
 ### ToolStep Schema
 
 ```python
@@ -739,15 +687,6 @@ class ToolStep(BaseModel):
             ToolExecutionError: If tool execution fails
         """
 
-
-def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> List[str]:
-    """Validate the tool chain returned by the Hop-Implementer.
-
-    Ensures that every tool step references existing assets (or creates them first)
-    and that schemas are compatible according to each tool's own validation logic.
-    Also validates that the steps form a proper chain where all inputs are satisfied.
-    Returns a flat list of validation-error strings (empty list means no errors).
-    """
 ```
 
 ### Asset Schema (Value Representation)
@@ -783,6 +722,62 @@ class AssetWithContent(Asset):
     """Asset with full content for tool execution"""
     content: Any  # Full content included
 ```
+
+#### Asset Collection Philosophy
+
+**Core Principle**: Mission and Hop state are represented as unified asset collections. Since each Asset has a `role` field (input/output/intermediate), we do NOT maintain separate `inputs` and `outputs` collections.
+
+**Database Layer**: `MissionAsset` and `HopAsset` mapping tables provide proper many-to-many relationships with role tracking for database integrity and performance.
+
+**Schema Layer**: `mission_asset_map` and `hop_asset_map` provide business logic access to asset role mappings, populated from the mapping tables by services.
+
+**Why This Approach:**
+- **Single Source of Truth**: Asset role is stored once in the Asset.role field
+- **No Duplication**: Eliminates redundant storage of asset references
+- **Dynamic Filtering**: Can derive inputs/outputs on-demand by filtering assets by role
+- **Database Integrity**: Mapping tables ensure proper relationships and constraints
+- **Maintainability**: Changes to asset roles automatically reflected in all queries
+
+**Usage Pattern:**
+```python
+# Get input asset IDs from mission_asset_map
+input_asset_ids = mission.get_input_ids()
+
+# Get output asset IDs from hop_asset_map  
+output_asset_ids = hop.get_hop_output_ids()
+
+# Get all asset IDs for a mission
+all_mission_asset_ids = list(mission.mission_asset_map.keys())
+
+# Get asset summary
+mission_summary = mission.asset_summary
+hop_summary = hop.asset_summary
+```
+
+
+#### Mapping Type Definitions
+
+```python
+class AssetFieldMapping(BaseModel):
+    """Maps a tool parameter to a specific asset by ID."""
+    type: Literal["asset_field"] = "asset_field"
+    state_asset: str
+
+class LiteralMapping(BaseModel):
+    """Provides a literal value directly to a tool parameter."""
+    type: Literal["literal"] = "literal"
+    value: Any
+
+class DiscardMapping(BaseModel):
+    """Indicates that a tool output should be discarded."""
+    type: Literal["discard"] = "discard"
+
+ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
+ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
+```
+
+
+
 
 ## 4. TypeScript Types
 

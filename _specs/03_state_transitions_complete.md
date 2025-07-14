@@ -91,8 +91,8 @@ mission = Mission(
 
 #### Asset Management
 ```python
-# For each asset in mission_data['mission_state']:
-for asset_id, asset_data in mission_data['mission_state'].items():
+# For each asset in mission_data['assets']:
+for asset_data in mission_data['assets']:
     # 1. Create Asset
     created_asset_id = asset_service.create_asset(
         user_id=user_id,

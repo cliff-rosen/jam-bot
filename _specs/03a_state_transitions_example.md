@@ -38,9 +38,8 @@ mission_data = {
         "complexity": "medium",
         "data_sources": ["customer_feedback_db", "survey_results"]
     },
-    "mission_state": {
-        "input_dataset": {
-            "id": "asset_input_789",
+    "assets": [
+        {
             "name": "Customer Feedback Dataset",
             "description": "Raw customer feedback data from Q4 2024",
             "schema_definition": {
@@ -62,9 +61,8 @@ mission_data = {
                 "size_mb": 12.3
             }
         },
-        "analysis_report": {
-            "id": "asset_output_101",
-            "name": "Customer Feedback Analysis Report",
+        {
+            "name": "Customer Feedback Analysis Report", 
             "description": "Comprehensive analysis report with trends and recommendations",
             "schema_definition": {
                 "type": "markdown",
@@ -79,7 +77,7 @@ mission_data = {
             "role": "output",
             "content": ""  # Empty initially, will be populated during execution
         }
-    }
+    ]
 }
 
 # Context
@@ -94,21 +92,21 @@ active_session_id = "session_abc123"
 |---|---|---|---|
 | mission_def456 | Analyze Customer Feedback Trends | AWAITING_APPROVAL | null |
 
-#### 2. Asset Entities (from mission_state)
+#### 2. Asset Entities (created from mission_state)
 
 **Assets Table:**
-| id | name | type | scope_type | scope_id | status | role |
+| id | name | schema_definition | scope_type | scope_id | status | role |
 |---|---|---|---|---|---|---|
-| asset_input_789 | Customer Feedback Dataset | file | mission | mission_def456 | PROPOSED | INPUT |
-| asset_output_101 | Customer Feedback Analysis Report | markdown | mission | mission_def456 | PROPOSED | OUTPUT |
+| uuid_generated_1 | Customer Feedback Dataset | {"type": "file", ...} | mission | mission_def456 | PROPOSED | INPUT |
+| uuid_generated_2 | Customer Feedback Analysis Report | {"type": "markdown", ...} | mission | mission_def456 | PROPOSED | OUTPUT |
 
 #### 3. MissionAsset Mapping Entries
 
 **MissionAssets Table:**
 | id | mission_id | asset_id | role |
 |---|---|---|---|
-| mission_asset_mapping_1 | mission_def456 | asset_input_789 | INPUT |
-| mission_asset_mapping_2 | mission_def456 | asset_output_101 | OUTPUT |
+| mission_asset_mapping_1 | mission_def456 | uuid_generated_1 | INPUT |
+| mission_asset_mapping_2 | mission_def456 | uuid_generated_2 | OUTPUT |
 
 #### 4. UserSession Update
 

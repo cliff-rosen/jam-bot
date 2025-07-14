@@ -872,27 +872,6 @@ export enum AssetScopeType {
 }
 ```
 
-### Hop Output Types
-
-```typescript
-export interface NewAssetOutput {
-    type: "new_asset";
-    asset: Record<string, any>; // Asset specification
-}
-
-export interface ExistingAssetOutput {
-    type: "existing_asset";
-    mission_asset_id: string;
-}
-
-export type OutputAssetSpec = NewAssetOutput | ExistingAssetOutput;
-
-export interface HopLite {
-    inputs: string[]; // List of mission asset IDs
-    output: OutputAssetSpec; // Either new asset or existing asset reference
-}
-```
-
 ### UserSession Interface
 
 ```typescript

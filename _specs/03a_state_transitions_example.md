@@ -92,7 +92,7 @@ active_session_id = "session_abc123"
 |---|---|---|---|
 | mission_def456 | Analyze Customer Feedback Trends | AWAITING_APPROVAL | null |
 
-#### 2. Asset Entities (created from mission_state)
+#### 2. Asset Entities (created from mission_lite.assets)
 
 **Assets Table:**
 | id | name | schema_definition | scope_type | scope_id | status | role |
@@ -184,22 +184,22 @@ mission_id = "mission_def456"
 
 ### Input Data
 ```python
-# Agent completes hop design
-hop_data = {
-    "name": "Data Analysis Hop",
-    "description": "Process customer feedback data and generate analysis",
-    "goal": "Transform raw feedback into structured insights",
-    "rationale": "Need to clean and analyze the data before generating final report",
-    "success_criteria": [
+# Agent completes hop design using HopLite schema
+hop_lite = HopLite(
+    name="Data Analysis Hop",
+    description="Process customer feedback data and generate analysis",
+    goal="Transform raw feedback into structured insights",
+    rationale="Need to clean and analyze the data before generating final report",
+    success_criteria=[
         "Clean and validate customer feedback data",
         "Perform trend analysis on feedback patterns",
         "Generate intermediate analysis results"
     ],
-    "is_final": False,
-    "intended_input_asset_ids": ["asset_input_789"],  # Use existing input dataset
-    "intended_output_asset_specs": [
-        {
-            "id": "asset_inter_555",
+    is_final=False,
+    inputs=["uuid_generated_1"],  # Use existing input dataset asset ID
+    output=NewAssetOutput(
+        type="new_asset",
+        asset={
             "name": "Analysis Results",
             "description": "Structured analysis of customer feedback trends",
             "schema_definition": {
@@ -211,10 +211,16 @@ hop_data = {
                     "insights": {"type": "object", "description": "Key insights extracted"},
                     "metrics": {"type": "object", "description": "Statistical metrics"}
                 }
-            }
+            },
+            "role": AssetRole.INTERMEDIATE,
+            "asset_metadata": {}
         }
-    ]
-}
+    ),
+    hop_metadata={
+        "estimated_duration": "45 minutes",
+        "complexity": "medium"
+    }
+)
 ```
 
 ### Database Entities Created/Updated
@@ -224,21 +230,21 @@ hop_data = {
 |---|---|---|---|---|---|
 | hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false |
 
-#### New Asset Entity (from intended_output_asset_specs)
-| id | name | type | scope_type | scope_id | status | role |
+#### New Asset Entity (from hop_lite.output.asset)
+| id | name | schema_definition | scope_type | scope_id | status | role |
 |---|---|---|---|---|---|---|
-| asset_inter_555 | Analysis Results | object | mission | mission_def456 | PROPOSED | INTERMEDIATE |
+| uuid_generated_3 | Analysis Results | {"type": "object", ...} | mission | mission_def456 | PROPOSED | INTERMEDIATE |
 
 #### New MissionAsset Mapping
 | id | mission_id | asset_id | role |
 |---|---|---|---|
-| mission_asset_mapping_3 | mission_def456 | asset_inter_555 | INTERMEDIATE |
+| mission_asset_mapping_3 | mission_def456 | uuid_generated_3 | INTERMEDIATE |
 
 #### New HopAsset Mappings
 | id | hop_id | asset_id | role |
 |---|---|---|---|
-| hop_asset_mapping_1 | hop_abc123 | asset_input_789 | INPUT |
-| hop_asset_mapping_2 | hop_abc123 | asset_inter_555 | OUTPUT |
+| hop_asset_mapping_1 | hop_abc123 | uuid_generated_1 | INPUT |
+| hop_asset_mapping_2 | hop_abc123 | uuid_generated_3 | OUTPUT |
 
 ### Result State
 - **Hop**: Status changed to `HOP_PLAN_PROPOSED` with full plan details

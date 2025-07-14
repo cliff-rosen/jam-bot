@@ -96,6 +96,51 @@ MissionAsset table: many-to-many Mission ↔ Asset (mission-scoped only)
 HopAsset table: many-to-many Hop ↔ Asset (both mission-scoped and hop-scoped)
 ```
 
+### Lite Representations
+
+**Purpose**: Lite representations are simplified, LLM-friendly versions of core entities used for proposal workflows and agent communication. They reduce complexity while maintaining essential information for decision-making and creation processes.
+
+**MissionLite**: Simplified mission specification for mission proposals
+- Contains mission metadata (name, description, goal, success_criteria)
+- Includes `assets: List[AssetLite]` for defining mission deliverables
+- Used by agents when proposing missions to users
+- Converted to full Mission + Asset entities upon user acceptance
+- Eliminates complex database relationships for cleaner LLM interactions
+
+**AssetLite**: Simplified asset specification for asset creation
+- Contains core asset information (name, description, schema_definition, role)
+- Includes `content: Optional[Any]` for initial asset content
+- Used within MissionLite and HopLite for asset definitions
+- Converted to full Asset entities with proper scoping and metadata
+- Provides agent-friendly format for specifying data requirements
+
+**HopLite**: Simplified hop specification for hop planning
+- Contains hop metadata (name, description, rationale, is_final)
+- Includes `inputs: List[str]` for referencing existing mission assets by ID
+- Includes `output: OutputAssetSpec` for defining hop deliverables
+- Used by agents when proposing hop plans to users
+- Converted to full Hop + ToolStep entities during implementation
+- Bridges planning phase with execution phase complexity
+
+**OutputAssetSpec**: Union type for hop output specifications
+- `NewAssetOutput`: Creates new mission-scoped asset from AssetLite
+- `ExistingAssetOutput`: References existing mission asset by ID
+- Provides flexibility for hops to create new deliverables or update existing ones
+- Enables proper asset lifecycle management during hop execution
+
+**Design Rationale**:
+- **Agent Simplicity**: Reduces cognitive load for LLM agents during proposal generation
+- **User Clarity**: Presents clean, understandable proposals without implementation details
+- **Conversion Pipeline**: Maintains clear mapping from lite → full entities
+- **Validation Layer**: Lite representations can be validated before full entity creation
+- **Backward Compatibility**: Changes to full entities don't break agent workflows
+
+**Usage Flow**:
+1. **Agent Planning**: Uses MissionLite/HopLite for proposals
+2. **User Review**: Lite representations displayed in UI for approval
+3. **System Conversion**: Lite entities converted to full entities upon acceptance
+4. **Execution**: Full entities used for workflow execution and database operations
+
 ## 2. Database Models (SQLAlchemy)
 
 ### Required Enums

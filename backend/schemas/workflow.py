@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Union, Literal, TYPE_CHECKING, Typ
 from datetime import datetime
 from enum import Enum
 
-from .asset import Asset
+from .asset import Asset, AssetRole, AssetMapSummary
 from .resource import Resource
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ class SanitizedMission(TypedDict):
     current_hop_id: Optional[str]
     current_hop: Optional[SanitizedHop]
     hops: List[SanitizedHop]
-    mission_state: Dict[str, SanitizedAsset]
+    mission_asset_map: Dict[str, str]  # asset_id -> role mapping
     mission_metadata: Dict[str, Any]
     created_at: str
     updated_at: str
@@ -138,26 +138,32 @@ class Hop(BaseModel):
     # Relationships (populated by services) - Parent manages child context
     tool_steps: List['ToolStep'] = Field(default_factory=list)
     
-    # Asset collections (all hop-scoped assets by name)
-    hop_state: Dict[str, 'Asset'] = Field(default_factory=dict)
+    # Asset collections removed - use hop_asset_map instead
     
-    def get_hop_inputs(self) -> List[Asset]:
-        """Get all input assets from hop_state"""
-        if not self.hop_state:
-            return []
-        return [asset for asset in self.hop_state.values() if asset.role.value == 'input']
+    # Asset mapping (populated by services)
+    hop_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
     
-    def get_hop_outputs(self) -> List[Asset]:
-        """Get all output assets from hop_state"""
-        if not self.hop_state:
-            return []
-        return [asset for asset in self.hop_state.values() if asset.role.value == 'output']
+    # Intended asset tracking for hop proposal
+    intended_input_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will use
+    intended_output_asset_ids: List[str] = Field(default_factory=list)  # Existing mission asset IDs this hop will update
+    intended_output_asset_specs: List[Dict[str, Any]] = Field(default_factory=list)  # New mission assets this hop will create
     
-    def get_hop_intermediates(self) -> List[Asset]:
-        """Get all intermediate assets from hop_state"""
-        if not self.hop_state:
-            return []
-        return [asset for asset in self.hop_state.values() if asset.role.value == 'intermediate']
+    @property
+    def asset_summary(self) -> AssetMapSummary:
+        """Get summary of hop assets by role"""
+        return AssetMapSummary.from_asset_map(self.hop_asset_map)
+    
+    def get_hop_input_ids(self) -> List[str]:
+        """Get all input asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.INPUT]
+    
+    def get_hop_output_ids(self) -> List[str]:
+        """Get all output asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.OUTPUT]
+    
+    def get_hop_intermediate_ids(self) -> List[str]:
+        """Get all intermediate asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.INTERMEDIATE]
 
 
 class Mission(BaseModel):
@@ -184,8 +190,15 @@ class Mission(BaseModel):
     current_hop: Optional['Hop'] = None
     hops: List['Hop'] = Field(default_factory=list)  # hop_history
     
-    # Asset collection - unified approach (filter by Asset.role for inputs/outputs)
-    mission_state: Dict[str, 'Asset'] = Field(default_factory=dict)  # all mission assets by name
+    # Asset collection removed - use mission_asset_map instead
+    
+    # Asset mapping (populated by services)
+    mission_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
+    
+    @property
+    def asset_summary(self) -> AssetMapSummary:
+        """Get summary of mission assets by role"""
+        return AssetMapSummary.from_asset_map(self.mission_asset_map)
 
     @validator('created_at', 'updated_at', pre=True)
     def handle_empty_datetime(cls, v):
@@ -194,23 +207,17 @@ class Mission(BaseModel):
             return datetime.utcnow()
         return v
     
-    def get_inputs(self) -> List[Asset]:
-        """Get all input assets from mission_state"""
-        if not self.mission_state:
-            return []
-        return [asset for asset in self.mission_state.values() if asset.role.value == 'input']
+    def get_input_ids(self) -> List[str]:
+        """Get all input asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.INPUT]
     
-    def get_outputs(self) -> List[Asset]:
-        """Get all output assets from mission_state"""
-        if not self.mission_state:
-            return []
-        return [asset for asset in self.mission_state.values() if asset.role.value == 'output']
+    def get_output_ids(self) -> List[str]:
+        """Get all output asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.OUTPUT]
     
-    def get_intermediates(self) -> List[Asset]:
-        """Get all intermediate assets from mission_state"""
-        if not self.mission_state:
-            return []
-        return [asset for asset in self.mission_state.values() if asset.role.value == 'intermediate']
+    def get_intermediate_ids(self) -> List[str]:
+        """Get all intermediate asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.INTERMEDIATE]
 
 
 class AssetFieldMapping(BaseModel):
@@ -269,7 +276,7 @@ class ToolStep(BaseModel):
             return datetime.utcnow()
         return v
 
-    async def execute(self, hop_state: Dict[str, Asset], user_id: Optional[int] = None, db: Optional[Any] = None) -> Dict[str, Any]:
+    async def execute(self, hop_assets: Dict[str, Asset], user_id: Optional[int] = None, db: Optional[Any] = None) -> Dict[str, Any]:
         """
         Execute this tool step and return the results.
         
@@ -289,7 +296,7 @@ class ToolStep(BaseModel):
         
         try:
             self.status = ToolExecutionStatus.EXECUTING
-            result = await execute_tool_step(self, hop_state, user_id=user_id, db=db)
+            result = await execute_tool_step(self, hop_assets, user_id=user_id, db=db)
             self.status = ToolExecutionStatus.COMPLETED
             return result
         except Exception as e:
@@ -298,7 +305,7 @@ class ToolStep(BaseModel):
             raise ToolExecutionError(str(e), self.tool_id)
 
 
-def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> List[str]:
+def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> List[str]:
     """Validate the tool chain returned by the Hop-Implementer.
 
     Ensures that every tool step references existing assets (or creates them first)
@@ -318,7 +325,7 @@ def validate_tool_chain(steps: List[ToolStep], hop_state: Dict[str, Asset]) -> L
     intermediate_assets = set()
     
     # Categorize assets by role
-    for asset_name, asset in hop_state.items():
+    for asset_name, asset in hop_assets.items():
         if asset.role == 'input':
             available_assets.add(asset_name)  # Input assets are immediately available
             input_assets.add(asset_name)

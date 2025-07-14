@@ -9,6 +9,8 @@ from uuid import uuid4
 import json
 from enum import Enum as PyEnum
 
+Base = declarative_base()
+
 # Define enums directly in models to break circular dependency
 class MissionStatus(str, PyEnum):
     """Status of a mission"""
@@ -134,9 +136,59 @@ class Asset(Base):
     
     # Indexes
     __table_args__ = (
-        Index('idx_assets_scope', 'scope_type', 'scope_id'),
-        Index('idx_assets_role', 'role'),
-        Index('idx_assets_status', 'status'),
+        Index("idx_asset_scope", "scope_type", "scope_id"),
+        Index("idx_asset_user_scope", "user_id", "scope_type", "scope_id"),
+        Index("idx_asset_user_type", "user_id", "type"),
+        Index("idx_asset_user_status", "user_id", "status"),
+        Index("idx_asset_user_role", "user_id", "role"),
+    )
+
+
+class MissionAsset(Base):
+    """Mission to Asset mapping table"""
+    __tablename__ = "mission_assets"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=False)
+    asset_id = Column(String(36), ForeignKey("assets.id"), nullable=False)
+    role = Column(Enum(AssetRole), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    mission = relationship("Mission", back_populates="mission_assets")
+    asset = relationship("Asset")
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint("mission_id", "asset_id", name="unique_mission_asset"),
+        Index("idx_mission_asset_mission", "mission_id"),
+        Index("idx_mission_asset_asset", "asset_id"),
+        Index("idx_mission_asset_role", "mission_id", "role"),
+    )
+
+
+class HopAsset(Base):
+    """Hop to Asset mapping table"""
+    __tablename__ = "hop_assets"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    hop_id = Column(String(36), ForeignKey("hops.id"), nullable=False)
+    asset_id = Column(String(36), ForeignKey("assets.id"), nullable=False)
+    role = Column(Enum(AssetRole), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    hop = relationship("Hop", back_populates="hop_assets")
+    asset = relationship("Asset")
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint("hop_id", "asset_id", name="unique_hop_asset"),
+        Index("idx_hop_asset_hop", "hop_id"),
+        Index("idx_hop_asset_asset", "asset_id"),
+        Index("idx_hop_asset_role", "hop_id", "role"),
     )
 
 class ResourceCredentials(Base):
@@ -185,6 +237,7 @@ class Mission(Base):
     session = relationship("UserSession", back_populates="mission", uselist=False)
     current_hop = relationship("Hop", foreign_keys=[current_hop_id], post_update=True)
     hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", order_by="Hop.sequence_order", foreign_keys="Hop.mission_id")
+    mission_assets = relationship("MissionAsset", back_populates="mission", cascade="all, delete-orphan")
 
 class Hop(Base):
     __tablename__ = "hops"
@@ -218,6 +271,7 @@ class Hop(Base):
     mission = relationship("Mission", foreign_keys=[mission_id], back_populates="hops")
     user = relationship("User", back_populates="hops")
     tool_steps = relationship("ToolStep", back_populates="hop", cascade="all, delete-orphan", order_by="ToolStep.sequence_order")
+    hop_assets = relationship("HopAsset", back_populates="hop", cascade="all, delete-orphan")
 
 class ToolStep(Base):
     __tablename__ = "tool_steps"

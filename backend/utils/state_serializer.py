@@ -57,8 +57,8 @@ def serialize_mission(mission: Mission) -> dict:
         
     mission_dict = mission.model_dump(mode='json')
     
-    # Serialize mission state assets
-    mission_dict['mission_state'] = serialize_assets(mission.mission_state)
+    # Serialize mission asset mapping
+    mission_dict['mission_asset_map'] = {aid: role.value for aid, role in mission.mission_asset_map.items()}
     
     # Ensure status is serialized as string value
     mission_dict['status'] = mission.status.value if mission.status else None

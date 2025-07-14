@@ -279,7 +279,11 @@ class Mission(Base):
     current_hop = relationship("Hop", foreign_keys=[current_hop_id], post_update=True)
     hops = relationship("Hop", back_populates="mission", cascade="all, delete-orphan", 
                        order_by="Hop.sequence_order", foreign_keys="Hop.mission_id")
-    # Asset relationships for mission_state access
+    
+    # Asset mapping relationships
+    mission_assets = relationship("MissionAsset", back_populates="mission", cascade="all, delete-orphan")
+    
+    # Asset relationships for mission_asset_map access
     assets = relationship("Asset", 
                          primaryjoin="and_(Mission.id == foreign(Asset.scope_id), Asset.scope_type == 'mission')",
                          viewonly=True)
@@ -321,7 +325,10 @@ class Hop(Base):
     tool_steps = relationship("ToolStep", back_populates="hop", cascade="all, delete-orphan", 
                             order_by="ToolStep.sequence_order")
     
-    # Asset relationships for hop_state access
+    # Asset mapping relationships
+    hop_assets = relationship("HopAsset", back_populates="hop", cascade="all, delete-orphan")
+    
+    # Asset relationships for hop_asset_map access
     assets = relationship("Asset",
                          primaryjoin="and_(Hop.id == foreign(Asset.scope_id), Asset.scope_type == 'hop')",
                          viewonly=True)
@@ -408,6 +415,60 @@ class Asset(Base):
     )
 ```
 
+### MissionAsset Model
+
+```python
+class MissionAsset(Base):
+    """Mission to Asset mapping table"""
+    __tablename__ = "mission_assets"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=False)
+    asset_id = Column(String(36), ForeignKey("assets.id"), nullable=False)
+    role = Column(Enum(AssetRole), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    mission = relationship("Mission", back_populates="mission_assets")
+    asset = relationship("Asset")
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint("mission_id", "asset_id", name="unique_mission_asset"),
+        Index("idx_mission_asset_mission", "mission_id"),
+        Index("idx_mission_asset_asset", "asset_id"),
+        Index("idx_mission_asset_role", "mission_id", "role"),
+    )
+```
+
+### HopAsset Model
+
+```python
+class HopAsset(Base):
+    """Hop to Asset mapping table"""
+    __tablename__ = "hop_assets"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    hop_id = Column(String(36), ForeignKey("hops.id"), nullable=False)
+    asset_id = Column(String(36), ForeignKey("assets.id"), nullable=False)
+    role = Column(Enum(AssetRole), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    hop = relationship("Hop", back_populates="hop_assets")
+    asset = relationship("Asset")
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint("hop_id", "asset_id", name="unique_hop_asset"),
+        Index("idx_hop_asset_hop", "hop_id"),
+        Index("idx_hop_asset_asset", "asset_id"),
+        Index("idx_hop_asset_role", "hop_id", "role"),
+    )
+```
+
 ## 3. Python Schema (Pydantic)
 
 ### UserSession Schema
@@ -476,23 +537,31 @@ class ChatMessage(BaseModel):
 
 **Core Principle**: Mission and Hop state are represented as unified asset collections. Since each Asset has a `role` field (input/output/intermediate), we do NOT maintain separate `inputs` and `outputs` collections.
 
+**Database Layer**: `MissionAsset` and `HopAsset` mapping tables provide proper many-to-many relationships with role tracking for database integrity and performance.
+
+**Schema Layer**: `mission_asset_map` and `hop_asset_map` provide business logic access to asset role mappings, populated from the mapping tables by services.
+
 **Why This Approach:**
 - **Single Source of Truth**: Asset role is stored once in the Asset.role field
 - **No Duplication**: Eliminates redundant storage of asset references
 - **Dynamic Filtering**: Can derive inputs/outputs on-demand by filtering assets by role
+- **Database Integrity**: Mapping tables ensure proper relationships and constraints
 - **Maintainability**: Changes to asset roles automatically reflected in all queries
-- **Consistency**: Same pattern for mission_state and hop_state
 
 **Usage Pattern:**
 ```python
-# Get inputs from mission_state
-mission_inputs = [asset for asset in mission.mission_state.values() if asset.role == AssetRole.INPUT]
+# Get input asset IDs from mission_asset_map
+input_asset_ids = mission.get_input_ids()
 
-# Get outputs from hop_state  
-hop_outputs = [asset for asset in hop.hop_state.values() if asset.role == AssetRole.OUTPUT]
+# Get output asset IDs from hop_asset_map  
+output_asset_ids = hop.get_hop_output_ids()
 
-# Get all assets regardless of role
-all_mission_assets = list(mission.mission_state.values())
+# Get all asset IDs for a mission
+all_mission_asset_ids = list(mission.mission_asset_map.keys())
+
+# Get asset summary
+mission_summary = mission.asset_summary
+hop_summary = hop.asset_summary
 ```
 
 ### Mission Schema
@@ -519,8 +588,25 @@ class Mission(BaseModel):
     current_hop: Optional['Hop'] = None
     hops: List['Hop'] = Field(default_factory=list)  # hop_history
     
-    # Asset collection - unified approach (filter by Asset.role for inputs/outputs)
-    mission_state: Dict[str, 'Asset'] = Field(default_factory=dict)  # all mission assets by name
+    # Asset collection - unified approach (populated from MissionAsset mapping table)
+    mission_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
+    
+    @property
+    def asset_summary(self) -> AssetMapSummary:
+        """Get summary of mission assets by role"""
+        return AssetMapSummary.from_asset_map(self.mission_asset_map)
+    
+    def get_input_ids(self) -> List[str]:
+        """Get all input asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.INPUT]
+    
+    def get_output_ids(self) -> List[str]:
+        """Get all output asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.OUTPUT]
+    
+    def get_intermediate_ids(self) -> List[str]:
+        """Get all intermediate asset IDs from mission_asset_map"""
+        return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.INTERMEDIATE]
 ```
 
 ### Hop Schema
@@ -550,8 +636,30 @@ class Hop(BaseModel):
     # Relationships (populated by services) - Parent manages child context
     tool_steps: List['ToolStep'] = Field(default_factory=list)
     
-    # Asset collections (all hop-scoped assets by name)
-    hop_state: Dict[str, 'Asset'] = Field(default_factory=dict)
+    # Asset collections (populated from HopAsset mapping table)
+    hop_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
+    
+    # Intended asset tracking for hop proposal (references to mission assets)
+    intended_input_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will use
+    intended_output_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will update/create
+    intended_output_asset_specs: List[Dict[str, Any]] = Field(default_factory=list)  # New mission assets this hop will create
+    
+    @property
+    def asset_summary(self) -> AssetMapSummary:
+        """Get summary of hop assets by role"""
+        return AssetMapSummary.from_asset_map(self.hop_asset_map)
+    
+    def get_hop_input_ids(self) -> List[str]:
+        """Get all input asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.INPUT]
+    
+    def get_hop_output_ids(self) -> List[str]:
+        """Get all output asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.OUTPUT]
+    
+    def get_hop_intermediate_ids(self) -> List[str]:
+        """Get all intermediate asset IDs from hop_asset_map"""
+        return [aid for aid, role in self.hop_asset_map.items() if role == AssetRole.INTERMEDIATE]
 ```
 
 ### Mapping Type Definitions
@@ -602,6 +710,32 @@ class ToolStep(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    
+    async def execute(self, hop_assets: Dict[str, Asset], user_id: Optional[int] = None, db: Optional[Any] = None) -> Dict[str, Any]:
+        """
+        Execute this tool step and return the results.
+        
+        Args:
+            hop_assets: Current state of the hop containing all assets by asset_id
+            user_id: User ID for asset persistence (optional)
+            db: Database session for asset persistence (optional)
+            
+        Returns:
+            Dict containing the execution results
+            
+        Raises:
+            ToolExecutionError: If tool execution fails
+        """
+
+
+def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> List[str]:
+    """Validate the tool chain returned by the Hop-Implementer.
+
+    Ensures that every tool step references existing assets (or creates them first)
+    and that schemas are compatible according to each tool's own validation logic.
+    Also validates that the steps form a proper chain where all inputs are satisfied.
+    Returns a flat list of validation-error strings (empty list means no errors).
+    """
 ```
 
 ### Asset Schema (Value Representation)
@@ -797,8 +931,8 @@ export interface Mission {
     current_hop?: Hop;
     hops: Hop[];  // hop_history
     
-    // Asset collection - unified approach (filter by Asset.role for inputs/outputs)
-    mission_state: Record<string, Asset>;  // all mission assets by name
+    // Asset collection - unified approach (asset_id -> role mapping)
+    mission_asset_map: Record<string, AssetRole>;  // asset_id -> role mapping
 }
 ```
 
@@ -829,8 +963,13 @@ export interface Hop {
     // Relationships - Parent manages child context
     tool_steps: ToolStep[];
     
-    // Asset collections (all hop-scoped assets by name)
-    hop_state: Record<string, Asset>;
+    // Asset collections (asset_id -> role mapping)
+    hop_asset_map: Record<string, AssetRole>;
+    
+    // Intended asset tracking for hop proposal
+    intended_input_asset_ids: string[];
+    intended_output_asset_ids: string[];
+    intended_output_asset_specs: any[];
 }
 ```
 
@@ -1013,21 +1152,29 @@ PROPOSED → PENDING → IN_PROGRESS → READY → [ERROR/EXPIRED]
 **Mission Assets:**
 ```python
 # All mission assets
-all_assets = list(mission.mission_state.values())
+all_asset_ids = list(mission.mission_asset_map.keys())
 
-# Filter by role
-inputs = [a for a in mission.mission_state.values() if a.role == AssetRole.INPUT]
-outputs = [a for a in mission.mission_state.values() if a.role == AssetRole.OUTPUT]
+# Filter by role using helper methods
+input_asset_ids = mission.get_input_ids()
+output_asset_ids = mission.get_output_ids()
+intermediate_asset_ids = mission.get_intermediate_ids()
+
+# Get asset summary
+summary = mission.asset_summary
 ```
 
 **Hop Assets:**
 ```python
 # All hop assets
-all_assets = list(hop.hop_state.values())
+all_asset_ids = list(hop.hop_asset_map.keys())
 
-# Filter by role
-inputs = [a for a in hop.hop_state.values() if a.role == AssetRole.INPUT]
-intermediates = [a for a in hop.hop_state.values() if a.role == AssetRole.INTERMEDIATE]
+# Filter by role using helper methods
+input_asset_ids = hop.get_hop_input_ids()
+output_asset_ids = hop.get_hop_output_ids()
+intermediate_asset_ids = hop.get_hop_intermediate_ids()
+
+# Get asset summary
+summary = hop.asset_summary
 ```
 
 This architecture provides efficient asset management with rich metadata while maintaining a single source of truth for asset roles and eliminating redundant collections.
@@ -1075,7 +1222,7 @@ user_session = UserSession.create(
 # Load complete session context
 session = get_user_session(user_id, session_id)
 chat_messages = session.chat.messages
-mission_state = session.mission.mission_state if session.mission else None
+mission_asset_map = session.mission.mission_asset_map if session.mission else {}
 ```
 
 **Real-time Updates:**

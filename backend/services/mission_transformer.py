@@ -39,6 +39,7 @@ from schemas.workflow import (
 from schemas.lite_models import MissionLite, create_mission_from_lite
 from schemas.asset import Asset, AssetRole
 from services.asset_service import AssetService
+from services.asset_mapping_service import AssetMappingService
 
 
 class MissionTransformationError(Exception):
@@ -49,8 +50,9 @@ class MissionTransformationError(Exception):
 class MissionTransformer:
     """Simplified mission transformation service"""
     
-    def __init__(self, asset_service: Optional[AssetService] = None) -> None:
+    def __init__(self, asset_service: Optional[AssetService] = None, asset_mapping_service: Optional[AssetMappingService] = None) -> None:
         self.asset_service = asset_service
+        self.asset_mapping_service = asset_mapping_service
         # Status mappings between models and schemas
         self._model_to_schema_status_map = {
             ModelMissionStatus.AWAITING_APPROVAL: SchemaMissionStatus.AWAITING_APPROVAL,
@@ -90,18 +92,8 @@ class MissionTransformer:
     async def model_to_schema(self, mission_model: MissionModel, load_assets: bool = True, load_hops: bool = False) -> Mission:
         """Convert MissionModel to Mission schema with optional asset and hop loading"""
         try:
-            mission_state = {}
             current_hop = None
             hops = []
-            
-            if load_assets and self.asset_service:
-                # Load mission assets
-                assets = self.asset_service.get_assets_by_scope(
-                    user_id=mission_model.user_id,
-                    scope_type="mission",
-                    scope_id=mission_model.id
-                )
-                mission_state = {asset.id: asset for asset in assets}
             
             if load_hops and self.asset_service:
                 # Load hops if requested
@@ -115,6 +107,11 @@ class MissionTransformer:
                 if mission_model.current_hop_id:
                     current_hop = await hop_service.get_hop(mission_model.current_hop_id, mission_model.user_id)
             
+            # Get mission asset mapping
+            mission_asset_map = {}
+            if self.asset_mapping_service:
+                mission_asset_map = self.asset_mapping_service.get_mission_assets(mission_model.id)
+            
             return Mission(
                 id=mission_model.id,
                 name=mission_model.name,
@@ -126,7 +123,7 @@ class MissionTransformer:
                 current_hop=current_hop,
                 hops=hops,
                 mission_metadata=mission_model.mission_metadata or {},
-                mission_state=mission_state,
+                mission_asset_map=mission_asset_map,
                 created_at=mission_model.created_at,
                 updated_at=mission_model.updated_at
             )
@@ -160,11 +157,9 @@ class MissionTransformer:
                     "token_count": asset.asset_metadata.get('token_count', 0) if asset.asset_metadata else 0
                 }
             
-            # Sanitize mission state assets
-            sanitized_mission_state = {
-                asset_id: sanitize_asset(asset)
-                for asset_id, asset in mission.mission_state.items()
-            }
+            # Mission state now handled through asset mapping service
+            # TODO: Load assets by ID from mission_asset_map if needed for chat context
+            sanitized_mission_state = {}
             
             # Simple hop sanitization
             current_hop = None
@@ -197,7 +192,7 @@ class MissionTransformer:
                 "current_hop_id": mission.current_hop_id,
                 "current_hop": current_hop,
                 "hops": hops,
-                "mission_state": sanitized_mission_state,
+                "mission_asset_map": {aid: role.value for aid, role in mission.mission_asset_map.items()},
                 "mission_metadata": mission.mission_metadata,
                 "created_at": mission.created_at.isoformat(),
                 "updated_at": mission.updated_at.isoformat()

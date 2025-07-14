@@ -36,6 +36,34 @@ class AssetScopeType(str, Enum):
     MISSION = "mission"
     HOP = "hop"
 
+
+# --- Asset Mapping Types ---
+
+class AssetMapping(BaseModel):
+    """Asset mapping with role information"""
+    asset_id: str
+    role: AssetRole
+    
+    
+class AssetMapSummary(BaseModel):
+    """Summary of asset mappings by role"""
+    inputs: List[str] = Field(default_factory=list)      # Asset IDs with INPUT role
+    outputs: List[str] = Field(default_factory=list)     # Asset IDs with OUTPUT role
+    intermediate: List[str] = Field(default_factory=list) # Asset IDs with INTERMEDIATE role
+    
+    @classmethod
+    def from_asset_map(cls, asset_map: Dict[str, AssetRole]) -> 'AssetMapSummary':
+        """Create summary from asset role mapping"""
+        inputs = [aid for aid, role in asset_map.items() if role == AssetRole.INPUT]
+        outputs = [aid for aid, role in asset_map.items() if role == AssetRole.OUTPUT]
+        intermediate = [aid for aid, role in asset_map.items() if role == AssetRole.INTERMEDIATE]
+        
+        return cls(
+            inputs=inputs,
+            outputs=outputs,
+            intermediate=intermediate
+        )
+
 class Asset(SchemaEntity):
     """Asset with metadata and value representation (no full content)"""
     # Additional fields beyond SchemaEntity (id, name, description, schema_definition)

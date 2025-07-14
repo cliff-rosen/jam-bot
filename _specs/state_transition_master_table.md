@@ -9,7 +9,7 @@ This is the comprehensive reference for all state transitions in the system, con
 | **1.1** | PROPOSE_MISSION | ✅ IMPLEMENTED | Agent completes mission planning | `mission_specialist_node` in primary_agent.py | Links mission to active session | Creates with `status=AWAITING_APPROVAL` | No changes | No changes | Creates mission-scoped assets from mission_state data | Mission created in approval state, automatically linked to user's active session |
 | **1.2** | ACCEPT_MISSION | ✅ IMPLEMENTED | User clicks "Approve Mission" button | `acceptMissionProposal()` → stateTransitionApi.acceptMission() | No changes | Updates `status=IN_PROGRESS`, `updated_at=now()` | No changes | No changes | No changes | Mission approved by user, ready for hop planning |
 | **2.1** | START_HOP_PLAN | ❌ NOT IMPLEMENTED | User requests hop planning via chat | User message → `hop_designer_node` | No changes | Sets `current_hop_id=hop_id`, `updated_at=now()` | Creates with `status=HOP_PLAN_STARTED` | No changes | No changes | User initiates hop planning. Hop created in started state. Agent begins planning |
-| **2.2** | PROPOSE_HOP_PLAN | ❌ NOT IMPLEMENTED | Agent completes hop design | `hop_designer_node` → stateTransitionApi.proposeHopPlan() | No changes | No changes | **Updates hop with completed plan details (description, goal, rationale, success_criteria), sets `status=HOP_PLAN_PROPOSED`, `updated_at=now()`** | No changes | **Creates hop-scoped input assets (copied from mission), hop-scoped output assets (based on output_asset_spec), and intermediate assets (temporary assets used during hop execution)** | Agent completes design and proposes to user. Hop updated with full plan details. All hop assets initialized based on completed specification |
+| **2.2** | PROPOSE_HOP_PLAN | ❌ NOT IMPLEMENTED | Agent completes hop design | `hop_designer_node` → stateTransitionApi.proposeHopPlan() | No changes | No changes | **Updates hop with completed plan details (description, goal, rationale, success_criteria), sets `status=HOP_PLAN_PROPOSED`, `updated_at=now()`, stores intended_input_asset_ids and intended_output_asset_ids** | No changes | **Creates new mission output assets at MISSION scope (from intended_output_asset_specs), adds to mission asset mapping. No hop-scoped assets created** | Agent completes design and proposes to user. New mission output assets created for hop deliverables. Hop tracks intended inputs/outputs via asset IDs |
 | **2.3** | ACCEPT_HOP_PLAN | ✅ IMPLEMENTED | User clicks "Accept Hop Plan" button | `acceptHopProposal()` → stateTransitionApi.acceptHopPlan() | No changes | No changes | Updates `status=HOP_PLAN_READY`, `updated_at=now()` | No changes | No changes | User approves hop plan. Ready for implementation |
 | **2.4** | START_HOP_IMPL | ❌ NOT IMPLEMENTED | User requests implementation via chat | User message → `hop_implementer_node` | No changes | No changes | Updates `status=HOP_IMPL_STARTED`, `updated_at=now()` | No changes | No changes | User initiates implementation. Agent begins creating tool steps |
 | **2.5** | PROPOSE_HOP_IMPL | ❌ NOT IMPLEMENTED | Agent completes implementation design | `hop_implementer_node` → stateTransitionApi.proposeHopImpl() | No changes | No changes | Updates `status=HOP_IMPL_PROPOSED`, `updated_at=now()` | **Creates tool steps with `status=PROPOSED`, serializes parameter_mapping and result_mapping** | No changes | Agent proposes executable tool steps with serialized mappings. Implementation ready for approval |
@@ -51,28 +51,32 @@ This shortcuts the proper state progression and eliminates the intermediate work
 
 **Mission Assets (Global Scope)**:
 - Created during `PROPOSE_MISSION` from mission_state data
-- Promoted from hop outputs during `COMPLETE_HOP`
+- Created during `PROPOSE_HOP_PLAN` from intended_output_asset_specs
+- Managed through MissionAsset mapping table with roles (INPUT, OUTPUT, INTERMEDIATE)
 - Persist throughout mission lifecycle
 
 **Hop Assets (Hop Scope)**:
-- **Input Assets**: Copied from mission assets during `PROPOSE_HOP_PLAN`
-- **Output Assets**: Created during `PROPOSE_HOP_PLAN` (empty) and `COMPLETE_TOOL_STEP` (populated)
-- **Promotion**: Copied to mission scope during `COMPLETE_HOP`
+- **Only created during tool execution** for intermediate working data
+- **Input/Output references**: Stored as intended_input_asset_ids and intended_output_asset_ids (mission asset IDs)
+- **Intermediate assets**: Created by tool steps, managed through HopAsset mapping table
+- **No asset promotion needed**: Mission outputs created directly at mission scope
 
-**Asset Promotion Process**:
+**New Asset Management System**:
 ```python
-# During COMPLETE_HOP
-for hop_asset in hop_output_assets:
-    mission_asset = create_asset(
+# During PROPOSE_HOP_PLAN
+for asset_spec in intended_output_asset_specs:
+    # Create asset at MISSION scope directly
+    created_asset_id = asset_service.create_asset(
         scope_type="mission",
         scope_id=mission_id,
-        content=hop_asset.content,
-        metadata={
-            **hop_asset.metadata,
-            "promoted_from_hop": hop_id,
-            "promoted_at": timestamp
-        }
+        role="output"
     )
+    
+    # Add to mission asset mapping
+    asset_mapping_service.add_mission_asset(mission_id, created_asset_id, AssetRole.OUTPUT)
+    
+    # Store in hop's intended outputs
+    hop.intended_output_asset_ids.append(created_asset_id)
 ```
 
 ### Tool Step Status Flow

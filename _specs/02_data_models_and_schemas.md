@@ -795,6 +795,25 @@ class HopLite(BaseModel):
     """Simplified hop structure for hop planning operations"""
     inputs: List[str]  # List of mission asset IDs to use as inputs
     output: OutputAssetSpec  # Either new asset specification or existing asset reference
+
+class AssetLite(BaseModel):
+    """Simplified asset structure for creation and LLM processing"""
+    name: str
+    description: Optional[str] = None
+    schema_definition: Dict[str, Any]  # Schema type definition
+    role: AssetRole
+    subtype: Optional[str] = None
+    content: Optional[Any] = None  # Initial content if any
+    asset_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class MissionLite(BaseModel):
+    """Simplified mission structure for creation and LLM processing"""
+    name: str
+    description: Optional[str] = None
+    goal: Optional[str] = None
+    success_criteria: List[str] = Field(default_factory=list)
+    mission_metadata: Dict[str, Any] = Field(default_factory=dict)
+    assets: List[AssetLite] = Field(default_factory=list)  # Asset specifications to be created
 ```
 
 
@@ -870,6 +889,50 @@ export enum AssetScopeType {
     MISSION = "mission",
     HOP = "hop"
 }
+```
+
+### Lite Type Definitions
+
+```typescript
+export interface AssetLite {
+    name: string;
+    description?: string;
+    schema_definition: Record<string, any>;
+    role: AssetRole;
+    subtype?: string;
+    content?: any;
+    asset_metadata?: Record<string, any>;
+}
+
+export interface MissionLite {
+    name: string;
+    description?: string;
+    goal?: string;
+    success_criteria?: string[];
+    mission_metadata?: Record<string, any>;
+    assets?: AssetLite[];
+}
+
+export interface HopLite {
+    inputs: string[];
+    output: OutputAssetSpec;
+}
+```
+
+### Hop Output Types
+
+```typescript
+export interface NewAssetOutput {
+    type: "new_asset";
+    asset: Record<string, any>;
+}
+
+export interface ExistingAssetOutput {
+    type: "existing_asset";
+    mission_asset_id: string;
+}
+
+export type OutputAssetSpec = NewAssetOutput | ExistingAssetOutput;
 ```
 
 ### UserSession Interface

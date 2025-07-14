@@ -23,26 +23,26 @@ This document provides concrete examples for each state transition, showing exac
 
 ### Input Data
 ```python
-# Example mission data from agent
-mission_data = {
-    "name": "Analyze Customer Feedback Trends",
-    "description": "Analyze customer feedback data to identify trends and create actionable insights",
-    "goal": "Generate comprehensive analysis report with recommendations",
-    "success_criteria": [
+# Example mission data from agent using MissionLite schema
+mission_lite = MissionLite(
+    name="Analyze Customer Feedback Trends",
+    description="Analyze customer feedback data to identify trends and create actionable insights",
+    goal="Generate comprehensive analysis report with recommendations",
+    success_criteria=[
         "Process all customer feedback data from Q4 2024",
         "Identify top 5 trending issues and opportunities", 
         "Create executive summary with actionable recommendations"
     ],
-    "mission_metadata": {
+    mission_metadata={
         "estimated_duration": "2-3 hours",
         "complexity": "medium",
         "data_sources": ["customer_feedback_db", "survey_results"]
     },
-    "assets": [
-        {
-            "name": "Customer Feedback Dataset",
-            "description": "Raw customer feedback data from Q4 2024",
-            "schema_definition": {
+    assets=[
+        AssetLite(
+            name="Customer Feedback Dataset",
+            description="Raw customer feedback data from Q4 2024",
+            schema_definition={
                 "type": "file",
                 "description": "CSV file containing customer feedback data",
                 "is_array": False,
@@ -54,17 +54,17 @@ mission_data = {
                     "category": {"type": "string", "description": "Feedback category"}
                 }
             },
-            "role": "input",
-            "content": {
+            role=AssetRole.INPUT,
+            content={
                 "file_path": "/data/customer_feedback_q4_2024.csv",
                 "row_count": 15420,
                 "size_mb": 12.3
             }
-        },
-        {
-            "name": "Customer Feedback Analysis Report", 
-            "description": "Comprehensive analysis report with trends and recommendations",
-            "schema_definition": {
+        ),
+        AssetLite(
+            name="Customer Feedback Analysis Report", 
+            description="Comprehensive analysis report with trends and recommendations",
+            schema_definition={
                 "type": "markdown",
                 "description": "Analysis report in markdown format",
                 "is_array": False,
@@ -74,9 +74,9 @@ mission_data = {
                     "recommendations": {"type": "string", "description": "Recommendations section"}
                 }
             },
-            "role": "output",
-            "content": ""  # Empty initially, will be populated during execution
-        }
+            role=AssetRole.OUTPUT,
+            content=""  # Empty initially, will be populated during execution
+        )
     ]
 }
 

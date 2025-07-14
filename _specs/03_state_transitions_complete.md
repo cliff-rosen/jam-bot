@@ -75,15 +75,15 @@ This is the comprehensive reference for all state transitions in the system, con
 
 #### Entity Updates
 ```python
-# Mission Creation
+# Mission Creation from MissionLite
 mission = Mission(
     id=uuid4(),
-    name=mission_data['name'],
-    description=mission_data.get('description'),
-    goal=mission_data.get('goal'),
-    success_criteria=mission_data.get('success_criteria', []),
+    name=mission_lite.name,
+    description=mission_lite.description,
+    goal=mission_lite.goal,
+    success_criteria=mission_lite.success_criteria,
     status=MissionStatus.AWAITING_APPROVAL,
-    mission_metadata=mission_data.get('mission_metadata', {}),
+    mission_metadata=mission_lite.mission_metadata,
     created_at=datetime.utcnow(),
     updated_at=datetime.utcnow()
 )
@@ -91,26 +91,27 @@ mission = Mission(
 
 #### Asset Management
 ```python
-# For each asset in mission_data['assets']:
-for asset_data in mission_data['assets']:
+# Process MissionLite schema assets:
+for asset_data in mission_lite.assets:
     # 1. Create Asset
     created_asset_id = asset_service.create_asset(
         user_id=user_id,
-        name=asset_data['name'],
-        type=asset_data['schema_definition']['type'],
-        subtype=asset_data.get('subtype'),
-        description=asset_data.get('description'),
-        content=asset_data.get('content'),
+        name=asset_data.name,
+        schema_definition=asset_data.schema_definition,
+        subtype=asset_data.subtype,
+        description=asset_data.description,
+        content=asset_data.content,
         scope_type="mission",
         scope_id=mission_id,
-        role=asset_data.get('role', 'input')
+        role=asset_data.role,
+        asset_metadata=asset_data.asset_metadata
     )
     
     # 2. Create MissionAsset mapping
     asset_mapping_service.add_mission_asset(
         mission_id=mission_id,
         asset_id=created_asset_id,
-        role=AssetRole(asset_data.get('role', 'input'))
+        role=asset_data.role
     )
 ```
 

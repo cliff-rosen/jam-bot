@@ -134,7 +134,8 @@ class HopStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 class ToolExecutionStatus(str, PyEnum):
-    AWAITING_CONFIGURATION = "awaiting_configuration"
+    PROPOSED = "proposed"
+    READY_TO_CONFIGURE = "ready_to_configure"
     READY_TO_EXECUTE = "ready_to_execute"
     EXECUTING = "executing"
     COMPLETED = "completed"
@@ -362,7 +363,7 @@ class ToolStep(Base):
     # Tool step information
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.AWAITING_CONFIGURATION)
+    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PROPOSED)
     
     # Tool configuration
     parameter_mapping = Column(JSON, nullable=True)  # Dict[str, ParameterMapping]
@@ -623,7 +624,7 @@ class Hop(BaseModel):
     # Intended asset tracking for hop proposal (references to mission assets)
     intended_input_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will use
     intended_output_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will update/create
-    intended_output_asset_specs: List[Dict[str, Any]] = Field(default_factory=list)  # New mission assets this hop will create
+    intended_output_asset_specs: List[OutputAssetSpec] = Field(default_factory=list)  # New mission assets this hop will create
     
     @property
     def asset_summary(self) -> AssetMapSummary:
@@ -653,7 +654,7 @@ class ToolStep(BaseModel):
     sequence_order: int
     name: str
     description: Optional[str] = None
-    status: ToolExecutionStatus = ToolExecutionStatus.AWAITING_CONFIGURATION
+    status: ToolExecutionStatus = ToolExecutionStatus.PROPOSED
     
     # Tool configuration
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
@@ -774,6 +775,33 @@ class DiscardMapping(BaseModel):
 
 ParameterMappingValue = Union[AssetFieldMapping, LiteralMapping]
 ResultMappingValue = Union[AssetFieldMapping, DiscardMapping]
+
+class AssetMapSummary(BaseModel):
+    """Summary of assets organized by role"""
+    input_count: int = 0
+    output_count: int = 0
+    intermediate_count: int = 0
+    input_ids: List[str] = Field(default_factory=list)
+    output_ids: List[str] = Field(default_factory=list)
+    intermediate_ids: List[str] = Field(default_factory=list)
+    total_count: int = 0
+    
+    @classmethod
+    def from_asset_map(cls, asset_map: Dict[str, AssetRole]) -> 'AssetMapSummary':
+        """Create summary from asset_id -> role mapping"""
+        input_ids = [aid for aid, role in asset_map.items() if role == AssetRole.INPUT]
+        output_ids = [aid for aid, role in asset_map.items() if role == AssetRole.OUTPUT]
+        intermediate_ids = [aid for aid, role in asset_map.items() if role == AssetRole.INTERMEDIATE]
+        
+        return cls(
+            input_count=len(input_ids),
+            output_count=len(output_ids),
+            intermediate_count=len(intermediate_ids),
+            input_ids=input_ids,
+            output_ids=output_ids,
+            intermediate_ids=intermediate_ids,
+            total_count=len(asset_map)
+        )
 ```
 
 ### Hop Output Types
@@ -1076,7 +1104,7 @@ export interface Hop {
     // Intended asset tracking for hop proposal
     intended_input_asset_ids: string[];
     intended_output_asset_ids: string[];
-    intended_output_asset_specs: any[];
+    intended_output_asset_specs: OutputAssetSpec[];
 }
 ```
 
@@ -1100,6 +1128,16 @@ export interface DiscardMapping {
 
 export type ParameterMappingValue = AssetFieldMapping | LiteralMapping;
 export type ResultMappingValue = AssetFieldMapping | DiscardMapping;
+
+export interface AssetMapSummary {
+    input_count: number;
+    output_count: number;
+    intermediate_count: number;
+    input_ids: string[];
+    output_ids: string[];
+    intermediate_ids: string[];
+    total_count: number;
+}
 ```
 
 ### ToolStep Interface

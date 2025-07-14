@@ -142,6 +142,7 @@ class ToolExecutionStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 class AssetStatus(str, PyEnum):
+    PENDING = "pending"  # Asset created but not yet ready
     AWAITING_APPROVAL = "awaiting_approval"
     READY_FOR_PROCESSING = "ready_for_processing"
     PROCESSING = "processing"

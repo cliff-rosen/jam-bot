@@ -45,9 +45,10 @@ class ToolExecutionStatus(str, PyEnum):
 
 class AssetStatus(str, PyEnum):
     """Status of an asset"""
-    PROPOSED = "proposed"
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
+    PENDING = "pending"  # Asset created but not yet ready
+    AWAITING_APPROVAL = "awaiting_approval"
+    READY_FOR_PROCESSING = "ready_for_processing"
+    PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
     EXPIRED = "expired"

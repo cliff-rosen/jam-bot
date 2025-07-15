@@ -474,6 +474,48 @@ for step_data in tool_steps:
 - Agent completes detailed implementation design before proposing to user
 - Implementation approval required before execution can begin
 
+### **2.6 ACCEPT_HOP_IMPL**
+
+#### Input Data Structure
+```python
+hop_id: str  # UUID of the hop to accept implementation for
+```
+
+#### Semantics
+This transition accepts an implementation proposal that is currently in `HOP_IMPL_PROPOSED` status. The user has reviewed the tool step specifications including parameter and result mappings and approves proceeding with execution. The hop status changes to `HOP_IMPL_READY` and all tool steps advance from PROPOSED to READY_TO_EXECUTE status.
+
+#### Entity Updates
+
+**Hop Status Update:**
+```python
+hop.status = HopStatus.HOP_IMPL_READY
+hop.updated_at = datetime.utcnow()
+```
+
+**Tool Step Status Updates:**
+```python
+# Update all tool steps from PROPOSED to READY_TO_EXECUTE
+for tool_step in hop.tool_steps:
+    if tool_step.status == ToolExecutionStatus.PROPOSED:
+        tool_step.status = ToolExecutionStatus.READY_TO_EXECUTE
+        tool_step.updated_at = datetime.utcnow()
+```
+
+#### Validation Rules
+- Hop must exist and belong to the user's mission
+- Hop must be in `HOP_IMPL_PROPOSED` status
+- All tool steps must be in PROPOSED status
+- User must have permission to accept the implementation
+- Mission must be in `IN_PROGRESS` status
+
+#### Business Rules
+- Hop becomes ready for execution
+- Implementation approval is irreversible
+- All tool steps become ready for execution
+- No new entities are created during implementation acceptance
+- User can now start hop execution
+- Parameter/result mappings are finalized and cannot be changed
+
 ### **2.8 COMPLETE_TOOL_STEP**
 
 #### Asset Management

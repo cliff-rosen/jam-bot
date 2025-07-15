@@ -395,7 +395,33 @@ tool_steps = [
 
 ## 8. ACCEPT_HOP_IMPL - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Context - continuing from transition 7
+user_id = 123
+hop_id = "hop_abc123"
+# User clicked "Accept Implementation" button
+```
+
+### Database Entities Updated
+
+#### Hop Entity
+| id | name | status | description | goal | is_final | updated_at |
+|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_IMPL_READY | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false | 2024-01-15T11:05:00Z |
+
+#### Tool Step Entities (status updates)
+| id | hop_id | tool_id | name | sequence_order | status | updated_at |
+|---|---|---|---|---|---|---|
+| step_001 | hop_abc123 | csv_processor | Load and Clean Customer Feedback | 1 | READY_TO_EXECUTE | 2024-01-15T11:05:00Z |
+| step_002 | hop_abc123 | data_analyzer | Perform Trend Analysis | 2 | READY_TO_EXECUTE | 2024-01-15T11:05:00Z |
+
+### Result State
+- **Hop**: Status changed from `HOP_IMPL_PROPOSED` to `HOP_IMPL_READY`
+- **Tool Steps**: All tool steps updated from `PROPOSED` to `READY_TO_EXECUTE` status
+- **System**: Ready for user to start hop execution
+
+---
 
 ## 9. EXECUTE_HOP - Entity Updates
 

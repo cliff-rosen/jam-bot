@@ -45,13 +45,12 @@ class ToolExecutionStatus(str, PyEnum):
 
 class AssetStatus(str, PyEnum):
     """Status of an asset"""
-    PENDING = "pending"  # Asset created but not yet ready
-    AWAITING_APPROVAL = "awaiting_approval"
-    READY_FOR_PROCESSING = "ready_for_processing"
-    PROCESSING = "processing"
-    READY = "ready"
-    ERROR = "error"
-    EXPIRED = "expired"
+    PROPOSED = "proposed"       # Asset created in mission/hop proposal, awaiting user approval
+    PENDING = "pending"         # User approved, asset ready to be worked on
+    IN_PROGRESS = "in_progress" # Tool is currently processing this asset
+    READY = "ready"            # Asset processing completed successfully
+    ERROR = "error"            # Asset processing failed
+    EXPIRED = "expired"        # Asset data is stale/invalid
 
 class AssetRole(str, PyEnum):
     """Role of an asset in workflow"""
@@ -139,7 +138,6 @@ class Asset(Base):
     __table_args__ = (
         Index("idx_asset_scope", "scope_type", "scope_id"),
         Index("idx_asset_user_scope", "user_id", "scope_type", "scope_id"),
-        Index("idx_asset_user_type", "user_id", "type"),
         Index("idx_asset_user_status", "user_id", "status"),
         Index("idx_asset_user_role", "user_id", "role"),
     )
@@ -224,8 +222,8 @@ class Mission(Base):
     current_hop_id = Column(String(36), ForeignKey("hops.id"), nullable=True)
     
     # JSON fields for complex data
-    success_criteria = Column(JSON, nullable=True)  # List of strings
-    mission_metadata = Column(JSON, nullable=True)  # Additional metadata
+    success_criteria = Column(JSON, nullable=False, default=list)  # List of strings
+    mission_metadata = Column(JSON, nullable=False, default=dict)  # Additional metadata
     
     # Assets are queried by scope: scope_type='mission' AND scope_id=mission.id
     # NO input_asset_ids or output_asset_ids fields needed
@@ -252,7 +250,7 @@ class Hop(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=True)
-    success_criteria = Column(JSON, nullable=True)  # List of strings
+    success_criteria = Column(JSON, nullable=False, default=list)  # List of strings
     rationale = Column(Text, nullable=True)
     status = Column(Enum(HopStatus), nullable=False, default=HopStatus.HOP_PLAN_STARTED)
     
@@ -260,7 +258,7 @@ class Hop(Base):
     is_final = Column(Boolean, nullable=False, default=False)
     is_resolved = Column(Boolean, nullable=False, default=False)
     error_message = Column(Text, nullable=True)
-    hop_metadata = Column(JSON, nullable=True)  # Additional metadata
+    hop_metadata = Column(JSON, nullable=False, default=dict)  # Additional metadata
     
     # Assets are queried by scope: scope_type='hop' AND scope_id=hop.id
     # NO input_asset_ids or output_asset_ids fields needed
@@ -291,6 +289,7 @@ class ToolStep(Base):
     parameter_mapping = Column(JSON, nullable=True)  # Dict of parameter mappings
     result_mapping = Column(JSON, nullable=True)  # Dict of result mappings
     resource_configs = Column(JSON, nullable=True)  # Resource configurations
+    tool_metadata = Column(JSON, nullable=True)  # Tool-specific metadata
 
     validation_errors = Column(JSON, nullable=True)  # List of validation errors
     execution_result = Column(JSON, nullable=True)  # Tool execution results

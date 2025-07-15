@@ -146,8 +146,15 @@ mission_id = "mission_def456"
 |---|---|---|---|---|
 | mission_def456 | Analyze Customer Feedback Trends | IN_PROGRESS | null | 2024-01-15T10:35:00Z |
 
+#### Asset Entities (status updates)
+| id | name | status | updated_at |
+|---|---|---|---|
+| uuid_generated_1 | Customer Feedback Dataset | PENDING | 2024-01-15T10:35:00Z |
+| uuid_generated_2 | Customer Feedback Analysis Report | PENDING | 2024-01-15T10:35:00Z |
+
 ### Result State
 - **Mission**: Status changed from `AWAITING_APPROVAL` to `IN_PROGRESS`
+- **Assets**: All mission assets updated from `PROPOSED` to `PENDING` status
 - **System**: Ready for user to request hop planning
 
 ---

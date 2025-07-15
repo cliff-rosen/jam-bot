@@ -222,8 +222,8 @@ class Mission(Base):
     current_hop_id = Column(String(36), ForeignKey("hops.id"), nullable=True)
     
     # JSON fields for complex data
-    success_criteria = Column(JSON, nullable=False, default=list)  # List of strings
-    mission_metadata = Column(JSON, nullable=False, default=dict)  # Additional metadata
+    success_criteria = Column(JSON, nullable=True)  # List of strings
+    mission_metadata = Column(JSON, nullable=True)  # Additional metadata
     
     # Assets are queried by scope: scope_type='mission' AND scope_id=mission.id
     # NO input_asset_ids or output_asset_ids fields needed
@@ -250,7 +250,7 @@ class Hop(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=True)
-    success_criteria = Column(JSON, nullable=False, default=list)  # List of strings
+    success_criteria = Column(JSON, nullable=True)  # List of strings
     rationale = Column(Text, nullable=True)
     status = Column(Enum(HopStatus), nullable=False, default=HopStatus.HOP_PLAN_STARTED)
     
@@ -258,7 +258,7 @@ class Hop(Base):
     is_final = Column(Boolean, nullable=False, default=False)
     is_resolved = Column(Boolean, nullable=False, default=False)
     error_message = Column(Text, nullable=True)
-    hop_metadata = Column(JSON, nullable=False, default=dict)  # Additional metadata
+    hop_metadata = Column(JSON, nullable=True)  # Additional metadata
     
     # Assets are queried by scope: scope_type='hop' AND scope_id=hop.id
     # NO input_asset_ids or output_asset_ids fields needed
@@ -289,7 +289,6 @@ class ToolStep(Base):
     parameter_mapping = Column(JSON, nullable=True)  # Dict of parameter mappings
     result_mapping = Column(JSON, nullable=True)  # Dict of result mappings
     resource_configs = Column(JSON, nullable=True)  # Resource configurations
-    tool_metadata = Column(JSON, nullable=True)  # Tool-specific metadata
 
     validation_errors = Column(JSON, nullable=True)  # List of validation errors
     execution_result = Column(JSON, nullable=True)  # Tool execution results

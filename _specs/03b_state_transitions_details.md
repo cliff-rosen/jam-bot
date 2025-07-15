@@ -380,6 +380,37 @@ for asset_id in hop.hop_asset_map.keys():
 - All asset relationships remain unchanged
 - Assets created during hop planning become pending (ready for work)
 
+### **2.4 START_HOP_IMPL**
+
+#### Input Data Structure
+```python
+hop_id: str  # UUID of the hop to start implementation for
+```
+
+#### Semantics
+This transition initiates implementation planning for a hop that is currently in `HOP_PLAN_READY` status. The user requests implementation via chat, and the hop status changes to `HOP_IMPL_STARTED`. The agent begins analyzing the hop plan to create detailed tool step implementations.
+
+#### Entity Updates
+
+**Hop Status Update:**
+```python
+hop.status = HopStatus.HOP_IMPL_STARTED
+hop.updated_at = datetime.utcnow()
+```
+
+#### Validation Rules
+- Hop must exist and belong to the user's mission
+- Hop must be in `HOP_PLAN_READY` status
+- User must have permission to modify the hop
+- Mission must be in `IN_PROGRESS` status
+
+#### Business Rules
+- Hop moves from planning to implementation phase
+- Implementation is user-initiated via chat interaction
+- Agent begins tool step design analysis
+- No new entities are created during implementation start
+- All asset relationships remain unchanged
+
 ### **2.8 COMPLETE_TOOL_STEP**
 
 #### Asset Management

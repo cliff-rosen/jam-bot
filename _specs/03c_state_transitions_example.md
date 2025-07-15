@@ -291,7 +291,26 @@ hop_id = "hop_abc123"
 
 ## 6. START_HOP_IMPL - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Context - continuing from transition 5
+user_id = 123
+hop_id = "hop_abc123"
+# User requests implementation via chat: "Let's start implementing this hop"
+```
+
+### Database Entities Updated
+
+#### Hop Entity
+| id | name | status | description | goal | is_final | updated_at |
+|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_IMPL_STARTED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false | 2024-01-15T10:55:00Z |
+
+### Result State
+- **Hop**: Status changed from `HOP_PLAN_READY` to `HOP_IMPL_STARTED`
+- **System**: Agent begins tool step design analysis
+
+---
 
 ## 7. PROPOSE_HOP_IMPL - Entity Updates
 

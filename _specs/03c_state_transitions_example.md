@@ -314,7 +314,84 @@ hop_id = "hop_abc123"
 
 ## 7. PROPOSE_HOP_IMPL - Entity Updates
 
-[Example to be added]
+### Input Data
+```python
+# Agent completes implementation design using ToolStepLite specifications
+tool_steps = [
+    ToolStepLite(
+        tool_id="csv_processor",
+        name="Load and Clean Customer Feedback",
+        description="Load CSV data and perform initial cleaning",
+        sequence_order=1,
+        parameter_mapping={
+            "input_file": AssetFieldMapping(
+                type="asset_field",
+                state_asset="uuid_generated_1"  # Customer Feedback Dataset
+            ),
+            "output_format": LiteralMapping(
+                type="literal", 
+                value="cleaned_dataframe"
+            )
+        },
+        result_mapping={
+            "cleaned_data": AssetFieldMapping(
+                type="asset_field",
+                state_asset="uuid_generated_3"  # Analysis Results (partial)
+            )
+        },
+        tool_metadata={
+            "estimated_runtime": "30 seconds",
+            "memory_usage": "low"
+        }
+    ),
+    ToolStepLite(
+        tool_id="data_analyzer",
+        name="Perform Trend Analysis",
+        description="Analyze cleaned data for trends and patterns",
+        sequence_order=2,
+        parameter_mapping={
+            "input_data": AssetFieldMapping(
+                type="asset_field",
+                state_asset="uuid_generated_3"  # Analysis Results (from step 1)
+            ),
+            "analysis_type": LiteralMapping(
+                type="literal",
+                value="trend_analysis"
+            )
+        },
+        result_mapping={
+            "analysis_results": AssetFieldMapping(
+                type="asset_field",
+                state_asset="uuid_generated_3"  # Analysis Results (complete)
+            )
+        },
+        tool_metadata={
+            "estimated_runtime": "2 minutes",
+            "memory_usage": "medium"
+        }
+    )
+]
+```
+
+### Database Entities Created/Updated
+
+#### Hop Entity Update
+| id | name | status | description | goal | is_final | updated_at |
+|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_IMPL_PROPOSED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false | 2024-01-15T11:00:00Z |
+
+#### New Tool Step Entities
+| id | hop_id | tool_id | name | sequence_order | status | created_at | updated_at |
+|---|---|---|---|---|---|---|---|
+| step_001 | hop_abc123 | csv_processor | Load and Clean Customer Feedback | 1 | PROPOSED | 2024-01-15T11:00:00Z | 2024-01-15T11:00:00Z |
+| step_002 | hop_abc123 | data_analyzer | Perform Trend Analysis | 2 | PROPOSED | 2024-01-15T11:00:00Z | 2024-01-15T11:00:00Z |
+
+### Result State
+- **Hop**: Status changed from `HOP_IMPL_STARTED` to `HOP_IMPL_PROPOSED`
+- **Tool Steps**: 2 tool steps created with `PROPOSED` status and serialized mappings
+- **System**: Ready for user to approve implementation
+
+---
 
 ## 8. ACCEPT_HOP_IMPL - Entity Updates
 

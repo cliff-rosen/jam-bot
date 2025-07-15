@@ -898,6 +898,16 @@ class MissionLite(BaseModel):
     success_criteria: List[str] = Field(default_factory=list)
     mission_metadata: Dict[str, Any] = Field(default_factory=dict)
     assets: List[AssetLite] = Field(default_factory=list)  # Asset specifications to be created
+
+class ToolStepLite(BaseModel):
+    """Simplified tool step structure for implementation proposals"""
+    tool_id: str
+    name: str
+    description: Optional[str] = None
+    sequence_order: int
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
+    result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict)
+    tool_metadata: Dict[str, Any] = Field(default_factory=dict)
 ```
 
 
@@ -1005,6 +1015,16 @@ export interface HopLite {
     inputs: string[];
     output: OutputAssetSpec;
     hop_metadata?: Record<string, any>;
+}
+
+export interface ToolStepLite {
+    tool_id: string;
+    name: string;
+    description?: string;
+    sequence_order: number;
+    parameter_mapping?: Record<string, ParameterMappingValue>;
+    result_mapping?: Record<string, ResultMappingValue>;
+    tool_metadata?: Record<string, any>;
 }
 ```
 

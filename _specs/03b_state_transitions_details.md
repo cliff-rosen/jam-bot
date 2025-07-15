@@ -411,6 +411,69 @@ hop.updated_at = datetime.utcnow()
 - No new entities are created during implementation start
 - All asset relationships remain unchanged
 
+### **2.5 PROPOSE_HOP_IMPL**
+
+#### Input Data Structure
+```python
+class ToolStepLite(BaseModel):
+    """Simplified tool step structure for implementation proposals"""
+    tool_id: str
+    name: str
+    description: Optional[str] = None
+    sequence_order: int
+    parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
+    result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict)
+    tool_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+# Input is a list of tool steps
+tool_steps: List[ToolStepLite]
+```
+
+#### Semantics
+This transition completes implementation design for a hop that is currently in `HOP_IMPL_STARTED` status. The agent provides detailed tool step specifications including parameter and result mappings. Tool step entities are created with PROPOSED status, and the hop status changes to `HOP_IMPL_PROPOSED` ready for user approval.
+
+#### Entity Updates
+
+**Hop Status Update:**
+```python
+hop.status = HopStatus.HOP_IMPL_PROPOSED
+hop.updated_at = datetime.utcnow()
+```
+
+**Tool Step Creation:**
+```python
+for step_data in tool_steps:
+    tool_step = ToolStep(
+        id=uuid4(),
+        hop_id=hop_id,
+        tool_id=step_data.tool_id,
+        sequence_order=step_data.sequence_order,
+        name=step_data.name,
+        description=step_data.description,
+        status=ToolExecutionStatus.PROPOSED,
+        parameter_mapping=step_data.parameter_mapping,
+        result_mapping=step_data.result_mapping,
+        tool_metadata=step_data.tool_metadata,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+```
+
+#### Validation Rules
+- Hop must exist and belong to the user's mission
+- Hop must be in `HOP_IMPL_STARTED` status
+- All tool_ids must reference valid available tools
+- Parameter mappings must reference valid asset IDs or literal values
+- Result mappings must specify valid asset targets or discard instructions
+- Tool step sequence orders must be unique within the hop
+
+#### Business Rules
+- Hop moves from implementation start to implementation proposed state
+- Tool steps are created in PROPOSED status awaiting user approval
+- Parameter/result mappings are serialized for execution
+- Agent completes detailed implementation design before proposing to user
+- Implementation approval required before execution can begin
+
 ### **2.8 COMPLETE_TOOL_STEP**
 
 #### Asset Management

@@ -279,8 +279,14 @@ hop_id = "hop_abc123"
 |---|---|---|---|---|---|---|
 | hop_abc123 | Data Analysis Hop | HOP_PLAN_READY | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false | 2024-01-15T10:50:00Z |
 
+#### Asset Entities (status updates for hop-created assets)
+| id | name | status | updated_at |
+|---|---|---|---|
+| uuid_generated_3 | Analysis Results | PENDING | 2024-01-15T10:50:00Z |
+
 ### Result State
 - **Hop**: Status changed from `HOP_PLAN_PROPOSED` to `HOP_PLAN_READY`
+- **Assets**: Hop-created assets updated from `PROPOSED` to `PENDING` status
 - **System**: Ready for user to request hop implementation
 
 ## 6. START_HOP_IMPL - Entity Updates

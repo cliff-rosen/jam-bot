@@ -351,6 +351,21 @@ hop.status = HopStatus.HOP_PLAN_READY
 hop.updated_at = datetime.utcnow()
 ```
 
+**Asset Status Updates:**
+```python
+# Update all assets created during hop planning from PROPOSED to PENDING
+# These are the assets created in PROPOSE_HOP_PLAN with asset_metadata containing 'created_by_hop'
+for asset_id in hop.hop_asset_map.keys():
+    asset = asset_service.get_asset_by_id(asset_id, user_id)
+    if (asset.status == AssetStatus.PROPOSED and 
+        asset.asset_metadata.get('created_by_hop') == hop_id):
+        asset_service.update_asset_status(
+            asset_id=asset_id,
+            user_id=user_id,
+            status=AssetStatus.PENDING
+        )
+```
+
 #### Validation Rules
 - Hop must exist and belong to the user's mission
 - Hop must be in `HOP_PLAN_PROPOSED` status
@@ -363,6 +378,7 @@ hop.updated_at = datetime.utcnow()
 - No new entities are created during hop plan acceptance
 - User can now request hop implementation via chat
 - All asset relationships remain unchanged
+- Assets created during hop planning become pending (ready for work)
 
 ### **2.8 COMPLETE_TOOL_STEP**
 

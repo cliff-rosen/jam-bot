@@ -380,7 +380,7 @@ for asset_id in hop.hop_asset_map.keys():
 - All asset relationships remain unchanged
 - Assets created during hop planning become pending (ready for work)
 
-### **2.4 START_HOP_IMPL**
+### **3.1 START_HOP_IMPL**
 
 #### Input Data Structure
 ```python
@@ -411,7 +411,7 @@ hop.updated_at = datetime.utcnow()
 - No new entities are created during implementation start
 - All asset relationships remain unchanged
 
-### **2.5 PROPOSE_HOP_IMPL**
+### **3.2 PROPOSE_HOP_IMPL**
 
 #### Input Data Structure
 ```python
@@ -474,7 +474,7 @@ for step_data in tool_steps:
 - Agent completes detailed implementation design before proposing to user
 - Implementation approval required before execution can begin
 
-### **2.6 ACCEPT_HOP_IMPL**
+### **3.3 ACCEPT_HOP_IMPL**
 
 #### Input Data Structure
 ```python
@@ -516,7 +516,7 @@ for tool_step in hop.tool_steps:
 - User can now start hop execution
 - Parameter/result mappings are finalized and cannot be changed
 
-### **2.8 COMPLETE_TOOL_STEP**
+### **4.1 COMPLETE_TOOL_STEP**
 
 #### Asset Management
 ```python

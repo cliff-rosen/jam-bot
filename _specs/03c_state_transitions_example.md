@@ -289,7 +289,7 @@ hop_id = "hop_abc123"
 - **Assets**: Hop-created assets updated from `PROPOSED` to `PENDING` status
 - **System**: Ready for user to request hop implementation
 
-## 6. START_HOP_IMPL - Entity Updates
+## 6. START_HOP_IMPL (3.1) - Entity Updates
 
 ### Input Data
 ```python
@@ -312,7 +312,7 @@ hop_id = "hop_abc123"
 
 ---
 
-## 7. PROPOSE_HOP_IMPL - Entity Updates
+## 7. PROPOSE_HOP_IMPL (3.2) - Entity Updates
 
 ### Input Data
 ```python
@@ -393,7 +393,7 @@ tool_steps = [
 
 ---
 
-## 8. ACCEPT_HOP_IMPL - Entity Updates
+## 8. ACCEPT_HOP_IMPL (3.3) - Entity Updates
 
 ### Input Data
 ```python
@@ -423,18 +423,6 @@ hop_id = "hop_abc123"
 
 ---
 
-## 9. EXECUTE_HOP - Entity Updates
-
-[Example to be added]
-
-## 10. COMPLETE_TOOL_STEP - Entity Updates
-
-[Example to be added]
-
-## 11. COMPLETE_HOP - Entity Updates
-
-[Example to be added]
-
-## 12. COMPLETE_MISSION - Entity Updates
+## 9. COMPLETE_TOOL_STEP (4.1) - Entity Updates
 
 [Example to be added] 

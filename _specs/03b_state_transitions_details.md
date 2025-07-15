@@ -60,7 +60,7 @@ for asset_data in mission_lite.assets:
         subtype=asset_data.subtype,
         description=asset_data.description,
         content=asset_data.content,
-        scope_type="mission",
+        scope_type=AssetScopeType.MISSION,
         scope_id=mission_id,
         role=asset_data.role,
         asset_metadata=asset_data.asset_metadata
@@ -91,20 +91,29 @@ assert mission.user_id == user_id
 assert mission exists
 ```
 
-### **2.2 PROPOSE_HOP_PLAN** ❌ NOT IMPLEMENTED
+### **2.2 PROPOSE_HOP_PLAN**
 
 #### Entity Updates
 ```python
 # Hop Status Update + Plan Details
 hop.status = HopStatus.HOP_PLAN_PROPOSED
-hop.description = hop_data.get('description')
-hop.goal = hop_data.get('goal')
-hop.rationale = hop_data.get('rationale')
-hop.success_criteria = hop_data.get('success_criteria', [])
-hop.is_final = hop_data.get('is_final', False)
-hop.intended_input_asset_ids = hop_data.get('intended_input_asset_ids', [])
-hop.intended_output_asset_ids = hop_data.get('intended_output_asset_ids', [])
-hop.intended_output_asset_specs = hop_data.get('intended_output_asset_specs', [])
+hop.name = hop_lite.name
+hop.description = hop_lite.description
+hop.goal = hop_lite.goal
+hop.rationale = hop_lite.rationale
+hop.success_criteria = hop_lite.success_criteria
+hop.is_final = hop_lite.is_final
+hop.hop_metadata = hop_lite.hop_metadata
+
+# Intended asset tracking for hop proposal
+hop.intended_input_asset_ids = hop_lite.inputs
+if isinstance(hop_lite.output, NewAssetOutput):
+    hop.intended_output_asset_ids = []
+    hop.intended_output_asset_specs = [hop_lite.output]
+elif isinstance(hop_lite.output, ExistingAssetOutput):
+    hop.intended_output_asset_ids = [hop_lite.output.mission_asset_id]
+    hop.intended_output_asset_specs = []
+
 hop.updated_at = datetime.utcnow()
 ```
 
@@ -122,21 +131,21 @@ for input_asset_id in hop_lite.inputs:  # List[str] - existing mission assets
 # 2. Handle OUTPUT asset (union type: NewAssetOutput | ExistingAssetOutput)
 output_spec = hop_lite.output
 
-if output_spec.type == "new_asset":
+if isinstance(output_spec, NewAssetOutput):
     # Create NEW mission-scoped intermediate asset
     created_asset_id = asset_service.create_asset(
         user_id=user_id,
         name=output_spec.asset.name,
-        type=output_spec.asset.schema_definition.type,
-        subtype=output_spec.asset.get('subtype'),
-        description=output_spec.asset.get('description'),
-        content="",  # Empty initially - populated during execution
-        scope_type='mission',  # MISSION scope
+        schema_definition=output_spec.asset.schema_definition,
+        subtype=output_spec.asset.subtype,
+        description=output_spec.asset.description,
+        content=output_spec.asset.content,  # Should be None initially
+        scope_type=AssetScopeType.MISSION,  # MISSION scope
         scope_id=mission_id,
-        role='intermediate',  # INTERMEDIATE from mission perspective
+        role=AssetRole.INTERMEDIATE,  # INTERMEDIATE from mission perspective
         asset_metadata={
             'created_by_hop': hop_id,
-            'hop_name': hop_data.get('name'),
+            'hop_name': hop_lite.name,
             'created_at': datetime.utcnow().isoformat()
         }
     )
@@ -155,7 +164,7 @@ if output_spec.type == "new_asset":
         role=AssetRole.OUTPUT
     )
 
-elif output_spec.type == "existing_asset":
+elif isinstance(output_spec, ExistingAssetOutput):
     # Reference existing mission asset (input or output)
     existing_asset_id = output_spec.mission_asset_id
     
@@ -204,12 +213,12 @@ for output_name, mapping_config in result_mapping.items():
             created_asset_id = asset_service.create_asset(
                 user_id=user_id,
                 name=f"Tool {tool_step.tool_id} Output",
-                type=determine_asset_type(output_value),
+                schema_definition={"type": "object", "description": f"Output from {tool_step.tool_id}"},
                 description=f"Intermediate output from {tool_step.name}",
                 content=output_value,
-                scope_type='hop',  # HOP scope for tool intermediates
+                scope_type=AssetScopeType.HOP,  # HOP scope for tool intermediates
                 scope_id=tool_step.hop_id,
-                role='intermediate',
+                role=AssetRole.INTERMEDIATE,
                 asset_metadata={
                     'generated_by_tool': tool_step.tool_id,
                     'tool_step_id': tool_step.id,
@@ -234,9 +243,8 @@ for output_name, mapping_config in result_mapping.items():
 - Session linking failures should log warnings but not fail the transaction
 
 ### Asset Scope Rules
-- **Mission assets**: Created with `scope_type='mission'`, `scope_id=mission_id`
-- **Hop assets**: Created with `scope_type='hop'`, `scope_id=hop_id`
-- **Asset promotion**: Hop outputs become new mission-scoped assets (not updates to existing)
+- **Mission assets**: Created with `scope_type=AssetScopeType.MISSION`, `scope_id=mission_id`
+- **Hop assets**: Created with `scope_type=AssetScopeType.HOP`, `scope_id=hop_id`
 
 ### Status Progression Rules
 - Each transition validates the current status before making changes

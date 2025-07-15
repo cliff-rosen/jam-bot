@@ -143,10 +143,6 @@ class Hop(BaseModel):
     # Asset mapping (populated by services)
     hop_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
     
-    # Intended asset tracking for hop proposal
-    intended_input_asset_ids: List[str] = Field(default_factory=list)  # Mission asset IDs this hop will use
-    intended_output_asset_ids: List[str] = Field(default_factory=list)  # Existing mission asset IDs this hop will update
-    intended_output_asset_specs: List[Dict[str, Any]] = Field(default_factory=list)  # New mission assets this hop will create
     
     @property
     def asset_summary(self) -> AssetMapSummary:
@@ -189,8 +185,6 @@ class Mission(BaseModel):
     # Relationships (populated by services) - Parent manages child context
     current_hop: Optional['Hop'] = None
     hops: List['Hop'] = Field(default_factory=list)  # hop_history
-    
-    # Asset collection removed - use mission_asset_map instead
     
     # Asset mapping (populated by services)
     mission_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping

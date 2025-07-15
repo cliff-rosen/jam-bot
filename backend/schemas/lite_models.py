@@ -184,15 +184,14 @@ def create_mission_from_lite(mission_lite: MissionLite) -> Mission:
         current_hop_id=None,
         current_hop=None,
         hops=[],
-        mission_state={},
         mission_metadata=mission_lite.metadata,
         created_at=current_time,
         updated_at=current_time,
     )
     
-    # Initialize mission state with input and output assets
+    # Initialize mission_asset_map with input and output assets
     for asset in inputs + outputs:
-        mission.mission_state[asset.id] = asset
+        mission.mission_asset_map[asset.id] = asset.role
     
     return mission
 
@@ -310,7 +309,6 @@ def create_hop_from_lite(hop_lite: HopLite, mission_state: Dict[str, Asset] = No
         error_message=None,
         hop_metadata={},
         tool_steps=[],  # Tool steps will be added by the implementer
-        hop_state={},   # State will be populated when the hop is implemented
         created_at=current_time,
         updated_at=current_time
     ) 

@@ -196,7 +196,13 @@ mission_id = "mission_def456"
 hop_lite = HopLite(
     name="Data Analysis Hop",
     description="Process customer feedback data and generate analysis",
+    goal="Transform raw feedback into structured insights",
     rationale="Need to clean and analyze the data before generating final report",
+    success_criteria=[
+        "Clean and validate customer feedback data",
+        "Perform trend analysis on feedback patterns",
+        "Generate intermediate analysis results"
+    ],
     is_final=False,
     inputs=["uuid_generated_1"],  # Use existing input dataset asset ID
     output=NewAssetOutput(
@@ -228,9 +234,9 @@ hop_lite = HopLite(
 ### Database Entities Created/Updated
 
 #### Hop Entity Update
-| id | name | status | description | rationale | is_final | updated_at |
-|---|---|---|---|---|---|---|
-| hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Need to clean and analyze the data before generating final report | false | 2024-01-15T10:45:00Z |
+| id | name | status | description | goal | rationale | is_final | updated_at |
+|---|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_PLAN_PROPOSED | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | Need to clean and analyze the data before generating final report | false | 2024-01-15T10:45:00Z |
 
 #### New Asset Entity (from hop_lite.output.asset)
 | id | name | schema_definition | scope_type | scope_id | status | role | created_at | updated_at |

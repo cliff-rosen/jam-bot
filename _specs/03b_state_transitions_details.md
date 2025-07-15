@@ -167,7 +167,70 @@ for asset_id in mission.mission_asset_map.keys():
 - No hop is created during mission acceptance
 - User can now request hop planning via chat
 
+### **2.1 START_HOP_PLAN**
+
+#### Input Data Structure
+```python
+mission_id: str  # UUID of the mission to start hop planning for
+```
+
+#### Semantics
+This transition initiates hop planning for a mission that is currently in `IN_PROGRESS` status. The user requests hop planning via chat, and the system creates a new hop entity in `HOP_PLAN_STARTED` status. The mission's `current_hop_id` is updated to link the active hop, and the agent begins hop design planning.
+
+#### Entity Updates
+
+**New Hop Creation:**
+```python
+hop = Hop(
+    id=uuid4(),
+    sequence_order=len(mission.hops) + 1,  # Next in sequence
+    name=f"Hop {len(mission.hops) + 1}",   # Default name
+    status=HopStatus.HOP_PLAN_STARTED,
+    mission_id=mission_id,
+    is_final=False,                        # TBD during planning
+    created_at=datetime.utcnow(),
+    updated_at=datetime.utcnow()
+)
+```
+
+**Mission Update:**
+```python
+mission.current_hop_id = hop.id
+mission.updated_at = datetime.utcnow()
+```
+
+#### Validation Rules
+- Mission must exist and belong to the user
+- Mission must be in `IN_PROGRESS` status
+- Mission must not have an active hop (current_hop_id must be null)
+- User must have permission to modify the mission
+
+#### Business Rules
+- Hop is created in planning state
+- Mission links to the new active hop
+- Agent begins hop design analysis
+- Only one hop can be in planning state at a time per mission
+- Hop planning is user-initiated via chat interaction
+
 ### **2.2 PROPOSE_HOP_PLAN**
+
+#### Input Data Structure
+```python
+class HopLite(BaseModel):
+    """Simplified hop structure for hop planning operations"""
+    name: str
+    description: Optional[str] = None
+    goal: Optional[str] = None
+    rationale: Optional[str] = None
+    success_criteria: List[str] = Field(default_factory=list)
+    is_final: bool = False
+    inputs: List[str]  # List of mission asset IDs to use as inputs
+    output: OutputAssetSpec  # Either new asset specification or existing asset reference
+    hop_metadata: Dict[str, Any] = Field(default_factory=dict)
+```
+
+#### Semantics
+This transition completes hop planning for a hop that is currently in `HOP_PLAN_STARTED` status. The agent provides a complete hop design including input/output asset specifications and execution details. New mission-scoped intermediate assets are created for hop deliverables, and asset mappings are established for both inputs and outputs.
 
 #### Entity Updates
 ```python
@@ -251,6 +314,24 @@ elif isinstance(output_spec, ExistingAssetOutput):
         role=AssetRole.OUTPUT
     )
 ```
+
+#### Validation Rules
+- Current hop (from mission.current_hop_id) must exist and belong to the user's mission
+- Current hop must be in `HOP_PLAN_STARTED` status
+- All input asset IDs must refer to existing mission assets
+- HopLite output specification must be valid (NewAssetOutput or ExistingAssetOutput)
+- New assets must have valid schema definitions
+- Asset roles in NewAssetOutput should be INTERMEDIATE (working deliverables)
+- Mission must be in `IN_PROGRESS` status
+
+#### Business Rules
+- Hop planning transforms from started to proposed state
+- New assets are created at mission scope (persistent deliverables)
+- Input assets are linked to hop via HopAsset mapping as INPUT role
+- Output assets are linked to hop via HopAsset mapping as OUTPUT role
+- Mission-scoped assets are also linked via MissionAsset mapping as INTERMEDIATE role
+- Hop tracks intended asset relationships for implementation phase
+- Agent completes full hop design before proposing to user
 
 ### **2.8 COMPLETE_TOOL_STEP**
 

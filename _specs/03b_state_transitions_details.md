@@ -28,13 +28,39 @@
    - **Mission-scoped intermediates**: Created by hops but persist at mission level (deliverables)
    - **Hop-scoped intermediates**: Created by tool steps but discarded after hop completion (scratch work)
 
-## Precise Schema Update Rules
+## State Transition Implementation Details
 
 ### **1.1 PROPOSE_MISSION**
 
-#### Entity Updates
+#### Input Data Structure
 ```python
-# Mission Creation from MissionLite
+class MissionLite(BaseModel):
+    """Simplified mission structure for creation and LLM processing"""
+    name: str                                                    # Mission display name
+    description: Optional[str] = None                            # Mission overview
+    goal: Optional[str] = None                                   # Primary objective
+    success_criteria: List[str] = Field(default_factory=list)   # Success conditions
+    mission_metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata
+    assets: List[AssetLite] = Field(default_factory=list)       # Asset specifications to be created
+
+class AssetLite(BaseModel):
+    """Simplified asset structure for creation and LLM processing"""
+    name: str                                                    # Asset display name
+    description: Optional[str] = None                            # Asset description
+    schema_definition: Dict[str, Any]                           # Schema type definition
+    role: AssetRole                                             # INPUT, OUTPUT, or INTERMEDIATE
+    subtype: Optional[str] = None                               # Asset subtype (optional)
+    content: Optional[Any] = None                               # Initial content if any
+    asset_metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata
+```
+
+#### Semantics
+This transition creates a new mission proposal from an agent's mission planning analysis. The agent provides a complete mission specification including all required deliverable assets. The mission is created in `AWAITING_APPROVAL` status and automatically linked to the user's active session. All assets are created at mission scope with the specified roles.
+
+#### Entity Updates
+
+**Mission Creation:**
+```python
 mission = Mission(
     id=uuid4(),
     name=mission_lite.name,
@@ -48,21 +74,28 @@ mission = Mission(
 )
 ```
 
+**UserSession Updates:**
+```python
+# Link mission to user's active session
+user_session.mission_id = mission.id
+user_session.updated_at = datetime.utcnow()
+```
+
 #### Asset Management
 ```python
-# Process MissionLite schema assets:
+# Process each asset in mission_lite.assets
 for asset_data in mission_lite.assets:
-    # 1. Create Asset
+    # 1. Create Asset entity
     created_asset_id = asset_service.create_asset(
         user_id=user_id,
         name=asset_data.name,
         schema_definition=asset_data.schema_definition,
         subtype=asset_data.subtype,
         description=asset_data.description,
-        content=asset_data.content,
-        scope_type=AssetScopeType.MISSION,
+        content=asset_data.content,                    # Usually None for proposed assets
+        scope_type=AssetScopeType.MISSION,            # Mission-scoped
         scope_id=mission_id,
-        role=asset_data.role,
+        role=asset_data.role,                         # INPUT, OUTPUT, or INTERMEDIATE
         asset_metadata=asset_data.asset_metadata
     )
     
@@ -74,22 +107,65 @@ for asset_data in mission_lite.assets:
     )
 ```
 
+#### Validation Rules
+- User must have an active session
+- Mission name must be unique for the user
+- All assets must have valid schema definitions
+- Asset roles must be valid (INPUT, OUTPUT only - no INTERMEDIATE)
+- Mission must have at least one OUTPUT asset
+- Mission inputs are optional
+- Mission is created in AWAITING_APPROVAL status
+
+#### Business Rules
+- Mission automatically linked to user's active session
+- All assets created at mission scope (persistent)
+- Assets start in PROPOSED status
+- No hop is created during mission proposal
+- Mission requires user approval before work can begin
+
 ### **1.2 ACCEPT_MISSION**
 
-#### Entity Updates
+#### Input Data Structure
 ```python
-# Mission Status Update
+mission_id: str  # UUID of the mission to accept
+```
+
+#### Semantics
+This transition accepts a mission proposal that is currently in `AWAITING_APPROVAL` status. The user has reviewed the mission plan and its deliverable assets and approves proceeding with the mission. The mission status changes to `IN_PROGRESS` making it ready for hop planning and execution.
+
+#### Entity Updates
+
+**Mission Status Update:**
+```python
 mission.status = MissionStatus.IN_PROGRESS
 mission.updated_at = datetime.utcnow()
 ```
 
-#### Validation Rules
+**Asset Status Updates:**
 ```python
-# Required Status Check
-assert mission.status == MissionStatus.AWAITING_APPROVAL
-assert mission.user_id == user_id
-assert mission exists
+# All mission assets transition from PROPOSED to PENDING
+for asset_id in mission.mission_asset_map.keys():
+    asset = asset_service.get_asset_by_id(asset_id, user_id)
+    if asset.status == AssetStatus.PROPOSED:
+        asset_service.update_asset_status(
+            asset_id=asset_id,
+            user_id=user_id,
+            status=AssetStatus.PENDING
+        )
 ```
+
+#### Validation Rules
+- Mission must exist and belong to the user
+- Mission must be in `AWAITING_APPROVAL` status
+- User must have permission to accept the mission
+- Mission must be linked to user's active session
+
+#### Business Rules
+- Mission becomes active and ready for hop planning
+- All mission assets become pending (ready for work)
+- Mission approval is irreversible
+- No hop is created during mission acceptance
+- User can now request hop planning via chat
 
 ### **2.2 PROPOSE_HOP_PLAN**
 

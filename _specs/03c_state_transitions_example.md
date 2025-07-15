@@ -275,9 +275,9 @@ hop_id = "hop_abc123"
 ### Database Entities Updated
 
 #### Hop Entity
-| id | name | status | description | goal | is_final |
-|---|---|---|---|---|---|
-| hop_abc123 | Data Analysis Hop | HOP_PLAN_READY | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false |
+| id | name | status | description | goal | is_final | updated_at |
+|---|---|---|---|---|---|---|
+| hop_abc123 | Data Analysis Hop | HOP_PLAN_READY | Process customer feedback data and generate analysis | Transform raw feedback into structured insights | false | 2024-01-15T10:50:00Z |
 
 ### Result State
 - **Hop**: Status changed from `HOP_PLAN_PROPOSED` to `HOP_PLAN_READY`

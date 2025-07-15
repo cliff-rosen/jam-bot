@@ -333,6 +333,37 @@ elif isinstance(output_spec, ExistingAssetOutput):
 - Hop tracks intended asset relationships for implementation phase
 - Agent completes full hop design before proposing to user
 
+### **2.3 ACCEPT_HOP_PLAN**
+
+#### Input Data Structure
+```python
+hop_id: str  # UUID of the hop to accept
+```
+
+#### Semantics
+This transition accepts a hop plan that is currently in `HOP_PLAN_PROPOSED` status. The user has reviewed the hop design including its input/output asset specifications and approves proceeding with the hop. The hop status changes to `HOP_PLAN_READY` making it ready for implementation planning.
+
+#### Entity Updates
+
+**Hop Status Update:**
+```python
+hop.status = HopStatus.HOP_PLAN_READY
+hop.updated_at = datetime.utcnow()
+```
+
+#### Validation Rules
+- Hop must exist and belong to the user's mission
+- Hop must be in `HOP_PLAN_PROPOSED` status
+- User must have permission to accept the hop plan
+- Mission must be in `IN_PROGRESS` status
+
+#### Business Rules
+- Hop becomes ready for implementation planning
+- Hop plan approval is irreversible
+- No new entities are created during hop plan acceptance
+- User can now request hop implementation via chat
+- All asset relationships remain unchanged
+
 ### **2.8 COMPLETE_TOOL_STEP**
 
 #### Asset Management

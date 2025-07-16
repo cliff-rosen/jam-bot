@@ -10,6 +10,7 @@ from schemas.workflow import Mission, MissionStatus as SchemaMissionStatus
 
 from services.asset_service import AssetService
 from services.hop_service import HopService
+from services.asset_mapping_service import AssetMappingService
 from services.mission_transformer import MissionTransformer, MissionTransformationError
 
 
@@ -18,7 +19,8 @@ class MissionService:
         self.db = db
         self.asset_service = AssetService(db)
         self.hop_service = HopService(db)
-        self.mission_transformer = MissionTransformer(self.asset_service)
+        self.asset_mapping_service = AssetMappingService(db)
+        self.mission_transformer = MissionTransformer(self.asset_service, self.asset_mapping_service)
     
     async def create_mission(self, user_id: int, mission: Mission) -> str:
         """Create a new mission in the database"""

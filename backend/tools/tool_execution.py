@@ -178,7 +178,7 @@ async def _persist_updated_assets(
                             asset_service.create_asset(
                                 user_id=user_id,
                                 name=asset.name,
-                                type=asset.schema_definition.type,
+                                schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
                                 subtype=asset.subtype,
                                 description=asset.description,
                                 content=output_value,  # Use tool output, not old asset.value

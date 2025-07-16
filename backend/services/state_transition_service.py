@@ -212,7 +212,7 @@ class StateTransitionService:
                 created_asset_id = self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset_data['name'],
-                    type=asset_data['schema_definition']['type'],
+                    schema_definition=asset_data['schema_definition'],
                     subtype=asset_data.get('subtype'),
                     description=asset_data.get('description'),
                     content=asset_data.get('content'),
@@ -652,7 +652,7 @@ class StateTransitionService:
             created_asset_id = self.asset_service.create_asset(
                 user_id=user_id,
                 name=asset_spec.get('name', 'Mission Output'),
-                type=asset_spec.get('schema_definition', {}).get('type', 'text'),
+                schema_definition=asset_spec.get('schema_definition', {'type': 'text', 'description': 'Default text output'}),
                 subtype=asset_spec.get('subtype'),
                 description=asset_spec.get('description', f'Output created by {hop_data.get("name", "hop")}'),
                 content="",  # Empty initially - will be populated during execution
@@ -696,7 +696,7 @@ class StateTransitionService:
                 self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset.name,
-                    type=asset.schema_definition.type,
+                    schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
                     subtype=asset.subtype,
                     description=asset.description,
                     content=asset.value_representation,
@@ -719,7 +719,7 @@ class StateTransitionService:
                 self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset.name,
-                    type=asset.schema_definition.type,
+                    schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
                     subtype=asset.subtype,
                     description=asset.description,
                     content=asset.value_representation,
@@ -801,7 +801,7 @@ class StateTransitionService:
                 asset_id = self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset_name,
-                    type=asset_type,
+                    schema_definition={'type': asset_type, 'description': f"Output from tool step {tool_step_model.name}"},
                     description=f"Output from tool step {tool_step_model.name}",
                     content=output_data,
                     asset_metadata={

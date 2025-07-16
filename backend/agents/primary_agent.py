@@ -99,74 +99,75 @@ def _serialize_state(state: State) -> dict:
 async def _handle_mission_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
     """Handle mission proposal creation and persistence"""
     print("Mission proposal created")
+
     # Create a full mission from the proposal
     proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
     
     # Use StateTransitionService to properly persist the mission proposal
-    if _state_transition_service and _user_id:
-        try:
-            # Extract asset data from mission_lite for StateTransitionService
-            # StateTransitionService expects mission_state with full asset data
-            mission_state_data = {}
-            # Process both inputs and outputs from mission_lite
-            all_assets = parsed_response.mission_proposal.inputs + parsed_response.mission_proposal.outputs
-            for asset_lite in all_assets:
-                # Convert AssetLite to Asset and get its data
-                asset = create_asset_from_lite(asset_lite)
-                mission_state_data[asset.id] = asset.model_dump()
-            
-            # Prepare mission data for transaction service
-            mission_data = {
-                'name': proposed_mission.name,
-                'description': proposed_mission.description,
-                'goal': proposed_mission.goal,
-                'success_criteria': proposed_mission.success_criteria,
-                'mission_state': mission_state_data
+    if not (_state_transition_service and _user_id):
+        print("Warning: Cannot create mission - StateTransitionService not initialized")
+        response_message.content = "Error: Unable to create mission proposal - service not available"
+        return
+    try:
+        # Extract asset data from mission_lite for StateTransitionService
+        # StateTransitionService expects mission_state with full asset data
+        mission_state_data = {}
+        # Process both inputs and outputs from mission_lite
+        all_assets = parsed_response.mission_proposal.inputs + parsed_response.mission_proposal.outputs
+        for asset_lite in all_assets:
+            # Convert AssetLite to Asset and get its data
+            asset = create_asset_from_lite(asset_lite)
+            mission_state_data[asset.id] = asset.model_dump()
+        
+        # Prepare mission data for transaction service
+        mission_data = {
+            'name': proposed_mission.name,
+            'description': proposed_mission.description,
+            'goal': proposed_mission.goal,
+            'success_criteria': proposed_mission.success_criteria,
+            'mission_state': mission_state_data
+        }
+        
+        # Use transaction service to create mission - it handles status and session automatically
+        result = await _state_transition_service.updateState(
+            TransactionType.PROPOSE_MISSION,
+            {
+                'user_id': _user_id,
+                'mission': mission_data
             }
-            
-            # Use transaction service to create mission - it handles status and session automatically
-            result = await _state_transition_service.updateState(
-                TransactionType.PROPOSE_MISSION,
-                {
-                    'user_id': _user_id,
-                    'mission': mission_data
-                }
-            )
-            
-            print(f"Successfully created mission via transaction service: {result.entity_id}")
-            
-            # Fetch the persisted mission from database to get correct state
-            if _mission_service:
-                persisted_mission = await _mission_service.get_mission(result.entity_id, _user_id)
-                if persisted_mission:
-                    state.mission = persisted_mission
-                    state.mission_id = result.entity_id
-                else:
-                    # Fallback - update local state but warn
-                    print("Warning: Could not fetch persisted mission, using local state")
-                    proposed_mission.id = result.entity_id
-                    state.mission = proposed_mission
-                    state.mission_id = result.entity_id
+        )
+        
+        print(f"Successfully created mission via transaction service: {result.entity_id}")
+        
+        # Fetch the persisted mission from database to get correct state
+        if _mission_service:
+            persisted_mission = await _mission_service.get_mission(result.entity_id, _user_id)
+            if persisted_mission:
+                state.mission = persisted_mission
+                state.mission_id = result.entity_id
             else:
-                # Fallback if mission service not available
+                # Fallback - update local state but warn
+                print("Warning: Could not fetch persisted mission, using local state")
                 proposed_mission.id = result.entity_id
                 state.mission = proposed_mission
                 state.mission_id = result.entity_id
-            
-            # Success message
-            response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
-            
-        except StateTransitionError as e:
-            print(f"State transition error creating mission: {e}")
-            response_message.content = f"Error creating mission proposal: {str(e)}"
-            raise e
-        except Exception as e:
-            print(f"Unexpected error creating mission: {e}")
-            response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
-            raise e
-    else:
-        print("Warning: Cannot create mission - StateTransitionService not initialized")
-        response_message.content = "Error: Unable to create mission proposal - service not available"
+        else:
+            # Fallback if mission service not available
+            proposed_mission.id = result.entity_id
+            state.mission = proposed_mission
+            state.mission_id = result.entity_id
+        
+        # Success message
+        response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
+        
+    except StateTransitionError as e:
+        print(f"State transition error creating mission: {e}")
+        response_message.content = f"Error creating mission proposal: {str(e)}"
+        raise e
+    except Exception as e:
+        print(f"Unexpected error creating mission: {e}")
+        response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
+        raise e
 
 def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:
     """

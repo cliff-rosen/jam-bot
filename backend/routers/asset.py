@@ -26,7 +26,7 @@ async def create_asset(
     return asset_service.create_asset(
         user_id=current_user.user_id,
         name=request.name,
-        type=request.type,
+        schema_definition={'type': request.type, 'description': request.description or f'{request.name} asset'},
         subtype=request.subtype,
         description=request.description,
         content=request.content,

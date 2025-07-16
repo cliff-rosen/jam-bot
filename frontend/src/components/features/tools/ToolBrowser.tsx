@@ -38,7 +38,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
             try {
                 setLoading(true);
                 setError(null);
-                const response = await toolsApi.getAvailableTools();
+                const response = await toolsApi.getTools();
                 setTools(response);
             } catch (err) {
                 setError('Failed to fetch tools');

@@ -209,7 +209,7 @@ class StateTransitionService:
         # Create mission assets if provided
         if mission_data.get('mission_state'):
             for asset_id, asset_data in mission_data['mission_state'].items():
-                created_asset_id = self.asset_service.create_asset(
+                created_asset = self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset_data['name'],
                     schema_definition=asset_data['schema_definition'],
@@ -221,10 +221,10 @@ class StateTransitionService:
                     role=asset_data.get('role', 'input')
                 )
                 
-                # Create asset mapping
+                # Create asset mapping - use the asset ID from the returned Asset object
                 from models import AssetRole
                 role = AssetRole(asset_data.get('role', 'input'))
-                self.asset_mapping_service.add_mission_asset(mission_id, created_asset_id, role)
+                self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, role)
         
         # Link mission to user's active session automatically (before commit)
         if self.session_service:
@@ -649,7 +649,7 @@ class StateTransitionService:
         intended_output_asset_specs = hop_data.get('intended_output_asset_specs', [])
         for asset_spec in intended_output_asset_specs:
             # Create asset at MISSION scope (not hop scope)
-            created_asset_id = self.asset_service.create_asset(
+            created_asset = self.asset_service.create_asset(
                 user_id=user_id,
                 name=asset_spec.get('name', 'Mission Output'),
                 schema_definition=asset_spec.get('schema_definition', {'type': 'text', 'description': 'Default text output'}),
@@ -667,10 +667,10 @@ class StateTransitionService:
             )
             
             # Add to mission asset mapping
-            self.asset_mapping_service.add_mission_asset(mission_id, created_asset_id, AssetRole.OUTPUT)
+            self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, AssetRole.OUTPUT)
             
             # Add to intended outputs list
-            intended_output_asset_ids.append(created_asset_id)
+            intended_output_asset_ids.append(created_asset.id)
         
         # Update hop model with intended asset tracking
         hop_model = self.db.query(HopModel).filter(HopModel.id == hop_id).first()
@@ -798,7 +798,7 @@ class StateTransitionService:
                 asset_type = self._determine_asset_type(output_data)
                 
                 # Create the asset
-                asset_id = self.asset_service.create_asset(
+                created_asset = self.asset_service.create_asset(
                     user_id=user_id,
                     name=asset_name,
                     schema_definition={'type': asset_type, 'description': f"Output from tool step {tool_step_model.name}"},
@@ -815,6 +815,7 @@ class StateTransitionService:
                     scope_id=tool_step_model.hop_id,
                     role='output'
                 )
+                asset_id = created_asset.id
                 
                 assets_created.append(asset_id)
         

@@ -17,12 +17,12 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
 
     // Helper to get mission inputs
     const getMissionInputs = (): Asset[] => {
-        return Object.values(mission.mission_state).filter(asset => asset.role === AssetRole.INPUT);
+        return mission.assets.filter(asset => asset.role === AssetRole.INPUT);
     };
 
     // Helper to get mission outputs
     const getMissionOutputs = (): Asset[] => {
-        return Object.values(mission.mission_state).filter(asset => asset.role === AssetRole.OUTPUT);
+        return mission.assets.filter(asset => asset.role === AssetRole.OUTPUT);
     };
 
     // Helper to get all hops (completed + current)
@@ -140,8 +140,8 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(mission.mission_state).map(([key, asset]) => (
-                                <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
+                            {mission.assets.map((asset) => (
+                                <tr key={asset.id} className="border-b border-gray-100 dark:border-gray-700">
                                     <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                     <td className="py-1 px-2 font-mono text-orange-600 dark:text-orange-400">{asset.id}</td>
                                     <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.schema_definition.type || 'unknown'}</td>

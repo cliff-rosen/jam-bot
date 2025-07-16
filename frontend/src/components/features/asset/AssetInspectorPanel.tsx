@@ -15,10 +15,10 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
     const [error, setError] = useState<string | null>(null);
     const { state: jamBotState } = useJamBot();
 
-    // Get the latest asset state from either mission state or current hop state
+    // Get the latest asset state from either mission assets or current hop assets
     const latestAsset = asset ? (
-        jamBotState?.mission?.mission_state?.[asset.id] || // Check mission state first
-        (jamBotState?.mission?.current_hop?.hop_state?.[asset.id]) // Then check current hop state
+        jamBotState?.mission?.assets?.find(a => a.id === asset.id) || // Check mission assets first
+        (jamBotState?.mission?.current_hop?.assets?.find(a => a.id === asset.id)) // Then check current hop assets
     ) : undefined;
 
     useEffect(() => {

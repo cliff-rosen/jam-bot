@@ -111,6 +111,9 @@ export interface Hop {
 
     // Asset mapping - tracks which assets belong to this hop by role
     hop_asset_map: AssetMapSummary;
+    
+    // Full asset objects for frontend compatibility
+    assets: Asset[];
 }
 
 export interface Mission {
@@ -136,6 +139,9 @@ export interface Mission {
 
     // Asset mapping - tracks which assets belong to this mission by role
     mission_asset_map: AssetMapSummary;
+    
+    // Full asset objects for frontend compatibility
+    assets: Asset[];
 }
 
 export const defaultMission: Mission = {
@@ -150,7 +156,8 @@ export const defaultMission: Mission = {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     hops: [],
-    mission_asset_map: {}
+    mission_asset_map: {},
+    assets: []
 };
 
 

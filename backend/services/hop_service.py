@@ -7,26 +7,30 @@ from uuid import uuid4
 from models import Hop as HopModel, HopStatus
 from schemas.workflow import Hop, HopStatus as HopStatusSchema
 from services.asset_service import AssetService
+from services.asset_mapping_service import AssetMappingService
 
 
 class HopService:
     def __init__(self, db: Session):
         self.db = db
         self.asset_service = AssetService(db)
+        self.asset_mapping_service = AssetMappingService(db)
 
-    async def _model_to_schema(self, hop_model: HopModel, load_hop_state: bool = True) -> Hop:
-        """Convert database model to Hop schema with optional hop state loading"""
-        hop_state = {}
+    async def _model_to_schema(self, hop_model: HopModel, load_assets: bool = True) -> Hop:
+        """Convert database model to Hop schema with optional asset loading"""
+        hop_asset_map = {}
+        assets = []
         tool_steps = []
         
-        if load_hop_state:
-            # Load hop-scoped assets
-            hop_assets = self.asset_service.get_assets_by_scope(
-                user_id=hop_model.user_id,
-                scope_type="hop",
-                scope_id=hop_model.id
-            )
-            hop_state = {asset.id: asset for asset in hop_assets}
+        if load_assets:
+            # Get hop asset mapping
+            hop_asset_map = self.asset_mapping_service.get_hop_assets(hop_model.id)
+            
+            # Load full Asset objects for frontend compatibility
+            for asset_id in hop_asset_map.keys():
+                asset = self.asset_service.get_asset(asset_id, hop_model.user_id)
+                if asset:
+                    assets.append(asset)
         
         # Load tool steps for this hop
         from services.tool_step_service import ToolStepService
@@ -50,7 +54,8 @@ class HopService:
             rationale=hop_model.rationale,
             error_message=hop_model.error_message,
             hop_metadata=hop_model.hop_metadata or {},
-            hop_state=hop_state,
+            hop_asset_map=hop_asset_map,
+            assets=assets,
             tool_steps=tool_steps,
             created_at=hop_model.created_at,
             updated_at=hop_model.updated_at

@@ -109,8 +109,15 @@ class MissionTransformer:
             
             # Get mission asset mapping
             mission_asset_map = {}
-            if self.asset_mapping_service:
+            assets = []
+            if self.asset_mapping_service and self.asset_service:
                 mission_asset_map = self.asset_mapping_service.get_mission_assets(mission_model.id)
+                
+                # Load full Asset objects for frontend compatibility
+                for asset_id in mission_asset_map.keys():
+                    asset = self.asset_service.get_asset(asset_id, mission_model.user_id)
+                    if asset:
+                        assets.append(asset)
             
             return Mission(
                 id=mission_model.id,
@@ -124,6 +131,7 @@ class MissionTransformer:
                 hops=hops,
                 mission_metadata=mission_model.mission_metadata or {},
                 mission_asset_map=mission_asset_map,
+                assets=assets,
                 created_at=mission_model.created_at,
                 updated_at=mission_model.updated_at
             )

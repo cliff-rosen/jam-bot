@@ -143,6 +143,9 @@ class Hop(BaseModel):
     # Asset mapping (populated by services)
     hop_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
     
+    # Full asset objects for frontend compatibility (populated by services)
+    assets: List['Asset'] = Field(default_factory=list)  # Full Asset objects for UI
+    
     
     @property
     def asset_summary(self) -> AssetMapSummary:
@@ -188,6 +191,9 @@ class Mission(BaseModel):
     
     # Asset mapping (populated by services)
     mission_asset_map: Dict[str, AssetRole] = Field(default_factory=dict)  # asset_id -> role mapping
+    
+    # Full asset objects for frontend compatibility (populated by services)
+    assets: List['Asset'] = Field(default_factory=list)  # Full Asset objects for UI
     
     @property
     def asset_summary(self) -> AssetMapSummary:

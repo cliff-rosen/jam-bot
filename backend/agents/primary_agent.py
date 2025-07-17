@@ -147,6 +147,53 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
         response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
         raise e
 
+async def _handle_implementation_plan_proposal(parsed_response, state: State, response_message: ChatMessage) -> None:
+    """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
+    print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
+    
+    try:
+        # Prepare tool steps data for StateTransitionService
+        tool_steps_data = []
+        for i, step in enumerate(parsed_response.tool_steps):
+            tool_step_data = {
+                'tool_id': step.tool_id,
+                'name': f'Step {i + 1}: {step.tool_id}',
+                'description': step.description,
+                'parameter_mapping': step.parameter_mapping,
+                'result_mapping': step.result_mapping,
+                'resource_configs': step.resource_configs
+            }
+            tool_steps_data.append(tool_step_data)
+        
+        # Step 2: Send proposal to StateTransitionService
+        result = await _send_to_state_transition_service(
+            TransactionType.PROPOSE_HOP_IMPL,
+            {
+                'hop_id': state.mission.current_hop.id,
+                'tool_steps': tool_steps_data
+            }
+        )
+        
+        print(f"Successfully created hop implementation via StateTransitionService: {result.entity_id}")
+        
+        # Update local state
+        if _mission_service:
+            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
+            if updated_mission:
+                state.mission = updated_mission
+        
+        response_message.content = (
+            f"I've created an implementation plan for **{state.mission.current_hop.name}** "
+            f"with {len(parsed_response.tool_steps)} tool steps.\n\n"
+            f"{parsed_response.response_content}\n\n"
+            "This implementation plan is now awaiting your approval."
+        )
+        
+    except Exception as e:
+        print(f"Error creating implementation plan: {e}")
+        response_message.content = f"Error creating implementation plan: {str(e)}"
+        raise e
+
 async def _handle_hop_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
     """Handle hop proposal creation and persistence"""
     if not parsed_response.hop_proposal:
@@ -744,21 +791,21 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         writer(status_response.model_dump())
     
     try:
-        # Use mission's current_hop as the single source of truth
+        # Validate current hop exists
         current_hop = state.mission.current_hop if state.mission else None
-        if not current_hop or not current_hop.hop_state:
-            raise ValueError(f"Hop is missing or has empty hop_state.")
+        if not current_hop or not current_hop.assets:
+            raise ValueError(f"Hop is missing or has empty assets list.")
 
-        # Create and use the simplified prompt caller
+        # Step 1: Generate proposal from LLM
         promptCaller = HopImplementerPromptCaller()
         parsed_response = await promptCaller.invoke(
             mission=state.mission
         )
 
-        # Create response message from parsed response.response_content
+        # Create response message
         response_message = ChatMessage(
             id=str(uuid.uuid4()),
-            chat_id="temp",  # This will be updated when chat sessions are integrated
+            chat_id="temp",
             role=MessageRole.ASSISTANT,
             content=parsed_response.response_content,
             message_metadata={},
@@ -769,90 +816,13 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         # Handle different response types
         print(f"DEBUG: Hop implementer response type: {parsed_response.response_type}")
         if parsed_response.response_type == "IMPLEMENTATION_PLAN":
-            print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
-            result = _process_implementation_plan(parsed_response, current_hop)
-            response_message.content = result.response_content
-            print(f"DEBUG: Implementation plan processing result.success = {result.success}")
-            
-            # Apply the changes to the state if processing was successful
-            if result.success:
-                # Use StateTransitionService to properly create hop implementation proposal (step 2.4)
-                if _state_transition_service and _user_id:
-                    try:
-                        # Prepare tool steps data for transaction service
-                        tool_steps_data = []
-                        for i, step in enumerate(parsed_response.tool_steps):
-                            tool_step_data = {
-                                'tool_id': step.tool_id,
-                                'name': f'Step {i + 1}: {step.tool_id}',  # Generate name since ToolStepLite doesn't have name field
-                                'description': step.description,
-                                'parameter_mapping': step.parameter_mapping,
-                                'result_mapping': step.result_mapping,
-                                'resource_configs': step.resource_configs
-                            }
-                            tool_steps_data.append(tool_step_data)
-                        
-                        print(f"DEBUG: Prepared {len(tool_steps_data)} tool steps for StateTransitionService")
-                        
-                        # Use transaction service to propose hop implementation
-                        transaction_result = await _state_transition_service.updateState(
-                            TransactionType.PROPOSE_HOP_IMPL,
-                            {
-                                'hop_id': current_hop.id,
-                                'user_id': _user_id,
-                                'tool_steps': tool_steps_data
-                            }
-                        )
-                        
-                        print(f"DEBUG: StateTransitionService completed successfully: {transaction_result.entity_id}")
-                        print(f"DEBUG: StateTransitionService result: {transaction_result.success}, {transaction_result.message}")
-                        
-                        # Fetch the updated mission to get correct state
-                        if _mission_service:
-                            updated_mission = await _mission_service.get_mission(state.mission_id, _user_id)
-                            if updated_mission:
-                                state.mission = updated_mission
-                                current_hop = updated_mission.current_hop
-                        
-                        response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
-                        
-                    except Exception as e:
-                        print(f"DEBUG: Exception in StateTransitionService: {str(e)}")
-                        import traceback
-                        print(f"DEBUG: Full traceback: {traceback.format_exc()}")
-                        # Fallback to manual status update
-                        current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                        state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                        response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
-                else:
-                    # Fallback if StateTransitionService not available
-                    current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                    state.mission.current_hop.status = HopStatus.HOP_IMPL_PROPOSED
-                    response_message.content = f"Implementation plan proposed for hop '{current_hop.name}'. Please review and approve to proceed with execution."
-            else:
-                # If validation failed, keep hop in started state for clarification
-                current_hop.status = HopStatus.HOP_IMPL_STARTED
-                state.mission.current_hop.status = HopStatus.HOP_IMPL_STARTED
-            
-        elif parsed_response.response_type == "CLARIFICATION_NEEDED":
-            # Keep hop in current state but mark as needing clarification
-            current_hop.status = HopStatus.HOP_IMPL_STARTED
-            state.mission.current_hop.status = HopStatus.HOP_IMPL_STARTED
-            
-            # Create clarification message with reasoning
-            missing_info = "\n".join([f"- {info}" for info in parsed_response.missing_information])
-            reasoning_text = f"\n\nReasoning: {parsed_response.reasoning}" if parsed_response.reasoning else ""
-            response_message.content = f"Need clarification to implement hop '{current_hop.name}':\n\n{parsed_response.response_content}\n\nMissing Information:\n{missing_info}{reasoning_text}"
-            
+            await _handle_implementation_plan_proposal(parsed_response, state, response_message)
         else:
-            raise ValueError(f"Invalid response type: {parsed_response.response_type}")
+            response_message.content = parsed_response.response_content
         
-        # Persist mission using module-level service
-        await _update_mission(state.mission_id, state.mission)
-
         # Route back to supervisor
         next_node = END
-
+        
         state_update = {
             "messages": [*state.messages, response_message.model_dump()],
             "mission": state.mission,
@@ -863,14 +833,12 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         }
 
         if writer:
-            # Send simplified response without proposal payload
             agent_response = AgentResponse(**create_agent_response(
                 token=response_message.content[0:100],
                 response_text=response_message.content,
                 status="hop_implementer_completed",
-                error=current_hop.error_message if current_hop.status == HopStatus.HOP_IMPL_STARTED else None,
-                debug=f"Response type: {parsed_response.response_type}, Hop implementation status: {current_hop.status.value}, hop: {current_hop.name}",
-                payload={}  # No proposal payload - hop is now directly in mission state
+                payload={},
+                debug=f"Response type: {parsed_response.response_type}"
             ))
             writer(agent_response.model_dump())
 

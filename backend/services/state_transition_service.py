@@ -644,49 +644,54 @@ class StateTransitionService:
     
     # Helper methods
     
+    def add_asset_to_hop(self, hop_id: str, asset_id: str, role: str) -> None:
+        """Single method to add an asset to a hop with a specific role"""
+        from models import AssetRole
+        asset_role = AssetRole(role)
+        self.asset_mapping_service.add_hop_asset(hop_id, asset_id, asset_role)
+    
     async def _initialize_hop_assets(self, mission_id: str, hop_id: str, user_id: int, hop_data: Dict[str, Any]):
-        """Initialize hop assets based on hop specification - NEW APPROACH"""
+        """Initialize hop assets using explicit asset mappings"""
         from models import AssetRole
         
-        # Store intended input asset IDs (references to mission assets)
-        intended_input_asset_ids = hop_data.get('intended_input_asset_ids', [])
+        # Process explicit hop asset mappings
+        hop_asset_mappings = hop_data.get('hop_asset_mappings', [])
+        for mapping in hop_asset_mappings:
+            asset_id = mapping.get('asset_id')
+            role = mapping.get('role')  # 'input', 'output', 'intermediate'
+            
+            if asset_id and role:
+                self.add_asset_to_hop(hop_id, asset_id, role)
         
-        # Store intended output asset IDs (references to existing mission assets)
-        intended_output_asset_ids = hop_data.get('intended_output_asset_ids', [])
-        
-        # Create new mission output assets from specifications
-        intended_output_asset_specs = hop_data.get('intended_output_asset_specs', [])
-        for asset_spec in intended_output_asset_specs:
-            # Create asset at MISSION scope (not hop scope)
+        # Create new mission assets if specified
+        new_assets = hop_data.get('new_mission_assets', [])
+        for asset_spec in new_assets:
+            # Create asset at MISSION scope
             created_asset = self.asset_service.create_asset(
                 user_id=user_id,
                 name=asset_spec.get('name', 'Mission Output'),
                 schema_definition=asset_spec.get('schema_definition', {'type': 'text', 'description': 'Default text output'}),
                 subtype=asset_spec.get('subtype'),
                 description=asset_spec.get('description', f'Output created by {hop_data.get("name", "hop")}'),
-                content="",  # Empty initially - will be populated during execution
+                content="",
                 asset_metadata={
                     'created_by_hop': hop_id,
                     'hop_name': hop_data.get('name'),
                     'created_at': datetime.utcnow().isoformat()
                 },
-                scope_type='mission',  # MISSION scope, not hop scope
+                scope_type='mission',
                 scope_id=mission_id,
-                role='output'
+                role=asset_spec.get('mission_role', 'intermediate')
             )
             
             # Add to mission asset mapping
-            self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, AssetRole.OUTPUT)
+            mission_role = AssetRole(asset_spec.get('mission_role', 'intermediate'))
+            self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, mission_role)
             
-            # Add to intended outputs list
-            intended_output_asset_ids.append(created_asset.id)
-        
-        # Update hop model with intended asset tracking
-        hop_model = self.db.query(HopModel).filter(HopModel.id == hop_id).first()
-        if hop_model:
-            hop_model.intended_input_asset_ids = intended_input_asset_ids
-            hop_model.intended_output_asset_ids = intended_output_asset_ids
-            hop_model.intended_output_asset_specs = intended_output_asset_specs
+            # Add to hop asset mapping if specified
+            hop_role = asset_spec.get('hop_role')
+            if hop_role:
+                self.add_asset_to_hop(hop_id, created_asset.id, hop_role)
 
     async def _copy_mission_assets_to_hop(self, mission_id: str, hop_id: str, user_id: int):
         """DEPRECATED: Copy relevant mission assets to hop scope as inputs - replaced by _initialize_hop_assets"""

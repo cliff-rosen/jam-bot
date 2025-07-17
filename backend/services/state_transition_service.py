@@ -217,7 +217,7 @@ class StateTransitionService:
             created_asset = self.asset_service.create_asset(
                 user_id=user_id,
                 name=asset.name,
-                schema_definition=asset.schema_definition,
+                schema_definition=asset.schema_definition.model_dump(),  # Convert to dict
                 subtype=asset.subtype,
                 description=asset.description,
                 content=None,                                # Usually None for proposed assets

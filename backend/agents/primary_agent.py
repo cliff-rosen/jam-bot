@@ -118,7 +118,6 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
             {'mission_lite': parsed_response.mission_proposal}
         )
         
-        print(f"Successfully created mission via StateTransitionService: {result.entity_id}")
         
         # Update local state with persisted mission
         if _mission_service:
@@ -138,54 +137,8 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
             "\n\nThis mission is now awaiting your approval. Would you like me to proceed?"
         )
         
-    except StateTransitionError as e:
-        print(f"State transition error creating mission: {e}")
-        response_message.content = f"Error creating mission proposal: {str(e)}"
-        raise e
     except Exception as e:
-        print(f"Unexpected error creating mission: {e}")
-        response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
-        raise e
-
-async def _handle_implementation_plan_proposal(parsed_response, state: State, response_message: ChatMessage) -> None:
-    """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
-    print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
-    
-    try:
-        # Serialize ToolStepLite objects to dictionaries before sending to StateTransitionService
-        serialized_tool_steps = []
-        for tool_step_lite in parsed_response.tool_steps:
-            # Use model_dump() to serialize the ToolStepLite object to a dictionary
-            serialized_step = tool_step_lite.model_dump()
-            serialized_tool_steps.append(serialized_step)
-        
-        # Step 2: Send proposal to StateTransitionService (serialized dictionaries)
-        result = await _send_to_state_transition_service(
-            TransactionType.PROPOSE_HOP_IMPL,
-            {
-                'hop_id': state.mission.current_hop.id,
-                'tool_steps': serialized_tool_steps  # Send serialized dictionaries
-            }
-        )
-        
-        print(f"Successfully created hop implementation via StateTransitionService: {result.entity_id}")
-        
-        # Update local state
-        if _mission_service:
-            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
-            if updated_mission:
-                state.mission = updated_mission
-        
-        response_message.content = (
-            f"I've created an implementation plan for **{state.mission.current_hop.name}** "
-            f"with {len(parsed_response.tool_steps)} tool steps.\n\n"
-            f"{parsed_response.response_content}\n\n"
-            "This implementation plan is now awaiting your approval."
-        )
-        
-    except Exception as e:
-        print(f"Error creating implementation plan: {e}")
-        response_message.content = f"Error creating implementation plan: {str(e)}"
+        response_message.content = f"Error creating mission: {str(e)}"
         raise e
 
 async def _handle_hop_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
@@ -195,9 +148,6 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
     
     # Get the HopLite proposal
     hop_lite: HopLite = parsed_response.hop_proposal
-    print(f"DEBUG: HopLite inputs: {hop_lite.inputs}")
-    print(f"DEBUG: HopLite output: {hop_lite.output}")
-    print(f"DEBUG: HopLite output type: {type(hop_lite.output).__name__}")
     
     # Use StateTransitionService to create hop proposal (step 2.1)
     if not (_state_transition_service and _user_id):
@@ -220,7 +170,6 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
             }
         )
         
-        print(f"Successfully created hop via StateTransitionService: {result.entity_id}")
         
         # Fetch updated mission from database to get the new hop
         if _mission_service:
@@ -235,13 +184,39 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
         # Create success response
         response_message.content = f"Hop plan proposed: {hop_lite.name}. Please review and approve to proceed with implementation."
         
-    except StateTransitionError as e:
-        print(f"StateTransitionService error creating hop: {e}")
-        response_message.content = f"Error creating hop proposal: {str(e)}"
-        raise e
     except Exception as e:
-        print(f"Unexpected error creating hop: {e}")
-        response_message.content = f"Unexpected error creating hop proposal: {str(e)}"
+        response_message.content = f"Error creating hop: {str(e)}"
+        raise e
+
+async def _handle_implementation_plan_proposal(parsed_response, state: State, response_message: ChatMessage) -> None:
+    """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
+    
+    try:
+        # Step 2: Send proposal to StateTransitionService
+        result = await _send_to_state_transition_service(
+            TransactionType.PROPOSE_HOP_IMPL,
+            {
+                'hop_id': state.mission.current_hop.id,
+                'tool_steps': parsed_response.tool_steps
+            }
+        )
+        
+        
+        # Update local state
+        if _mission_service:
+            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
+            if updated_mission:
+                state.mission = updated_mission
+        
+        response_message.content = (
+            f"I've created an implementation plan for **{state.mission.current_hop.name}** "
+            f"with {len(parsed_response.tool_steps)} tool steps.\n\n"
+            f"{parsed_response.response_content}\n\n"
+            "This implementation plan is now awaiting your approval."
+        )
+        
+    except Exception as e:
+        response_message.content = f"Error creating implementation plan: {str(e)}"
         raise e
 
 def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:

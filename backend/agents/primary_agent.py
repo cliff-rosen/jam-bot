@@ -152,12 +152,19 @@ async def _handle_implementation_plan_proposal(parsed_response, state: State, re
     print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
     
     try:
-        # Step 2: Send proposal to StateTransitionService (ToolStepLite list directly)
+        # Serialize ToolStepLite objects to dictionaries before sending to StateTransitionService
+        serialized_tool_steps = []
+        for tool_step_lite in parsed_response.tool_steps:
+            # Use model_dump() to serialize the ToolStepLite object to a dictionary
+            serialized_step = tool_step_lite.model_dump()
+            serialized_tool_steps.append(serialized_step)
+        
+        # Step 2: Send proposal to StateTransitionService (serialized dictionaries)
         result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_HOP_IMPL,
             {
                 'hop_id': state.mission.current_hop.id,
-                'tool_steps': parsed_response.tool_steps  # Send ToolStepLite objects directly
+                'tool_steps': serialized_tool_steps  # Send serialized dictionaries
             }
         )
         

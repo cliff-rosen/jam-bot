@@ -648,8 +648,10 @@ class StateTransitionService:
     def add_asset_to_hop(self, hop_id: str, asset_id: str, role: str) -> None:
         """Single method to add an asset to a hop with a specific role"""
         from models import AssetRole
+        print(f"DEBUG: Adding asset {asset_id} to hop {hop_id} with role {role}")
         asset_role = AssetRole(role)
-        self.asset_mapping_service.add_hop_asset(hop_id, asset_id, asset_role)
+        result = self.asset_mapping_service.add_hop_asset(hop_id, asset_id, asset_role)
+        print(f"DEBUG: Asset mapping created with ID: {result}")
     
     async def _initialize_hop_assets(self, mission_id: str, hop_id: str, user_id: int, hop_data: Dict[str, Any]):
         """Initialize hop assets using explicit asset mappings"""
@@ -657,12 +659,16 @@ class StateTransitionService:
         
         # Process explicit hop asset mappings
         hop_asset_mappings = hop_data.get('hop_asset_mappings', [])
+        print(f"DEBUG: Processing {len(hop_asset_mappings)} hop asset mappings for hop {hop_id}")
         for mapping in hop_asset_mappings:
             asset_id = mapping.get('asset_id')
             role = mapping.get('role')  # 'input', 'output', 'intermediate'
+            print(f"DEBUG: Processing mapping: asset_id={asset_id}, role={role}")
             
             if asset_id and role:
                 self.add_asset_to_hop(hop_id, asset_id, role)
+            else:
+                print(f"DEBUG: Skipping invalid mapping: {mapping}")
         
         # Create new mission assets if specified
         new_assets = hop_data.get('new_mission_assets', [])

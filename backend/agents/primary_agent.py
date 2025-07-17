@@ -188,6 +188,9 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
     
     # Get the HopLite proposal
     hop_lite: HopLite = parsed_response.hop_proposal
+    print(f"DEBUG: HopLite inputs: {hop_lite.inputs}")
+    print(f"DEBUG: HopLite output: {hop_lite.output}")
+    print(f"DEBUG: HopLite output type: {type(hop_lite.output).__name__}")
     
     # Use StateTransitionService to create hop proposal (step 2.1)
     if not (_state_transition_service and _user_id):
@@ -215,6 +218,8 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
             'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
             'output_asset_spec': hop_lite.output  # Output asset specification
         }
+        
+        print(f"DEBUG: Final hop_data being sent: {hop_data}")
         
         # Step 2: Send proposal to StateTransitionService
         result = await _send_to_state_transition_service(

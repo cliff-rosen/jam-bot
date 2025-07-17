@@ -25,12 +25,18 @@ class HopService:
         if load_assets:
             # Get hop asset mapping
             hop_asset_map = self.asset_mapping_service.get_hop_assets(hop_model.id)
+            print(f"DEBUG: Hop {hop_model.id} asset map: {hop_asset_map}")
             
             # Load full Asset objects for frontend compatibility
             for asset_id in hop_asset_map.keys():
                 asset = self.asset_service.get_asset(asset_id, hop_model.user_id)
                 if asset:
                     assets.append(asset)
+                    print(f"DEBUG: Loaded asset {asset_id} for hop {hop_model.id}")
+                else:
+                    print(f"DEBUG: Failed to load asset {asset_id} for hop {hop_model.id}")
+            
+            print(f"DEBUG: Hop {hop_model.id} loaded {len(assets)} assets total")
         
         # Load tool steps for this hop
         from services.tool_step_service import ToolStepService

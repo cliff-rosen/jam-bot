@@ -299,11 +299,11 @@ Based on the provided context, design the next hop in the mission workflow. Use 
         else:
             desired_assets = "No specific outputs defined yet"
         
-        # Format available assets from mission state (excluding mission outputs)
-        if mission.mission_state:
+        # Format available assets from mission assets (excluding mission outputs)
+        if mission.assets:
             # Filter out mission outputs from available assets (only include input and intermediate assets)
             available_assets = [
-                asset for asset in mission.mission_state.values()
+                asset for asset in mission.assets
                 if asset.role != 'output'
             ]
             

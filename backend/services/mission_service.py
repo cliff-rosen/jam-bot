@@ -22,48 +22,6 @@ class MissionService:
         self.asset_mapping_service = AssetMappingService(db)
         self.mission_transformer = MissionTransformer(self.asset_service, self.asset_mapping_service)
     
-    async def create_mission(self, user_id: int, mission: Mission) -> str:
-        """Create a new mission in the database"""
-        try:
-            mission_id = str(uuid4())
-            
-            # Ensure mission has the correct ID
-            mission.id = mission_id
-            
-            # Use transformer to convert schema to model
-            mission_model = self.mission_transformer.schema_to_model(mission, user_id)
-            
-            self.db.add(mission_model)
-            self.db.flush()  # Get the mission_id but don't commit yet
-            
-            # Create assets if they exist in mission_state
-            if mission.mission_state:
-                for asset_id, asset in mission.mission_state.items():
-                    self.asset_service.create_asset(
-                        user_id=user_id,
-                        name=asset.name,
-                        schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
-                        subtype=asset.subtype,
-                        description=asset.description,
-                        content=asset.value_representation,
-                        asset_metadata=asset.asset_metadata,
-                        scope_type="mission",
-                        scope_id=mission_id,
-                        role=asset.role.value
-                    )
-            
-            self.db.commit()
-            self.db.refresh(mission_model)
-            
-            return mission_id
-            
-        except MissionTransformationError as e:
-            self.db.rollback()
-            raise Exception(f"Failed to create mission: {str(e)}")
-        except Exception as e:
-            self.db.rollback()
-            raise Exception(f"Failed to create mission: {str(e)}")
-    
     async def get_mission(self, mission_id: str, user_id: int, load_hops: bool = True) -> Optional[Mission]:
         """Get a mission by ID with optional hop loading"""
         mission_model = self.db.query(MissionModel).filter(

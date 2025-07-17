@@ -218,6 +218,18 @@ class Mission(BaseModel):
     def get_intermediate_ids(self) -> List[str]:
         """Get all intermediate asset IDs from mission_asset_map"""
         return [aid for aid, role in self.mission_asset_map.items() if role == AssetRole.INTERMEDIATE]
+    
+    def get_inputs(self) -> List['Asset']:
+        """Get all input Asset objects from assets list"""
+        return [asset for asset in self.assets if asset.role == AssetRole.INPUT]
+    
+    def get_outputs(self) -> List['Asset']:
+        """Get all output Asset objects from assets list"""
+        return [asset for asset in self.assets if asset.role == AssetRole.OUTPUT]
+    
+    def get_intermediates(self) -> List['Asset']:
+        """Get all intermediate Asset objects from assets list"""
+        return [asset for asset in self.assets if asset.role == AssetRole.INTERMEDIATE]
 
 
 class AssetFieldMapping(BaseModel):

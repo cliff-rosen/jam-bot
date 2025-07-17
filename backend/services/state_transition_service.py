@@ -204,25 +204,31 @@ class StateTransitionService:
         mission_model = self.mission_transformer.schema_to_model(mission_schema, user_id)
         self.db.add(mission_model)
         
-        # Process each asset in mission_lite inputs and outputs according to spec 03b
+        # Process each asset in mission_lite inputs and outputs
+        # Use the existing create_asset_from_lite function for proper conversion
+        from schemas.lite_models import create_asset_from_lite
+        
         all_assets = mission_lite.inputs + mission_lite.outputs
-        for asset_data in all_assets:
-            # 1. Create Asset entity
+        for asset_lite in all_assets:
+            # 1. Convert AssetLite to full Asset using existing converter
+            asset = create_asset_from_lite(asset_lite)
+            
+            # 2. Create Asset entity using asset service
             created_asset = self.asset_service.create_asset(
                 user_id=user_id,
-                name=asset_data.name,
-                schema_definition=asset_data.schema_definition,
-                subtype=asset_data.subtype,
-                description=asset_data.description,
-                content=asset_data.content,                    # Usually None for proposed assets
-                scope_type="mission",                         # Mission-scoped
+                name=asset.name,
+                schema_definition=asset.schema_definition,
+                subtype=asset.subtype,
+                description=asset.description,
+                content=None,                                # Usually None for proposed assets
+                scope_type="mission",                        # Mission-scoped
                 scope_id=mission_id,
-                role=asset_data.role                          # INPUT, OUTPUT, or INTERMEDIATE
+                role=asset.role.value                       # Convert enum to string
             )
             
-            # 2. Create MissionAsset mapping
+            # 3. Create MissionAsset mapping
             from models import AssetRole
-            role = AssetRole(asset_data.role)
+            role = AssetRole(asset.role.value)
             self.asset_mapping_service.add_mission_asset(
                 mission_id=mission_id,
                 asset_id=created_asset.id,

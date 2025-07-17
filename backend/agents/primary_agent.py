@@ -31,7 +31,7 @@ from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCal
 
 from services.mission_service import MissionService
 from services.user_session_service import UserSessionService
-from services.state_transition_service import StateTransitionService, TransactionType, StateTransitionError
+from services.state_transition_service import StateTransitionService, TransactionType, StateTransitionError, TransactionResult
 
 
 # Use settings from config
@@ -96,51 +96,47 @@ def _serialize_state(state: State) -> dict:
     state_dict = state.model_dump()
     return convert_datetime(state_dict)
 
-async def _handle_mission_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
-    """Handle mission proposal creation and persistence"""
-    print("Mission proposal created")
-
-    # Create a full mission from the proposal
-    proposed_mission = create_mission_from_lite(parsed_response.mission_proposal)
-    
-    # Use StateTransitionService to properly persist the mission proposal
+async def _send_to_state_transition_service(transaction_type: TransactionType, data: Dict[str, Any]) -> TransactionResult:
+    """Helper function to send any proposal to StateTransitionService"""
     if not (_state_transition_service and _user_id):
-        print("Warning: Cannot create mission - StateTransitionService not initialized")
-        response_message.content = "Error: Unable to create mission proposal - service not available"
-        return
+        raise StateTransitionError("StateTransitionService not initialized")
+    
+    # Add user_id to data if not present
+    if 'user_id' not in data:
+        data['user_id'] = _user_id
+    
+    return await _state_transition_service.updateState(transaction_type, data)
+
+async def _handle_mission_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
+    """Handle mission proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
+    print("Mission proposal created")
+    
     try:
-        # Use transaction service to create mission according to document 03b specification
-        # StateTransitionService expects MissionLite object in mission_lite field
-        result = await _state_transition_service.updateState(
+        # Step 2: Send proposal to StateTransitionService (Step 1 was LLM generation)
+        result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_MISSION,
-            {
-                'user_id': _user_id,
-                'mission_lite': parsed_response.mission_proposal  # Send MissionLite object directly
-            }
+            {'mission_lite': parsed_response.mission_proposal}
         )
         
-        print(f"Successfully created mission via transaction service: {result.entity_id}")
+        print(f"Successfully created mission via StateTransitionService: {result.entity_id}")
         
-        # Fetch the persisted mission from database to get correct state
+        # Update local state with persisted mission
         if _mission_service:
             persisted_mission = await _mission_service.get_mission(result.entity_id, _user_id)
             if persisted_mission:
                 state.mission = persisted_mission
                 state.mission_id = result.entity_id
-            else:
-                # Fallback - update local state but warn
-                print("Warning: Could not fetch persisted mission, using local state")
-                proposed_mission.id = result.entity_id
-                state.mission = proposed_mission
-                state.mission_id = result.entity_id
-        else:
-            # Fallback if mission service not available
-            proposed_mission.id = result.entity_id
-            state.mission = proposed_mission
-            state.mission_id = result.entity_id
         
-        # Success message
-        response_message.content = f"Mission proposal created: {proposed_mission.name}. Please review and approve to begin."
+        # Create response message
+        mission_lite = parsed_response.mission_proposal
+        response_message.content = (
+            f"I've created a mission proposal: **{mission_lite.name}**\n\n"
+            f"{mission_lite.description}\n\n"
+            f"**Goal:** {mission_lite.goal}\n\n"
+            f"**Success Criteria:**\n" +
+            "\n".join(f"- {criterion}" for criterion in mission_lite.success_criteria) +
+            "\n\nThis mission is now awaiting your approval. Would you like me to proceed?"
+        )
         
     except StateTransitionError as e:
         print(f"State transition error creating mission: {e}")
@@ -171,57 +167,26 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
         if state.mission.hops:
             sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
         
-        # Convert HopLite to format expected by StateTransitionService
-        hop_asset_mappings = []
-        new_mission_assets = []
-        
-        # Add input assets as hop inputs
-        for asset_id in hop_lite.inputs:
-            hop_asset_mappings.append({
-                'asset_id': asset_id,
-                'role': 'input'
-            })
-        
-        # Handle output asset specification
-        if isinstance(hop_lite.output, NewAssetOutput):
-            # Create new mission asset and add as hop output
-            from schemas.lite_models import create_asset_from_lite
-            asset = create_asset_from_lite(hop_lite.output.asset)
-            new_mission_assets.append({
-                'name': asset.name,
-                'description': asset.description,
-                'schema_definition': asset.schema_definition.model_dump(),
-                'subtype': asset.subtype,
-                'mission_role': 'intermediate',  # New assets created by hops are mission intermediates
-                'hop_role': 'output'  # But they're outputs for the hop
-            })
-        elif isinstance(hop_lite.output, ExistingAssetOutput):
-            # Reference existing mission asset as hop output
-            hop_asset_mappings.append({
-                'asset_id': hop_lite.output.mission_asset_id,
-                'role': 'output'
-            })
-        
         # Prepare hop data for StateTransitionService
         hop_data = {
             'name': hop_lite.name,
             'description': hop_lite.description,
-            'goal': hop_lite.description,
+            'goal': hop_lite.description,  # HopLite doesn't have goal, use description
             'rationale': hop_lite.rationale,
             'sequence_order': sequence_order,
             'is_final': hop_lite.is_final,
             'success_criteria': getattr(hop_lite, 'success_criteria', []),
             'hop_metadata': {},
-            'hop_asset_mappings': hop_asset_mappings,
-            'new_mission_assets': new_mission_assets
+            # Add asset specifications for proper hop setup
+            'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
+            'output_asset_spec': hop_lite.output  # Output asset specification
         }
         
-        # Use StateTransitionService to create hop with proper coordination
-        result = await _state_transition_service.updateState(
+        # Step 2: Send proposal to StateTransitionService
+        result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_HOP_PLAN,
             {
                 'mission_id': state.mission.id,
-                'user_id': _user_id,
                 'hop': hop_data
             }
         )
@@ -327,10 +292,10 @@ def _process_implementation_plan(
     # Create a deep copy of the hop to avoid mutating the original
     updated_hop = copy.deepcopy(current_hop)
     
-    # Find assets that are referenced in tool steps but don't exist in hop assets
+    # Find assets that are referenced in tool steps but don't exist in hop state
     # These are truly intermediate assets that need to be created
     referenced_assets = set()
-    existing_assets = set(asset.id for asset in updated_hop.assets)
+    existing_assets = set(updated_hop.hop_state.keys())
     
     for step in parsed_response.tool_steps:
         # Check parameter mappings for asset references
@@ -367,14 +332,10 @@ def _process_implementation_plan(
             value=None,  # Initialize with no value
             subtype=None
         )
-        # Add asset to assets list and asset map
-        updated_hop.assets.append(new_asset)
-        updated_hop.hop_asset_map[asset_name] = 'intermediate'
+        updated_hop.hop_state[asset_name] = new_asset
     
     # Validate the tool chain with all assets in place
-    # Create assets dict for validation (tool chain expects asset name -> Asset mapping)
-    hop_assets_dict = {asset.id: asset for asset in updated_hop.assets}
-    validation_errors = validate_tool_chain(parsed_response.tool_steps, hop_assets_dict)
+    validation_errors = validate_tool_chain(parsed_response.tool_steps, updated_hop.hop_state)
     
     if validation_errors:
         # Validation failed - keep hop in implementation started state
@@ -785,8 +746,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     try:
         # Use mission's current_hop as the single source of truth
         current_hop = state.mission.current_hop if state.mission else None
-        if not current_hop or not current_hop.assets:
-            raise ValueError(f"Hop is missing or has empty assets list.")
+        if not current_hop or not current_hop.hop_state:
+            raise ValueError(f"Hop is missing or has empty hop_state.")
 
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
@@ -1051,7 +1012,17 @@ graph = compiled
 
 class PrimaryAgent:
     def __init__(self, mission: "Mission" = None):
-        self.mission = mission
+        self.mission = mission if mission else Mission(
+            id="default-mission-1", 
+            name="Default Mission", 
+            description="Default mission description",
+            current_hop=None,
+            hop_history=[],
+            inputs=[],
+            outputs=[],
+            mission_state={},
+            mission_status=MissionStatus.AWAITING_APPROVAL
+        )
 
     async def run(self):
         # Your agent's execution logic here

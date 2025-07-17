@@ -15,7 +15,7 @@ class HopImplementationResponse(BaseModel):
     response_type: str = Field(description="Type of response: IMPLEMENTATION_PLAN or CLARIFICATION_NEEDED")
     response_content: str = Field(description="The main response text to add to the conversation")
     tool_steps: List[ToolStepLite] = Field(default_factory=list, description="List of tool steps to implement the hop")
-    hop_state: Dict[str, Any] = Field(default_factory=dict, description="Updated hop state including any intermediate assets created")
+    # hop_state removed - assets are managed through hop.assets list
     missing_information: List[str] = Field(default_factory=list, description="List of missing information if clarification is needed")
     reasoning: str = Field(description="Explanation of the implementation decisions made")
 
@@ -102,7 +102,7 @@ Each tool step requires:
 {{{{
     "parameter_name": {{{{
         "type": "asset_field",
-        "state_asset": "asset_name_in_hop_state",
+        "state_asset": "asset_name_in_hop",
         "path": "optional.nested.field.path"
     }}}}
 }}}}
@@ -158,7 +158,7 @@ Now implement this hop by designing the tool steps."""
         Invoke the hop implementer prompt.
         
         Args:
-            mission: Current mission state (contains current_hop and hop_state)
+            mission: Current mission state (contains current_hop and assets)
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -205,7 +205,8 @@ Is Final: {hop.is_final}"""
 
     def _format_desired_assets(self, hop: Hop) -> str:
         """Format desired (output) assets for the prompt with enhanced detail"""
-        output_assets = hop.get_hop_outputs()
+        # Get output assets by filtering assets list by role
+        output_assets = [asset for asset in hop.assets if asset.role.value == 'output']
         if not output_assets:
             return "No output assets defined"
         
@@ -230,10 +231,10 @@ Is Final: {hop.is_final}"""
 
     def _format_available_assets(self, hop: Hop) -> str:
         """Format available (input) assets for the prompt with enhanced detail"""
-        if not hop.hop_state:
-            return "No assets available in hop state"
+        if not hop.assets:
+            return "No assets available in hop"
         
-        # Categorize assets by their role in the hop using helper methods
+        # Categorize assets by their role in the hop
         input_assets_list = hop.get_hop_inputs()
         output_assets_list = hop.get_hop_outputs()
         intermediate_assets_list = hop.get_hop_intermediates()

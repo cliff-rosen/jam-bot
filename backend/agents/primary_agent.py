@@ -171,19 +171,49 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
         if state.mission.hops:
             sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
         
+        # Convert HopLite to format expected by StateTransitionService
+        hop_asset_mappings = []
+        new_mission_assets = []
+        
+        # Add input assets as hop inputs
+        for asset_id in hop_lite.inputs:
+            hop_asset_mappings.append({
+                'asset_id': asset_id,
+                'role': 'input'
+            })
+        
+        # Handle output asset specification
+        if isinstance(hop_lite.output, NewAssetOutput):
+            # Create new mission asset and add as hop output
+            from schemas.lite_models import create_asset_from_lite
+            asset = create_asset_from_lite(hop_lite.output.asset)
+            new_mission_assets.append({
+                'name': asset.name,
+                'description': asset.description,
+                'schema_definition': asset.schema_definition.model_dump(),
+                'subtype': asset.subtype,
+                'mission_role': 'intermediate',  # New assets created by hops are mission intermediates
+                'hop_role': 'output'  # But they're outputs for the hop
+            })
+        elif isinstance(hop_lite.output, ExistingAssetOutput):
+            # Reference existing mission asset as hop output
+            hop_asset_mappings.append({
+                'asset_id': hop_lite.output.mission_asset_id,
+                'role': 'output'
+            })
+        
         # Prepare hop data for StateTransitionService
         hop_data = {
             'name': hop_lite.name,
             'description': hop_lite.description,
-            'goal': hop_lite.description,  # HopLite doesn't have goal, use description
+            'goal': hop_lite.description,
             'rationale': hop_lite.rationale,
             'sequence_order': sequence_order,
             'is_final': hop_lite.is_final,
             'success_criteria': getattr(hop_lite, 'success_criteria', []),
             'hop_metadata': {},
-            # Add asset specifications for proper hop setup
-            'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
-            'output_asset_spec': hop_lite.output  # Output asset specification
+            'hop_asset_mappings': hop_asset_mappings,
+            'new_mission_assets': new_mission_assets
         }
         
         # Use StateTransitionService to create hop with proper coordination

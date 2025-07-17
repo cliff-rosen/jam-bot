@@ -164,6 +164,7 @@ class StateTransitionService:
                 raise StateTransitionError(f"Unknown transaction type: {transaction_type}")
                 
         except Exception as e:
+            print(f"State transition failed [{transaction_type}]: {str(e)}")
             self.db.rollback()
             raise StateTransitionError(f"State transition failed [{transaction_type}]: {str(e)}")
     

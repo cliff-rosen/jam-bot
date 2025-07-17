@@ -152,25 +152,12 @@ async def _handle_implementation_plan_proposal(parsed_response, state: State, re
     print(f"DEBUG: Processing implementation plan with {len(parsed_response.tool_steps)} tool steps")
     
     try:
-        # Prepare tool steps data for StateTransitionService
-        tool_steps_data = []
-        for i, step in enumerate(parsed_response.tool_steps):
-            tool_step_data = {
-                'tool_id': step.tool_id,
-                'name': f'Step {i + 1}: {step.tool_id}',
-                'description': step.description,
-                'parameter_mapping': step.parameter_mapping,
-                'result_mapping': step.result_mapping,
-                'resource_configs': step.resource_configs
-            }
-            tool_steps_data.append(tool_step_data)
-        
-        # Step 2: Send proposal to StateTransitionService
+        # Step 2: Send proposal to StateTransitionService (ToolStepLite list directly)
         result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_HOP_IMPL,
             {
                 'hop_id': state.mission.current_hop.id,
-                'tool_steps': tool_steps_data
+                'tool_steps': parsed_response.tool_steps  # Send ToolStepLite objects directly
             }
         )
         

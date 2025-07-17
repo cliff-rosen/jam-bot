@@ -117,8 +117,8 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
 
     const hopStatus = getHopStatusDisplay(hop.status);
 
-    // Extract assets from hop_state and categorize them
-    const hopAssets = Object.values(hop.hop_state || {});
+    // Extract assets from hop assets and categorize them
+    const hopAssets = hop.assets || [];
     const inputAssets = hopAssets.filter(asset => asset.role === 'input');
     const outputAssets = hopAssets.filter(asset => asset.role === 'output');
     const intermediateAssets = hopAssets.filter(asset => asset.role === 'intermediate');
@@ -129,6 +129,14 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
         HopStatus.HOP_PLAN_READY,
         HopStatus.HOP_IMPL_PROPOSED,
         HopStatus.HOP_IMPL_READY
+    ].includes(hop.status);
+
+    // Show tool steps for implementation and execution states
+    const showToolSteps = [
+        HopStatus.HOP_IMPL_PROPOSED,
+        HopStatus.HOP_IMPL_READY,
+        HopStatus.EXECUTING,
+        HopStatus.COMPLETED
     ].includes(hop.status);
 
     const isProposedState = hop.status === HopStatus.HOP_PLAN_PROPOSED;
@@ -191,10 +199,10 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
                 </>
             )}
 
-            {hop.tool_steps && hop.tool_steps.length > 0 && (
-                <div>
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                        Tool Steps ({hop.tool_steps.length})
+            {showToolSteps && hop.tool_steps && hop.tool_steps.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+                        Implementation Plan ({hop.tool_steps.length} steps)
                     </h4>
                     <ToolStepSection
                         toolSteps={hop.tool_steps}

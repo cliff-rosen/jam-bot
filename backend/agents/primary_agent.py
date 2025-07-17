@@ -72,13 +72,35 @@ def _initialize_services(config: Dict[str, Any]) -> None:
     _state_transition_service = configurable.get('state_transition_service')
     _user_id = configurable.get('user_id')
 
-async def _update_mission(mission_id: str, mission: Mission) -> None:
-    """Update mission using module-level service"""
-    if _mission_service and _user_id and mission_id:
-        await _mission_service.update_mission(mission_id, _user_id, mission)
+async def _update_mission_unified(state: State, mission_id: str = None) -> None:
+    """
+    Unified method to update mission state - handles both persisting changes and refreshing from database
+    
+    Args:
+        state: Current agent state containing mission
+        mission_id: Optional. If provided and state.mission exists, persists the mission before refreshing.
+                    Also sets the ID for the mission to be refreshed into the state.
+    """
+    if not _mission_service or not _user_id:
+        print("Warning: Cannot update mission - services not initialized")
+        return
+        
+    # Step 1: If mission_id is provided and there's a mission object, persist it.
+    if mission_id and state.mission:
+        await _mission_service.update_mission(mission_id, _user_id, state.mission)
         print(f"Successfully persisted mission {mission_id}")
-    else:
-        print("Warning: Cannot persist mission - services not initialized")
+    
+    # Step 2: Determine which mission to refresh from the database.
+    id_to_refresh = mission_id or (state.mission.id if state.mission else None)
+    
+    if id_to_refresh:
+        updated_mission = await _mission_service.get_mission(id_to_refresh, _user_id)
+        if updated_mission:
+            state.mission = updated_mission
+            state.mission_id = updated_mission.id  # Ensure ID consistency
+            print(f"Successfully refreshed mission state for {state.mission.id}")
+        else:
+            print(f"Warning: Could not refresh mission state for {id_to_refresh}")
 
 def _serialize_state(state: State) -> dict:
     """Helper function to serialize state with datetime handling"""
@@ -120,11 +142,7 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
         
         
         # Update local state with persisted mission
-        if _mission_service:
-            persisted_mission = await _mission_service.get_mission(result.entity_id, _user_id)
-            if persisted_mission:
-                state.mission = persisted_mission
-                state.mission_id = result.entity_id
+        await _update_mission_unified(state, mission_id=result.entity_id)
         
         # Create response message
         mission_lite = parsed_response.mission_proposal
@@ -161,7 +179,7 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
         )
         
         # Update local state
-        await _update_mission_state(state)
+        await _update_mission_unified(state)
         
         # Create success response
         response_message.content = f"Hop plan proposed: {hop_lite.name}. Please review and approve to proceed with implementation."
@@ -169,13 +187,6 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
     except Exception as e:
         response_message.content = f"Error creating hop: {str(e)}"
         raise e
-
-async def _update_mission_state(state: State) -> None:
-    """Helper to update mission state from database"""
-    if _mission_service:
-        updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
-        if updated_mission:
-            state.mission = updated_mission
 
 async def _handle_implementation_plan_proposal(parsed_response, state: State, response_message: ChatMessage) -> None:
     """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
@@ -192,10 +203,7 @@ async def _handle_implementation_plan_proposal(parsed_response, state: State, re
         
         
         # Update local state
-        if _mission_service:
-            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
-            if updated_mission:
-                state.mission = updated_mission
+        await _update_mission_unified(state)
         
         response_message.content = (
             f"I've created an implementation plan for **{state.mission.current_hop.name}** "
@@ -333,7 +341,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                     state.mission.status = MissionStatus.COMPLETED
                     state.mission.updated_at = datetime.utcnow()
                     # Persist mission completion
-                    await _update_mission(state.mission_id, state.mission)
+                    await _update_mission_unified(state, state.mission.id)
                     next_node = "mission_specialist_node"
                     routing_message = "Final hop completed - mission completed, routing to mission specialist for final processing"
                 else:
@@ -342,7 +350,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                     state.mission.current_hop_id = None
                     state.mission.updated_at = datetime.utcnow()
                     # Persist mission state
-                    await _update_mission(state.mission_id, state.mission)
+                    await _update_mission_unified(state, state.mission.id)
                     next_node = "hop_designer_node"
                     routing_message = "Hop completed (non-final) - routing to hop designer for next hop"
             elif state.mission.current_hop.status == HopStatus.FAILED:

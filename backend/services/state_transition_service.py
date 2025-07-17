@@ -379,17 +379,35 @@ class StateTransitionService:
         
         # Create tool steps with serialized mappings
         for i, tool_step_data in enumerate(tool_steps):
+            # Handle both ToolStepLite objects and dictionaries for backward compatibility
+            if hasattr(tool_step_data, 'tool_id'):
+                # ToolStepLite object
+                tool_id = tool_step_data.tool_id
+                name = tool_step_data.description or f'Step {i + 1}'
+                description = tool_step_data.description
+                parameter_mapping = tool_step_data.parameter_mapping
+                result_mapping = tool_step_data.result_mapping
+                resource_configs = tool_step_data.resource_configs
+            else:
+                # Dictionary (backward compatibility)
+                tool_id = tool_step_data['tool_id']
+                name = tool_step_data.get('name', f'Step {i + 1}')
+                description = tool_step_data.get('description')
+                parameter_mapping = tool_step_data.get('parameter_mapping', {})
+                result_mapping = tool_step_data.get('result_mapping', {})
+                resource_configs = tool_step_data.get('resource_configs', {})
+            
             tool_step_model = ToolStepModel(
                 id=str(uuid4()),
                 hop_id=hop_id,
                 user_id=user_id,
-                tool_id=tool_step_data['tool_id'],
+                tool_id=tool_id,
                 sequence_order=i + 1,
-                name=tool_step_data.get('name', f'Step {i + 1}'),
-                description=tool_step_data.get('description'),
-                parameter_mapping=self._serialize_mappings(tool_step_data.get('parameter_mapping', {})),
-                result_mapping=self._serialize_mappings(tool_step_data.get('result_mapping', {})),
-                resource_configs=tool_step_data.get('resource_configs', {}),
+                name=name,
+                description=description,
+                parameter_mapping=self._serialize_mappings(parameter_mapping),
+                result_mapping=self._serialize_mappings(result_mapping),
+                resource_configs=resource_configs,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )

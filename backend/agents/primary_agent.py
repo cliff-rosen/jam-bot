@@ -148,18 +148,8 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
     
     # Get the HopLite proposal
     hop_lite: HopLite = parsed_response.hop_proposal
-    
-    # Use StateTransitionService to create hop proposal (step 2.1)
-    if not (_state_transition_service and _user_id):
-        print("Warning: Cannot create hop - StateTransitionService not initialized")
-        response_message.content = "Error: Unable to create hop proposal - service not available"
-        return
-    
+   
     try:
-        # Calculate sequence order based on existing hops
-        sequence_order = 1
-        if state.mission.hops:
-            sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
         
         # Step 2: Send HopLite proposal to StateTransitionService directly (following our pattern)
         result = await _send_to_state_transition_service(
@@ -169,7 +159,6 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
                 'hop_lite': hop_lite  # Send HopLite object directly like we do with MissionLite
             }
         )
-        
         
         # Fetch updated mission from database to get the new hop
         if _mission_service:

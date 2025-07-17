@@ -235,9 +235,9 @@ Is Final: {hop.is_final}"""
             return "No assets available in hop"
         
         # Categorize assets by their role in the hop
-        input_assets_list = hop.get_hop_inputs()
-        output_assets_list = hop.get_hop_outputs()
-        intermediate_assets_list = hop.get_hop_intermediates()
+        input_assets_list = [asset for asset in hop.assets if asset.role.value == 'input']
+        output_assets_list = [asset for asset in hop.assets if asset.role.value == 'output']
+        intermediate_assets_list = [asset for asset in hop.assets if asset.role.value == 'intermediate']
         
         # Format input assets with enhanced detail
         input_assets = []

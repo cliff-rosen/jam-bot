@@ -204,29 +204,12 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
         if state.mission.hops:
             sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
         
-        # Prepare hop data for StateTransitionService
-        hop_data = {
-            'name': hop_lite.name,
-            'description': hop_lite.description,
-            'goal': hop_lite.description,  # HopLite doesn't have goal, use description
-            'rationale': hop_lite.rationale,
-            'sequence_order': sequence_order,
-            'is_final': hop_lite.is_final,
-            'success_criteria': getattr(hop_lite, 'success_criteria', []),
-            'hop_metadata': {},
-            # Add asset specifications for proper hop setup
-            'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
-            'output_asset_spec': hop_lite.output  # Output asset specification
-        }
-        
-        print(f"DEBUG: Final hop_data being sent: {hop_data}")
-        
-        # Step 2: Send proposal to StateTransitionService
+        # Step 2: Send HopLite proposal to StateTransitionService directly (following our pattern)
         result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_HOP_PLAN,
             {
                 'mission_id': state.mission.id,
-                'hop': hop_data
+                'hop_lite': hop_lite  # Send HopLite object directly like we do with MissionLite
             }
         )
         

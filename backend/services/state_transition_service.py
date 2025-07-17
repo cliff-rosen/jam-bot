@@ -285,7 +285,7 @@ class StateTransitionService:
         """Handle hop plan proposal: Create hop + link to mission"""
         mission_id = data['mission_id']
         user_id = data['user_id']
-        hop_data = data['hop']
+        hop_lite = data['hop_lite']  # Expecting HopLite object
         
         # Validate mission state
         mission_model = self.db.query(MissionModel).filter(
@@ -296,21 +296,23 @@ class StateTransitionService:
         self._validate_entity_exists(mission_model, "Mission", mission_id)
         self._validate_transition("Mission", mission_id, mission_model.status.value, "in_progress", user_id)
         
-        # Create hop
+        # Create hop from HopLite
         hop_id = str(uuid4())
+        sequence_order = 1  # Calculate next sequence
+        
         hop_model = HopModel(
             id=hop_id,
             mission_id=mission_id,
             user_id=user_id,
-            name=hop_data.get('name', f'Hop {hop_data.get("sequence_order", 1)}'),
-            description=hop_data.get('description'),
-            goal=hop_data.get('goal'),
-            sequence_order=hop_data.get('sequence_order', 1),
+            name=hop_lite.name,
+            description=hop_lite.description,
+            goal=hop_lite.description,  # HopLite doesn't have goal
+            sequence_order=sequence_order,
             status=HopStatus.HOP_PLAN_PROPOSED.value,
-            success_criteria=hop_data.get('success_criteria', []),
-            rationale=hop_data.get('rationale'),
-            is_final=hop_data.get('is_final', False),
-            hop_metadata=hop_data.get('hop_metadata', {}),
+            success_criteria=getattr(hop_lite, 'success_criteria', []),
+            rationale=hop_lite.rationale,
+            is_final=hop_lite.is_final,
+            hop_metadata=getattr(hop_lite, 'hop_metadata', {}),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -322,8 +324,8 @@ class StateTransitionService:
         mission_model.current_hop_id = hop_id
         mission_model.updated_at = datetime.utcnow()
         
-        # Initialize hop assets based on hop specification
-        await self._initialize_hop_assets(mission_id, hop_id, user_id, hop_data)
+        # Initialize hop assets from HopLite
+        await self._initialize_hop_assets_from_lite(mission_id, hop_id, user_id, hop_lite)
         
         self.db.commit()
         
@@ -699,6 +701,49 @@ class StateTransitionService:
             hop_role = asset_spec.get('hop_role')
             if hop_role:
                 self.add_asset_to_hop(hop_id, created_asset.id, hop_role)
+    
+    async def _initialize_hop_assets_from_lite(self, mission_id: str, hop_id: str, user_id: int, hop_lite) -> None:
+        """Initialize hop assets from HopLite object"""
+        from schemas.lite_models import NewAssetOutput, ExistingAssetOutput, create_asset_from_lite
+        from models import AssetRole
+        
+        print(f"DEBUG: Initializing hop assets from HopLite - inputs: {hop_lite.inputs}, output: {hop_lite.output}")
+        
+        # Add input assets as hop inputs
+        for asset_id in hop_lite.inputs:
+            print(f"DEBUG: Adding input asset {asset_id} to hop {hop_id}")
+            self.add_asset_to_hop(hop_id, asset_id, 'input')
+        
+        # Handle output asset specification
+        if isinstance(hop_lite.output, NewAssetOutput):
+            print(f"DEBUG: Creating new mission asset for hop output")
+            # Create new mission asset and add as hop output
+            asset = create_asset_from_lite(hop_lite.output.asset)
+            created_asset = self.asset_service.create_asset(
+                user_id=user_id,
+                name=asset.name,
+                schema_definition=asset.schema_definition.model_dump(),
+                subtype=asset.subtype,
+                description=asset.description,
+                content="",
+                scope_type='mission',
+                scope_id=mission_id,
+                role='intermediate'
+            )
+            
+            # Add to mission asset mapping
+            mission_role = AssetRole('intermediate')
+            self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, mission_role)
+            
+            # Add to hop asset mapping as output
+            self.add_asset_to_hop(hop_id, created_asset.id, 'output')
+            
+        elif isinstance(hop_lite.output, ExistingAssetOutput):
+            print(f"DEBUG: Using existing mission asset {hop_lite.output.mission_asset_id} as hop output")
+            # Reference existing mission asset as hop output
+            self.add_asset_to_hop(hop_id, hop_lite.output.mission_asset_id, 'output')
+        
+        print(f"DEBUG: Completed hop asset initialization for hop {hop_id}")
 
     async def _copy_mission_assets_to_hop(self, mission_id: str, hop_id: str, user_id: int):
         """DEPRECATED: Copy relevant mission assets to hop scope as inputs - replaced by _initialize_hop_assets"""

@@ -109,31 +109,13 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
         response_message.content = "Error: Unable to create mission proposal - service not available"
         return
     try:
-        # Extract asset data from mission_lite for StateTransitionService
-        # StateTransitionService expects mission_asset_map with asset role mappings
-        mission_asset_map = {}
-        # Process both inputs and outputs from mission_lite
-        all_assets = parsed_response.mission_proposal.inputs + parsed_response.mission_proposal.outputs
-        for asset_lite in all_assets:
-            # Convert AssetLite to Asset and get its role mapping
-            asset = create_asset_from_lite(asset_lite)
-            mission_asset_map[asset.id] = asset.role
-        
-        # Prepare mission data for transaction service
-        mission_data = {
-            'name': proposed_mission.name,
-            'description': proposed_mission.description,
-            'goal': proposed_mission.goal,
-            'success_criteria': proposed_mission.success_criteria,
-            'mission_asset_map': mission_asset_map
-        }
-        
-        # Use transaction service to create mission - it handles status and session automatically
+        # Use transaction service to create mission according to document 03b specification
+        # StateTransitionService expects MissionLite object in mission_lite field
         result = await _state_transition_service.updateState(
             TransactionType.PROPOSE_MISSION,
             {
                 'user_id': _user_id,
-                'mission': mission_data
+                'mission_lite': parsed_response.mission_proposal  # Send MissionLite object directly
             }
         )
         

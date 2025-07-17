@@ -184,47 +184,50 @@ class StateTransitionService:
     async def _propose_mission(self, data: Dict[str, Any]) -> TransactionResult:
         """Handle mission proposal: Create mission with AWAITING_APPROVAL status"""
         user_id = data['user_id']
-        mission_data = data['mission']
+        mission_lite = data['mission_lite']  # Expecting MissionLite object
         
         # Create mission in AWAITING_APPROVAL state
         mission_id = str(uuid4())
-        mission_data['id'] = mission_id
-        mission_data['status'] = SchemaMissionStatus.AWAITING_APPROVAL
         
-        # Convert dictionary to Mission object
+        # Convert MissionLite to Mission object according to spec 03b
         mission_schema = Mission(
             id=mission_id,
-            name=mission_data['name'],
-            description=mission_data.get('description'),
-            goal=mission_data.get('goal'),
-            success_criteria=mission_data.get('success_criteria', []),
+            name=mission_lite.name,
+            description=mission_lite.description,
+            goal=mission_lite.goal,
+            success_criteria=mission_lite.success_criteria,
             status=SchemaMissionStatus.AWAITING_APPROVAL,
-            mission_metadata=mission_data.get('mission_metadata', {})
+            mission_metadata=mission_lite.metadata
         )
         
         # Use transformer to create mission
         mission_model = self.mission_transformer.schema_to_model(mission_schema, user_id)
         self.db.add(mission_model)
         
-        # Create mission assets if provided
-        if mission_data.get('mission_state'):
-            for asset_id, asset_data in mission_data['mission_state'].items():
-                created_asset = self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset_data['name'],
-                    schema_definition=asset_data['schema_definition'],
-                    subtype=asset_data.get('subtype'),
-                    description=asset_data.get('description'),
-                    content=asset_data.get('content'),
-                    scope_type="mission",
-                    scope_id=mission_id,
-                    role=asset_data.get('role', 'input')
-                )
-                
-                # Create asset mapping - use the asset ID from the returned Asset object
-                from models import AssetRole
-                role = AssetRole(asset_data.get('role', 'input'))
-                self.asset_mapping_service.add_mission_asset(mission_id, created_asset.id, role)
+        # Process each asset in mission_lite inputs and outputs according to spec 03b
+        all_assets = mission_lite.inputs + mission_lite.outputs
+        for asset_data in all_assets:
+            # 1. Create Asset entity
+            created_asset = self.asset_service.create_asset(
+                user_id=user_id,
+                name=asset_data.name,
+                schema_definition=asset_data.schema_definition,
+                subtype=asset_data.subtype,
+                description=asset_data.description,
+                content=asset_data.content,                    # Usually None for proposed assets
+                scope_type="mission",                         # Mission-scoped
+                scope_id=mission_id,
+                role=asset_data.role                          # INPUT, OUTPUT, or INTERMEDIATE
+            )
+            
+            # 2. Create MissionAsset mapping
+            from models import AssetRole
+            role = AssetRole(asset_data.role)
+            self.asset_mapping_service.add_mission_asset(
+                mission_id=mission_id,
+                asset_id=created_asset.id,
+                role=role
+            )
         
         # Link mission to user's active session automatically (before commit)
         if self.session_service:

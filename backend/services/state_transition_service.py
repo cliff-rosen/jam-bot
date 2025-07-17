@@ -377,25 +377,14 @@ class StateTransitionService:
         self._validate_entity_exists(hop_model, "Hop", hop_id)
         self._validate_transition("Hop", hop_id, hop_model.status.value, "hop_plan_ready", user_id)
         
-        # Create tool steps with serialized mappings
-        for i, tool_step_data in enumerate(tool_steps):
-            # Handle both ToolStepLite objects and dictionaries for backward compatibility
-            if hasattr(tool_step_data, 'tool_id'):
-                # ToolStepLite object
-                tool_id = tool_step_data.tool_id
-                name = tool_step_data.description or f'Step {i + 1}'
-                description = tool_step_data.description
-                parameter_mapping = tool_step_data.parameter_mapping
-                result_mapping = tool_step_data.result_mapping
-                resource_configs = tool_step_data.resource_configs
-            else:
-                # Dictionary (backward compatibility)
-                tool_id = tool_step_data['tool_id']
-                name = tool_step_data.get('name', f'Step {i + 1}')
-                description = tool_step_data.get('description')
-                parameter_mapping = tool_step_data.get('parameter_mapping', {})
-                result_mapping = tool_step_data.get('result_mapping', {})
-                resource_configs = tool_step_data.get('resource_configs', {})
+        # Create tool steps from ToolStepLite objects
+        for i, tool_step_lite in enumerate(tool_steps):
+            tool_id = tool_step_lite.tool_id
+            name = tool_step_lite.description or f'Step {i + 1}'
+            description = tool_step_lite.description
+            parameter_mapping = tool_step_lite.parameter_mapping
+            result_mapping = tool_step_lite.result_mapping
+            resource_configs = tool_step_lite.resource_configs
             
             tool_step_model = ToolStepModel(
                 id=str(uuid4()),

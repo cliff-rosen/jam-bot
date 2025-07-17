@@ -169,6 +169,75 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
         response_message.content = f"Unexpected error creating mission proposal: {str(e)}"
         raise e
 
+async def _handle_hop_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
+    """Handle hop proposal creation and persistence"""
+    if not parsed_response.hop_proposal:
+        raise ValueError("Response type is HOP_PROPOSAL but no hop proposal was provided")
+    
+    # Get the HopLite proposal
+    hop_lite: HopLite = parsed_response.hop_proposal
+    
+    # Use StateTransitionService to create hop proposal (step 2.1)
+    if not (_state_transition_service and _user_id):
+        print("Warning: Cannot create hop - StateTransitionService not initialized")
+        response_message.content = "Error: Unable to create hop proposal - service not available"
+        return
+    
+    try:
+        # Calculate sequence order based on existing hops
+        sequence_order = 1
+        if state.mission.hops:
+            sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
+        
+        # Prepare hop data for StateTransitionService
+        hop_data = {
+            'name': hop_lite.name,
+            'description': hop_lite.description,
+            'goal': hop_lite.description,  # HopLite doesn't have goal, use description
+            'rationale': hop_lite.rationale,
+            'sequence_order': sequence_order,
+            'is_final': hop_lite.is_final,
+            'success_criteria': getattr(hop_lite, 'success_criteria', []),
+            'hop_metadata': {},
+            # Add asset specifications for proper hop setup
+            'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
+            'output_asset_spec': hop_lite.output  # Output asset specification
+        }
+        
+        # Use StateTransitionService to create hop with proper coordination
+        result = await _state_transition_service.updateState(
+            TransactionType.PROPOSE_HOP_PLAN,
+            {
+                'mission_id': state.mission.id,
+                'user_id': _user_id,
+                'hop': hop_data
+            }
+        )
+        
+        print(f"Successfully created hop via StateTransitionService: {result.entity_id}")
+        
+        # Fetch updated mission from database to get the new hop
+        if _mission_service:
+            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
+            if updated_mission:
+                state.mission = updated_mission
+                state.mission_id = state.mission.id
+                print(f"Mission updated with new hop: {updated_mission.current_hop.name if updated_mission.current_hop else 'No current hop'}")
+            else:
+                print("Warning: Could not fetch updated mission after hop creation")
+        
+        # Create success response
+        response_message.content = f"Hop plan proposed: {hop_lite.name}. Please review and approve to proceed with implementation."
+        
+    except StateTransitionError as e:
+        print(f"StateTransitionService error creating hop: {e}")
+        response_message.content = f"Error creating hop proposal: {str(e)}"
+        raise e
+    except Exception as e:
+        print(f"Unexpected error creating hop: {e}")
+        response_message.content = f"Unexpected error creating hop proposal: {str(e)}"
+        raise e
+
 def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:
     """
     Validate state coordination per the status system specification.
@@ -633,71 +702,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 
         # Handle different response types
         if parsed_response.response_type == "HOP_PROPOSAL":
-            if not parsed_response.hop_proposal:
-                raise ValueError("Response type is HOP_PROPOSAL but no hop proposal was provided")
-            
-            # Get the HopLite proposal
-            hop_lite: HopLite = parsed_response.hop_proposal
-            
-            # Use StateTransitionService to create hop proposal (step 2.1)
-            if _state_transition_service and _user_id:
-                try:
-                    # Calculate sequence order based on existing hops
-                    sequence_order = 1
-                    if state.mission.hops:
-                        sequence_order = max(hop.sequence_order for hop in state.mission.hops) + 1
-                    
-                    # Prepare hop data for StateTransitionService
-                    hop_data = {
-                        'name': hop_lite.name,
-                        'description': hop_lite.description,
-                        'goal': hop_lite.description,  # HopLite doesn't have goal, use description
-                        'rationale': hop_lite.rationale,
-                        'sequence_order': sequence_order,
-                        'is_final': hop_lite.is_final,
-                        'success_criteria': getattr(hop_lite, 'success_criteria', []),
-                        'hop_metadata': {},
-                        # Add asset specifications for proper hop setup
-                        'input_asset_ids': hop_lite.inputs,  # List of mission asset IDs to copy as inputs
-                        'output_asset_spec': hop_lite.output  # Output asset specification
-                    }
-                    
-                    # Use StateTransitionService to create hop with proper coordination
-                    result = await _state_transition_service.updateState(
-                        TransactionType.PROPOSE_HOP_PLAN,
-                        {
-                            'mission_id': state.mission.id,
-                            'user_id': _user_id,
-                            'hop': hop_data
-                        }
-                    )
-                    
-                    print(f"Successfully created hop via StateTransitionService: {result.entity_id}")
-                    
-                    # Fetch updated mission from database to get the new hop
-                    if _mission_service:
-                        updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
-                        if updated_mission:
-                            state.mission = updated_mission
-                            state.mission_id = state.mission.id
-                            print(f"Mission updated with new hop: {updated_mission.current_hop.name if updated_mission.current_hop else 'No current hop'}")
-                        else:
-                            print("Warning: Could not fetch updated mission after hop creation")
-                    
-                    # Create success response
-                    response_message.content = f"Hop plan proposed: {hop_lite.name}. Please review and approve to proceed with implementation."
-                    
-                except StateTransitionError as e:
-                    print(f"StateTransitionService error creating hop: {e}")
-                    response_message.content = f"Error creating hop proposal: {str(e)}"
-                    raise e
-                except Exception as e:
-                    print(f"Unexpected error creating hop: {e}")
-                    response_message.content = f"Unexpected error creating hop proposal: {str(e)}"
-                    raise e
-            else:
-                print("Warning: Cannot create hop - StateTransitionService not initialized")
-                response_message.content = "Error: Unable to create hop proposal - service not available"
+            await _handle_hop_proposal_creation(parsed_response, state, response_message)
 
         elif parsed_response.response_type == "CLARIFICATION_NEEDED":
             # For clarification needed, we don't create a new hop

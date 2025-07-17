@@ -110,14 +110,14 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
         return
     try:
         # Extract asset data from mission_lite for StateTransitionService
-        # StateTransitionService expects mission_state with full asset data
-        mission_state_data = {}
+        # StateTransitionService expects mission_asset_map with asset role mappings
+        mission_asset_map = {}
         # Process both inputs and outputs from mission_lite
         all_assets = parsed_response.mission_proposal.inputs + parsed_response.mission_proposal.outputs
         for asset_lite in all_assets:
-            # Convert AssetLite to Asset and get its data
+            # Convert AssetLite to Asset and get its role mapping
             asset = create_asset_from_lite(asset_lite)
-            mission_state_data[asset.id] = asset.model_dump()
+            mission_asset_map[asset.id] = asset.role
         
         # Prepare mission data for transaction service
         mission_data = {
@@ -125,7 +125,7 @@ async def _handle_mission_proposal_creation(parsed_response, state: State, respo
             'description': proposed_mission.description,
             'goal': proposed_mission.goal,
             'success_criteria': proposed_mission.success_criteria,
-            'mission_state': mission_state_data
+            'mission_asset_map': mission_asset_map
         }
         
         # Use transaction service to create mission - it handles status and session automatically
@@ -315,10 +315,10 @@ def _process_implementation_plan(
     # Create a deep copy of the hop to avoid mutating the original
     updated_hop = copy.deepcopy(current_hop)
     
-    # Find assets that are referenced in tool steps but don't exist in hop state
+    # Find assets that are referenced in tool steps but don't exist in hop assets
     # These are truly intermediate assets that need to be created
     referenced_assets = set()
-    existing_assets = set(updated_hop.hop_state.keys())
+    existing_assets = set(asset.id for asset in updated_hop.assets)
     
     for step in parsed_response.tool_steps:
         # Check parameter mappings for asset references
@@ -355,10 +355,14 @@ def _process_implementation_plan(
             value=None,  # Initialize with no value
             subtype=None
         )
-        updated_hop.hop_state[asset_name] = new_asset
+        # Add asset to assets list and asset map
+        updated_hop.assets.append(new_asset)
+        updated_hop.hop_asset_map[asset_name] = 'intermediate'
     
     # Validate the tool chain with all assets in place
-    validation_errors = validate_tool_chain(parsed_response.tool_steps, updated_hop.hop_state)
+    # Create assets dict for validation (tool chain expects asset name -> Asset mapping)
+    hop_assets_dict = {asset.id: asset for asset in updated_hop.assets}
+    validation_errors = validate_tool_chain(parsed_response.tool_steps, hop_assets_dict)
     
     if validation_errors:
         # Validation failed - keep hop in implementation started state
@@ -769,8 +773,8 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     try:
         # Use mission's current_hop as the single source of truth
         current_hop = state.mission.current_hop if state.mission else None
-        if not current_hop or not current_hop.hop_state:
-            raise ValueError(f"Hop is missing or has empty hop_state.")
+        if not current_hop or not current_hop.assets:
+            raise ValueError(f"Hop is missing or has empty assets list.")
 
         # Create and use the simplified prompt caller
         promptCaller = HopImplementerPromptCaller()
@@ -1035,17 +1039,7 @@ graph = compiled
 
 class PrimaryAgent:
     def __init__(self, mission: "Mission" = None):
-        self.mission = mission if mission else Mission(
-            id="default-mission-1", 
-            name="Default Mission", 
-            description="Default mission description",
-            current_hop=None,
-            hop_history=[],
-            inputs=[],
-            outputs=[],
-            mission_state={},
-            mission_status=MissionStatus.AWAITING_APPROVAL
-        )
+        self.mission = mission
 
     async def run(self):
         # Your agent's execution logic here

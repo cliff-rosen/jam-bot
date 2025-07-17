@@ -293,7 +293,7 @@ class ToolStep(BaseModel):
         Execute this tool step and return the results.
         
         Args:
-            hop_state: Current state of the hop containing all assets
+            hop_assets: Current assets of the hop as a dictionary
             user_id: User ID for asset persistence (optional)
             db: Database session for asset persistence (optional)
             
@@ -384,11 +384,11 @@ def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> 
                     )
                     continue
 
-                # Check if asset exists in hop state (for schema validation)
-                if state_asset_id not in hop_state:
+                # Check if asset exists in hop assets (for schema validation)
+                if state_asset_id not in hop_assets:
                     errors.append(
-                        f"Step '{step.id}': Asset '{state_asset_id}' for parameter '{param_name}' not found in hop state. "
-                        f"Available assets: {', '.join(hop_state.keys())}"
+                        f"Step '{step.id}': Asset '{state_asset_id}' for parameter '{param_name}' not found in hop assets. "
+                        f"Available assets: {', '.join(hop_assets.keys())}"
                     )
                     continue
                 
@@ -416,11 +416,11 @@ def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> 
                 # Add to outputs that will be created by this step
                 step_outputs.add(state_asset)
                 
-                # Check if asset exists in hop state (should exist or be created)
-                if state_asset not in hop_state:
+                # Check if asset exists in hop assets (should exist or be created)
+                if state_asset not in hop_assets:
                     errors.append(
-                        f"Step '{step.id}': Asset '{state_asset}' for result '{result_name}' not found in hop state. "
-                        f"Available assets: {', '.join(hop_state.keys())}"
+                        f"Step '{step.id}': Asset '{state_asset}' for result '{result_name}' not found in hop assets. "
+                        f"Available assets: {', '.join(hop_assets.keys())}"
                     )
                     continue
 

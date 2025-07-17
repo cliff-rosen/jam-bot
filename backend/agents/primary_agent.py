@@ -160,15 +160,8 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
             }
         )
         
-        # Fetch updated mission from database to get the new hop
-        if _mission_service:
-            updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
-            if updated_mission:
-                state.mission = updated_mission
-                state.mission_id = state.mission.id
-                print(f"Mission updated with new hop: {updated_mission.current_hop.name if updated_mission.current_hop else 'No current hop'}")
-            else:
-                print("Warning: Could not fetch updated mission after hop creation")
+        # Update local state
+        await _update_mission_state(state)
         
         # Create success response
         response_message.content = f"Hop plan proposed: {hop_lite.name}. Please review and approve to proceed with implementation."
@@ -176,6 +169,13 @@ async def _handle_hop_proposal_creation(parsed_response, state: State, response_
     except Exception as e:
         response_message.content = f"Error creating hop: {str(e)}"
         raise e
+
+async def _update_mission_state(state: State) -> None:
+    """Helper to update mission state from database"""
+    if _mission_service:
+        updated_mission = await _mission_service.get_mission(state.mission.id, _user_id)
+        if updated_mission:
+            state.mission = updated_mission
 
 async def _handle_implementation_plan_proposal(parsed_response, state: State, response_message: ChatMessage) -> None:
     """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
@@ -252,120 +252,6 @@ def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:
     
     return errors
 
-@dataclass
-class ImplementationPlanResult:
-    """Result of processing an implementation plan"""
-    success: bool
-    response_content: str
-    updated_hop: Hop
-    validation_errors: List[str] = None
-    
-    def __post_init__(self):
-        if self.validation_errors is None:
-            self.validation_errors = []
-
-def _process_implementation_plan(
-    parsed_response: 'HopImplementationResponse', 
-    current_hop: Hop
-) -> ImplementationPlanResult:
-    """
-    Process an implementation plan response from the hop implementer.
-    
-    Args:
-        parsed_response: The response from the hop implementer
-        current_hop: The current hop being implemented (will not be modified)
-        state: The current state (will not be modified)
-        
-    Returns:
-        ImplementationPlanResult: The result of processing the implementation plan
-    """
-    if not parsed_response.tool_steps:
-        raise ValueError("Response type is IMPLEMENTATION_PLAN but no tool steps were provided")
-    
-    # Create a deep copy of the hop to avoid mutating the original
-    updated_hop = copy.deepcopy(current_hop)
-    
-    # Find assets that are referenced in tool steps but don't exist in hop state
-    # These are truly intermediate assets that need to be created
-    referenced_assets = set()
-    existing_assets = set(updated_hop.hop_state.keys())
-    
-    for step in parsed_response.tool_steps:
-        # Check parameter mappings for asset references
-        for param_config in step.parameter_mapping.values():
-            if isinstance(param_config, dict) and param_config.get('type') == 'asset_field':
-                referenced_assets.add(param_config['state_asset'])
-        
-        # Check result mappings for asset references
-        for result_config in step.result_mapping.values():
-            if isinstance(result_config, dict) and result_config.get('type') == 'asset_field':
-                referenced_assets.add(result_config['state_asset'])
-    
-    # Identify truly intermediate assets (referenced but not existing)
-    intermediate_assets = referenced_assets - existing_assets
-    
-    # Create missing intermediate assets in the copy
-    for asset_name in intermediate_assets:
-        new_asset = Asset(
-            id=asset_name,  # Use the asset name as the ID to match local key
-            name=asset_name,
-            description=f"Intermediate asset created during hop implementation: {asset_name}",
-            schema_definition=SchemaType(
-                type='object',  # Default to object type
-                description=f"Intermediate result from hop implementation: {asset_name}"
-            ),
-            status=AssetStatus.PENDING,
-            role='intermediate',
-            asset_metadata={
-                "created_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat(),
-                "creator": "hop_implementer",
-                "custom_metadata": {}
-            },
-            value=None,  # Initialize with no value
-            subtype=None
-        )
-        updated_hop.hop_state[asset_name] = new_asset
-    
-    # Validate the tool chain with all assets in place
-    validation_errors = validate_tool_chain(parsed_response.tool_steps, updated_hop.hop_state)
-    
-    if validation_errors:
-        # Validation failed - keep hop in implementation started state
-        updated_hop.status = HopStatus.HOP_IMPL_STARTED
-        
-        formatted_errors = "\n".join(f"- {e}" for e in validation_errors)
-        error_message = (
-            "The proposed implementation plan has validation issues:\n\n" +
-            formatted_errors + "\n\n" +
-            "Please revise the plan to address these issues."
-        )
-        return ImplementationPlanResult(
-            success=False, 
-            response_content=error_message, 
-            updated_hop=updated_hop, 
-            validation_errors=validation_errors
-        )
-    
-    # Validation passed - accept the implementation plan
-    # Convert ToolStepLite objects to ToolStep objects
-    from schemas.lite_models import create_tool_step_from_lite
-    updated_hop.tool_steps = [create_tool_step_from_lite(step) for step in parsed_response.tool_steps]
-    updated_hop.is_resolved = True
-    updated_hop.status = HopStatus.HOP_IMPL_READY
-    updated_hop.updated_at = datetime.utcnow()
-    
-    # Create success message
-    success_message = parsed_response.response_content
-    if parsed_response.reasoning:
-        success_message = f"{success_message}\n\nImplementation Reasoning: {parsed_response.reasoning}"
-    
-    return ImplementationPlanResult(
-        success=True, 
-        response_content=success_message, 
-        updated_hop=updated_hop, 
-        validation_errors=[]
-    )
 
 # ---------------------------------------------------------------------------
 # Node Functions

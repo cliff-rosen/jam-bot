@@ -22,6 +22,19 @@ export interface ToolDefinition {
     name: string;
     description: string;
     category: string;
+    functional_category?: string;
+    domain_category?: string;
+    tags?: string[];
+    pipeline_info?: {
+        can_start_pipeline: boolean;
+        typical_next_tools: string[];
+        pipeline_name: string;
+    };
+    ui_metadata?: {
+        icon: string;
+        color: string;
+        difficulty: 'beginner' | 'intermediate' | 'advanced';
+    };
     parameters: ToolParameter[];
     outputs: ToolOutput[];
     resource_dependencies: Resource[];

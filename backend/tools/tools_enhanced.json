@@ -3,26 +3,25 @@
     "version": "2.0",
     "last_updated": "2025-01-18",
     "description": "Reorganized tool definitions with PubMed research pipeline",
-    "categories": {
-      "functional": [
-        "search_retrieve",
-        "extract_analyze",
-        "process_transform",
-        "score_rank"
-      ],
-      "domain": [
-        "academic_research",
-        "web_content",
-        "email_communication",
-        "general_purpose"
-      ],
-      "legacy": [
-        "data_retrieval",
-        "data_processing",
-        "data_analysis"
-      ]
-    },
-    "total_tools": 11
+    "categories": [
+      "data_retrieval",
+      "data_processing",
+      "data_analysis"
+    ],
+    "total_tools": 11,
+    "categorization_version": "2.0",
+    "functional_categories": [
+      "search_retrieve",
+      "extract_analyze",
+      "process_transform",
+      "score_rank"
+    ],
+    "domain_categories": [
+      "academic_research",
+      "web_content",
+      "email_communication",
+      "general_purpose"
+    ]
   },
   "tools": [
     {
@@ -30,19 +29,6 @@
       "name": "email_search",
       "description": "Search and retrieve emails from Gmail with filtering capabilities",
       "category": "data_retrieval",
-      "functional_category": "search_retrieve",
-      "domain_category": "email_communication",
-      "tags": ["search", "email", "gmail", "filtering", "oauth"],
-      "pipeline_info": {
-        "can_start_pipeline": true,
-        "typical_next_tools": ["extract", "summarize", "group_reduce"],
-        "pipeline_name": "email_analysis"
-      },
-      "ui_metadata": {
-        "icon": "mail",
-        "color": "blue",
-        "difficulty": "intermediate"
-      },
       "resource_dependencies": [
         {
           "id": "gmail",
@@ -232,6 +218,27 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "search_retrieve",
+      "domain_category": "email_communication",
+      "tags": [
+        "search",
+        "email",
+        "gmail",
+        "oauth"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": true,
+        "typical_next_tools": [
+          "extract",
+          "summarize"
+        ],
+        "pipeline_name": "email_analysis"
+      },
+      "ui_metadata": {
+        "icon": "mail-search",
+        "color": "green",
+        "difficulty": "intermediate"
       }
     },
     {
@@ -239,19 +246,6 @@
       "name": "web_search",
       "description": "Search the web for real-time information about any topic. Returns URLs and snippets that can be used with web_retrieve to get full webpage content.",
       "category": "data_retrieval",
-      "functional_category": "search_retrieve",
-      "domain_category": "web_content",
-      "tags": ["search", "web", "real-time", "urls", "snippets"],
-      "pipeline_info": {
-        "can_start_pipeline": true,
-        "typical_next_tools": ["web_retrieve"],
-        "pipeline_name": "web_research"
-      },
-      "ui_metadata": {
-        "icon": "search",
-        "color": "green",
-        "difficulty": "beginner"
-      },
       "parameters": [
         {
           "id": "search_term",
@@ -464,6 +458,27 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "search_retrieve",
+      "domain_category": "web_content",
+      "tags": [
+        "search",
+        "web",
+        "real-time",
+        "snippets"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": true,
+        "typical_next_tools": [
+          "web_retrieve",
+          "extract"
+        ],
+        "pipeline_name": "web_research"
+      },
+      "ui_metadata": {
+        "icon": "globe-search",
+        "color": "blue",
+        "difficulty": "beginner"
       }
     },
     {
@@ -471,19 +486,6 @@
       "name": "web_retrieve",
       "description": "Retrieve and extract full content from webpages. Designed to work with web_search results - takes URLs from search results and retrieves complete webpage content including text, metadata, and structure.",
       "category": "data_retrieval",
-      "functional_category": "search_retrieve",
-      "domain_category": "web_content",
-      "tags": ["retrieve", "web", "content", "scraping", "html"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["extract", "summarize"],
-        "pipeline_name": "web_research"
-      },
-      "ui_metadata": {
-        "icon": "download",
-        "color": "green",
-        "difficulty": "beginner"
-      },
       "parameters": [
         {
           "id": "url",
@@ -713,6 +715,27 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "search_retrieve",
+      "domain_category": "web_content",
+      "tags": [
+        "retrieve",
+        "web",
+        "content",
+        "full-text"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "extract",
+          "summarize"
+        ],
+        "pipeline_name": "web_research"
+      },
+      "ui_metadata": {
+        "icon": "download",
+        "color": "blue",
+        "difficulty": "beginner"
       }
     },
     {
@@ -720,19 +743,6 @@
       "name": "pubmed_search",
       "description": "Search PubMed database using NCBI's E-utilities API to retrieve academic articles",
       "category": "data_retrieval",
-      "functional_category": "search_retrieve",
-      "domain_category": "academic_research",
-      "tags": ["search", "pubmed", "academic", "research", "ncbi", "articles"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_extract_features"],
-        "pipeline_name": "pubmed_research"
-      },
-      "ui_metadata": {
-        "icon": "book",
-        "color": "purple",
-        "difficulty": "intermediate"
-      },
       "parameters": [
         {
           "id": "search_query",
@@ -931,6 +941,26 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "search_retrieve",
+      "domain_category": "academic_research",
+      "tags": [
+        "search",
+        "pubmed",
+        "academic",
+        "ncbi"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": true,
+        "typical_next_tools": [
+          "pubmed_extract_features"
+        ],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "book-search",
+        "color": "purple",
+        "difficulty": "intermediate"
       }
     },
     {
@@ -938,19 +968,6 @@
       "name": "extract",
       "description": "Extract specific information from items using extraction functions. Works with single items or lists. Note: For detailed information extraction from web content, use web_retrieve first to get full content - search results only contain snippets.",
       "category": "data_processing",
-      "functional_category": "extract_analyze",
-      "domain_category": "general_purpose",
-      "tags": ["extract", "llm", "flexible", "analysis", "structured"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["summarize", "group_reduce"],
-        "pipeline_name": "content_analysis"
-      },
-      "ui_metadata": {
-        "icon": "filter",
-        "color": "orange",
-        "difficulty": "intermediate"
-      },
       "parameters": [
         {
           "id": "items",
@@ -1092,6 +1109,27 @@
             }
           }
         ]
+      },
+      "functional_category": "extract_analyze",
+      "domain_category": "general_purpose",
+      "tags": [
+        "extract",
+        "llm",
+        "flexible",
+        "structured"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "group_reduce",
+          "summarize"
+        ],
+        "pipeline_name": "content_analysis"
+      },
+      "ui_metadata": {
+        "icon": "filter",
+        "color": "orange",
+        "difficulty": "intermediate"
       }
     },
     {
@@ -1099,19 +1137,6 @@
       "name": "summarize",
       "description": "Create summaries of content based on specific summarization mandates",
       "category": "data_processing",
-      "functional_category": "process_transform",
-      "domain_category": "general_purpose",
-      "tags": ["summarize", "llm", "text", "analysis", "mandate"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": [],
-        "pipeline_name": "content_analysis"
-      },
-      "ui_metadata": {
-        "icon": "document",
-        "color": "yellow",
-        "difficulty": "beginner"
-      },
       "parameters": [
         {
           "id": "content",
@@ -1260,6 +1285,24 @@
             }
           }
         ]
+      },
+      "functional_category": "process_transform",
+      "domain_category": "general_purpose",
+      "tags": [
+        "summarize",
+        "llm",
+        "text",
+        "compression"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [],
+        "pipeline_name": "content_analysis"
+      },
+      "ui_metadata": {
+        "icon": "document-text",
+        "color": "orange",
+        "difficulty": "beginner"
       }
     },
     {
@@ -1267,19 +1310,6 @@
       "name": "pubmed_generate_query",
       "description": "Generate optimized PubMed search queries using LLM assistance based on research goals and requirements",
       "category": "data_processing",
-      "functional_category": "process_transform",
-      "domain_category": "academic_research",
-      "tags": ["query", "generate", "optimization", "pubmed", "llm"],
-      "pipeline_info": {
-        "can_start_pipeline": true,
-        "typical_next_tools": ["pubmed_search"],
-        "pipeline_name": "pubmed_research"
-      },
-      "ui_metadata": {
-        "icon": "lightbulb",
-        "color": "purple",
-        "difficulty": "beginner"
-      },
       "parameters": [
         {
           "id": "research_goal",
@@ -1536,6 +1566,26 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "process_transform",
+      "domain_category": "academic_research",
+      "tags": [
+        "query",
+        "generate",
+        "optimization",
+        "llm"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": true,
+        "typical_next_tools": [
+          "pubmed_search"
+        ],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "wand",
+        "color": "purple",
+        "difficulty": "beginner"
       }
     },
     {
@@ -1543,19 +1593,6 @@
       "name": "pubmed_extract_features",
       "description": "Extract structured information from PubMed abstracts using LLM processing with configurable extraction schemas",
       "category": "data_processing",
-      "functional_category": "extract_analyze",
-      "domain_category": "academic_research",
-      "tags": ["extract", "research", "features", "pubmed", "llm", "schema"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_score_articles"],
-        "pipeline_name": "pubmed_research"
-      },
-      "ui_metadata": {
-        "icon": "microscope",
-        "color": "purple",
-        "difficulty": "advanced"
-      },
       "parameters": [
         {
           "id": "articles",
@@ -1773,6 +1810,26 @@
             "outputs": {}
           }
         ]
+      },
+      "functional_category": "extract_analyze",
+      "domain_category": "academic_research",
+      "tags": [
+        "extract",
+        "research",
+        "features",
+        "structured"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "pubmed_score_articles"
+        ],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "clipboard-list",
+        "color": "purple",
+        "difficulty": "advanced"
       }
     },
     {
@@ -1780,19 +1837,6 @@
       "name": "group_reduce",
       "description": "Group objects by rules and apply reduce functions to create aggregated results",
       "category": "data_analysis",
-      "functional_category": "process_transform",
-      "domain_category": "general_purpose",
-      "tags": ["group", "aggregate", "analyze", "reduce", "statistics"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["summarize"],
-        "pipeline_name": "data_analysis"
-      },
-      "ui_metadata": {
-        "icon": "chart",
-        "color": "cyan",
-        "difficulty": "intermediate"
-      },
       "parameters": [
         {
           "id": "items",
@@ -1940,6 +1984,26 @@
             }
           }
         ]
+      },
+      "functional_category": "process_transform",
+      "domain_category": "general_purpose",
+      "tags": [
+        "group",
+        "aggregate",
+        "analyze",
+        "statistics"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "summarize"
+        ],
+        "pipeline_name": "data_analysis"
+      },
+      "ui_metadata": {
+        "icon": "chart-bar",
+        "color": "orange",
+        "difficulty": "intermediate"
       }
     },
     {
@@ -1947,19 +2011,6 @@
       "name": "pubmed_score_articles",
       "description": "Score articles based on extracted features using configurable scoring functions and criteria",
       "category": "data_analysis",
-      "functional_category": "score_rank",
-      "domain_category": "academic_research",
-      "tags": ["score", "rank", "evaluate", "research", "criteria"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_filter_rank"],
-        "pipeline_name": "pubmed_research"
-      },
-      "ui_metadata": {
-        "icon": "star",
-        "color": "purple",
-        "difficulty": "advanced"
-      },
       "parameters": [
         {
           "id": "articles_with_features",
@@ -2120,6 +2171,26 @@
             }
           }
         ]
+      },
+      "functional_category": "score_rank",
+      "domain_category": "academic_research",
+      "tags": [
+        "score",
+        "rank",
+        "evaluate",
+        "quality"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "pubmed_filter_rank"
+        ],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "star",
+        "color": "purple",
+        "difficulty": "advanced"
       }
     },
     {
@@ -2127,19 +2198,6 @@
       "name": "pubmed_filter_rank",
       "description": "Filter and rank scored articles based on thresholds and additional criteria to produce final result set",
       "category": "data_analysis",
-      "functional_category": "score_rank",
-      "domain_category": "academic_research",
-      "tags": ["filter", "rank", "results", "threshold", "final"],
-      "pipeline_info": {
-        "can_start_pipeline": false,
-        "typical_next_tools": [],
-        "pipeline_name": "pubmed_research"
-      },
-      "ui_metadata": {
-        "icon": "funnel",
-        "color": "purple",
-        "difficulty": "advanced"
-      },
       "parameters": [
         {
           "id": "scored_articles",
@@ -2359,6 +2417,24 @@
             }
           }
         ]
+      },
+      "functional_category": "score_rank",
+      "domain_category": "academic_research",
+      "tags": [
+        "filter",
+        "rank",
+        "results",
+        "final"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "funnel",
+        "color": "purple",
+        "difficulty": "advanced"
       }
     }
   ]

@@ -16,7 +16,20 @@ import {
     AlertCircle,
     RefreshCw,
     CheckCircle,
-    Info
+    Info,
+    Mail,
+    Book,
+    Download,
+    Microscope,
+    Lightbulb,
+    Document,
+    Chart,
+    Star,
+    Funnel,
+    Grid,
+    List,
+    Workflow,
+    ArrowRight
 } from 'lucide-react';
 
 interface ToolBrowserProps {
@@ -29,7 +42,9 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedDomain, setSelectedDomain] = useState<string>('all');
+    const [functionalFilters, setFunctionalFilters] = useState<string[]>([]);
+    const [view, setView] = useState<'grid' | 'list' | 'pipeline'>('grid');
     const [selectedTool, setSelectedTool] = useState<ToolDefinition | null>(null);
 
     // Fetch tools on component mount
@@ -51,38 +66,99 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
         fetchTools();
     }, []);
 
-    // Get unique categories with counts
-    const categories = useMemo(() => {
-        const categoryMap = new Map<string, number>();
+    // Get domain categories with counts
+    const domainCategories = useMemo(() => {
+        const domainMap = new Map<string, number>();
         tools.forEach(tool => {
-            categoryMap.set(tool.category, (categoryMap.get(tool.category) || 0) + 1);
+            const domain = tool.domain_category || 'general_purpose';
+            domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
         });
 
         return [
-            { value: 'all', label: 'All Categories', count: tools.length },
-            ...Array.from(categoryMap.entries())
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([category, count]) => ({
-                    value: category,
-                    label: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                    count
-                }))
+            { value: 'all', label: 'All Tools', count: tools.length, icon: 'grid' },
+            { value: 'academic_research', label: 'Academic Research', count: domainMap.get('academic_research') || 0, icon: 'book' },
+            { value: 'web_content', label: 'Web Content', count: domainMap.get('web_content') || 0, icon: 'globe' },
+            { value: 'email_communication', label: 'Email & Communication', count: domainMap.get('email_communication') || 0, icon: 'mail' },
+            { value: 'general_purpose', label: 'General Purpose', count: domainMap.get('general_purpose') || 0, icon: 'code' }
         ];
     }, [tools]);
 
-    // Filter tools based on search and category
+    // Get functional categories
+    const functionalCategories = useMemo(() => {
+        return [
+            { value: 'search_retrieve', label: 'Search & Retrieve', icon: 'search' },
+            { value: 'extract_analyze', label: 'Extract & Analyze', icon: 'filter' },
+            { value: 'process_transform', label: 'Process & Transform', icon: 'code' },
+            { value: 'score_rank', label: 'Score & Rank', icon: 'star' }
+        ];
+    }, []);
+
+    // Get pipelines
+    const pipelines = useMemo(() => {
+        const pipelineMap = new Map<string, ToolDefinition[]>();
+        tools.forEach(tool => {
+            const pipelineName = tool.pipeline_info?.pipeline_name || 'standalone';
+            if (!pipelineMap.has(pipelineName)) {
+                pipelineMap.set(pipelineName, []);
+            }
+            pipelineMap.get(pipelineName)!.push(tool);
+        });
+        return Array.from(pipelineMap.entries()).filter(([name]) => name !== 'standalone');
+    }, [tools]);
+
+    // Filter tools based on search, domain, and functional filters
     const filteredTools = useMemo(() => {
         return tools.filter(tool => {
-            const matchesSearch = !searchTerm ||
-                tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                tool.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                tool.id.toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesCategory = selectedCategory === 'all' || tool.category === selectedCategory;
-
-            return matchesSearch && matchesCategory;
+            // Domain filter
+            if (selectedDomain !== 'all' && (tool.domain_category || 'general_purpose') !== selectedDomain) {
+                return false;
+            }
+            
+            // Functional filters
+            if (functionalFilters.length > 0 && !functionalFilters.includes(tool.functional_category || '')) {
+                return false;
+            }
+            
+            // Search query
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                    tool.name.toLowerCase().includes(searchLower) ||
+                    tool.description.toLowerCase().includes(searchLower) ||
+                    tool.id.toLowerCase().includes(searchLower) ||
+                    (tool.tags && tool.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+                );
+            }
+            
+            return true;
         });
-    }, [tools, searchTerm, selectedCategory]);
+    }, [tools, selectedDomain, functionalFilters, searchTerm]);
+
+    // Get tool icon from UI metadata or fallback to category
+    const getToolIcon = (tool: ToolDefinition) => {
+        const iconClass = "w-4 h-4";
+        
+        // Use ui_metadata icon if available
+        if (tool.ui_metadata?.icon) {
+            switch (tool.ui_metadata.icon.toLowerCase()) {
+                case 'mail': return <Mail className={iconClass} />;
+                case 'search': return <Search className={iconClass} />;
+                case 'download': return <Download className={iconClass} />;
+                case 'book': return <Book className={iconClass} />;
+                case 'filter': return <Filter className={iconClass} />;
+                case 'document': return <Document className={iconClass} />;
+                case 'lightbulb': return <Lightbulb className={iconClass} />;
+                case 'microscope': return <Microscope className={iconClass} />;
+                case 'chart': return <Chart className={iconClass} />;
+                case 'star': return <Star className={iconClass} />;
+                case 'funnel': return <Funnel className={iconClass} />;
+                default: return <Code className={iconClass} />;
+            }
+        }
+        
+        // Fallback to category icon
+        return getCategoryIcon(tool.category);
+    };
 
     // Get category icon
     const getCategoryIcon = (category: string) => {
@@ -103,6 +179,40 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
             default:
                 return <Code className={iconClass} />;
         }
+    };
+
+    // Get domain icon
+    const getDomainIcon = (iconName: string) => {
+        const iconClass = "w-4 h-4";
+        switch (iconName.toLowerCase()) {
+            case 'book': return <Book className={iconClass} />;
+            case 'globe': return <Globe className={iconClass} />;
+            case 'mail': return <Mail className={iconClass} />;
+            case 'code': return <Code className={iconClass} />;
+            case 'grid': return <Grid className={iconClass} />;
+            default: return <Code className={iconClass} />;
+        }
+    };
+
+    // Get functional icon
+    const getFunctionalIcon = (iconName: string) => {
+        const iconClass = "w-4 h-4";
+        switch (iconName.toLowerCase()) {
+            case 'search': return <Search className={iconClass} />;
+            case 'filter': return <Filter className={iconClass} />;
+            case 'code': return <Code className={iconClass} />;
+            case 'star': return <Star className={iconClass} />;
+            default: return <Code className={iconClass} />;
+        }
+    };
+
+    // Toggle functional filter
+    const toggleFunctionalFilter = (filter: string) => {
+        setFunctionalFilters(prev => 
+            prev.includes(filter) 
+                ? prev.filter(f => f !== filter)
+                : [...prev, filter]
+        );
     };
 
     const handleSelectTool = (tool: ToolDefinition) => {
@@ -150,33 +260,54 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
 
     return (
         <div className={`h-full flex flex-col ${className}`}>
-            {/* Search and Filter */}
+            {/* Header with Search and View Controls */}
             <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex gap-3 mb-4">
                     <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search tools by name, description, or ID..."
+                            placeholder="Search tools, tags, or descriptions..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm"
                         />
                     </div>
-                    <div className="relative min-w-[200px]">
-                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <select
-                            value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="w-full pl-10 pr-8 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm appearance-none"
+                    
+                    {/* View Toggle */}
+                    <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg">
+                        <button
+                            onClick={() => setView('grid')}
+                            className={`p-2 rounded-l-lg transition-colors ${view === 'grid' 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
+                            title="Grid view"
                         >
-                            {categories.map(category => (
-                                <option key={category.value} value={category.value}>
-                                    {category.label} ({category.count})
-                                </option>
-                            ))}
-                        </select>
+                            <Grid className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setView('list')}
+                            className={`p-2 border-l border-r border-gray-300 dark:border-gray-600 transition-colors ${view === 'list' 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
+                            title="List view"
+                        >
+                            <List className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setView('pipeline')}
+                            className={`p-2 rounded-r-lg transition-colors ${view === 'pipeline' 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
+                            title="Pipeline view"
+                        >
+                            <Workflow className="w-4 h-4" />
+                        </button>
                     </div>
+                    
                     <button
                         onClick={handleRefresh}
                         className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -184,6 +315,45 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
+                </div>
+
+                {/* Domain Tabs */}
+                <div className="flex gap-1 mb-4">
+                    {domainCategories.map(domain => (
+                        <button
+                            key={domain.value}
+                            onClick={() => setSelectedDomain(domain.value)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                selectedDomain === domain.value
+                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                            {getDomainIcon(domain.icon)}
+                            <span>{domain.label}</span>
+                            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                                {domain.count}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Functional Filters */}
+                <div className="flex gap-2 mb-4">
+                    {functionalCategories.map(category => (
+                        <button
+                            key={category.value}
+                            onClick={() => toggleFunctionalFilter(category.value)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                                functionalFilters.includes(category.value)
+                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            {getFunctionalIcon(category.icon)}
+                            <span>{category.label}</span>
+                        </button>
+                    ))}
                 </div>
 
                 {/* Results count */}
@@ -196,81 +366,146 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                             </span>
                         )}
                     </span>
+                    {functionalFilters.length > 0 && (
+                        <button
+                            onClick={() => setFunctionalFilters([])}
+                            className="text-purple-600 dark:text-purple-400 hover:underline text-sm"
+                        >
+                            Clear filters
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-hidden">
-                <div className="flex h-full">
-                    {/* Tool List */}
-                    <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                        <div className="p-2">
-                            {filteredTools.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                    <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p>No tools found matching your criteria</p>
-                                    {searchTerm && (
-                                        <button
-                                            onClick={() => setSearchTerm('')}
-                                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-2"
-                                        >
-                                            Clear search
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                filteredTools.map(tool => (
-                                    <div
-                                        key={tool.id}
-                                        className={`w-full text-left p-3 rounded-lg flex items-start gap-3 transition-all duration-200 cursor-pointer group ${selectedTool?.id === tool.id
-                                            ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 shadow-sm'
-                                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-transparent'
-                                            }`}
-                                        onClick={() => handleSelectTool(tool)}
-                                    >
-                                        <div className={`transition-colors ${selectedTool?.id === tool.id
-                                            ? 'text-blue-600 dark:text-blue-400'
-                                            : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
-                                            }`}>
-                                            {getCategoryIcon(tool.category)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className={`text-sm font-medium truncate ${selectedTool?.id === tool.id
-                                                    ? 'text-blue-900 dark:text-blue-100'
-                                                    : 'text-gray-900 dark:text-gray-100'
-                                                    }`}>
-                                                    {tool.name}
-                                                </h3>
-                                                <ChevronRight className={`w-4 h-4 transition-transform ${selectedTool?.id === tool.id
-                                                    ? 'rotate-90 text-blue-600 dark:text-blue-400'
-                                                    : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
-                                                    }`} />
-                                            </div>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                                {tool.description}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                                    {tool.category.replace(/_/g, ' ')}
-                                                </span>
-                                                {tool.parameters.filter(p => p.required).length > 0 && (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                                                        {tool.parameters.filter(p => p.required).length} required
-                                                    </span>
-                                                )}
-                                                {tool.resource_dependencies.length > 0 && (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                                                        {tool.resource_dependencies.length} resource{tool.resource_dependencies.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+                {view === 'pipeline' ? (
+                    <div className="h-full overflow-y-auto p-4">
+                        <div className="space-y-6">
+                            {pipelines.map(([pipelineName, pipelineTools]) => (
+                                <div key={pipelineName} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                                        {pipelineName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Pipeline
+                                    </h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                        {pipelineTools.length} tools in this workflow
+                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {pipelineTools
+                                            .sort((a, b) => (a.pipeline_info?.can_start_pipeline ? -1 : 1))
+                                            .map((tool, index) => (
+                                                <React.Fragment key={tool.id}>
+                                                    <div
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                                                            selectedTool?.id === tool.id
+                                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600'
+                                                                : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                                        }`}
+                                                        onClick={() => handleSelectTool(tool)}
+                                                    >
+                                                        {getToolIcon(tool)}
+                                                        <span className="text-sm font-medium">
+                                                            {tool.name}
+                                                        </span>
+                                                        {tool.pipeline_info?.can_start_pipeline && (
+                                                            <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                                                                Start
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {index < pipelineTools.length - 1 && (
+                                                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
                                     </div>
-                                ))
-                            )}
+                                </div>
+                            ))}
                         </div>
                     </div>
+                ) : (
+                    <div className="flex h-full">
+                        {/* Tool List */}
+                        <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+                            <div className="p-2">
+                                {filteredTools.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p>No tools found matching your criteria</p>
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-2"
+                                            >
+                                                Clear search
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    filteredTools.map(tool => (
+                                        <div
+                                            key={tool.id}
+                                            className={`w-full text-left p-3 rounded-lg flex items-start gap-3 transition-all duration-200 cursor-pointer group ${selectedTool?.id === tool.id
+                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 shadow-sm'
+                                                : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-transparent'
+                                                }`}
+                                            onClick={() => handleSelectTool(tool)}
+                                        >
+                                            <div className={`transition-colors ${selectedTool?.id === tool.id
+                                                ? 'text-blue-600 dark:text-blue-400'
+                                                : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                                                }`}>
+                                                {getToolIcon(tool)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className={`text-sm font-medium truncate ${selectedTool?.id === tool.id
+                                                        ? 'text-blue-900 dark:text-blue-100'
+                                                        : 'text-gray-900 dark:text-gray-100'
+                                                        }`}>
+                                                        {tool.name}
+                                                    </h3>
+                                                    <ChevronRight className={`w-4 h-4 transition-transform ${selectedTool?.id === tool.id
+                                                        ? 'rotate-90 text-blue-600 dark:text-blue-400'
+                                                        : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                                                        }`} />
+                                                </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                                    {tool.description}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                                    {tool.functional_category && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                                            {tool.functional_category.replace(/_/g, ' ')}
+                                                        </span>
+                                                    )}
+                                                    {tool.domain_category && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                                            {tool.domain_category.replace(/_/g, ' ')}
+                                                        </span>
+                                                    )}
+                                                    {tool.ui_metadata?.difficulty && (
+                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                            tool.ui_metadata.difficulty === 'beginner' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                                            tool.ui_metadata.difficulty === 'intermediate' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                                            'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                        }`}>
+                                                            {tool.ui_metadata.difficulty}
+                                                        </span>
+                                                    )}
+                                                    {tool.tags && tool.tags.length > 0 && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                            {tool.tags.slice(0, 2).join(', ')}
+                                                            {tool.tags.length > 2 && '...'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
 
                     {/* Tool Details */}
                     <div className="w-2/3 overflow-y-auto">
@@ -290,13 +525,80 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                         {selectedTool.description}
                                     </p>
                                     <div className="flex items-center gap-3 flex-wrap">
-                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                            {selectedTool.category.replace(/_/g, ' ')}
-                                        </span>
+                                        {selectedTool.functional_category && (
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                                {selectedTool.functional_category.replace(/_/g, ' ')}
+                                            </span>
+                                        )}
+                                        {selectedTool.domain_category && (
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                                {selectedTool.domain_category.replace(/_/g, ' ')}
+                                            </span>
+                                        )}
+                                        {selectedTool.ui_metadata?.difficulty && (
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                                selectedTool.ui_metadata.difficulty === 'beginner' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                                selectedTool.ui_metadata.difficulty === 'intermediate' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                                'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                            }`}>
+                                                {selectedTool.ui_metadata.difficulty}
+                                            </span>
+                                        )}
                                         <span className="text-sm text-gray-500 dark:text-gray-400">
                                             ID: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{selectedTool.id}</code>
                                         </span>
                                     </div>
+                                    
+                                    {/* Tags */}
+                                    {selectedTool.tags && selectedTool.tags.length > 0 && (
+                                        <div className="mt-3">
+                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</h5>
+                                            <div className="flex flex-wrap gap-1">
+                                                {selectedTool.tags.map(tag => (
+                                                    <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Pipeline Information */}
+                                    {selectedTool.pipeline_info && (
+                                        <div className="mt-3">
+                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pipeline Information</h5>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Pipeline:</span>
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                        {selectedTool.pipeline_info.pipeline_name.replace(/_/g, ' ')}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Can start pipeline:</span>
+                                                    <span className={`text-sm font-medium ${
+                                                        selectedTool.pipeline_info.can_start_pipeline 
+                                                            ? 'text-green-600 dark:text-green-400' 
+                                                            : 'text-gray-600 dark:text-gray-400'
+                                                    }`}>
+                                                        {selectedTool.pipeline_info.can_start_pipeline ? 'Yes' : 'No'}
+                                                    </span>
+                                                </div>
+                                                {selectedTool.pipeline_info.typical_next_tools.length > 0 && (
+                                                    <div>
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Typical next tools:</span>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {selectedTool.pipeline_info.typical_next_tools.map(toolId => (
+                                                                <span key={toolId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                                                                    {toolId}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Parameters */}

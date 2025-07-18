@@ -241,7 +241,9 @@ def get_canonical_model(type_name: str) -> type[BaseModel]:
         'webpage': CanonicalWebpage,
         'pubmed_article': CanonicalPubMedArticle,
         'newsletter': CanonicalNewsletter,
-        'daily_newsletter_recap': CanonicalDailyNewsletterRecap
+        'daily_newsletter_recap': CanonicalDailyNewsletterRecap,
+        'pubmed_extraction': CanonicalPubMedExtraction,
+        'scored_article': CanonicalScoredArticle
     }
     
     if type_name not in models:
@@ -251,7 +253,7 @@ def get_canonical_model(type_name: str) -> type[BaseModel]:
 
 def list_canonical_types() -> List[str]:
     """Get a list of all available canonical types."""
-    return ['email', 'search_result', 'webpage', 'pubmed_article', 'newsletter', 'daily_newsletter_recap']
+    return ['email', 'search_result', 'webpage', 'pubmed_article', 'newsletter', 'daily_newsletter_recap', 'pubmed_extraction', 'scored_article']
 
 def validate_canonical_data(type_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """

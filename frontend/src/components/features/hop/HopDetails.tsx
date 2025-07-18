@@ -90,11 +90,11 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                     <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                         <div>
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Inputs</div>
-                            {hop.hop_state && Object.values(hop.hop_state).some(asset => asset.role === 'input') ? (
-                                Object.entries(hop.hop_state).filter(([_, asset]) => asset.role === 'input').map(([localKey, asset]) => {
-                                    const assetName = asset?.name || localKey;
+                            {hop.assets && hop.assets.some(asset => asset.role === 'input') ? (
+                                hop.assets.filter(asset => asset.role === 'input').map((asset) => {
+                                    const assetName = asset?.name || asset?.id;
                                     const tooltipText = [
-                                        `Hop Variable: ${localKey}`,
+                                        `Asset ID: ${asset.id}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
                                         asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null
@@ -102,7 +102,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
                                     return (
                                         <div
-                                            key={localKey}
+                                            key={asset.id}
                                             className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors"
                                             title={tooltipText}
                                         >
@@ -117,11 +117,11 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
                         <div>
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Outputs</div>
-                            {hop.hop_state && Object.values(hop.hop_state).some(asset => asset.role === 'output') ? (
-                                Object.entries(hop.hop_state).filter(([_, asset]) => asset.role === 'output').map(([localKey, asset]) => {
-                                    const assetName = asset?.name || localKey;
+                            {hop.assets && hop.assets.some(asset => asset.role === 'output') ? (
+                                hop.assets.filter(asset => asset.role === 'output').map((asset) => {
+                                    const assetName = asset?.name || asset?.id;
                                     const tooltipText = [
-                                        `Hop Variable: ${localKey}`,
+                                        `Asset ID: ${asset.id}`,
                                         `Asset Name: ${assetName}`,
                                         asset?.description ? `Description: ${asset.description}` : null,
                                         asset?.schema_definition ? `Type: ${asset.schema_definition.type}${asset.schema_definition?.is_array ? '[]' : ''}` : null
@@ -129,7 +129,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
                                     return (
                                         <div
-                                            key={localKey}
+                                            key={asset.id}
                                             className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors relative group"
                                         >
                                             {assetName}
@@ -224,11 +224,10 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                                                     </div>
                                                                 );
                                                             } else if (mapping.type === "asset_field") {
-                                                                const asset = hop.hop_state?.[mapping.state_asset];
+                                                                const asset = hop.assets?.find(a => a.name === mapping.state_asset);
                                                                 const tooltipText = [
                                                                     `Parameter: ${param}`,
-                                                                    `Hop Variable: ${mapping.state_asset}`,
-                                                                    mapping.path ? `Path: ${mapping.path}` : null,
+                                                                    `Asset Reference: ${mapping.state_asset}`,
                                                                     asset?.name ? `Asset Name: ${asset.name}` : null,
                                                                     asset?.description ? `Description: ${asset.description}` : null
                                                                 ].filter(Boolean).join('\n');
@@ -262,7 +261,7 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                                                     </div>
                                                                 );
                                                             } else if (mapping.type === "asset_field") {
-                                                                const asset = hop.hop_state?.[mapping.state_asset];
+                                                                const asset = hop.assets?.find(a => a.name === mapping.state_asset);
                                                                 const assetName = asset?.name || `${mapping.state_asset} (name not available)`;
                                                                 const tooltipText = [
                                                                     `Result: ${result}`,
@@ -288,9 +287,9 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                                                     </div>
                                                 )}
 
-                                                {step.error && (
+                                                {step.error_message && (
                                                     <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-1 rounded">
-                                                        Error: {step.error}
+                                                        Error: {step.error_message}
                                                     </div>
                                                 )}
                                             </div>
@@ -302,11 +301,11 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
                     )}
 
                     {/* Assets */}
-                    {hop.hop_state && Object.keys(hop.hop_state).length > 0 && (
+                    {hop.assets && hop.assets.length > 0 && (
                         <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    Assets ({Object.keys(hop.hop_state).length})
+                                    Assets ({hop.assets.length})
                                 </div>
                                 <button
                                     onClick={() => setShowAssets(!showAssets)}
@@ -318,10 +317,10 @@ export const HopDetails: React.FC<HopDetailsProps> = ({
 
                             {showAssets && (
                                 <div className="space-y-1">
-                                    {Object.entries(hop.hop_state).map(([key, asset]) => (
-                                        <div key={key} className="text-xs">
+                                    {hop.assets.map((asset) => (
+                                        <div key={asset.id} className="text-xs">
                                             <div className="text-gray-700 dark:text-gray-300">
-                                                <span className="text-blue-600 dark:text-blue-400">{key}:</span> {asset.name}
+                                                <span className="text-blue-600 dark:text-blue-400">{asset.name}:</span> {asset.name}
                                             </div>
                                             <div className="text-sm text-gray-600">
                                                 {`${asset.schema_definition?.type}${asset.schema_definition?.is_array ? '[]' : ''}` || null}

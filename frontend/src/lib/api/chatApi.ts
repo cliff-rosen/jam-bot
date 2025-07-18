@@ -1,5 +1,5 @@
 import { ChatRequest, ChatMessage, StreamResponse, AgentResponse, StatusResponse } from '../../types/chat';
-import { makeStreamRequest, StreamUpdate } from './streamUtils';
+import { makeStreamRequest } from './streamUtils';
 import { api } from './index';
 
 /**

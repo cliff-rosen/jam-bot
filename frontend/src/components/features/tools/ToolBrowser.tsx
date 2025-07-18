@@ -415,7 +415,7 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                                     </p>
                                     <div className="flex items-center gap-2 flex-wrap">
                                         {pipelineTools
-                                            .sort((a, b) => (a.pipeline_info?.can_start_pipeline ? -1 : 1))
+                                            .sort((a) => (a.pipeline_info?.can_start_pipeline ? -1 : 1))
                                             .map((tool, index) => (
                                                 <React.Fragment key={tool.id}>
                                                     <div

@@ -46,9 +46,14 @@ function convertToUnifiedAsset(apiAsset: any): Asset {
             is_array: apiAsset.is_collection || false,  // Map from database field
             fields: undefined // TODO: Could extract from content structure
         },
-        value: apiAsset.content,
+        value_representation: apiAsset.content,
         status: apiAsset.status || AssetStatus.PENDING,
         subtype: mapLegacySubtype(apiAsset.subtype),
+        scope_type: apiAsset.scope_type || 'mission',
+        scope_id: apiAsset.scope_id || '',
+        role: apiAsset.role || 'intermediate',
+        created_at: apiAsset.created_at || new Date().toISOString(),
+        updated_at: apiAsset.updated_at || new Date().toISOString(),
         asset_metadata: apiAsset.asset_metadata || {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

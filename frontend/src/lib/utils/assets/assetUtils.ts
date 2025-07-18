@@ -52,20 +52,20 @@ export const getFileType = (file: File): string => {
 // if null or undefined, return null
 export const getAssetContent = (asset: Asset) => {
     // Handle null/undefined content
-    if (!asset.value) {
+    if (!asset.value_representation) {
         return null;
     }
 
     // If value is a primitive (string, number, etc.), return it directly
-    if (typeof asset.value !== 'object') {
-        return asset.value;
+    if (typeof asset.value_representation !== 'object') {
+        return asset.value_representation;
     }
 
     // If value is an object and has a property matching the subtype, return that property
-    if (asset.subtype && Object.keys(asset.value).includes(asset.subtype)) {
-        return asset.value[asset.subtype];
+    if (asset.subtype && Object.keys(asset.value_representation).includes(asset.subtype)) {
+        return asset.value_representation[asset.subtype];
     }
 
     // If value is an object but doesn't have a matching subtype property, return the whole object
-    return asset.value;
+    return asset.value_representation;
 }; 

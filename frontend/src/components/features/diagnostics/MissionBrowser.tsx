@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Mission, Hop } from '@/types/workflow';
 import { Asset, AssetRole } from '@/types/asset';
 import { VariableRenderer } from '@/components/common/VariableRenderer';
@@ -180,8 +180,8 @@ export const MissionBrowser: React.FC<MissionBrowserProps> = ({ mission, classNa
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {Object.entries(hop.hop_state).map(([key, asset]) => (
-                                            <tr key={key} className="border-b border-gray-100 dark:border-gray-700">
+                                        {hop.assets.map((asset, index) => (
+                                            <tr key={index} className="border-b border-gray-100 dark:border-gray-700">
                                                 <td className="py-1 px-2 text-gray-900 dark:text-gray-100">{asset.name}</td>
                                                 <td className="py-1 px-2 font-mono text-green-600 dark:text-green-400">{asset.id}</td>
                                                 <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.schema_definition.type || 'unknown'}</td>

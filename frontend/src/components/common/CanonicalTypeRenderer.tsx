@@ -1,5 +1,5 @@
 import React from 'react';
-import { CanonicalType, isCanonicalType, CanonicalSearchResult, CanonicalEmail, CanonicalWebpage, CanonicalPubMedArticle, CanonicalNewsletter, CanonicalDailyNewsletterRecap } from '@/types/canonical_types';
+import { CanonicalType, CanonicalSearchResult, CanonicalEmail, CanonicalWebpage, CanonicalPubMedArticle, CanonicalNewsletter, CanonicalDailyNewsletterRecap } from '@/types/canonical_types';
 
 interface CanonicalTypeRendererProps {
     data: any;

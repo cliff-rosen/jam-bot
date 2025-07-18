@@ -74,7 +74,7 @@ export async function convertAssetMapToLegacyFormat(
 ): Promise<Record<string, Asset>> {
     const legacyFormat: Record<string, Asset> = {};
 
-    for (const [assetId, role] of Object.entries(assetMap)) {
+    for (const [assetId, _role] of Object.entries(assetMap)) {
         try {
             let asset: Asset;
             if (assetCache && assetCache.has(assetId)) {

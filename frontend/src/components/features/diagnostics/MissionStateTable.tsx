@@ -29,7 +29,7 @@ export const MissionStateTable: React.FC<MissionStateTableProps> = ({ missionSta
                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.schema_definition?.type || 'unknown'}</td>
                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.role || 'intermediate'}</td>
                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">
-                                <VariableRenderer value={asset.value} />
+                                <VariableRenderer value={asset.value_representation} />
                             </td>
                             <td className="py-1 px-2 text-gray-700 dark:text-gray-200">{asset.status}</td>
                         </tr>

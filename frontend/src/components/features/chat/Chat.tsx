@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChatMessage, MessageRole } from '@/types/chat';
+import { MessageRole } from '@/types/chat';
 import { useJamBot } from '@/context/JamBotContext';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessageItem } from './ChatMessage';

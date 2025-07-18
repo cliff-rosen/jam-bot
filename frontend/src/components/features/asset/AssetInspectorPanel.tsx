@@ -26,7 +26,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
             if (!latestAsset) return;
 
             // Only fetch details for database entity assets
-            if (latestAsset.schema_definition?.type === 'database_entity' && !latestAsset.value) {
+            if (latestAsset.schema_definition?.type === 'database_entity' && !latestAsset.value_representation) {
                 setLoading(true);
                 setError(null);
                 try {
@@ -134,13 +134,13 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                     </div>
                 )}
 
-                {displayAsset.value && (
+                {displayAsset.value_representation && (
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         {displayAsset.schema_definition.type === 'database_entity' ? (
                             <div className="space-y-4">
-                                {Array.isArray(displayAsset.value) ? (
+                                {Array.isArray(displayAsset.value_representation) ? (
                                     <div className="space-y-2">
-                                        {displayAsset.value.map((item: any, index: number) => (
+                                        {displayAsset.value_representation.map((item: any, index: number) => (
                                             <div key={index} className="p-3 bg-white dark:bg-gray-800 rounded border dark:border-gray-700">
                                                 <VariableRenderer
                                                     value={item}
@@ -151,14 +151,14 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
                                     </div>
                                 ) : (
                                     <VariableRenderer
-                                        value={displayAsset.value}
+                                        value={displayAsset.value_representation}
                                         schema={displayAsset.schema_definition}
                                     />
                                 )}
                             </div>
                         ) : (
                             <VariableRenderer
-                                value={displayAsset.value}
+                                value={displayAsset.value_representation}
                                 schema={displayAsset.schema_definition}
                             />
                         )}

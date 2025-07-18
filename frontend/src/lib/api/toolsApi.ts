@@ -38,7 +38,7 @@ export const toolsApi = {
         const hopState: Record<string, Asset> = {};
 
         // For each asset_id in the mapping, fetch the asset and add to hop_state
-        for (const [assetId, role] of Object.entries(assetMap)) {
+        for (const [assetId, _role] of Object.entries(assetMap)) {
             try {
                 const assetResponse = await api.get(`/api/assets/${assetId}`);
                 const asset = assetResponse.data;
@@ -91,7 +91,7 @@ export const toolsApi = {
      * Execute a tool step (streamlined - uses create + execute pattern)
      */
     executeTool: async (
-        toolId: string,
+        _toolId: string,
         step: ToolStep,
         assetMap: AssetMapSummary,
         missionId?: string

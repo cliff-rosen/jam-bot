@@ -141,7 +141,7 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
 
     const isProposedState = hop.status === HopStatus.HOP_PLAN_PROPOSED;
     const isReadyState = hop.status === HopStatus.HOP_PLAN_READY;
-    const isImplementationProposed = hop.status === HopStatus.HOP_IMPL_PROPOSED;
+    // const isImplementationProposed = hop.status === HopStatus.HOP_IMPL_PROPOSED;
     const isImplementationReady = hop.status === HopStatus.HOP_IMPL_READY;
     const isSubtleDisplay = isReadyState || isImplementationReady;
 

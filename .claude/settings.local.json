@@ -3,7 +3,8 @@
     "allow": [
       "Bash(jq:*)",
       "Bash(echo)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

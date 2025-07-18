@@ -12,6 +12,10 @@
   },
   "tools": [
     {
+      "category_comment": "=== DATA RETRIEVAL TOOLS ===",
+      "description": "Tools for fetching data from external sources"
+    },
+    {
       "id": "email_search",
       "name": "email_search",
       "description": "Search and retrieve emails from Gmail with filtering capabilities",
@@ -868,6 +872,10 @@
       }
     },
     {
+      "category_comment": "=== DATA PROCESSING TOOLS ===",
+      "description": "Tools for processing and transforming data"
+    },
+    {
       "id": "extract",
       "name": "extract",
       "description": "Extract specific information from items using extraction functions. Works with single items or lists. Note: For detailed information extraction from web content, use web_retrieve first to get full content - search results only contain snippets.",
@@ -1656,6 +1664,10 @@
           }
         ]
       }
+    },
+    {
+      "category_comment": "=== DATA ANALYSIS TOOLS ===",
+      "description": "Tools for analyzing and scoring data"
     },
     {
       "id": "group_reduce",

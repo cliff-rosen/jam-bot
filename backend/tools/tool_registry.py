@@ -36,7 +36,9 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
     
     tools = {}
     
+    print("================================================")
     for tool_data in tools_data.get("tools", []):
+        print(f"Parsing tool: {tool_data['id']}")
         try:
             # Parse parameters
             parameters = []

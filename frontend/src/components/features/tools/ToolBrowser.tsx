@@ -22,10 +22,10 @@ import {
     Download,
     Microscope,
     Lightbulb,
-    Document,
-    Chart,
+    FileText as Document,
+    BarChart3 as Chart,
     Star,
-    Funnel,
+    Filter as Funnel,
     Grid,
     List,
     Workflow,
@@ -507,277 +507,278 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                             </div>
                         </div>
 
-                    {/* Tool Details */}
-                    <div className="w-2/3 overflow-y-auto">
-                        {selectedTool ? (
-                            <div className="p-4">
-                                {/* Tool Header */}
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="text-blue-600 dark:text-blue-400">
-                                            {getCategoryIcon(selectedTool.category)}
+                        {/* Tool Details */}
+                        <div className="w-2/3 overflow-y-auto">
+                            {selectedTool ? (
+                                <div className="p-4">
+                                    {/* Tool Header */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="text-blue-600 dark:text-blue-400">
+                                                {getToolIcon(selectedTool)}
+                                            </div>
+                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                                {selectedTool.name}
+                                            </h3>
                                         </div>
-                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                                            {selectedTool.name}
-                                        </h3>
+                                        <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
+                                            {selectedTool.description}
+                                        </p>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            {selectedTool.functional_category && (
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                                    {selectedTool.functional_category.replace(/_/g, ' ')}
+                                                </span>
+                                            )}
+                                            {selectedTool.domain_category && (
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                                    {selectedTool.domain_category.replace(/_/g, ' ')}
+                                                </span>
+                                            )}
+                                            {selectedTool.ui_metadata?.difficulty && (
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                                    selectedTool.ui_metadata.difficulty === 'beginner' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                                    selectedTool.ui_metadata.difficulty === 'intermediate' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                                    'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                }`}>
+                                                    {selectedTool.ui_metadata.difficulty}
+                                                </span>
+                                            )}
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                ID: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{selectedTool.id}</code>
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Tags */}
+                                        {selectedTool.tags && selectedTool.tags.length > 0 && (
+                                            <div className="mt-3">
+                                                <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</h5>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {selectedTool.tags.map(tag => (
+                                                        <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Pipeline Information */}
+                                        {selectedTool.pipeline_info && (
+                                            <div className="mt-3">
+                                                <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pipeline Information</h5>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Pipeline:</span>
+                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                            {selectedTool.pipeline_info.pipeline_name.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Can start pipeline:</span>
+                                                        <span className={`text-sm font-medium ${
+                                                            selectedTool.pipeline_info.can_start_pipeline 
+                                                                ? 'text-green-600 dark:text-green-400' 
+                                                                : 'text-gray-600 dark:text-gray-400'
+                                                        }`}>
+                                                            {selectedTool.pipeline_info.can_start_pipeline ? 'Yes' : 'No'}
+                                                        </span>
+                                                    </div>
+                                                    {selectedTool.pipeline_info.typical_next_tools.length > 0 && (
+                                                        <div>
+                                                            <span className="text-sm text-gray-600 dark:text-gray-400">Typical next tools:</span>
+                                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                                {selectedTool.pipeline_info.typical_next_tools.map(toolId => (
+                                                                    <span key={toolId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                                                                        {toolId}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-                                        {selectedTool.description}
-                                    </p>
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        {selectedTool.functional_category && (
-                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                                                {selectedTool.functional_category.replace(/_/g, ' ')}
-                                            </span>
+
+                                    {/* Parameters */}
+                                    <div className="mb-6">
+                                        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                            <Info className="w-5 h-5" />
+                                            Parameters ({selectedTool.parameters.length})
+                                        </h4>
+                                        {selectedTool.parameters.length === 0 ? (
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">No parameters required</p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {selectedTool.parameters.map(param => (
+                                                    <div key={param.name} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                {param.name}
+                                                            </span>
+                                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${param.required
+                                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                                : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                                                }`}>
+                                                                {param.required ? 'Required' : 'Optional'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                                            {param.description}
+                                                        </p>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            <strong>Type:</strong>
+                                                            <div className="mt-1 ml-2">
+                                                                {param.schema_definition ? (
+                                                                    <SchemaRenderer
+                                                                        schema={param.schema_definition}
+                                                                        compact={false}
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-gray-500">unknown</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
-                                        {selectedTool.domain_category && (
-                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                                                {selectedTool.domain_category.replace(/_/g, ' ')}
-                                            </span>
-                                        )}
-                                        {selectedTool.ui_metadata?.difficulty && (
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                                selectedTool.ui_metadata.difficulty === 'beginner' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
-                                                selectedTool.ui_metadata.difficulty === 'intermediate' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
-                                                'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                            }`}>
-                                                {selectedTool.ui_metadata.difficulty}
-                                            </span>
-                                        )}
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                                            ID: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{selectedTool.id}</code>
-                                        </span>
                                     </div>
-                                    
-                                    {/* Tags */}
-                                    {selectedTool.tags && selectedTool.tags.length > 0 && (
-                                        <div className="mt-3">
-                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</h5>
-                                            <div className="flex flex-wrap gap-1">
-                                                {selectedTool.tags.map(tag => (
-                                                    <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                                        {tag}
-                                                    </span>
+
+                                    {/* Outputs */}
+                                    <div className="mb-6">
+                                        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                            <CheckCircle className="w-5 h-5" />
+                                            Outputs ({selectedTool.outputs.length})
+                                        </h4>
+                                        {selectedTool.outputs.length === 0 ? (
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">No outputs defined</p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {selectedTool.outputs.map(output => (
+                                                    <div key={output.name} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                {output.name}
+                                                            </span>
+                                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${output.required
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                                                }`}>
+                                                                {output.required ? 'Always returned' : 'Optional'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                                            {output.description}
+                                                        </p>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            <strong>Type:</strong>
+                                                            <div className="mt-1 ml-2">
+                                                                {output.schema_definition ? (
+                                                                    <SchemaRenderer
+                                                                        schema={output.schema_definition}
+                                                                        compact={false}
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-gray-500">unknown</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Resource Dependencies */}
+                                    {selectedTool.resource_dependencies.length > 0 && (
+                                        <div className="mb-6">
+                                            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                                <AlertCircle className="w-5 h-5" />
+                                                Resource Dependencies ({selectedTool.resource_dependencies.length})
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {selectedTool.resource_dependencies.map(resource => (
+                                                    <div key={resource.id} className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                {resource.name}
+                                                            </span>
+                                                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                                                                {resource.type}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                                            {resource.description}
+                                                        </p>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            <strong>ID:</strong> <code className="bg-orange-100 dark:bg-orange-900/30 px-1 py-0.5 rounded">{resource.id}</code>
+                                                        </div>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
-                                    
-                                    {/* Pipeline Information */}
-                                    {selectedTool.pipeline_info && (
-                                        <div className="mt-3">
-                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pipeline Information</h5>
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Pipeline:</span>
-                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                        {selectedTool.pipeline_info.pipeline_name.replace(/_/g, ' ')}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-gray-600 dark:text-gray-400">Can start pipeline:</span>
-                                                    <span className={`text-sm font-medium ${
-                                                        selectedTool.pipeline_info.can_start_pipeline 
-                                                            ? 'text-green-600 dark:text-green-400' 
-                                                            : 'text-gray-600 dark:text-gray-400'
-                                                    }`}>
-                                                        {selectedTool.pipeline_info.can_start_pipeline ? 'Yes' : 'No'}
-                                                    </span>
-                                                </div>
-                                                {selectedTool.pipeline_info.typical_next_tools.length > 0 && (
-                                                    <div>
-                                                        <span className="text-sm text-gray-600 dark:text-gray-400">Typical next tools:</span>
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {selectedTool.pipeline_info.typical_next_tools.map(toolId => (
-                                                                <span key={toolId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-                                                                    {toolId}
-                                                                </span>
-                                                            ))}
+
+                                    {/* Examples */}
+                                    {selectedTool.examples && selectedTool.examples.length > 0 && (
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                                <Code className="w-5 h-5" />
+                                                Examples ({selectedTool.examples.length})
+                                            </h4>
+                                            <div className="space-y-4">
+                                                {selectedTool.examples.map((example, index) => (
+                                                    <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                                        <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                                            {example.description}
+                                                        </h5>
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <h6 className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1">
+                                                                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                                                    Input
+                                                                </h6>
+                                                                <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 text-xs overflow-x-auto">
+                                                                    <VariableRenderer value={example.input} />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <h6 className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1">
+                                                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                                                    Output
+                                                                </h6>
+                                                                <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 text-xs overflow-x-auto">
+                                                                    <VariableRenderer value={example.output} />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Parameters */}
-                                <div className="mb-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                                        <Info className="w-5 h-5" />
-                                        Parameters ({selectedTool.parameters.length})
-                                    </h4>
-                                    {selectedTool.parameters.length === 0 ? (
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm">No parameters required</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {selectedTool.parameters.map(param => (
-                                                <div key={param.name} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                            {param.name}
-                                                        </span>
-                                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${param.required
-                                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                                            : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                                            }`}>
-                                                            {param.required ? 'Required' : 'Optional'}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                                        {param.description}
-                                                    </p>
-                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        <strong>Type:</strong>
-                                                        <div className="mt-1 ml-2">
-                                                            {param.schema_definition ? (
-                                                                <SchemaRenderer
-                                                                    schema={param.schema_definition}
-                                                                    compact={false}
-                                                                />
-                                                            ) : (
-                                                                <span className="text-gray-500">unknown</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-center">
+                                    <div className="max-w-md">
+                                        <div className="text-gray-400 dark:text-gray-500 mb-4">
+                                            <Code className="w-12 h-12 mx-auto mb-2 opacity-50" />
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Outputs */}
-                                <div className="mb-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                                        <CheckCircle className="w-5 h-5" />
-                                        Outputs ({selectedTool.outputs.length})
-                                    </h4>
-                                    {selectedTool.outputs.length === 0 ? (
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm">No outputs defined</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {selectedTool.outputs.map(output => (
-                                                <div key={output.name} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                            {output.name}
-                                                        </span>
-                                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${output.required
-                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                                            }`}>
-                                                            {output.required ? 'Always returned' : 'Optional'}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                                        {output.description}
-                                                    </p>
-                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        <strong>Type:</strong>
-                                                        <div className="mt-1 ml-2">
-                                                            {output.schema_definition ? (
-                                                                <SchemaRenderer
-                                                                    schema={output.schema_definition}
-                                                                    compact={false}
-                                                                />
-                                                            ) : (
-                                                                <span className="text-gray-500">unknown</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Resource Dependencies */}
-                                {selectedTool.resource_dependencies.length > 0 && (
-                                    <div className="mb-6">
-                                        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                                            <AlertCircle className="w-5 h-5" />
-                                            Resource Dependencies ({selectedTool.resource_dependencies.length})
-                                        </h4>
-                                        <div className="space-y-3">
-                                            {selectedTool.resource_dependencies.map(resource => (
-                                                <div key={resource.id} className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                            {resource.name}
-                                                        </span>
-                                                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                                                            {resource.type}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                                        {resource.description}
-                                                    </p>
-                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                        <strong>ID:</strong> <code className="bg-orange-100 dark:bg-orange-900/30 px-1 py-0.5 rounded">{resource.id}</code>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
+                                            Select a tool to view details
+                                        </p>
+                                        <p className="text-gray-400 dark:text-gray-500 text-sm">
+                                            Click on any tool from the list to see its parameters, outputs, and examples
+                                        </p>
                                     </div>
-                                )}
-
-                                {/* Examples */}
-                                {selectedTool.examples && selectedTool.examples.length > 0 && (
-                                    <div>
-                                        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                                            <Code className="w-5 h-5" />
-                                            Examples ({selectedTool.examples.length})
-                                        </h4>
-                                        <div className="space-y-4">
-                                            {selectedTool.examples.map((example, index) => (
-                                                <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                                    <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                                        {example.description}
-                                                    </h5>
-                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <h6 className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1">
-                                                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                                                Input
-                                                            </h6>
-                                                            <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 text-xs overflow-x-auto">
-                                                                <VariableRenderer value={example.input} />
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <h6 className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1">
-                                                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                                                Output
-                                                            </h6>
-                                                            <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 text-xs overflow-x-auto">
-                                                                <VariableRenderer value={example.output} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-center">
-                                <div className="max-w-md">
-                                    <div className="text-gray-400 dark:text-gray-500 mb-4">
-                                        <Code className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                    </div>
-                                    <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
-                                        Select a tool to view details
-                                    </p>
-                                    <p className="text-gray-400 dark:text-gray-500 text-sm">
-                                        Click on any tool from the list to see its parameters, outputs, and examples
-                                    </p>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
-}; 
+};

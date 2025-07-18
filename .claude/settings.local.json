@@ -4,7 +4,8 @@
       "Bash(jq:*)",
       "Bash(echo)",
       "Bash(python:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

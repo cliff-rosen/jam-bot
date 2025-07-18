@@ -106,6 +106,25 @@ class CanonicalDailyNewsletterRecap(BaseModel):
     statistics: Optional[Dict[str, Any]] = Field(default=None, description="Processing statistics")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional recap metadata")
 
+class CanonicalPubMedExtraction(BaseModel):
+    """
+    Canonical PubMed Extraction schema - the definitive structure for extracted features from articles.
+    """
+    item_id: str = Field(description="Unique identifier for the original article")
+    original_article: CanonicalPubMedArticle = Field(description="Original PubMed article")
+    extraction: Dict[str, Any] = Field(description="Extracted features/data fields")
+    extraction_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Extraction processing metadata")
+
+class CanonicalScoredArticle(BaseModel):
+    """
+    Canonical Scored Article schema - the definitive structure for scored PubMed articles.
+    """
+    article_with_features: CanonicalPubMedExtraction = Field(description="Article with extracted features")
+    total_score: float = Field(description="Total calculated score")
+    score_breakdown: Dict[str, float] = Field(description="Breakdown of score components")
+    percentile_rank: Optional[float] = Field(default=None, description="Percentile rank among all scored articles")
+    scoring_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Scoring methodology metadata")
+
 # --- Schema Type Definitions ---
 
 def _pydantic_field_to_schema_type(field_info, field_name: str) -> SchemaType:

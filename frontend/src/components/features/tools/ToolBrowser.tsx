@@ -54,7 +54,18 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                 setLoading(true);
                 setError(null);
                 const response = await toolsApi.getTools();
-                setTools(response.tools || []);
+                const tools = response.tools || [];
+                console.log('Tools API response:', response);
+                console.log('Number of tools:', tools.length);
+                if (tools.length > 0) {
+                    console.log('First tool sample:', {
+                        name: tools[0].name,
+                        functional_category: tools[0].functional_category,
+                        domain_category: tools[0].domain_category,
+                        tags: tools[0].tags
+                    });
+                }
+                setTools(tools);
             } catch (err) {
                 setError('Failed to fetch tools');
                 console.error('Error fetching tools:', err);
@@ -74,13 +85,18 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
             domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
         });
 
+        console.log('Domain categorization:', {
+            domainMap: Object.fromEntries(domainMap),
+            totalTools: tools.length
+        });
+
         return [
             { value: 'all', label: 'All Tools', count: tools.length, icon: 'grid' },
             { value: 'academic_research', label: 'Academic Research', count: domainMap.get('academic_research') || 0, icon: 'book' },
             { value: 'web_content', label: 'Web Content', count: domainMap.get('web_content') || 0, icon: 'globe' },
             { value: 'email_communication', label: 'Email & Communication', count: domainMap.get('email_communication') || 0, icon: 'mail' },
             { value: 'general_purpose', label: 'General Purpose', count: domainMap.get('general_purpose') || 0, icon: 'code' }
-        ];
+        ].filter(category => category.value === 'all' || category.count > 0);
     }, [tools]);
 
     // Get functional categories
@@ -110,24 +126,31 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
     const filteredTools = useMemo(() => {
         return tools.filter(tool => {
             // Domain filter
-            if (selectedDomain !== 'all' && (tool.domain_category || 'general_purpose') !== selectedDomain) {
+            const toolDomain = tool.domain_category || 'general_purpose';
+            if (selectedDomain !== 'all' && toolDomain !== selectedDomain) {
                 return false;
             }
             
             // Functional filters
-            if (functionalFilters.length > 0 && !functionalFilters.includes(tool.functional_category || '')) {
-                return false;
+            if (functionalFilters.length > 0) {
+                const toolFunctional = tool.functional_category;
+                if (!toolFunctional || !functionalFilters.includes(toolFunctional)) {
+                    return false;
+                }
             }
             
             // Search query
             if (searchTerm) {
                 const searchLower = searchTerm.toLowerCase();
-                return (
+                const matches = (
                     tool.name.toLowerCase().includes(searchLower) ||
                     tool.description.toLowerCase().includes(searchLower) ||
                     tool.id.toLowerCase().includes(searchLower) ||
                     (tool.tags && tool.tags.some(tag => tag.toLowerCase().includes(searchLower)))
                 );
+                if (!matches) {
+                    return false;
+                }
             }
             
             return true;

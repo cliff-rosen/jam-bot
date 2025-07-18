@@ -58,6 +58,11 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     category: str
+    functional_category: Optional[str] = Field(default=None, description="Functional category (e.g., 'search_retrieve', 'extract_analyze')")
+    domain_category: Optional[str] = Field(default=None, description="Domain category (e.g., 'academic_research', 'web_content')")
+    tags: Optional[List[str]] = Field(default=None, description="Tags for the tool")
+    pipeline_info: Optional[Dict[str, Any]] = Field(default=None, description="Pipeline information")
+    ui_metadata: Optional[Dict[str, Any]] = Field(default=None, description="UI metadata")
     parameters: List[ToolParameter]
     outputs: List[ToolOutput]
     resource_dependencies: List[Resource] = Field(default_factory=list)

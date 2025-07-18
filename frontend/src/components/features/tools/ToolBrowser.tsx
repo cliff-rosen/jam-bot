@@ -446,9 +446,103 @@ export const ToolBrowser: React.FC<ToolBrowserProps> = ({ className = '', onSele
                             ))}
                         </div>
                     </div>
+                ) : view === 'list' ? (
+                    <div className="h-full overflow-y-auto">
+                        {/* List View - Full Width Compact List */}
+                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {filteredTools.length === 0 ? (
+                                <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+                                    <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                    <p className="text-lg mb-2">No tools found matching your criteria</p>
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => setSearchTerm('')}
+                                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                                        >
+                                            Clear search
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                filteredTools.map(tool => (
+                                    <div
+                                        key={tool.id}
+                                        className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all duration-200 ${
+                                            selectedTool?.id === tool.id
+                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500'
+                                                : 'border-l-4 border-transparent'
+                                        }`}
+                                        onClick={() => handleSelectTool(tool)}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={`mt-1 transition-colors ${selectedTool?.id === tool.id
+                                                ? 'text-blue-600 dark:text-blue-400'
+                                                : 'text-gray-400 dark:text-gray-500'
+                                                }`}>
+                                                {getToolIcon(tool)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <h3 className={`text-base font-medium ${selectedTool?.id === tool.id
+                                                            ? 'text-blue-900 dark:text-blue-100'
+                                                            : 'text-gray-900 dark:text-gray-100'
+                                                            }`}>
+                                                            {tool.name}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                                            {tool.description}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                                                        {tool.ui_metadata?.difficulty && (
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                                tool.ui_metadata.difficulty === 'beginner' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                                                tool.ui_metadata.difficulty === 'intermediate' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                                                'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                            }`}>
+                                                                {tool.ui_metadata.difficulty}
+                                                            </span>
+                                                        )}
+                                                        {tool.pipeline_info?.can_start_pipeline && (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                                                                Pipeline Start
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                                    {tool.functional_category && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                                            {tool.functional_category.replace(/_/g, ' ')}
+                                                        </span>
+                                                    )}
+                                                    {tool.domain_category && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                                            {tool.domain_category.replace(/_/g, ' ')}
+                                                        </span>
+                                                    )}
+                                                    {tool.tags && tool.tags.slice(0, 4).map(tag => (
+                                                        <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                    {tool.tags && tool.tags.length > 4 && (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                            +{tool.tags.length - 4} more
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex h-full">
-                        {/* Tool List */}
+                        {/* Grid View - Tool List */}
                         <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
                             <div className="p-2">
                                 {filteredTools.length === 0 ? (

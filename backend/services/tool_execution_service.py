@@ -19,6 +19,39 @@ from schemas.tool_execution import ToolExecutionResponse
 from tools.tool_registry import get_tool_definition
 from tools.tool_stubbing import ToolStubbing
 
+"""
+Tool Execution Service - Orchestrates tool step execution with proper service delegation.
+
+Internal Call Tree (execute_tool_step is the root):
+
+execute_tool_step(tool_step_id, user_id)
+├── ToolStepService.get_tool_step(tool_step_id, user_id)
+├── ToolStepService.update_tool_step_status(EXECUTING)
+├── _resolve_asset_context(hop_id, user_id)
+│   ├── AssetMappingService.get_hop_assets(hop_id)
+│   └── AssetService.get_assets_by_ids(asset_ids, user_id)
+├── _execute_tool(step, asset_context, user_id)
+│   ├── get_tool_definition(tool_id)
+│   ├── _map_parameters(step, asset_context)
+│   ├── ToolStubbing.should_stub_tool(tool_def)
+│   ├── tool_def.execution_handler.handler(execution_input)  [OR stub]
+│   ├── _process_tool_results(result)
+│   └── _persist_updated_assets(step, asset_context, response, user_id)
+│       └── _update_asset_with_output(asset, value, user_id, hop_id)
+│           ├── AssetService.create_asset() [if PROPOSED]
+│           └── AssetService.update_asset() [if existing]
+├── StateTransitionService.updateState(COMPLETE_TOOL_STEP)
+└── [Error handling: ToolStepService.update_tool_step_status(FAILED)]
+
+Service Dependencies:
+- ToolStepService: Tool step database operations
+- AssetMappingService: Hop-asset relationship queries  
+- AssetService: Asset CRUD operations
+- StateTransitionService: Workflow state management
+- Tool Registry: Tool definition lookup
+- Tool Handlers: Actual tool execution
+"""
+
 # Type aliases for better readability
 AssetContext = Dict[str, Asset]
 

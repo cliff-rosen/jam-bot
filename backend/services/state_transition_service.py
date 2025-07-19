@@ -596,10 +596,11 @@ class StateTransitionService:
         )
     
     async def _complete_tool_step(self, data: Dict[str, Any]) -> TransactionResult:
-        """Handle tool step completion: Simulate successful tool execution for testing"""
+        """Handle tool step completion with real tool execution results"""
         tool_step_id = data['tool_step_id']
         user_id = data['user_id']
-        simulated_output = data.get('simulated_output', {})
+        execution_result = data.get('execution_result', {})
+        tool_execution_id = data.get('tool_execution_id')  # Optional execution record reference
         
         # Get tool step
         tool_step_model = self.db.query(ToolStepModel).filter(
@@ -617,10 +618,11 @@ class StateTransitionService:
                 f"Tool step {tool_step_id} must be in {[s.value for s in valid_statuses]}, current: {tool_step_model.status.value}"
             )
         
-        # Generate simulated execution result
-        execution_result = await self._generate_simulated_execution_result(tool_step_model, simulated_output)
+        # Use provided execution result or generate simulated one for testing
+        if not execution_result:
+            execution_result = await self._generate_simulated_execution_result(tool_step_model, data.get('simulated_output', {}))
         
-        # Update tool step status
+        # Update tool step status with real execution results
         tool_step_model.status = ToolExecutionStatus.COMPLETED
         tool_step_model.execution_result = execution_result
         tool_step_model.completed_at = datetime.utcnow()
@@ -629,12 +631,32 @@ class StateTransitionService:
         if not tool_step_model.started_at:
             tool_step_model.started_at = datetime.utcnow()
         
-        # Create output assets based on result_mapping
+        # Create output assets based on result_mapping and real tool outputs
         assets_created = await self._create_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
         
         # Check if all tool steps in the hop are completed
         hop_model = self.db.query(HopModel).filter(HopModel.id == tool_step_model.hop_id).first()
         hop_progress = await self._check_hop_progress(tool_step_model.hop_id, user_id)
+        
+        # Check if hop should be marked as completed
+        hop_completed = False
+        mission_completed = False
+        
+        if hop_progress['all_completed']:
+            # Mark hop as completed
+            hop_model.status = HopStatus.COMPLETED
+            hop_model.updated_at = datetime.utcnow()
+            hop_completed = True
+            
+            # Check if mission should be marked as completed
+            mission_model = self.db.query(MissionModel).filter(MissionModel.id == hop_model.mission_id).first()
+            if mission_model:
+                # Check if all hops in mission are completed
+                all_hops = self.db.query(HopModel).filter(HopModel.mission_id == mission_model.id).all()
+                if all(hop.status == HopStatus.COMPLETED for hop in all_hops):
+                    mission_model.status = MissionStatus.COMPLETED
+                    mission_model.updated_at = datetime.utcnow()
+                    mission_completed = True
         
         self.db.commit()
         
@@ -642,12 +664,16 @@ class StateTransitionService:
             success=True,
             entity_id=tool_step_id,
             status="COMPLETED",
-            message="Tool step completed successfully (simulated)",
+            message="Tool step completed successfully",
             metadata={
                 "tool_step_id": tool_step_id,
+                "tool_execution_id": tool_execution_id,
                 "hop_id": tool_step_model.hop_id,
+                "mission_id": hop_model.mission_id if hop_model else None,
                 "assets_created": assets_created,
                 "hop_progress": hop_progress,
+                "hop_completed": hop_completed,
+                "mission_completed": mission_completed,
                 "execution_result": execution_result
             }
         )

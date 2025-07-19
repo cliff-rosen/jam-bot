@@ -5,7 +5,8 @@
       "Bash(echo)",
       "Bash(python:*)",
       "Bash(cp:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

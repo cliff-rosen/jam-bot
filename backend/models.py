@@ -303,6 +303,47 @@ class ToolStep(Base):
     hop = relationship("Hop", back_populates="tool_steps")
     user = relationship("User")
 
+class ToolExecution(Base):
+    """Separate execution records from tool step definitions"""
+    __tablename__ = "tool_executions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    tool_step_id = Column(String(36), ForeignKey("tool_steps.id"), nullable=True)  # Optional link to tool step
+    tool_id = Column(String(255), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    
+    # Execution context
+    hop_id = Column(String(36), ForeignKey("hops.id"), nullable=True)  # Optional hop context
+    mission_id = Column(String(36), ForeignKey("missions.id"), nullable=True)  # Optional mission context
+    
+    # Execution details
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(Enum(ToolExecutionStatus), nullable=False, default=ToolExecutionStatus.PROPOSED)
+    
+    # Input/Output data
+    input_parameters = Column(JSON, nullable=True)  # Tool input parameters
+    input_assets = Column(JSON, nullable=True)  # Asset references used as input
+    output_results = Column(JSON, nullable=True)  # Tool execution results
+    output_assets = Column(JSON, nullable=True)  # Asset references created as output
+    
+    # Execution metadata
+    execution_config = Column(JSON, nullable=True)  # Tool-specific execution configuration
+    error_details = Column(JSON, nullable=True)  # Detailed error information
+    error_message = Column(Text, nullable=True)  # Human-readable error message
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    tool_step = relationship("ToolStep", foreign_keys=[tool_step_id])
+    hop = relationship("Hop", foreign_keys=[hop_id])
+    mission = relationship("Mission", foreign_keys=[mission_id])
+    user = relationship("User")
+
 class Chat(Base):
     __tablename__ = "chats"
     

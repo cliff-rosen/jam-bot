@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 import json
 import logging
 from database import get_db
@@ -20,6 +21,27 @@ from services.auth_service import validate_token
 from tools import *
 
 logger = logging.getLogger(__name__)
+
+# Request/Response models for clean execution flow
+class CreateExecutionRequest(BaseModel):
+    tool_id: str
+    name: str
+    description: Optional[str] = None
+    tool_step_id: Optional[str] = None
+    hop_id: Optional[str] = None
+    mission_id: Optional[str] = None
+    input_parameters: Optional[Dict[str, Any]] = None
+    input_assets: Optional[Dict[str, str]] = None
+    execution_config: Optional[Dict[str, Any]] = None
+
+class ExecutionResponse(BaseModel):
+    execution_id: str
+    tool_id: str
+    status: str
+    created_at: str
+    
+class ExecuteRequest(BaseModel):
+    asset_context: Optional[Dict[str, Any]] = None
 
 router = APIRouter(
     prefix="/tools",
@@ -115,3 +137,117 @@ async def get_tool(tool_id: str):
             detail=f"Tool with id '{tool_id}' not found"
         )
     return tool_def
+
+
+# ===== New Clean Execution Flow Endpoints =====
+
+@router.post("/execution/create", response_model=ExecutionResponse)
+async def create_tool_execution(
+    request: CreateExecutionRequest,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new tool execution record.
+    
+    This is the first step in the clean execution flow:
+    jmbotctx.executeToolStep(id) -> toolsapi.executeToolStep(id) -> toolrouter.execute -> toolexecserv.execute
+    """
+    try:
+        service = ToolExecutionService(db)
+        execution = await service.create_execution(
+            tool_id=request.tool_id,
+            user_id=user.user_id,
+            name=request.name,
+            description=request.description,
+            tool_step_id=request.tool_step_id,
+            hop_id=request.hop_id,
+            mission_id=request.mission_id,
+            input_parameters=request.input_parameters,
+            input_assets=request.input_assets,
+            execution_config=request.execution_config
+        )
+        
+        return ExecutionResponse(
+            execution_id=execution.id,
+            tool_id=execution.tool_id,
+            status=execution.status.value,
+            created_at=execution.created_at.isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating tool execution: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating tool execution: {str(e)}"
+        )
+
+@router.post("/execution/{execution_id}/execute")
+async def execute_tool_execution(
+    execution_id: str,
+    request: ExecuteRequest,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Execute a tool execution record.
+    
+    This implements the clean execution flow:
+    toolrouter.execute -> toolexecserv.execute
+    """
+    try:
+        service = ToolExecutionService(db)
+        result = await service.execute(
+            execution_id=execution_id,
+            user_id=user.user_id,
+            asset_context=request.asset_context
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error executing tool execution {execution_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error executing tool: {str(e)}"
+        )
+
+@router.get("/execution/{execution_id}")
+async def get_tool_execution(
+    execution_id: str,
+    user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get tool execution status and results.
+    """
+    try:
+        service = ToolExecutionService(db)
+        execution = await service.get_execution(execution_id, user.user_id)
+        
+        if not execution:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tool execution {execution_id} not found"
+            )
+        
+        return {
+            "execution_id": execution.id,
+            "tool_id": execution.tool_id,
+            "status": execution.status.value,
+            "input_parameters": execution.input_parameters,
+            "output_results": execution.output_results,
+            "error_message": execution.error_message,
+            "created_at": execution.created_at.isoformat(),
+            "started_at": execution.started_at.isoformat() if execution.started_at else None,
+            "completed_at": execution.completed_at.isoformat() if execution.completed_at else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting tool execution {execution_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting tool execution: {str(e)}"
+        )

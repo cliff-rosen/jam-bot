@@ -60,13 +60,34 @@ export const toolsApi = {
         assetMap: AssetMapSummary,
         missionId?: string
     ): Promise<{ execution_id: string }> => {
-        // Convert asset mapping to hop_state format
+        // Convert asset mapping to hop_state format for asset context
         const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
 
+        // Build parameters from step mapping
+        const inputParameters: Record<string, any> = {};
+        for (const [paramName, mapping] of Object.entries(toolStep.parameter_mapping)) {
+            if (mapping.type === "literal") {
+                inputParameters[paramName] = mapping.value;
+            } else if (mapping.type === "asset_field") {
+                // Reference the asset for resolution during execution
+                inputParameters[paramName] = `asset:${mapping.state_asset}`;
+            }
+        }
+
         const response = await api.post<{ execution_id: string }>('/api/tools/execution/create', {
-            tool_step: toolStep,
-            hop_state: hopState,
-            mission_id: missionId
+            tool_id: toolStep.tool_id,
+            name: toolStep.name,
+            description: toolStep.description,
+            tool_step_id: toolStep.id,
+            hop_id: toolStep.hop_id,
+            mission_id: missionId,
+            input_parameters: inputParameters,
+            input_assets: Object.fromEntries(
+                Object.entries(toolStep.parameter_mapping)
+                    .filter(([_, mapping]) => mapping.type === "asset_field")
+                    .map(([paramName, mapping]) => [paramName, (mapping as any).state_asset])
+            ),
+            execution_config: toolStep.resource_configs
         });
         return response.data;
     },
@@ -74,8 +95,13 @@ export const toolsApi = {
     /**
      * Execute a tool by execution ID (new streamlined approach)
      */
-    executeToolById: async (executionId: string): Promise<ToolExecutionResponse> => {
-        const response = await api.post<ToolExecutionResponse>(`/api/tools/execution/${executionId}/execute`);
+    executeToolById: async (executionId: string, assetMap: AssetMapSummary): Promise<ToolExecutionResponse> => {
+        // Convert asset mapping to hop_state format for asset context
+        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
+        
+        const response = await api.post<ToolExecutionResponse>(`/api/tools/execution/${executionId}/execute`, {
+            asset_context: hopState
+        });
         return response.data;
     },
 
@@ -88,7 +114,23 @@ export const toolsApi = {
     },
 
     /**
-     * Execute a tool step (streamlined - uses create + execute pattern)
+     * Execute a tool step (new clean architecture - single backend call)
+     */
+    executeToolStep: async (
+        stepId: string,
+        assetMap: AssetMapSummary
+    ): Promise<ToolExecutionResponse> => {
+        // Convert asset mapping to hop_state format for asset context
+        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
+
+        const response = await api.post<ToolExecutionResponse>(`/api/tools/step/${stepId}/execute`, {
+            asset_context: hopState
+        });
+        return response.data;
+    },
+
+    /**
+     * Execute a tool step (legacy - uses create + execute pattern)
      */
     executeTool: async (
         _toolId: string,
@@ -96,11 +138,17 @@ export const toolsApi = {
         assetMap: AssetMapSummary,
         missionId?: string
     ): Promise<ToolExecutionResponse> => {
+        // Use new clean architecture if step ID is available
+        if (step.id) {
+            return await toolsApi.executeToolStep(step.id, assetMap);
+        }
+
+        // Fallback to old pattern for backwards compatibility
         // Create tool execution record
         const createResponse = await toolsApi.createToolExecution(step, assetMap, missionId);
 
-        // Execute the tool
-        const result = await toolsApi.executeToolById(createResponse.execution_id);
+        // Execute the tool with asset context
+        const result = await toolsApi.executeToolById(createResponse.execution_id, assetMap);
 
         return result;
     },

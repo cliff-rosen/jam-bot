@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from datetime import datetime
@@ -72,14 +72,14 @@ class ToolStepService:
         
         return self._model_to_schema(tool_step_model)
 
-    async def get_tool_step(self, tool_step_id: str, user_id: int) -> Optional[ToolStep]:
+    async def get_tool_step(self, tool_step_id: str, user_id: int) -> ToolStep:
         """Get a tool step by ID"""
         tool_step_model = self.db.query(ToolStepModel).filter(
             and_(ToolStepModel.id == tool_step_id, ToolStepModel.user_id == user_id)
         ).first()
         
         if not tool_step_model:
-            return None
+            raise ValueError(f"Tool step {tool_step_id} not found for user {user_id}")
         
         return self._model_to_schema(tool_step_model)
 

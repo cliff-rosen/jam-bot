@@ -81,9 +81,6 @@ class ToolExecutionService:
             # 1. Get tool step from database
             tool_step_schema = await self.tool_step_service.get_tool_step(tool_step_id, user_id)
             
-            if not tool_step_schema:
-                raise Exception(f"Tool step {tool_step_id} not found")
-            
             # 2. Mark tool step as executing
             await self.tool_step_service.update_tool_step_status(
                 tool_step_id, 

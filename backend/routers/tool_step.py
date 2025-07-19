@@ -42,11 +42,9 @@ async def get_tool_step(
     try:
         tool_step_service = ToolStepService(db)
         tool_step = await tool_step_service.get_tool_step(tool_step_id, current_user.user_id)
-        if not tool_step:
-            raise HTTPException(status_code=404, detail="Tool step not found")
         return tool_step
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

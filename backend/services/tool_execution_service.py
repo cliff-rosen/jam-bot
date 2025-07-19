@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
 
 from services.asset_service import AssetService
+from services.asset_mapping_service import AssetMappingService
 from services.tool_step_service import ToolStepService
 from services.state_transition_service import StateTransitionService, TransactionType
 
@@ -20,6 +21,7 @@ class ToolExecutionService:
     def __init__(self, db: Session):
         self.db = db
         self.asset_service = AssetService(db)
+        self.asset_mapping_service = AssetMappingService(db)
         self.tool_step_service = ToolStepService(db)
         self.state_transition_service = StateTransitionService(db)
 
@@ -98,15 +100,20 @@ class ToolExecutionService:
             raise Exception(f"Tool step execution failed: {str(e)}")
 
     async def _resolve_asset_context(self, hop_id: str, user_id: int) -> Dict[str, Any]:
-        """Resolve asset context from hop scope."""
+        """Resolve asset context - get all assets mapped to the hop regardless of scope."""
         asset_context = {}
         
-        # Get all assets for this hop
-        hop_assets = self.asset_service.get_assets_by_scope("hop", hop_id, user_id)
+        # Get all asset IDs mapped to this hop (regardless of their scope)
+        hop_asset_mappings = self.asset_mapping_service.get_hop_assets(hop_id)
         
-        for asset in hop_assets:
-            asset_context[asset.id] = asset
+        # Load the actual asset objects
+        if hop_asset_mappings:
+            asset_ids = list(hop_asset_mappings.keys())
+            assets = self.asset_service.get_assets_by_ids(asset_ids, user_id)
             
+            for asset in assets:
+                asset_context[asset.id] = asset
+        
         return asset_context
 
     async def _execute_tool(

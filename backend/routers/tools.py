@@ -28,7 +28,6 @@ router = APIRouter(
 )
 
 
-
 @router.get("/available", response_model=Dict[str, List[ToolDefinition]])
 async def get_available_tools(
     user = Depends(validate_token)
@@ -43,6 +42,7 @@ async def get_available_tools(
         List of tool definitions (no conversion needed since we use same schema)
     """
     return {"tools": list(TOOL_REGISTRY.values())}
+
 
 @router.get("/{tool_id}", response_model=ToolDefinition)
 async def get_tool(tool_id: str):

@@ -13,6 +13,7 @@ from schemas.workflow import ToolStep as ToolStepSchema
 from schemas.asset import Asset
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
 from schemas.tool import ToolDefinition, ToolParameter
+from schemas.resource import ResourceConfig
 from schemas.tool_execution import ToolExecutionResponse
 
 from tools.tool_registry import get_tool_definition
@@ -167,10 +168,10 @@ class ToolExecutionService:
             raise Exception(f"Tool {step.tool_id} not found in registry")
         
         # Build tool inputs from parameter mappings
-        params: Dict[str, Any] = self._map_parameters(step, asset_context)
+        params: Dict[str, ToolParameter] = self._map_parameters(step, asset_context)
         
         # Convert Resource objects to dictionaries
-        resource_configs: Dict[str, Any] = {}
+        resource_configs: Dict[str, ResourceConfig] = {}
         if step.resource_configs:
             resource_configs = {
                 resource_id: resource.model_dump() if hasattr(resource, 'model_dump') else resource
@@ -186,20 +187,23 @@ class ToolExecutionService:
         
         try:
             # Check if we should stub this tool execution
-            if ToolStubbing.should_stub_tool(tool_def):
-                print(f"Stubbing tool {step.tool_id}")
-                result = await ToolStubbing.get_stub_response(tool_def, execution_input)
-            else:
+            if not ToolStubbing.should_stub_tool(tool_def):
                 # Execute the actual tool
                 print(f"Executing tool {step.tool_id}")
-                result = await tool_def.execution_handler.handler(execution_input)
+                result: ToolExecutionResult = await tool_def.execution_handler.handler(execution_input)
+            else:
+                print(f"Stubbing tool {step.tool_id}")
+                result = await ToolStubbing.get_stub_response(tool_def, execution_input)
             
             print("Tool execution completed")
-
-            # Process results with canonical type handling
-            execution_response = self._process_tool_results(result)
-                
-            return execution_response
+               
+            return ToolExecutionResponse(
+                success=True,
+                errors=[],
+                outputs=result.outputs,
+                canonical_outputs=result.outputs,  # Assuming outputs are already canonical
+                metadata=result.metadata
+            )
                 
         except Exception as e:
             print(f"Error executing tool: {e}")
@@ -236,36 +240,6 @@ class ToolExecutionService:
         
         return params
 
-    def _process_tool_results(self, result: Union[ToolExecutionResult, Dict[str, Any], Any]) -> ToolExecutionResponse:
-        """Process tool results with canonical type handling."""
-        # Handle different result types while preserving canonical types
-        if isinstance(result, ToolExecutionResult):
-            # New typed result format
-            return ToolExecutionResponse(
-                success=True,
-                errors=[],
-                outputs=result.outputs,
-                canonical_outputs=result.outputs,  # Assuming outputs are already canonical
-                metadata=result.metadata
-            )
-        elif isinstance(result, dict) and "outputs" in result:
-            # Legacy result format - handle gracefully
-            return ToolExecutionResponse(
-                success=True,
-                errors=[],
-                outputs=result["outputs"],
-                canonical_outputs=result.get("canonical_outputs"),
-                metadata=result.get("metadata")
-            )
-        else:
-            # Direct result format - treat as outputs
-            return ToolExecutionResponse(
-                success=True,
-                errors=[],
-                outputs=result if isinstance(result, dict) else {"result": result},
-                canonical_outputs=None,
-                metadata=None
-            )
 
 
  

@@ -58,6 +58,10 @@ class Resource(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+class ResourceConfig(BaseModel):
+    """Configuration for a resource"""
+    resource_id: str
+    config: Dict[str, Any]
 
 # --- Resource Validation Utilities ---
 

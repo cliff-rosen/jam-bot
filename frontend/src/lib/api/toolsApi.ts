@@ -1,6 +1,4 @@
 import { api } from '@/lib/api';
-import { ToolStep } from '@/types/workflow';
-import { Asset, AssetMapSummary } from '@/types/asset';
 
 export interface ToolExecutionResponse {
     success: boolean;
@@ -8,18 +6,6 @@ export interface ToolExecutionResponse {
     outputs: Record<string, any>;  // Maps output parameter names to their values (serialized)
     canonical_outputs?: Record<string, any>;  // Maps output parameter names to their canonical typed values
     metadata?: Record<string, any>;  // Additional metadata about the execution
-}
-
-export interface ToolExecutionStatus {
-    id: string;
-    tool_id: string;
-    step_id: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    error_message?: string;
-    execution_result?: ToolExecutionResponse;
-    created_at: string;
-    started_at?: string;
-    completed_at?: string;
 }
 
 export const toolsApi = {
@@ -32,142 +18,10 @@ export const toolsApi = {
     },
 
     /**
-     * Convert asset mapping to hop_state format expected by backend
+     * Execute a tool step - just pass the tool step ID
      */
-    convertAssetMapToHopState: async (assetMap: AssetMapSummary): Promise<Record<string, Asset>> => {
-        const hopState: Record<string, Asset> = {};
-
-        // For each asset_id in the mapping, fetch the asset and add to hop_state
-        for (const [assetId, _role] of Object.entries(assetMap)) {
-            try {
-                const assetResponse = await api.get(`/api/assets/${assetId}`);
-                const asset = assetResponse.data;
-                // Use asset name as the key (backend expects hop_state by name)
-                hopState[asset.name] = asset;
-            } catch (error) {
-                console.warn(`Failed to fetch asset ${assetId} for hop state:`, error);
-            }
-        }
-
-        return hopState;
-    },
-
-    /**
-     * Create a tool execution record (new streamlined approach)
-     */
-    createToolExecution: async (
-        toolStep: ToolStep,
-        assetMap: AssetMapSummary,
-        missionId?: string
-    ): Promise<{ execution_id: string }> => {
-        // Convert asset mapping to hop_state format for asset context
-        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
-
-        // Build parameters from step mapping
-        const inputParameters: Record<string, any> = {};
-        for (const [paramName, mapping] of Object.entries(toolStep.parameter_mapping)) {
-            if (mapping.type === "literal") {
-                inputParameters[paramName] = mapping.value;
-            } else if (mapping.type === "asset_field") {
-                // Reference the asset for resolution during execution
-                inputParameters[paramName] = `asset:${mapping.state_asset}`;
-            }
-        }
-
-        const response = await api.post<{ execution_id: string }>('/api/tools/execution/create', {
-            tool_id: toolStep.tool_id,
-            name: toolStep.name,
-            description: toolStep.description,
-            tool_step_id: toolStep.id,
-            hop_id: toolStep.hop_id,
-            mission_id: missionId,
-            input_parameters: inputParameters,
-            input_assets: Object.fromEntries(
-                Object.entries(toolStep.parameter_mapping)
-                    .filter(([_, mapping]) => mapping.type === "asset_field")
-                    .map(([paramName, mapping]) => [paramName, (mapping as any).state_asset])
-            ),
-            execution_config: toolStep.resource_configs
-        });
-        return response.data;
-    },
-
-    /**
-     * Execute a tool by execution ID (new streamlined approach)
-     */
-    executeToolById: async (executionId: string, assetMap: AssetMapSummary): Promise<ToolExecutionResponse> => {
-        // Convert asset mapping to hop_state format for asset context
-        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
-        
-        const response = await api.post<ToolExecutionResponse>(`/api/tools/execution/${executionId}/execute`, {
-            asset_context: hopState
-        });
-        return response.data;
-    },
-
-    /**
-     * Get tool execution status and results
-     */
-    getToolExecutionStatus: async (executionId: string): Promise<ToolExecutionStatus> => {
-        const response = await api.get<ToolExecutionStatus>(`/api/tools/execution/${executionId}`);
-        return response.data;
-    },
-
-    /**
-     * Execute a tool step (new clean architecture - single backend call)
-     */
-    executeToolStep: async (
-        stepId: string,
-        assetMap: AssetMapSummary
-    ): Promise<ToolExecutionResponse> => {
-        // Convert asset mapping to hop_state format for asset context
-        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
-
-        const response = await api.post<ToolExecutionResponse>(`/api/tools/step/${stepId}/execute`, {
-            asset_context: hopState
-        });
-        return response.data;
-    },
-
-    /**
-     * Execute a tool step (legacy - uses create + execute pattern)
-     */
-    executeTool: async (
-        _toolId: string,
-        step: ToolStep,
-        assetMap: AssetMapSummary,
-        missionId?: string
-    ): Promise<ToolExecutionResponse> => {
-        // Use new clean architecture if step ID is available
-        if (step.id) {
-            return await toolsApi.executeToolStep(step.id, assetMap);
-        }
-
-        // Fallback to old pattern for backwards compatibility
-        // Create tool execution record
-        const createResponse = await toolsApi.createToolExecution(step, assetMap, missionId);
-
-        // Execute the tool with asset context
-        const result = await toolsApi.executeToolById(createResponse.execution_id, assetMap);
-
-        return result;
-    },
-
-    /**
-     * Execute a tool step (legacy - direct execution)
-     */
-    executeToolLegacy: async (
-        toolId: string,
-        step: ToolStep,
-        assetMap: AssetMapSummary
-    ): Promise<ToolExecutionResponse> => {
-        // Convert asset mapping to hop_state format
-        const hopState = await toolsApi.convertAssetMapToHopState(assetMap);
-
-        const response = await api.post<ToolExecutionResponse>(`/api/tools/execute/${toolId}`, {
-            step,
-            hop_state: hopState
-        });
+    executeTool: async (toolStepId: string): Promise<ToolExecutionResponse> => {
+        const response = await api.post<ToolExecutionResponse>(`/api/tools/step/${toolStepId}/execute`);
         return response.data;
     }
-}; 
+};

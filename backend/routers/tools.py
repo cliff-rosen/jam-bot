@@ -69,6 +69,8 @@ async def execute_tool_step(
     """
     try:
         service = ToolExecutionService(db)
+        print("================================================")
+        print(f"Executing tool step {tool_step_id}")
         result = await service.execute_tool_step(
             tool_step_id=tool_step_id,
             user_id=user.user_id

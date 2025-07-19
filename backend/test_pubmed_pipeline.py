@@ -16,10 +16,14 @@ from tools.handlers.pubmed_handlers import (
     handle_pubmed_filter_rank
 )
 from schemas.tool_handler_schema import ToolExecutionInput
+from tools.tool_stubbing import disable_stubbing
 
 
 async def test_pubmed_pipeline():
     """Test the complete PubMed research pipeline."""
+    
+    # Disable tool stubbing for this test
+    disable_stubbing()
     
     print("=" * 60)
     print("TESTING PUBMED RESEARCH PIPELINE")

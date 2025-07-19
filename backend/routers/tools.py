@@ -9,12 +9,6 @@ from database import get_db
 from schemas.asset import Asset
 from schemas.workflow import ToolStep
 from schemas.tool import ToolDefinition
-from schemas.tool_execution import (
-    CreateToolExecutionRequest, 
-    CreateToolExecutionResponse,
-    ToolExecutionResponse,
-    ToolExecutionStatusResponse
-)
 from tools.tool_execution import ToolExecutionError, execute_tool_step
 from tools.tool_registry import get_tool_definition, TOOL_REGISTRY
 from services.tool_execution_service import ToolExecutionService
@@ -33,169 +27,6 @@ router = APIRouter(
     dependencies=[Depends(validate_token)]
 )
 
-@router.post("/execution/create", response_model=CreateToolExecutionResponse)
-async def create_tool_execution(
-    request: CreateToolExecutionRequest,
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Create a new tool execution record and return execution ID
-    
-    Args:
-        request: Tool execution creation request
-        user: Authenticated user
-        db: Database session
-        
-    Returns:
-        CreateToolExecutionResponse containing execution_id
-    """
-    try:
-        tool_execution_service = ToolExecutionService(db)
-        
-        # Convert request data to proper types
-        tool_step = ToolStep.model_validate(request.tool_step)
-        hop_state = {name: Asset.model_validate(asset) for name, asset in request.hop_state.items()}
-        
-        tool_execution = await tool_execution_service.create_tool_execution(
-            user_id=user.user_id,
-            mission_id=request.mission_id,
-            tool_step=tool_step,
-            hop_state=hop_state
-        )
-        
-        return CreateToolExecutionResponse(execution_id=tool_execution.id)
-        
-    except Exception as e:
-        logger.error(f"Error creating tool execution: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating tool execution: {str(e)}"
-        )
-
-@router.post("/execution/{execution_id}/execute", response_model=ToolExecutionResponse)
-async def execute_tool_by_id(
-    execution_id: str,
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Execute a tool by execution ID
-    
-    Args:
-        execution_id: Tool execution ID
-        user: Authenticated user
-        db: Database session
-        
-    Returns:
-        ToolExecutionResponse containing execution results
-    """
-    try:
-        tool_execution_service = ToolExecutionService(db)
-        
-        # Get tool execution with reconstructed hop_state
-        execution_data = await tool_execution_service.get_tool_execution_with_assets(
-            execution_id, user.user_id
-        )
-        
-        if not execution_data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tool execution not found"
-            )
-        
-        tool_execution = execution_data["tool_execution"]
-        hop_state = execution_data["hop_state"]
-        tool_step = execution_data["tool_step"]
-        
-        # Update status to running
-        await tool_execution_service.update_tool_execution_status(
-            execution_id, user.user_id, ToolExecutionStatus.EXECUTING
-        )
-        
-        # Execute the tool step
-        result = await execute_tool_step(tool_step, hop_state, user.user_id, db)
-        
-        # Update status to completed with results
-        await tool_execution_service.update_tool_execution_status(
-            execution_id, user.user_id, ToolExecutionStatus.COMPLETED, 
-            execution_result=result
-        )
-        
-        return result
-        
-    except ToolExecutionError as e:
-        # Update status to failed
-        await tool_execution_service.update_tool_execution_status(
-            execution_id, user.user_id, ToolExecutionStatus.FAILED, 
-            error_message=str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Error executing tool {execution_id}: {str(e)}", exc_info=True)
-        # Update status to failed
-        await tool_execution_service.update_tool_execution_status(
-            execution_id, user.user_id, ToolExecutionStatus.FAILED, 
-            error_message=str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error executing tool: {str(e)}"
-        )
-
-@router.get("/execution/{execution_id}", response_model=ToolExecutionStatusResponse)
-async def get_tool_execution(
-    execution_id: str,
-    user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Get tool execution status and results
-    
-    Args:
-        execution_id: Tool execution ID
-        user: Authenticated user
-        db: Database session
-        
-    Returns:
-        ToolExecutionStatusResponse with execution details
-    """
-    try:
-        tool_execution_service = ToolExecutionService(db)
-        
-        tool_execution = await tool_execution_service.get_tool_execution(
-            execution_id, user.user_id
-        )
-        
-        if not tool_execution:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tool execution not found"
-            )
-        
-        return ToolExecutionStatusResponse(
-            id=tool_execution.id,
-            tool_id=tool_execution.tool_id,
-            step_id=tool_execution.step_id,
-            status=tool_execution.status,
-            error_message=tool_execution.error_message,
-            execution_result=tool_execution.execution_result,
-            created_at=tool_execution.created_at,
-            started_at=tool_execution.started_at,
-            completed_at=tool_execution.completed_at
-        )
-        
-    except Exception as e:
-        logger.error(f"Error getting tool execution {execution_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting tool execution: {str(e)}"
-        )
-
-# Keep the legacy endpoint for backward compatibility
 @router.post("/execute/{tool_id}")
 async def execute_tool(
     tool_id: str,
@@ -256,6 +87,7 @@ async def execute_tool(
             detail=f"Error executing tool: {str(e)}"
         )
 
+
 @router.get("/available", response_model=Dict[str, List[ToolDefinition]])
 async def get_available_tools(
     user = Depends(validate_token)
@@ -271,12 +103,15 @@ async def get_available_tools(
     """
     return {"tools": list(TOOL_REGISTRY.values())}
 
-@router.get("/tools/{tool_id}", response_model=ToolDefinition)
+@router.get("/{tool_id}", response_model=ToolDefinition)
 async def get_tool(tool_id: str):
     """
-    Get the definition of a specific tool by its ID.
+    Get the definition of a single tool by its ID.
     """
     tool_def = get_tool_definition(tool_id)
     if not tool_def:
-        raise HTTPException(status_code=404, detail="Tool not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tool with id '{tool_id}' not found"
+        )
     return tool_def

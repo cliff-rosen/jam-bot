@@ -17,56 +17,7 @@ class ToolExecutionService:
         self.asset_service = AssetService(db)
         self.mission_service = MissionService(db)
 
-    async def create_tool_execution(
-        self,
-        user_id: int,
-        hop_id: str,
-        tool_step: ToolStep,
-        hop_state: Dict[str, Asset]
-    ) -> ToolStepModel:
-        """
-        Create a new tool execution record
-        
-        Args:
-            user_id: User ID
-            hop_id: Hop ID
-            tool_step: Tool step configuration
-            hop_state: Current hop state with assets
-            
-        Returns:
-            Created ToolStepModel object
-        """
-        try:
-            # Extract asset IDs from hop_state
-            hop_state_asset_ids = {
-                asset_name: asset.id for asset_name, asset in hop_state.items()
-            }
-            
-            tool_execution = ToolStepModel(
-                id=str(uuid4()),
-                hop_id=hop_id,
-                user_id=user_id,
-                tool_id=tool_step.tool_id,
-                sequence_order=tool_step.sequence_order,
-                status=ToolExecutionStatus.PROPOSED,
-                description=tool_step.description,
-                parameter_mapping=tool_step.parameter_mapping,
-                result_mapping=tool_step.result_mapping,
-                resource_configs=tool_step.resource_configs,
-                hop_state_asset_ids=hop_state_asset_ids,
-                created_at=datetime.utcnow()
-            )
-            
-            self.db.add(tool_execution)
-            self.db.commit()
-            self.db.refresh(tool_execution)
-            
-            return tool_execution
-            
-        except SQLAlchemyError as e:
-            self.db.rollback()
-            raise Exception(f"Failed to create tool execution: {str(e)}")
-
+    
     async def get_tool_execution(self, execution_id: str, user_id: int) -> Optional[ToolStepModel]:
         """Get a tool execution by ID"""
         return self.db.query(ToolStepModel).filter(

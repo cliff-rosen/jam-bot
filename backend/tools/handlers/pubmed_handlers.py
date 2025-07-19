@@ -160,17 +160,17 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
             - total_found: Total number of articles found
             - query_used: The query that was executed
     """
-    # Extract parameters
-    query = input.params.get("query")
-    max_results = input.params.get("max_results", 50)
-    start_date = input.params.get("start_date")
-    end_date = input.params.get("end_date")
-    sort_order = input.params.get("sort_order", "relevance")
-    
-    if not query:
-        raise ValueError("query is required")
-    
     try:
+        # Extract parameters
+        query = input.params.get("query")
+        max_results = input.params.get("max_results", 50)
+        start_date = input.params.get("start_date")
+        end_date = input.params.get("end_date")
+        sort_order = input.params.get("sort_order", "relevance")
+        
+        if not query:
+            raise ValueError("query is required")
+        
         # If date range is provided, use the date-specific search
         if start_date and end_date:
             search_result = get_article_ids_by_date_range(query, start_date, end_date)
@@ -247,6 +247,9 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
         )
         
     except Exception as e:
+        print(f"Exception in pubmed_search handler: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return ToolExecutionResult(
             success=False,
             errors=[f"PubMed search failed: {str(e)}"],

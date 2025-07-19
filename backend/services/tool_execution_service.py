@@ -6,8 +6,12 @@ from models import ToolStep as ToolStepModel, ToolExecutionStatus
 from services.asset_service import AssetService
 from services.tool_step_service import ToolStepService
 from services.state_transition_service import StateTransitionService, TransactionType
-from tools.tool_execution import execute_tool_step as execute_tool_step_core
 from schemas.workflow import ToolStep as ToolStepSchema
+from schemas.asset import Asset
+from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
+from schemas.schema_utils import create_typed_response
+from tools.tool_registry import get_tool_definition
+from tools.tool_stubbing import ToolStubbing
 
 class ToolExecutionService:
     def __init__(self, db: Session):
@@ -47,12 +51,11 @@ class ToolExecutionService:
             # 3. Resolve asset context from hop scope
             asset_context = await self._resolve_asset_context(tool_step_schema.hop_id, user_id)
             
-            # 4. Execute the tool using existing core logic
-            tool_result = await execute_tool_step_core(
+            # 4. Execute the tool using internal methods
+            tool_result = await self._execute_tool(
                 step=tool_step_schema,
                 asset_context=asset_context,
-                user_id=user_id,
-                db=self.db
+                user_id=user_id
             )
             
             # 5. Use StateTransitionService to handle all state updates
@@ -102,6 +105,199 @@ class ToolExecutionService:
             asset_context[asset.id] = asset
             
         return asset_context
+
+    async def _execute_tool(
+        self,
+        step: ToolStepSchema,
+        asset_context: Dict[str, Any],
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        Execute a tool step and return the results with proper canonical type handling.
+        """
+        print("Starting tool execution")
+
+        # Get tool definition from registry
+        tool_def = get_tool_definition(step.tool_id)
+        if not tool_def:
+            raise Exception(f"Tool {step.tool_id} not found in registry")
+        
+        # Build tool inputs from parameter mappings
+        params = self._map_parameters(step, asset_context)
+        
+        # Convert Resource objects to dictionaries
+        resource_configs = {}
+        if step.resource_configs:
+            resource_configs = {
+                resource_id: resource.model_dump() if hasattr(resource, 'model_dump') else resource
+                for resource_id, resource in step.resource_configs.items()
+            }
+        
+        # Create execution input
+        execution_input = ToolExecutionInput(
+            params=params,
+            resource_configs=resource_configs,
+            step_id=step.id
+        )
+        
+        try:
+            # Check if we should stub this tool execution
+            if ToolStubbing.should_stub_tool(tool_def):
+                print(f"Stubbing tool {step.tool_id}")
+                result = await ToolStubbing.get_stub_response(tool_def, execution_input)
+            else:
+                # Execute the actual tool
+                print(f"Executing tool {step.tool_id}")
+                result = await tool_def.execution_handler.handler(execution_input)
+            
+            print("Tool execution completed")
+
+            # Process results with canonical type handling
+            execution_response = self._process_tool_results(result)
+            
+            # Persist assets to database
+            await self._persist_updated_assets(step, asset_context, execution_response, user_id)
+                
+            return execution_response
+                
+        except Exception as e:
+            print(f"Error executing tool: {e}")
+            raise Exception(f"Tool {step.tool_id} execution failed: {str(e)}")
+
+    def _map_parameters(self, step: ToolStepSchema, asset_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Build tool inputs from parameter mappings."""
+        params = {}
+        
+        if not step.parameter_mapping:
+            return params
+            
+        for param_name, mapping in step.parameter_mapping.items():
+            if mapping.type == "literal":
+                params[param_name] = mapping.value
+            elif mapping.type == "asset_field":
+                asset_id = mapping.state_asset
+                
+                # Get asset from context (could be Asset object or asset data)
+                asset_data = asset_context.get(asset_id)
+                if not asset_data:
+                    raise Exception(f"Asset {asset_id} not found in asset context")
+                
+                # Extract value from asset
+                if isinstance(asset_data, Asset):
+                    value = asset_data.value
+                elif isinstance(asset_data, dict) and 'value' in asset_data:
+                    value = asset_data['value']
+                else:
+                    # Assume the asset_data is the value itself
+                    value = asset_data
+                
+                params[param_name] = value
+        
+        return params
+
+    def _process_tool_results(self, result: Any) -> Dict[str, Any]:
+        """Process tool results with canonical type handling."""
+        # Handle different result types while preserving canonical types
+        if isinstance(result, ToolExecutionResult):
+            # New typed result format - use schema utilities for proper handling
+            execution_response = create_typed_response(
+                success=True,
+                outputs=result.outputs,
+                metadata=result.metadata
+            )
+        elif isinstance(result, dict) and "outputs" in result:
+            # Legacy result format - handle gracefully
+            execution_response = create_typed_response(
+                success=True,
+                outputs=result["outputs"],
+                metadata=result.get("metadata")
+            )
+        else:
+            # Direct result format - treat as outputs
+            execution_response = create_typed_response(
+                success=True,
+                outputs=result,
+                metadata=None
+            )
+        
+        return execution_response
+
+    async def _persist_updated_assets(
+        self,
+        step: ToolStepSchema,
+        asset_context: Dict[str, Any],
+        execution_response: Dict[str, Any],
+        user_id: int
+    ) -> None:
+        """
+        Persist updated assets to the database after successful tool execution.
+        """
+        try:
+            # Extract tool outputs from execution response
+            tool_outputs = execution_response.get("outputs", {})
+            
+            if not step.result_mapping:
+                return
+            
+            # Find assets that were updated by this tool execution
+            for result_name, mapping in step.result_mapping.items():
+                if mapping.type == "asset_field":
+                    asset_id = mapping.state_asset
+                    asset_data = asset_context.get(asset_id)
+                    
+                    # Get the output value from tool execution
+                    output_value = tool_outputs.get(result_name)
+                    
+                    if asset_data and output_value is not None:
+                        await self._update_asset_with_output(
+                            asset_data, output_value, user_id, step.hop_id
+                        )
+                        
+        except Exception as e:
+            print(f"Error persisting assets to database: {e}")
+            # Don't fail the tool execution if asset persistence fails
+
+    async def _update_asset_with_output(
+        self,
+        asset_data: Any,
+        output_value: Any,
+        user_id: int,
+        hop_id: str
+    ) -> None:
+        """Update or create asset with tool output."""
+        try:
+            if isinstance(asset_data, Asset):
+                asset = asset_data
+                
+                if asset.status == "PROPOSED":
+                    # Create new asset
+                    self.asset_service.create_asset(
+                        user_id=user_id,
+                        name=asset.name,
+                        schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
+                        subtype=asset.subtype,
+                        description=asset.description,
+                        content=output_value,
+                        asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None,
+                        scope_type="hop",
+                        scope_id=hop_id
+                    )
+                    print(f"Created new asset {asset.name} with tool output")
+                else:
+                    # Update existing asset
+                    self.asset_service.update_asset(
+                        asset_id=asset.id,
+                        user_id=user_id,
+                        updates={
+                            'content': output_value,
+                            'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
+                            'updated_at': datetime.utcnow()
+                        }
+                    )
+                    print(f"Updated existing asset {asset.name} with tool output")
+                    
+        except Exception as e:
+            print(f"Error updating asset: {e}")
 
 
 

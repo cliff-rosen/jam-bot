@@ -537,7 +537,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     };
 
                     dispatch({ type: 'ACCEPT_MISSION_PROPOSAL', payload: updatedMission });
-                    
+
                     // Session linking is handled automatically by StateTransitionService
                     console.log(`Mission ${state.mission.id} approved: ${result.message}`);
                 } else {
@@ -574,7 +574,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                         status: HopStatus.HOP_PLAN_READY
                     };
                     dispatch({ type: 'ACCEPT_HOP_PROPOSAL', payload: { hop: updatedHop, proposedAssets: proposedAssets || [] } });
-                    
+
                     // Force mission reload to pick up state changes
                     if (state.mission?.id) {
                         await loadMission(state.mission.id);
@@ -607,7 +607,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                         status: HopStatus.HOP_IMPL_READY
                     };
                     dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL', payload: updatedHop });
-                    
+
                     // Force mission reload to pick up state changes
                     if (state.mission?.id) {
                         await loadMission(state.mission.id);
@@ -667,17 +667,17 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
     const executeToolStep = async (step: ToolStep, hop: Hop) => {
         try {
-            // Update step status to running
+            // Update step status to executing in UI for immediate feedback
             dispatch({ type: 'EXECUTE_TOOL_STEP', payload: { step, hop } });
 
-            // Execute the tool using streamlined approach with mission_id
-            const result = await toolsApi.executeTool(step.tool_id, step, hop.hop_asset_map, state.mission?.id);
+            // Execute the tool - backend handles all state management
+            const result = await toolsApi.executeTool(step.id);
 
             if (result.success) {
                 // Add success message to chat
                 const successMessage: ChatMessage = {
                     id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    chat_id: "temp", // This will be updated when sessions are integrated
+                    chat_id: "temp",
                     role: MessageRole.TOOL,
                     content: `Tool '${step.tool_id}' executed successfully`,
                     message_metadata: {},
@@ -685,115 +685,45 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                     updated_at: new Date().toISOString()
                 };
                 addMessage(successMessage);
-
-                // Create new hop state by applying the result mapping
-                const newHopState: Record<string, Asset> = {};
-                // Convert asset array to record for processing
-                hop.assets.forEach(asset => {
-                    newHopState[asset.name] = asset;
-                });
-
-                // Apply the result mapping to update hop state
-                for (const [outputName, mapping] of Object.entries(step.result_mapping)) {
-                    if ((mapping as DiscardMapping).type === "discard") continue;
-
-                    if ((mapping as AssetFieldMapping).type === "asset_field") {
-                        // Use canonical outputs if available, otherwise fall back to regular outputs
-                        const value = result.canonical_outputs?.[outputName] ?? result.outputs[outputName];
-
-                        if (value !== undefined) {
-                            const existingAsset = newHopState[(mapping as AssetFieldMapping).state_asset];
-
-                            // Note: Could enhance with output schema from tool definition
-
-                            newHopState[(mapping as AssetFieldMapping).state_asset] = {
-                                ...existingAsset,
-                                status: AssetStatus.READY,
-                                // Update the value_representation with the result
-                                value_representation: typeof value === 'string' ? value : JSON.stringify(value).substring(0, 100)
-                            };
-                        }
-                    }
-                }
-
-                // Update hop with new state
-                const updatedHop = {
-                    ...hop,
-                    assets: Object.values(newHopState),
-                    tool_steps: hop.tool_steps.map(s =>
-                        s.id === step.id
-                            ? { ...s, status: ToolExecutionStatus.COMPLETED }
-                            : s
-                    )
-                };
-
-                // Check if any updated assets are mapped to mission outputs
-                const updatedMissionOutputs = new Map<string, Asset>();
-                for (const [_hopAssetKey, asset] of Object.entries(newHopState)) {
-                    // Check if this hop asset should update a mission asset
-                    // This would need to be configured in the hop design phase
-                    // For now, we'll assume hop output assets with matching names update mission assets
-                    if (asset.role === AssetRole.OUTPUT) {
-                        const matchingMissionAsset = Object.values(state.mission?.assets || {}).find(
-                            missionAsset => missionAsset.name === asset.name && missionAsset.role === AssetRole.OUTPUT
-                        );
-
-                        if (matchingMissionAsset) {
-                            const missionAsset: Asset = {
-                                ...matchingMissionAsset,
-                                status: AssetStatus.READY,
-                                value_representation: asset.value_representation,
-                                asset_metadata: {
-                                    ...matchingMissionAsset.asset_metadata,
-                                    updatedAt: new Date().toISOString()
-                                },
-                                updated_at: new Date().toISOString()
-                            };
-                            updatedMissionOutputs.set(matchingMissionAsset.id, missionAsset);
-                        }
-                    }
-                }
-
-                // Check if all hop outputs are ready
-                const allOutputsReady = Object.values(newHopState).every(asset => {
-                    // Only check assets with output role
-                    if (asset.role === AssetRole.OUTPUT) {
-                        return asset.status === AssetStatus.READY;
-                    }
-                    return true; // Non-output assets don't need to be ready for hop completion
-                });
-
-                if (allOutputsReady) {
-                    // Mark hop as complete
-                    updatedHop.status = HopStatus.COMPLETED;
-                    updatedHop.is_resolved = true;
-                }
-
-                // Update the hop state
-                dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs } });
             } else {
-                // Update step status to failed
-                const updatedHop = {
-                    ...hop,
-                    tool_steps: hop.tool_steps.map(s =>
-                        s.id === step.id
-                            ? { ...s, status: ToolExecutionStatus.FAILED, error: result.errors.join('\n') }
-                            : s
-                    )
+                // Add error message to chat
+                const errorMessage: ChatMessage = {
+                    id: `tool_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    chat_id: "temp",
+                    role: MessageRole.TOOL,
+                    content: `Tool '${step.tool_id}' failed: ${result.errors.join(', ')}`,
+                    message_metadata: {},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 };
-                dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
+                addMessage(errorMessage);
             }
+
+            // Reload mission state from backend to get all updates
+            // Backend StateTransitionService handles asset updates, hop completion, etc.
+            if (state.mission?.id) {
+                await loadMission(state.mission.id);
+            }
+
         } catch (error) {
-            // Update step status to failed
-            const updatedHop = {
-                ...hop,
-                tool_steps: hop.tool_steps.map(s =>
-                    s.id === step.id
-                        ? { ...s, status: ToolExecutionStatus.FAILED, error: error instanceof Error ? error.message : 'Failed to execute tool step' }
-                        : s
-                )
+            console.error('Error executing tool step:', error);
+            
+            // Add error message to chat
+            const errorMessage: ChatMessage = {
+                id: `tool_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                chat_id: "temp",
+                role: MessageRole.TOOL,
+                content: `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                message_metadata: {},
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             };
-            dispatch({ type: 'UPDATE_HOP_STATE', payload: { hop: updatedHop, updatedMissionOutputs: new Map() } });
+            addMessage(errorMessage);
+
+            // Reload mission state to get current state from backend
+            if (state.mission?.id) {
+                await loadMission(state.mission.id);
+            }
         }
     };
 
@@ -885,7 +815,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             try {
                 console.log('Refreshing session after agent processing...');
                 await fetchActiveSession();
-                
+
                 // Also force mission reload if we have a current mission to pick up state changes
                 if (state.mission?.id) {
                     console.log('Force reloading mission after agent processing...');

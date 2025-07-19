@@ -145,10 +145,6 @@ const HopSection: React.FC<HopSectionProps> = ({ hop }) => {
     const isImplementationReady = hop.status === HopStatus.HOP_IMPL_READY;
     const isSubtleDisplay = isReadyState || isImplementationReady;
 
-
-
-
-
     return (
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start justify-between mb-4">

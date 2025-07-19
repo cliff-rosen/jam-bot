@@ -235,9 +235,6 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
                 "total_found": total_found,
                 "query_used": query
             },
-            canonical_outputs={
-                "articles": create_typed_response(canonical_articles, "pubmed_article", is_array=True)
-            },
             metadata={
                 "tool_id": "pubmed_search",
                 "query": query,

@@ -35,19 +35,19 @@ execute_tool_step(tool_step_id, user_id)
 │   ├── _map_parameters(step, asset_context)
 │   ├── ToolStubbing.should_stub_tool(tool_def)
 │   ├── tool_def.execution_handler.handler(execution_input)  [OR stub]
-│   ├── _process_tool_results(result)
-│   └── _persist_updated_assets(step, asset_context, response, user_id)
-│       └── _update_asset_with_output(asset, value, user_id, hop_id)
-│           ├── AssetService.create_asset() [if PROPOSED]
-│           └── AssetService.update_asset() [if existing]
-├── StateTransitionService.updateState(COMPLETE_TOOL_STEP)
+│   └── _process_tool_results(result)
+├── StateTransitionService.updateState(COMPLETE_TOOL_STEP, execution_result)
+│   ├── Update ToolStep status to COMPLETED
+│   ├── Process result mappings to create/update assets
+│   ├── Check hop completion status
+│   └── Check mission completion status
 └── [Error handling: ToolStepService.update_tool_step_status(FAILED)]
 
 Service Dependencies:
 - ToolStepService: Tool step database operations
 - AssetMappingService: Hop-asset relationship queries  
-- AssetService: Asset CRUD operations
-- StateTransitionService: Workflow state management
+- AssetService: Asset retrieval only (no persistence)
+- StateTransitionService: ALL persistence and workflow state management
 - Tool Registry: Tool definition lookup
 - Tool Handlers: Actual tool execution
 """
@@ -202,9 +202,6 @@ class ToolExecutionService:
 
             # Process results with canonical type handling
             execution_response = self._process_tool_results(result)
-            
-            # Persist assets to database
-            await self._persist_updated_assets(step, asset_context, execution_response, user_id)
                 
             return execution_response
                 
@@ -273,83 +270,6 @@ class ToolExecutionService:
                 canonical_outputs=None,
                 metadata=None
             )
-
-    async def _persist_updated_assets(
-        self,
-        step: ToolStepSchema,
-        asset_context: AssetContext,
-        execution_response: ToolExecutionResponse,
-        user_id: int
-    ) -> None:
-        """
-        Persist updated assets to the database after successful tool execution.
-        """
-        try:
-            # Extract tool outputs from execution response
-            tool_outputs = execution_response.get("outputs", {})
-            
-            if not step.result_mapping:
-                return
-            
-            # Find assets that were updated by this tool execution
-            for result_name, mapping in step.result_mapping.items():
-                if mapping.type == "asset_field":
-                    asset_id = mapping.state_asset
-                    asset_data = asset_context.get(asset_id)
-                    
-                    # Get the output value from tool execution
-                    output_value = tool_outputs.get(result_name)
-                    
-                    if asset_data and output_value is not None:
-                        if isinstance(asset_data, Asset):
-                            await self._update_asset_with_output(
-                                asset_data, output_value, user_id, step.hop_id
-                            )
-                        
-        except Exception as e:
-            print(f"Error persisting assets to database: {e}")
-            # Don't fail the tool execution if asset persistence fails
-
-    async def _update_asset_with_output(
-        self,
-        asset: Asset,
-        output_value: Any,
-        user_id: int,
-        hop_id: str
-    ) -> None:
-        """Update or create asset with tool output."""
-        try:
-            if asset.status == "PROPOSED":
-                # Create new asset
-                self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset.name,
-                    schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
-                    subtype=asset.subtype,
-                    description=asset.description,
-                    content=output_value,
-                    asset_metadata=asset.asset_metadata.model_dump() if asset.asset_metadata else None,
-                    scope_type="hop",
-                    scope_id=hop_id
-                )
-                print(f"Created new asset {asset.name} with tool output")
-            else:
-                # Update existing asset
-                self.asset_service.update_asset(
-                    asset_id=asset.id,
-                    user_id=user_id,
-                    updates={
-                        'content': output_value,
-                        'asset_metadata': asset.asset_metadata.model_dump() if asset.asset_metadata else None,
-                        'updated_at': datetime.utcnow()
-                    }
-                )
-                print(f"Updated existing asset {asset.name} with tool output")
-                    
-        except Exception as e:
-            print(f"Error updating asset: {e}")
-
-
 
 
  

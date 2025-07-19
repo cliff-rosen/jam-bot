@@ -15,6 +15,7 @@ https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=38004229&
 PUBMED_API_SEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 PUBMED_API_FETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 RETMAX = "10000"
+FILTER_TERM = "(melanocortin) OR (natriuretic) OR (Dry eye) OR (Ulcerative colitis) OR (Crohn’s disease) OR (Retinopathy) OR (Retinal disease)"
 
 class Article():
     """
@@ -159,6 +160,7 @@ class Article():
         
         return line + res
 
+    @staticmethod
     def _get_date_from_node(date_completed_node):
         if date_completed_node is None:
             return ""
@@ -193,6 +195,49 @@ def _get_date(article):
     day = day_x.text if day_x is not None else '?'
     comp_date = f"{year}-{month}-{day}"
     return comp_date
+
+
+def get_article_ids(search_term, max_results=100):
+    """
+    Basic PubMed search without date restrictions.
+    
+    Args:
+        search_term: Search query string
+        max_results: Maximum number of results to return
+        
+    Returns:
+        Dict with status_code, count, and ids
+    """
+    url = PUBMED_API_SEARCH_URL
+    params = {
+        'db': 'pubmed',
+        'term': search_term,
+        'retmax': min(max_results, int(RETMAX)),
+        'retmode': 'json'
+    }
+    print('Retrieving article IDs for query:', search_term)
+    print('Parameters:', params)
+    
+    try:
+        response = requests.get(url, params)
+        response.raise_for_status()
+        content = response.json()
+        count = content['esearchresult']['count']
+        ids = content['esearchresult']['idlist']
+
+        return {
+            'status_code': response.status_code, 
+            'count': count,
+            'ids': ids
+        }
+    except Exception as e:
+        print(f"Error in PubMed search: {e}")
+        return {
+            'status_code': 500,
+            'count': 0,
+            'ids': [],
+            'error': str(e)
+        }
 
 
 def get_article_ids_by_date_range(filter_term, start_date, end_date):

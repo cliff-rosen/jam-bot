@@ -12,7 +12,6 @@ from services.state_transition_service import StateTransitionService, Transactio
 from schemas.workflow import ToolStep as ToolStepSchema
 from schemas.asset import Asset
 from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
-from schemas.schema_utils import create_typed_response
 from schemas.tool import ToolDefinition, ToolParameter
 from schemas.tool_execution import ToolExecutionResponse
 
@@ -79,7 +78,7 @@ class ToolExecutionService:
         """
         try:
             # 1. Get tool step from database
-            tool_step_schema = await self.tool_step_service.get_tool_step(tool_step_id, user_id)
+            tool_step_schema: ToolStepSchema = await self.tool_step_service.get_tool_step(tool_step_id, user_id)
             
             # 2. Mark tool step as executing
             await self.tool_step_service.update_tool_step_status(
@@ -89,7 +88,7 @@ class ToolExecutionService:
             )
             
             # 3. Resolve asset context from hop scope
-            asset_context = await self._resolve_asset_context(tool_step_schema.hop_id, user_id)
+            asset_context: AssetContext = await self._resolve_asset_context(tool_step_schema.hop_id, user_id)
             
             # 4. Execute the tool using internal methods
             tool_result = await self._execute_tool(
@@ -99,7 +98,7 @@ class ToolExecutionService:
             )
             
             # 5. Use StateTransitionService to handle all state updates
-            transition_result = await self.state_transition_service.updateState(
+            transition_result: TransactionResult = await self.state_transition_service.updateState(
                 TransactionType.COMPLETE_TOOL_STEP,
                 {
                     'tool_step_id': tool_step_id,

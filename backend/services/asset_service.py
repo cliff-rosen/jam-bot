@@ -315,6 +315,9 @@ class AssetService:
         Returns:
             Dictionary mapping asset ID to Asset object for all assets mapped to the hop
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         asset_context: Dict[str, Asset] = {}
         
         # Get all asset IDs mapped to this hop (regardless of their scope)

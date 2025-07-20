@@ -164,7 +164,7 @@ class HopService:
 
     async def execute_hop(self, hop_id: str, user_id: int) -> Dict[str, Any]:
         """Execute all tool steps in a hop sequentially"""
-        logger.info(f"Starting hop execution for hop {hop_id}")
+        logger.info(f"Starting hop execution for hop {hop_id}", extra={"hop_id": hop_id, "user_id": user_id})
         
         # Get the hop
         hop = await self.get_hop(hop_id, user_id)
@@ -179,7 +179,7 @@ class HopService:
                 "total_steps": 0
             }
         
-        logger.info(f"Hop {hop_id} current status: {hop.status.value}")
+        logger.info(f"Hop {hop_id} current status: {hop.status.value}", extra={"hop_id": hop_id, "status": hop.status.value})
         
         # Check if hop is ready for execution or failed (allow retry)
         if hop.status not in [HopStatusSchema.HOP_IMPL_READY, HopStatusSchema.FAILED]:
@@ -228,10 +228,23 @@ class HopService:
                     )
                     
                     # Execute the tool step directly - handles complete lifecycle
+                    logger.info(f"About to execute tool step {step.id}", extra={
+                        "tool_step_id": step.id,
+                        "tool_id": step.tool_id,
+                        "parameter_mapping": step.parameter_mapping,
+                        "result_mapping": step.result_mapping
+                    })
+                    
                     result = await tool_execution_service.execute_tool_step(
                         step.id, 
                         user_id
                     )
+                    
+                    logger.info(f"Tool step {step.id} execution result", extra={
+                        "tool_step_id": step.id,
+                        "result": result,
+                        "success": result.get('success', False)
+                    })
                     
                     if result.get('success', False):
                         executed_steps += 1
@@ -239,13 +252,24 @@ class HopService:
                     else:
                         error_msg = f"Tool step {step.id} failed: {result.get('error', 'Unknown error')}"
                         errors.append(error_msg)
-                        logger.error(error_msg)
+                        logger.error(error_msg, extra={
+                            "tool_step_id": step.id,
+                            "result": result,
+                            "error_details": result.get('error_details', {}),
+                            "execution_metadata": result.get('metadata', {})
+                        })
                         break  # Stop execution on first failure
                         
                 except Exception as e:
                     error_msg = f"Tool step {step.id} execution error: {str(e)}"
                     errors.append(error_msg)
-                    logger.error(error_msg, extra={"tool_step_id": step.id, "error": str(e)})
+                    logger.error(error_msg, extra={
+                        "tool_step_id": step.id, 
+                        "error": str(e),
+                        "exception_type": type(e).__name__,
+                        "tool_id": step.tool_id,
+                        "parameter_mapping": step.parameter_mapping
+                    })
                     break  # Stop execution on first error
             
             # Determine final status

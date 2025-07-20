@@ -260,9 +260,30 @@ async def execute_hop(
     current_user = Depends(validate_token)
 ):
     """Execute all tool steps in a hop sequentially"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Force immediate log to see if this endpoint is even being called
+    print(f"ROUTER DEBUG: execute_hop endpoint called for hop_id={hop_id}")
+    logger.error(f"ROUTER DEBUG: execute_hop endpoint called for hop_id={hop_id}")
+    
+    logger.info(f"Hop execution endpoint called", extra={
+        "hop_id": hop_id,
+        "user_id": current_user.user_id,
+        "endpoint": "POST /api/hops/{hop_id}/execute"
+    })
+    
     try:
         hop_service = HopService(db)
+        logger.info(f"Calling hop_service.execute_hop", extra={"hop_id": hop_id})
         result = await hop_service.execute_hop(hop_id, current_user.user_id)
+        logger.info(f"Hop service returned result", extra={"hop_id": hop_id, "success": result.get('success')})
         return result
     except Exception as e:
+        logger.error(f"Exception in hop execution endpoint", extra={
+            "hop_id": hop_id,
+            "user_id": current_user.user_id,
+            "error": str(e),
+            "exception_type": type(e).__name__
+        })
         raise HTTPException(status_code=500, detail=str(e)) 

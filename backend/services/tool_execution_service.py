@@ -71,9 +71,23 @@ class ToolExecutionService:
         4. Delegate state management to StateTransitionService
         5. Return comprehensive results
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Starting tool step execution", extra={
+            "tool_step_id": tool_step_id,
+            "user_id": user_id
+        })
+        
         try:
             # 1. Get tool step from database
             tool_step_schema: ToolStepSchema = await self.tool_step_service.get_tool_step(tool_step_id, user_id)
+            logger.info(f"Retrieved tool step", extra={
+                "tool_step_id": tool_step_id,
+                "tool_id": tool_step_schema.tool_id,
+                "hop_id": tool_step_schema.hop_id,
+                "parameter_mapping": tool_step_schema.parameter_mapping
+            })
             
             # 2. Mark tool step as executing
             await self.tool_step_service.update_tool_step_status(
@@ -83,7 +97,13 @@ class ToolExecutionService:
             )
             
             # 3. Resolve asset context from hop scope
+            logger.info(f"Resolving asset context for hop {tool_step_schema.hop_id}")
             asset_context: AssetContext = self.asset_service.get_hop_asset_context(tool_step_schema.hop_id, user_id)
+            logger.info(f"Asset context resolved", extra={
+                "hop_id": tool_step_schema.hop_id,
+                "asset_context_keys": list(asset_context.keys()),
+                "asset_context": {k: {"id": v.id, "name": v.name} for k, v in asset_context.items()}
+            })
             
             # 4. Execute the tool using internal methods
             tool_result: ToolExecutionResponse = await self._execute_tool(
@@ -115,6 +135,13 @@ class ToolExecutionService:
             }
             
         except Exception as e:
+            logger.error(f"Tool step execution failed", extra={
+                "tool_step_id": tool_step_id,
+                "user_id": user_id,
+                "error": str(e),
+                "exception_type": type(e).__name__
+            })
+            
             # Mark tool step as failed using tool step service
             try:
                 await self.tool_step_service.update_tool_step_status(
@@ -137,7 +164,15 @@ class ToolExecutionService:
         """
         Execute a tool step and return the results with proper canonical type handling.
         """
-        print("Starting tool execution")
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Starting tool execution", extra={
+            "tool_step_id": step.id,
+            "tool_id": step.tool_id,
+            "asset_context_keys": list(asset_context.keys()),
+            "parameter_mapping": step.parameter_mapping
+        })
 
         # Get tool definition from registry
         tool_def: Optional[ToolDefinition] = get_tool_definition(step.tool_id)
@@ -165,7 +200,7 @@ class ToolExecutionService:
         try:
             # Execute the tool
             print(f"Executing tool {step.tool_id}")
-            result = await tool_def.execution_handler.handler(execution_input)
+            result = await tool_def.execution_handler(execution_input)
             
             print("Tool execution completed")
             
@@ -183,6 +218,9 @@ class ToolExecutionService:
 
     def _map_parameters(self, step: ToolStepSchema, asset_context: AssetContext) -> Dict[str, ToolParameterValue]:
         """Build tool inputs from parameter mappings."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         params: Dict[str, ToolParameterValue] = {}
         
         if not step.parameter_mapping:
@@ -204,8 +242,8 @@ class ToolExecutionService:
                 if not asset:
                     raise Exception(f"Asset {asset_id} not found in asset context")
                 
-                # Extract value from asset
-                value = asset.value
+                # Extract value from asset - use value_representation for tool execution
+                value = asset.value_representation
                 
                 # Create ToolParameterValue with asset value
                 params[param_name] = ToolParameterValue(

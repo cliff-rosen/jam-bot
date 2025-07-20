@@ -32,10 +32,20 @@
       "category": "data_retrieval",
       "functional_category": "search_retrieve",
       "domain_category": "email_communication",
-      "tags": ["search", "email", "gmail", "filtering", "oauth"],
+      "tags": [
+        "search",
+        "email",
+        "gmail",
+        "filtering",
+        "oauth"
+      ],
       "pipeline_info": {
         "can_start_pipeline": true,
-        "typical_next_tools": ["extract", "summarize", "group_reduce"],
+        "typical_next_tools": [
+          "extract",
+          "summarize",
+          "group_reduce"
+        ],
         "pipeline_name": "email_analysis"
       },
       "ui_metadata": {
@@ -174,65 +184,7 @@
             "is_array": true
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "emails": [
-                {
-                  "id": "1897a5b2c3f4e6d8",
-                  "subject": "Weekly AI Newsletter - Latest Developments",
-                  "body": "This week in AI: Major breakthrough in transformer architecture...",
-                  "sender": "ai-newsletter@techcorp.com",
-                  "timestamp": "2024-01-15T10:30:00Z",
-                  "labels": [
-                    "CATEGORY_NEWSLETTERS",
-                    "INBOX"
-                  ],
-                  "metadata": {}
-                },
-                {
-                  "id": "2a34f5e8d9c1b7a6",
-                  "subject": "AI Research Digest - December 2024",
-                  "body": "Monthly compilation of the most important AI research papers...",
-                  "sender": "research@university.edu",
-                  "timestamp": "2024-01-14T15:45:00Z",
-                  "labels": [
-                    "CATEGORY_NEWSLETTERS",
-                    "INBOX"
-                  ],
-                  "metadata": {}
-                }
-              ]
-            },
-            "metadata": {
-              "total_found": 2,
-              "search_time_ms": 145
-            }
-          },
-          {
-            "scenario": "empty_results",
-            "outputs": {
-              "emails": []
-            },
-            "metadata": {
-              "total_found": 0,
-              "search_time_ms": 89
-            }
-          },
-          {
-            "scenario": "api_error",
-            "is_error": true,
-            "error_message": "Gmail API quota exceeded. Please try again later.",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "web_search",
@@ -241,10 +193,18 @@
       "category": "data_retrieval",
       "functional_category": "search_retrieve",
       "domain_category": "web_content",
-      "tags": ["search", "web", "real-time", "urls", "snippets"],
+      "tags": [
+        "search",
+        "web",
+        "real-time",
+        "urls",
+        "snippets"
+      ],
       "pipeline_info": {
         "can_start_pipeline": true,
-        "typical_next_tools": ["web_retrieve"],
+        "typical_next_tools": [
+          "web_retrieve"
+        ],
         "pipeline_name": "web_research"
       },
       "ui_metadata": {
@@ -388,83 +348,7 @@
             "is_array": false
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "search_results": [
-                {
-                  "title": "Latest AI Research Breakthroughs in 2024",
-                  "url": "https://example.com/ai-research-2024",
-                  "snippet": "Comprehensive overview of the most significant AI research developments in 2024, including advances in large language models, computer vision, and robotics.",
-                  "published_date": "2024-01-15",
-                  "source": "example.com",
-                  "rank": 1,
-                  "relevance_score": 0.95,
-                  "metadata": null
-                },
-                {
-                  "title": "OpenAI GPT-4 Turbo: New Features and Capabilities",
-                  "url": "https://example.com/gpt4-turbo-features",
-                  "snippet": "Detailed analysis of GPT-4 Turbo's new features, performance improvements, and real-world applications in various industries.",
-                  "published_date": "2024-01-14",
-                  "source": "example.com",
-                  "rank": 2,
-                  "relevance_score": 0.92,
-                  "metadata": null
-                },
-                {
-                  "title": "Machine Learning Trends and Predictions for 2024",
-                  "url": "https://example.com/ml-trends-2024",
-                  "snippet": "Expert predictions and analysis of emerging machine learning trends, including automated ML, federated learning, and ethical AI considerations.",
-                  "published_date": "2024-01-13",
-                  "source": "example.com",
-                  "rank": 3,
-                  "relevance_score": 0.89,
-                  "metadata": null
-                }
-              ],
-              "query": "AI research 2024 developments",
-              "total_results": 847000,
-              "search_time": 234,
-              "timestamp": "2024-01-15T10:30:00Z",
-              "search_engine": "google",
-              "metadata": null
-            },
-            "metadata": {
-              "api_version": "v1",
-              "region": "global",
-              "language": "en"
-            }
-          },
-          {
-            "scenario": "no_results",
-            "outputs": {
-              "search_results": [],
-              "query": "very specific nonexistent search term xyz123",
-              "total_results": 0,
-              "search_time": 156,
-              "timestamp": "2024-01-15T10:30:00Z",
-              "search_engine": "google",
-              "metadata": null
-            },
-            "metadata": {
-              "message": "No results found for the given search term"
-            }
-          },
-          {
-            "scenario": "api_error",
-            "is_error": true,
-            "error_message": "Web search API temporarily unavailable. Please try again later.",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "web_retrieve",
@@ -473,10 +357,19 @@
       "category": "data_retrieval",
       "functional_category": "search_retrieve",
       "domain_category": "web_content",
-      "tags": ["retrieve", "web", "content", "scraping", "html"],
+      "tags": [
+        "retrieve",
+        "web",
+        "content",
+        "scraping",
+        "html"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["extract", "summarize"],
+        "typical_next_tools": [
+          "extract",
+          "summarize"
+        ],
         "pipeline_name": "web_research"
       },
       "ui_metadata": {
@@ -576,144 +469,7 @@
             "is_array": false
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "webpage": [
-                {
-                  "url": "https://example.com/article",
-                  "title": "Understanding Machine Learning Fundamentals",
-                  "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed. This comprehensive guide covers the fundamental concepts, algorithms, and applications of machine learning in today's technology landscape.",
-                  "html": "<html><head><title>Understanding Machine Learning Fundamentals</title></head><body><h1>Understanding Machine Learning Fundamentals</h1><p>Machine learning is a subset of artificial intelligence...</p></body></html>",
-                  "last_modified": "2024-01-15T08:00:00Z",
-                  "content_type": "text/html",
-                  "status_code": 200,
-                  "headers": {
-                    "content-type": "text/html; charset=utf-8",
-                    "server": "nginx/1.18.0"
-                  },
-                  "metadata": {
-                    "word_count": 1250,
-                    "language": "en",
-                    "author": "Dr. Sarah Johnson",
-                    "description": "A comprehensive guide to machine learning fundamentals",
-                    "published_date": "2024-01-15"
-                  }
-                }
-              ],
-              "status_code": 200,
-              "response_time": 1250,
-              "timestamp": "2024-01-15T10:30:00Z"
-            },
-            "metadata": {
-              "extraction_method": "beautifulsoup",
-              "content_length": 15420
-            }
-          },
-          {
-            "scenario": "not_found",
-            "outputs": {
-              "webpage": [
-                {
-                  "url": "https://example.com/nonexistent-page",
-                  "title": "Page Not Found",
-                  "content": "The requested page could not be found.",
-                  "html": "<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested page could not be found.</p></body></html>",
-                  "last_modified": null,
-                  "content_type": "text/html",
-                  "status_code": 404,
-                  "headers": {
-                    "content-type": "text/html; charset=utf-8"
-                  },
-                  "metadata": {
-                    "word_count": 8,
-                    "language": "en"
-                  }
-                }
-              ],
-              "status_code": 404,
-              "response_time": 890,
-              "timestamp": "2024-01-15T10:30:00Z"
-            },
-            "metadata": {
-              "error": "Page not found"
-            }
-          },
-          {
-            "scenario": "multiple_urls_from_search",
-            "description": "Processing multiple URLs from web_search results",
-            "outputs": {
-              "webpage": [
-                {
-                  "url": "https://example.com/ai-research",
-                  "title": "Latest AI Research Breakthroughs",
-                  "content": "Recent advances in artificial intelligence research have led to breakthrough developments in natural language processing, computer vision, and robotics. This article covers the most significant discoveries of the past year.",
-                  "html": "<html><head><title>Latest AI Research Breakthroughs</title></head><body><h1>Latest AI Research Breakthroughs</h1><p>Recent advances in artificial intelligence...</p></body></html>",
-                  "last_modified": "2024-01-14T12:00:00Z",
-                  "content_type": "text/html",
-                  "status_code": 200,
-                  "headers": {
-                    "content-type": "text/html; charset=utf-8"
-                  },
-                  "metadata": {
-                    "word_count": 850,
-                    "language": "en",
-                    "author": "Dr. Emily Chen",
-                    "description": "Overview of recent AI research breakthroughs",
-                    "published_date": "2024-01-14"
-                  }
-                },
-                {
-                  "url": "https://example.com/ml-applications",
-                  "title": "Machine Learning Applications in Healthcare",
-                  "content": "Machine learning is revolutionizing healthcare through predictive analytics, diagnostic imaging, and personalized treatment plans. This comprehensive review examines current applications and future potential.",
-                  "html": "<html><head><title>Machine Learning Applications in Healthcare</title></head><body><h1>Machine Learning Applications in Healthcare</h1><p>Machine learning is revolutionizing healthcare...</p></body></html>",
-                  "last_modified": "2024-01-13T15:30:00Z",
-                  "content_type": "text/html",
-                  "status_code": 200,
-                  "headers": {
-                    "content-type": "text/html; charset=utf-8"
-                  },
-                  "metadata": {
-                    "word_count": 1100,
-                    "language": "en",
-                    "author": "Dr. Michael Rodriguez",
-                    "description": "ML applications in healthcare sector",
-                    "published_date": "2024-01-13"
-                  }
-                }
-              ],
-              "status_code": 200,
-              "response_time": 2340,
-              "timestamp": "2024-01-15T10:30:00Z"
-            },
-            "metadata": {
-              "extraction_method": "beautifulsoup",
-              "total_pages": 2,
-              "successful_retrievals": 2,
-              "workflow_pattern": "web_search \u00e2\u2020\u2019 web_retrieve"
-            }
-          },
-          {
-            "scenario": "timeout",
-            "is_error": true,
-            "error_message": "Request timed out after 30 seconds",
-            "outputs": {}
-          },
-          {
-            "scenario": "invalid_url",
-            "is_error": true,
-            "error_message": "Invalid URL format provided",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "pubmed_search",
@@ -722,10 +478,19 @@
       "category": "data_retrieval",
       "functional_category": "search_retrieve",
       "domain_category": "academic_research",
-      "tags": ["search", "pubmed", "academic", "research", "ncbi", "articles"],
+      "tags": [
+        "search",
+        "pubmed",
+        "academic",
+        "research",
+        "ncbi",
+        "articles"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_extract_features"],
+        "typical_next_tools": [
+          "pubmed_extract_features"
+        ],
         "pipeline_name": "pubmed_research"
       },
       "ui_metadata": {
@@ -865,73 +630,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "articles": [
-                {
-                  "pmid": "38123456",
-                  "title": "Machine Learning Applications in Medical Diagnosis: A Comprehensive Review",
-                  "abstract": "Recent advances in machine learning have transformed medical diagnosis...",
-                  "authors": [
-                    "Smith, J.",
-                    "Johnson, A.",
-                    "Brown, K."
-                  ],
-                  "journal": "Journal of Medical AI",
-                  "publication_date": "2024-01-15",
-                  "doi": "10.1000/example.2024.001",
-                  "keywords": [
-                    "machine learning",
-                    "medical diagnosis",
-                    "artificial intelligence"
-                  ],
-                  "mesh_terms": [
-                    "Artificial Intelligence",
-                    "Diagnosis",
-                    "Machine Learning"
-                  ],
-                  "citation_count": 42,
-                  "metadata": {
-                    "impact_factor": 8.5,
-                    "open_access": true
-                  }
-                }
-              ],
-              "total_results": 1247,
-              "search_metadata": {
-                "query_translation": "(\"machine learning\"[Title/Abstract]) AND (\"medical diagnosis\"[Title/Abstract])",
-                "search_time_ms": 340,
-                "api_version": "eutils/2.0"
-              }
-            }
-          },
-          {
-            "scenario": "no_results",
-            "outputs": {
-              "articles": [],
-              "total_results": 0,
-              "search_metadata": {
-                "query_translation": "very_specific_nonexistent_term[Title/Abstract]",
-                "search_time_ms": 120,
-                "api_version": "eutils/2.0"
-              }
-            }
-          },
-          {
-            "scenario": "api_error",
-            "is_error": true,
-            "error_message": "PubMed API temporarily unavailable. Please try again later.",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "extract",
@@ -940,10 +639,19 @@
       "category": "data_processing",
       "functional_category": "extract_analyze",
       "domain_category": "general_purpose",
-      "tags": ["extract", "llm", "flexible", "analysis", "structured"],
+      "tags": [
+        "extract",
+        "llm",
+        "flexible",
+        "analysis",
+        "structured"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["summarize", "group_reduce"],
+        "typical_next_tools": [
+          "summarize",
+          "group_reduce"
+        ],
         "pipeline_name": "content_analysis"
       },
       "ui_metadata": {
@@ -1026,73 +734,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "extractions": [
-                {
-                  "item_id": "email_123",
-                  "original_item": {
-                    "subject": "Great news about the project!",
-                    "body": "We exceeded our quarterly goals..."
-                  },
-                  "extraction": {
-                    "sentiment": "positive",
-                    "topics": [
-                      "project",
-                      "goals",
-                      "quarterly"
-                    ],
-                    "priority": "high"
-                  }
-                }
-              ]
-            },
-            "metadata": {
-              "total_processed": 1,
-              "successful": 1,
-              "failed": 0
-            }
-          },
-          {
-            "scenario": "extraction_error",
-            "is_error": true,
-            "error_message": "Failed to extract data from malformed input",
-            "outputs": {}
-          },
-          {
-            "scenario": "limited_search_results",
-            "description": "Extracting from search results with limited content",
-            "outputs": {
-              "extractions": [
-                {
-                  "item_id": "search_result_1",
-                  "original_item": {
-                    "title": "New AI Model Released",
-                    "snippet": "Company X announced their latest AI model...",
-                    "url": "https://example.com/ai-news"
-                  },
-                  "extraction": {
-                    "title": "New AI Model Released",
-                    "key_points": "Limited - only snippet available",
-                    "implications": "Cannot extract - need full content from web_retrieve"
-                  }
-                }
-              ]
-            },
-            "metadata": {
-              "warning": "Search results only contain snippets. Use web_retrieve for detailed extraction.",
-              "recommendation": "Use web_retrieve first, then extract from webpage content"
-            }
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "summarize",
@@ -1101,7 +743,13 @@
       "category": "data_processing",
       "functional_category": "process_transform",
       "domain_category": "general_purpose",
-      "tags": ["summarize", "llm", "text", "analysis", "mandate"],
+      "tags": [
+        "summarize",
+        "llm",
+        "text",
+        "analysis",
+        "mandate"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
         "typical_next_tools": [],
@@ -1225,42 +873,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "summary": {
-                "title": "Weekly Email Analysis Summary",
-                "content": "Analysis of 127 emails over the past week reveals increasing engagement with AI-related topics. Average sentiment remains positive at 0.72, with notable spikes in discussions around machine learning applications and research developments.",
-                "key_points": [
-                  "127 emails processed over 7 days",
-                  "Positive sentiment trend (0.72 average)",
-                  "AI and ML topics dominating discussions",
-                  "Research papers generating highest engagement"
-                ],
-                "recommendations": [
-                  "Continue focus on AI research content",
-                  "Consider increasing frequency of ML application updates",
-                  "Monitor sentiment trends weekly"
-                ],
-                "metadata": {
-                  "summary_type": "executive",
-                  "word_count": 89,
-                  "created_at": "2024-01-15T16:30:00Z"
-                }
-              }
-            },
-            "metadata": {
-              "processing_time_ms": 2340
-            }
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "pubmed_generate_query",
@@ -1269,10 +882,18 @@
       "category": "data_processing",
       "functional_category": "process_transform",
       "domain_category": "academic_research",
-      "tags": ["query", "generate", "optimization", "pubmed", "llm"],
+      "tags": [
+        "query",
+        "generate",
+        "optimization",
+        "pubmed",
+        "llm"
+      ],
       "pipeline_info": {
         "can_start_pipeline": true,
-        "typical_next_tools": ["pubmed_search"],
+        "typical_next_tools": [
+          "pubmed_search"
+        ],
         "pipeline_name": "pubmed_research"
       },
       "ui_metadata": {
@@ -1454,89 +1075,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "generated_queries": [
-                {
-                  "query_string": "(\"machine learning\"[Title/Abstract] OR \"artificial intelligence\"[Title/Abstract]) AND (\"medical diagnosis\"[Title/Abstract] OR \"diagnostic imaging\"[MeSH Terms]) AND 2020:2024[PDAT]",
-                  "rationale": "Comprehensive search combining ML/AI terms with medical diagnosis, focused on recent publications",
-                  "expected_scope": "500-2000 results",
-                  "confidence_score": 0.92
-                },
-                {
-                  "query_string": "\"deep learning\"[Title/Abstract] AND (\"radiolog*\"[Title/Abstract] OR \"patholog*\"[Title/Abstract]) AND \"diagnosis\"[Title/Abstract] AND 2022:2024[PDAT]",
-                  "rationale": "Focused on deep learning in radiology/pathology diagnosis with very recent papers",
-                  "expected_scope": "100-500 results",
-                  "confidence_score": 0.85
-                }
-              ],
-              "mesh_terms": [
-                "Artificial Intelligence",
-                "Diagnosis",
-                "Machine Learning",
-                "Radiologic Image Interpretation"
-              ],
-              "field_tags": [
-                "Title/Abstract",
-                "MeSH Terms",
-                "PDAT"
-              ],
-              "query_metadata": {
-                "domain_context": "medical technology intersection",
-                "synonyms_used": [
-                  "AI",
-                  "ML",
-                  "deep learning",
-                  "neural networks"
-                ],
-                "query_complexity": "moderate"
-              }
-            },
-            "metadata": {
-              "generation_time_ms": 1250,
-              "tokens_used": 450
-            }
-          },
-          {
-            "scenario": "simple_goal",
-            "outputs": {
-              "generated_queries": [
-                {
-                  "query_string": "\"diabetes\"[MeSH Terms] AND 2020:2024[PDAT]",
-                  "rationale": "Simple search for recent diabetes research using MeSH terms",
-                  "expected_scope": "5000+ results",
-                  "confidence_score": 0.95
-                }
-              ],
-              "mesh_terms": [
-                "Diabetes Mellitus"
-              ],
-              "field_tags": [
-                "MeSH Terms",
-                "PDAT"
-              ],
-              "query_metadata": {
-                "domain_context": "medical",
-                "synonyms_used": [],
-                "query_complexity": "simple"
-              }
-            }
-          },
-          {
-            "scenario": "generation_error",
-            "is_error": true,
-            "error_message": "Unable to generate meaningful queries from the provided research goal. Please provide more specific information.",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "pubmed_extract_features",
@@ -1545,10 +1084,19 @@
       "category": "data_processing",
       "functional_category": "extract_analyze",
       "domain_category": "academic_research",
-      "tags": ["extract", "research", "features", "pubmed", "llm", "schema"],
+      "tags": [
+        "extract",
+        "research",
+        "features",
+        "pubmed",
+        "llm",
+        "schema"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_score_articles"],
+        "typical_next_tools": [
+          "pubmed_score_articles"
+        ],
         "pipeline_name": "pubmed_research"
       },
       "ui_metadata": {
@@ -1670,110 +1218,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": true,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "extractions": [
-                {
-                  "item_id": "pmid_38123456",
-                  "original_article": {
-                    "pmid": "38123456",
-                    "title": "Machine Learning Applications in Medical Diagnosis",
-                    "abstract": "Recent advances in machine learning have transformed medical diagnosis...",
-                    "authors": [
-                      "Smith, J.",
-                      "Johnson, A."
-                    ],
-                    "journal": "Journal of Medical AI",
-                    "publication_date": "2024-01-15"
-                  },
-                  "extraction": {
-                    "methodology": "systematic review and meta-analysis",
-                    "sample_size": 1500,
-                    "key_findings": [
-                      "ML improves diagnostic accuracy by 15%",
-                      "Deep learning shows best results"
-                    ],
-                    "limitations": [
-                      "Limited to English publications",
-                      "High heterogeneity between studies"
-                    ]
-                  },
-                  "extraction_metadata": {
-                    "confidence_score": 0.92,
-                    "fields_extracted": 4,
-                    "fields_missing": 0
-                  }
-                }
-              ],
-              "extraction_metadata": {
-                "total_processed": 10,
-                "successful_extractions": 9,
-                "partial_extractions": 1,
-                "failed_extractions": 0,
-                "processing_time_ms": 15000,
-                "tokens_used": 8500
-              }
-            }
-          },
-          {
-            "scenario": "partial_extraction",
-            "outputs": {
-              "extractions": [
-                {
-                  "item_id": "pmid_38123457",
-                  "original_article": {
-                    "pmid": "38123457",
-                    "title": "Brief Note on AI in Healthcare",
-                    "abstract": "Short abstract with limited information...",
-                    "authors": [
-                      "Brown, K."
-                    ],
-                    "journal": "Medical Letters"
-                  },
-                  "extraction": {
-                    "methodology": "commentary",
-                    "sample_size": null,
-                    "key_findings": [
-                      "AI has potential in healthcare"
-                    ],
-                    "limitations": null
-                  },
-                  "extraction_metadata": {
-                    "confidence_score": 0.45,
-                    "fields_extracted": 2,
-                    "fields_missing": 2,
-                    "warnings": [
-                      "Insufficient information for sample_size",
-                      "No limitations mentioned"
-                    ]
-                  }
-                }
-              ],
-              "extraction_metadata": {
-                "total_processed": 1,
-                "successful_extractions": 0,
-                "partial_extractions": 1,
-                "failed_extractions": 0,
-                "processing_time_ms": 2000,
-                "tokens_used": 450
-              }
-            }
-          },
-          {
-            "scenario": "extraction_error",
-            "is_error": true,
-            "error_message": "LLM service unavailable. Unable to process extraction requests.",
-            "outputs": {}
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "group_reduce",
@@ -1782,10 +1227,18 @@
       "category": "data_analysis",
       "functional_category": "process_transform",
       "domain_category": "general_purpose",
-      "tags": ["group", "aggregate", "analyze", "reduce", "statistics"],
+      "tags": [
+        "group",
+        "aggregate",
+        "analyze",
+        "reduce",
+        "statistics"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["summarize"],
+        "typical_next_tools": [
+          "summarize"
+        ],
         "pipeline_name": "data_analysis"
       },
       "ui_metadata": {
@@ -1895,52 +1348,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": false,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "grouped_results": [
-                {
-                  "group_key": "2024-01-15",
-                  "group_value": "2024-01-15",
-                  "aggregated_data": {
-                    "email_count": 5,
-                    "avg_sentiment": 0.7,
-                    "unique_senders": 3,
-                    "key_topics": [
-                      "ai",
-                      "research",
-                      "meetings"
-                    ]
-                  }
-                },
-                {
-                  "group_key": "2024-01-16",
-                  "group_value": "2024-01-16",
-                  "aggregated_data": {
-                    "email_count": 3,
-                    "avg_sentiment": 0.8,
-                    "unique_senders": 2,
-                    "key_topics": [
-                      "project",
-                      "deadlines"
-                    ]
-                  }
-                }
-              ]
-            },
-            "metadata": {
-              "total_groups": 2,
-              "total_items_processed": 8
-            }
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "pubmed_score_articles",
@@ -1949,10 +1357,18 @@
       "category": "data_analysis",
       "functional_category": "score_rank",
       "domain_category": "academic_research",
-      "tags": ["score", "rank", "evaluate", "research", "criteria"],
+      "tags": [
+        "score",
+        "rank",
+        "evaluate",
+        "research",
+        "criteria"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
-        "typical_next_tools": ["pubmed_filter_rank"],
+        "typical_next_tools": [
+          "pubmed_filter_rank"
+        ],
         "pipeline_name": "pubmed_research"
       },
       "ui_metadata": {
@@ -2065,62 +1481,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": false,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "scored_articles": [
-                {
-                  "article_with_features": {
-                    "item_id": "pmid_38123456",
-                    "original_article": {
-                      "pmid": "38123456",
-                      "title": "Machine Learning Applications in Medical Diagnosis",
-                      "journal": "Journal of Medical AI"
-                    },
-                    "extraction": {
-                      "methodology": "systematic review and meta-analysis",
-                      "sample_size": 1500,
-                      "novelty_score": 0.85,
-                      "relevance_score": 0.92
-                    }
-                  },
-                  "total_score": 0.87,
-                  "score_breakdown": {
-                    "methodology": 0.9,
-                    "sample_size": 0.8,
-                    "novelty": 0.85,
-                    "relevance": 0.92
-                  },
-                  "percentile_rank": 92.5,
-                  "scoring_metadata": {
-                    "confidence": 0.88,
-                    "components_used": 4
-                  }
-                }
-              ],
-              "scoring_metadata": {
-                "score_distribution": {
-                  "min": 0.23,
-                  "max": 0.95,
-                  "mean": 0.67,
-                  "std_dev": 0.18
-                },
-                "feature_correlations": {
-                  "methodology_novelty": 0.45,
-                  "sample_size_relevance": 0.32
-                },
-                "scoring_method_used": "weighted_sum"
-              }
-            }
-          }
-        ]
-      }
+      ]
     },
     {
       "id": "pubmed_filter_rank",
@@ -2129,7 +1490,13 @@
       "category": "data_analysis",
       "functional_category": "score_rank",
       "domain_category": "academic_research",
-      "tags": ["filter", "rank", "results", "threshold", "final"],
+      "tags": [
+        "filter",
+        "rank",
+        "results",
+        "threshold",
+        "final"
+      ],
       "pipeline_info": {
         "can_start_pipeline": false,
         "typical_next_tools": [],
@@ -2289,77 +1656,7 @@
             }
           }
         }
-      ],
-      "stub_config": {
-        "enabled": true,
-        "default_scenario": "success",
-        "requires_external_calls": false,
-        "sample_responses": [
-          {
-            "scenario": "success",
-            "outputs": {
-              "ranked_articles": [
-                {
-                  "article_with_features": {
-                    "item_id": "pmid_38123456",
-                    "original_article": {
-                      "pmid": "38123456",
-                      "title": "Machine Learning Applications in Medical Diagnosis",
-                      "journal": "Journal of Medical AI",
-                      "publication_date": "2024-01-15"
-                    },
-                    "extraction": {
-                      "methodology": "systematic review and meta-analysis",
-                      "sample_size": 1500
-                    }
-                  },
-                  "total_score": 0.92,
-                  "score_breakdown": {
-                    "methodology": 0.95,
-                    "impact": 0.88,
-                    "recency": 0.93
-                  },
-                  "percentile_rank": 95.2,
-                  "scoring_metadata": {
-                    "final_rank": 1,
-                    "boosts_applied": [
-                      "recent",
-                      "high_impact"
-                    ]
-                  }
-                }
-              ],
-              "filter_metadata": {
-                "initial_count": 50,
-                "filtered_count": 8,
-                "filters_applied": [
-                  "min_score_threshold",
-                  "max_results"
-                ],
-                "ranking_method": "composite_score_with_boosts"
-              }
-            }
-          },
-          {
-            "scenario": "no_results_after_filtering",
-            "outputs": {
-              "ranked_articles": [],
-              "filter_metadata": {
-                "initial_count": 25,
-                "filtered_count": 0,
-                "filters_applied": [
-                  "min_score_threshold",
-                  "min_citation_count"
-                ],
-                "ranking_method": "none_applied"
-              }
-            },
-            "metadata": {
-              "warning": "All articles filtered out. Consider relaxing filter criteria."
-            }
-          }
-        ]
-      }
+      ]
     }
   ]
 }

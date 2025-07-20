@@ -86,7 +86,7 @@ class ToolExecutionService:
             asset_context: AssetContext = self.asset_service.get_hop_asset_context(tool_step_schema.hop_id, user_id)
             
             # 4. Execute the tool using internal methods
-            tool_result = await self._execute_tool(
+            tool_result: ToolExecutionResponse = await self._execute_tool(
                 step=tool_step_schema,
                 asset_context=asset_context,
                 user_id=user_id

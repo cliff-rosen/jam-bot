@@ -30,7 +30,7 @@ TOOL_REGISTRY: Dict[str, "ToolDefinition"] = {}
 
 def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]:
     """Parse the tools.json data into ToolDefinition objects."""
-    from schemas.tool import ToolDefinition, ToolParameter, ToolOutput, ToolStubConfig, ToolSampleResponse
+    from schemas.tool import ToolDefinition, ToolParameter, ToolOutput
     from schemas.resource import Resource, AuthConfig, AuthField
     from schemas.base import SchemaType
     
@@ -122,28 +122,6 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                 )
                 resource_deps.append(resource)
             
-            # Parse stub configuration if present
-            stub_config = None
-            stub_data = tool_data.get("stub_config")
-            if stub_data:
-                sample_responses = []
-                for response_data in stub_data.get("sample_responses", []):
-                    sample_response = ToolSampleResponse(
-                        scenario=response_data["scenario"],
-                        outputs=response_data.get("outputs", {}),
-                        metadata=response_data.get("metadata", {}),
-                        is_error=response_data.get("is_error", False),
-                        error_message=response_data.get("error_message")
-                    )
-                    sample_responses.append(sample_response)
-                
-                stub_config = ToolStubConfig(
-                    enabled=stub_data.get("enabled", True),
-                    default_scenario=stub_data.get("default_scenario", "success"),
-                    requires_external_calls=stub_data.get("requires_external_calls", True),
-                    sample_responses=sample_responses
-                )
-            
             # Create tool definition
             tool_def = ToolDefinition(
                 id=tool_data["id"],
@@ -157,8 +135,7 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
                 ui_metadata=tool_data.get("ui_metadata"),
                 parameters=parameters,
                 outputs=outputs,
-                resource_dependencies=resource_deps,
-                stub_config=stub_config
+                resource_dependencies=resource_deps
             )
             
             tools[tool_data["id"]] = tool_def

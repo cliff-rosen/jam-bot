@@ -32,7 +32,7 @@ class MissionService:
         if not mission_model:
             return None
         
-        return await self.mission_transformer.model_to_schema(mission_model, load_hops=load_hops)
+        return await self.mission_transformer.model_to_schema(mission_model, load_assets=True, load_hops=load_hops)
     
     async def update_mission(self, mission_id: str, user_id: int, mission: Mission) -> bool:
         """Update an existing mission"""

@@ -26,8 +26,12 @@ Usage:
 
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
+import logging
 
 from models import Mission as MissionModel, MissionStatus as ModelMissionStatus
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 from schemas.workflow import (
     Mission, 
     MissionStatus as SchemaMissionStatus, 
@@ -89,9 +93,19 @@ class MissionTransformer:
         except Exception as e:
             raise MissionTransformationError(f"Failed to convert schema to model: {str(e)}")
     
-    async def model_to_schema(self, mission_model: MissionModel, load_assets: bool = True, load_hops: bool = False) -> Mission:
+    async def model_to_schema(self, mission_model: MissionModel, load_assets: bool = True, load_hops: bool = True) -> Mission:
         """Convert MissionModel to Mission schema with optional asset and hop loading"""
         try:
+            logger.debug(
+                "Converting mission model to schema",
+                extra={
+                    "mission_id": mission_model.id,
+                    "load_assets": load_assets,
+                    "load_hops": load_hops,
+                    "current_hop_id": mission_model.current_hop_id
+                }
+            )
+            
             current_hop = None
             hops = []
             
@@ -106,6 +120,14 @@ class MissionTransformer:
                 # Load current hop if specified
                 if mission_model.current_hop_id:
                     current_hop = await hop_service.get_hop(mission_model.current_hop_id, mission_model.user_id)
+                    logger.debug(
+                        "Loaded current hop with tool steps",
+                        extra={
+                            "mission_id": mission_model.id,
+                            "current_hop_id": mission_model.current_hop_id,
+                            "tool_steps_count": len(current_hop.tool_steps) if current_hop else 0
+                        }
+                    )
             
             # Get mission asset mapping
             mission_asset_map = {}

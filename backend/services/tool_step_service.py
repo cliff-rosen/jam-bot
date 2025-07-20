@@ -16,22 +16,42 @@ class ToolStepService:
 
     def _model_to_schema(self, tool_step_model: ToolStepModel) -> ToolStep:
         """Convert database model to ToolStep schema"""
-        return ToolStep(
-            id=tool_step_model.id,
-            tool_id=tool_step_model.tool_id,
-            name=tool_step_model.name or tool_step_model.description or f"Step {tool_step_model.sequence_order}",
-            description=tool_step_model.description or "",
-            sequence_order=tool_step_model.sequence_order,
-            hop_id=tool_step_model.hop_id,
-            resource_configs=tool_step_model.resource_configs or {},
-            parameter_mapping=tool_step_model.parameter_mapping or {},
-            result_mapping=tool_step_model.result_mapping or {},
-            status=ToolExecutionStatus(tool_step_model.status.value),
-            error_message=tool_step_model.error_message,
-            validation_errors=tool_step_model.validation_errors or [],
-            created_at=tool_step_model.created_at,
-            updated_at=tool_step_model.updated_at
-        )
+        try:
+            return ToolStep(
+                id=tool_step_model.id,
+                tool_id=tool_step_model.tool_id,
+                name=tool_step_model.name or tool_step_model.description or f"Step {tool_step_model.sequence_order}",
+                description=tool_step_model.description or "",
+                sequence_order=tool_step_model.sequence_order,
+                hop_id=tool_step_model.hop_id,
+                resource_configs=tool_step_model.resource_configs or {},
+                parameter_mapping=tool_step_model.parameter_mapping or {},
+                result_mapping=tool_step_model.result_mapping or {},
+                status=ToolExecutionStatus(tool_step_model.status.value),
+                error_message=tool_step_model.error_message,
+                validation_errors=tool_step_model.validation_errors or [],
+                created_at=tool_step_model.created_at,
+                updated_at=tool_step_model.updated_at
+            )
+        except Exception as e:
+            # If validation fails, create a simplified ToolStep with validation errors
+            print(f"Warning: Failed to validate ToolStep {tool_step_model.id}: {e}")
+            return ToolStep(
+                id=tool_step_model.id,
+                tool_id=tool_step_model.tool_id,
+                name=tool_step_model.name or tool_step_model.description or f"Step {tool_step_model.sequence_order}",
+                description=tool_step_model.description or "",
+                sequence_order=tool_step_model.sequence_order,
+                hop_id=tool_step_model.hop_id,
+                resource_configs={},  # Reset to empty if validation fails
+                parameter_mapping={},  # Reset to empty if validation fails
+                result_mapping={},  # Reset to empty if validation fails
+                status=ToolExecutionStatus.ERROR,
+                error_message=f"Validation error: {str(e)}",
+                validation_errors=[f"Schema validation failed: {str(e)}"],
+                created_at=tool_step_model.created_at,
+                updated_at=tool_step_model.updated_at
+            )
 
     async def create_tool_step(
         self,

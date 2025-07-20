@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 
 import { chatApi } from '@/lib/api/chatApi';
-import { toolsApi, assetApi, missionApi, sessionApi, stateTransitionApi } from '@/lib/api';
+import { toolsApi, assetApi, missionApi, sessionApi, stateTransitionApi, hopApi } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } from '@/types/chat';
@@ -629,11 +629,71 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
     }, []);
 
-    const startHopExecution = useCallback((hopId: string) => {
-        if (hopId) {
+    const startHopExecution = useCallback(async (hopId: string) => {
+        if (!hopId) return;
+
+        try {
+            // Update UI to show execution starting
             dispatch({ type: 'START_HOP_EXECUTION', payload: hopId });
+
+            // Actually execute the hop via API
+            const result = await hopApi.executeHop(hopId);
+            console.log(`Hop execution result:`, result);
+
+            if (result.success) {
+                // Execution completed successfully
+                completeHopExecution(hopId);
+                
+                // Add success message to chat
+                const successMessage: ChatMessage = {
+                    id: `hop_exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    chat_id: "temp",
+                    role: MessageRole.SYSTEM,
+                    content: `Hop executed successfully: ${result.message}. Executed ${result.executed_steps}/${result.total_steps} tool steps.`,
+                    message_metadata: {},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                addMessage(successMessage);
+
+                // Force mission reload to get updated state
+                if (state.mission?.id) {
+                    await loadMission(state.mission.id);
+                }
+            } else {
+                // Execution failed
+                const errorMsg = result.errors.join(', ') || 'Unknown execution error';
+                failHopExecution(hopId, errorMsg);
+                
+                // Add error message to chat
+                const errorMessage: ChatMessage = {
+                    id: `hop_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    chat_id: "temp",
+                    role: MessageRole.SYSTEM,
+                    content: `Hop execution failed: ${errorMsg}`,
+                    message_metadata: {},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                addMessage(errorMessage);
+            }
+        } catch (error) {
+            console.error('Error executing hop:', error);
+            failHopExecution(hopId, `Execution error: ${error}`);
+            
+            // Add error message to chat
+            const errorMessage: ChatMessage = {
+                id: `hop_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                chat_id: "temp",
+                role: MessageRole.SYSTEM,
+                content: `Hop execution failed: ${error}`,
+                message_metadata: {},
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            addMessage(errorMessage);
         }
-    }, []);
+    }, [state.mission?.id, loadMission, addMessage, completeHopExecution, failHopExecution]);
 
     const completeHopExecution = useCallback((hopId: string) => {
         if (hopId) {

@@ -162,6 +162,113 @@ class HopService:
         import asyncio
         return await asyncio.gather(*[self._model_to_schema(hop_model) for hop_model in hop_models])
 
+    async def execute_hop(self, hop_id: str, user_id: int) -> Dict[str, Any]:
+        """Execute all tool steps in a hop sequentially"""
+        # Get the hop
+        hop = await self.get_hop(hop_id, user_id)
+        if not hop:
+            return {
+                "success": False,
+                "errors": [f"Hop {hop_id} not found"],
+                "message": "Hop not found",
+                "executed_steps": 0,
+                "total_steps": 0
+            }
+        
+        # Check if hop is ready for execution
+        if hop.status != HopStatusSchema.HOP_IMPL_READY:
+            return {
+                "success": False,
+                "errors": [f"Hop status is {hop.status.value}, expected HOP_IMPL_READY"],
+                "message": f"Hop is not ready for execution (status: {hop.status.value})",
+                "executed_steps": 0,
+                "total_steps": len(hop.tool_steps)
+            }
+        
+        # Update hop status to EXECUTING
+        await self.update_hop_status(hop_id, user_id, HopStatusSchema.EXECUTING)
+        
+        tool_steps = hop.tool_steps
+        total_steps = len(tool_steps)
+        executed_steps = 0
+        errors = []
+        
+        try:
+            # Execute tool steps in sequence order
+            from services.tool_step_service import ToolStepService
+            tool_step_service = ToolStepService(self.db)
+            
+            for step in sorted(tool_steps, key=lambda x: x.sequence_order):
+                try:
+                    logger.info(
+                        f"Executing tool step {step.id} (step {step.sequence_order})",
+                        extra={
+                            "hop_id": hop_id,
+                            "tool_step_id": step.id,
+                            "tool_id": step.tool_id,
+                            "sequence_order": step.sequence_order
+                        }
+                    )
+                    
+                    # Execute the tool step - this will handle status updates internally
+                    result = await tool_step_service.execute_tool_step(
+                        step.id, 
+                        user_id, 
+                        asset_context={}  # TODO: Build proper asset context
+                    )
+                    
+                    if result and result.status.value in ['COMPLETED']:
+                        executed_steps += 1
+                        logger.info(f"Tool step {step.id} completed successfully")
+                    else:
+                        error_msg = f"Tool step {step.id} failed: {result.error_message if result else 'Unknown error'}"
+                        errors.append(error_msg)
+                        logger.error(error_msg)
+                        break  # Stop execution on first failure
+                        
+                except Exception as e:
+                    error_msg = f"Tool step {step.id} execution error: {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg, extra={"tool_step_id": step.id, "error": str(e)})
+                    break  # Stop execution on first error
+            
+            # Determine final status
+            if executed_steps == total_steps and not errors:
+                # All steps completed successfully
+                await self.update_hop_status(hop_id, user_id, HopStatusSchema.COMPLETED)
+                return {
+                    "success": True,
+                    "errors": [],
+                    "message": f"Hop executed successfully. All {executed_steps} tool steps completed.",
+                    "executed_steps": executed_steps,
+                    "total_steps": total_steps
+                }
+            else:
+                # Some steps failed
+                await self.update_hop_status(hop_id, user_id, HopStatusSchema.FAILED, 
+                                           error_message="; ".join(errors) if errors else "Execution incomplete")
+                return {
+                    "success": False,
+                    "errors": errors,
+                    "message": f"Hop execution failed. Executed {executed_steps}/{total_steps} tool steps.",
+                    "executed_steps": executed_steps,
+                    "total_steps": total_steps
+                }
+                
+        except Exception as e:
+            # Unexpected error during execution
+            error_msg = f"Hop execution failed with error: {str(e)}"
+            logger.error(error_msg, extra={"hop_id": hop_id, "error": str(e)})
+            await self.update_hop_status(hop_id, user_id, HopStatusSchema.FAILED, error_message=error_msg)
+            
+            return {
+                "success": False,
+                "errors": [error_msg],
+                "message": "Hop execution failed due to unexpected error",
+                "executed_steps": executed_steps,
+                "total_steps": total_steps
+            }
+
     async def update_hop(
         self,
         hop_id: str,

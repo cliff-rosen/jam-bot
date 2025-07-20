@@ -49,6 +49,15 @@ class CreateToolStepRequest(BaseModel):
     validation_errors: Optional[List[str]] = None
 
 
+class HopExecutionResponse(BaseModel):
+    success: bool
+    errors: List[str]
+    message: str
+    executed_steps: int
+    total_steps: int
+    metadata: Optional[Dict[str, Any]] = None
+
+
 
 @router.post("/missions/{mission_id}/hops", response_model=Hop)
 async def create_hop(
@@ -240,5 +249,20 @@ async def reorder_tool_steps(
             tool_step_ids
         )
         return {"message": "Tool steps reordered successfully", "tool_steps": updated_tool_steps}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{hop_id}/execute", response_model=HopExecutionResponse)
+async def execute_hop(
+    hop_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(validate_token)
+):
+    """Execute all tool steps in a hop sequentially"""
+    try:
+        hop_service = HopService(db)
+        result = await hop_service.execute_hop(hop_id, current_user.user_id)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

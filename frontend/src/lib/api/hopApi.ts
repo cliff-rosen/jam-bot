@@ -47,6 +47,15 @@ export interface ReorderToolStepsResponse {
     tool_steps: ToolStep[];
 }
 
+export interface HopExecutionResponse {
+    success: boolean;
+    errors: string[];
+    message: string;
+    executed_steps: number;
+    total_steps: number;
+    metadata?: Record<string, any>;
+}
+
 export const hopApi = {
 
     /**
@@ -123,6 +132,14 @@ export const hopApi = {
      */
     async reorderToolSteps(hopId: string, toolStepIds: string[]): Promise<ReorderToolStepsResponse> {
         const response = await api.post<ReorderToolStepsResponse>(`/api/hops/${hopId}/reorder-tool-steps`, toolStepIds);
+        return response.data;
+    },
+
+    /**
+     * Execute a hop - runs all tool steps in sequence
+     */
+    async executeHop(hopId: string): Promise<HopExecutionResponse> {
+        const response = await api.post<HopExecutionResponse>(`/api/hops/${hopId}/execute`);
         return response.data;
     },
 }; 

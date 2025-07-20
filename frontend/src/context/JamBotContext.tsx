@@ -629,6 +629,12 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({ type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE', payload: hop });
     }, []);
 
+    const failHopExecution = useCallback((hopId: string, error: string) => {
+        if (hopId) {
+            dispatch({ type: 'FAIL_HOP_EXECUTION', payload: { hopId, error } });
+        }
+    }, []);
+
     const startHopExecution = useCallback(async (hopId: string) => {
         if (!hopId) return;
 
@@ -641,9 +647,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             console.log(`Hop execution result:`, result);
 
             if (result.success) {
-                // Execution completed successfully
-                completeHopExecution(hopId);
-                
                 // Add success message to chat
                 const successMessage: ChatMessage = {
                     id: `hop_exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -693,19 +696,8 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             };
             addMessage(errorMessage);
         }
-    }, [state.mission?.id, loadMission, addMessage, completeHopExecution, failHopExecution]);
+    }, [state.mission?.id, loadMission, addMessage, failHopExecution]);
 
-    const completeHopExecution = useCallback((hopId: string) => {
-        if (hopId) {
-            dispatch({ type: 'COMPLETE_HOP_EXECUTION', payload: hopId });
-        }
-    }, []);
-
-    const failHopExecution = useCallback((hopId: string, error: string) => {
-        if (hopId) {
-            dispatch({ type: 'FAIL_HOP_EXECUTION', payload: { hopId, error } });
-        }
-    }, []);
 
     const retryHopExecution = useCallback((hopId: string) => {
         if (hopId) {
@@ -940,7 +932,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
             acceptHopImplementationProposal,
             acceptHopImplementationAsComplete,
             startHopExecution,
-            completeHopExecution,
             failHopExecution,
             retryHopExecution,
             updateHopState,

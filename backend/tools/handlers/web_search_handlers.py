@@ -10,13 +10,11 @@ from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, 
 from schemas.canonical_types import CanonicalSearchResult
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
-from tools.tool_stubbing import create_stub_decorator
 from services.search_service import SearchService
 
 # Singleton service instance
 search_service = SearchService()
 
-@create_stub_decorator("web_search")
 async def handle_web_search(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Search the web for real-time information about any topic.

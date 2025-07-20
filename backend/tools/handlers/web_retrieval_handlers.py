@@ -10,13 +10,11 @@ from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, 
 from schemas.canonical_types import CanonicalWebpage
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
-from tools.tool_stubbing import create_stub_decorator
 from services.web_retrieval_service import WebRetrievalService
 
 # Singleton service instance
 web_retrieval_service = WebRetrievalService()
 
-@create_stub_decorator("web_retrieve")
 async def handle_web_retrieve(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Retrieve and extract content from one or more webpages given their URLs.

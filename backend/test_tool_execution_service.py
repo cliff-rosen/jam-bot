@@ -19,9 +19,7 @@ from typing import Dict, Any
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-# Set environment variables for stubbing
-os.environ['TOOL_STUBBING_ENABLED'] = 'true'
-os.environ['TOOL_STUBBING_MODE'] = 'all'
+# No tool stubbing - using mocks instead
 
 from services.tool_execution_service import ToolExecutionService
 from services.tool_step_service import ToolStepService
@@ -133,9 +131,32 @@ async def test_tool_execution_service():
     )
     tool_execution_service.state_transition_service.updateState.return_value = mock_transition_result
     
-    # Step 3: Load tool registry (needed for actual tool execution)
-    print("3. Loading tool registry...")
-    refresh_tool_registry()
+    # Step 3: Check tool registry (already loaded when modules imported)
+    print("3. Checking tool registry...")
+    
+    # Check and mock the actual tool handler  
+    from tools.tool_registry import get_tool_definition
+    tool_def = get_tool_definition("extract")
+    print(f"Tool definition found: {tool_def is not None}")
+    print(f"Execution handler: {tool_def.execution_handler if tool_def else 'No tool def'}")
+    
+    if tool_def:
+        if tool_def.execution_handler:
+            # Create a mock that returns ToolHandlerResult format
+            async def mock_handler(input_data):
+                from schemas.tool_handler_schema import ToolHandlerResult
+                return ToolHandlerResult(
+                    outputs={"extractions": ["mocked_result_1", "mocked_result_2"]},
+                    metadata={"mocked": True}
+                )
+            
+            # Replace the real handler with our mock
+            tool_def.execution_handler.handler = mock_handler
+            print("Mocked the extract tool handler")
+        else:
+            print("WARNING: Extract tool has no execution handler!")
+    else:
+        print("ERROR: Extract tool definition not found!")
     
     # Step 4: Execute the tool step
     print("4. Executing tool step...")

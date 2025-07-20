@@ -31,9 +31,7 @@ execute_tool_step(tool_step_id, user_id)
 ├── _execute_tool(step, asset_context, user_id)
 │   ├── get_tool_definition(tool_id)
 │   ├── _map_parameters(step, asset_context)
-│   ├── ToolStubbing.should_stub_tool(tool_def)
-│   ├── tool_def.execution_handler.handler(execution_input)  [OR stub]
-│   └── _process_tool_results(result)
+│   └── tool_def.execution_handler.handler(execution_input)
 ├── StateTransitionService.updateState(COMPLETE_TOOL_STEP, execution_result)
 │   ├── Update ToolStep status to COMPLETED
 │   ├── Process result mappings to create/update assets
@@ -165,31 +163,18 @@ class ToolExecutionService:
         )
         
         try:
-            # Check if we should stub this tool execution
-            if not ToolStubbing.should_stub_tool(tool_def):
-                # Execute the actual tool
-                print(f"Executing tool {step.tool_id}")
-                result: ToolHandlerResult = await tool_def.execution_handler.handler(execution_input)
-            else:
-                print(f"Stubbing tool {step.tool_id}")
-                result = await ToolStubbing.get_stub_response(tool_def, execution_input)
+            # Execute the tool
+            print(f"Executing tool {step.tool_id}")
+            result = await tool_def.execution_handler.handler(execution_input)
             
             print("Tool execution completed")
             
-            # Handle both ToolHandlerResult and dict responses
-            if isinstance(result, dict):
-                outputs = result
-                metadata = {}
-            else:
-                outputs = result.outputs
-                metadata = result.metadata or {}
-               
             return ToolExecutionResponse(
                 success=True,
                 errors=[],
-                outputs=outputs,
-                canonical_outputs=outputs,  # Assuming outputs are already canonical
-                metadata=metadata
+                outputs=result.outputs,
+                canonical_outputs=result.outputs,  # Assuming outputs are already canonical
+                metadata=result.metadata or {}
             )
                 
         except Exception as e:

@@ -7,7 +7,7 @@ purely to implementation code.
 
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, Any, Optional, Union
+from typing import Awaitable, Callable, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 __all__ = [
@@ -52,5 +52,5 @@ class ToolHandlerResult(BaseModel):
 class ToolExecutionHandler(BaseModel):
     """Metadata + async callable that performs the work."""
 
-    handler: Callable[[ToolHandlerInput], Awaitable[Union[Dict[str, Any], ToolHandlerResult]]]
+    handler: Callable[[ToolHandlerInput], Awaitable[ToolHandlerResult]]
     description: str 

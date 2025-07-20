@@ -236,7 +236,13 @@ def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None
     print(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:
         raise ValueError(f"No tool definition found for {tool_id}")
-    TOOL_REGISTRY[tool_id].execution_handler = handler
+    
+    try:
+        TOOL_REGISTRY[tool_id].execution_handler = handler
+        print(f"Successfully registered handler for {tool_id}")
+    except Exception as e:
+        print(f"Failed to register handler for {tool_id}: {e}")
+        raise
 
 
 # ---------------------------------------------------------------------------

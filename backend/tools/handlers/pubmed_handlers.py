@@ -17,7 +17,6 @@ from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, 
 from schemas.canonical_types import CanonicalPubMedArticle, CanonicalPubMedExtraction, CanonicalScoredArticle
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
-from tools.tool_stubbing import create_stub_decorator
 from services.pubmed_service import (
     get_article_ids,
     get_article_ids_by_date_range, 
@@ -29,7 +28,6 @@ from agents.prompts.base_prompt_caller import BasePromptCaller
 
 # ===== Tool 1: PubMed Query Generator =====
 
-@create_stub_decorator("pubmed_generate_query")
 async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Generate an optimized PubMed search query for a given research goal.
@@ -140,7 +138,6 @@ async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerRe
 
 # ===== Tool 2: PubMed Search =====
 
-@create_stub_decorator("pubmed_search")
 async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Search PubMed for articles using the NCBI E-utilities API.
@@ -261,7 +258,6 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
 
 # ===== Tool 3: PubMed Feature Extractor =====
 
-@create_stub_decorator("pubmed_extract_features")
 async def handle_pubmed_extract_features(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Extract structured features from PubMed articles using LLM analysis.
@@ -397,7 +393,6 @@ async def handle_pubmed_extract_features(input: ToolHandlerInput) -> ToolHandler
 
 # ===== Tool 4: PubMed Article Scorer =====
 
-@create_stub_decorator("pubmed_score_articles")
 async def handle_pubmed_score_articles(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Score PubMed articles based on extracted features and custom criteria.
@@ -622,7 +617,6 @@ async def handle_pubmed_score_articles(input: ToolHandlerInput) -> ToolHandlerRe
 
 # ===== Tool 5: PubMed Filter and Ranker =====
 
-@create_stub_decorator("pubmed_filter_rank")
 async def handle_pubmed_filter_rank(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Filter and rank scored PubMed articles based on score thresholds and criteria.

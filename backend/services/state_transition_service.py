@@ -43,6 +43,7 @@ from services.asset_service import AssetService
 from services.asset_mapping_service import AssetMappingService
 from services.mission_transformer import MissionTransformer
 from services.user_session_service import UserSessionService
+from schemas.asset import AssetScopeType, AssetRole
 from exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -225,7 +226,7 @@ class StateTransitionService:
                 subtype=asset.subtype,
                 description=asset.description,
                 content=None,                                # Usually None for proposed assets
-                scope_type="mission",                        # Mission-scoped
+                scope_type=AssetScopeType.MISSION.value,     # Mission-scoped
                 scope_id=mission_id,
                 role=asset.role.value                       # Convert enum to string
             )
@@ -550,8 +551,7 @@ class StateTransitionService:
                 'completed_at': datetime.utcnow().isoformat()
             }
         
-        # Promote hop output assets to mission level
-        await self._promote_hop_assets_to_mission(hop_model.mission_id, hop_id, user_id)
+        # NOTE: Asset promotion concept removed - assets are created at correct scope from the start
         
         # Update mission
         mission_model = self.db.query(MissionModel).filter(
@@ -743,9 +743,9 @@ class StateTransitionService:
                     'hop_name': hop_data.get('name'),
                     'created_at': datetime.utcnow().isoformat()
                 },
-                scope_type='mission',
+                scope_type=AssetScopeType.MISSION.value,
                 scope_id=mission_id,
-                role=asset_spec.get('mission_role', 'intermediate')
+                role=asset_spec.get('mission_role', AssetRole.INTERMEDIATE.value)
             )
             
             # Add to mission asset mapping
@@ -781,9 +781,9 @@ class StateTransitionService:
                 subtype=asset.subtype,
                 description=asset.description,
                 content="",
-                scope_type='mission',
+                scope_type=AssetScopeType.MISSION.value,
                 scope_id=mission_id,
-                role='intermediate'
+                role=AssetRole.INTERMEDIATE.value
             )
             
             # Add to mission asset mapping
@@ -804,7 +804,7 @@ class StateTransitionService:
         """DEPRECATED: Copy relevant mission assets to hop scope as inputs - replaced by _initialize_hop_assets"""
         mission_assets = self.asset_service.get_assets_by_scope(
             user_id=user_id,
-            scope_type='mission',
+            scope_type=AssetScopeType.MISSION.value,
             scope_id=mission_id
         )
         
@@ -822,37 +822,11 @@ class StateTransitionService:
                     description=asset.description,
                     content=asset.value_representation,
                     asset_metadata=asset.asset_metadata,
-                    scope_type='hop',
+                    scope_type=AssetScopeType.HOP.value,
                     scope_id=hop_id,
                     role=hop_role
                 )
     
-    async def _promote_hop_assets_to_mission(self, mission_id: str, hop_id: str, user_id: int):
-        """Promote hop output assets to mission level"""
-        hop_assets = self.asset_service.get_assets_by_scope(
-            user_id=user_id,
-            scope_type='hop',
-            scope_id=hop_id
-        )
-        
-        for asset in hop_assets:
-            if asset.role == 'output':
-                self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset.name,
-                    schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
-                    subtype=asset.subtype,
-                    description=asset.description,
-                    content=asset.value_representation,
-                    asset_metadata={
-                        **asset.asset_metadata,
-                        'promoted_from_hop': hop_id,
-                        'promoted_at': datetime.utcnow().isoformat()
-                    },
-                    scope_type='mission',
-                    scope_id=mission_id,
-                    role='output'
-                )
     
     async def _generate_simulated_execution_result(self, tool_step_model: ToolStepModel, simulated_output: Dict[str, Any]) -> Dict[str, Any]:
         """Generate simulated execution result for testing purposes"""
@@ -904,43 +878,67 @@ class StateTransitionService:
             return f"Simulated {output_name} from {tool_id}"
     
     async def _create_output_assets_from_tool_step(self, tool_step_model: ToolStepModel, execution_result: Dict[str, Any], user_id: int) -> List[str]:
-        """Create output assets based on tool step execution results"""
+        """Create output assets based on tool step execution results following spec 03b"""
         assets_created = []
         result_mapping = tool_step_model.result_mapping or {}
-        outputs = execution_result.get("outputs", {})
+        tool_outputs = execution_result.get("outputs", {})
         
-        logger.info(f"Creating output assets from tool step - tool_step_id: {tool_step_model.id}, result_mapping: {result_mapping}, outputs: {outputs}, execution_result_keys: {list(execution_result.keys())}")
+        logger.info(f"Creating output assets from tool step - tool_step_id: {tool_step_model.id}, result_mapping: {result_mapping}, outputs: {tool_outputs}, execution_result_keys: {list(execution_result.keys())}")
         
-        for output_name, asset_target in result_mapping.items():
-            if output_name in outputs:
-                # Extract asset information from mapping
-                asset_name = asset_target.get("asset_name", output_name) if isinstance(asset_target, dict) else str(asset_target)
+        # Follow spec: Extract tool outputs and map to assets
+        for output_name, mapping_config in result_mapping.items():
+            if output_name in tool_outputs and mapping_config.get('type') == 'asset_field':
+                asset_id = mapping_config.get('state_asset_id')  # Fixed: use state_asset_id not asset_name
+                output_value = tool_outputs[output_name]
                 
-                # Determine asset type and content based on output data
-                output_data = outputs[output_name]
-                asset_type = self._determine_asset_type(output_data)
+                if not asset_id:
+                    logger.warning(f"No state_asset_id found in result mapping for output {output_name}")
+                    continue
                 
-                # Create the asset
-                created_asset = self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset_name,
-                    schema_definition={'type': asset_type, 'description': f"Output from tool step {tool_step_model.name}"},
-                    description=f"Output from tool step {tool_step_model.name}",
-                    content=output_data,
-                    asset_metadata={
-                        "generated_by_tool": tool_step_model.tool_id,
-                        "tool_step_id": tool_step_model.id,
-                        "output_name": output_name,
-                        "simulated": True,
-                        "created_at": datetime.utcnow().isoformat()
-                    },
-                    scope_type='hop',
-                    scope_id=tool_step_model.hop_id,
-                    role='output'
-                )
-                asset_id = created_asset.id
+                logger.info(f"Processing output {output_name} -> asset {asset_id}")
                 
-                assets_created.append(asset_id)
+                # Check if this is an existing asset or needs to be created (per spec)
+                existing_asset = self.asset_service.get_asset(asset_id, user_id)
+                
+                if existing_asset:
+                    # Update existing asset (mission-scoped or hop-scoped)
+                    logger.info(f"Updating existing asset {asset_id} with tool output")
+                    self.asset_service.update_asset(
+                        asset_id=asset_id,
+                        user_id=user_id,
+                        updates={
+                            'content': output_value,
+                            'asset_metadata': {
+                                **existing_asset.asset_metadata,
+                                'updated_by_tool': tool_step_model.tool_id,
+                                'tool_step_id': tool_step_model.id,
+                                'output_name': output_name,
+                                'updated_at': datetime.utcnow().isoformat()
+                            }
+                        }
+                    )
+                    assets_created.append(asset_id)
+                else:
+                    # Create new hop-scoped intermediate asset for tool working data (per spec)
+                    logger.info(f"Creating new hop-scoped intermediate asset for output {output_name}")
+                    
+                    created_asset = self.asset_service.create_asset(
+                        user_id=user_id,
+                        name=f"Tool {tool_step_model.tool_id} Output",
+                        schema_definition={"type": "object", "description": f"Output from {tool_step_model.tool_id}"},
+                        description=f"Intermediate output from {tool_step_model.name}",
+                        content=output_value,
+                        scope_type=AssetScopeType.HOP.value,  # HOP scope for tool intermediates
+                        scope_id=tool_step_model.hop_id,
+                        role=AssetRole.INTERMEDIATE.value,  # INTERMEDIATE role per spec
+                        asset_metadata={
+                            'generated_by_tool': tool_step_model.tool_id,
+                            'tool_step_id': tool_step_model.id,
+                            'output_name': output_name,
+                            'created_at': datetime.utcnow().isoformat()
+                        }
+                    )
+                    assets_created.append(created_asset.id)
         
         return assets_created
     

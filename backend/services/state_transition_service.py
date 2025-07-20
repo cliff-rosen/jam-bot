@@ -676,16 +676,7 @@ class StateTransitionService:
             # Check if mission should be marked as completed
             mission_model = self.db.query(MissionModel).filter(MissionModel.id == hop_model.mission_id).first()
             if mission_model:
-                # Check if all hops in mission are completed
-                all_hops = self.db.query(HopModel).filter(HopModel.mission_id == mission_model.id).all()
-                all_hops_completed = all(hop.status == HopStatus.COMPLETED for hop in all_hops)
-                logger.info(f"Checking mission completion - mission_id: {mission_model.id}, total_hops: {len(all_hops)}, all_hops_completed: {all_hops_completed}, hop_statuses: {[hop.status.value for hop in all_hops]}")
-                
-                if all_hops_completed:
-                    logger.info(f"Marking mission {mission_model.id} as completed")
-                    mission_model.status = MissionStatus.COMPLETED
-                    mission_model.updated_at = datetime.utcnow()
-                    mission_completed = True
+                mission_completed = await self._check_and_complete_mission_if_ready(mission_model, user_id)
         
         self.db.commit()
         
@@ -996,6 +987,41 @@ class StateTransitionService:
         }
         
         return progress
+    
+    async def _check_and_complete_mission_if_ready(self, mission_model: MissionModel, user_id: int) -> bool:
+        """
+        CORE BUSINESS LOGIC: Check if mission should be completed.
+        
+        BUSINESS RULE: A mission is complete when ALL OUTPUT ASSETS are in READY status.
+        This is the definitive completion criteria - not when hops are done.
+        
+        Args:
+            mission_model: The mission to check
+            user_id: User ID for asset access
+            
+        Returns:
+            bool: True if mission was marked as completed, False otherwise
+        """
+        logger.info(f"Checking mission completion for mission {mission_model.id}")
+        
+        # Get all mission-scoped output assets
+        mission_output_assets = self.asset_service.get_assets_by_scope(user_id, "mission", mission_model.id)
+        output_assets = [asset for asset in mission_output_assets if asset.role.value == 'output']
+        
+        logger.info(f"Mission {mission_model.id} completion check - total_output_assets: {len(output_assets)}, output_asset_statuses: {[asset.status.value for asset in output_assets]}")
+        
+        # BUSINESS RULE: ALL output assets must be READY
+        all_outputs_ready = all(asset.status.value == 'ready' for asset in output_assets) if output_assets else False
+        has_output_assets = len(output_assets) > 0
+        
+        if all_outputs_ready and has_output_assets:
+            logger.info(f"MISSION COMPLETION: Marking mission {mission_model.id} as completed - all {len(output_assets)} output assets are ready")
+            mission_model.status = MissionStatus.COMPLETED
+            mission_model.updated_at = datetime.utcnow()
+            return True
+        else:
+            logger.info(f"Mission {mission_model.id} not ready for completion - output_assets_count: {len(output_assets)}, all_outputs_ready: {all_outputs_ready}, has_output_assets: {has_output_assets}")
+            return False
 
 
 # Dependency function for FastAPI

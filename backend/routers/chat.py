@@ -2,10 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
+import logging
 from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
 
 from database import get_db
+from config.logging_config import get_request_id
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 from services.auth_service import validate_token
 from services.mission_service import MissionService, get_mission_service
@@ -78,9 +83,25 @@ async def chat_stream(
     
     async def event_generator():
         """Generate SSE events that are AgentResponse or StatusResponse objects"""
+        request_id = get_request_id()
+        
+        logger.info(
+            "Chat stream request initiated",
+            extra={
+                "request_id": request_id,
+                "user_id": current_user.user_id,
+                "message_count": len(chat_request.messages) if chat_request.messages else 0,
+                "has_payload": bool(chat_request.payload)
+            }
+        )
+        
         try:
             active_session: Optional[UserSession] = session_service.get_active_session(current_user.user_id)
             if not active_session:
+                logger.warning(
+                    "No active session found for user",
+                    extra={"request_id": request_id, "user_id": current_user.user_id}
+                )
                 error_response = AgentResponse(
                     token=None,
                     response_text=None,
@@ -97,17 +118,43 @@ async def chat_stream(
             chat_id = active_session.chat_id
             mission_id = active_session.mission_id
             
+            logger.info(
+                "Active session found, processing request",
+                extra={
+                    "request_id": request_id,
+                    "user_id": current_user.user_id,
+                    "chat_id": chat_id,
+                    "mission_id": mission_id
+                }
+            )
+            
             # Save user message to database
             if chat_request.messages:
                 latest_message = chat_request.messages[-1]
                 if latest_message.role == MessageRole.USER:
+                    logger.debug(
+                        "Saving user message to database",
+                        extra={
+                            "request_id": request_id,
+                            "chat_id": chat_id,
+                            "message_length": len(latest_message.content)
+                        }
+                    )
                     chat_service.save_message(chat_id, current_user.user_id, latest_message)
             
             # Get mission from database
             mission: Optional[Mission] = None
             if mission_id:
+                logger.debug(
+                    "Loading mission from database",
+                    extra={"request_id": request_id, "mission_id": mission_id}
+                )
                 mission = await mission_service.get_mission(mission_id, current_user.user_id)
                 if not mission:
+                    logger.error(
+                        "Mission not found",
+                        extra={"request_id": request_id, "mission_id": mission_id}
+                    )
                     error_response = AgentResponse(
                         token=None,
                         response_text=None,
@@ -123,6 +170,10 @@ async def chat_stream(
                     return
             
             # Enrich payload with asset summaries using MissionContextBuilder
+            logger.debug(
+                "Preparing chat context",
+                extra={"request_id": request_id, "has_mission": bool(mission)}
+            )
             context_payload: ChatContextPayload = await context_builder.prepare_chat_context(
                 mission,
                 current_user.user_id,
@@ -132,8 +183,21 @@ async def chat_stream(
             
             if not mission and context_payload and context_payload.get("mission"):
                 mission = context_payload["mission"]
+                logger.info(
+                    "Mission created from context",
+                    extra={"request_id": request_id, "mission_id": mission.id if mission else None}
+                )
             
             # Initialize agent state
+            logger.info(
+                "Initializing agent state for supervisor routing",
+                extra={
+                    "request_id": request_id,
+                    "mission_id": mission_id,
+                    "asset_count": len(context_payload.get("asset_summaries", {})),
+                    "next_node": "supervisor_node"
+                }
+            )
             state = State(
                 messages=chat_request.messages,
                 mission=mission,
@@ -148,13 +212,29 @@ async def chat_stream(
                     "mission_service": mission_service,
                     "session_service": session_service,
                     "state_transition_service": state_transition_service,
-                    "user_id": current_user.user_id
+                    "user_id": current_user.user_id,
+                    "request_id": request_id  # Pass request_id to agents
                 }
             }
             
             # Stream agent responses
+            logger.info(
+                "Starting agent processing pipeline",
+                extra={"request_id": request_id, "initial_node": "supervisor_node"}
+            )
             async for output in primary_agent.astream(state, stream_mode="custom", config=graph_config):
                 if isinstance(output, dict):
+                    logger.debug(
+                        "Agent output received",
+                        extra={
+                            "request_id": request_id,
+                            "status": output.get("status"),
+                            "has_response_text": bool(output.get("response_text")),
+                            "has_payload": bool(output.get("payload")),
+                            "has_error": bool(output.get("error"))
+                        }
+                    )
+                    
                     # Save AI message to database if response_text exists
                     if "response_text" in output and output["response_text"]:
                         ai_message = ChatMessage(
@@ -200,7 +280,11 @@ async def chat_stream(
                     }
             
         except Exception as e:
-            print(f"Error in chat_stream: {str(e)}")
+            logger.error(
+                "Error in chat_stream",
+                extra={"request_id": request_id, "error": str(e)},
+                exc_info=True
+            )
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
@@ -228,7 +312,11 @@ async def get_chat_messages(
         return {"messages": messages}
         
     except Exception as e:
-        print(f"Error retrieving chat messages: {str(e)}")
+        logger.error(
+            "Error retrieving chat messages",
+            extra={"chat_id": chat_id, "user_id": current_user.user_id, "error": str(e)},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving chat messages: {str(e)}"

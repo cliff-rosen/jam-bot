@@ -3,6 +3,7 @@ import json
 import copy  # Needed for deep-copying assets when populating hop state
 from datetime import datetime
 import uuid
+import logging
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
@@ -11,23 +12,22 @@ import os
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import StreamWriter, Send, Command
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 from config.settings import settings
 
-from utils.string_utils import canonical_key
 from utils.state_serializer import (
-    serialize_state, serialize_mission, serialize_hop,
     create_agent_response
 )
 
 from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse, AssetReference
-from schemas.workflow import Mission, MissionStatus, HopStatus, Hop, ToolStep, validate_tool_chain
-from schemas.asset import Asset, AssetStatus
-from schemas.lite_models import create_asset_from_lite, HopLite, create_mission_from_lite, NewAssetOutput, ExistingAssetOutput
-from schemas.base import SchemaType, ValueType
+from schemas.workflow import Mission, MissionStatus, HopStatus
+from schemas.lite_models import HopLite
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller
-from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
+from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller
 
 from services.mission_service import MissionService
 from services.user_session_service import UserSessionService
@@ -267,14 +267,33 @@ def _validate_state_coordination(mission: Optional[Mission]) -> List[str]:
 
 async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Supervisor node that routes to appropriate specialist based on mission and hop status"""
-    print("Supervisor - Routing based on mission and hop status")
-    print(f"DEBUG: Mission status: {state.mission.status if state.mission else 'No mission'}")
-    print(f"DEBUG: Current hop status: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}")
+    request_id = config.get("configurable", {}).get("request_id", "unknown")
+    
+    logger.info(
+        "Supervisor node started - analyzing routing decision",
+        extra={
+            "request_id": request_id,
+            "mission_status": state.mission.status.value if state.mission else "no_mission",
+            "current_hop_status": state.mission.current_hop.status.value if state.mission and state.mission.current_hop else "no_hop",
+            "mission_id": state.mission.id if state.mission else None
+        }
+    )
     
     # Initialize services from config (supervisor is always called first)
-    print(f"DEBUG: Config keys: {list(config.keys())}")
+    logger.debug(
+        "Initializing services from config",
+        extra={"request_id": request_id, "config_keys": list(config.keys())}
+    )
     _initialize_services(config)
-    print(f"DEBUG: Services initialized - mission_service: {_mission_service is not None}, state_transition_service: {_state_transition_service is not None}, user_id: {_user_id}")
+    logger.debug(
+        "Services initialization complete",
+        extra={
+            "request_id": request_id,
+            "mission_service_ready": _mission_service is not None,
+            "state_transition_service_ready": _state_transition_service is not None,
+            "user_id": _user_id
+        }
+    )
     
     if writer:
         status_response = StatusResponse(
@@ -294,26 +313,56 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             # No mission - route to mission specialist
             next_node = "mission_specialist_node"
             routing_message = "No mission found - routing to mission specialist to create one"
+            logger.info(
+                "Routing decision: No mission found",
+                extra={"request_id": request_id, "next_node": next_node}
+            )
         
         elif state.mission.status == MissionStatus.AWAITING_APPROVAL:
             # Mission awaiting approval - route to mission specialist
             next_node = "mission_specialist_node"
             routing_message = "Mission awaiting approval - routing to mission specialist for processing"
+            logger.info(
+                "Routing decision: Mission awaiting approval",
+                extra={"request_id": request_id, "next_node": next_node, "mission_id": state.mission.id}
+            )
         
         elif state.mission.status == MissionStatus.IN_PROGRESS:
             # Mission in progress - check hop state for detailed workflow routing
+            logger.debug(
+                "Mission in progress - analyzing hop status",
+                extra={
+                    "request_id": request_id,
+                    "mission_id": state.mission.id,
+                    "has_current_hop": bool(state.mission.current_hop),
+                    "current_hop_status": state.mission.current_hop.status.value if state.mission.current_hop else None
+                }
+            )
+            
             if not state.mission.current_hop:
                 # No current hop - route to hop designer to start planning
                 next_node = "hop_designer_node"
                 routing_message = "Mission in progress with no current hop - routing to hop designer to start planning"
+                logger.info(
+                    "Routing decision: No current hop",
+                    extra={"request_id": request_id, "next_node": next_node, "mission_id": state.mission.id}
+                )
             elif state.mission.current_hop.status == HopStatus.HOP_PLAN_STARTED:
                 # Hop planning started - route to hop designer
                 next_node = "hop_designer_node"
                 routing_message = "Hop planning started - routing to hop designer to continue planning"
+                logger.info(
+                    "Routing decision: Hop planning started",
+                    extra={"request_id": request_id, "next_node": next_node, "hop_id": state.mission.current_hop.id}
+                )
             elif state.mission.current_hop.status == HopStatus.HOP_PLAN_PROPOSED:
                 # Hop plan proposed - route to hop designer
                 next_node = "hop_designer_node"
                 routing_message = "Hop plan proposed - routing to hop designer for processing"
+                logger.info(
+                    "Routing decision: Hop plan proposed",
+                    extra={"request_id": request_id, "next_node": next_node, "hop_id": state.mission.current_hop.id}
+                )
             elif state.mission.current_hop.status == HopStatus.HOP_PLAN_READY:
                 # Hop plan ready - route to hop implementer to start implementation
                 next_node = "hop_implementer_node"
@@ -445,7 +494,17 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
 
 async def mission_specialist_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles mission specialist operations"""
-    print("Mission specialist node")
+    request_id = config.get("configurable", {}).get("request_id", "unknown")
+    
+    logger.info(
+        "Mission specialist node started",
+        extra={
+            "request_id": request_id,
+            "has_mission": bool(state.mission),
+            "mission_status": state.mission.status.value if state.mission else None,
+            "mission_id": state.mission.id if state.mission else None
+        }
+    )
     
     # Initialize services from config
     _initialize_services(config)
@@ -461,11 +520,24 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
     
     try:
         # Create and use the simplified prompt caller
+        logger.debug(
+            "Invoking mission definition prompt caller",
+            extra={"request_id": request_id, "has_mission": bool(state.mission)}
+        )
         promptCaller = MissionDefinitionPromptCaller()
         
         parsed_response = await promptCaller.invoke(
             mission=state.mission,
             messages=state.messages
+        )
+
+        logger.debug(
+            "Mission prompt response received",
+            extra={
+                "request_id": request_id,
+                "has_mission_proposal": bool(parsed_response.mission_proposal),
+                "response_length": len(parsed_response.response_content) if parsed_response.response_content else 0
+            }
         )
 
         # Create response message
@@ -484,6 +556,20 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
         # Handle mission proposal creation
         if parsed_response.mission_proposal:
+            try:
+                mission_name = getattr(parsed_response.mission_proposal, 'name', None)
+                logger.info(
+                    "Processing mission proposal creation",
+                    extra={
+                        "request_id": request_id,
+                        "mission_name": mission_name
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    "Could not extract mission name for logging",
+                    extra={"request_id": request_id, "error": str(e)}
+                )
             await _handle_mission_proposal_creation(parsed_response, state, response_message)
 
         state_update = {

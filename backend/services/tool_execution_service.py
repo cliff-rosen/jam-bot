@@ -106,21 +106,30 @@ class ToolExecutionService:
             })
             
             # 4. Execute the tool using internal methods
+            logger.info(f"About to execute tool for step {tool_step_id}")
             tool_result: ToolExecutionResponse = await self._execute_tool(
                 step=tool_step_schema,
                 asset_context=asset_context,
                 user_id=user_id
             )
+            logger.info(f"Tool execution completed for step {tool_step_id} - success: {tool_result.success}, errors: {tool_result.errors}, outputs: {list(tool_result.outputs.keys()) if tool_result.outputs else []}, canonical_outputs: {list(tool_result.canonical_outputs.keys()) if tool_result.canonical_outputs else []}")
             
             # 5. Use StateTransitionService to handle all state updates
-            transition_result: TransactionResult = await self.state_transition_service.updateState(
-                TransactionType.COMPLETE_TOOL_STEP,
-                {
-                    'tool_step_id': tool_step_id,
-                    'user_id': user_id,
-                    'execution_result': tool_result.model_dump()  # Convert Pydantic to dict
-                }
-            )
+            logger.info(f"About to call StateTransitionService.updateState for COMPLETE_TOOL_STEP - tool_step_id: {tool_step_id}, user_id: {user_id}, execution_result_keys: {list(tool_result.model_dump().keys())}")
+            
+            try:
+                transition_result: TransactionResult = await self.state_transition_service.updateState(
+                    TransactionType.COMPLETE_TOOL_STEP,
+                    {
+                        'tool_step_id': tool_step_id,
+                        'user_id': user_id,
+                        'execution_result': tool_result.model_dump()  # Convert Pydantic to dict
+                    }
+                )
+                logger.info(f"StateTransitionService.updateState completed - success: {transition_result.success}, error_message: {transition_result.error_message}, metadata: {transition_result.metadata}")
+            except Exception as state_error:
+                logger.error(f"StateTransitionService.updateState failed - tool_step_id: {tool_step_id}, error: {str(state_error)}, exception_type: {type(state_error).__name__}")
+                raise state_error
             
             # 6. Return comprehensive result
             return {

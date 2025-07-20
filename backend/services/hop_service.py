@@ -227,14 +227,6 @@ class HopService:
                         }
                     )
                     
-                    # Execute the tool step directly - handles complete lifecycle
-                    logger.info(f"About to execute tool step {step.id}", extra={
-                        "tool_step_id": step.id,
-                        "tool_id": step.tool_id,
-                        "parameter_mapping": step.parameter_mapping,
-                        "result_mapping": step.result_mapping
-                    })
-                    
                     result = await tool_execution_service.execute_tool_step(
                         step.id, 
                         user_id

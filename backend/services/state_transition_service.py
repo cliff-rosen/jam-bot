@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from dataclasses import dataclass, field
 from enum import Enum
 from fastapi import Depends
+import logging
 
 from database import get_db
 from models import (
@@ -43,6 +44,8 @@ from services.asset_mapping_service import AssetMappingService
 from services.mission_transformer import MissionTransformer
 from services.user_session_service import UserSessionService
 from exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class TransactionType(str, Enum):
@@ -617,6 +620,8 @@ class StateTransitionService:
         execution_result = data.get('execution_result', {})
         tool_execution_id = data.get('tool_execution_id')  # Optional execution record reference
         
+        logger.info(f"StateTransitionService._complete_tool_step called - tool_step_id: {tool_step_id}, user_id: {user_id}, has_execution_result: {bool(execution_result)}, execution_result: {execution_result}")
+        
         # Get tool step
         tool_step_model = self.db.query(ToolStepModel).filter(
             ToolStepModel.id == tool_step_id,
@@ -647,7 +652,9 @@ class StateTransitionService:
             tool_step_model.started_at = datetime.utcnow()
         
         # Create output assets based on result_mapping and real tool outputs
+        logger.info(f"About to create output assets from tool step {tool_step_id}")
         assets_created = await self._create_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
+        logger.info(f"Created output assets - tool_step_id: {tool_step_id}, assets_created: {assets_created}, num_assets: {len(assets_created)}")
         
         # Check if all tool steps in the hop are completed
         hop_model = self.db.query(HopModel).filter(HopModel.id == tool_step_model.hop_id).first()
@@ -657,8 +664,11 @@ class StateTransitionService:
         hop_completed = False
         mission_completed = False
         
+        logger.info(f"Checking hop completion - hop_id: {tool_step_model.hop_id}, hop_progress: {hop_progress}")
+        
         if hop_progress['all_completed']:
             # Mark hop as completed
+            logger.info(f"Marking hop {tool_step_model.hop_id} as completed")
             hop_model.status = HopStatus.COMPLETED
             hop_model.updated_at = datetime.utcnow()
             hop_completed = True
@@ -668,12 +678,18 @@ class StateTransitionService:
             if mission_model:
                 # Check if all hops in mission are completed
                 all_hops = self.db.query(HopModel).filter(HopModel.mission_id == mission_model.id).all()
-                if all(hop.status == HopStatus.COMPLETED for hop in all_hops):
+                all_hops_completed = all(hop.status == HopStatus.COMPLETED for hop in all_hops)
+                logger.info(f"Checking mission completion - mission_id: {mission_model.id}, total_hops: {len(all_hops)}, all_hops_completed: {all_hops_completed}, hop_statuses: {[hop.status.value for hop in all_hops]}")
+                
+                if all_hops_completed:
+                    logger.info(f"Marking mission {mission_model.id} as completed")
                     mission_model.status = MissionStatus.COMPLETED
                     mission_model.updated_at = datetime.utcnow()
                     mission_completed = True
         
         self.db.commit()
+        
+        logger.info(f"Tool step completion transaction committed - tool_step_id: {tool_step_id}, hop_completed: {hop_completed}, mission_completed: {mission_completed}, assets_created_count: {len(assets_created)}")
         
         return TransactionResult(
             success=True,
@@ -901,6 +917,8 @@ class StateTransitionService:
         assets_created = []
         result_mapping = tool_step_model.result_mapping or {}
         outputs = execution_result.get("outputs", {})
+        
+        logger.info(f"Creating output assets from tool step - tool_step_id: {tool_step_model.id}, result_mapping: {result_mapping}, outputs: {outputs}, execution_result_keys: {list(execution_result.keys())}")
         
         for output_name, asset_target in result_mapping.items():
             if output_name in outputs:

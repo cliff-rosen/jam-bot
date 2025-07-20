@@ -59,7 +59,7 @@ A mission consists of:
    - Examples: emails, articles, API responses
 
 3. **Mission Outputs** (role: "output"):
-   - Final deliverables
+   - Final deliverables only (ie. not intermediate data like search queries)
    - Reports, summaries, processed data
 
 4. **Valid Asset Types**:
@@ -68,8 +68,12 @@ A mission consists of:
    - For arrays: Set is_array=true in the asset definition
    - NEVER use 'collection' as a type
 
-## CRITICAL REQUIREMENT
-Every mission MUST include an initial input asset that contains the user's original question, request, or parameters. This provides essential context for the mission execution and ensures that the user's intent is always available as a reference point. If the user hasn't explicitly provided context information, create an input asset that captures their implied request or question.
+## CRITICAL REQUIREMENTS
+1. Every mission MUST include an initial input asset that contains the user's original question, request, or parameters. This provides essential context for the mission execution and ensures that the user's intent is always available as a reference point. If the user hasn't explicitly provided context information, create an input asset that captures their implied request or question.
+
+2. Every mission MUST include an output asset that contains the final deliverable. This is the main result of the mission.
+
+3. DO NOT include intermediate data like search queries in the output assets.
 
 ## Current Context
 Mission Goal: {{mission_goal}}

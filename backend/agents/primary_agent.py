@@ -82,13 +82,13 @@ async def _update_mission_unified(state: State, mission_id: str = None) -> None:
                     Also sets the ID for the mission to be refreshed into the state.
     """
     if not _mission_service or not _user_id:
-        print("Warning: Cannot update mission - services not initialized")
+        logger.warning("Cannot update mission - services not initialized")
         return
         
     # Step 1: If mission_id is provided and there's a mission object, persist it.
     if mission_id and state.mission:
         await _mission_service.update_mission(mission_id, _user_id, state.mission)
-        print(f"Successfully persisted mission {mission_id}")
+        logger.debug(f"Successfully persisted mission {mission_id}")
     
     # Step 2: Determine which mission to refresh from the database.
     id_to_refresh = mission_id or (state.mission.id if state.mission else None)
@@ -98,9 +98,9 @@ async def _update_mission_unified(state: State, mission_id: str = None) -> None:
         if updated_mission:
             state.mission = updated_mission
             state.mission_id = updated_mission.id  # Ensure ID consistency
-            print(f"Successfully refreshed mission state for {state.mission.id}")
+            logger.debug(f"Successfully refreshed mission state for {state.mission.id}")
         else:
-            print(f"Warning: Could not refresh mission state for {id_to_refresh}")
+            logger.warning(f"Could not refresh mission state for {id_to_refresh}")
 
 def _serialize_state(state: State) -> dict:
     """Helper function to serialize state with datetime handling"""
@@ -131,7 +131,7 @@ async def _send_to_state_transition_service(transaction_type: TransactionType, d
 
 async def _handle_mission_proposal_creation(parsed_response, state: State, response_message: ChatMessage) -> None:
     """Handle mission proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
-    print("Mission proposal created")
+    logger.info("Processing mission proposal creation")
     
     try:
         # Step 2: Send proposal to StateTransitionService (Step 1 was LLM generation)
@@ -438,12 +438,17 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
         # Validate state coordination per specification
         validation_errors = _validate_state_coordination(state.mission)
         if validation_errors:
-            print(f"WARNING: State coordination issues detected: {', '.join(validation_errors)}")
+            logger.warning(
+                "State coordination issues detected",
+                extra={"validation_errors": validation_errors}
+            )
             # Log but don't fail - continue with routing
 
         # Log routing decision
-        print(f"DEBUG: Routing decision - {routing_message}")
-        print(f"DEBUG: Next node: {next_node}")
+        logger.debug(
+            "Routing decision made",
+            extra={"routing_message": routing_message, "next_node": next_node}
+        )
 
         # Create routing message
         response_message = ChatMessage(
@@ -597,7 +602,11 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
     except Exception as e:
         import traceback
         error_traceback = traceback.format_exc()
-        print("Error in mission specialist node:", error_traceback)
+        logger.error(
+            "Error in mission specialist node",
+            extra={"request_id": request_id, "error": str(e)},
+            exc_info=True
+        )
         if writer:
             error_response = AgentResponse(
                 token=None,
@@ -612,8 +621,15 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
 
 async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Hop designer node that designs the next hop in the mission"""
-    print("Hop designer node")
-    print(f"DEBUG: Hop status: {state.mission.current_hop.status if state.mission.current_hop else 'No hop status'}")
+    request_id = config.get("configurable", {}).get("request_id", "unknown")
+    
+    logger.info(
+        "Hop designer node started",
+        extra={
+            "request_id": request_id,
+            "hop_status": state.mission.current_hop.status.value if state.mission.current_hop else "no_hop"
+        }
+    )
 
     # Initialize services from config
     _initialize_services(config)
@@ -687,7 +703,11 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
     except Exception as e:
         import traceback
         error_traceback = traceback.format_exc()
-        print("Error in hop designer node:", error_traceback)
+        logger.error(
+            "Error in hop designer node",
+            extra={"request_id": request_id, "error": str(e)},
+            exc_info=True
+        )
         if writer:
             error_response = AgentResponse(
                 token=None,
@@ -702,7 +722,12 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
 
 async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles hop implementer operations"""
-    print("Hop implementer node")
+    request_id = config.get("configurable", {}).get("request_id", "unknown")
+    
+    logger.info(
+        "Hop implementer node started",
+        extra={"request_id": request_id}
+    )
 
     # Initialize services from config
     _initialize_services(config)
@@ -740,7 +765,10 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
         )
 
         # Handle different response types
-        print(f"DEBUG: Hop implementer response type: {parsed_response.response_type}")
+        logger.debug(
+            "Hop implementer response received",
+            extra={"request_id": request_id, "response_type": parsed_response.response_type}
+        )
         if parsed_response.response_type == "IMPLEMENTATION_PLAN":
             await _handle_implementation_plan_proposal(parsed_response, state, response_message)
         else:
@@ -773,7 +801,11 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     except Exception as e:
         import traceback
         error_traceback = traceback.format_exc()
-        print("Error in hop implementer node:", error_traceback)
+        logger.error(
+            "Error in hop implementer node",
+            extra={"request_id": request_id, "error": str(e)},
+            exc_info=True
+        )
         if writer:
             error_response = AgentResponse(
                 token=None,
@@ -788,8 +820,12 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
 async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str, Any]) -> Command:
     """Node that handles asset search operations"""
-    print("================================================")
-    print("Asset search node")
+    request_id = config.get("configurable", {}).get("request_id", "unknown")
+    
+    logger.info(
+        "Asset search node started",
+        extra={"request_id": request_id}
+    )
 
     if writer:
         status_response = StatusResponse(

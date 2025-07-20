@@ -3,10 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from datetime import datetime
 from uuid import uuid4
+import logging
 
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
 from schemas.workflow import ToolStep
 from services.asset_service import AssetService
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 
 class ToolStepService:
@@ -35,7 +39,14 @@ class ToolStepService:
             )
         except Exception as e:
             # If validation fails, create a simplified ToolStep with validation errors
-            print(f"Warning: Failed to validate ToolStep {tool_step_model.id}: {e}")
+            logger.warning(
+                "Failed to validate ToolStep",
+                extra={
+                    "tool_step_id": tool_step_model.id,
+                    "error": str(e),
+                    "hop_id": tool_step_model.hop_id
+                }
+            )
             return ToolStep(
                 id=tool_step_model.id,
                 tool_id=tool_step_model.tool_id,

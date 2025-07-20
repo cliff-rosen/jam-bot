@@ -3,11 +3,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from datetime import datetime
 from uuid import uuid4
+import logging
 
 from models import Hop as HopModel, HopStatus
 from schemas.workflow import Hop, HopStatus as HopStatusSchema
 from services.asset_service import AssetService
 from services.asset_mapping_service import AssetMappingService
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 
 class HopService:
@@ -25,18 +29,34 @@ class HopService:
         if load_assets:
             # Get hop asset mapping
             hop_asset_map = self.asset_mapping_service.get_hop_assets(hop_model.id)
-            print(f"DEBUG: Hop {hop_model.id} asset map: {hop_asset_map}")
+            logger.debug(
+                "Loading hop assets",
+                extra={
+                    "hop_id": hop_model.id,
+                    "asset_count": len(hop_asset_map),
+                    "asset_map": {k: v.value for k, v in hop_asset_map.items()}
+                }
+            )
             
             # Load full Asset objects for frontend compatibility
             for asset_id in hop_asset_map.keys():
                 asset = self.asset_service.get_asset(asset_id, hop_model.user_id)
                 if asset:
                     assets.append(asset)
-                    print(f"DEBUG: Loaded asset {asset_id} for hop {hop_model.id}")
+                    logger.debug(
+                        "Loaded asset for hop",
+                        extra={"hop_id": hop_model.id, "asset_id": asset_id}
+                    )
                 else:
-                    print(f"DEBUG: Failed to load asset {asset_id} for hop {hop_model.id}")
+                    logger.warning(
+                        "Failed to load asset for hop",
+                        extra={"hop_id": hop_model.id, "asset_id": asset_id}
+                    )
             
-            print(f"DEBUG: Hop {hop_model.id} loaded {len(assets)} assets total")
+            logger.debug(
+                "Hop asset loading complete",
+                extra={"hop_id": hop_model.id, "total_assets_loaded": len(assets)}
+            )
         
         # Load tool steps for this hop
         from services.tool_step_service import ToolStepService
@@ -44,7 +64,14 @@ class HopService:
         try:
             tool_steps = await tool_step_service.get_tool_steps_by_hop(hop_model.id, hop_model.user_id)
         except Exception as e:
-            print(f"Warning: Failed to load tool steps for hop {hop_model.id}: {e}")
+            logger.warning(
+                "Failed to load tool steps for hop",
+                extra={
+                    "hop_id": hop_model.id,
+                    "user_id": hop_model.user_id,
+                    "error": str(e)
+                }
+            )
             tool_steps = []
         
         return Hop(

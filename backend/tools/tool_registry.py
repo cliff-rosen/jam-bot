@@ -13,7 +13,11 @@ from __future__ import annotations
 
 import json
 import os
+import logging
 from typing import Any, Dict, List, Optional
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 # NOTE: We import inside functions (rather than at module top-level) to avoid
 # circular import issues between this module and *schemas/tools.py* (which
@@ -36,9 +40,9 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
     
     tools = {}
     
-    print("================================================")
+    logger.debug("Starting tool parsing")
     for tool_data in tools_data.get("tools", []):
-        print(f"Parsing tool: {tool_data['id']}")
+        logger.debug(f"Parsing tool: {tool_data['id']}")
         try:
             # Parse parameters
             parameters = []
@@ -162,7 +166,7 @@ def load_tools_from_file() -> Dict[str, "ToolDefinition"]:
     """Load tool definitions from *tools.json*."""
     file_path = _default_tools_json_path()
     try:
-        print(f"Loading tools from {file_path}")
+        logger.debug(f"Loading tools from {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             tools_data = json.load(f)
         return _parse_tools_json(tools_data)
@@ -183,9 +187,9 @@ def load_tools_from_file() -> Dict[str, "ToolDefinition"]:
 def refresh_tool_registry() -> None:
     """Refresh the in-memory registry by re-reading *tools.json*."""
     global TOOL_REGISTRY
-    print("Refreshing tool registry…")
+    logger.info("Refreshing tool registry")
     TOOL_REGISTRY = load_tools_from_file()
-    print(f"Loaded {len(TOOL_REGISTRY)} tool definitions, keyed by tool_id.")
+    logger.info(f"Loaded {len(TOOL_REGISTRY)} tool definitions")
 
 
 def get_available_tools() -> List[str]:
@@ -210,15 +214,15 @@ def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None
     """Attach an execution *handler* to an already-defined tool."""
     from schemas.tool_handler_schema import ToolExecutionHandler
 
-    print(f"Registering tool handler for {tool_id}")
+    logger.debug(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:
         raise ValueError(f"No tool definition found for {tool_id}")
     
     try:
         TOOL_REGISTRY[tool_id].execution_handler = handler
-        print(f"Successfully registered handler for {tool_id}")
+        logger.debug(f"Successfully registered handler for {tool_id}")
     except Exception as e:
-        print(f"Failed to register handler for {tool_id}: {e}")
+        logger.error(f"Failed to register handler for {tool_id}: {e}")
         raise
 
 

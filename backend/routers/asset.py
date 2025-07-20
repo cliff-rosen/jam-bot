@@ -11,6 +11,7 @@ from schemas.asset import Asset, CreateAssetRequest, DatabaseEntityMetadata
 from schemas.chat import AssetReference
 from models import User, Asset as AssetModel
 from services.db_entity_service import DatabaseEntityService
+from exceptions import AssetNotFoundError
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -41,10 +42,10 @@ async def get_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Get an asset by ID"""
-    asset = asset_service.get_asset(asset_id, current_user.user_id)
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return asset
+    try:
+        return asset_service.get_asset(asset_id, current_user.user_id)
+    except AssetNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/{asset_id}/details")
 async def get_asset_details(
@@ -55,14 +56,14 @@ async def get_asset_details(
     Get detailed information about an asset, including its content.
     For database entity assets, this will fetch the content from the database.
     """
-    # Use AssetService to get the asset with unified schema format
-    asset = asset_service.get_asset_with_details(asset_id)
-    
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    # Return the unified asset format
-    return asset.model_dump(mode='json')
+    try:
+        # Use AssetService to get the asset with unified schema format
+        asset = asset_service.get_asset_with_details(asset_id)
+        
+        # Return the unified asset format
+        return asset.model_dump(mode='json')
+    except AssetNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/", response_model=List[Asset])
 async def get_user_assets(
@@ -83,10 +84,10 @@ async def update_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Update an asset"""
-    asset = asset_service.update_asset(asset_id, current_user.user_id, updates)
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return asset
+    try:
+        return asset_service.update_asset(asset_id, current_user.user_id, updates)
+    except AssetNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # ASSET SUMMARIES FOR CHAT CONTEXT
 @router.get("/summaries", response_model=List[AssetReference])
@@ -115,7 +116,8 @@ async def delete_asset(
     current_user: User = Depends(auth_service.validate_token)
 ):
     """Delete an asset"""
-    success = asset_service.delete_asset(asset_id, current_user.user_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return {"message": "Asset deleted successfully"} 
+    try:
+        asset_service.delete_asset(asset_id, current_user.user_id)
+        return {"message": "Asset deleted successfully"}
+    except AssetNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) 

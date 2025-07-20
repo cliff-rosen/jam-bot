@@ -8,6 +8,7 @@ import logging
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
 from schemas.workflow import ToolStep, AssetFieldMapping, LiteralMapping, DiscardMapping
 from services.asset_service import AssetService
+from exceptions import ToolStepNotFoundError
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -148,13 +149,13 @@ class ToolStepService:
         return self._model_to_schema(tool_step_model)
 
     async def get_tool_step(self, tool_step_id: str, user_id: int) -> ToolStep:
-        """Get a tool step by ID"""
+        """Get a tool step by ID - throws ToolStepNotFoundError if not found"""
         tool_step_model = self.db.query(ToolStepModel).filter(
             and_(ToolStepModel.id == tool_step_id, ToolStepModel.user_id == user_id)
         ).first()
         
         if not tool_step_model:
-            raise ValueError(f"Tool step {tool_step_id} not found for user {user_id}")
+            raise ToolStepNotFoundError(tool_step_id)
         
         return self._model_to_schema(tool_step_model)
 
@@ -171,14 +172,14 @@ class ToolStepService:
         tool_step_id: str,
         user_id: int,
         updates: Dict[str, Any]
-    ) -> Optional[ToolStep]:
-        """Update a tool step"""
+    ) -> ToolStep:
+        """Update a tool step - throws ToolStepNotFoundError if not found"""
         tool_step_model = self.db.query(ToolStepModel).filter(
             and_(ToolStepModel.id == tool_step_id, ToolStepModel.user_id == user_id)
         ).first()
         
         if not tool_step_model:
-            return None
+            raise ToolStepNotFoundError(tool_step_id)
         
         # Handle status updates
         if 'status' in updates:
@@ -204,8 +205,8 @@ class ToolStepService:
         status: ToolExecutionStatus,
         error_message: Optional[str] = None,
         execution_result: Optional[Dict[str, Any]] = None
-    ) -> Optional[ToolStep]:
-        """Update tool step status with optional error message and execution result"""
+    ) -> ToolStep:
+        """Update tool step status with optional error message and execution result - throws ToolStepNotFoundError if not found"""
         updates = {
             'status': ToolExecutionStatus(status.value),
             'updated_at': datetime.utcnow()
@@ -228,19 +229,17 @@ class ToolStepService:
         
         return await self.update_tool_step(tool_step_id, user_id, updates)
 
-    async def delete_tool_step(self, tool_step_id: str, user_id: int) -> bool:
-        """Delete a tool step"""
+    async def delete_tool_step(self, tool_step_id: str, user_id: int) -> None:
+        """Delete a tool step - throws ToolStepNotFoundError if not found"""
         tool_step_model = self.db.query(ToolStepModel).filter(
             and_(ToolStepModel.id == tool_step_id, ToolStepModel.user_id == user_id)
         ).first()
         
         if not tool_step_model:
-            return False
+            raise ToolStepNotFoundError(tool_step_id)
         
         self.db.delete(tool_step_model)
         self.db.commit()
-        
-        return True
 
     async def get_next_pending_tool_step(self, hop_id: str, user_id: int) -> Optional[ToolStep]:
         """Get the next pending tool step for a hop"""

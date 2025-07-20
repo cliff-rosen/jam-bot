@@ -12,6 +12,7 @@ from services.asset_service import AssetService
 from services.hop_service import HopService
 from services.asset_mapping_service import AssetMappingService
 from services.mission_transformer import MissionTransformer, MissionTransformationError
+from exceptions import MissionNotFoundError
 
 
 class MissionService:
@@ -22,20 +23,20 @@ class MissionService:
         self.asset_mapping_service = AssetMappingService(db)
         self.mission_transformer = MissionTransformer(self.asset_service, self.asset_mapping_service)
     
-    async def get_mission(self, mission_id: str, user_id: int, load_hops: bool = True) -> Optional[Mission]:
-        """Get a mission by ID with optional hop loading"""
+    async def get_mission(self, mission_id: str, user_id: int, load_hops: bool = True) -> Mission:
+        """Get a mission by ID - throws MissionNotFoundError if not found"""
         mission_model = self.db.query(MissionModel).filter(
             MissionModel.id == mission_id,
             MissionModel.user_id == user_id
         ).first()
         
         if not mission_model:
-            return None
+            raise MissionNotFoundError(mission_id)
         
         return await self.mission_transformer.model_to_schema(mission_model, load_assets=True, load_hops=load_hops)
     
-    async def update_mission(self, mission_id: str, user_id: int, mission: Mission) -> bool:
-        """Update an existing mission"""
+    async def update_mission(self, mission_id: str, user_id: int, mission: Mission) -> None:
+        """Update an existing mission - throws MissionNotFoundError if not found"""
         try:
             mission_model = self.db.query(MissionModel).filter(
                 MissionModel.id == mission_id,
@@ -43,7 +44,7 @@ class MissionService:
             ).first()
             
             if not mission_model:
-                return False
+                raise MissionNotFoundError(mission_id)
             
             # Use transformer to get updated model data
             updated_model = self.mission_transformer.schema_to_model(mission, user_id)
@@ -58,7 +59,6 @@ class MissionService:
             mission_model.updated_at = datetime.utcnow()
             
             self.db.commit()
-            return True
             
         except MissionTransformationError as e:
             self.db.rollback()
@@ -72,8 +72,8 @@ class MissionService:
         mission_id: str, 
         user_id: int, 
         status: SchemaMissionStatus
-    ) -> bool:
-        """Update mission status"""
+    ) -> None:
+        """Update mission status - throws MissionNotFoundError if not found"""
         try:
             mission_model = self.db.query(MissionModel).filter(
                 MissionModel.id == mission_id,
@@ -81,31 +81,29 @@ class MissionService:
             ).first()
             
             if not mission_model:
-                return False
+                raise MissionNotFoundError(mission_id)
             
             mission_model.status = self.mission_transformer._map_schema_status_to_model(status)
             mission_model.updated_at = datetime.utcnow()
             
             self.db.commit()
-            return True
             
         except Exception as e:
             self.db.rollback()
             raise Exception(f"Failed to update mission status: {str(e)}")
     
-    async def delete_mission(self, mission_id: str, user_id: int) -> bool:
-        """Delete a mission"""
+    async def delete_mission(self, mission_id: str, user_id: int) -> None:
+        """Delete a mission - throws MissionNotFoundError if not found"""
         mission_model = self.db.query(MissionModel).filter(
             MissionModel.id == mission_id,
             MissionModel.user_id == user_id
         ).first()
         
         if not mission_model:
-            return False
+            raise MissionNotFoundError(mission_id)
         
         self.db.delete(mission_model)
         self.db.commit()
-        return True
     
     async def get_user_missions(self, user_id: int) -> List[Mission]:
         """Get all missions for a user"""
@@ -124,8 +122,8 @@ class MissionService:
         
         return missions
     
-    async def get_mission_with_hops(self, mission_id: str, user_id: int) -> Optional[Dict[str, Any]]:
-        """Get a mission with its hops and tool steps"""
+    async def get_mission_with_hops(self, mission_id: str, user_id: int) -> Dict[str, Any]:
+        """Get a mission with its hops and tool steps - throws MissionNotFoundError if not found"""
         try:
             mission_model = self.db.query(MissionModel).filter(
                 MissionModel.id == mission_id,
@@ -133,7 +131,7 @@ class MissionService:
             ).first()
             
             if not mission_model:
-                return None
+                raise MissionNotFoundError(mission_id)
             
             # Get mission using transformer
             mission = await self.mission_transformer.model_to_schema(mission_model)
@@ -147,8 +145,7 @@ class MissionService:
             }
             
         except MissionTransformationError as e:
-            print(f"Failed to get mission with hops: {e}")
-            return None
+            raise Exception(f"Failed to get mission with hops: {e}")
     
     async def coordinate_mission_status_with_hop(
         self, 

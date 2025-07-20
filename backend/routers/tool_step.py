@@ -7,6 +7,7 @@ from database import get_db
 from services.auth_service import validate_token
 from services.tool_step_service import ToolStepService
 from schemas.workflow import ToolStep, ToolExecutionStatus
+from exceptions import ToolStepNotFoundError
 
 router = APIRouter(prefix="/tool-steps", tags=["tool-steps"])
 
@@ -41,9 +42,8 @@ async def get_tool_step(
     """Get a tool step by ID"""
     try:
         tool_step_service = ToolStepService(db)
-        tool_step = await tool_step_service.get_tool_step(tool_step_id, current_user.user_id)
-        return tool_step
-    except ValueError as e:
+        return await tool_step_service.get_tool_step(tool_step_id, current_user.user_id)
+    except ToolStepNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,12 +66,11 @@ async def update_tool_step(
         if not updates:
             raise HTTPException(status_code=400, detail="No updates provided")
         
-        tool_step = await tool_step_service.update_tool_step(tool_step_id, current_user.user_id, updates)
-        if not tool_step:
-            raise HTTPException(status_code=404, detail="Tool step not found")
-        return tool_step
+        return await tool_step_service.update_tool_step(tool_step_id, current_user.user_id, updates)
     except HTTPException:
         raise
+    except ToolStepNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -86,18 +85,17 @@ async def update_tool_step_status(
     """Update tool step status with optional error message and execution result"""
     try:
         tool_step_service = ToolStepService(db)
-        tool_step = await tool_step_service.update_tool_step_status(
+        return await tool_step_service.update_tool_step_status(
             tool_step_id,
             current_user.user_id,
             status_request.status,
             status_request.error_message,
             status_request.execution_result
         )
-        if not tool_step:
-            raise HTTPException(status_code=404, detail="Tool step not found")
-        return tool_step
     except HTTPException:
         raise
+    except ToolStepNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -135,12 +133,12 @@ async def delete_tool_step(
     """Delete a tool step"""
     try:
         tool_step_service = ToolStepService(db)
-        success = await tool_step_service.delete_tool_step(tool_step_id, current_user.user_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Tool step not found")
+        await tool_step_service.delete_tool_step(tool_step_id, current_user.user_id)
         return {"message": "Tool step deleted successfully"}
     except HTTPException:
         raise
+    except ToolStepNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

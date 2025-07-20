@@ -12,6 +12,7 @@ from services.asset_mapping_service import AssetMappingService
 from database import get_db
 from uuid import uuid4
 from models import Asset as AssetModel
+from exceptions import AssetNotFoundError
 
 # In-memory storage for assets
 ASSET_DB: Dict[str, Asset] = {}
@@ -23,12 +24,12 @@ class AssetService:
         self.db_entity_service = DatabaseEntityService(self.db)
         self.asset_mapping_service = AssetMappingService(self.db)
 
-    def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
-        """Get an asset with all its details, including database entity content if applicable"""
+    def get_asset_with_details(self, asset_id: str) -> Asset:
+        """Get an asset with all its details - throws AssetNotFoundError if not found"""
         result = self.db.execute(text("SELECT * FROM assets WHERE id = :id"), {"id": asset_id})
         asset_model = result.first()
         if not asset_model:
-            return None
+            raise AssetNotFoundError(asset_id)
 
         # Convert to schema (asset_model is now a Row object, convert to dict)
         asset_dict = dict(asset_model._mapping)
@@ -193,13 +194,13 @@ class AssetService:
         
         return self._model_to_schema(asset_dict)
 
-    def get_asset(self, asset_id: str, user_id: int) -> Optional[Asset]:
-        """Get an asset by ID"""
+    def get_asset(self, asset_id: str, user_id: int) -> Asset:
+        """Get an asset by ID - throws AssetNotFoundError if not found"""
         result = self.db.execute(text("SELECT * FROM assets WHERE id = :id AND user_id = :user_id"), 
                                {"id": asset_id, "user_id": user_id})
         asset_model = result.first()
         if not asset_model:
-            return None
+            raise AssetNotFoundError(asset_id)
         return self._model_to_schema(dict(asset_model._mapping))
 
     def get_user_assets(
@@ -249,15 +250,15 @@ class AssetService:
         asset_id: str,
         user_id: int,
         updates: Dict[str, Any]
-    ) -> Optional[Asset]:
-        """Update an asset"""
+    ) -> Asset:
+        """Update an asset - throws AssetNotFoundError if not found"""
         
         if 'content' in updates:
             new_token_count = self._calculate_token_count(updates['content'])
             
             if 'asset_metadata' not in updates:
                 current_asset = self.get_asset(asset_id, user_id)
-                updates['asset_metadata'] = current_asset.asset_metadata if current_asset else {}
+                updates['asset_metadata'] = current_asset.asset_metadata
 
             updates['asset_metadata']['token_count'] = new_token_count
             updates['asset_metadata']['updatedAt'] = datetime.utcnow().isoformat()
@@ -267,7 +268,7 @@ class AssetService:
         # Use SQLAlchemy ORM to update the asset
         asset = self.db.query(AssetModel).filter(AssetModel.id == asset_id, AssetModel.user_id == user_id).first()
         if not asset:
-            return None
+            raise AssetNotFoundError(asset_id)
         
         # Update the asset with new values
         for key, value in updates.items():
@@ -294,15 +295,14 @@ class AssetService:
         
         return self._model_to_schema(asset_dict)
 
-    def delete_asset(self, asset_id: str, user_id: int) -> bool:
-        """Delete an asset"""
+    def delete_asset(self, asset_id: str, user_id: int) -> None:
+        """Delete an asset - throws AssetNotFoundError if not found"""
         asset = self.db.query(AssetModel).filter(AssetModel.id == asset_id, AssetModel.user_id == user_id).first()
         if not asset:
-            return False
+            raise AssetNotFoundError(asset_id)
         
         self.db.delete(asset)
         self.db.commit()
-        return True
 
     def get_hop_asset_context(self, hop_id: str, user_id: int) -> Dict[str, Asset]:
         """

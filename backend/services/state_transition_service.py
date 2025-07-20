@@ -41,6 +41,7 @@ from schemas.workflow import (
 )
 from services.asset_service import AssetService
 from services.asset_mapping_service import AssetMappingService
+from exceptions import AssetNotFoundError
 from services.mission_transformer import MissionTransformer
 from services.user_session_service import UserSessionService
 from schemas.asset import AssetScopeType, AssetRole
@@ -651,10 +652,10 @@ class StateTransitionService:
         if not tool_step_model.started_at:
             tool_step_model.started_at = datetime.utcnow()
         
-        # Create output assets based on result_mapping and real tool outputs
-        logger.info(f"About to create output assets from tool step {tool_step_id}")
-        assets_created = await self._create_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
-        logger.info(f"Created output assets - tool_step_id: {tool_step_id}, assets_created: {assets_created}, num_assets: {len(assets_created)}")
+        # Update output assets based on result_mapping and real tool outputs
+        logger.info(f"About to update output assets from tool step {tool_step_id}")
+        assets_updated = await self._update_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
+        logger.info(f"Updated output assets - tool_step_id: {tool_step_id}, assets_updated: {assets_updated}, num_assets: {len(assets_updated)}")
         
         # Check if all tool steps in the hop are completed
         hop_model = self.db.query(HopModel).filter(HopModel.id == tool_step_model.hop_id).first()
@@ -680,7 +681,7 @@ class StateTransitionService:
         
         self.db.commit()
         
-        logger.info(f"Tool step completion transaction committed - tool_step_id: {tool_step_id}, hop_completed: {hop_completed}, mission_completed: {mission_completed}, assets_created_count: {len(assets_created)}")
+        logger.info(f"Tool step completion transaction committed - tool_step_id: {tool_step_id}, hop_completed: {hop_completed}, mission_completed: {mission_completed}, assets_updated_count: {len(assets_updated)}")
         
         return TransactionResult(
             success=True,
@@ -877,19 +878,33 @@ class StateTransitionService:
         else:
             return f"Simulated {output_name} from {tool_id}"
     
-    async def _create_output_assets_from_tool_step(self, tool_step_model: ToolStepModel, execution_result: Dict[str, Any], user_id: int) -> List[str]:
-        """Create output assets based on tool step execution results following spec 03b"""
-        assets_created = []
+    async def _update_output_assets_from_tool_step(self, tool_step_model: ToolStepModel, execution_result: Dict[str, Any], user_id: int) -> List[str]:
+        """Update existing output assets based on tool step execution results - tools never create assets"""
+        assets_updated = []
         result_mapping = tool_step_model.result_mapping or {}
         tool_outputs = execution_result.get("outputs", {})
         
-        logger.info(f"Creating output assets from tool step - tool_step_id: {tool_step_model.id}, result_mapping: {result_mapping}, outputs: {tool_outputs}, execution_result_keys: {list(execution_result.keys())}")
+        logger.info(f"Updating output assets from tool step - tool_step_id: {tool_step_model.id}, result_mapping: {result_mapping}, outputs: {tool_outputs}, execution_result_keys: {list(execution_result.keys())}")
         
         # Follow spec: Extract tool outputs and map to assets
         for output_name, mapping_config in result_mapping.items():
-            if output_name in tool_outputs and mapping_config.get('type') == 'asset_field':
+            if mapping_config.get('type') == 'asset_field':
+                # Handle mapping mismatches - check if the exact output exists, otherwise try common alternatives
+                output_value = None
+                if output_name in tool_outputs:
+                    output_value = tool_outputs[output_name]
+                else:
+                    # Handle common mapping mismatches for tools
+                    if output_name == 'generated_queries' and 'optimized_query' in tool_outputs:
+                        # Map optimized_query to generated_queries for pubmed_generate_query tool
+                        output_value = tool_outputs['optimized_query']
+                        logger.info(f"Mapping mismatch resolved: {output_name} -> optimized_query")
+                
+                if output_value is None:
+                    logger.warning(f"Output {output_name} not found in tool outputs: {list(tool_outputs.keys())}")
+                    continue
+                
                 asset_id = mapping_config.get('state_asset_id')  # Fixed: use state_asset_id not asset_name
-                output_value = tool_outputs[output_name]
                 
                 if not asset_id:
                     logger.warning(f"No state_asset_id found in result mapping for output {output_name}")
@@ -897,17 +912,18 @@ class StateTransitionService:
                 
                 logger.info(f"Processing output {output_name} -> asset {asset_id}")
                 
-                # Check if this is an existing asset or needs to be created (per spec)
-                existing_asset = self.asset_service.get_asset(asset_id, user_id)
-                
-                if existing_asset:
-                    # Update existing asset (mission-scoped or hop-scoped)
+                # Tools only update existing assets - they never create new ones
+                try:
+                    existing_asset = self.asset_service.get_asset(asset_id, user_id)
+                    
+                    # Update existing asset with tool output
                     logger.info(f"Updating existing asset {asset_id} with tool output")
                     self.asset_service.update_asset(
                         asset_id=asset_id,
                         user_id=user_id,
                         updates={
                             'content': output_value,
+                            'status': 'ready',  # Mark asset as ready when updated by tool
                             'asset_metadata': {
                                 **existing_asset.asset_metadata,
                                 'updated_by_tool': tool_step_model.tool_id,
@@ -917,30 +933,13 @@ class StateTransitionService:
                             }
                         }
                     )
-                    assets_created.append(asset_id)
-                else:
-                    # Create new hop-scoped intermediate asset for tool working data (per spec)
-                    logger.info(f"Creating new hop-scoped intermediate asset for output {output_name}")
+                    assets_updated.append(asset_id)
                     
-                    created_asset = self.asset_service.create_asset(
-                        user_id=user_id,
-                        name=f"Tool {tool_step_model.tool_id} Output",
-                        schema_definition={"type": "object", "description": f"Output from {tool_step_model.tool_id}"},
-                        description=f"Intermediate output from {tool_step_model.name}",
-                        content=output_value,
-                        scope_type=AssetScopeType.HOP.value,  # HOP scope for tool intermediates
-                        scope_id=tool_step_model.hop_id,
-                        role=AssetRole.INTERMEDIATE.value,  # INTERMEDIATE role per spec
-                        asset_metadata={
-                            'generated_by_tool': tool_step_model.tool_id,
-                            'tool_step_id': tool_step_model.id,
-                            'output_name': output_name,
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                    )
-                    assets_created.append(created_asset.id)
+                except AssetNotFoundError:
+                    logger.error(f"Asset {asset_id} not found - tools can only update existing assets, not create new ones")
+                    continue
         
-        return assets_created
+        return assets_updated
     
     def _determine_asset_type(self, output_data: Any) -> str:
         """Determine appropriate asset type based on output data"""

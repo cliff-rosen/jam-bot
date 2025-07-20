@@ -126,7 +126,7 @@ class ToolExecutionService:
                         'execution_result': tool_result.model_dump()  # Convert Pydantic to dict
                     }
                 )
-                logger.info(f"StateTransitionService.updateState completed - success: {transition_result.success}, error_message: {transition_result.error_message}, metadata: {transition_result.metadata}")
+                logger.info(f"StateTransitionService.updateState completed - success: {transition_result.success}, message: {transition_result.message}, metadata: {transition_result.metadata}")
             except Exception as state_error:
                 logger.error(f"StateTransitionService.updateState failed - tool_step_id: {tool_step_id}, error: {str(state_error)}, exception_type: {type(state_error).__name__}")
                 raise state_error

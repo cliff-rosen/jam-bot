@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 from config.settings import settings
 
 from utils.state_serializer import (
-    create_agent_response
+    create_agent_response,
+    serialize_state_with_datetime
 )
 
 from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse, AssetReference
@@ -103,21 +104,6 @@ async def _update_mission_unified(state: State, mission_id: str = None) -> None:
         else:
             logger.warning(f"Could not refresh mission state for {id_to_refresh}")
 
-def _serialize_state(state: State) -> dict:
-    """Helper function to serialize state with datetime handling"""
-    def convert_datetime(obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        elif isinstance(obj, dict):
-            return {k: convert_datetime(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_datetime(item) for item in obj]
-        elif hasattr(obj, 'model_dump'):
-            return convert_datetime(obj.model_dump())
-        return obj
-
-    state_dict = state.model_dump()
-    return convert_datetime(state_dict)
 
 async def _send_to_state_transition_service(transaction_type: TransactionType, data: Dict[str, Any]) -> TransactionResult:
     """Helper function to send any proposal to StateTransitionService"""
@@ -310,7 +296,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
     if writer:
         status_response = StatusResponse(
             status="supervisor_routing",
-            payload=_serialize_state(state),
+            payload=serialize_state_with_datetime(state),
             error=None,
             debug="Supervisor analyzing mission and hop status to determine routing"
         )
@@ -490,7 +476,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
                 status="supervisor_routing_completed",
                 error=None,
                 debug=f"Mission: {state.mission.status if state.mission else 'No mission'}, Hop: {state.mission.current_hop.status if state.mission and state.mission.current_hop else 'No current hop'}, Routing to: {next_node}",
-                payload=_serialize_state(State(**state_update))
+                payload=serialize_state_with_datetime(State(**state_update))
             )
             writer(agent_response.model_dump())
 
@@ -501,7 +487,7 @@ async def supervisor_node(state: State, writer: StreamWriter, config: Dict[str, 
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
-                payload=_serialize_state(state),
+                payload=serialize_state_with_datetime(state),
                 status="supervisor_error",
                 error=str(e),
                 debug=f"Error in supervisor_node: {type(e).__name__}"
@@ -529,7 +515,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
     if writer:
         status_response = StatusResponse(
             status="mission_specialist_starting",
-            payload=_serialize_state(state),
+            payload=serialize_state_with_datetime(state),
             error=None,
             debug="Mission specialist node starting analysis"
         )
@@ -623,7 +609,7 @@ async def mission_specialist_node(state: State, writer: StreamWriter, config: Di
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
-                payload=_serialize_state(state),
+                payload=serialize_state_with_datetime(state),
                 status="mission_specialist_error",
                 error=str(e),
                 debug=error_traceback
@@ -649,7 +635,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
     if writer:
         status_response = StatusResponse(
             status="hop_designer_started",
-            payload=_serialize_state(state),
+            payload=serialize_state_with_datetime(state),
             error=None,
             debug="Hop designer node started - analyzing mission requirements"
         )
@@ -724,7 +710,7 @@ async def hop_designer_node(state: State, writer: StreamWriter, config: Dict[str
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
-                payload=_serialize_state(state),
+                payload=serialize_state_with_datetime(state),
                 status="hop_designer_error",
                 error=str(e),
                 debug=error_traceback
@@ -747,7 +733,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
     if writer:
         status_response = StatusResponse(
             status="hop_implementer_starting",
-            payload=_serialize_state(state),
+            payload=serialize_state_with_datetime(state),
             error=None,
             debug="Hop implementer node starting - analyzing hop implementation"
         )
@@ -822,7 +808,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
-                payload=_serialize_state(state),
+                payload=serialize_state_with_datetime(state),
                 status="hop_implementer_error",
                 error=str(e),
                 debug=error_traceback
@@ -842,7 +828,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
     if writer:
         status_response = StatusResponse(
             status="asset_search_starting",
-            payload=_serialize_state(state),
+            payload=serialize_state_with_datetime(state),
             error=None,
             debug="Asset search node starting - preparing to search for assets"
         )
@@ -904,7 +890,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
                 status="asset_search_completed",
                 error=None,
                 debug=f"Found {len(search_results)} search results for query: {search_params['query']}",
-                payload=_serialize_state(State(**state_update))
+                payload=serialize_state_with_datetime(State(**state_update))
             )
             writer(agent_response.model_dump())
 
@@ -916,7 +902,7 @@ async def asset_search_node(state: State, writer: StreamWriter, config: Dict[str
             error_response = AgentResponse(
                 token=None,
                 response_text=None,
-                payload=_serialize_state(state),
+                payload=serialize_state_with_datetime(state),
                 status="asset_search_error",
                 error=str(e),
                 debug=f"Error in asset_search_node: {type(e).__name__}"

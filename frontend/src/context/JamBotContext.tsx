@@ -8,7 +8,6 @@ import { ChatMessage, AgentResponse, ChatRequest, MessageRole, StreamResponse } 
 import { Mission, MissionStatus, Hop, HopStatus, ToolStep, ToolExecutionStatus } from '@/types/workflow';
 import { Asset } from '@/types/asset';
 import { AssetStatus } from '@/types/asset';
-import { AssetFieldMapping, DiscardMapping } from '@/types/workflow';
 import { AssetRole } from '@/types/asset';
 
 interface JamBotState {
@@ -33,7 +32,6 @@ type JamBotAction =
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_PROPOSAL'; payload: Hop }
     | { type: 'ACCEPT_HOP_IMPLEMENTATION_AS_COMPLETE'; payload: Hop }
     | { type: 'START_HOP_EXECUTION'; payload: string }
-    | { type: 'COMPLETE_HOP_EXECUTION'; payload: string }
     | { type: 'FAIL_HOP_EXECUTION'; payload: { hopId: string; error: string } }
     | { type: 'RETRY_HOP_EXECUTION'; payload: string }
     | { type: 'UPDATE_HOP_STATE'; payload: { hop: Hop; updatedMissionOutputs: Map<string, Asset> } }
@@ -228,31 +226,6 @@ const jamBotReducer = (state: JamBotState, action: JamBotAction): JamBotState =>
                     }
                 }
             };
-        case 'COMPLETE_HOP_EXECUTION':
-            if (!state.mission || !state.mission.current_hop) return state;
-            const hopIdToComplete = action.payload;
-            if (state.mission.current_hop.id !== hopIdToComplete) return state;
-
-            const completedHopForExecution = {
-                ...state.mission.current_hop,
-                status: HopStatus.COMPLETED,
-                tool_steps: state.mission.current_hop.tool_steps?.map(step => ({
-                    ...step,
-                    status: ToolExecutionStatus.COMPLETED
-                })) || []
-            };
-
-            return {
-                ...state,
-                mission: {
-                    ...state.mission,
-                    current_hop: undefined,
-                    hops: [
-                        ...(state.mission.hops || []),
-                        completedHopForExecution
-                    ]
-                }
-            };
         case 'FAIL_HOP_EXECUTION':
             if (!state.mission || !state.mission.current_hop) return state;
             const { hopId: failedHopId, error } = action.payload;
@@ -412,7 +385,6 @@ interface JamBotContextType {
     acceptHopImplementationProposal: (hop: Hop) => void;
     acceptHopImplementationAsComplete: (hop: Hop) => void;
     startHopExecution: (hopId: string) => void;
-    completeHopExecution: (hopId: string) => void;
     failHopExecution: (hopId: string, error: string) => void;
     retryHopExecution: (hopId: string) => void;
     updateHopState: (hop: Hop, updatedMissionOutputs: Map<string, Asset>) => void;
@@ -667,7 +639,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
                 // Execution failed
                 const errorMsg = result.errors.join(', ') || 'Unknown execution error';
                 failHopExecution(hopId, errorMsg);
-                
+
                 // Add error message to chat
                 const errorMessage: ChatMessage = {
                     id: `hop_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -683,7 +655,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
             console.error('Error executing hop:', error);
             failHopExecution(hopId, `Execution error: ${error}`);
-            
+
             // Add error message to chat
             const errorMessage: ChatMessage = {
                 id: `hop_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -759,7 +731,7 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
 
         } catch (error) {
             console.error('Error executing tool step:', error);
-            
+
             // Add error message to chat
             const errorMessage: ChatMessage = {
                 id: `tool_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

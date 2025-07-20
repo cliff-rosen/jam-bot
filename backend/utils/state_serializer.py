@@ -65,6 +65,25 @@ def serialize_mission(mission: Mission) -> dict:
     
     return mission_dict
 
+def serialize_state_with_datetime(state: BaseModel) -> dict:
+    """
+    General-purpose state serializer with datetime handling.
+    Recursively converts datetime objects to ISO format strings.
+    """
+    def convert_datetime(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {k: convert_datetime(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_datetime(item) for item in obj]
+        elif hasattr(obj, 'model_dump'):
+            return convert_datetime(obj.model_dump())
+        return obj
+
+    state_dict = state.model_dump()
+    return convert_datetime(state_dict)
+
 def serialize_state(state: BaseModel) -> dict:
     """Serialize the complete state object"""
     if not state:

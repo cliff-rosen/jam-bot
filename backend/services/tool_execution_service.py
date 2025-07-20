@@ -118,7 +118,7 @@ class ToolExecutionService:
                 {
                     'tool_step_id': tool_step_id,
                     'user_id': user_id,
-                    'execution_result': tool_result
+                    'execution_result': tool_result.model_dump()  # Convert Pydantic to dict
                 }
             )
             

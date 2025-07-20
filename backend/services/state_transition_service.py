@@ -369,6 +369,11 @@ class StateTransitionService:
         user_id = data['user_id']
         tool_steps = data.get('tool_steps', [])
         
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"StateTransitionService received {len(tool_steps)} tool steps for hop {hop_id}")
+        
         hop_model = self.db.query(HopModel).filter(
             HopModel.id == hop_id,
             HopModel.user_id == user_id
@@ -386,6 +391,16 @@ class StateTransitionService:
             result_mapping = tool_step_lite.result_mapping
             resource_configs = tool_step_lite.resource_configs
             
+            logger.info(f"Processing ToolStepLite {i}: {tool_id}")
+            logger.info(f"  Raw parameter_mapping: {parameter_mapping}")
+            logger.info(f"  Raw result_mapping: {result_mapping}")
+            
+            serialized_param_mapping = self._serialize_mappings(parameter_mapping)
+            serialized_result_mapping = self._serialize_mappings(result_mapping)
+            
+            logger.info(f"  Serialized parameter_mapping: {serialized_param_mapping}")
+            logger.info(f"  Serialized result_mapping: {serialized_result_mapping}")
+            
             tool_step_model = ToolStepModel(
                 id=str(uuid4()),
                 hop_id=hop_id,
@@ -394,8 +409,8 @@ class StateTransitionService:
                 sequence_order=i + 1,
                 name=name,
                 description=description,
-                parameter_mapping=self._serialize_mappings(parameter_mapping),
-                result_mapping=self._serialize_mappings(result_mapping),
+                parameter_mapping=serialized_param_mapping,
+                result_mapping=serialized_result_mapping,
                 resource_configs=resource_configs,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()

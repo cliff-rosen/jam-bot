@@ -47,6 +47,7 @@ _session_service: Optional[UserSessionService] = None
 _state_transition_service: Optional[StateTransitionService] = None
 _user_id: Optional[int] = None
 
+
 class State(BaseModel):
     """State for the RAVE workflow"""
     messages: List[ChatMessage]
@@ -192,13 +193,24 @@ async def _handle_implementation_plan_proposal(parsed_response, state: State, re
     """Handle implementation plan proposal: 1) LLM generated proposal, 2) Send to StateTransitionService"""
     
     try:
+        # Log what the LLM returned
+        logger.info(f"LLM returned {len(parsed_response.tool_steps)} tool steps")
+        for i, tool_step in enumerate(parsed_response.tool_steps):
+            logger.info(f"Tool Step {i}: {tool_step.tool_id}")
+            logger.info(f"  Parameter mapping: {tool_step.parameter_mapping}")
+            logger.info(f"  Result mapping: {tool_step.result_mapping}")
+        
         # Step 2: Send proposal to StateTransitionService
+        data_to_send = {
+            'hop_id': state.mission.current_hop.id,
+            'tool_steps': parsed_response.tool_steps
+        }
+        logger.info(f"Sending to StateTransitionService: hop_id={data_to_send['hop_id']}")
+        logger.info(f"Tool steps being sent: {len(data_to_send['tool_steps'])}")
+        
         result = await _send_to_state_transition_service(
             TransactionType.PROPOSE_HOP_IMPL,
-            {
-                'hop_id': state.mission.current_hop.id,
-                'tool_steps': parsed_response.tool_steps
-            }
+            data_to_send
         )
         
         

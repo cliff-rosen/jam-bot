@@ -102,7 +102,7 @@ Each tool step requires:
 {{{{
     "parameter_name": {{{{
         "type": "asset_field",
-        "state_asset": "asset_name_in_hop",
+        "state_asset_id": "12345678-1234-5678-9abc-123456789012",
         "path": "optional.nested.field.path"
     }}}}
 }}}}
@@ -113,10 +113,12 @@ Each tool step requires:
 {{{{
     "result_name": {{{{
         "type": "asset_field", 
-        "state_asset": "target_asset_name"
+        "state_asset_id": "87654321-4321-8765-cba9-210987654321"
     }}}}
 }}}}
 ```
+
+**IMPORTANT**: Use the actual asset ID (UUID) from the asset list above, NOT the asset name.
 
 ## Implementation Quality Checks
 
@@ -215,7 +217,7 @@ Is Final: {hop.is_final}"""
             asset_type = asset.schema_definition.type if asset.schema_definition else "unknown"
             
             # Enhanced formatting with agent specification
-            asset_info = f"- **{asset.name}** ({asset_type}): {asset.description}"
+            asset_info = f"- **{asset.name}** (ID: {asset.id}, {asset_type}): {asset.description}"
             
             # Add agent specification if available
             if hasattr(asset, 'agent_specification') and asset.agent_specification:
@@ -243,7 +245,7 @@ Is Final: {hop.is_final}"""
         input_assets = []
         for asset in input_assets_list:
             asset_type = asset.schema_definition.type
-            asset_info = f"- **{asset.name}** ({asset_type}): {asset.description}"
+            asset_info = f"- **{asset.name}** (ID: {asset.id}, {asset_type}): {asset.description}"
             input_details = [asset_info]
             
             # Add agent specification if available

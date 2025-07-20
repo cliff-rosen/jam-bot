@@ -16,7 +16,6 @@ from schemas.resource import ResourceConfig
 from schemas.tool_execution import ToolExecutionResponse
 
 from tools.tool_registry import get_tool_definition
-from tools.tool_stubbing import ToolStubbing
 
 """
 Tool Execution Service - Orchestrates tool step execution with proper service delegation.
@@ -176,13 +175,21 @@ class ToolExecutionService:
                 result = await ToolStubbing.get_stub_response(tool_def, execution_input)
             
             print("Tool execution completed")
+            
+            # Handle both ToolHandlerResult and dict responses
+            if isinstance(result, dict):
+                outputs = result
+                metadata = {}
+            else:
+                outputs = result.outputs
+                metadata = result.metadata or {}
                
             return ToolExecutionResponse(
                 success=True,
                 errors=[],
-                outputs=result.outputs,
-                canonical_outputs=result.outputs,  # Assuming outputs are already canonical
-                metadata=result.metadata
+                outputs=outputs,
+                canonical_outputs=outputs,  # Assuming outputs are already canonical
+                metadata=metadata
             )
                 
         except Exception as e:

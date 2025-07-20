@@ -110,14 +110,14 @@ class ToolStubbing:
         
         logger.info(f"Returning stubbed response for tool {tool_def.id} with scenario '{sample_response.scenario}'")
         
-        return {
-            "success": True,
-            "errors": [],
-            "outputs": processed_outputs,
-            "_stubbed": True,
-            "_scenario": sample_response.scenario,
-            "_timestamp": datetime.utcnow().isoformat()
-        }
+        return ToolHandlerResult(
+            outputs=processed_outputs,
+            metadata={
+                "_stubbed": True,
+                "_scenario": sample_response.scenario,
+                "_timestamp": datetime.utcnow().isoformat()
+            }
+        )
     
     @staticmethod
     def _process_sample_outputs(

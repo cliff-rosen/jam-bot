@@ -265,6 +265,9 @@ class ToolStep(BaseModel):
     description: Optional[str] = None
     status: ToolExecutionStatus = Field(default=ToolExecutionStatus.PROPOSED)
     
+    # Context
+    hop_id: str
+    
     # Tool configuration
     parameter_mapping: Dict[str, ParameterMappingValue] = Field(default_factory=dict)
     result_mapping: Dict[str, ResultMappingValue] = Field(default_factory=dict)

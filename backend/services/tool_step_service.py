@@ -22,6 +22,7 @@ class ToolStepService:
             name=tool_step_model.name or tool_step_model.description or f"Step {tool_step_model.sequence_order}",
             description=tool_step_model.description or "",
             sequence_order=tool_step_model.sequence_order,
+            hop_id=tool_step_model.hop_id,
             resource_configs=tool_step_model.resource_configs or {},
             parameter_mapping=tool_step_model.parameter_mapping or {},
             result_mapping=tool_step_model.result_mapping or {},

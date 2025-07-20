@@ -200,7 +200,7 @@ class ToolExecutionService:
                 asset_id = mapping.state_asset_id
                 
                 # Get asset from context (always returns Asset object)
-                asset = asset_context.get(asset_id)
+                asset: Optional[Asset] = asset_context.get(asset_id)
                 if not asset:
                     raise Exception(f"Asset {asset_id} not found in asset context")
                 

@@ -7,15 +7,15 @@ It supports various summary types and can focus on specific areas of interest.
 
 from typing import List, Dict, Any
 from datetime import datetime
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 
-async def handle_summarize(input: ToolExecutionInput) -> Dict[str, Any]:
+async def handle_summarize(input: ToolHandlerInput) -> Dict[str, Any]:
     """
     Create summaries of content based on specific summarization mandates.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - content: Content to summarize
             - summarization_mandate: Instructions for how to summarize
             - summary_type: Type of summary to generate

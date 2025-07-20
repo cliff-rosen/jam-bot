@@ -6,7 +6,7 @@ This tool searches the web for real-time information about any topic.
 
 from typing import List, Dict, Any
 from datetime import datetime
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler, ToolExecutionResult
+from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, ToolHandlerResult
 from schemas.canonical_types import CanonicalSearchResult
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
@@ -17,12 +17,12 @@ from services.search_service import SearchService
 search_service = SearchService()
 
 @create_stub_decorator("web_search")
-async def handle_web_search(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_web_search(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Search the web for real-time information about any topic.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - search_term: The search term to look up on the web
             - num_results: Number of search results to return
             - date_range: Date range for search results
@@ -30,7 +30,7 @@ async def handle_web_search(input: ToolExecutionInput) -> ToolExecutionResult:
             - language: Language for search results
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - search_results: List of web search results (CanonicalSearchResult objects)
             - query: Original search query
             - total_results: Total number of results
@@ -65,7 +65,7 @@ async def handle_web_search(input: ToolExecutionInput) -> ToolExecutionResult:
         
         # Return properly typed canonical results
         # The service already returns CanonicalSearchResult objects, maintaining full type safety
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             outputs={
                 "search_results": result["search_results"],  # List[CanonicalSearchResult]
                 "query": result["query"],
@@ -81,7 +81,7 @@ async def handle_web_search(input: ToolExecutionInput) -> ToolExecutionResult:
         # Log error and return empty results with error metadata
         print(f"Error performing web search: {e}")
         
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             outputs={
                 "search_results": [],  # Empty list, but still properly typed
                 "query": search_term,

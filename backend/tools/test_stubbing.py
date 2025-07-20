@@ -19,7 +19,7 @@ sys.path.insert(0, str(backend_dir))
 from config.settings import settings
 from tools.tool_stubbing import ToolStubbing, enable_stubbing, disable_stubbing, set_stubbing_mode, set_failure_rate
 from tools.tool_registry import refresh_tool_registry, get_tool_definition
-from schemas.tool_handler_schema import ToolExecutionInput
+from schemas.tool_handler_schema import ToolHandlerInput
 from tools.tool_execution import execute_tool_step
 
 async def test_email_search_stubbing():
@@ -55,7 +55,7 @@ async def test_email_search_stubbing():
         print(f"\n--- Testing scenario: {scenario} ---")
         
         # Create test input
-        test_input = ToolExecutionInput(
+        test_input = ToolHandlerInput(
             params={
                 "query": f"test query for {scenario}",
                 "max_results": 10,
@@ -123,7 +123,7 @@ async def test_error_scenarios():
     for scenario in error_scenarios:
         print(f"\n--- Testing error scenario: {scenario} ---")
         
-        test_input = ToolExecutionInput(
+        test_input = ToolHandlerInput(
             params={"query": "test error query"},
             resource_configs={"gmail": {"access_token": "test_token"}}
         )
@@ -188,7 +188,7 @@ async def test_response_processing():
     
     # Test with specific query to see if it's reflected in results
     test_query = "machine learning newsletter"
-    test_input = ToolExecutionInput(
+    test_input = ToolHandlerInput(
         params={
             "query": test_query,
             "max_results": 2

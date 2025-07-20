@@ -6,15 +6,15 @@ It supports various grouping rules and aggregation functions.
 """
 
 from typing import List, Dict, Any
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolHandlerInput, ToolHandlerResult, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 
-async def handle_map_reduce_rollup(input: ToolExecutionInput) -> Dict[str, Any]:
+async def handle_map_reduce_rollup(input: ToolHandlerInput) -> Dict[str, Any]:
     """
     Group objects by rules and apply reduce functions to create aggregated results.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - items: List of objects to group
             - key_func: Function to extract grouping key from each item
             - reduce_func: Function to aggregate items in each group

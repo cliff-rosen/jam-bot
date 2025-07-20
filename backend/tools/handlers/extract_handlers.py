@@ -11,7 +11,7 @@ from datetime import datetime
 import uuid
 import json
 from pydantic import BaseModel, Field
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 from agents.prompts.base_prompt_caller import BasePromptCaller
 
@@ -102,12 +102,12 @@ Please extract the required information and return it in the specified schema fo
         
         return response.result
 
-async def handle_extract(input: ToolExecutionInput) -> Dict[str, Any]:
+async def handle_extract(input: ToolHandlerInput) -> Dict[str, Any]:
     """
     Apply extraction functions to items in a list.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - items: List of items to process
             - extraction_function: Function or prompt describing what to extract
             - extraction_fields: List of field names to extract

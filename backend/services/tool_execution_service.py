@@ -11,8 +11,8 @@ from services.state_transition_service import StateTransitionService, Transactio
 
 from schemas.workflow import ToolStep as ToolStepSchema
 from schemas.asset import Asset
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
-from schemas.tool import ToolDefinition, ToolParameter
+from schemas.tool_handler_schema import ToolHandlerInput, ToolHandlerResult, ToolParameterValue
+from schemas.tool import ToolDefinition
 from schemas.resource import ResourceConfig
 from schemas.tool_execution import ToolExecutionResponse
 
@@ -168,7 +168,7 @@ class ToolExecutionService:
             raise Exception(f"Tool {step.tool_id} not found in registry")
         
         # Build tool inputs from parameter mappings
-        params: Dict[str, ToolParameter] = self._map_parameters(step, asset_context)
+        params: Dict[str, ToolParameterValue] = self._map_parameters(step, asset_context)
         
         # Convert Resource objects to dictionaries
         resource_configs: Dict[str, ResourceConfig] = {}
@@ -179,7 +179,7 @@ class ToolExecutionService:
             }
         
         # Create execution input
-        execution_input = ToolExecutionInput(
+        execution_input = ToolHandlerInput(
             params=params,
             resource_configs=resource_configs,
             step_id=step.id
@@ -190,7 +190,7 @@ class ToolExecutionService:
             if not ToolStubbing.should_stub_tool(tool_def):
                 # Execute the actual tool
                 print(f"Executing tool {step.tool_id}")
-                result: ToolExecutionResult = await tool_def.execution_handler.handler(execution_input)
+                result: ToolHandlerResult = await tool_def.execution_handler.handler(execution_input)
             else:
                 print(f"Stubbing tool {step.tool_id}")
                 result = await ToolStubbing.get_stub_response(tool_def, execution_input)
@@ -209,16 +209,21 @@ class ToolExecutionService:
             print(f"Error executing tool: {e}")
             raise Exception(f"Tool {step.tool_id} execution failed: {str(e)}")
 
-    def _map_parameters(self, step: ToolStepSchema, asset_context: AssetContext) -> Dict[str, Any]:
+    def _map_parameters(self, step: ToolStepSchema, asset_context: AssetContext) -> Dict[str, ToolParameterValue]:
         """Build tool inputs from parameter mappings."""
-        params: Dict[str, Any] = {}
+        params: Dict[str, ToolParameterValue] = {}
         
         if not step.parameter_mapping:
             return params
             
         for param_name, mapping in step.parameter_mapping.items():
             if mapping.type == "literal":
-                params[param_name] = mapping.value
+                # Create ToolParameterValue with literal value
+                params[param_name] = ToolParameterValue(
+                    value=mapping.value,
+                    parameter_name=param_name,
+                    parameter_type="literal"
+                )
             elif mapping.type == "asset_field":
                 asset_id = mapping.state_asset
                 
@@ -230,13 +235,21 @@ class ToolExecutionService:
                 # Extract value from asset
                 if isinstance(asset_data, Asset):
                     value = asset_data.value
+                    param_type = "asset"
                 elif isinstance(asset_data, dict) and 'value' in asset_data:
                     value = asset_data['value']
+                    param_type = "asset"
                 else:
                     # Assume the asset_data is the value itself
                     value = asset_data
+                    param_type = "asset"
                 
-                params[param_name] = value
+                # Create ToolParameterValue with asset value
+                params[param_name] = ToolParameterValue(
+                    value=value,
+                    parameter_name=param_name,
+                    parameter_type=param_type
+                )
         
         return params
 

@@ -6,7 +6,7 @@ This tool retrieves and extracts content from webpages given their URLs.
 
 from typing import Dict, Any
 from datetime import datetime
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler, ToolExecutionResult
+from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, ToolHandlerResult
 from schemas.canonical_types import CanonicalWebpage
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
@@ -17,19 +17,19 @@ from services.web_retrieval_service import WebRetrievalService
 web_retrieval_service = WebRetrievalService()
 
 @create_stub_decorator("web_retrieve")
-async def handle_web_retrieve(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_web_retrieve(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Retrieve and extract content from one or more webpages given their URLs.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - url: The URL(s) of the webpage(s) to retrieve (string or array)
             - extract_text_only: Whether to extract only text content or include HTML
             - timeout: Request timeout in seconds
             - user_agent: User agent string to use for the request
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - webpage: Retrieved webpage content (array of CanonicalWebpage objects)
             - status_code: HTTP status code from the request (or first request if multiple)
             - response_time: Response time in milliseconds (or total time if multiple)
@@ -69,7 +69,7 @@ async def handle_web_retrieve(input: ToolExecutionInput) -> ToolExecutionResult:
             )
             
             # Return as array to match schema
-            return ToolExecutionResult(
+            return ToolHandlerResult(
                 outputs={
                     "webpage": [result["webpage"]],  # Array of CanonicalWebpage
                     "status_code": result["status_code"],
@@ -95,7 +95,7 @@ async def handle_web_retrieve(input: ToolExecutionInput) -> ToolExecutionResult:
             status_code = next((result["status_code"] for result in results if result["status_code"] > 0), 
                              results[0]["status_code"] if results else 0)
             
-            return ToolExecutionResult(
+            return ToolHandlerResult(
                 outputs={
                     "webpage": webpages,  # Array of CanonicalWebpage
                     "status_code": status_code,
@@ -124,7 +124,7 @@ async def handle_web_retrieve(input: ToolExecutionInput) -> ToolExecutionResult:
             )
             error_webpages.append(error_webpage)
         
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             outputs={
                 "webpage": error_webpages,
                 "status_code": 0,

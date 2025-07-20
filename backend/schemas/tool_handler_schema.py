@@ -11,16 +11,25 @@ from typing import Awaitable, Callable, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 
 __all__ = [
-    "ToolExecutionInput",
-    "ToolExecutionResult",
+    "ToolParameterValue",
+    "ToolHandlerInput", 
+    "ToolHandlerResult",
     "ToolExecutionHandler",
 ]
 
 
-class ToolExecutionInput(BaseModel):
+class ToolParameterValue(BaseModel):
+    """Runtime value for a tool parameter with type information."""
+    
+    value: Any = Field(description="The actual parameter value")
+    parameter_type: Optional[str] = Field(None, description="Type hint for the parameter")
+    parameter_name: Optional[str] = Field(None, description="Original parameter name")
+
+
+class ToolHandlerInput(BaseModel):
     """Input payload delivered to every tool handler."""
 
-    params: Dict[str, Any] = Field(default_factory=dict)
+    params: Dict[str, ToolParameterValue] = Field(default_factory=dict)
     resource_configs: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict,
         description="Configuration for each required resource, keyed by resource ID"
@@ -28,7 +37,7 @@ class ToolExecutionInput(BaseModel):
     step_id: Optional[str] = None
 
 
-class ToolExecutionResult(BaseModel):
+class ToolHandlerResult(BaseModel):
     """Result returned by a tool handler with properly typed outputs."""
     
     outputs: Dict[str, Any] = Field(
@@ -43,5 +52,5 @@ class ToolExecutionResult(BaseModel):
 class ToolExecutionHandler(BaseModel):
     """Metadata + async callable that performs the work."""
 
-    handler: Callable[[ToolExecutionInput], Awaitable[Union[Dict[str, Any], ToolExecutionResult]]]
+    handler: Callable[[ToolHandlerInput], Awaitable[Union[Dict[str, Any], ToolHandlerResult]]]
     description: str 

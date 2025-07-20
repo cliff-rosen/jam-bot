@@ -13,7 +13,7 @@ import logging
 
 from config.settings import settings
 from schemas.tool import ToolDefinition, ToolSampleResponse
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult
+from schemas.tool_handler_schema import ToolHandlerInput, ToolHandlerResult
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,9 @@ class ToolStubbing:
     @staticmethod
     async def get_stub_response(
         tool_def: ToolDefinition, 
-        input_data: ToolExecutionInput,
+        input_data: ToolHandlerInput,
         scenario: Optional[str] = None
-    ) -> Union[Dict[str, Any], ToolExecutionResult]:
+    ) -> Union[Dict[str, Any], ToolHandlerResult]:
         """
         Get a stub response for the given tool and input.
         
@@ -176,7 +176,7 @@ def create_stub_decorator(tool_id: str):
         Decorator function
     """
     def decorator(handler_func):
-        async def wrapper(input_data: ToolExecutionInput) -> Union[Dict[str, Any], ToolExecutionResult]:
+        async def wrapper(input_data: ToolHandlerInput) -> Union[Dict[str, Any], ToolHandlerResult]:
             from tools.tool_registry import get_tool_definition
             
             # Get tool definition

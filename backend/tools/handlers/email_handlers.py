@@ -11,7 +11,7 @@ from schemas.base import SchemaType, ValueType
 
 from database import get_db
 from services.email_service import EmailService
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionResult, ToolExecutionHandler
+from schemas.tool_handler_schema import ToolHandlerInput, ToolHandlerResult, ToolExecutionHandler
 from tools.tool_registry import register_tool_handler
 from tools.tool_stubbing import create_stub_decorator
 
@@ -20,7 +20,7 @@ email_service = EmailService()
 
 # Apply the stubbing decorator to the email search handler
 @create_stub_decorator("email_search")
-async def handle_email_search(input: ToolExecutionInput) -> Dict[str, Any]:
+async def handle_email_search(input: ToolHandlerInput) -> Dict[str, Any]:
     """Execution logic for the *email_search* tool.
 
     Expects the following parameters (as defined in the tool schema):

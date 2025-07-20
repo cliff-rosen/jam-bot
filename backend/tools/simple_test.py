@@ -26,7 +26,7 @@ async def test_email_search_stubbing():
     try:
         # Import after setting environment variables
         from tools.tool_registry import refresh_tool_registry, get_tool_definition
-        from schemas.tool_handler_schema import ToolExecutionInput
+        from schemas.tool_handler_schema import ToolHandlerInput
         from tools.tool_stubbing import ToolStubbing
         
         # Refresh tool registry to load stub configurations
@@ -48,7 +48,7 @@ async def test_email_search_stubbing():
                 print(f"   - {response.scenario}: {'ERROR' if response.is_error else 'SUCCESS'}")
         
         # Create test input
-        test_input = ToolExecutionInput(
+        test_input = ToolHandlerInput(
             params={
                 "query": "AI newsletter test",
                 "max_results": 5,

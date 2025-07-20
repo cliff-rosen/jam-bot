@@ -15,7 +15,7 @@ from tools.handlers.pubmed_handlers import (
     handle_pubmed_score_articles,
     handle_pubmed_filter_rank
 )
-from schemas.tool_handler_schema import ToolExecutionInput
+from schemas.tool_handler_schema import ToolHandlerInput
 from tools.tool_stubbing import disable_stubbing
 
 
@@ -31,7 +31,7 @@ async def test_pubmed_pipeline():
     
     # Step 1: Generate Query
     print("\n1. Testing PubMed Query Generator...")
-    query_input = ToolExecutionInput(
+    query_input = ToolHandlerInput(
         tool_id="pubmed_generate_query",
         params={
             "research_goal": "Find recent studies on machine learning applications in medical diagnosis",
@@ -56,7 +56,7 @@ async def test_pubmed_pipeline():
     
     # Step 2: Search PubMed
     print("\n2. Testing PubMed Search...")
-    search_input = ToolExecutionInput(
+    search_input = ToolHandlerInput(
         tool_id="pubmed_search",
         params={
             "query": "machine learning medical diagnosis",  # Use simple query for testing
@@ -93,7 +93,7 @@ async def test_pubmed_pipeline():
     
     # Step 3: Extract Features
     print("\n3. Testing Feature Extraction...")
-    extract_input = ToolExecutionInput(
+    extract_input = ToolHandlerInput(
         tool_id="pubmed_extract_features",
         params={
             "articles": articles,
@@ -145,7 +145,7 @@ async def test_pubmed_pipeline():
     
     # Step 4: Score Articles
     print("\n4. Testing Article Scoring...")
-    score_input = ToolExecutionInput(
+    score_input = ToolHandlerInput(
         tool_id="pubmed_score_articles",
         params={
             "extractions": extractions,
@@ -191,7 +191,7 @@ async def test_pubmed_pipeline():
     
     # Step 5: Filter and Rank
     print("\n5. Testing Filtering and Ranking...")
-    filter_input = ToolExecutionInput(
+    filter_input = ToolHandlerInput(
         tool_id="pubmed_filter_rank",
         params={
             "scored_articles": scored_articles,

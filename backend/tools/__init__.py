@@ -1,8 +1,8 @@
 # New package for tool handlers and registry
 
 from schemas.tool_handler_schema import (
-    ToolExecutionInput,
-    ToolExecutionResult,
+    ToolHandlerInput,
+    ToolHandlerResult,
     ToolExecutionHandler,
 )
 
@@ -22,7 +22,7 @@ from .handlers import (  # noqa: F401
 )
 
 __all__ = [
-    "ToolExecutionInput",
-    "ToolExecutionResult",
+    "ToolHandlerInput",
+    "ToolHandlerResult",
     "ToolExecutionHandler",
 ] 

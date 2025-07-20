@@ -13,7 +13,7 @@ import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from schemas.tool_handler_schema import ToolExecutionInput, ToolExecutionHandler, ToolExecutionResult
+from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, ToolHandlerResult
 from schemas.canonical_types import CanonicalPubMedArticle, CanonicalPubMedExtraction, CanonicalScoredArticle
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
@@ -30,12 +30,12 @@ from agents.prompts.base_prompt_caller import BasePromptCaller
 # ===== Tool 1: PubMed Query Generator =====
 
 @create_stub_decorator("pubmed_generate_query")
-async def handle_pubmed_generate_query(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Generate an optimized PubMed search query for a given research goal.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - research_goal: Research goal or question
             - focus_areas: Optional list of specific focus areas
             - time_period: Optional time period for search
@@ -43,7 +43,7 @@ async def handle_pubmed_generate_query(input: ToolExecutionInput) -> ToolExecuti
             - exclusion_terms: Optional terms to exclude
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - optimized_query: Generated PubMed search query
             - query_components: Breakdown of query components
             - search_strategy: Explanation of search strategy
@@ -122,7 +122,7 @@ async def handle_pubmed_generate_query(input: ToolExecutionInput) -> ToolExecuti
             "estimated_results": "Unknown"
         }
     
-    return ToolExecutionResult(
+    return ToolHandlerResult(
         success=True,
         outputs={
             "optimized_query": result_data["optimized_query"],
@@ -141,12 +141,12 @@ async def handle_pubmed_generate_query(input: ToolExecutionInput) -> ToolExecuti
 # ===== Tool 2: PubMed Search =====
 
 @create_stub_decorator("pubmed_search")
-async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Search PubMed for articles using the NCBI E-utilities API.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - query: PubMed search query
             - max_results: Maximum number of results to return
             - start_date: Optional start date for search (YYYY-MM-DD)
@@ -154,7 +154,7 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
             - sort_order: Sort order for results
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - articles: List of CanonicalPubMedArticle objects
             - search_metadata: Metadata about the search
             - total_found: Total number of articles found
@@ -221,7 +221,7 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
         # Convert canonical articles to dictionaries for serialization
         articles_as_dicts = [article.model_dump() for article in canonical_articles]
         
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             success=True,
             outputs={
                 "articles": articles_as_dicts,
@@ -247,7 +247,7 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
         print(f"Exception in pubmed_search handler: {str(e)}")
         import traceback
         traceback.print_exc()
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             success=False,
             errors=[f"PubMed search failed: {str(e)}"],
             outputs={},
@@ -262,19 +262,19 @@ async def handle_pubmed_search(input: ToolExecutionInput) -> ToolExecutionResult
 # ===== Tool 3: PubMed Feature Extractor =====
 
 @create_stub_decorator("pubmed_extract_features")
-async def handle_pubmed_extract_features(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_pubmed_extract_features(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Extract structured features from PubMed articles using LLM analysis.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - articles: List of CanonicalPubMedArticle objects
             - extraction_schema: Schema defining what features to extract
             - instructions: Custom instructions for extraction
             - include_metadata: Whether to include extraction metadata
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - extractions: List of CanonicalPubMedExtraction objects
             - extraction_summary: Summary of extraction process
     """
@@ -371,7 +371,7 @@ async def handle_pubmed_extract_features(input: ToolExecutionInput) -> ToolExecu
             )
             extractions.append(failed_extraction)
     
-    return ToolExecutionResult(
+    return ToolHandlerResult(
         success=True,
         outputs={
             "extractions": extractions,
@@ -398,19 +398,19 @@ async def handle_pubmed_extract_features(input: ToolExecutionInput) -> ToolExecu
 # ===== Tool 4: PubMed Article Scorer =====
 
 @create_stub_decorator("pubmed_score_articles")
-async def handle_pubmed_score_articles(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_pubmed_score_articles(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Score PubMed articles based on extracted features and custom criteria.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - extractions: List of CanonicalPubMedExtraction objects
             - scoring_criteria: Dict defining how to score different features
             - weights: Dict of weights for different score components
             - normalize_scores: Whether to normalize scores to 0-100 range
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - scored_articles: List of CanonicalScoredArticle objects
             - scoring_summary: Summary of scoring process
     """
@@ -591,7 +591,7 @@ async def handle_pubmed_score_articles(input: ToolExecutionInput) -> ToolExecuti
                 normalized_score = ((scored_article.total_score - min_score) / score_range) * 100
                 scored_article.total_score = normalized_score
     
-    return ToolExecutionResult(
+    return ToolHandlerResult(
         success=True,
         outputs={
             "scored_articles": scored_articles,
@@ -623,12 +623,12 @@ async def handle_pubmed_score_articles(input: ToolExecutionInput) -> ToolExecuti
 # ===== Tool 5: PubMed Filter and Ranker =====
 
 @create_stub_decorator("pubmed_filter_rank")
-async def handle_pubmed_filter_rank(input: ToolExecutionInput) -> ToolExecutionResult:
+async def handle_pubmed_filter_rank(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     Filter and rank scored PubMed articles based on score thresholds and criteria.
     
     Args:
-        input: ToolExecutionInput containing:
+        input: ToolHandlerInput containing:
             - scored_articles: List of CanonicalScoredArticle objects
             - min_score_threshold: Minimum score threshold for inclusion
             - max_results: Maximum number of results to return
@@ -637,7 +637,7 @@ async def handle_pubmed_filter_rank(input: ToolExecutionInput) -> ToolExecutionR
             - additional_filters: Additional filtering criteria
             
     Returns:
-        ToolExecutionResult containing:
+        ToolHandlerResult containing:
             - filtered_articles: List of filtered and ranked articles
             - filter_summary: Summary of filtering process
     """
@@ -744,7 +744,7 @@ async def handle_pubmed_filter_rank(input: ToolExecutionInput) -> ToolExecutionR
             "timestamp": datetime.now().isoformat()
         }
         
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             success=True,
             outputs={
                 "filtered_articles": filtered_articles,
@@ -762,7 +762,7 @@ async def handle_pubmed_filter_rank(input: ToolExecutionInput) -> ToolExecutionR
         )
         
     except Exception as e:
-        return ToolExecutionResult(
+        return ToolHandlerResult(
             success=False,
             errors=[f"Filtering and ranking failed: {str(e)}"],
             outputs={},

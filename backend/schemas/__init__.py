@@ -52,8 +52,8 @@ from .workflow import (
 
 # Tool handler schema (kept in schemas package to avoid circular deps)
 from .tool_handler_schema import (
-    ToolExecutionInput,
-    ToolExecutionResult,
+    ToolHandlerInput,
+    ToolHandlerResult,
     ToolExecutionHandler,
 )
 
@@ -101,7 +101,7 @@ __all__ = [
     'ToolStep',
 
     # Tool handler schemas
-    'ToolExecutionInput',
-    'ToolExecutionResult',
+    'ToolHandlerInput',
+    'ToolHandlerResult',
     'ToolExecutionHandler',
 ]  

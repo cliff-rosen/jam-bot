@@ -197,30 +197,21 @@ class ToolExecutionService:
                     parameter_type="literal"
                 )
             elif mapping.type == "asset_field":
-                asset_id = mapping.state_asset
+                asset_id = mapping.state_asset_id
                 
-                # Get asset from context (could be Asset object or asset data)
-                asset_data = asset_context.get(asset_id)
-                if not asset_data:
+                # Get asset from context (always returns Asset object)
+                asset = asset_context.get(asset_id)
+                if not asset:
                     raise Exception(f"Asset {asset_id} not found in asset context")
                 
                 # Extract value from asset
-                if isinstance(asset_data, Asset):
-                    value = asset_data.value
-                    param_type = "asset"
-                elif isinstance(asset_data, dict) and 'value' in asset_data:
-                    value = asset_data['value']
-                    param_type = "asset"
-                else:
-                    # Assume the asset_data is the value itself
-                    value = asset_data
-                    param_type = "asset"
+                value = asset.value
                 
                 # Create ToolParameterValue with asset value
                 params[param_name] = ToolParameterValue(
                     value=value,
                     parameter_name=param_name,
-                    parameter_type=param_type
+                    parameter_type="asset"
                 )
         
         return params

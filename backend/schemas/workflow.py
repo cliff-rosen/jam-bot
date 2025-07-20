@@ -235,7 +235,7 @@ class Mission(BaseModel):
 class AssetFieldMapping(BaseModel):
     """Maps a tool parameter to a specific asset by ID."""
     type: Literal["asset_field"] = "asset_field"
-    state_asset: str
+    state_asset_id: str = Field(alias="state_asset")  # Support old field name for backward compatibility
 
 
 class LiteralMapping(BaseModel):
@@ -374,9 +374,9 @@ def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> 
                 
             # if the tool parameter is an asset field, we need to check if the asset is available
             if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
-                state_asset_id = mapping.get('state_asset')
+                state_asset_id = mapping.get('state_asset_id')
                 if not state_asset_id:
-                    errors.append(f"Step '{step.id}': Missing state_asset in parameter mapping for '{param_name}'")
+                    errors.append(f"Step '{step.id}': Missing state_asset_id in parameter mapping for '{param_name}'")
                     continue
                     
                 # Check if asset is available (either in initial state or created by previous steps)
@@ -411,18 +411,18 @@ def validate_tool_chain(steps: List[ToolStep], hop_assets: Dict[str, Asset]) -> 
                 
             # if the tool output is an asset field, track it as available for subsequent steps
             if isinstance(mapping, dict) and mapping.get('type') == 'asset_field':
-                state_asset = mapping.get('state_asset')
-                if not state_asset:
-                    errors.append(f"Step '{step.id}': Missing state_asset in result mapping for '{result_name}'")
+                state_asset_id = mapping.get('state_asset_id')
+                if not state_asset_id:
+                    errors.append(f"Step '{step.id}': Missing state_asset_id in result mapping for '{result_name}'")
                     continue
                     
                 # Add to outputs that will be created by this step
-                step_outputs.add(state_asset)
+                step_outputs.add(state_asset_id)
                 
                 # Check if asset exists in hop assets (should exist or be created)
-                if state_asset not in hop_assets:
+                if state_asset_id not in hop_assets:
                     errors.append(
-                        f"Step '{step.id}': Asset '{state_asset}' for result '{result_name}' not found in hop assets. "
+                        f"Step '{step.id}': Asset '{state_asset_id}' for result '{result_name}' not found in hop assets. "
                         f"Available assets: {', '.join(hop_assets.keys())}"
                     )
                     continue

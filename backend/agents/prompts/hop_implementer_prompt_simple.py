@@ -91,19 +91,31 @@ Each tool step requires:
 2. **Analyze the transformation** - What processing is needed to go from inputs to outputs?
 3. **Select appropriate tools** - Choose tools that match the required operations and can produce the specified output format
 4. **Design the sequence** - Order steps logically, ensuring each step's outputs are available for subsequent steps
-5. **Map assets carefully** - Ensure all mappings reference assets that exist in the hop state
+5. **Map inputs flexibly** - Use asset fields when available data is suitable, or literal values when you need to construct specific formats from context
 6. **Validate completeness** - Confirm all required output assets will be produced according to their detailed specifications
 7. **Consider tool capabilities** - Ensure selected tools can actually produce outputs matching the asset descriptions
 
 ## Asset Mapping Syntax
 
 ### Parameter Mapping (Input to Tool)
+
+**Option 1: Asset Field (use existing asset data)**
 ```python
 {{{{
     "parameter_name": {{{{
         "type": "asset_field",
         "state_asset_id": "12345678-1234-5678-9abc-123456789012",
         "path": "optional.nested.field.path"
+    }}}}
+}}}}
+```
+
+**Option 2: Literal Value (construct value directly)**
+```python
+{{{{
+    "parameter_name": {{{{
+        "type": "literal",
+        "value": "your_direct_value_here"
     }}}}
 }}}}
 ```
@@ -118,7 +130,30 @@ Each tool step requires:
 }}}}
 ```
 
-**IMPORTANT**: Use the actual asset ID (UUID) from the asset list above, NOT the asset name.
+## Input Mapping Decision Guide
+
+**Use `asset_field` when:**
+- Asset contains the exact data needed by the tool
+- Asset field provides sufficient detail and structure
+- You need to reference existing user data or previous results
+
+**Use `literal` when:**
+- Asset exists but doesn't contain the specific format/detail needed
+- You need to derive/transform information from available context
+- Tool requires specific syntax/format that assets don't provide
+- You can construct the needed value from mission/hop description
+
+**Example:** If asset contains "research cannabis and dopamine" but tool needs specific research parameters:
+```python
+{{{{
+    "research_goal": {{{{
+        "type": "literal", 
+        "value": "Generate PubMed search queries about cannabis effects on dopamine system"
+    }}}}
+}}}}
+```
+
+**IMPORTANT**: Use the actual asset ID (UUID) from the asset list above when using asset_field, NOT the asset name.
 
 ## Implementation Quality Checks
 

@@ -27,7 +27,7 @@ from schemas.lite_models import HopLite
 
 from agents.prompts.mission_prompt_simple import MissionDefinitionPromptCaller
 from agents.prompts.hop_designer_prompt_simple import HopDesignerPromptCaller
-from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller
+from agents.prompts.hop_implementer_prompt_simple import HopImplementerPromptCaller, HopImplementationResponse
 
 from services.mission_service import MissionService
 from services.user_session_service import UserSessionService
@@ -761,7 +761,7 @@ async def hop_implementer_node(state: State, writer: StreamWriter, config: Dict[
 
         # Step 1: Generate proposal from LLM
         promptCaller = HopImplementerPromptCaller()
-        parsed_response = await promptCaller.invoke(
+        parsed_response: HopImplementationResponse = await promptCaller.invoke(
             mission=state.mission
         )
 

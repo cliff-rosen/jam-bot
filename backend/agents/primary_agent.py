@@ -104,7 +104,6 @@ async def _update_mission_unified(state: State, mission_id: str = None) -> None:
         else:
             logger.warning(f"Could not refresh mission state for {id_to_refresh}")
 
-
 async def _send_to_state_transition_service(transaction_type: TransactionType, data: Dict[str, Any]) -> TransactionResult:
     """Helper function to send any proposal to StateTransitionService"""
     if not (_state_transition_service and _user_id):

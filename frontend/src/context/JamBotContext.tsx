@@ -670,7 +670,6 @@ export const JamBotProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [state.mission?.id, loadMission, addMessage, failHopExecution]);
 
-
     const retryHopExecution = useCallback((hopId: string) => {
         if (hopId) {
             dispatch({ type: 'RETRY_HOP_EXECUTION', payload: hopId });

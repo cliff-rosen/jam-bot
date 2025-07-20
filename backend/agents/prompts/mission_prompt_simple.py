@@ -53,27 +53,20 @@ A mission consists of:
    - External system credentials (type: "config")
    - Must specify external_system_for if providing credentials
 
-2. **External Data** (role: "intermediate"):
-   - Retrieved by tools during execution
-   - Never a mission input
-   - Examples: emails, articles, API responses
-
-3. **Mission Outputs** (role: "output"):
+2. **Mission Outputs** (role: "output"):
    - Final deliverables only (ie. not intermediate data like search queries)
    - Reports, summaries, processed data
 
-4. **Valid Asset Types**:
-   - Primitive types: 'string', 'number', 'boolean', 'primitive'
-   - Complex types: 'object', 'file', 'database_entity', 'markdown', 'config', 'email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'
-   - For arrays: Set is_array=true in the asset definition
-   - NEVER use 'collection' as a type
+3. **Valid Asset Types**:
+    PrimitiveType = Literal['string', 'number', 'boolean', 'primitive']
+    ComplexType = Literal['object', 'file', 'database_entity', 'markdown', 'config']
+    CanonicalType = Literal['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap', 'pubmed_extraction', 'scored_article']
+
 
 ## CRITICAL REQUIREMENTS
 1. Every mission MUST include an initial input asset that contains the user's original question, request, or parameters. This provides essential context for the mission execution and ensures that the user's intent is always available as a reference point. If the user hasn't explicitly provided context information, create an input asset that captures their implied request or question.
 
 2. Every mission MUST include an output asset that contains the final deliverable. This is the main result of the mission.
-
-3. DO NOT include intermediate data like search queries in the output assets.
 
 ## Current Context
 Mission Goal: {{mission_goal}}

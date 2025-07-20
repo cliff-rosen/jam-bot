@@ -9,6 +9,7 @@ from models import Hop as HopModel, HopStatus
 from schemas.workflow import Hop, HopStatus as HopStatusSchema
 from services.asset_service import AssetService
 from services.asset_mapping_service import AssetMappingService
+from exceptions import HopNotFoundError
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -141,14 +142,14 @@ class HopService:
         
         return await self._model_to_schema(hop_model)
 
-    async def get_hop(self, hop_id: str, user_id: int) -> Optional[Hop]:
-        """Get a hop by ID"""
+    async def get_hop(self, hop_id: str, user_id: int) -> Hop:
+        """Get a hop by ID - throws HopNotFoundError if not found"""
         hop_model = self.db.query(HopModel).filter(
             and_(HopModel.id == hop_id, HopModel.user_id == user_id)
         ).first()
         
         if not hop_model:
-            return None
+            raise HopNotFoundError(hop_id)
         
         return await self._model_to_schema(hop_model)
 
@@ -166,18 +167,8 @@ class HopService:
         """Execute all tool steps in a hop sequentially"""
         logger.info(f"Starting hop execution for hop {hop_id}", extra={"hop_id": hop_id, "user_id": user_id})
         
-        # Get the hop
+        # Get the hop (throws HopNotFoundError if not found)
         hop = await self.get_hop(hop_id, user_id)
-        if not hop:
-            error_msg = f"Hop {hop_id} not found"
-            logger.error(error_msg, extra={"hop_id": hop_id, "user_id": user_id})
-            return {
-                "success": False,
-                "errors": [error_msg],
-                "message": "Hop not found",
-                "executed_steps": 0,
-                "total_steps": 0
-            }
         
         logger.info(f"Hop {hop_id} current status: {hop.status.value}", extra={"hop_id": hop_id, "status": hop.status.value})
         
@@ -327,14 +318,14 @@ class HopService:
         hop_id: str,
         user_id: int,
         updates: Dict[str, Any]
-    ) -> Optional[Hop]:
-        """Update a hop"""
+    ) -> Hop:
+        """Update a hop - throws HopNotFoundError if not found"""
         hop_model = self.db.query(HopModel).filter(
             and_(HopModel.id == hop_id, HopModel.user_id == user_id)
         ).first()
         
         if not hop_model:
-            return None
+            raise HopNotFoundError(hop_id)
         
         # Handle status updates
         if 'status' in updates:
@@ -421,19 +412,17 @@ class HopService:
         
         return hop
 
-    async def delete_hop(self, hop_id: str, user_id: int) -> bool:
-        """Delete a hop"""
+    async def delete_hop(self, hop_id: str, user_id: int) -> None:
+        """Delete a hop - throws HopNotFoundError if not found"""
         hop_model = self.db.query(HopModel).filter(
             and_(HopModel.id == hop_id, HopModel.user_id == user_id)
         ).first()
         
         if not hop_model:
-            return False
+            raise HopNotFoundError(hop_id)
         
         self.db.delete(hop_model)
         self.db.commit()
-        
-        return True
 
     async def get_current_hop(self, mission_id: str, user_id: int) -> Optional[Hop]:
         """Get the current active hop for a mission"""

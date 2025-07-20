@@ -103,4 +103,26 @@ class InvalidVariableError(ValidationError):
 class VariableValidationError(ValidationError):
     """Raised when variable value validation fails."""
     def __init__(self, variable_name: str, message: str):
-        super().__init__(f"Variable '{variable_name}' validation failed: {message}") 
+        super().__init__(f"Variable '{variable_name}' validation failed: {message}")
+
+##### ENTITY NOT FOUND EXCEPTIONS #####
+
+class HopNotFoundError(NotFoundError):
+    """Raised when a hop is not found."""
+    def __init__(self, hop_id: str):
+        super().__init__(f"Hop {hop_id} not found")
+
+class MissionNotFoundError(NotFoundError):
+    """Raised when a mission is not found."""
+    def __init__(self, mission_id: str):
+        super().__init__(f"Mission {mission_id} not found")
+
+class ToolStepNotFoundError(NotFoundError):
+    """Raised when a tool step is not found."""
+    def __init__(self, tool_step_id: str):
+        super().__init__(f"Tool step {tool_step_id} not found")
+
+class AssetNotFoundError(NotFoundError):
+    """Raised when an asset is not found."""
+    def __init__(self, asset_id: str):
+        super().__init__(f"Asset {asset_id} not found") 

@@ -9,6 +9,7 @@ from services.hop_service import HopService
 from services.tool_step_service import ToolStepService
 from services.mission_service import MissionService
 from schemas.workflow import Hop, HopStatus, ToolStep, Mission
+from exceptions import HopNotFoundError, NotFoundError
 
 router = APIRouter(prefix="/hops", tags=["hops"])
 
@@ -111,12 +112,9 @@ async def get_hop(
     """Get a hop by ID"""
     try:
         hop_service = HopService(db)
-        hop = await hop_service.get_hop(hop_id, current_user.user_id)
-        if not hop:
-            raise HTTPException(status_code=404, detail="Hop not found")
-        return hop
-    except HTTPException:
-        raise
+        return await hop_service.get_hop(hop_id, current_user.user_id)
+    except HopNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

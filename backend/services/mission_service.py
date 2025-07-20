@@ -208,13 +208,13 @@ class MissionService:
                 mission.updated_at = datetime.utcnow()
                 
                 # Update database
-                db_mission = self.db.query(Mission).filter(
-                    Mission.id == mission_id,
-                    Mission.user_id == user_id
+                db_mission = self.db.query(MissionModel).filter(
+                    MissionModel.id == mission_id,
+                    MissionModel.user_id == user_id
                 ).first()
                 
                 if db_mission:
-                    db_mission.status = self.mission_transformer.schema_to_model_status(new_mission_status)
+                    db_mission.status = self.mission_transformer._map_schema_status_to_model(new_mission_status)
                     db_mission.updated_at = datetime.utcnow()
                     self.db.commit()
                     

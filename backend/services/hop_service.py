@@ -195,8 +195,8 @@ class HopService:
         
         try:
             # Execute tool steps in sequence order
-            from services.tool_step_service import ToolStepService
-            tool_step_service = ToolStepService(self.db)
+            from services.tool_execution_service import ToolExecutionService
+            tool_execution_service = ToolExecutionService(self.db)
             
             for step in sorted(tool_steps, key=lambda x: x.sequence_order):
                 try:
@@ -210,18 +210,17 @@ class HopService:
                         }
                     )
                     
-                    # Execute the tool step - this will handle status updates internally
-                    result = await tool_step_service.execute_tool_step(
+                    # Execute the tool step directly - handles complete lifecycle
+                    result = await tool_execution_service.execute_tool_step(
                         step.id, 
-                        user_id, 
-                        asset_context={}  # TODO: Build proper asset context
+                        user_id
                     )
                     
-                    if result and result.status.value in ['COMPLETED']:
+                    if result.get('success', False):
                         executed_steps += 1
                         logger.info(f"Tool step {step.id} completed successfully")
                     else:
-                        error_msg = f"Tool step {step.id} failed: {result.error_message if result else 'Unknown error'}"
+                        error_msg = f"Tool step {step.id} failed: {result.get('error', 'Unknown error')}"
                         errors.append(error_msg)
                         logger.error(error_msg)
                         break  # Stop execution on first failure

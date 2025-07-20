@@ -29,11 +29,12 @@ const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
         });
     };
 
-    // Use the new role property for categorization
+    // Ensure assets is an array and use the new role property for categorization
+    const assetsArray = Array.isArray(assets) ? assets : [];
     const categorizedAssets = {
-        inputs: assets.filter(asset => asset.role === 'input'),
-        outputs: assets.filter(asset => asset.role === 'output'),
-        wips: assets.filter(asset => asset.role === 'intermediate' || (!asset.role && asset.role !== 'input' && asset.role !== 'output')), // Fallback for assets without role
+        inputs: assetsArray.filter(asset => asset.role === 'input'),
+        outputs: assetsArray.filter(asset => asset.role === 'output'),
+        wips: assetsArray.filter(asset => asset.role === 'intermediate' || (!asset.role && asset.role !== 'input' && asset.role !== 'output')), // Fallback for assets without role
     };
 
     const filteredInputAssets = applyFilters(categorizedAssets.inputs);

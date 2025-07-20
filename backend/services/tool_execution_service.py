@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
 
 from services.asset_service import AssetService
-from services.asset_mapping_service import AssetMappingService
 from services.tool_step_service import ToolStepService
 from services.state_transition_service import StateTransitionService, TransactionType, TransactionResult
 
@@ -27,7 +26,7 @@ Internal Call Tree (execute_tool_step is the root):
 execute_tool_step(tool_step_id, user_id)
 ├── ToolStepService.get_tool_step(tool_step_id, user_id)
 ├── ToolStepService.update_tool_step_status(EXECUTING)
-├── _resolve_asset_context(hop_id, user_id)
+├── AssetService.get_hop_asset_context(hop_id, user_id)
 │   ├── AssetMappingService.get_hop_assets(hop_id)
 │   └── AssetService.get_assets_by_ids(asset_ids, user_id)
 ├── _execute_tool(step, asset_context, user_id)
@@ -45,8 +44,7 @@ execute_tool_step(tool_step_id, user_id)
 
 Service Dependencies:
 - ToolStepService: Tool step database operations
-- AssetMappingService: Hop-asset relationship queries  
-- AssetService: Asset retrieval only (no persistence)
+- AssetService: Asset retrieval and hop-asset context resolution
 - StateTransitionService: ALL persistence and workflow state management
 - Tool Registry: Tool definition lookup
 - Tool Handlers: Actual tool execution
@@ -59,7 +57,6 @@ class ToolExecutionService:
     def __init__(self, db: Session):
         self.db = db
         self.asset_service = AssetService(db)
-        self.asset_mapping_service = AssetMappingService(db)
         self.tool_step_service = ToolStepService(db)
         self.state_transition_service = StateTransitionService(db)
 
@@ -89,7 +86,7 @@ class ToolExecutionService:
             )
             
             # 3. Resolve asset context from hop scope
-            asset_context: AssetContext = await self._resolve_asset_context(tool_step_schema.hop_id, user_id)
+            asset_context: AssetContext = self.asset_service.get_hop_asset_context(tool_step_schema.hop_id, user_id)
             
             # 4. Execute the tool using internal methods
             tool_result = await self._execute_tool(
@@ -133,23 +130,6 @@ class ToolExecutionService:
                 pass  # Don't fail on cleanup failure
             
             raise Exception(f"Tool step execution failed: {str(e)}")
-
-    async def _resolve_asset_context(self, hop_id: str, user_id: int) -> AssetContext:
-        """Resolve asset context - get all assets mapped to the hop regardless of scope."""
-        asset_context: AssetContext = {}
-        
-        # Get all asset IDs mapped to this hop (regardless of their scope)
-        hop_asset_mappings: Dict[str, str] = self.asset_mapping_service.get_hop_assets(hop_id)
-        
-        # Load the actual asset objects
-        if hop_asset_mappings:
-            asset_ids: List[str] = list(hop_asset_mappings.keys())
-            assets: List[Asset] = self.asset_service.get_assets_by_ids(asset_ids, user_id)
-            
-            for asset in assets:
-                asset_context[asset.id] = asset
-        
-        return asset_context
 
     async def _execute_tool(
         self,

@@ -8,6 +8,7 @@ from fastapi import Depends
 from datetime import datetime
 import tiktoken
 from services.db_entity_service import DatabaseEntityService
+from services.asset_mapping_service import AssetMappingService
 from database import get_db
 from uuid import uuid4
 from models import Asset as AssetModel
@@ -20,6 +21,7 @@ class AssetService:
         self.db = db
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.db_entity_service = DatabaseEntityService(self.db)
+        self.asset_mapping_service = AssetMappingService(self.db)
 
     def get_asset_with_details(self, asset_id: str) -> Optional[Asset]:
         """Get an asset with all its details, including database entity content if applicable"""
@@ -301,6 +303,32 @@ class AssetService:
         self.db.delete(asset)
         self.db.commit()
         return True
+
+    def get_hop_asset_context(self, hop_id: str, user_id: int) -> Dict[str, Asset]:
+        """
+        Get all assets mapped to a hop as a context dictionary.
+        
+        Args:
+            hop_id: The hop ID to get assets for
+            user_id: The user ID for access control
+            
+        Returns:
+            Dictionary mapping asset ID to Asset object for all assets mapped to the hop
+        """
+        asset_context: Dict[str, Asset] = {}
+        
+        # Get all asset IDs mapped to this hop (regardless of their scope)
+        hop_asset_mappings: Dict[str, str] = self.asset_mapping_service.get_hop_assets(hop_id)
+        
+        # Load the actual asset objects
+        if hop_asset_mappings:
+            asset_ids: List[str] = list(hop_asset_mappings.keys())
+            assets: List[Asset] = self.get_assets_by_ids(user_id, asset_ids)
+            
+            for asset in assets:
+                asset_context[asset.id] = asset
+        
+        return asset_context
 
 
 # Dependency function for FastAPI dependency injection

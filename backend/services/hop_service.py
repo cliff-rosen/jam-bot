@@ -164,26 +164,43 @@ class HopService:
 
     async def execute_hop(self, hop_id: str, user_id: int) -> Dict[str, Any]:
         """Execute all tool steps in a hop sequentially"""
+        logger.info(f"Starting hop execution for hop {hop_id}")
+        
         # Get the hop
         hop = await self.get_hop(hop_id, user_id)
         if not hop:
+            error_msg = f"Hop {hop_id} not found"
+            logger.error(error_msg, extra={"hop_id": hop_id, "user_id": user_id})
             return {
                 "success": False,
-                "errors": [f"Hop {hop_id} not found"],
+                "errors": [error_msg],
                 "message": "Hop not found",
                 "executed_steps": 0,
                 "total_steps": 0
             }
         
-        # Check if hop is ready for execution
-        if hop.status != HopStatusSchema.HOP_IMPL_READY:
+        logger.info(f"Hop {hop_id} current status: {hop.status.value}")
+        
+        # Check if hop is ready for execution or failed (allow retry)
+        if hop.status not in [HopStatusSchema.HOP_IMPL_READY, HopStatusSchema.FAILED]:
+            error_msg = f"Hop status is {hop.status.value}, expected HOP_IMPL_READY or FAILED"
+            logger.error(error_msg, extra={
+                "hop_id": hop_id, 
+                "current_status": hop.status.value,
+                "allowed_statuses": ["HOP_IMPL_READY", "FAILED"]
+            })
             return {
                 "success": False,
-                "errors": [f"Hop status is {hop.status.value}, expected HOP_IMPL_READY"],
+                "errors": [error_msg],
                 "message": f"Hop is not ready for execution (status: {hop.status.value})",
                 "executed_steps": 0,
                 "total_steps": len(hop.tool_steps)
             }
+        
+        # If hop is FAILED, reset it to HOP_IMPL_READY before execution
+        if hop.status == HopStatusSchema.FAILED:
+            logger.info(f"Hop {hop_id} is in FAILED status, resetting to HOP_IMPL_READY for retry")
+            await self.update_hop_status(hop_id, user_id, HopStatusSchema.HOP_IMPL_READY)
         
         # Update hop status to EXECUTING
         await self.update_hop_status(hop_id, user_id, HopStatusSchema.EXECUTING)
@@ -235,21 +252,35 @@ class HopService:
             if executed_steps == total_steps and not errors:
                 # All steps completed successfully
                 await self.update_hop_status(hop_id, user_id, HopStatusSchema.COMPLETED)
+                success_msg = f"Hop executed successfully. All {executed_steps} tool steps completed."
+                logger.info(success_msg, extra={
+                    "hop_id": hop_id,
+                    "executed_steps": executed_steps,
+                    "total_steps": total_steps
+                })
                 return {
                     "success": True,
                     "errors": [],
-                    "message": f"Hop executed successfully. All {executed_steps} tool steps completed.",
+                    "message": success_msg,
                     "executed_steps": executed_steps,
                     "total_steps": total_steps
                 }
             else:
                 # Some steps failed
-                await self.update_hop_status(hop_id, user_id, HopStatusSchema.FAILED, 
-                                           error_message="; ".join(errors) if errors else "Execution incomplete")
+                error_summary = "; ".join(errors) if errors else "Execution incomplete"
+                await self.update_hop_status(hop_id, user_id, HopStatusSchema.FAILED, error_message=error_summary)
+                failure_msg = f"Hop execution failed. Executed {executed_steps}/{total_steps} tool steps."
+                logger.error(failure_msg, extra={
+                    "hop_id": hop_id,
+                    "executed_steps": executed_steps,
+                    "total_steps": total_steps,
+                    "errors": errors,
+                    "error_summary": error_summary
+                })
                 return {
                     "success": False,
                     "errors": errors,
-                    "message": f"Hop execution failed. Executed {executed_steps}/{total_steps} tool steps.",
+                    "message": failure_msg,
                     "executed_steps": executed_steps,
                     "total_steps": total_steps
                 }
@@ -257,7 +288,14 @@ class HopService:
         except Exception as e:
             # Unexpected error during execution
             error_msg = f"Hop execution failed with error: {str(e)}"
-            logger.error(error_msg, extra={"hop_id": hop_id, "error": str(e)})
+            logger.error(error_msg, extra={
+                "hop_id": hop_id, 
+                "user_id": user_id,
+                "error": str(e),
+                "executed_steps": executed_steps,
+                "total_steps": total_steps,
+                "exception_type": type(e).__name__
+            })
             await self.update_hop_status(hop_id, user_id, HopStatusSchema.FAILED, error_message=error_msg)
             
             return {

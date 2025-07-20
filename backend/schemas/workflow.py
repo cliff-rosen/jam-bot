@@ -235,7 +235,7 @@ class Mission(BaseModel):
 class AssetFieldMapping(BaseModel):
     """Maps a tool parameter to a specific asset by ID."""
     type: Literal["asset_field"] = "asset_field"
-    state_asset_id: str = Field(alias="state_asset")  # Support old field name for backward compatibility
+    state_asset_id: str
 
 
 class LiteralMapping(BaseModel):

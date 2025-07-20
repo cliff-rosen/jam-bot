@@ -6,7 +6,7 @@ from uuid import uuid4
 import logging
 
 from models import ToolStep as ToolStepModel, ToolExecutionStatus
-from schemas.workflow import ToolStep
+from schemas.workflow import ToolStep, AssetFieldMapping, LiteralMapping, DiscardMapping
 from services.asset_service import AssetService
 
 # Create logger for this module
@@ -18,9 +18,47 @@ class ToolStepService:
         self.db = db
         self.asset_service = AssetService(db)
 
+    def _convert_parameter_mapping(self, raw_mapping: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert raw JSON parameter mapping to proper Pydantic models"""
+        converted = {}
+        for key, value in raw_mapping.items():
+            if isinstance(value, dict):
+                if value.get('type') == 'asset_field':
+                    converted[key] = AssetFieldMapping(**value)
+                elif value.get('type') == 'literal':
+                    converted[key] = LiteralMapping(**value)
+                else:
+                    # Unknown type, keep as dict for now
+                    converted[key] = value
+            else:
+                # Not a dict, keep as is
+                converted[key] = value
+        return converted
+
+    def _convert_result_mapping(self, raw_mapping: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert raw JSON result mapping to proper Pydantic models"""
+        converted = {}
+        for key, value in raw_mapping.items():
+            if isinstance(value, dict):
+                if value.get('type') == 'asset_field':
+                    converted[key] = AssetFieldMapping(**value)
+                elif value.get('type') == 'discard':
+                    converted[key] = DiscardMapping(**value)
+                else:
+                    # Unknown type, keep as dict for now
+                    converted[key] = value
+            else:
+                # Not a dict, keep as is
+                converted[key] = value
+        return converted
+
     def _model_to_schema(self, tool_step_model: ToolStepModel) -> ToolStep:
         """Convert database model to ToolStep schema"""
         try:
+            # Convert raw JSON mappings to proper Pydantic models
+            parameter_mapping = self._convert_parameter_mapping(tool_step_model.parameter_mapping or {})
+            result_mapping = self._convert_result_mapping(tool_step_model.result_mapping or {})
+            
             return ToolStep(
                 id=tool_step_model.id,
                 tool_id=tool_step_model.tool_id,
@@ -29,8 +67,8 @@ class ToolStepService:
                 sequence_order=tool_step_model.sequence_order,
                 hop_id=tool_step_model.hop_id,
                 resource_configs=tool_step_model.resource_configs or {},
-                parameter_mapping=tool_step_model.parameter_mapping or {},
-                result_mapping=tool_step_model.result_mapping or {},
+                parameter_mapping=parameter_mapping,
+                result_mapping=result_mapping,
                 status=ToolExecutionStatus(tool_step_model.status.value),
                 error_message=tool_step_model.error_message,
                 validation_errors=tool_step_model.validation_errors or [],
@@ -39,12 +77,17 @@ class ToolStepService:
             )
         except Exception as e:
             # If validation fails, create a simplified ToolStep with validation errors
+            error_msg = f"ToolStep validation failed for {tool_step_model.id}: {str(e)}"
+            if hasattr(e, 'errors'):
+                error_msg += f" | Pydantic errors: {e.errors()}"
+            
             logger.warning(
-                "Failed to validate ToolStep",
+                error_msg,
                 extra={
                     "tool_step_id": tool_step_model.id,
-                    "error": str(e),
-                    "hop_id": tool_step_model.hop_id
+                    "hop_id": tool_step_model.hop_id,
+                    "parameter_mapping_raw": tool_step_model.parameter_mapping,
+                    "result_mapping_raw": tool_step_model.result_mapping
                 }
             )
             return ToolStep(

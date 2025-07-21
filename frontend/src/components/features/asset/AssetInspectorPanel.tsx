@@ -17,8 +17,7 @@ const AssetInspectorPanel: React.FC<AssetInspectorPanelProps> = ({ asset }) => {
 
     // Get the latest asset state from either mission assets or current hop assets
     const latestAsset = asset ? (
-        jamBotState?.mission?.assets?.find(a => a.id === asset.id) || // Check mission assets first
-        (jamBotState?.mission?.current_hop?.assets?.find(a => a.id === asset.id)) // Then check current hop assets
+        (Array.isArray(jamBotState?.mission?.assets) && jamBotState.mission.assets.find(a => a.id === asset.id))
     ) : undefined;
 
     useEffect(() => {

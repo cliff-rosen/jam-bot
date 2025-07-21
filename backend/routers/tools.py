@@ -49,12 +49,14 @@ async def get_tool(tool_id: str):
     """
     Get the definition of a single tool by its ID.
     """
-    tool_def = get_tool_definition(tool_id)
-    if not tool_def:
+    try:
+        tool_def = get_tool_definition(tool_id)
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tool with id '{tool_id}' not found"
         )
+
     return tool_def
 
 

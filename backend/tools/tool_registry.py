@@ -152,6 +152,7 @@ def _parse_tools_json(tools_data: Dict[str, Any]) -> Dict[str, "ToolDefinition"]
     
     return tools
 
+
 def _default_tools_json_path() -> str:
     """Return the path to *tools.json* – first look in this package, then fallback to schemas."""
     local_path = os.path.join(os.path.dirname(__file__), "tools.json")
@@ -216,7 +217,8 @@ def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None
     """Attach an execution *handler* to an already-defined tool."""
     from schemas.tool_handler_schema import ToolExecutionHandler
 
-    logger.debug(f"Registering tool handler for {tool_id}")
+    logger.info(f"Registering tool handler for {tool_id}")
+    print(f"Registering tool handler for {tool_id}")
     if tool_id not in TOOL_REGISTRY:
         raise ValueError(f"No tool definition found for {tool_id}")
     
@@ -232,6 +234,7 @@ def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None
 # Automatically load the registry at import time, mirroring old behaviour
 # ---------------------------------------------------------------------------
 try:
+    print("Loading tools on import")
     refresh_tool_registry()
 except Exception as exc:  # pragma: no cover
     print(f"Failed to load tools on import: {exc}")

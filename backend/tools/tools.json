@@ -993,14 +993,14 @@
       ],
       "outputs": [
         {
-          "id": "",
+          "id": "generated_query",
           "name": "generated_query",
           "description": "Generated PubMed query",
           "required": true,
           "schema_definition": {
             "type": "string",
-            "description": "Query option with metadata",
-            "is_array": true,
+            "description": "Optimized PubMed search query string",
+            "is_array": false
           }
         }
       ]

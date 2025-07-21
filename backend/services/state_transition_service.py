@@ -619,7 +619,6 @@ class StateTransitionService:
         tool_step_id = data['tool_step_id']
         user_id = data['user_id']
         execution_result = data.get('execution_result', {})
-        tool_execution_id = data.get('tool_execution_id')  # Optional execution record reference
         
         logger.info(f"StateTransitionService._complete_tool_step called - tool_step_id: {tool_step_id}, user_id: {user_id}, has_execution_result: {bool(execution_result)}, execution_result: {execution_result}")
         
@@ -639,10 +638,6 @@ class StateTransitionService:
                 f"Tool step {tool_step_id} must be in {[s.value for s in valid_statuses]}, current: {tool_step_model.status.value}"
             )
         
-        # Use provided execution result or generate simulated one for testing
-        if not execution_result:
-            execution_result = await self._generate_simulated_execution_result(tool_step_model, data.get('simulated_output', {}))
-        
         # Update tool step status with real execution results
         tool_step_model.status = ToolExecutionStatus.COMPLETED
         tool_step_model.execution_result = execution_result
@@ -656,6 +651,13 @@ class StateTransitionService:
         logger.info(f"About to update output assets from tool step {tool_step_id}")
         assets_updated = await self._update_output_assets_from_tool_step(tool_step_model, execution_result, user_id)
         logger.info(f"Updated output assets - tool_step_id: {tool_step_id}, assets_updated: {assets_updated}, num_assets: {len(assets_updated)}")
+        
+        # Check if we were supposed to update assets but didn't
+        if tool_step_model.result_mapping and len(assets_updated) == 0:
+            logger.error(f"CRITICAL: Tool step {tool_step_id} has result_mapping but NO assets were updated!")
+            logger.error(f"Result mapping: {tool_step_model.result_mapping}")
+            logger.error(f"Tool outputs: {list(execution_result.get('outputs', {}).keys())}")
+            # Don't fail the transaction - just log the error for now
         
         # Check if all tool steps in the hop are completed
         hop_model = self.db.query(HopModel).filter(HopModel.id == tool_step_model.hop_id).first()
@@ -690,10 +692,9 @@ class StateTransitionService:
             message="Tool step completed successfully",
             metadata={
                 "tool_step_id": tool_step_id,
-                "tool_execution_id": tool_execution_id,
                 "hop_id": tool_step_model.hop_id,
                 "mission_id": hop_model.mission_id if hop_model else None,
-                "assets_created": assets_created,
+                "assets_updated": assets_updated,
                 "hop_progress": hop_progress,
                 "hop_completed": hop_completed,
                 "mission_completed": mission_completed,
@@ -801,83 +802,6 @@ class StateTransitionService:
         
         print(f"DEBUG: Completed hop asset initialization for hop {hop_id}")
 
-    async def _copy_mission_assets_to_hop(self, mission_id: str, hop_id: str, user_id: int):
-        """DEPRECATED: Copy relevant mission assets to hop scope as inputs - replaced by _initialize_hop_assets"""
-        mission_assets = self.asset_service.get_assets_by_scope(
-            user_id=user_id,
-            scope_type=AssetScopeType.MISSION.value,
-            scope_id=mission_id
-        )
-        
-        for asset in mission_assets:
-            if asset.role in ['input', 'output']:
-                # Mission input assets become hop input assets
-                # Mission output assets become hop output assets (what the hop should produce)
-                hop_role = 'input' if asset.role == 'input' else 'output'
-                
-                self.asset_service.create_asset(
-                    user_id=user_id,
-                    name=asset.name,
-                    schema_definition=asset.schema_definition.model_dump() if hasattr(asset.schema_definition, 'model_dump') else asset.schema_definition,
-                    subtype=asset.subtype,
-                    description=asset.description,
-                    content=asset.value_representation,
-                    asset_metadata=asset.asset_metadata,
-                    scope_type=AssetScopeType.HOP.value,
-                    scope_id=hop_id,
-                    role=hop_role
-                )
-    
-    
-    async def _generate_simulated_execution_result(self, tool_step_model: ToolStepModel, simulated_output: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate simulated execution result for testing purposes"""
-        # Get tool information to understand expected outputs
-        tool_id = tool_step_model.tool_id
-        result_mapping = tool_step_model.result_mapping or {}
-        
-        # Create realistic simulated output based on tool type and result mapping
-        execution_result = {
-            "success": True,
-            "outputs": {},
-            "metadata": {
-                "simulated": True,
-                "tool_id": tool_id,
-                "executed_at": datetime.utcnow().isoformat(),
-                "execution_duration": 1.5  # Simulated duration
-            }
-        }
-        
-        # Generate outputs based on result_mapping
-        for output_name, mapping_config in result_mapping.items():
-            if output_name in simulated_output:
-                # Use provided simulated output
-                execution_result["outputs"][output_name] = simulated_output[output_name]
-            else:
-                # Generate realistic output based on tool type
-                execution_result["outputs"][output_name] = self._generate_realistic_output(
-                    tool_id, output_name, mapping_config
-                )
-        
-        return execution_result
-    
-    def _generate_realistic_output(self, tool_id: str, output_name: str, mapping_config: Dict[str, Any]) -> Any:
-        """Generate realistic output data for a specific tool output"""
-        # Common realistic outputs based on tool patterns
-        if "text" in output_name.lower() or "content" in output_name.lower():
-            return f"Simulated {output_name} result from {tool_id}"
-        elif "json" in output_name.lower() or "data" in output_name.lower():
-            return {"status": "success", "data": f"Simulated data from {tool_id}"}
-        elif "file" in output_name.lower():
-            return {"filename": f"output_{tool_id}.txt", "content": f"Simulated file content from {tool_id}"}
-        elif "url" in output_name.lower() or "link" in output_name.lower():
-            return f"https://example.com/simulated/{tool_id}/output"
-        elif "count" in output_name.lower() or "number" in output_name.lower():
-            return 42
-        elif "list" in output_name.lower() or "array" in output_name.lower():
-            return [f"Item 1 from {tool_id}", f"Item 2 from {tool_id}"]
-        else:
-            return f"Simulated {output_name} from {tool_id}"
-    
     async def _update_output_assets_from_tool_step(self, tool_step_model: ToolStepModel, execution_result: Dict[str, Any], user_id: int) -> List[str]:
         """Update existing output assets based on tool step execution results - tools never create assets"""
         assets_updated = []
@@ -912,12 +836,24 @@ class StateTransitionService:
                 
                 logger.info(f"Processing output {output_name} -> asset {asset_id}")
                 
+                # Validate asset_id looks like a UUID
+                import uuid
+                try:
+                    uuid.UUID(asset_id)
+                except ValueError:
+                    logger.error(f"INVALID ASSET ID: '{asset_id}' is not a valid UUID - looks like an asset name was provided instead of an ID")
+                    logger.error(f"Result mapping for {output_name}: {mapping_config}")
+                    logger.error(f"This is likely an LLM error - the LLM should provide asset UUIDs, not asset names")
+                    continue
+                
                 # Tools only update existing assets - they never create new ones
                 try:
+                    logger.info(f"Looking up asset {asset_id} for user {user_id}")
                     existing_asset = self.asset_service.get_asset(asset_id, user_id)
+                    logger.info(f"Found asset: {existing_asset.name} (status: {existing_asset.status})")
                     
                     # Update existing asset with tool output
-                    logger.info(f"Updating existing asset {asset_id} with tool output")
+                    logger.info(f"Updating asset {asset_id} with tool output - current status: {existing_asset.status}, value_length: {len(str(output_value))}")
                     self.asset_service.update_asset(
                         asset_id=asset_id,
                         user_id=user_id,
@@ -933,10 +869,16 @@ class StateTransitionService:
                             }
                         }
                     )
+                    logger.info(f"Successfully updated asset {asset_id} - marked as READY")
                     assets_updated.append(asset_id)
                     
                 except AssetNotFoundError:
                     logger.error(f"Asset {asset_id} not found - tools can only update existing assets, not create new ones")
+                    logger.error(f"This likely means the asset was never created or the wrong asset ID was provided")
+                    continue
+                except Exception as e:
+                    logger.error(f"Unexpected error updating asset {asset_id}: {str(e)}")
+                    logger.error(f"Exception type: {type(e).__name__}")
                     continue
         
         return assets_updated

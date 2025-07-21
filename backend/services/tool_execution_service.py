@@ -185,8 +185,6 @@ class ToolExecutionService:
 
         # Get tool definition from registry
         tool_def: Optional[ToolDefinition] = get_tool_definition(step.tool_id)
-        if not tool_def:
-            raise Exception(f"Tool {step.tool_id} not found in registry")
         
         # Build tool inputs from parameter mappings
         params: Dict[str, ToolParameterValue] = self._map_parameters(step, asset_context)

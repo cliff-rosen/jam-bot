@@ -207,8 +207,10 @@ def get_tools_by_category() -> Dict[str, List[str]]:
 
 def get_tool_definition(tool_id: str) -> Optional["ToolDefinition"]:
     """Return the *ToolDefinition* for *tool_id* if it exists."""
+    tool_def: Optional["ToolDefinition"] = TOOL_REGISTRY.get(tool_id)
+    if not tool_def:
+        raise ValueError(f"No tool definition found for {tool_id}")
     return TOOL_REGISTRY.get(tool_id)
-
 
 def register_tool_handler(tool_id: str, handler: "ToolExecutionHandler") -> None:
     """Attach an execution *handler* to an already-defined tool."""

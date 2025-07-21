@@ -298,12 +298,14 @@ Is Final: {hop.is_final}"""
         # Format output assets
         output_assets = []
         for asset in output_assets_list:
-            output_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
+            asset_type = asset.schema_definition.type if asset.schema_definition else "unknown"
+            output_assets.append(f"- **{asset.name}** (ID: {asset.id}, {asset_type}): {asset.description}")
         
         # Format intermediate assets  
         intermediate_assets = []
         for asset in intermediate_assets_list:
-            intermediate_assets.append(f"- **{asset.name}** ({asset.schema_definition.type}): {asset.description}")
+            asset_type = asset.schema_definition.type if asset.schema_definition else "unknown"
+            intermediate_assets.append(f"- **{asset.name}** (ID: {asset.id}, {asset_type}): {asset.description}")
         
         # Build formatted string
         sections = []

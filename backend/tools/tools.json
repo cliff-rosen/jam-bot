@@ -993,86 +993,14 @@
       ],
       "outputs": [
         {
-          "id": "generated_queries",
-          "name": "generated_queries",
-          "description": "Generated PubMed query options with rationale and metadata",
+          "id": "",
+          "name": "generated_query",
+          "description": "Generated PubMed query",
           "required": true,
           "schema_definition": {
-            "type": "object",
+            "type": "string",
             "description": "Query option with metadata",
             "is_array": true,
-            "fields": {
-              "query_string": {
-                "type": "string",
-                "description": "PubMed search query string",
-                "is_array": false
-              },
-              "rationale": {
-                "type": "string",
-                "description": "Explanation of query construction",
-                "is_array": false
-              },
-              "expected_scope": {
-                "type": "string",
-                "description": "Estimated result count range",
-                "is_array": false
-              },
-              "confidence_score": {
-                "type": "number",
-                "description": "Confidence in query quality (0-1)",
-                "is_array": false
-              }
-            }
-          }
-        },
-        {
-          "id": "mesh_terms",
-          "name": "mesh_terms",
-          "description": "Relevant MeSH terms identified",
-          "required": true,
-          "schema_definition": {
-            "type": "string",
-            "description": "MeSH terms",
-            "is_array": true
-          }
-        },
-        {
-          "id": "field_tags",
-          "name": "field_tags",
-          "description": "Recommended PubMed field tags",
-          "required": true,
-          "schema_definition": {
-            "type": "string",
-            "description": "Field tags",
-            "is_array": true
-          }
-        },
-        {
-          "id": "query_metadata",
-          "name": "query_metadata",
-          "description": "Generation process information",
-          "required": true,
-          "schema_definition": {
-            "type": "object",
-            "description": "Query generation metadata",
-            "is_array": false,
-            "fields": {
-              "domain_context": {
-                "type": "string",
-                "description": "Domain-specific context applied",
-                "is_array": false
-              },
-              "synonyms_used": {
-                "type": "string",
-                "description": "Alternative terms considered",
-                "is_array": true
-              },
-              "query_complexity": {
-                "type": "string",
-                "description": "Complexity level of generated queries",
-                "is_array": false
-              }
-            }
           }
         }
       ]

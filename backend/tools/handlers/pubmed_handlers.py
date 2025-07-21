@@ -42,10 +42,7 @@ async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerRe
             
     Returns:
         ToolHandlerResult containing:
-            - optimized_query: Generated PubMed search query
-            - query_components: Breakdown of query components
-            - search_strategy: Explanation of search strategy
-            - estimated_results: Estimated number of results
+            - generated_query: Single optimized PubMed search query string
     """
     # Extract parameters
     research_goal = input.params.get("research_goal")
@@ -61,21 +58,18 @@ async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerRe
     from pydantic import BaseModel, Field
     
     class QueryOptimizationResult(BaseModel):
-        optimized_query: str = Field(description="The optimized PubMed search query")
-        query_components: Dict[str, Any] = Field(description="Breakdown of query components")
-        search_strategy: str = Field(description="Explanation of search strategy")
-        estimated_results: str = Field(description="Estimated number of results")
+        optimized_query: str = Field(description="The optimized PubMed search query string")
     
-    system_message = """You are a PubMed search expert. Your task is to optimize research queries for maximum precision and recall.
+    system_message = """You are a PubMed search expert. Your task is to generate a single optimized PubMed search query.
     
-    Given a research goal and focus areas, create an optimized PubMed search query using:
+    Given a research goal, create an optimized PubMed search query using:
     - MeSH terms where appropriate
     - Boolean operators (AND, OR, NOT)
     - Field tags ([Title/Abstract], [MeSH Terms], etc.)
     - Publication type filters
     - Date restrictions
     
-    Return a well-structured query that will find the most relevant articles.
+    Return ONLY the query string that will find the most relevant articles.
     
     Research Goal: {research_goal}
     Focus Areas: {focus_areas}
@@ -83,7 +77,7 @@ async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerRe
     Article Types: {article_types}
     Exclusion Terms: {exclusion_terms}
     
-    Please create an optimized PubMed search query."""
+    Generate the optimized PubMed search query:"""
     
     prompt_caller = BasePromptCaller(
         response_model=QueryOptimizationResult,
@@ -99,34 +93,15 @@ async def handle_pubmed_generate_query(input: ToolHandlerInput) -> ToolHandlerRe
             article_types=', '.join(article_types),
             exclusion_terms=', '.join(exclusion_terms) if exclusion_terms else 'None'
         )
-        result_data = {
-            "optimized_query": result.optimized_query,
-            "query_components": result.query_components,
-            "search_strategy": result.search_strategy,
-            "estimated_results": result.estimated_results
-        }
+        optimized_query = result.optimized_query
     except Exception as e:
-        # Fallback if LLM call fails
-        result_data = {
-            "optimized_query": research_goal,  # Basic fallback
-            "query_components": {
-                "mesh_terms": [],
-                "keywords": research_goal.split(),
-                "boolean_logic": "Simple term search",
-                "field_restrictions": "None",
-                "filters": "None"
-            },
-            "search_strategy": f"Basic keyword search due to error: {str(e)}",
-            "estimated_results": "Unknown"
-        }
+        # Fallback if LLM call fails - just use the research goal
+        optimized_query = research_goal
     
     return ToolHandlerResult(
         success=True,
         outputs={
-            "optimized_query": result_data["optimized_query"],
-            "query_components": result_data["query_components"],
-            "search_strategy": result_data["search_strategy"],
-            "estimated_results": result_data["estimated_results"]
+            "generated_query": optimized_query
         },
         metadata={
             "tool_id": "pubmed_generate_query",

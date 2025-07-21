@@ -106,6 +106,25 @@ class CanonicalDailyNewsletterRecap(BaseModel):
     statistics: Optional[Dict[str, Any]] = Field(default=None, description="Processing statistics")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional recap metadata")
 
+class CanonicalScholarArticle(BaseModel):
+    """
+    Canonical Google Scholar Article schema - the definitive structure for Google Scholar
+    search results across the entire system.
+    """
+    title: str = Field(description="Article title")
+    link: Optional[str] = Field(default=None, description="Direct link to the article")
+    authors: List[str] = Field(default=[], description="List of article authors")
+    publication_info: Optional[str] = Field(default=None, description="Publication venue and details")
+    snippet: Optional[str] = Field(default=None, description="Article snippet/excerpt")
+    cited_by_count: Optional[int] = Field(default=None, description="Number of citations")
+    cited_by_link: Optional[str] = Field(default=None, description="Link to citing articles")
+    related_pages_link: Optional[str] = Field(default=None, description="Link to related articles")
+    versions_link: Optional[str] = Field(default=None, description="Link to different versions")
+    pdf_link: Optional[str] = Field(default=None, description="Direct PDF link if available")
+    year: Optional[int] = Field(default=None, description="Publication year")
+    position: int = Field(description="Position in search results")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional Scholar metadata")
+
 class CanonicalPubMedExtraction(BaseModel):
     """
     Canonical PubMed Extraction schema - the definitive structure for extracted features from articles.

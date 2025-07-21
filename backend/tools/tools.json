@@ -472,6 +472,172 @@
       ]
     },
     {
+      "id": "google_scholar_search",
+      "name": "google_scholar_search",
+      "description": "Search Google Scholar for academic articles, papers, theses, books, conference papers, and other scholarly literature",
+      "category": "data_retrieval",
+      "functional_category": "search_retrieve",
+      "domain_category": "academic_research",
+      "tags": [
+        "search",
+        "academic",
+        "research",
+        "scholar",
+        "citations",
+        "literature"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": true,
+        "typical_next_tools": [
+          "extract",
+          "summarize"
+        ],
+        "pipeline_name": "academic_research"
+      },
+      "ui_metadata": {
+        "icon": "academic-cap",
+        "color": "blue",
+        "difficulty": "beginner"
+      },
+      "resource_dependencies": [
+        {
+          "id": "serpapi",
+          "name": "SerpAPI",
+          "description": "SerpAPI service for Google Scholar search functionality",
+          "type": "api",
+          "auth_config": {
+            "type": "api_key",
+            "required_fields": [
+              {
+                "field_name": "api_key",
+                "field_type": "secret",
+                "required": true,
+                "description": "SerpAPI API key"
+              }
+            ]
+          },
+          "connection_schema": {
+            "type": "object",
+            "description": "SerpAPI credentials",
+            "is_array": false,
+            "fields": {
+              "api_key": {
+                "type": "string",
+                "description": "SerpAPI API key",
+                "is_array": false
+              }
+            }
+          },
+          "capabilities": [
+            "search",
+            "pagination",
+            "filtering"
+          ],
+          "base_url": "https://serpapi.com",
+          "documentation_url": "https://serpapi.com/google-scholar-api"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "query",
+          "name": "query",
+          "description": "Search query for academic literature. Supports advanced operators like author:, intitle:, source:, etc.",
+          "required": true,
+          "schema_definition": {
+            "type": "string",
+            "description": "Academic search query",
+            "is_array": false
+          }
+        },
+        {
+          "id": "num_results",
+          "name": "num_results",
+          "description": "Number of results to return (1-20, default: 10)",
+          "required": false,
+          "schema_definition": {
+            "type": "number",
+            "description": "Number of results (1-20)",
+            "is_array": false
+          }
+        },
+        {
+          "id": "year_low",
+          "name": "year_low",
+          "description": "Filter results from this year onwards",
+          "required": false,
+          "schema_definition": {
+            "type": "number",
+            "description": "Start year for filtering",
+            "is_array": false
+          }
+        },
+        {
+          "id": "year_high",
+          "name": "year_high",
+          "description": "Filter results up to this year",
+          "required": false,
+          "schema_definition": {
+            "type": "number",
+            "description": "End year for filtering",
+            "is_array": false
+          }
+        },
+        {
+          "id": "sort_by",
+          "name": "sort_by",
+          "description": "Sort results by relevance or date",
+          "required": false,
+          "schema_definition": {
+            "type": "string",
+            "description": "Sort order: 'relevance' or 'date'",
+            "is_array": false
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "articles",
+          "name": "articles",
+          "description": "List of academic articles found in Google Scholar",
+          "required": true,
+          "schema_definition": {
+            "type": "scholar_article",
+            "description": "Google Scholar article objects",
+            "is_array": true,
+            "canonical_type": "CanonicalScholarArticle"
+          }
+        },
+        {
+          "id": "search_metadata",
+          "name": "search_metadata",
+          "description": "Search metadata including total results and query information",
+          "required": true,
+          "schema_definition": {
+            "type": "object",
+            "description": "Search metadata",
+            "is_array": false,
+            "fields": {
+              "total_results": {
+                "type": "number",
+                "description": "Total number of results found",
+                "is_array": false
+              },
+              "query_used": {
+                "type": "string",
+                "description": "The query that was executed",
+                "is_array": false
+              },
+              "search_time": {
+                "type": "number",
+                "description": "Search execution time in milliseconds",
+                "is_array": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "pubmed_search",
       "name": "pubmed_search",
       "description": "Search PubMed database using NCBI's E-utilities API to retrieve academic articles",

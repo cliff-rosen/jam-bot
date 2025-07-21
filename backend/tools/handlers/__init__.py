@@ -12,4 +12,5 @@ from . import map_reduce_handlers
 from . import summarize_handlers
 from . import web_retrieval_handlers
 from . import web_search_handlers
-from . import pubmed_handlers 
+from . import pubmed_handlers
+from . import google_scholar_handlers 

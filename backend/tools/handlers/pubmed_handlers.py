@@ -134,14 +134,14 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
     """
     try:
         # Extract parameters
-        query = input.params.get("query")
+        query = input.params.get("search_query")
         max_results = input.params.get("max_results", 50)
         start_date = input.params.get("start_date")
         end_date = input.params.get("end_date")
         sort_order = input.params.get("sort_order", "relevance")
         
         if not query:
-            raise ValueError("query is required")
+            raise ValueError("search_query is required")
         
         # If date range is provided, use the date-specific search
         if start_date and end_date:

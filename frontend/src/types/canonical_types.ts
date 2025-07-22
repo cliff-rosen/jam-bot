@@ -82,6 +82,22 @@ export interface CanonicalDailyNewsletterRecap {
     newsletters: CanonicalNewsletter[];
 }
 
+export interface CanonicalScholarArticle {
+    title: string;
+    link?: string;
+    authors: string[];
+    publication_info?: string;
+    snippet?: string;
+    cited_by_count?: number;
+    cited_by_link?: string;
+    related_pages_link?: string;
+    versions_link?: string;
+    pdf_link?: string;
+    year?: number;
+    position: number;
+    metadata?: Record<string, any>;
+}
+
 // --- Type Registry ---
 
 export type CanonicalType =

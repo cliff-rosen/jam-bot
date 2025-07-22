@@ -638,6 +638,63 @@
       ]
     },
     {
+      "id": "google_scholar_extract_features",
+      "name": "google_scholar_extract_features",
+      "description": "Extract research features from Google Scholar articles including pathway relevance, disease relevance, study type, and outcomes using LLM analysis",
+      "category": "data_processing",
+      "functional_category": "extract_analyze",
+      "domain_category": "academic_research",
+      "tags": [
+        "extract",
+        "academic",
+        "research",
+        "analysis",
+        "features",
+        "classification"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "summarize",
+          "group_reduce"
+        ],
+        "pipeline_name": "academic_research"
+      },
+      "ui_metadata": {
+        "icon": "beaker",
+        "color": "green",
+        "difficulty": "intermediate"
+      },
+      "parameters": [
+        {
+          "id": "articles",
+          "name": "articles",
+          "description": "Google Scholar articles to analyze and extract features from",
+          "required": true,
+          "schema_definition": {
+            "type": "scholar_article",
+            "description": "List of Google Scholar articles",
+            "is_array": true,
+            "canonical_type": "CanonicalScholarArticle"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "enriched_articles",
+          "name": "enriched_articles",
+          "description": "Articles with extracted research features in metadata",
+          "required": true,
+          "schema_definition": {
+            "type": "scholar_article",
+            "description": "Scholar articles enriched with feature metadata",
+            "is_array": true,
+            "canonical_type": "CanonicalScholarArticle"
+          }
+        }
+      ]
+    },
+    {
       "id": "pubmed_search",
       "name": "pubmed_search",
       "description": "Search PubMed database using NCBI's E-utilities API to retrieve academic articles",

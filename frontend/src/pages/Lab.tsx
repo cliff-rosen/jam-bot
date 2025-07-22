@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { googleScholarApi, GoogleScholarSearchRequest } from '@/lib/api/googleScholarApi';
+import { extractApi } from '@/lib/api/extractApi';
 import { CanonicalScholarArticle } from '@/types/canonical_types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,8 @@ export default function LabPage() {
     const [articles, setArticles] = useState<CanonicalScholarArticle[]>([]);
     const [metadata, setMetadata] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(false);
+    const [extracting, setExtracting] = useState(false);
+    const [extractionMetadata, setExtractionMetadata] = useState<Record<string, any> | null>(null);
     const { toast } = useToast();
 
     const handleSearch = async () => {
@@ -52,6 +55,46 @@ export default function LabPage() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExtract = async () => {
+        if (articles.length === 0) {
+            toast({
+                title: 'Error',
+                description: 'No articles to extract features from',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setExtracting(true);
+        try {
+            const response = await extractApi.extractScholarFeatures({
+                articles: articles
+            });
+            
+            // Update articles with extracted features
+            const enrichedArticles = response.results.map(result => result.enriched_article);
+            setArticles(enrichedArticles);
+            setExtractionMetadata(response.metadata);
+            
+            toast({
+                title: 'Extraction Complete',
+                description: `Extracted features from ${response.metadata.successful_extractions} articles`,
+            });
+        } catch (error) {
+            let errorMessage = 'Unknown error occurred';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+            toast({
+                title: 'Extraction Failed',
+                description: errorMessage,
+                variant: 'destructive'
+            });
+        } finally {
+            setExtracting(false);
         }
     };
 
@@ -165,10 +208,31 @@ export default function LabPage() {
                     </Card>
                 )}
 
+                {/* Extraction Metadata Display */}
+                {extractionMetadata && (
+                    <Card className="mb-4 p-4 dark:bg-gray-800">
+                        <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Feature Extraction Results</h3>
+                        <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                            <p>Articles Processed: {extractionMetadata.articles_processed}</p>
+                            <p>Successful Extractions: {extractionMetadata.successful_extractions}</p>
+                            <p>Failed Extractions: {extractionMetadata.failed_extractions}</p>
+                        </div>
+                    </Card>
+                )}
+
                 {/* Articles Display */}
                 {articles.length > 0 ? (
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({articles.length})</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({articles.length})</h3>
+                            <Button
+                                onClick={handleExtract}
+                                disabled={extracting || articles.length === 0}
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-medium"
+                            >
+                                {extracting ? 'Extracting...' : 'Extract Features'}
+                            </Button>
+                        </div>
                         {articles.map((article, index) => (
                             <Card key={index} className="p-4 dark:bg-gray-800">
                                 <div className="flex justify-between items-start mb-2">
@@ -243,6 +307,85 @@ export default function LabPage() {
                                         </a>
                                     )}
                                 </div>
+
+                                {/* Display extracted features if available */}
+                                {article.metadata?.features && (
+                                    <div className="mt-4 border-t pt-3 border-gray-200 dark:border-gray-600">
+                                        <h5 className="text-sm font-semibold mb-2 text-gray-900 dark:text-gray-100">Extracted Features</h5>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="space-y-1">
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">PoI Relevance: </span>
+                                                    <span className={`px-1 py-0.5 rounded ${
+                                                        article.metadata.features.poi_relevance === 'yes' 
+                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' 
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        {article.metadata.features.poi_relevance}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">DoI Relevance: </span>
+                                                    <span className={`px-1 py-0.5 rounded ${
+                                                        article.metadata.features.doi_relevance === 'yes' 
+                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' 
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        {article.metadata.features.doi_relevance}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Systematic: </span>
+                                                    <span className={`px-1 py-0.5 rounded ${
+                                                        article.metadata.features.is_systematic === 'yes' 
+                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' 
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        {article.metadata.features.is_systematic}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Study Type: </span>
+                                                    <span className="text-gray-700 dark:text-gray-300">{article.metadata.features.study_type}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Outcome: </span>
+                                                    <span className="text-gray-700 dark:text-gray-300">{article.metadata.features.study_outcome}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Confidence: </span>
+                                                    <span className={`px-1 py-0.5 rounded ${
+                                                        article.metadata.features.confidence_score >= 0.8
+                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                                                            : article.metadata.features.confidence_score >= 0.6
+                                                            ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
+                                                            : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                                                    }`}>
+                                                        {(article.metadata.features.confidence_score * 100).toFixed(0)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {article.metadata.features.extraction_notes && (
+                                            <div className="mt-2">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Notes: </span>
+                                                <span className="text-xs text-gray-600 dark:text-gray-400">{article.metadata.features.extraction_notes}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Display extraction error if available */}
+                                {article.metadata?.feature_extraction_error && (
+                                    <div className="mt-4 border-t pt-3 border-gray-200 dark:border-gray-600">
+                                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
+                                            <span className="text-sm font-medium text-red-800 dark:text-red-200">Extraction Error: </span>
+                                            <span className="text-sm text-red-700 dark:text-red-300">{article.metadata.feature_extraction_error}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </Card>
                         ))}
                     </div>

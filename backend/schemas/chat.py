@@ -61,30 +61,3 @@ class AssetReference(BaseModel):
         description="Optional metadata for the asset"
     )
 
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage] = Field(description="All messages in the conversation")
-    payload: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Optional payload including additional context data"
-    )
-
-# class ChatResponse(BaseModel):
-# Chat ressponse is either AgentResponse or StatusResponse
-
-class AgentResponse(BaseModel):
-    token: str | None = Field(description="The token for the agent")
-    response_text: str | None = Field(description="The message from the agent")
-    payload: str | object | None = Field(description="The payload from the agent")
-    status: str | None = Field(description="The status of the agent")
-    error: str | None = Field(description="The error from the agent")
-    debug: str | object | None = Field(description="The debug information from the agent")
-
-class StatusResponse(BaseModel):
-    status: str = Field(description="The status of the agent")
-    payload: str | object | None = Field(description="The payload from the agent")
-    error: str | None = Field(description="The error from the agent")
-    debug: str | object | None = Field(description="The debug information from the agent")
-
-# Stream response union type for documentation
-ChatStreamResponse = AgentResponse | StatusResponse
-

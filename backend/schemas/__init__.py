@@ -13,8 +13,6 @@ from .auth import (
 
 from .chat import (
     MessageRole,
-    AgentResponse,
-    ChatRequest,
     AssetReference,
     Chat,
     ChatMessage,
@@ -24,10 +22,8 @@ from .chat import (
 
 from .user_session import (
     UserSession,
-    CreateUserSessionRequest,
     UserSessionStatus,
-    CreateUserSessionResponse,
-    UpdateUserSessionRequest
+    CreateUserSessionResponse
 )
 
 from .asset import (
@@ -67,9 +63,6 @@ __all__ = [
     
     # Chat schemas
     'MessageRole',
-    'ChatRequest',
-    'ChatResponse',
-    'AgentResponse',
     'AssetReference',
     'Chat',
     'ChatMessage',
@@ -78,10 +71,8 @@ __all__ = [
 
     # User Session schemas
     'UserSession',
-    'CreateUserSessionRequest',
     'UserSessionStatus',
     'CreateUserSessionResponse',
-    'UpdateUserSessionRequest',
 
     # Newsletter schemas
     'Newsletter',

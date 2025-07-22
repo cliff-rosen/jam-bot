@@ -2,18 +2,31 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastA
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 from database import get_db
 from services.asset_service import AssetService, get_asset_service
 from services.asset_summary_service import AssetSummaryService
 from services import auth_service
-from schemas.asset import Asset, CreateAssetRequest, DatabaseEntityMetadata
+from schemas.asset import Asset, DatabaseEntityMetadata, AssetRole
 from schemas.chat import AssetReference
 from models import User, Asset as AssetModel
 from services.db_entity_service import DatabaseEntityService
 from exceptions import AssetNotFoundError
 
 router = APIRouter(prefix="/assets", tags=["assets"])
+
+
+# Request models for asset endpoints
+class CreateAssetRequest(BaseModel):
+    """API request model for creating assets"""
+    name: str
+    description: Optional[str] = None
+    type: str
+    subtype: Optional[str] = None
+    role: Optional[AssetRole] = None  # Role of asset in workflow
+    content: Optional[Any] = None
+    asset_metadata: Optional[Dict[str, Any]] = None
 
 
 # CREATE ASSET

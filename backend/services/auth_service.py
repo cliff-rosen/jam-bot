@@ -8,7 +8,6 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models import User
 from schemas import UserCreate, Token
-from schemas.user_session import CreateUserSessionRequest
 from config.settings import settings
 from database import get_db
 import logging
@@ -139,6 +138,7 @@ async def login_user(db: Session, email: str, password: str) -> Token:
         else:
             logger.debug("No active session found, creating new session")
             # Create new session
+            from routers.user_session import CreateUserSessionRequest
             session_request = CreateUserSessionRequest(
                 session_metadata={
                     "created_via": "login",

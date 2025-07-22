@@ -2,16 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
+from pydantic import BaseModel, Field
 
 from services.auth_service import validate_token
 from services.email_service import EmailService
 from models import ResourceCredentials, User
-from schemas.email import (
-    EmailLabel,
-    EmailMessage,
-    EmailSearchParams,
-    EmailAgentResponse
-)
+from schemas.email import EmailLabel, EmailMessage, DateRange
 from schemas.resource import GMAIL_RESOURCE
 from database import get_db
 import logging
@@ -25,6 +21,24 @@ import json
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email", tags=["email"])
 email_service = EmailService()
+
+
+# Request/Response models for email endpoints
+class EmailSearchParams(BaseModel):
+    """Parameters for email search"""
+    query: str = Field(description="Gmail search query")
+    folder: Optional[str] = Field(default="INBOX", description="Gmail folder/label to search in")
+    date_range: Optional[DateRange] = Field(default=None, description="Date range to search within")
+    limit: int = Field(default=100, ge=1, le=500, description="Maximum number of results to return")
+    include_attachments: bool = Field(default=False, description="Whether to include attachment data")
+    include_metadata: bool = Field(default=True, description="Whether to include message metadata")
+
+class EmailAgentResponse(BaseModel):
+    """Response model for email agent operations"""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 ##########################
 ### Email Management ###

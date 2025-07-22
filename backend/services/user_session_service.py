@@ -18,11 +18,7 @@ from fastapi import Depends
 
 from database import get_db
 from models import UserSession, User, Chat, Mission, ChatMessage, UserSessionStatus
-from schemas.user_session import (
-    CreateUserSessionRequest, 
-    CreateUserSessionResponse,
-    UpdateUserSessionRequest
-)
+from schemas.user_session import UserSession as UserSessionSchema, CreateUserSessionResponse
 from schemas.chat import Chat as ChatSchema
 from schemas.workflow import Mission as MissionSchema
 from exceptions import NotFoundError, ValidationError
@@ -96,7 +92,7 @@ class UserSessionService:
                 self.db.rollback()
             raise ValidationError(f"Failed to link mission to session: {str(e)}")
 
-    def create_user_session(self, user_id: int, request: CreateUserSessionRequest) -> CreateUserSessionResponse:
+    def create_user_session(self, user_id: int, request: any) -> CreateUserSessionResponse:
         """Create a new user session with associated chat"""
         try:
             # Mark all existing active sessions as completed
@@ -181,7 +177,7 @@ class UserSessionService:
         return user_session  # Return model directly, no schema conversion
     
     def update_user_session_lightweight(self, user_id: int, session_id: str, 
-                                      request: UpdateUserSessionRequest) -> Optional[UserSession]:
+                                      request: any) -> Optional[UserSession]:
         """Update an existing user session - lightweight version that returns model directly"""
         user_session = self.db.query(UserSession).filter(
             and_(

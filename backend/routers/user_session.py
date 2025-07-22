@@ -6,18 +6,41 @@ This router handles all HTTP endpoints for user session management.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
 
 from database import get_db
 from services.auth_service import validate_token
 from services.user_session_service import UserSessionService
 from models import User
-from schemas.user_session import (
-    CreateUserSessionRequest,
-    UpdateUserSessionRequest,
-    UserSessionLightweightResponse
-)
+from schemas.user_session import UserSessionStatus
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+# Request/Response models for user session endpoints
+class CreateUserSessionRequest(BaseModel):
+    """Request to create a new user session"""
+    name: Optional[str] = Field(default=None, description="Name for the new session (auto-generated if not provided)")
+    session_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional metadata")
+
+
+class UpdateUserSessionRequest(BaseModel):
+    """Request to update an existing user session"""
+    name: Optional[str] = Field(default=None, description="Updated name")
+    status: Optional[UserSessionStatus] = Field(default=None, description="Updated status")
+    mission_id: Optional[str] = Field(default=None, description="Updated mission ID")
+    session_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Updated metadata")
+
+
+class UserSessionLightweightResponse(BaseModel):
+    """Lightweight response containing just session pointers/IDs"""
+    id: str = Field(description="Session ID")
+    user_id: int = Field(description="User ID")
+    name: Optional[str] = Field(description="Session name")
+    chat_id: str = Field(description="Associated chat ID")
+    mission_id: Optional[str] = Field(default=None, description="Associated mission ID if exists")
+    session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Session metadata")
 
 
 @router.post("/initialize", response_model=UserSessionLightweightResponse)

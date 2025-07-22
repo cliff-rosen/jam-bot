@@ -22,7 +22,8 @@ from utils.state_serializer import (
     serialize_state_with_datetime
 )
 
-from schemas.chat import ChatMessage, MessageRole, AgentResponse, StatusResponse, AssetReference
+from schemas.chat import ChatMessage, MessageRole, AssetReference
+from schemas.agent_responses import AgentResponse, StatusResponse
 from schemas.workflow import Mission, MissionStatus, HopStatus
 from schemas.lite_models import HopLite
 

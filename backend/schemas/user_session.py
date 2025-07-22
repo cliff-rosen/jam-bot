@@ -43,36 +43,11 @@ class UserSession(BaseModel):
     mission: Optional[Mission] = Field(default=None, description="Associated mission if created")
 
 
-# API Request/Response models for UserSession
-class CreateUserSessionRequest(BaseModel):
-    """Request to create a new user session"""
-    name: Optional[str] = Field(default=None, description="Name for the new session (auto-generated if not provided)")
-    session_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional metadata")
-
-
+# Service Response models (used by service layer)
 class CreateUserSessionResponse(BaseModel):
-    """Response when creating a new user session"""
+    """Response when creating a new user session - used by service layer"""
     user_session: UserSession = Field(description="Created user session")
     chat: 'Chat' = Field(description="Associated chat created with the session")
-
-
-class UpdateUserSessionRequest(BaseModel):
-    """Request to update an existing user session"""
-    name: Optional[str] = Field(default=None, description="Updated name")
-    status: Optional[UserSessionStatus] = Field(default=None, description="Updated status")
-    mission_id: Optional[str] = Field(default=None, description="Updated mission ID")
-    session_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Updated metadata")
-
-
-class UserSessionLightweightResponse(BaseModel):
-    """Lightweight response containing just session pointers/IDs"""
-    id: str = Field(description="Session ID")
-    user_id: int = Field(description="User ID")
-    name: Optional[str] = Field(description="Session name")
-    chat_id: str = Field(description="Associated chat ID")
-    mission_id: Optional[str] = Field(default=None, description="Associated mission ID if exists")
-    session_metadata: Dict[str, Any] = Field(default_factory=dict, description="Session metadata")
-
 
 # Import Chat for forward references
 from .chat import Chat 

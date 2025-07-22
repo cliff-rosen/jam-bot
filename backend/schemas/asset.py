@@ -168,15 +168,6 @@ class DatabaseEntityMetadata(BaseModel):
     columns: Optional[List[str]] = None
     is_direct_content: bool = False
 
-class CreateAssetRequest(BaseModel):
-    """API request model for creating assets"""
-    name: str
-    description: Optional[str] = None
-    type: str
-    subtype: Optional[str] = None
-    role: Optional[AssetRole] = None  # Role of asset in workflow
-    content: Optional[Any] = None
-    asset_metadata: Optional[Dict[str, Any]] = None
 
 # Pre-defined asset instances can be added here if needed
 # Example:

@@ -5,6 +5,7 @@ import uuid
 import logging
 from sse_starlette.sse import EventSourceResponse
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field
 
 from database import get_db
 from config.logging_config import get_request_id
@@ -19,19 +20,23 @@ from services.chat_service import ChatService, get_chat_service
 from services.mission_context_builder import MissionContextBuilder, get_mission_context_builder_service
 from services.state_transition_service import StateTransitionService, get_state_transition_service
 
-from schemas.chat import (
-    ChatMessage, 
-    MessageRole, 
-    ChatRequest,
-    AgentResponse,
-    StatusResponse
-)
+from schemas.chat import ChatMessage, MessageRole
 from schemas.workflow import ChatContextPayload, Mission
 from schemas.user_session import UserSession
+from schemas.agent_responses import AgentResponse, StatusResponse
 
 from agents.primary_agent import graph as primary_agent, State
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+# Request models for chat endpoints
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage] = Field(description="All messages in the conversation")
+    payload: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Optional payload including additional context data"
+    )
 
 
 @router.post("/stream", 

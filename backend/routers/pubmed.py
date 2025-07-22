@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from sqlalchemy.orm import Session
 
-from services.pubmed_service import get_article_ids_by_date_range, get_articles_from_ids
 from schemas.pubmed import PubMedArticle
+
+from services.pubmed_service import get_article_ids_by_date_range, get_articles_from_ids
 
 router = APIRouter(
     tags=["pubmed"]

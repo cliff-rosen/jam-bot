@@ -11,9 +11,11 @@ from pydantic import BaseModel, Field
 
 from database import get_db
 from models import User
+
+from schemas.canonical_types import CanonicalScholarArticle
+
 from services.auth_service import validate_token
 from services.google_scholar_service import get_google_scholar_service
-from schemas.canonical_types import CanonicalScholarArticle
 
 router = APIRouter(
     prefix="/google-scholar",

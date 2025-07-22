@@ -5,14 +5,16 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from database import get_db
-from services.asset_service import AssetService, get_asset_service
-from services.asset_summary_service import AssetSummaryService
-from services import auth_service
+from models import User, Asset as AssetModel
+from exceptions import AssetNotFoundError
+
 from schemas.asset import Asset, DatabaseEntityMetadata, AssetRole
 from schemas.chat import AssetReference
-from models import User, Asset as AssetModel
+
+from services import auth_service
 from services.db_entity_service import DatabaseEntityService
-from exceptions import AssetNotFoundError
+from services.asset_service import AssetService, get_asset_service
+from services.asset_summary_service import AssetSummaryService
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 

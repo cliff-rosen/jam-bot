@@ -106,7 +106,8 @@ export type CanonicalType =
     | 'webpage'
     | 'pubmed_article'
     | 'newsletter'
-    | 'daily_newsletter_recap';
+    | 'daily_newsletter_recap'
+    | 'scholar_article';
 
 export const CANONICAL_TYPES: Record<CanonicalType, string> = {
     email: 'Email',
@@ -114,7 +115,8 @@ export const CANONICAL_TYPES: Record<CanonicalType, string> = {
     webpage: 'Webpage',
     pubmed_article: 'PubMed Article',
     newsletter: 'Newsletter',
-    daily_newsletter_recap: 'Daily Newsletter Recap'
+    daily_newsletter_recap: 'Daily Newsletter Recap',
+    scholar_article: 'Google Scholar Article'
 };
 
 // --- Schema Derivation (Auto-generated from interfaces) ---
@@ -241,6 +243,28 @@ export function getCanonicalTypeSchema(type: CanonicalType): SchemaType {
                     key_topics: { type: 'string', description: 'Key topics', is_array: true },
                     summary: { type: 'string', description: 'Daily summary', is_array: false },
                     newsletters: { type: 'newsletter', description: 'Newsletters in recap', is_array: true }
+                }
+            };
+
+        case 'scholar_article':
+            return {
+                type: 'scholar_article',
+                description: 'Google Scholar Article object',
+                is_array: false,
+                fields: {
+                    title: { type: 'string', description: 'Article title', is_array: false },
+                    link: { type: 'string', description: 'Direct link to the article', is_array: false },
+                    authors: { type: 'string', description: 'Article authors', is_array: true },
+                    publication_info: { type: 'string', description: 'Publication venue and details', is_array: false },
+                    snippet: { type: 'string', description: 'Article snippet/excerpt', is_array: false },
+                    cited_by_count: { type: 'number', description: 'Number of citations', is_array: false },
+                    cited_by_link: { type: 'string', description: 'Link to citing articles', is_array: false },
+                    related_pages_link: { type: 'string', description: 'Link to related articles', is_array: false },
+                    versions_link: { type: 'string', description: 'Link to different versions', is_array: false },
+                    pdf_link: { type: 'string', description: 'Direct PDF link if available', is_array: false },
+                    year: { type: 'number', description: 'Publication year', is_array: false },
+                    position: { type: 'number', description: 'Position in search results', is_array: false },
+                    metadata: { type: 'object', description: 'Additional Scholar metadata', is_array: false }
                 }
             };
 

@@ -4,18 +4,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import json
 import logging
+
 from database import get_db
 
-# Import from unified schema for Asset, but ToolDefinition now comes from tools.py
-from schemas.asset import Asset
-from schemas.workflow import ToolStep
 from schemas.tool import ToolDefinition
-from tools.tool_registry import get_tool_definition, TOOL_REGISTRY
-from services.tool_execution_service import ToolExecutionService
 
+from services.tool_execution_service import ToolExecutionService
 from services.auth_service import validate_token
 
 # include all tool handlers so that they are registered
+from tools.tool_registry import get_tool_definition, TOOL_REGISTRY
 from tools import *
 
 logger = logging.getLogger(__name__)

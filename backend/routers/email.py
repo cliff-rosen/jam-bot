@@ -3,20 +3,22 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from pydantic import BaseModel, Field
-
-from services.auth_service import validate_token
-from services.email_service import EmailService
-from models import ResourceCredentials, User
-from schemas.email import EmailLabel, EmailMessage, DateRange
-from schemas.resource import GMAIL_RESOURCE
-from database import get_db
-import logging
-from config.settings import settings
-
 from google_auth_oauthlib.flow import Flow
 from jose import JWTError, jwt
 import asyncio
-import json
+
+import logging
+from config.settings import settings
+
+from database import get_db
+from models import ResourceCredentials, User
+
+from schemas.email import DateRange
+from schemas.resource import GMAIL_RESOURCE
+
+from services.auth_service import validate_token
+from services.email_service import EmailService
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email", tags=["email"])

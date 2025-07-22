@@ -10,10 +10,12 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from database import get_db
+from models import User
+
+from schemas.user_session import UserSessionStatus
+
 from services.auth_service import validate_token
 from services.user_session_service import UserSessionService
-from models import User
-from schemas.user_session import UserSessionStatus
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 

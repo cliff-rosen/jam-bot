@@ -9,7 +9,7 @@
 // --- Common Type Definitions ---
 
 export type PrimitiveType = 'string' | 'number' | 'boolean';
-export type CustomType = 'email' | 'webpage' | 'search_result' | 'pubmed_article' | 'newsletter' | 'daily_newsletter_recap';
+export type CustomType = 'email' | 'webpage' | 'search_result' | 'pubmed_article' | 'newsletter' | 'daily_newsletter_recap' | 'scholar_article';
 export type ComplexType = 'object' | 'file' | 'database_entity' | CustomType;
 export type ValueType = PrimitiveType | ComplexType;
 
@@ -36,7 +36,7 @@ export interface SchemaEntity {
 // --- Utility Functions ---
 
 export function isCustomType(type: ValueType): type is CustomType {
-    const customTypes: CustomType[] = ['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap'];
+    const customTypes: CustomType[] = ['email', 'webpage', 'search_result', 'pubmed_article', 'newsletter', 'daily_newsletter_recap', 'scholar_article'];
     return customTypes.includes(type as CustomType);
 }
 

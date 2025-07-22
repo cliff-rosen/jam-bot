@@ -4,9 +4,11 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 
 from database import get_db
+
+from schemas.workflow import Mission, MissionStatus
+
 from services.auth_service import validate_token
 from services.mission_service import MissionService
-from schemas.workflow import Mission, MissionStatus
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 

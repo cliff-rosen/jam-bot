@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from database import get_db
 from models import User
+
 from services.auth_service import validate_token
 from services.extraction_service import get_extraction_service
 

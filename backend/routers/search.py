@@ -8,12 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from pydantic import BaseModel, Field
+
 import logging
+
+from schemas.canonical_types import CanonicalSearchResult
 
 from services.auth_service import validate_token
 from services.search_service import SearchService
-from schemas.canonical_types import CanonicalSearchResult
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/search", tags=["search"])

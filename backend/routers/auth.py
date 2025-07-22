@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
+from typing import Annotated
+
 from database import get_db
 from services import auth_service
 from schemas import UserCreate, Token
-from typing import Annotated
 
 router = APIRouter()
 

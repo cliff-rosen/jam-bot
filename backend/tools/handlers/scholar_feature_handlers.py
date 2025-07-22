@@ -49,12 +49,16 @@ async def handle_google_scholar_extract_features(input: ToolHandlerInput) -> Too
         article_dict = article if isinstance(article, dict) else article.dict()
         article_dicts.append(article_dict)
     
-    # Perform feature extraction using the service
-    extraction_results = await extraction_service.extract_multiple_items(
+    # Perform feature extraction using the service with predefined schema
+    # This will automatically include relevance scoring
+    predefined_schemas = {"scholar_features": SCHOLAR_FEATURES_SCHEMA}
+    predefined_instructions = {"scholar_features": SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS}
+    
+    extraction_results = await extraction_service.extract_with_predefined_schema(
         items=article_dicts,
-        result_schema=SCHOLAR_FEATURES_SCHEMA,
-        extraction_instructions=SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS,
-        schema_key="scholar_features"
+        schema_name="scholar_features",
+        predefined_schemas=predefined_schemas,
+        predefined_instructions=predefined_instructions
     )
     
     # Process results and create enriched articles
@@ -66,7 +70,7 @@ async def handle_google_scholar_extract_features(input: ToolHandlerInput) -> Too
         if "metadata" not in enriched_article:
             enriched_article["metadata"] = {}
         
-        # Add extraction results to metadata
+        # Add extraction results to metadata (service already added relevance score)
         if extraction_result.extraction:
             enriched_article["metadata"]["features"] = extraction_result.extraction
         

@@ -223,12 +223,15 @@ async def extract_scholar_features(
         # Get the extraction service
         extraction_service = get_extraction_service()
         
-        # Perform feature extraction using predefined schema
-        extraction_results = await extraction_service.extract_multiple_items(
+        # Perform feature extraction using predefined schema (includes scoring)
+        predefined_schemas = {"scholar_features": SCHOLAR_FEATURES_SCHEMA}
+        predefined_instructions = {"scholar_features": SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS}
+        
+        extraction_results = await extraction_service.extract_with_predefined_schema(
             items=request.articles,
-            result_schema=SCHOLAR_FEATURES_SCHEMA,
-            extraction_instructions=SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS,
-            schema_key="scholar_features"
+            schema_name="scholar_features",
+            predefined_schemas=predefined_schemas,
+            predefined_instructions=predefined_instructions
         )
         
         # Convert results to enriched articles format
@@ -243,7 +246,7 @@ async def extract_scholar_features(
             if "metadata" not in enriched_article:
                 enriched_article["metadata"] = {}
             
-            # Add extraction results to metadata
+            # Add extraction results to metadata (already includes relevance score)
             if result.extraction:
                 enriched_article["metadata"]["features"] = result.extraction
                 successful_extractions += 1

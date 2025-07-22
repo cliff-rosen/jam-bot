@@ -26,11 +26,21 @@ export default function LabPage() {
         is_systematic: 'all' as 'all' | 'yes' | 'no',
         study_type: 'all' as 'all' | 'human RCT' | 'human non-RCT' | 'non-human life science' | 'non life science' | 'not a study',
         study_outcome: 'all' as 'all' | 'effectiveness' | 'safety' | 'diagnostics' | 'biomarker' | 'other',
-        min_confidence: 0
+        min_confidence: 0,
+        min_relevance_score: 0
     });
     const [showFilters, setShowFilters] = useState(false);
+    const [sortBy, setSortBy] = useState<'none' | 'relevance_score' | 'confidence_score'>('none');
     
     const { toast } = useToast();
+
+    // Count active filters
+    const activeFilterCount = Object.entries(filters).reduce((count, [key, value]) => {
+        if (key === 'min_confidence' || key === 'min_relevance_score') {
+            return Number(value) > 0 ? count + 1 : count;
+        }
+        return value !== 'all' ? count + 1 : count;
+    }, 0);
 
     // Filter articles based on extracted features
     const filteredArticles = articles.filter(article => {
@@ -60,8 +70,32 @@ export default function LabPage() {
         if (features.confidence_score < filters.min_confidence / 100) {
             return false;
         }
+        if (features.relevance_score < filters.min_relevance_score) {
+            return false;
+        }
 
         return true;
+    });
+
+    // Sort articles if sorting is enabled
+    const sortedAndFilteredArticles = [...filteredArticles].sort((a, b) => {
+        if (sortBy === 'none') return 0;
+        
+        const aFeatures = a.metadata?.features;
+        const bFeatures = b.metadata?.features;
+        
+        // Articles without features go to the end
+        if (!aFeatures && !bFeatures) return 0;
+        if (!aFeatures) return 1;
+        if (!bFeatures) return -1;
+        
+        if (sortBy === 'relevance_score') {
+            return (bFeatures.relevance_score || 0) - (aFeatures.relevance_score || 0);
+        } else if (sortBy === 'confidence_score') {
+            return (bFeatures.confidence_score || 0) - (aFeatures.confidence_score || 0);
+        }
+        
+        return 0;
     });
 
     const handleSearch = async () => {
@@ -87,9 +121,11 @@ export default function LabPage() {
                 is_systematic: 'all',
                 study_type: 'all',
                 study_outcome: 'all',
-                min_confidence: 0
+                min_confidence: 0,
+                min_relevance_score: 0
             });
             setShowFilters(false);
+            setSortBy('none');
             toast({
                 title: 'Search Complete',
                 description: `Found ${response.articles.length} articles`,
@@ -256,109 +292,192 @@ export default function LabPage() {
                 <div className="border-b border-gray-200 dark:border-gray-700 p-4">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filter Results</h3>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowFilters(!showFilters)}
-                                className="dark:border-gray-600 dark:text-gray-300"
-                            >
-                                {showFilters ? 'Hide Filters' : 'Show Filters'}
-                            </Button>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filter & Sort Results</h3>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</label>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value as any)}
+                                        className="px-2 py-1 text-xs border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                                    >
+                                        <option value="none">Default order</option>
+                                        <option value="relevance_score">Relevance score (high to low)</option>
+                                        <option value="confidence_score">Confidence (high to low)</option>
+                                    </select>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className="dark:border-gray-600 dark:text-gray-300"
+                                >
+                                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                                    {activeFilterCount > 0 && (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                         
                         {showFilters && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-                                {/* PoI Relevance Filter */}
-                                <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">PoI Relevance</label>
-                                    <select
-                                        value={filters.poi_relevance}
-                                        onChange={(e) => setFilters({ ...filters, poi_relevance: e.target.value as any })}
-                                        className="w-full px-2 py-1 border rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="yes">Yes</option>
-                                        <option value="no">No</option>
-                                    </select>
+                            <div className="space-y-6">
+                                {/* Row 1: Yes/No Filters */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* PoI Relevance Filter */}
+                                    <div>
+                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">PoI Relevance</label>
+                                        <div className="flex gap-2">
+                                            {['all', 'yes', 'no'].map((option) => (
+                                                <button
+                                                    key={option}
+                                                    onClick={() => setFilters({ ...filters, poi_relevance: option as any })}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                                                        filters.poi_relevance === option
+                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* DoI Relevance Filter */}
+                                    <div>
+                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">DoI Relevance</label>
+                                        <div className="flex gap-2">
+                                            {['all', 'yes', 'no'].map((option) => (
+                                                <button
+                                                    key={option}
+                                                    onClick={() => setFilters({ ...filters, doi_relevance: option as any })}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                                                        filters.doi_relevance === option
+                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Systematic Filter */}
+                                    <div>
+                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Systematic Study</label>
+                                        <div className="flex gap-2">
+                                            {['all', 'yes', 'no'].map((option) => (
+                                                <button
+                                                    key={option}
+                                                    onClick={() => setFilters({ ...filters, is_systematic: option as any })}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                                                        filters.is_systematic === option
+                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* DoI Relevance Filter */}
+                                {/* Row 2: Study Type Filter */}
                                 <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">DoI Relevance</label>
-                                    <select
-                                        value={filters.doi_relevance}
-                                        onChange={(e) => setFilters({ ...filters, doi_relevance: e.target.value as any })}
-                                        className="w-full px-2 py-1 border rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="yes">Yes</option>
-                                        <option value="no">No</option>
-                                    </select>
+                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Study Type</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['all', 'human RCT', 'human non-RCT', 'non-human life science', 'non life science', 'not a study'].map((option) => (
+                                            <button
+                                                key={option}
+                                                onClick={() => setFilters({ ...filters, study_type: option as any })}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                                                    filters.study_type === option
+                                                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-600'
+                                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {option === 'all' ? 'All' : option}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                {/* Systematic Filter */}
+                                {/* Row 3: Study Outcome Filter */}
                                 <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">Systematic</label>
-                                    <select
-                                        value={filters.is_systematic}
-                                        onChange={(e) => setFilters({ ...filters, is_systematic: e.target.value as any })}
-                                        className="w-full px-2 py-1 border rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="yes">Yes</option>
-                                        <option value="no">No</option>
-                                    </select>
+                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Study Outcome</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['all', 'effectiveness', 'safety', 'diagnostics', 'biomarker', 'other'].map((option) => (
+                                            <button
+                                                key={option}
+                                                onClick={() => setFilters({ ...filters, study_outcome: option as any })}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                                                    filters.study_outcome === option
+                                                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600'
+                                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {option.charAt(0).toUpperCase() + option.slice(1)}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                {/* Study Type Filter */}
+                                {/* Row 4: Confidence Filter */}
                                 <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">Study Type</label>
-                                    <select
-                                        value={filters.study_type}
-                                        onChange={(e) => setFilters({ ...filters, study_type: e.target.value as any })}
-                                        className="w-full px-2 py-1 border rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="human RCT">Human RCT</option>
-                                        <option value="human non-RCT">Human non-RCT</option>
-                                        <option value="non-human life science">Non-human life science</option>
-                                        <option value="non life science">Non life science</option>
-                                        <option value="not a study">Not a study</option>
-                                    </select>
+                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">
+                                        Minimum Confidence: {filters.min_confidence}%
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">0%</span>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="10"
+                                            value={filters.min_confidence}
+                                            onChange={(e) => setFilters({ ...filters, min_confidence: parseInt(e.target.value) })}
+                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                        />
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">100%</span>
+                                    </div>
+                                    <div className="flex justify-between mt-2 text-xs text-gray-400 dark:text-gray-500">
+                                        {[0, 20, 40, 60, 80, 100].map(val => (
+                                            <span key={val} className={filters.min_confidence === val ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}>
+                                                {val}%
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                {/* Study Outcome Filter */}
+                                {/* Row 5: Relevance Score Filter */}
                                 <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">Study Outcome</label>
-                                    <select
-                                        value={filters.study_outcome}
-                                        onChange={(e) => setFilters({ ...filters, study_outcome: e.target.value as any })}
-                                        className="w-full px-2 py-1 border rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="effectiveness">Effectiveness</option>
-                                        <option value="safety">Safety</option>
-                                        <option value="diagnostics">Diagnostics</option>
-                                        <option value="biomarker">Biomarker</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-
-                                {/* Confidence Filter */}
-                                <div>
-                                    <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">Min Confidence %</label>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        step="10"
-                                        value={filters.min_confidence}
-                                        onChange={(e) => setFilters({ ...filters, min_confidence: parseInt(e.target.value) })}
-                                        className="w-full"
-                                    />
-                                    <div className="text-xs text-center text-gray-600 dark:text-gray-400 mt-1">
-                                        {filters.min_confidence}%
+                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">
+                                        Minimum Relevance Score: {filters.min_relevance_score}/10
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">0</span>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="10"
+                                            step="1"
+                                            value={filters.min_relevance_score}
+                                            onChange={(e) => setFilters({ ...filters, min_relevance_score: parseInt(e.target.value) })}
+                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                        />
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">10</span>
+                                    </div>
+                                    <div className="flex justify-between mt-2 text-xs text-gray-400 dark:text-gray-500">
+                                        {[0, 2, 4, 6, 8, 10].map(val => (
+                                            <span key={val} className={filters.min_relevance_score === val ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
+                                                {val}
+                                            </span>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -366,8 +485,8 @@ export default function LabPage() {
 
                         {/* Filter summary */}
                         <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                            Showing {filteredArticles.length} of {articles.length} articles
-                            {filteredArticles.length !== articles.length && (
+                            Showing {sortedAndFilteredArticles.length} of {articles.length} articles
+                            {sortedAndFilteredArticles.length !== articles.length && (
                                 <Button
                                     variant="link"
                                     size="sm"
@@ -377,7 +496,8 @@ export default function LabPage() {
                                         is_systematic: 'all',
                                         study_type: 'all',
                                         study_outcome: 'all',
-                                        min_confidence: 0
+                                        min_confidence: 0,
+                                        min_relevance_score: 0
                                     })}
                                     className="ml-2 h-auto p-0 text-blue-600 dark:text-blue-400"
                                 >
@@ -417,7 +537,7 @@ export default function LabPage() {
                 {articles.length > 0 ? (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({filteredArticles.length})</h3>
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({sortedAndFilteredArticles.length})</h3>
                             <Button
                                 onClick={handleExtract}
                                 disabled={extracting || articles.length === 0}
@@ -426,7 +546,7 @@ export default function LabPage() {
                                 {extracting ? 'Extracting...' : 'Extract Features'}
                             </Button>
                         </div>
-                        {filteredArticles.map((article, index) => (
+                        {sortedAndFilteredArticles.map((article, index) => (
                             <Card key={index} className="p-4 dark:bg-gray-800">
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-semibold text-lg flex-1">
@@ -504,7 +624,23 @@ export default function LabPage() {
                                 {/* Display extracted features if available */}
                                 {article.metadata?.features && (
                                     <div className="mt-4 border-t pt-3 border-gray-200 dark:border-gray-600">
-                                        <h5 className="text-sm font-semibold mb-2 text-gray-900 dark:text-gray-100">Extracted Features</h5>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Extracted Features</h5>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Relevance Score:</span>
+                                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                                                    article.metadata.features.relevance_score >= 8
+                                                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                                                        : article.metadata.features.relevance_score >= 5
+                                                        ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600'
+                                                        : article.metadata.features.relevance_score >= 3
+                                                        ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-600'
+                                                        : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600'
+                                                }`}>
+                                                    {article.metadata.features.relevance_score}/10
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div className="grid grid-cols-2 gap-2 text-xs">
                                             <div className="space-y-1">
                                                 <div>

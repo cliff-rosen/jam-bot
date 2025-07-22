@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { googleScholarApi, GoogleScholarSearchRequest } from '@/lib/api/googleScholarApi';
 import { CanonicalScholarArticle } from '@/types/canonical_types';
 import { Button } from '@/components/ui/button';
@@ -15,37 +15,7 @@ export default function LabPage() {
     const [articles, setArticles] = useState<CanonicalScholarArticle[]>([]);
     const [metadata, setMetadata] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(false);
-    const [connectionStatus, setConnectionStatus] = useState<{
-        status: 'success' | 'error' | 'unknown';
-        message: string;
-        api_configured: boolean;
-    }>({ status: 'unknown', message: '', api_configured: false });
     const { toast } = useToast();
-
-    // Test connection on mount
-    useEffect(() => {
-        testConnection();
-    }, []);
-
-    const testConnection = async () => {
-        try {
-            const result = await googleScholarApi.testConnection();
-            setConnectionStatus(result);
-            if (result.status === 'error') {
-                toast({
-                    title: 'Connection Issue',
-                    description: result.message,
-                    variant: 'destructive'
-                });
-            }
-        } catch (error) {
-            setConnectionStatus({
-                status: 'error',
-                message: error instanceof Error ? error.message : 'Failed to test connection',
-                api_configured: false
-            });
-        }
-    };
 
     const handleSearch = async () => {
         if (!searchParams.query.trim()) {
@@ -81,39 +51,24 @@ export default function LabPage() {
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
             {/* Header */}
             <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
-                <h1 className="text-2xl font-bold mb-2">Google Scholar Search Lab</h1>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm">Connection Status:</span>
-                    <span className={`text-sm font-medium ${connectionStatus.status === 'success' ? 'text-green-600' :
-                            connectionStatus.status === 'error' ? 'text-red-600' :
-                                'text-gray-600'
-                        }`}>
-                        {connectionStatus.message || 'Unknown'}
-                    </span>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={testConnection}
-                    >
-                        Test Connection
-                    </Button>
-                </div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Google Scholar Search Lab</h1>
             </div>
 
             {/* Search Controls */}
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium mb-1">Search Query</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Search Query</label>
                         <Input
                             value={searchParams.query}
                             onChange={(e) => setSearchParams({ ...searchParams, query: e.target.value })}
                             placeholder="Enter search terms..."
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            className="dark:bg-gray-800 dark:text-gray-100"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1">Number of Results</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Number of Results</label>
                         <Input
                             type="number"
                             min="1"
@@ -123,12 +78,13 @@ export default function LabPage() {
                                 ...searchParams,
                                 num_results: parseInt(e.target.value) || 10
                             })}
+                            className="dark:bg-gray-800 dark:text-gray-100"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1">Sort By</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Sort By</label>
                         <select
-                            className="w-full px-3 py-2 border rounded-md dark:bg-gray-800"
+                            className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                             value={searchParams.sort_by}
                             onChange={(e) => setSearchParams({
                                 ...searchParams,
@@ -142,7 +98,7 @@ export default function LabPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Year From (Optional)</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Year From (Optional)</label>
                         <Input
                             type="number"
                             min="1900"
@@ -153,10 +109,11 @@ export default function LabPage() {
                                 year_low: e.target.value ? parseInt(e.target.value) : undefined
                             })}
                             placeholder="e.g., 2020"
+                            className="dark:bg-gray-800 dark:text-gray-100"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1">Year To (Optional)</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Year To (Optional)</label>
                         <Input
                             type="number"
                             min="1900"
@@ -167,6 +124,7 @@ export default function LabPage() {
                                 year_high: e.target.value ? parseInt(e.target.value) : undefined
                             })}
                             placeholder="e.g., 2024"
+                            className="dark:bg-gray-800 dark:text-gray-100"
                         />
                     </div>
                 </div>
@@ -183,9 +141,9 @@ export default function LabPage() {
             <div className="flex-1 overflow-auto p-4">
                 {/* Metadata Display */}
                 {Object.keys(metadata).length > 0 && (
-                    <Card className="mb-4 p-4">
-                        <h3 className="font-semibold mb-2">Search Metadata</h3>
-                        <pre className="text-sm bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-auto">
+                    <Card className="mb-4 p-4 dark:bg-gray-800">
+                        <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Search Metadata</h3>
+                        <pre className="text-sm bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-2 rounded overflow-auto">
                             {JSON.stringify(metadata, null, 2)}
                         </pre>
                     </Card>
@@ -194,9 +152,9 @@ export default function LabPage() {
                 {/* Articles Display */}
                 {articles.length > 0 ? (
                     <div className="space-y-4">
-                        <h3 className="font-semibold">Results ({articles.length})</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({articles.length})</h3>
                         {articles.map((article, index) => (
-                            <Card key={index} className="p-4">
+                            <Card key={index} className="p-4 dark:bg-gray-800">
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-semibold text-lg flex-1">
                                         {article.link ? (
@@ -204,32 +162,32 @@ export default function LabPage() {
                                                 href={article.link}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-blue-600 hover:underline"
+                                                className="text-blue-600 dark:text-blue-400 hover:underline"
                                             >
                                                 {article.title}
                                             </a>
                                         ) : (
-                                            article.title
+                                            <span className="text-gray-900 dark:text-gray-100">{article.title}</span>
                                         )}
                                     </h4>
-                                    <span className="text-sm text-gray-500 ml-2">#{article.position}</span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">#{article.position}</span>
                                 </div>
 
                                 {article.authors.length > 0 && (
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                                         {article.authors.join(', ')}
                                     </p>
                                 )}
 
                                 {article.publication_info && (
-                                    <p className="text-sm text-gray-600 mb-2">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                                         {article.publication_info}
                                         {article.year && ` (${article.year})`}
                                     </p>
                                 )}
 
                                 {article.snippet && (
-                                    <p className="text-sm mb-2">{article.snippet}</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{article.snippet}</p>
                                 )}
 
                                 <div className="flex flex-wrap gap-2 mt-2">
@@ -238,13 +196,13 @@ export default function LabPage() {
                                             href={article.pdf_link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                                            className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-800"
                                         >
                                             PDF
                                         </a>
                                     )}
                                     {article.cited_by_count !== undefined && (
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                        <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
                                             Cited by {article.cited_by_count}
                                         </span>
                                     )}
@@ -253,7 +211,7 @@ export default function LabPage() {
                                             href={article.cited_by_link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"
+                                            className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                                         >
                                             View Citations
                                         </a>
@@ -263,7 +221,7 @@ export default function LabPage() {
                                             href={article.related_pages_link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"
+                                            className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                                         >
                                             Related
                                         </a>
@@ -273,7 +231,7 @@ export default function LabPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
                         {loading ? 'Searching...' : 'No results to display. Try searching for something!'}
                     </div>
                 )}

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from database import get_db
-from schemas.user_session import User
+from models import User
 from services.auth_service import validate_token
 from services.google_scholar_service import get_google_scholar_service
 from schemas.canonical_types import CanonicalScholarArticle
@@ -27,7 +27,7 @@ class GoogleScholarSearchRequest(BaseModel):
     num_results: Optional[int] = Field(10, ge=1, le=20, description="Number of results to return")
     year_low: Optional[int] = Field(None, description="Filter results from this year onwards")
     year_high: Optional[int] = Field(None, description="Filter results up to this year")
-    sort_by: Optional[str] = Field("relevance", regex="^(relevance|date)$", description="Sort order")
+    sort_by: Optional[str] = Field("relevance", pattern="^(relevance|date)$", description="Sort order")
 
 
 class GoogleScholarSearchResponse(BaseModel):
@@ -91,7 +91,7 @@ async def search_google_scholar_get(
     num_results: Optional[int] = Query(10, ge=1, le=20, description="Number of results"),
     year_low: Optional[int] = Query(None, description="Start year filter"),
     year_high: Optional[int] = Query(None, description="End year filter"),
-    sort_by: Optional[str] = Query("relevance", regex="^(relevance|date)$", description="Sort order"),
+    sort_by: Optional[str] = Query("relevance", pattern="^(relevance|date)$", description="Sort order"),
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):

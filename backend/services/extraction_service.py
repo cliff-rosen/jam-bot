@@ -342,6 +342,8 @@ class ExtractionService:
         # Apply post-processing based on schema type
         if schema_name == "scholar_features":
             results = self._apply_scholar_features_post_processing(results)
+        elif schema_name == "pubmed_features":
+            results = self._apply_pubmed_features_post_processing(results)
         
         return results
     
@@ -361,6 +363,45 @@ class ExtractionService:
             if result.extraction:
                 # Calculate relevance score and add to extraction
                 relevance_score = calculate_scholar_relevance_score(result.extraction)
+                
+                # Add score to the extraction data
+                enhanced_extraction = result.extraction.copy()
+                enhanced_extraction["relevance_score"] = relevance_score
+                
+                # Create new result with enhanced extraction
+                enhanced_result = ExtractionResult(
+                    item_id=result.item_id,
+                    original_item=result.original_item,
+                    extraction=enhanced_extraction,
+                    error=result.error,
+                    confidence_score=result.confidence_score,
+                    extraction_timestamp=result.extraction_timestamp
+                )
+                processed_results.append(enhanced_result)
+            else:
+                # Keep original result if extraction failed
+                processed_results.append(result)
+        
+        return processed_results
+    
+    def _apply_pubmed_features_post_processing(self, results: List[ExtractionResult]) -> List[ExtractionResult]:
+        """
+        Apply PubMed specific post-processing including relevance scoring.
+        
+        Args:
+            results: List of extraction results
+            
+        Returns:
+            List of extraction results with relevance scores added
+        """
+        from schemas.pubmed_features import calculate_pubmed_relevance_score
+        
+        processed_results = []
+        
+        for result in results:
+            if result.extraction:
+                # Calculate relevance score and add to extraction
+                relevance_score = calculate_pubmed_relevance_score(result.extraction)
                 
                 # Add score to the extraction data
                 enhanced_extraction = result.extraction.copy()

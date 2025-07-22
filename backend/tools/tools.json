@@ -1229,9 +1229,66 @@
       ]
     },
     {
+      "id": "pubmed_extract_features_enriched",
+      "name": "pubmed_extract_features_enriched",
+      "description": "Extract research features from PubMed articles using predefined biomedical schema and enrich them with metadata (consistent with Scholar extraction)",
+      "category": "data_processing",
+      "functional_category": "extract_analyze", 
+      "domain_category": "academic_research",
+      "tags": [
+        "extract",
+        "research",
+        "features",
+        "pubmed",
+        "biomedical",
+        "enrichment"
+      ],
+      "pipeline_info": {
+        "can_start_pipeline": false,
+        "typical_next_tools": [
+          "summarize",
+          "group_reduce"
+        ],
+        "pipeline_name": "pubmed_research"
+      },
+      "ui_metadata": {
+        "icon": "microscope",
+        "color": "purple", 
+        "difficulty": "intermediate"
+      },
+      "parameters": [
+        {
+          "id": "articles",
+          "name": "articles",
+          "description": "PubMed articles to analyze for research features",
+          "required": true,
+          "schema_definition": {
+            "type": "pubmed_article",
+            "description": "PubMed articles to extract features from",
+            "is_array": true,
+            "canonical_type": "CanonicalPubMedArticle"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "enriched_articles",
+          "name": "enriched_articles", 
+          "description": "PubMed articles enriched with extracted research features in metadata",
+          "required": true,
+          "schema_definition": {
+            "type": "pubmed_article",
+            "description": "Enriched PubMed articles with features",
+            "is_array": true,
+            "canonical_type": "CanonicalPubMedArticle"
+          }
+        }
+      ]
+    },
+    {
       "id": "pubmed_extract_features",
       "name": "pubmed_extract_features",
-      "description": "Extract structured information from PubMed abstracts using LLM processing with configurable extraction schemas",
+      "description": "[DEPRECATED] Extract structured information from PubMed abstracts using configurable schemas - use pubmed_extract_features_enriched instead",
       "category": "data_processing",
       "functional_category": "extract_analyze",
       "domain_category": "academic_research",
@@ -1241,7 +1298,8 @@
         "features",
         "pubmed",
         "llm",
-        "schema"
+        "schema",
+        "deprecated"
       ],
       "pipeline_info": {
         "can_start_pipeline": false,

@@ -1,6 +1,10 @@
 import requests
 import xml.etree.ElementTree as ET
 import urllib.parse
+import logging
+from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 """
 DOCS
@@ -37,7 +41,7 @@ class Article():
     """
 
     @classmethod
-    def from_xml(self, article_xml):
+    def from_xml(cls, article_xml: bytes) -> 'Article':
         pubmed_article_node = ET.fromstring(article_xml)
         medline_citation_node = pubmed_article_node.find('.//MedlineCitation')
 
@@ -72,7 +76,7 @@ class Article():
 
         if PMID_node is not None:
             PMID = PMID_node.text
-        print(PMID)
+        logger.debug(f"Processing article PMID: {PMID}")
         if article_title_node is not None:
             title = ''.join(article_title_node.itertext())
         if journal_title_node is not None:
@@ -87,7 +91,7 @@ class Article():
             issue = issue_node.text
         if pagination_node is not None:
             pages = pagination_node.text
-        date_completed = self._get_date_from_node(date_completed_node)
+        date_completed = cls._get_date_from_node(date_completed_node)
 
         MAX_AUTHOR_COUNT = 3
         author_list = []
@@ -131,7 +135,7 @@ class Article():
                     pages=pages
                     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         #print(kwargs)
         self.PMID = kwargs['PMID']
         self.comp_date = kwargs['comp_date']
@@ -145,7 +149,7 @@ class Article():
         self.pages = kwargs['pages']
         self.medium = kwargs['medium']
 
-    def __str__(self):
+    def __str__(self) -> str:
         line = "===================================================\n"        
         res = "PMID: " + self.PMID + '\n' \
             + "Comp date: " + self.comp_date + '\n' \
@@ -161,7 +165,7 @@ class Article():
         return line + res
 
     @staticmethod
-    def _get_date_from_node(date_completed_node):
+    def _get_date_from_node(date_completed_node: Optional[ET.Element]) -> str:
         if date_completed_node is None:
             return ""
         year_node = date_completed_node.find(".//Year")
@@ -179,25 +183,14 @@ class Article():
         return year + "-" + month + "-" + day
 
 
-def _get_date_clause(start_date, end_date):
+def _get_date_clause(start_date: str, end_date: str) -> str:
     clause = 'AND (("<sdate>"[Date - Completion] : "<edate>"[Date - Completion]))'
     clause = clause.replace("<sdate>", start_date)
     clause = clause.replace("<edate>", end_date)
     return clause
 
 
-def _get_date(article):
-    pub_date = article.find(".//DateCompleted")
-    year = pub_date.find("Year").text
-    month_x = pub_date.find("Month")
-    month = month_x.text if month_x is not None else '?'
-    day_x = pub_date.find("Day")
-    day = day_x.text if day_x is not None else '?'
-    comp_date = f"{year}-{month}-{day}"
-    return comp_date
-
-
-def get_article_ids(search_term, max_results=100):
+def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
     """
     Basic PubMed search without date restrictions.
     
@@ -206,7 +199,10 @@ def get_article_ids(search_term, max_results=100):
         max_results: Maximum number of results to return
         
     Returns:
-        Dict with status_code, count, and ids
+        List of article IDs
+        
+    Raises:
+        Exception: If API call fails or returns non-200 status
     """
     url = PUBMED_API_SEARCH_URL
     params = {
@@ -215,32 +211,46 @@ def get_article_ids(search_term, max_results=100):
         'retmax': min(max_results, int(RETMAX)),
         'retmode': 'json'
     }
-    print('Retrieving article IDs for query:', search_term)
-    print('Parameters:', params)
+    logger.info(f'Retrieving article IDs for query: {search_term}')
+    logger.debug(f'Parameters: {params}')
     
     try:
         response = requests.get(url, params)
         response.raise_for_status()
         content = response.json()
+        
+        if 'esearchresult' not in content:
+            raise Exception("Invalid response format from PubMed API")
+            
         count = content['esearchresult']['count']
         ids = content['esearchresult']['idlist']
-
-        return {
-            'status_code': response.status_code, 
-            'count': count,
-            'ids': ids
-        }
+        
+        logger.info(f"Found {count} articles, returning {len(ids)} IDs")
+        return ids
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"HTTP error in PubMed search: {e}", exc_info=True)
+        raise Exception(f"PubMed API request failed: {str(e)}")
     except Exception as e:
-        print(f"Error in PubMed search: {e}")
-        return {
-            'status_code': 500,
-            'count': 0,
-            'ids': [],
-            'error': str(e)
-        }
+        logger.error(f"Error in PubMed search: {e}", exc_info=True)
+        raise
 
 
-def get_article_ids_by_date_range(filter_term, start_date, end_date):
+def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str) -> List[str]:
+    """
+    Retrieve PubMed article IDs within a specified date range.
+    
+    Args:
+        filter_term: Search query string
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        
+    Returns:
+        List of article IDs
+        
+    Raises:
+        Exception: If API call fails or returns non-200 status
+    """
     url = PUBMED_API_SEARCH_URL
     params = {
         'db': 'pubmed',
@@ -248,26 +258,39 @@ def get_article_ids_by_date_range(filter_term, start_date, end_date):
         'retmax': RETMAX,
         'retmode': 'json'
     }
-    print('about to retrieve ids')
-    print(params)
-    response = requests.get(url, params)
-    content = response.json()
-    count = content['esearchresult']['count']
-    ids = content['esearchresult']['idlist']
+    logger.info('Retrieving article IDs by date range')
+    logger.debug(f'Parameters: {params}')
+    
+    try:
+        response = requests.get(url, params)
+        response.raise_for_status()
+        content = response.json()
+        
+        if 'esearchresult' not in content:
+            raise Exception("Invalid response format from PubMed API")
+            
+        count = content['esearchresult']['count']
+        ids = content['esearchresult']['idlist']
+        
+        logger.info(f"Found {count} articles, returning {len(ids)} IDs")
+        return ids
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"HTTP error in PubMed date range search: {e}", exc_info=True)
+        raise Exception(f"PubMed API request failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in PubMed date range search: {e}", exc_info=True)
+        raise
 
-    return ({'status_code': response.status_code, 
-             'count': count,
-             'ids': ids})
 
-
-def get_articles_from_ids(ids):
+def get_articles_from_ids(ids: List[str]) -> List[Article]:
     articles = []
     batch_size = 100
     low = 0
     high = low + 100
 
     while low < len(ids):
-        print(f"processing {low} to {high}")
+        logger.info(f"Processing articles {low} to {high}")
         id_batch = ids[low: high]
         url = PUBMED_API_FETCH_URL
         params = {
@@ -280,7 +303,8 @@ def get_articles_from_ids(ids):
             response.raise_for_status()
             xml = response.text
         except Exception as e:
-            print("Error: ", e)
+            logger.error(f"Error fetching articles batch {low}-{high}: {e}", exc_info=True)
+            continue  # Continue with next batch instead of silent failure
 
         root = ET.fromstring(xml)
         for article_node in root.findall(".//PubmedArticle"):
@@ -292,7 +316,7 @@ def get_articles_from_ids(ids):
     return articles
 
 
-def get_citation_from_article(article):
+def get_citation_from_article(article: Article) -> str:
     authors = article.authors
     title = article.title
     journal = article.journal
@@ -300,4 +324,65 @@ def get_citation_from_article(article):
     volume = article.volume
     issue = article.issue
     pages = article.pages
-    return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}." 
+    return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
+
+
+def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str) -> List['CanonicalPubMedArticle']:
+    """
+    Search for PubMed articles within a specified date range and return canonical articles.
+    
+    Args:
+        filter_term: Search query string
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        
+    Returns:
+        List of CanonicalPubMedArticle objects
+        
+    Raises:
+        Exception: If API calls fail or data processing fails
+    """
+    from schemas.canonical_types import CanonicalPubMedArticle
+    
+    logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}")
+    
+    # Get article IDs - function now throws exception on error
+    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date)
+    logger.info(f"Found {len(article_ids)} article IDs")
+    
+    if not article_ids:
+        return []
+    
+    # Get full article data
+    logger.info(f"Fetching full article data for {len(article_ids)} articles")
+    articles = get_articles_from_ids(article_ids)
+    logger.info(f"Successfully retrieved {len(articles)} articles")
+    
+    # Convert to canonical format
+    canonical_articles = []
+    for article in articles:
+        try:
+            canonical_article = CanonicalPubMedArticle(
+                pmid=article.PMID,
+                title=article.title,
+                abstract=article.abstract,
+                authors=article.authors.split(', ') if article.authors else [],
+                journal=article.journal,
+                publication_date=f"{article.year}" if article.year else None,
+                keywords=[],  # Would need to extract from XML
+                mesh_terms=[],  # Would need to extract from XML
+                metadata={
+                    "volume": article.volume,
+                    "issue": article.issue,
+                    "pages": article.pages,
+                    "medium": article.medium,
+                    "comp_date": article.comp_date
+                }
+            )
+            canonical_articles.append(canonical_article)
+        except Exception as e:
+            logger.warning(f"Failed to convert article {article.PMID} to canonical format: {e}")
+            continue
+    
+    logger.info(f"Successfully converted {len(canonical_articles)} articles to canonical format")
+    return canonical_articles 

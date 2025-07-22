@@ -15,8 +15,9 @@ from uuid import uuid4
 from fastapi import Depends
 
 from database import get_db
-from models import Chat as ChatModel, ChatMessage as ChatMessageModel
-from schemas.chat import Chat, ChatMessage, MessageRole
+from models import ChatMessage as ChatMessageModel
+
+from schemas.chat import ChatMessage
 from exceptions import NotFoundError, ValidationError
 
 

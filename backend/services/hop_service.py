@@ -6,10 +6,12 @@ from uuid import uuid4
 import logging
 
 from models import Hop as HopModel, HopStatus
+
+from exceptions import HopNotFoundError
 from schemas.workflow import Hop, HopStatus as HopStatusSchema
+
 from services.asset_service import AssetService
 from services.asset_mapping_service import AssetMappingService
-from exceptions import HopNotFoundError
 
 # Create logger for this module
 logger = logging.getLogger(__name__)

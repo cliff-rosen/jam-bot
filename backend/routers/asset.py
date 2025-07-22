@@ -8,11 +8,10 @@ from database import get_db
 from models import User, Asset as AssetModel
 from exceptions import AssetNotFoundError
 
-from schemas.asset import Asset, DatabaseEntityMetadata, AssetRole
+from schemas.asset import Asset, AssetRole
 from schemas.chat import AssetReference
 
 from services import auth_service
-from services.db_entity_service import DatabaseEntityService
 from services.asset_service import AssetService, get_asset_service
 from services.asset_summary_service import AssetSummaryService
 

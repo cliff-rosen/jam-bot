@@ -295,9 +295,29 @@ class GoogleScholarService:
     ) -> Dict[str, Any]:
         """Extract metadata about the search itself."""
         search_metadata = data.get("search_metadata", {})
+        search_information = data.get("search_information", {})
         
-        # Extract total results count
-        total_results = search_metadata.get("total_results", 0)
+        # Extract total results count from multiple possible locations
+        total_results = 0
+        
+        # Try search_metadata first
+        if "total_results" in search_metadata:
+            total_results = search_metadata["total_results"]
+        # Try search_information 
+        elif "total_results" in search_information:
+            total_results = search_information["total_results"]
+        # Try the serpapi_pagination or pagination info
+        elif "serpapi_pagination" in data:
+            pagination = data["serpapi_pagination"]
+            if "total" in pagination:
+                total_results = pagination["total"]
+        # Fall back to counting organic results if no total found
+        else:
+            organic_results = data.get("organic_results", [])
+            total_results = len(organic_results)
+            logger.warning(f"Could not find total_results in SerpAPI response, using organic results count: {total_results}")
+            
+        # Parse string results if needed
         if isinstance(total_results, str):
             # Parse strings like "About 1,230 results"
             numbers = re.findall(r'[\d,]+', total_results)
@@ -306,10 +326,14 @@ class GoogleScholarService:
             else:
                 total_results = 0
                 
+        logger.info(f"Extracted total_results: {total_results} from search metadata")
+                
         return {
             "total_results": total_results,
             "query_used": query,
-            "search_time": search_time_ms
+            "search_time": search_time_ms,
+            "results_returned": len(data.get("organic_results", [])),
+            "serpapi_data_keys": list(data.keys()),  # For debugging
         }
     
     def get_article_citations(self, article_id: str) -> List[CanonicalScholarArticle]:

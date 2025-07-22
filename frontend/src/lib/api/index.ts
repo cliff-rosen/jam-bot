@@ -96,4 +96,5 @@ export * from './assetApi';
 export * from './hopApi';
 export * from './sessionApi';
 export * from './stateTransitionApi';
-export * from './googleScholarApi'; 
+export * from './googleScholarApi';
+export * from './extractApi'; 

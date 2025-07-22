@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     GOOGLE_SEARCH_ENGINE_ID: str = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
     GOOGLE_SEARCH_NUM_RESULTS: int = 10
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    
+    # SerpAPI settings
+    SERPAPI_KEY: str = os.getenv("SERPAPI_KEY")
 
     # Google OAuth2 settings
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID")

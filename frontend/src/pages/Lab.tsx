@@ -37,9 +37,17 @@ export default function LabPage() {
                 description: `Found ${response.articles.length} articles`,
             });
         } catch (error) {
+            let errorMessage = 'Unknown error occurred';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                // Check for specific error about API key
+                if (errorMessage.includes('SerpAPI key not configured')) {
+                    errorMessage = 'Google Scholar search requires a SerpAPI key. Please set the SERPAPI_KEY environment variable.';
+                }
+            }
             toast({
                 title: 'Search Failed',
-                description: error instanceof Error ? error.message : 'Unknown error occurred',
+                description: errorMessage,
                 variant: 'destructive'
             });
         } finally {
@@ -52,6 +60,9 @@ export default function LabPage() {
             {/* Header */}
             <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Google Scholar Search Lab</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Note: This requires a SerpAPI key to be configured in the backend (SERPAPI_KEY environment variable)
+                </p>
             </div>
 
             {/* Search Controls */}

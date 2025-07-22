@@ -65,12 +65,14 @@ api.interceptors.response.use(
 // Common error handling
 export const handleApiError = (error: any): string => {
   console.log('handleApiError:', error);
+  console.log('Error response:', error.response);
   if (error.response) {
     // Don't show auth errors since they're handled by the interceptor
     if (error.response.status === 401 || error.response.status === 403) {
       return 'Please log in to continue';
     }
     const data = error.response.data;
+    console.log('Error data:', data);
     return data.detail || data.message || 'An error occurred';
   } else if (error.request) {
     return 'No response from server';

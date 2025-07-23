@@ -36,16 +36,16 @@ async def refine_question(
     Refine a question and suggest evaluation criteria
     """
     try:
-        logger.info(f"User {current_user.id} refining question: {request.question[:100]}...")
+        logger.info(f"User {current_user.user_id} refining question: {request.question[:100]}...")
         
         service = IterativeAnswerService()
         response = await service.refine_question(request.question)
         
-        logger.info(f"Question refinement completed for user {current_user.id}")
+        logger.info(f"Question refinement completed for user {current_user.user_id}")
         return response
         
     except Exception as e:
-        logger.error(f"Question refinement failed for user {current_user.id}: {e}", exc_info=True)
+        logger.error(f"Question refinement failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Question refinement failed: {str(e)}")
 
 
@@ -58,7 +58,7 @@ async def generate_answer_stream(
     Generate an answer iteratively with streaming status updates
     """
     try:
-        logger.info(f"User {current_user.id} starting streaming answer generation")
+        logger.info(f"User {current_user.user_id} starting streaming answer generation")
         
         service = IterativeAnswerService()
         
@@ -74,7 +74,7 @@ async def generate_answer_stream(
                 ):
                     yield message
             except Exception as e:
-                logger.error(f"Streaming error for user {current_user.id}: {e}", exc_info=True)
+                logger.error(f"Streaming error for user {current_user.user_id}: {e}", exc_info=True)
                 # Send error message in SSE format
                 error_message = {
                     "type": "error",
@@ -94,5 +94,5 @@ async def generate_answer_stream(
         )
         
     except Exception as e:
-        logger.error(f"Failed to start streaming for user {current_user.id}: {e}", exc_info=True)
+        logger.error(f"Failed to start streaming for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to start answer generation: {str(e)}")

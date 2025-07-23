@@ -94,18 +94,15 @@ export function ProviderSelector({
     } catch (error) {
       console.error('Failed to check provider availability:', error);
       
-      // For authentication errors or API failures, assume providers are available
-      // This allows users to attempt searches even if availability check fails
-      const fallbackStatuses: ProviderStatus[] = Object.keys(PROVIDER_INFO).map(id => ({
+      // Set all providers as unavailable with error message
+      const errorStatuses: ProviderStatus[] = Object.keys(PROVIDER_INFO).map(id => ({
         id: id as SearchProvider,
-        available: true, // Assume available as fallback
+        available: false,
         loading: false,
-        error: error instanceof Error && error.message.includes('authentication') 
-          ? 'Authentication required - search may still work' 
-          : 'Could not verify availability - search may still work'
+        error: error instanceof Error ? error.message : 'Could not check availability'
       }));
       
-      setProviderStatuses(fallbackStatuses);
+      setProviderStatuses(errorStatuses);
     } finally {
       setIsCheckingAvailability(false);
     }
@@ -204,7 +201,7 @@ export function ProviderSelector({
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center">
-              <IconComponent className={`w-5 h-5 mr-2 text-${info.color}-600`} />
+              <IconComponent className={`w-5 h-5 mr-2 text-${info.color}-600 dark:text-${info.color}-400`} />
               <div>
                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{info.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{info.description}</p>
@@ -314,7 +311,7 @@ export function ProviderSelector({
       )}
       
       {mode === 'multi' && selectedProviders.length === 0 && (
-        <div className="text-center text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
+        <div className="text-center text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md">
           Please select at least one provider to search
         </div>
       )}

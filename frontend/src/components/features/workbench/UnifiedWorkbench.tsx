@@ -350,7 +350,7 @@ export function UnifiedWorkbench() {
                 <button
                   onClick={handleExtractFeatures}
                   disabled={state.isExtracting || filteredArticles.length === 0}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {state.isExtracting ? (
                     <>

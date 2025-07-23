@@ -111,7 +111,7 @@ export function UnifiedSearchControls({
           <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center text-lg">
+                <CardTitle className="flex items-center text-lg text-gray-900 dark:text-gray-100">
                   <Search className="w-5 h-5 mr-2" />
                   Search Providers
                   {searchMode === 'single' && searchParams.provider && (
@@ -267,7 +267,7 @@ export function UnifiedSearchControls({
           {/* Advanced options toggle */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="p-0 h-auto text-sm text-gray-600 hover:text-gray-800">
+              <Button variant="ghost" className="p-0 h-auto text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
                 {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
                 {showAdvanced ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
               </Button>

@@ -5,6 +5,7 @@
  * with multiple academic search providers.
  */
 
+import { api } from './index';
 import { 
   UnifiedSearchParams, 
   UnifiedSearchResponse, 
@@ -15,114 +16,57 @@ import {
   CanonicalResearchArticle
 } from '@/types/unifiedSearch';
 
-const API_BASE = '/api/unified-search';
-
 class UnifiedSearchApi {
   /**
    * Get list of all registered search providers
    */
   async getProviders(): Promise<string[]> {
-    const response = await fetch(`${API_BASE}/providers`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get providers: ${response.statusText}`);
-    }
-    
-    return response.json();
+    const response = await api.get('/api/unified-search/providers');
+    return response.data;
   }
 
   /**
    * Get list of currently available search providers
    */
   async getAvailableProviders(): Promise<string[]> {
-    const response = await fetch(`${API_BASE}/providers/available`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get available providers: ${response.statusText}`);
-    }
-    
-    return response.json();
+    const response = await api.get('/api/unified-search/providers/available');
+    return response.data;
   }
 
   /**
    * Perform a unified search with a single provider
    */
   async search(params: UnifiedSearchParams): Promise<UnifiedSearchResponse> {
-    const searchParams = new URLSearchParams({
-      provider: params.provider,
-      query: params.query,
-      num_results: params.num_results.toString(),
-      sort_by: params.sort_by,
+    const response = await api.get('/api/unified-search/search', {
+      params: {
+        provider: params.provider,
+        query: params.query,
+        num_results: params.num_results,
+        sort_by: params.sort_by,
+        ...(params.year_low !== undefined && { year_low: params.year_low }),
+        ...(params.year_high !== undefined && { year_high: params.year_high }),
+      }
     });
 
-    // Add optional parameters
-    if (params.year_low !== undefined) {
-      searchParams.append('year_low', params.year_low.toString());
-    }
-    if (params.year_high !== undefined) {
-      searchParams.append('year_high', params.year_high.toString());
-    }
-
-    const response = await fetch(`${API_BASE}/search?${searchParams}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || `Search failed: ${response.statusText}`);
-    }
-
-    return response.json();
+    return response.data;
   }
 
   /**
    * Perform batch search across multiple providers
    */
   async batchSearch(request: BatchSearchRequest): Promise<BatchSearchResponse> {
-    const searchParams = new URLSearchParams({
-      query: request.query,
-      num_results: request.num_results.toString(),
-      sort_by: request.sort_by,
+    const response = await api.post('/api/unified-search/search/batch', {}, {
+      params: {
+        query: request.query,
+        num_results: request.num_results,
+        sort_by: request.sort_by,
+        providers: request.providers,
+        ...(request.year_low !== undefined && { year_low: request.year_low }),
+        ...(request.year_high !== undefined && { year_high: request.year_high }),
+      }
     });
 
-    // Add providers
-    request.providers.forEach(provider => {
-      searchParams.append('providers', provider);
-    });
-
-    // Add optional parameters
-    if (request.year_low !== undefined) {
-      searchParams.append('year_low', request.year_low.toString());
-    }
-    if (request.year_high !== undefined) {
-      searchParams.append('year_high', request.year_high.toString());
-    }
-
-    const response = await fetch(`${API_BASE}/search/batch?${searchParams}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || `Batch search failed: ${response.statusText}`);
-    }
-
-    const results = await response.json();
-    return { results };
+    return { results: response.data };
   }
 
   /**
@@ -137,21 +81,8 @@ class UnifiedSearchApi {
       ? '/api/extraction/scholar-features'
       : '/api/extraction/pubmed-features';
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-      },
-      body: JSON.stringify({ articles }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || `Feature extraction failed: ${response.statusText}`);
-    }
-
-    return response.json();
+    const response = await api.post(endpoint, { articles });
+    return response.data;
   }
 
   /**

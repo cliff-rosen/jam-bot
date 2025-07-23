@@ -31,7 +31,7 @@ const Collapsible: React.FC<CollapsibleProps> = ({
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
           if (child.type === CollapsibleTrigger) {
-            return React.cloneElement(child as React.ReactElement<any>, {
+            return React.cloneElement(child as React.ReactElement<CollapsibleTriggerProps>, {
               onClick: handleToggle,
               "data-state": isOpen ? "open" : "closed"
             });
@@ -46,20 +46,35 @@ const Collapsible: React.FC<CollapsibleProps> = ({
   );
 };
 
-const CollapsibleTrigger: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
+interface CollapsibleTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
+  asChild?: boolean;
+}
+
+const CollapsibleTrigger: React.FC<CollapsibleTriggerProps> = ({ 
   children, 
   onClick,
   className,
+  asChild,
   ...props 
-}) => (
-  <div
-    className={cn("cursor-pointer", className)}
-    onClick={onClick}
-    {...props}
-  >
-    {children}
-  </div>
-);
+}) => {
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children as React.ReactElement<any>, {
+      onClick,
+      className: cn(children.props.className, className),
+      ...props
+    });
+  }
+
+  return (
+    <div
+      className={cn("cursor-pointer", className)}
+      onClick={onClick}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
 
 const CollapsibleContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
   children,

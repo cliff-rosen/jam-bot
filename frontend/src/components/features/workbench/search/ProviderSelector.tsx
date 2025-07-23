@@ -40,14 +40,14 @@ const PROVIDER_INFO = {
     description: 'National Library of Medicine biomedical database',
     icon: Database,
     features: ['Full abstracts', 'MeSH terms', 'Clinical focus', 'Date filtering'],
-    color: 'blue'
+    iconColor: 'text-blue-600 dark:text-blue-400'
   },
   scholar: {
     name: 'Google Scholar',
     description: 'Academic search engine covering all disciplines',
     icon: Search,
     features: ['Citation counts', 'PDF links', 'Broad coverage', 'Version tracking'],
-    color: 'green'
+    iconColor: 'text-green-600 dark:text-green-400'
   }
 } as const;
 
@@ -201,7 +201,7 @@ export function ProviderSelector({
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center">
-              <IconComponent className={`w-5 h-5 mr-2 text-${info.color}-600 dark:text-${info.color}-400`} />
+              <IconComponent className={`w-5 h-5 mr-2 ${info.iconColor}`} />
               <div>
                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{info.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{info.description}</p>

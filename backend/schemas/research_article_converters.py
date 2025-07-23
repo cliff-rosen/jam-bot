@@ -36,11 +36,20 @@ def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArt
         publication_date = article.year
         # Add month/day if available (not implemented in current Article class)
     
+    # Convert authors string to list
+    authors = []
+    if hasattr(article, 'authors') and article.authors:
+        if isinstance(article.authors, str):
+            # Split comma-separated authors
+            authors = [author.strip() for author in article.authors.split(',')]
+        elif isinstance(article.authors, list):
+            authors = article.authors
+    
     return CanonicalPubMedArticle(
         pmid=article.PMID,
         title=article.title,
         abstract=article.abstract if article.abstract else "",
-        authors=article.authors if article.authors else [],
+        authors=authors,
         journal=article.journal if article.journal else "",
         publication_date=publication_date,
         doi=None,  # Not available in legacy Article

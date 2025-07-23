@@ -8,12 +8,12 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from schemas.research_article_converters import scholar_to_research_article
+
 from services.search_providers.base import (
     SearchProvider, UnifiedSearchParams, SearchResponse, 
     SearchMetadata, ProviderInfo
 )
-from schemas.canonical_types import CanonicalResearchArticle
-from schemas.research_article_converters import scholar_to_research_article
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class GoogleScholarAdapter(SearchProvider):
             service = get_google_scholar_service()
             
             # Perform the search using the service directly
-            articles, search_metadata = service.search(
+            articles, search_metadata = service.search_articles(
                 query=params.query,
                 num_results=params.num_results,
                 year_low=params.year_low,
@@ -92,7 +92,7 @@ class GoogleScholarAdapter(SearchProvider):
                 # Scholar provides position, so we can calculate better relevance
                 canonical.relevance_score = self._estimate_relevance_score(
                     i, 
-                    len(scholar_results) * 10  # Estimate total results
+                    len(articles) * 10  # Estimate total results
                 )
                 canonical_articles.append(canonical)
             

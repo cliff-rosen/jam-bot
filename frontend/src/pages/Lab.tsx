@@ -1,730 +1,511 @@
-import { useState } from 'react';
-import { googleScholarApi, GoogleScholarSearchRequest } from '@/lib/api/googleScholarApi';
-import { extractApi } from '@/lib/api/extractApi';
-import { CanonicalScholarArticle } from '@/types/canonical_types';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { labApi, QuestionRefinementResponse, StreamMessage, GenerateAnswerResult } from '@/lib/api/labApi';
 
-export default function LabPage() {
-    const [searchParams, setSearchParams] = useState<GoogleScholarSearchRequest>({
-        query: '',
-        num_results: 10,
-        sort_by: 'relevance'
-    });
-    const [articles, setArticles] = useState<CanonicalScholarArticle[]>([]);
-    const [metadata, setMetadata] = useState<Record<string, any>>({});
-    const [loading, setLoading] = useState(false);
-    const [extracting, setExtracting] = useState(false);
-    const [extractionMetadata, setExtractionMetadata] = useState<Record<string, any> | null>(null);
-    
-    // Filter state
-    const [filters, setFilters] = useState({
-        poi_relevance: 'all' as 'all' | 'yes' | 'no',
-        doi_relevance: 'all' as 'all' | 'yes' | 'no',
-        is_systematic: 'all' as 'all' | 'yes' | 'no',
-        study_type: 'all' as 'all' | 'human RCT' | 'human non-RCT' | 'non-human life science' | 'non life science' | 'not a study',
-        study_outcome: 'all' as 'all' | 'effectiveness' | 'safety' | 'diagnostics' | 'biomarker' | 'other',
-        min_confidence: 0,
-        min_relevance_score: 0
-    });
-    const [showFilters, setShowFilters] = useState(false);
-    const [sortBy, setSortBy] = useState<'none' | 'relevance_score' | 'confidence_score'>('none');
-    
-    const { toast } = useToast();
-
-    // Count active filters
-    const activeFilterCount = Object.entries(filters).reduce((count, [key, value]) => {
-        if (key === 'min_confidence' || key === 'min_relevance_score') {
-            return Number(value) > 0 ? count + 1 : count;
-        }
-        return value !== 'all' ? count + 1 : count;
-    }, 0);
-
-    // Filter articles based on extracted features
-    const filteredArticles = articles.filter(article => {
-        // If no features extracted yet, show all articles
-        if (!article.metadata?.features) {
-            return true;
-        }
-
-        const features = article.metadata.features;
-
-        // Apply filters
-        if (filters.poi_relevance !== 'all' && features.poi_relevance !== filters.poi_relevance) {
-            return false;
-        }
-        if (filters.doi_relevance !== 'all' && features.doi_relevance !== filters.doi_relevance) {
-            return false;
-        }
-        if (filters.is_systematic !== 'all' && features.is_systematic !== filters.is_systematic) {
-            return false;
-        }
-        if (filters.study_type !== 'all' && features.study_type !== filters.study_type) {
-            return false;
-        }
-        if (filters.study_outcome !== 'all' && features.study_outcome !== filters.study_outcome) {
-            return false;
-        }
-        if (features.confidence_score < filters.min_confidence / 100) {
-            return false;
-        }
-        if (features.relevance_score < filters.min_relevance_score) {
-            return false;
-        }
-
-        return true;
-    });
-
-    // Sort articles if sorting is enabled
-    const sortedAndFilteredArticles = [...filteredArticles].sort((a, b) => {
-        if (sortBy === 'none') return 0;
-        
-        const aFeatures = a.metadata?.features;
-        const bFeatures = b.metadata?.features;
-        
-        // Articles without features go to the end
-        if (!aFeatures && !bFeatures) return 0;
-        if (!aFeatures) return 1;
-        if (!bFeatures) return -1;
-        
-        if (sortBy === 'relevance_score') {
-            return (bFeatures.relevance_score || 0) - (aFeatures.relevance_score || 0);
-        } else if (sortBy === 'confidence_score') {
-            return (bFeatures.confidence_score || 0) - (aFeatures.confidence_score || 0);
-        }
-        
-        return 0;
-    });
-
-    const handleSearch = async () => {
-        if (!searchParams.query.trim()) {
-            toast({
-                title: 'Error',
-                description: 'Please enter a search query',
-                variant: 'destructive'
-            });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const response = await googleScholarApi.search(searchParams);
-            setArticles(response.articles);
-            setMetadata(response.metadata);
-            // Reset extraction state on new search
-            setExtractionMetadata(null);
-            setFilters({
-                poi_relevance: 'all',
-                doi_relevance: 'all',
-                is_systematic: 'all',
-                study_type: 'all',
-                study_outcome: 'all',
-                min_confidence: 0,
-                min_relevance_score: 0
-            });
-            setShowFilters(false);
-            setSortBy('none');
-            toast({
-                title: 'Search Complete',
-                description: `Found ${response.articles.length} articles`,
-            });
-        } catch (error) {
-            let errorMessage = 'Unknown error occurred';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                // Check for specific error about API key
-                if (errorMessage.includes('SerpAPI key not configured')) {
-                    errorMessage = 'Google Scholar search requires a SerpAPI key. Please set the SERPAPI_KEY environment variable.';
-                }
-            }
-            toast({
-                title: 'Search Failed',
-                description: errorMessage,
-                variant: 'destructive'
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleExtract = async () => {
-        if (articles.length === 0) {
-            toast({
-                title: 'Error',
-                description: 'No articles to extract features from',
-                variant: 'destructive'
-            });
-            return;
-        }
-
-        setExtracting(true);
-        try {
-            const response = await extractApi.extractScholarFeatures({
-                articles: articles
-            });
-            
-            // Update articles with extracted features
-            const enrichedArticles = response.results.map(result => result.enriched_article);
-            setArticles(enrichedArticles);
-            setExtractionMetadata(response.metadata);
-            
-            toast({
-                title: 'Extraction Complete',
-                description: `Extracted features from ${response.metadata.successful_extractions} articles`,
-            });
-        } catch (error) {
-            let errorMessage = 'Unknown error occurred';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            }
-            toast({
-                title: 'Extraction Failed',
-                description: errorMessage,
-                variant: 'destructive'
-            });
-        } finally {
-            setExtracting(false);
-        }
-    };
-
-    return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-            {/* Header */}
-            <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Google Scholar Search Lab</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Note: This requires a SerpAPI key to be configured in the backend (SERPAPI_KEY environment variable)
-                </p>
-            </div>
-
-            {/* Search Controls */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="max-w-4xl mx-auto">
-                    {/* Main search row */}
-                    <div className="flex gap-3 items-end">
-                        <div className="flex-1">
-                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Search Query</label>
-                            <Input
-                                value={searchParams.query}
-                                onChange={(e) => setSearchParams({ ...searchParams, query: e.target.value })}
-                                placeholder="Enter search terms..."
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                className="dark:bg-gray-800 dark:text-gray-100"
-                            />
-                        </div>
-                        <Button
-                            className="px-8 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium"
-                            onClick={handleSearch}
-                            disabled={loading || !searchParams.query.trim()}
-                        >
-                            {loading ? 'Searching...' : 'Search'}
-                        </Button>
-                    </div>
-
-                    {/* Advanced options row */}
-                    <div className="mt-4 flex flex-wrap gap-3">
-                        <div className="w-32">
-                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Results</label>
-                            <Input
-                                type="number"
-                                min="1"
-                                max="20"
-                                value={searchParams.num_results}
-                                onChange={(e) => setSearchParams({
-                                    ...searchParams,
-                                    num_results: parseInt(e.target.value) || 10
-                                })}
-                                className="dark:bg-gray-800 dark:text-gray-100"
-                            />
-                        </div>
-                        <div className="w-40">
-                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Sort By</label>
-                            <select
-                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                value={searchParams.sort_by}
-                                onChange={(e) => setSearchParams({
-                                    ...searchParams,
-                                    sort_by: e.target.value as 'relevance' | 'date'
-                                })}
-                            >
-                                <option value="relevance">Relevance</option>
-                                <option value="date">Date</option>
-                            </select>
-                        </div>
-                        <div className="w-28">
-                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">From Year</label>
-                            <Input
-                                type="number"
-                                min="1900"
-                                max={new Date().getFullYear()}
-                                value={searchParams.year_low || ''}
-                                onChange={(e) => setSearchParams({
-                                    ...searchParams,
-                                    year_low: e.target.value ? parseInt(e.target.value) : undefined
-                                })}
-                                placeholder="2020"
-                                className="dark:bg-gray-800 dark:text-gray-100"
-                            />
-                        </div>
-                        <div className="w-28">
-                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">To Year</label>
-                            <Input
-                                type="number"
-                                min="1900"
-                                max={new Date().getFullYear()}
-                                value={searchParams.year_high || ''}
-                                onChange={(e) => setSearchParams({
-                                    ...searchParams,
-                                    year_high: e.target.value ? parseInt(e.target.value) : undefined
-                                })}
-                                placeholder="2024"
-                                className="dark:bg-gray-800 dark:text-gray-100"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filter Controls (shown after extraction) */}
-            {extractionMetadata && (
-                <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filter & Sort Results</h3>
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</label>
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value as any)}
-                                        className="px-2 py-1 text-xs border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                                    >
-                                        <option value="none">Default order</option>
-                                        <option value="relevance_score">Relevance score (high to low)</option>
-                                        <option value="confidence_score">Confidence (high to low)</option>
-                                    </select>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className="dark:border-gray-600 dark:text-gray-300"
-                                >
-                                    {showFilters ? 'Hide Filters' : 'Show Filters'}
-                                    {activeFilterCount > 0 && (
-                                        <span className="ml-2 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
-                                            {activeFilterCount}
-                                        </span>
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-                        
-                        {showFilters && (
-                            <div className="space-y-6">
-                                {/* Row 1: Yes/No Filters */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {/* PoI Relevance Filter */}
-                                    <div>
-                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">PoI Relevance</label>
-                                        <div className="flex gap-2">
-                                            {['all', 'yes', 'no'].map((option) => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => setFilters({ ...filters, poi_relevance: option as any })}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                                        filters.poi_relevance === option
-                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
-                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                    }`}
-                                                >
-                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* DoI Relevance Filter */}
-                                    <div>
-                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">DoI Relevance</label>
-                                        <div className="flex gap-2">
-                                            {['all', 'yes', 'no'].map((option) => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => setFilters({ ...filters, doi_relevance: option as any })}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                                        filters.doi_relevance === option
-                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
-                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                    }`}
-                                                >
-                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Systematic Filter */}
-                                    <div>
-                                        <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Systematic Study</label>
-                                        <div className="flex gap-2">
-                                            {['all', 'yes', 'no'].map((option) => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => setFilters({ ...filters, is_systematic: option as any })}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                                        filters.is_systematic === option
-                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
-                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                    }`}
-                                                >
-                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Row 2: Study Type Filter */}
-                                <div>
-                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Study Type</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['all', 'human RCT', 'human non-RCT', 'non-human life science', 'non life science', 'not a study'].map((option) => (
-                                            <button
-                                                key={option}
-                                                onClick={() => setFilters({ ...filters, study_type: option as any })}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                                    filters.study_type === option
-                                                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-600'
-                                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                }`}
-                                            >
-                                                {option === 'all' ? 'All' : option}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Row 3: Study Outcome Filter */}
-                                <div>
-                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">Study Outcome</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['all', 'effectiveness', 'safety', 'diagnostics', 'biomarker', 'other'].map((option) => (
-                                            <button
-                                                key={option}
-                                                onClick={() => setFilters({ ...filters, study_outcome: option as any })}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                                    filters.study_outcome === option
-                                                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600'
-                                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                }`}
-                                            >
-                                                {option.charAt(0).toUpperCase() + option.slice(1)}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Row 4: Confidence Filter */}
-                                <div>
-                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">
-                                        Minimum Confidence: {filters.min_confidence}%
-                                    </label>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">0%</span>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            step="10"
-                                            value={filters.min_confidence}
-                                            onChange={(e) => setFilters({ ...filters, min_confidence: parseInt(e.target.value) })}
-                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                        />
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">100%</span>
-                                    </div>
-                                    <div className="flex justify-between mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                        {[0, 20, 40, 60, 80, 100].map(val => (
-                                            <span key={val} className={filters.min_confidence === val ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}>
-                                                {val}%
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Row 5: Relevance Score Filter */}
-                                <div>
-                                    <label className="block font-medium mb-3 text-gray-700 dark:text-gray-300">
-                                        Minimum Relevance Score: {filters.min_relevance_score}/10
-                                    </label>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">0</span>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="10"
-                                            step="1"
-                                            value={filters.min_relevance_score}
-                                            onChange={(e) => setFilters({ ...filters, min_relevance_score: parseInt(e.target.value) })}
-                                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                        />
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">10</span>
-                                    </div>
-                                    <div className="flex justify-between mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                        {[0, 2, 4, 6, 8, 10].map(val => (
-                                            <span key={val} className={filters.min_relevance_score === val ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
-                                                {val}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Filter summary */}
-                        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                            Showing {sortedAndFilteredArticles.length} of {articles.length} articles
-                            {sortedAndFilteredArticles.length !== articles.length && (
-                                <Button
-                                    variant="link"
-                                    size="sm"
-                                    onClick={() => setFilters({
-                                        poi_relevance: 'all',
-                                        doi_relevance: 'all',
-                                        is_systematic: 'all',
-                                        study_type: 'all',
-                                        study_outcome: 'all',
-                                        min_confidence: 0,
-                                        min_relevance_score: 0
-                                    })}
-                                    className="ml-2 h-auto p-0 text-blue-600 dark:text-blue-400"
-                                >
-                                    Clear filters
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Results Section */}
-            <div className="flex-1 overflow-auto p-4">
-                {/* Metadata Display */}
-                {Object.keys(metadata).length > 0 && (
-                    <Card className="mb-4 p-4 dark:bg-gray-800">
-                        <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Search Metadata</h3>
-                        <pre className="text-sm bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-2 rounded overflow-auto">
-                            {JSON.stringify(metadata, null, 2)}
-                        </pre>
-                    </Card>
-                )}
-
-                {/* Extraction Metadata Display */}
-                {extractionMetadata && (
-                    <Card className="mb-4 p-4 dark:bg-gray-800">
-                        <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Feature Extraction Results</h3>
-                        <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                            <p>Articles Processed: {extractionMetadata.articles_processed}</p>
-                            <p>Successful Extractions: {extractionMetadata.successful_extractions}</p>
-                            <p>Failed Extractions: {extractionMetadata.failed_extractions}</p>
-                        </div>
-                    </Card>
-                )}
-
-                {/* Articles Display */}
-                {articles.length > 0 ? (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({sortedAndFilteredArticles.length})</h3>
-                            <Button
-                                onClick={handleExtract}
-                                disabled={extracting || articles.length === 0}
-                                className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-medium"
-                            >
-                                {extracting ? 'Extracting...' : 'Extract Features'}
-                            </Button>
-                        </div>
-                        {sortedAndFilteredArticles.map((article, index) => (
-                            <Card key={index} className="p-4 dark:bg-gray-800">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-semibold text-lg flex-1">
-                                        {article.link ? (
-                                            <a
-                                                href={article.link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 dark:text-blue-400 hover:underline"
-                                            >
-                                                {article.title}
-                                            </a>
-                                        ) : (
-                                            <span className="text-gray-900 dark:text-gray-100">{article.title}</span>
-                                        )}
-                                    </h4>
-                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">#{article.position}</span>
-                                </div>
-
-                                {article.authors.length > 0 && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                        {article.authors.join(', ')}
-                                    </p>
-                                )}
-
-                                {article.publication_info && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                        {article.publication_info}
-                                        {article.year && ` (${article.year})`}
-                                    </p>
-                                )}
-
-                                {article.snippet && (
-                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{article.snippet}</p>
-                                )}
-
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {article.pdf_link && (
-                                        <a
-                                            href={article.pdf_link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-800"
-                                        >
-                                            PDF
-                                        </a>
-                                    )}
-                                    {article.cited_by_count !== undefined && (
-                                        <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
-                                            Cited by {article.cited_by_count}
-                                        </span>
-                                    )}
-                                    {article.cited_by_link && (
-                                        <a
-                                            href={article.cited_by_link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                                        >
-                                            View Citations
-                                        </a>
-                                    )}
-                                    {article.related_pages_link && (
-                                        <a
-                                            href={article.related_pages_link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                                        >
-                                            Related
-                                        </a>
-                                    )}
-                                </div>
-
-                                {/* Display extracted features if available */}
-                                {article.metadata?.features && (
-                                    <div className="mt-4 border-t pt-3 border-gray-200 dark:border-gray-600">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Extracted Features</h5>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Relevance Score:</span>
-                                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                                                    article.metadata.features.relevance_score >= 8
-                                                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                                                        : article.metadata.features.relevance_score >= 5
-                                                        ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600'
-                                                        : article.metadata.features.relevance_score >= 3
-                                                        ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-600'
-                                                        : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600'
-                                                }`}>
-                                                    {article.metadata.features.relevance_score}/10
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                            <div className="space-y-1">
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">PoI Relevance: </span>
-                                                    <span className={`px-1 py-0.5 rounded ${
-                                                        article.metadata.features.poi_relevance === 'yes' 
-                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' 
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                                                    }`}>
-                                                        {article.metadata.features.poi_relevance}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">DoI Relevance: </span>
-                                                    <span className={`px-1 py-0.5 rounded ${
-                                                        article.metadata.features.doi_relevance === 'yes' 
-                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' 
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                                                    }`}>
-                                                        {article.metadata.features.doi_relevance}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Systematic: </span>
-                                                    <span className={`px-1 py-0.5 rounded ${
-                                                        article.metadata.features.is_systematic === 'yes' 
-                                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' 
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                                                    }`}>
-                                                        {article.metadata.features.is_systematic}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Study Type: </span>
-                                                    <span className="text-gray-700 dark:text-gray-300">{article.metadata.features.study_type}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Outcome: </span>
-                                                    <span className="text-gray-700 dark:text-gray-300">{article.metadata.features.study_outcome}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Confidence: </span>
-                                                    <span className={`px-1 py-0.5 rounded ${
-                                                        article.metadata.features.confidence_score >= 0.8
-                                                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                                                            : article.metadata.features.confidence_score >= 0.6
-                                                            ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
-                                                            : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
-                                                    }`}>
-                                                        {(article.metadata.features.confidence_score * 100).toFixed(0)}%
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {article.metadata.features.extraction_notes && (
-                                            <div className="mt-2">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Notes: </span>
-                                                <span className="text-xs text-gray-600 dark:text-gray-400">{article.metadata.features.extraction_notes}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Display extraction error if available */}
-                                {article.metadata?.feature_extraction_error && (
-                                    <div className="mt-4 border-t pt-3 border-gray-200 dark:border-gray-600">
-                                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
-                                            <span className="text-sm font-medium text-red-800 dark:text-red-200">Extraction Error: </span>
-                                            <span className="text-sm text-red-700 dark:text-red-300">{article.metadata.feature_extraction_error}</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-                        {loading ? 'Searching...' : 'No results to display. Try searching for something!'}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+interface StatusMessage {
+  id: string;
+  type: 'status' | 'iteration' | 'result' | 'error';
+  message: string;
+  data?: any;
+  timestamp: string;
 }
 
+export default function LabPage() {
+  // Step 1: Initial question input
+  const [step, setStep] = useState<'question' | 'refinement' | 'generation' | 'result'>('question');
+  const [initialQuestion, setInitialQuestion] = useState('');
+  const [questionLoading, setQuestionLoading] = useState(false);
+
+  // Step 2: Refinement review and editing
+  const [refinement, setRefinement] = useState<QuestionRefinementResponse | null>(null);
+  const [editedQuestion, setEditedQuestion] = useState('');
+  const [editedFormat, setEditedFormat] = useState('');
+  const [editedCriteria, setEditedCriteria] = useState('');
+  const [maxIterations, setMaxIterations] = useState(3);
+  const [scoreThreshold, setScoreThreshold] = useState(0.8);
+
+  // Step 3: Generation with streaming
+  const [generationLoading, setGenerationLoading] = useState(false);
+  const [statusMessages, setStatusMessages] = useState<StatusMessage[]>([]);
+  const [currentIteration, setCurrentIteration] = useState(0);
+  const [maxIterationsDisplay, setMaxIterationsDisplay] = useState(3);
+
+  // Step 4: Final result
+  const [finalResult, setFinalResult] = useState<GenerateAnswerResult | null>(null);
+
+  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [statusMessages]);
+
+  // Step 1: Submit initial question for refinement
+  const handleSubmitQuestion = async () => {
+    if (!initialQuestion.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a question',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setQuestionLoading(true);
+    try {
+      const response = await labApi.refineQuestion({ question: initialQuestion });
+      setRefinement(response);
+      setEditedQuestion(response.refined_question);
+      setEditedFormat(response.suggested_format);
+      setEditedCriteria(response.suggested_criteria);
+      setStep('refinement');
+      
+      toast({
+        title: 'Question Refined',
+        description: 'Review and edit the suggestions below'
+      });
+    } catch (error) {
+      toast({
+        title: 'Refinement Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setQuestionLoading(false);
+    }
+  };
+
+  // Step 2: Submit refined question for generation
+  const handleSubmitRefinement = async () => {
+    if (!editedQuestion.trim() || !editedFormat.trim() || !editedCriteria.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setGenerationLoading(true);
+    setStatusMessages([]);
+    setCurrentIteration(0);
+    setMaxIterationsDisplay(maxIterations);
+    setStep('generation');
+
+    try {
+      await labApi.generateAnswerStreaming(
+        {
+          instruct: editedQuestion,
+          resp_format: editedFormat,
+          eval_crit: editedCriteria,
+          iter_max: maxIterations,
+          score_threshold: scoreThreshold
+        },
+        // onMessage
+        (message: StreamMessage) => {
+          const statusMessage: StatusMessage = {
+            id: `${Date.now()}-${Math.random()}`,
+            type: message.type,
+            message: message.message,
+            data: message.data,
+            timestamp: message.timestamp
+          };
+          
+          setStatusMessages(prev => [...prev, statusMessage]);
+          
+          // Update current iteration display
+          if (message.data?.iteration) {
+            setCurrentIteration(message.data.iteration);
+          }
+        },
+        // onResult
+        (result: GenerateAnswerResult) => {
+          setFinalResult(result);
+          setStep('result');
+          setGenerationLoading(false);
+          
+          toast({
+            title: result.success ? 'Generation Complete!' : 'Generation Finished',
+            description: result.success 
+              ? `Answer generated successfully after ${result.total_iterations} iterations`
+              : `Best answer found after ${result.total_iterations} iterations (score: ${result.final_score.toFixed(2)})`
+          });
+        },
+        // onError
+        (error: string) => {
+          setGenerationLoading(false);
+          toast({
+            title: 'Generation Failed',
+            description: error,
+            variant: 'destructive'
+          });
+        }
+      );
+    } catch (error) {
+      setGenerationLoading(false);
+      toast({
+        title: 'Failed to Start Generation',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Reset to start
+  const handleReset = () => {
+    setStep('question');
+    setInitialQuestion('');
+    setRefinement(null);
+    setEditedQuestion('');
+    setEditedFormat('');
+    setEditedCriteria('');
+    setStatusMessages([]);
+    setFinalResult(null);
+    setCurrentIteration(0);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Iterative Answer Generation Lab
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              AI-powered iterative answer refinement with evaluation criteria
+            </p>
+          </div>
+          {step !== 'question' && (
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              className="dark:border-gray-600 dark:text-gray-300"
+            >
+              Start Over
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          
+          {/* Step 1: Initial Question Input */}
+          {step === 'question' && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Step 1: Enter Your Question
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    What would you like to know?
+                  </label>
+                  <Textarea
+                    value={initialQuestion}
+                    onChange={(e) => setInitialQuestion(e.target.value)}
+                    placeholder="Enter your question here..."
+                    rows={4}
+                    className="dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+                <Button
+                  onClick={handleSubmitQuestion}
+                  disabled={questionLoading || !initialQuestion.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium"
+                >
+                  {questionLoading ? 'Refining Question...' : 'Refine Question'}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Step 2: Review and Edit Refinements */}
+          {step === 'refinement' && refinement && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Step 2: Review & Edit Suggestions
+              </h2>
+              
+              {/* Refinement reasoning */}
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Why these changes?</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200">{refinement.refinement_reasoning}</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Refined Question */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Refined Question
+                  </label>
+                  <Textarea
+                    value={editedQuestion}
+                    onChange={(e) => setEditedQuestion(e.target.value)}
+                    rows={3}
+                    className="dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Response Format */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Response Format
+                  </label>
+                  <Textarea
+                    value={editedFormat}
+                    onChange={(e) => setEditedFormat(e.target.value)}
+                    rows={3}
+                    className="dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Evaluation Criteria */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Evaluation Criteria
+                  </label>
+                  <Textarea
+                    value={editedCriteria}
+                    onChange={(e) => setEditedCriteria(e.target.value)}
+                    rows={4}
+                    className="dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Advanced Settings */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Max Iterations
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={maxIterations}
+                      onChange={(e) => setMaxIterations(parseInt(e.target.value) || 3)}
+                      className="dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Score Threshold
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={scoreThreshold}
+                      onChange={(e) => setScoreThreshold(parseFloat(e.target.value) || 0.8)}
+                      className="dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSubmitRefinement}
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-medium"
+                >
+                  Generate Answer
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Step 3: Generation Progress */}
+          {step === 'generation' && (
+            <Card className="p-6 dark:bg-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Step 3: Generating Answer
+                </h2>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Iteration {currentIteration} / {maxIterationsDisplay}
+                </div>
+              </div>
+
+              {/* Progress indicator */}
+              <div className="mb-4">
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  <span>Progress</span>
+                  <span>{Math.round((currentIteration / maxIterationsDisplay) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(currentIteration / maxIterationsDisplay) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Status Messages */}
+              <div className="max-h-96 overflow-y-auto space-y-2 border rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+                {statusMessages.map((msg) => (
+                  <div key={msg.id} className="text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
+                      <div className="flex-1">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium mr-2 ${
+                          msg.type === 'status' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                          msg.type === 'iteration' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                          msg.type === 'result' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
+                          'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                        }`}>
+                          {msg.type.toUpperCase()}
+                        </span>
+                        <span className="text-gray-700 dark:text-gray-300">{msg.message}</span>
+                        
+                        {/* Show iteration details */}
+                        {msg.type === 'iteration' && msg.data && (
+                          <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border">
+                            <div className="text-xs space-y-1">
+                              <div><strong>Score:</strong> {msg.data.score.toFixed(2)}</div>
+                              <div><strong>Meets Criteria:</strong> {msg.data.meets_criteria ? 'Yes' : 'No'}</div>
+                              {msg.data.evaluation_reasoning && (
+                                <div><strong>Reasoning:</strong> {msg.data.evaluation_reasoning}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {generationLoading && (
+                <div className="mt-4 text-center">
+                  <div className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status" aria-label="loading">
+                    <span className="sr-only">Loading...</span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Generating answer...</p>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Step 4: Final Result */}
+          {step === 'result' && finalResult && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Final Answer
+              </h2>
+
+              {/* Result Summary */}
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-400">Success:</span>
+                    <span className={`ml-2 px-2 py-1 rounded ${
+                      finalResult.success 
+                        ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                        : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                    }`}>
+                      {finalResult.success ? 'Yes' : 'Partial'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-400">Iterations:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{finalResult.total_iterations}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-400">Final Score:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">{finalResult.final_score.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600 dark:text-gray-400">Time:</span>
+                    <span className="ml-2 text-gray-900 dark:text-gray-100">
+                      {finalResult.metadata?.total_time_seconds 
+                        ? `${finalResult.metadata.total_time_seconds.toFixed(1)}s` 
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Answer */}
+              <div className="mb-6">
+                <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Answer:</h3>
+                <div className="p-4 border rounded-lg bg-white dark:bg-gray-700">
+                  <div className="prose dark:prose-invert max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100 font-sans">
+                      {finalResult.final_answer}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Iteration History */}
+              {finalResult.iterations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">
+                    Iteration History ({finalResult.iterations.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {finalResult.iterations.map((iteration, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            Iteration {iteration.iteration_number}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Score:</span>
+                            <span className={`px-2 py-1 rounded text-sm font-medium ${
+                              iteration.evaluation.score >= 0.8
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : iteration.evaluation.score >= 0.6
+                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                            }`}>
+                              {iteration.evaluation.score.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm space-y-2">
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Evaluation:</span>
+                            <p className="text-gray-700 dark:text-gray-300 mt-1">
+                              {iteration.evaluation.evaluation_reasoning}
+                            </p>
+                          </div>
+                          
+                          {iteration.evaluation.improvement_suggestions.length > 0 && (
+                            <div>
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Suggestions:</span>
+                              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 mt-1">
+                                {iteration.evaluation.improvement_suggestions.map((suggestion, i) => (
+                                  <li key={i}>{suggestion}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}

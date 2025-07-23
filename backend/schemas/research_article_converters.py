@@ -6,7 +6,7 @@ This module provides conversion functions between source-specific article format
 consistent workbench representation.
 """
 
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, TYPE_CHECKING
 from datetime import datetime
 import hashlib
 
@@ -15,6 +15,46 @@ from schemas.canonical_types import (
     CanonicalPubMedArticle, 
     CanonicalScholarArticle
 )
+
+if TYPE_CHECKING:
+    from services.pubmed_service import Article
+
+
+def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArticle:
+    """
+    Convert legacy PubMed Article to CanonicalPubMedArticle.
+    
+    Args:
+        article: Legacy Article object from pubmed_service
+        
+    Returns:
+        CanonicalPubMedArticle
+    """
+    # Construct publication date from year/month/day if available
+    publication_date = None
+    if hasattr(article, 'year') and article.year:
+        publication_date = article.year
+        # Add month/day if available (not implemented in current Article class)
+    
+    return CanonicalPubMedArticle(
+        pmid=article.PMID,
+        title=article.title,
+        abstract=article.abstract if article.abstract else "",
+        authors=article.authors if article.authors else [],
+        journal=article.journal if article.journal else "",
+        publication_date=publication_date,
+        doi=None,  # Not available in legacy Article
+        keywords=[],  # Not available in legacy Article
+        mesh_terms=[],  # Not available in legacy Article
+        citation_count=None,  # Not available in legacy Article
+        metadata={
+            'volume': article.volume if hasattr(article, 'volume') else None,
+            'issue': article.issue if hasattr(article, 'issue') else None,
+            'pages': article.pages if hasattr(article, 'pages') else None,
+            'comp_date': article.comp_date if hasattr(article, 'comp_date') else None,
+            'medium': article.medium if hasattr(article, 'medium') else None
+        }
+    )
 
 
 def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> CanonicalResearchArticle:

@@ -9,12 +9,12 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import requests
 
+from schemas.research_article_converters import pubmed_to_research_article, legacy_article_to_canonical_pubmed
+
 from services.search_providers.base import (
     SearchProvider, UnifiedSearchParams, SearchResponse, 
     SearchMetadata, ProviderInfo
 )
-from schemas.canonical_types import CanonicalResearchArticle
-from schemas.research_article_converters import pubmed_to_research_article
 from services.pubmed_service import search_articles_by_date_range, get_article_ids
 
 logger = logging.getLogger(__name__)
@@ -81,9 +81,12 @@ class PubMedAdapter(SearchProvider):
             # Convert to canonical format with better IDs
             canonical_articles = []
             for i, article in enumerate(articles, 1):
-                canonical = pubmed_to_research_article(article)
+                # First convert legacy Article to CanonicalPubMedArticle
+                canonical_pubmed = legacy_article_to_canonical_pubmed(article)
+                # Then convert to CanonicalResearchArticle
+                canonical = pubmed_to_research_article(canonical_pubmed)
                 # Use simple ID format
-                canonical.id = f"pubmed_{article.pmid}"
+                canonical.id = f"pubmed_{article.PMID}"
                 canonical.search_position = i
                 canonical.relevance_score = self._estimate_relevance_score(i, len(articles))
                 canonical_articles.append(canonical)

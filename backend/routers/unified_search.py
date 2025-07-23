@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional, Literal
 import logging
 
-from schemas.canonical_types import CanonicalResearchArticle
+from models import User
+
 from services.search_providers import (
     UnifiedSearchParams, 
     SearchResponse,
@@ -17,7 +18,6 @@ from services.search_providers import (
     list_providers,
     get_available_providers
 )
-from models import User
 from services.auth_service import validate_token
 
 logger = logging.getLogger(__name__)

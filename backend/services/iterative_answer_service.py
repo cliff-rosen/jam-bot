@@ -9,9 +9,10 @@ Supports streaming status updates.
 from typing import Dict, Any, List, Optional, AsyncGenerator
 import logging
 import json
+import uuid
 from datetime import datetime
 
-from schemas.chat import ChatMessage
+from schemas.chat import ChatMessage, MessageRole
 from schemas.lab import (
     GenerateAnswerRequest, IterationData, EvaluationResponse, 
     StreamMessage, QuestionRefinementRequest, QuestionRefinementResponse
@@ -204,7 +205,16 @@ Previous Attempt Feedback:
 
 Please improve your answer based on this feedback."""
         
-        messages.append(ChatMessage(role="user", content=user_content))
+        now = datetime.utcnow()
+        messages.append(ChatMessage(
+            id=str(uuid.uuid4()),
+            chat_id="lab-temp",  # Temporary chat ID for lab operations
+            role=MessageRole.USER,
+            content=user_content,
+            message_metadata={},
+            created_at=now,
+            updated_at=now
+        ))
         return messages
     
     def _build_evaluation_messages(
@@ -223,7 +233,16 @@ Evaluation Criteria:
 
 Provide a score from 0.0 to 1.0 and detailed feedback."""
         
-        return [ChatMessage(role="user", content=user_content)]
+        now = datetime.utcnow()
+        return [ChatMessage(
+            id=str(uuid.uuid4()),
+            chat_id="lab-temp",  # Temporary chat ID for lab operations
+            role=MessageRole.USER,
+            content=user_content,
+            message_metadata={},
+            created_at=now,
+            updated_at=now
+        )]
     
     def _prepare_feedback(self, eval_response: EvaluationResponse) -> str:
         """Prepare feedback for the next generation attempt"""
@@ -251,9 +270,15 @@ Provide a score from 0.0 to 1.0 and detailed feedback."""
         """
         logger.info(f"Refining question: {question[:100]}...")
         
+        now = datetime.utcnow()
         messages = [ChatMessage(
-            role="user", 
-            content=f"Please refine this question and suggest response format and evaluation criteria:\n\n{question}"
+            id=str(uuid.uuid4()),
+            chat_id="lab-temp",  # Temporary chat ID for lab operations
+            role=MessageRole.USER, 
+            content=f"Please refine this question and suggest response format and evaluation criteria:\n\n{question}",
+            message_metadata={},
+            created_at=now,
+            updated_at=now
         )]
         
         response = await self.refiner.invoke(

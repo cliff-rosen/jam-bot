@@ -73,7 +73,7 @@ class LabApi {
     onError: (error: string) => void
   ): Promise<void> {
     try {
-      const streamGenerator = makeStreamRequest('/lab/generate-answer-stream', request, 'POST');
+      const streamGenerator = makeStreamRequest('/api/lab/generate-answer-stream', request, 'POST');
       
       let buffer = '';
       

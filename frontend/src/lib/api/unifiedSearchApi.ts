@@ -6,13 +6,12 @@
  */
 
 import { api } from './index';
-import { 
-  UnifiedSearchParams, 
-  UnifiedSearchResponse, 
+import {
+  UnifiedSearchParams,
+  UnifiedSearchResponse,
   BatchSearchRequest,
   BatchSearchResponse,
   SearchProvider,
-  ProviderInfo,
   CanonicalResearchArticle
 } from '@/types/unifiedSearch';
 
@@ -74,10 +73,10 @@ class UnifiedSearchApi {
    * Uses the existing extraction endpoints with unified article format
    */
   async extractFeatures(
-    articles: CanonicalResearchArticle[], 
+    articles: CanonicalResearchArticle[],
     provider: SearchProvider
   ): Promise<{ results: any[]; metadata: any }> {
-    const endpoint = provider === 'scholar' 
+    const endpoint = provider === 'scholar'
       ? '/api/extraction/scholar-features'
       : '/api/extraction/pubmed-features';
 
@@ -89,7 +88,7 @@ class UnifiedSearchApi {
    * Convert legacy Scholar articles to unified format (client-side helper)
    */
   convertScholarToUnified(
-    scholarArticles: any[], 
+    scholarArticles: any[],
     searchPosition: number = 0
   ): CanonicalResearchArticle[] {
     return scholarArticles.map((article, index) => ({
@@ -139,7 +138,7 @@ class UnifiedSearchApi {
       snippet: undefined,
       journal: article.journal,
       publication_date: article.publication_date,
-      publication_year: article.publication_date ? 
+      publication_year: article.publication_date ?
         parseInt(article.publication_date.split('-')[0]) : undefined,
       doi: article.doi,
       url: article.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${article.pmid}/` : undefined,
@@ -149,7 +148,7 @@ class UnifiedSearchApi {
       categories: [],
       citation_count: article.citation_count,
       cited_by_url: undefined,
-      related_articles_url: article.pmid ? 
+      related_articles_url: article.pmid ?
         `https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed&from_uid=${article.pmid}` : undefined,
       versions_url: undefined,
       search_position: index + 1,
@@ -164,7 +163,7 @@ class UnifiedSearchApi {
 
   private extractJournalFromPublicationInfo(publicationInfo?: string): string | undefined {
     if (!publicationInfo) return undefined;
-    
+
     // Publication info format: "Journal Name, Volume, Pages, Year"
     const parts = publicationInfo.split(',');
     return parts.length > 0 ? parts[0].trim() : undefined;

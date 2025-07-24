@@ -12,20 +12,18 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 
-import { 
-  UnifiedSearchParams, 
-  CanonicalResearchArticle, 
-  SearchProvider, 
+import {
+  UnifiedSearchParams,
+  CanonicalResearchArticle,
+  SearchProvider,
   UnifiedWorkbenchFilters,
-  UnifiedSearchResponse,
-  SearchMetadata 
+  SearchMetadata
 } from '@/types/unifiedSearch';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 
 import WorkbenchHeader from './WorkbenchHeader';
 import { UnifiedSearchControls } from './search/UnifiedSearchControls';
 import { UnifiedArticleCard } from './results/UnifiedArticleCard';
-import MetadataDisplay from './results/MetadataDisplay';
 
 // Default search parameters
 const DEFAULT_SEARCH_PARAMS: UnifiedSearchParams = {
@@ -120,7 +118,7 @@ export function UnifiedWorkbench() {
       if (state.searchMode === 'single') {
         // Single provider search
         const response = await unifiedSearchApi.search(state.searchParams);
-        
+
         if (response.success) {
           setState(prev => ({
             ...prev,
@@ -143,7 +141,7 @@ export function UnifiedWorkbench() {
     } catch (error) {
       console.error('Search failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      
+
       setState(prev => ({
         ...prev,
         searchError: errorMessage
@@ -168,7 +166,7 @@ export function UnifiedWorkbench() {
       try {
         const searchParams = { ...state.searchParams, provider };
         const response = await unifiedSearchApi.search(searchParams);
-        
+
         if (response.success) {
           results.push(...response.articles);
           metadata.push(response.metadata);
@@ -222,7 +220,7 @@ export function UnifiedWorkbench() {
 
         try {
           const response = await unifiedSearchApi.extractFeatures(
-            articles, 
+            articles,
             provider as SearchProvider
           );
 
@@ -234,7 +232,7 @@ export function UnifiedWorkbench() {
                 enrichedArticles.push({
                   ...enrichedArticle,
                   extracted_features: enrichedArticle.metadata?.features,
-                  quality_scores: enrichedArticle.metadata?.features?.relevance_score 
+                  quality_scores: enrichedArticle.metadata?.features?.relevance_score
                     ? { relevance: enrichedArticle.metadata.features.relevance_score }
                     : undefined
                 });
@@ -383,7 +381,7 @@ export function UnifiedWorkbench() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <WorkbenchHeader />
-      
+
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Search Controls */}
         <UnifiedSearchControls
@@ -407,8 +405,8 @@ export function UnifiedWorkbench() {
 
 // Helper functions
 function filterArticlesByCurrentSettings(
-  articles: CanonicalResearchArticle[], 
-  filters: UnifiedWorkbenchFilters, 
+  articles: CanonicalResearchArticle[],
+  filters: UnifiedWorkbenchFilters,
   currentTab: string
 ): CanonicalResearchArticle[] {
   let filtered = articles;
@@ -431,26 +429,26 @@ function filterArticlesByCurrentSettings(
   filtered = filtered.filter(article => {
     // Source filter
     if (!filters.sources.includes(article.source)) return false;
-    
+
     // PDF filter
     if (filters.has_pdf && !article.pdf_url) return false;
-    
+
     // DOI filter
     if (filters.has_doi && !article.doi) return false;
-    
+
     // Relevance score filter
     if (article.relevance_score !== undefined && article.relevance_score < filters.min_relevance_score) return false;
-    
+
     // Feature-based filters (if features exist)
     if (article.extracted_features) {
       const features = article.extracted_features;
-      
+
       // Confidence filter
       if (features.confidence_score !== undefined && features.confidence_score < filters.min_confidence) return false;
-      
+
       // Provider-specific filters would go here
     }
-    
+
     return true;
   });
 

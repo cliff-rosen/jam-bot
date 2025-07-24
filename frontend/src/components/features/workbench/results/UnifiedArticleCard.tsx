@@ -344,14 +344,7 @@ export function UnifiedArticleCard({
         {/* Extracted features */}
         {showExtractedFeatures && hasExtractedFeatures && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <ExtractedFeatures 
-              article={{ 
-                ...article, 
-                metadata: { 
-                  features: article.extracted_features 
-                }
-              }} 
-            />
+            <ExtractedFeatures features={article.extracted_features} />
           </div>
         )}
       </CardContent>

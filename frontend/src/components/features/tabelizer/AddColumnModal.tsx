@@ -25,38 +25,39 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Custom Column</DialogTitle>
+            <DialogTitle className="text-gray-900 dark:text-gray-100">Add Custom Column</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             {/* Column Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Column Name</Label>
+              <Label htmlFor="name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Has Side Effects"
                 required
+                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
             </div>
 
             {/* Column Type */}
             <div className="space-y-2">
-              <Label>Column Type</Label>
+              <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
               <RadioGroup value={type} onValueChange={(value) => setType(value as 'boolean' | 'text')}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="boolean" id="boolean" />
-                  <Label htmlFor="boolean" className="font-normal cursor-pointer">
+                  <Label htmlFor="boolean" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
                     Yes/No Question
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="text" id="text" />
-                  <Label htmlFor="text" className="font-normal cursor-pointer">
+                  <Label htmlFor="text" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
                     Text Extraction (100 chars max)
                   </Label>
                 </div>
@@ -65,7 +66,7 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
 
             {/* Description/Question */}
             <div className="space-y-2">
-              <Label htmlFor="description">
+              <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">
                 {type === 'boolean' ? 'Question' : 'What to Extract'}
               </Label>
               <Textarea
@@ -79,6 +80,7 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                 }
                 rows={3}
                 required
+                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               />
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {type === 'boolean'

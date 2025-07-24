@@ -10,7 +10,7 @@ from datetime import datetime
 
 from schemas.tool_handler_schema import ToolHandlerInput, ToolHandlerResult, ToolExecutionHandler
 from schemas.canonical_types import CanonicalScholarArticle
-from schemas.scholar_features import SCHOLAR_FEATURES_SCHEMA, SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS
+from schemas.research_features import RESEARCH_FEATURES_SCHEMA, RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS
 from services.extraction_service import get_extraction_service
 from tools.tool_registry import register_tool_handler
 
@@ -51,12 +51,12 @@ async def handle_google_scholar_extract_features(input: ToolHandlerInput) -> Too
     
     # Perform feature extraction using the service with predefined schema
     # This will automatically include relevance scoring
-    predefined_schemas = {"scholar_features": SCHOLAR_FEATURES_SCHEMA}
-    predefined_instructions = {"scholar_features": SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS}
+    predefined_schemas = {"research_features": RESEARCH_FEATURES_SCHEMA}
+    predefined_instructions = {"research_features": RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS}
     
     extraction_results = await extraction_service.extract_with_predefined_schema(
         items=article_dicts,
-        schema_name="scholar_features",
+        schema_name="research_features",
         predefined_schemas=predefined_schemas,
         predefined_instructions=predefined_instructions
     )

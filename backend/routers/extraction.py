@@ -53,14 +53,9 @@ class SingleExtractionResponse(BaseModel):
     success: bool = Field(..., description="Whether the extraction was successful")
 
 
-class ScholarFeaturesRequest(BaseModel):
-    """Request model for Google Scholar feature extraction."""
-    articles: List[Dict[str, Any]] = Field(..., description="List of Google Scholar articles to analyze")
-
-
-class PubMedFeaturesRequest(BaseModel):
-    """Request model for PubMed feature extraction."""
-    articles: List[Dict[str, Any]] = Field(..., description="List of PubMed articles to analyze")
+class ResearchFeaturesRequest(BaseModel):
+    """Request model for research feature extraction from academic articles."""
+    articles: List[Dict[str, Any]] = Field(..., description="List of academic articles to analyze")
 
 
 @router.post("/extract-multiple", response_model=ExtractionResponse)
@@ -200,20 +195,20 @@ async def extract_single_item(
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 
-@router.post("/scholar-features", response_model=ExtractionResponse)
-async def extract_scholar_features(
-    request: ScholarFeaturesRequest,
+@router.post("/research-features", response_model=ExtractionResponse)
+async def extract_research_features(
+    request: ResearchFeaturesRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
     """
-    Extract research features from Google Scholar articles.
+    Extract research features from academic articles.
     
     This endpoint provides a convenient way to extract predefined research
-    features from Google Scholar articles using the extraction service.
+    features from academic articles using the unified extraction service.
     
     Args:
-        request: Scholar articles to analyze
+        request: Academic articles to analyze
         db: Database session
         current_user: Authenticated user
         
@@ -224,18 +219,18 @@ async def extract_scholar_features(
         HTTPException: If extraction fails or parameters are invalid
     """
     try:
-        from schemas.scholar_features import SCHOLAR_FEATURES_SCHEMA, SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS
+        from schemas.research_features import RESEARCH_FEATURES_SCHEMA, RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS
         
         # Get the extraction service
         extraction_service = get_extraction_service()
         
         # Perform feature extraction using predefined schema (includes scoring)
-        predefined_schemas = {"scholar_features": SCHOLAR_FEATURES_SCHEMA}
-        predefined_instructions = {"scholar_features": SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS}
+        predefined_schemas = {"research_features": RESEARCH_FEATURES_SCHEMA}
+        predefined_instructions = {"research_features": RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS}
         
         extraction_results = await extraction_service.extract_with_predefined_schema(
             items=request.articles,
-            schema_name="scholar_features",
+            schema_name="research_features",
             predefined_schemas=predefined_schemas,
             predefined_instructions=predefined_instructions
         )
@@ -275,7 +270,7 @@ async def extract_scholar_features(
                 "articles_processed": len(request.articles),
                 "successful_extractions": successful_extractions,
                 "failed_extractions": failed_extractions,
-                "schema_type": "scholar_features"
+                "schema_type": "research_features"
             },
             success=True
         )
@@ -283,104 +278,18 @@ async def extract_scholar_features(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scholar feature extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Research feature extraction failed: {str(e)}")
 
 
-@router.post("/pubmed-features", response_model=ExtractionResponse)
-async def extract_pubmed_features(
-    request: PubMedFeaturesRequest,
-    db: Session = Depends(get_db),
+@router.get("/schemas/research-features")
+async def get_research_features_schema(
     current_user: User = Depends(validate_token)
 ):
     """
-    Extract research features from PubMed articles.
-    
-    This endpoint provides a convenient way to extract predefined research
-    features from PubMed articles using the extraction service.
-    
-    Args:
-        request: PubMed articles to analyze
-        db: Database session
-        current_user: Authenticated user
-        
-    Returns:
-        ExtractionResponse with enriched articles
-        
-    Raises:
-        HTTPException: If extraction fails or parameters are invalid
-    """
-    try:
-        from schemas.pubmed_features import PUBMED_FEATURES_SCHEMA, PUBMED_FEATURES_EXTRACTION_INSTRUCTIONS
-        
-        # Get the extraction service
-        extraction_service = get_extraction_service()
-        
-        # Perform feature extraction using predefined schema (includes scoring)
-        predefined_schemas = {"pubmed_features": PUBMED_FEATURES_SCHEMA}
-        predefined_instructions = {"pubmed_features": PUBMED_FEATURES_EXTRACTION_INSTRUCTIONS}
-        
-        extraction_results = await extraction_service.extract_with_predefined_schema(
-            items=request.articles,
-            schema_name="pubmed_features",
-            predefined_schemas=predefined_schemas,
-            predefined_instructions=predefined_instructions
-        )
-        
-        # Convert results to enriched articles format
-        results = []
-        successful_extractions = 0
-        failed_extractions = 0
-        
-        for result in extraction_results:
-            # Create enriched article
-            enriched_article = result.original_item.copy()
-            
-            if "metadata" not in enriched_article:
-                enriched_article["metadata"] = {}
-            
-            # Add extraction results to metadata (already includes relevance score)
-            if result.extraction:
-                enriched_article["metadata"]["features"] = result.extraction
-                successful_extractions += 1
-            
-            if result.error:
-                enriched_article["metadata"]["feature_extraction_error"] = result.error
-                failed_extractions += 1
-            
-            enriched_article["metadata"]["feature_extraction_timestamp"] = result.extraction_timestamp
-            
-            results.append({
-                "item_id": result.item_id,
-                "enriched_article": enriched_article,
-                "extraction_timestamp": result.extraction_timestamp
-            })
-        
-        return ExtractionResponse(
-            results=results,
-            metadata={
-                "articles_processed": len(request.articles),
-                "successful_extractions": successful_extractions,
-                "failed_extractions": failed_extractions,
-                "schema_type": "pubmed_features"
-            },
-            success=True
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PubMed feature extraction failed: {str(e)}")
-
-
-@router.get("/schemas/scholar-features")
-async def get_scholar_features_schema(
-    current_user: User = Depends(validate_token)
-):
-    """
-    Get the predefined schema for Google Scholar feature extraction.
+    Get the unified schema for research feature extraction.
     
     Returns the JSON schema and instructions used for extracting research
-    features from Google Scholar articles.
+    features from academic articles.
     
     Args:
         current_user: Authenticated user
@@ -389,41 +298,12 @@ async def get_scholar_features_schema(
         Dictionary containing schema and instructions
     """
     try:
-        from schemas.scholar_features import SCHOLAR_FEATURES_SCHEMA, SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS
+        from schemas.research_features import RESEARCH_FEATURES_SCHEMA, RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS
         
         return {
-            "schema": SCHOLAR_FEATURES_SCHEMA,
-            "instructions": SCHOLAR_FEATURES_EXTRACTION_INSTRUCTIONS,
-            "description": "Predefined schema for extracting research features from Google Scholar articles"
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve schema: {str(e)}")
-
-
-@router.get("/schemas/pubmed-features")
-async def get_pubmed_features_schema(
-    current_user: User = Depends(validate_token)
-):
-    """
-    Get the predefined schema for PubMed feature extraction.
-    
-    Returns the JSON schema and instructions used for extracting research
-    features from PubMed articles.
-    
-    Args:
-        current_user: Authenticated user
-        
-    Returns:
-        Dictionary containing schema and instructions
-    """
-    try:
-        from schemas.pubmed_features import PUBMED_FEATURES_SCHEMA, PUBMED_FEATURES_EXTRACTION_INSTRUCTIONS
-        
-        return {
-            "schema": PUBMED_FEATURES_SCHEMA,
-            "instructions": PUBMED_FEATURES_EXTRACTION_INSTRUCTIONS,
-            "description": "Predefined schema for extracting research features from PubMed articles"
+            "schema": RESEARCH_FEATURES_SCHEMA,
+            "instructions": RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS,
+            "description": "Unified schema for extracting research features from academic articles"
         }
         
     except Exception as e:

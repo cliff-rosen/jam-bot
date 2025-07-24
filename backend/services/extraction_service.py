@@ -15,77 +15,7 @@ from agents.prompts.base_prompt_caller import BasePromptCaller
 from pydantic import BaseModel, Field
 
 
-def calculate_scholar_relevance_score(features: dict) -> int:
-    """
-    Calculate relevance score for Google Scholar articles based on extracted features.
-    
-    Args:
-        features: Dictionary containing extracted features
-        
-    Returns:
-        Relevance score (0-10)
-    """
-    poi_relevance = features.get("poi_relevance", "").upper()
-    doi_relevance = features.get("doi_relevance", "").upper()
-    is_systematic = features.get("is_systematic", "").upper()
-    study_type = features.get("study_type", "")
-    study_outcome = features.get("study_outcome", "")
-
-    # Check if PoI and DoI are both 'YES'
-    if poi_relevance == "YES" and doi_relevance == "YES":
-        if "effectiveness" in study_outcome:
-            if study_type == "human RCT":
-                return 10
-            else:
-                return 9
-        elif "safety" in study_outcome:
-            return 8
-        elif "diagnostics" in study_outcome:
-            if is_systematic == 'YES':
-                return 7
-            else:
-                return 6
-        elif is_systematic == 'YES':
-            return 3
-        else:
-            return 2
-
-    # Check if PoI is 'NO' and DoI is 'YES'
-    elif poi_relevance == "NO" and doi_relevance == "YES":
-        if "effectiveness" in study_outcome or "safety" in study_outcome:
-            if study_type in ["human RCT", "human non-RCT"]:
-                if is_systematic == "YES":
-                    return 5
-                else:
-                    return 4
-            else:
-                return 3
-        elif "diagnostics" in study_outcome:
-            if study_type in ["human RCT", "human non-RCT"]:
-                return 4
-            else:
-                return 3
-        else:
-            return 2
-
-    # Check if PoI is 'YES' and DoI is 'No'
-    elif poi_relevance == "YES" and doi_relevance == "NO":
-        if ("effectiveness" in study_outcome or "safety" in study_outcome):
-            if study_type == "human RCT":
-                return 7
-            if is_systematic == "YES":
-                return 6
-            return 5
-        elif "diagnostics" in study_outcome:
-            if is_systematic == "YES":
-                return 4
-            else:
-                return 3
-        else:
-            return 2
-
-    # Default score if none of the conditions are met
-    return 0
+# Removed duplicate relevance scoring - now using unified calculate_relevance_score from research_features.py
 
 
 class ExtractionResult(BaseModel):
@@ -340,16 +270,14 @@ class ExtractionService:
         )
         
         # Apply post-processing based on schema type
-        if schema_name == "scholar_features":
-            results = self._apply_scholar_features_post_processing(results)
-        elif schema_name == "pubmed_features":
-            results = self._apply_pubmed_features_post_processing(results)
+        if schema_name == "research_features":
+            results = self._apply_research_features_post_processing(results)
         
         return results
     
-    def _apply_scholar_features_post_processing(self, results: List[ExtractionResult]) -> List[ExtractionResult]:
+    def _apply_research_features_post_processing(self, results: List[ExtractionResult]) -> List[ExtractionResult]:
         """
-        Apply Google Scholar specific post-processing including relevance scoring.
+        Apply research features post-processing including relevance scoring.
         
         Args:
             results: List of extraction results
@@ -357,51 +285,14 @@ class ExtractionService:
         Returns:
             List of extraction results with relevance scores added
         """
-        processed_results = []
-        
-        for result in results:
-            if result.extraction:
-                # Calculate relevance score and add to extraction
-                relevance_score = calculate_scholar_relevance_score(result.extraction)
-                
-                # Add score to the extraction data
-                enhanced_extraction = result.extraction.copy()
-                enhanced_extraction["relevance_score"] = relevance_score
-                
-                # Create new result with enhanced extraction
-                enhanced_result = ExtractionResult(
-                    item_id=result.item_id,
-                    original_item=result.original_item,
-                    extraction=enhanced_extraction,
-                    error=result.error,
-                    confidence_score=result.confidence_score,
-                    extraction_timestamp=result.extraction_timestamp
-                )
-                processed_results.append(enhanced_result)
-            else:
-                # Keep original result if extraction failed
-                processed_results.append(result)
-        
-        return processed_results
-    
-    def _apply_pubmed_features_post_processing(self, results: List[ExtractionResult]) -> List[ExtractionResult]:
-        """
-        Apply PubMed specific post-processing including relevance scoring.
-        
-        Args:
-            results: List of extraction results
-            
-        Returns:
-            List of extraction results with relevance scores added
-        """
-        from schemas.pubmed_features import calculate_pubmed_relevance_score
+        from schemas.research_features import calculate_relevance_score
         
         processed_results = []
         
         for result in results:
             if result.extraction:
                 # Calculate relevance score and add to extraction
-                relevance_score = calculate_pubmed_relevance_score(result.extraction)
+                relevance_score = calculate_relevance_score(result.extraction)
                 
                 # Add score to the extraction data
                 enhanced_extraction = result.extraction.copy()

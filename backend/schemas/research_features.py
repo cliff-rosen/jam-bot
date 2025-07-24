@@ -1,8 +1,8 @@
 """
-PubMed Article Feature Extraction Schema
+Canonical Research Article Feature Extraction Schema
 
-This module defines the schema for extracting research features from PubMed articles.
-Uses the same schema as scholar_features.py to maintain consistency.
+This module defines the unified schema for extracting research features from academic articles,
+regardless of source (PubMed, Google Scholar, etc.).
 """
 
 from pydantic import BaseModel, Field
@@ -46,8 +46,8 @@ class StudyOutcome(str, Enum):
     OTHER = "other"
 
 
-class PubMedArticleFeatures(BaseModel):
-    """Extracted features from a PubMed article"""
+class ResearchArticleFeatures(BaseModel):
+    """Extracted features from a research article"""
     poi_relevance: PoIRelevance = Field(..., description="Pathway of Interest relevance")
     doi_relevance: DoIRelevance = Field(..., description="Disease of Interest relevance")
     is_systematic: IsSystematic = Field(..., description="Whether this is a systematic study")
@@ -58,8 +58,8 @@ class PubMedArticleFeatures(BaseModel):
     relevance_score: int = Field(default=0, ge=0, le=10, description="Calculated relevance score (0-10)")
 
 
-# Predefined schema for the extract tool
-PUBMED_FEATURES_SCHEMA = {
+# Canonical schema for the extract tool
+RESEARCH_FEATURES_SCHEMA = {
     "type": "object",
     "properties": {
         "poi_relevance": {
@@ -101,23 +101,23 @@ PUBMED_FEATURES_SCHEMA = {
     "required": ["poi_relevance", "doi_relevance", "is_systematic", "study_type", "study_outcome", "confidence_score"]
 }
 
-# Extraction instructions for the LLM
-PUBMED_FEATURES_EXTRACTION_INSTRUCTIONS = """
-You are analyzing a PubMed biomedical research article to extract specific research features.
+# Canonical extraction instructions for the LLM
+RESEARCH_FEATURES_EXTRACTION_INSTRUCTIONS = """
+You are analyzing an academic research article to extract specific research features.
 
 FEATURE DEFINITIONS:
 
 1. **PoI Relevance** (Pathway of Interest): 
    - Does this article relate to melanocortin or natriuretic pathways?
-   - Look for keywords: melanocortin receptor, MC1R, MC2R, MC3R, MC4R, MC5R, ACTH, α-MSH, β-MSH, γ-MSH, melanocyte, pigmentation, appetite regulation
-   - Look for keywords: natriuretic peptide, ANP, BNP, CNP, NPR-A, NPR-B, NPR-C, guanylate cyclase, cardiac function
+   - Melanocortin keywords: melanocortin receptor, MC1R, MC2R, MC3R, MC4R, MC5R, ACTH, α-MSH, β-MSH, γ-MSH, melanocyte, pigmentation, appetite regulation
+   - Natriuretic keywords: natriuretic peptide, ANP, BNP, CNP, NPR-A, NPR-B, NPR-C, guanylate cyclase, cardiac function
    - Answer: "yes" or "no"
 
 2. **DoI Relevance** (Disease of Interest):
    - Does this article relate to dry eye, ulcerative colitis, crohn's disease, retinopathy, or retinal disease?
-   - Look for keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film
-   - Look for keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis
-   - Look for keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration
+   - Dry eye keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film
+   - IBD keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis
+   - Retinal keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration
    - Answer: "yes" or "no"
 
 3. **Is Systematic**:
@@ -130,7 +130,7 @@ FEATURE DEFINITIONS:
    - "human RCT": randomized controlled clinical trials with humans
    - "human non-RCT": human studies that are not RCTs (observational, cohort, case-control, case series, etc.)
    - "non-human life science": animal studies, in vitro studies, cell culture, molecular biology
-   - "non life science": non-biological research (rarely in PubMed)
+   - "non life science": non-biological research (rarely in biomedical databases)
    - "not a study": reviews (non-systematic), editorials, opinions, commentaries, theoretical papers
 
 5. **Study Outcome**:
@@ -149,7 +149,7 @@ FEATURE DEFINITIONS:
    - Note any relevant details about the specific pathways or diseases mentioned
 
 ANALYSIS APPROACH:
-- Focus on the abstract, but also consider the title and MeSH terms if available
+- Focus on the abstract, title, and available metadata
 - Look for explicit mentions of the pathways and diseases of interest
 - For study type, identify the primary research methodology
 - Be conservative with "yes" answers for PoI/DoI - only mark if clearly related
@@ -157,9 +157,9 @@ ANALYSIS APPROACH:
 """
 
 
-def calculate_pubmed_relevance_score(features: dict) -> int:
+def calculate_relevance_score(features: dict) -> int:
     """
-    Calculate relevance score for PubMed articles based on extracted features.
+    Calculate relevance score for research articles based on extracted features.
     
     Args:
         features: Dictionary containing extracted features
@@ -205,4 +205,4 @@ def calculate_pubmed_relevance_score(features: dict) -> int:
     else:
         score += 0.3
     
-    return min(int(round(score)), 10)  # Cap at 10  
+    return min(int(round(score)), 10)  # Cap at 10

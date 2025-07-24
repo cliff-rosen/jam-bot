@@ -205,4 +205,4 @@ def calculate_pubmed_relevance_score(features: dict) -> int:
     else:
         score += 0.3
     
-    return min(int(round(score)), 10)  # Cap at 10
+    return min(int(round(score)), 10)  # Cap at 10  

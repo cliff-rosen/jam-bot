@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import JamBotPage from './pages/JamBot';
 import LabPage from './pages/Lab';
 import WorkbenchPage from './pages/Workbench';
+import TabelizerPage from './pages/Tabelizer';
 
 function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
@@ -39,6 +40,7 @@ function App() {
             <Route path="/" element={<Navigate to="/jam-bot" />} />
             <Route path="/jam-bot" element={<JamBotPage />} />
             <Route path="/workbench" element={<WorkbenchPage />} />
+            <Route path="/tabelizer" element={<TabelizerPage />} />
             <Route path="/lab" element={<LabPage />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/email/auth/success" element={<EmailAuthSuccess />} />

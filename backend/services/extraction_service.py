@@ -422,6 +422,84 @@ class ExtractionService:
                 processed_results.append(result)
         
         return processed_results
+    
+    async def extract_tabelizer_column(
+        self,
+        articles: List[Dict[str, Any]],
+        column_name: str,
+        column_description: str,
+        column_type: str = "boolean",
+        user_id: str = None
+    ) -> Dict[str, str]:
+        """
+        Extract custom column data for Tabelizer
+        
+        Args:
+            articles: List of articles with id, title, abstract
+            column_name: Name of the column
+            column_description: Natural language description of what to extract
+            column_type: "boolean" or "text"
+            user_id: User ID for tracking
+            
+        Returns:
+            Dictionary mapping article ID to extracted value
+        """
+        from ..services.llm.base import get_llm_service
+        
+        llm_service = get_llm_service()
+        results = {}
+        
+        for article in articles:
+            # Build prompt based on column type
+            if column_type == "boolean":
+                prompt = f"""
+Article Title: {article['title']}
+Abstract: {article['abstract']}
+
+Question: {column_description}
+
+Answer with only 'yes' or 'no'.
+"""
+            else:
+                prompt = f"""
+Article Title: {article['title']}
+Abstract: {article['abstract']}
+
+Task: {column_description}
+
+Provide a brief answer in 100 characters or less.
+"""
+            
+            try:
+                # Use simple generation for MVP
+                response = await llm_service.generate(
+                    prompt=prompt,
+                    temperature=0.1,  # Low temperature for consistency
+                    max_tokens=50
+                )
+                
+                # Clean up response
+                answer = response.strip().lower()
+                
+                # For boolean, ensure it's yes/no
+                if column_type == "boolean":
+                    if "yes" in answer:
+                        answer = "yes"
+                    elif "no" in answer:
+                        answer = "no"
+                    else:
+                        answer = "no"  # Default to no if unclear
+                else:
+                    # For text, truncate to 100 chars
+                    answer = answer[:100]
+                
+                results[article['id']] = answer
+                
+            except Exception as e:
+                # On error, use default value
+                results[article['id']] = "no" if column_type == "boolean" else "error"
+                
+        return results
 
 
 # Singleton instance

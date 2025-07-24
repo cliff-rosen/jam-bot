@@ -1,0 +1,266 @@
+import { useState, useMemo } from 'react';
+import { CanonicalResearchArticle } from '@/types/unifiedSearch';
+import { TabelizerColumn } from './types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ChevronUp, ChevronDown, Plus, Download } from 'lucide-react';
+
+interface TabelizerTableProps {
+  articles: CanonicalResearchArticle[];
+  columns: TabelizerColumn[];
+  onAddColumn: () => void;
+  onExport: () => void;
+  isExtracting: boolean;
+}
+
+export function TabelizerTable({
+  articles,
+  columns,
+  onAddColumn,
+  onExport,
+  isExtracting,
+}: TabelizerTableProps) {
+  const [sortBy, setSortBy] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (columnId: string) => {
+    if (sortBy === columnId) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(columnId);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedArticles = useMemo(() => {
+    if (!sortBy) return articles;
+
+    return [...articles].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      // Handle fixed columns
+      switch (sortBy) {
+        case 'title':
+          aValue = a.title;
+          bValue = b.title;
+          break;
+        case 'authors':
+          aValue = a.authors[0] || '';
+          bValue = b.authors[0] || '';
+          break;
+        case 'journal':
+          aValue = a.journal || '';
+          bValue = b.journal || '';
+          break;
+        case 'year':
+          aValue = a.publication_year || 0;
+          bValue = b.publication_year || 0;
+          break;
+        case 'source':
+          aValue = a.source;
+          bValue = b.source;
+          break;
+        default:
+          // Handle custom columns
+          const column = columns.find(c => c.id === sortBy);
+          if (column) {
+            aValue = column.data[a.id] || '';
+            bValue = column.data[b.id] || '';
+          }
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [articles, columns, sortBy, sortDirection]);
+
+  const renderSortIcon = (columnId: string) => {
+    if (sortBy !== columnId) return null;
+    return sortDirection === 'asc' ? 
+      <ChevronUp className="w-4 h-4" /> : 
+      <ChevronDown className="w-4 h-4" />;
+  };
+
+  const getSourceBadge = (source: string) => {
+    const config = source === 'pubmed' 
+      ? { label: 'PubMed', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
+      : { label: 'Scholar', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
+    
+    return <Badge className={config.className}>{config.label}</Badge>;
+  };
+
+  const formatAuthors = (authors: string[]) => {
+    if (authors.length === 0) return '-';
+    if (authors.length === 1) return authors[0];
+    return `${authors[0]} et al`;
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Table Header Actions */}
+      <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {articles.length} articles · {columns.length} custom columns
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={onAddColumn}
+            disabled={isExtracting}
+            variant="outline"
+            size="sm"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add Column
+          </Button>
+          <Button
+            onClick={onExport}
+            variant="outline"
+            size="sm"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+            <tr>
+              {/* Fixed Columns */}
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('id')}
+              >
+                <div className="flex items-center gap-1">
+                  ID
+                  {renderSortIcon('id')}
+                </div>
+              </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleSort('title')}
+              >
+                <div className="flex items-center gap-1">
+                  Title
+                  {renderSortIcon('title')}
+                </div>
+              </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('authors')}
+              >
+                <div className="flex items-center gap-1">
+                  Authors
+                  {renderSortIcon('authors')}
+                </div>
+              </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('journal')}
+              >
+                <div className="flex items-center gap-1">
+                  Journal
+                  {renderSortIcon('journal')}
+                </div>
+              </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('year')}
+              >
+                <div className="flex items-center gap-1">
+                  Year
+                  {renderSortIcon('year')}
+                </div>
+              </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('source')}
+              >
+                <div className="flex items-center gap-1">
+                  Source
+                  {renderSortIcon('source')}
+                </div>
+              </th>
+              
+              {/* Custom Columns */}
+              {columns.map(column => (
+                <th
+                  key={column.id}
+                  className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                  onClick={() => handleSort(column.id)}
+                  title={column.description}
+                >
+                  <div className="flex items-center gap-1">
+                    {column.name}
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                      ({column.type === 'boolean' ? 'Y/N' : 'Text'})
+                    </span>
+                    {renderSortIcon(column.id)}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedArticles.map((article, index) => (
+              <tr
+                key={article.id}
+                className={index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'}
+              >
+                {/* Fixed Columns */}
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  {article.id.replace('pubmed_', '').replace('scholar_', '')}
+                </td>
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="max-w-md truncate" title={article.title}>
+                    {article.title}
+                  </div>
+                </td>
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  {formatAuthors(article.authors)}
+                </td>
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="max-w-xs truncate" title={article.journal || '-'}>
+                    {article.journal || '-'}
+                  </div>
+                </td>
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  {article.publication_year || '-'}
+                </td>
+                <td className="p-3 whitespace-nowrap">
+                  {getSourceBadge(article.source)}
+                </td>
+                
+                {/* Custom Columns */}
+                {columns.map(column => (
+                  <td
+                    key={column.id}
+                    className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
+                  >
+                    {column.type === 'boolean' ? (
+                      <span className={
+                        column.data[article.id] === 'yes' 
+                          ? 'text-green-600 dark:text-green-400 font-medium' 
+                          : 'text-gray-500 dark:text-gray-400'
+                      }>
+                        {column.data[article.id] || '-'}
+                      </span>
+                    ) : (
+                      <div className="max-w-xs truncate" title={column.data[article.id] || '-'}>
+                        {column.data[article.id] || '-'}
+                      </div>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

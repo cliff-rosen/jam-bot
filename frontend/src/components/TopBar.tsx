@@ -1,6 +1,6 @@
 import { useTheme } from '../context/ThemeContext';
 import { NavLink, useLocation } from 'react-router-dom';
-import { MoonIcon, SunIcon, ChatBubbleLeftRightIcon, BeakerIcon, UserCircleIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+import { MoonIcon, SunIcon, ChatBubbleLeftRightIcon, BeakerIcon, UserCircleIcon, WrenchScrewdriverIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 import settings from '../config/settings';
 import { HelpGuide } from '@/components/features/help';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +37,10 @@ export default function TopBar() {
                     <NavLink to="/workbench" className={getLinkClass('/workbench')}>
                         <WrenchScrewdriverIcon className="h-5 w-5 mr-2" />
                         Workbench
+                    </NavLink>
+                    <NavLink to="/tabelizer" className={getLinkClass('/tabelizer')}>
+                        <TableCellsIcon className="h-5 w-5 mr-2" />
+                        Tabelizer
                     </NavLink>
                     <NavLink to="/lab" className={getLinkClass('/lab')}>
                         <BeakerIcon className="h-5 w-5 mr-2" />

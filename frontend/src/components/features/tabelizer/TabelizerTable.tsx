@@ -3,12 +3,13 @@ import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { TabelizerColumn } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Download, X } from 'lucide-react';
 
 interface TabelizerTableProps {
   articles: CanonicalResearchArticle[];
   columns: TabelizerColumn[];
   onAddColumn: () => void;
+  onDeleteColumn: (columnId: string) => void;
   onExport: () => void;
   isExtracting: boolean;
 }
@@ -17,6 +18,7 @@ export function TabelizerTable({
   articles,
   columns,
   onAddColumn,
+  onDeleteColumn,
   onExport,
   isExtracting,
 }: TabelizerTableProps) {
@@ -190,16 +192,29 @@ export function TabelizerTable({
               {columns.map(column => (
                 <th
                   key={column.id}
-                  className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
-                  onClick={() => handleSort(column.id)}
+                  className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap group"
                   title={column.description}
                 >
-                  <div className="flex items-center gap-1">
-                    {column.name}
-                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                      ({column.type === 'boolean' ? 'Y/N' : 'Text'})
-                    </span>
-                    {renderSortIcon(column.id)}
+                  <div className="flex items-center justify-between gap-1">
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded flex-1"
+                      onClick={() => handleSort(column.id)}
+                    >
+                      {column.name}
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        ({column.type === 'boolean' ? 'Y/N' : 'Text'})
+                      </span>
+                      {renderSortIcon(column.id)}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      onClick={() => onDeleteColumn(column.id)}
+                      title={`Delete ${column.name} column`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
                   </div>
                 </th>
               ))}

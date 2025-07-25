@@ -55,6 +55,71 @@ export function TabelizerPage() {
     }
   };
 
+  const handleDeleteColumn = (columnId: string) => {
+    setColumns(columns.filter(col => col.id !== columnId));
+    toast({
+      title: 'Column Deleted',
+      description: 'Column has been removed from the table.',
+    });
+  };
+
+  const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' }>) => {
+    if (articles.length === 0) {
+      toast({
+        title: 'No Articles',
+        description: 'Please search for articles first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsExtracting(true);
+
+    try {
+      const response = await tabelizerApi.extractMultipleColumns({
+        articles: articles.map(a => ({
+          id: a.id,
+          title: a.title,
+          abstract: a.abstract || '',
+        })),
+        columns_config: columnsConfig,
+      });
+
+      // Convert multi-column response to individual columns
+      const newColumns: TabelizerColumn[] = [];
+      for (const [columnName, config] of Object.entries(columnsConfig)) {
+        const columnData: Record<string, string> = {};
+        for (const [articleId, articleResults] of Object.entries(response.results)) {
+          columnData[articleId] = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
+        }
+
+        newColumns.push({
+          id: `col_${Date.now()}_${columnName}`,
+          name: columnName,
+          description: config.description,
+          type: config.type,
+          data: columnData,
+        });
+      }
+
+      setColumns([...columns, ...newColumns]);
+      
+      toast({
+        title: 'Extraction Complete',
+        description: `Added ${newColumns.length} columns`,
+      });
+    } catch (error) {
+      console.error('Multi-column extraction failed:', error);
+      toast({
+        title: 'Extraction Failed',
+        description: 'Unable to extract column data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleAddColumn = async (name: string, description: string, type: 'boolean' | 'text') => {
     if (articles.length === 0) {
       toast({
@@ -173,6 +238,7 @@ export function TabelizerPage() {
             articles={articles}
             columns={columns}
             onAddColumn={() => setShowAddModal(true)}
+            onDeleteColumn={handleDeleteColumn}
             onExport={handleExport}
             isExtracting={isExtracting}
           />
@@ -193,6 +259,7 @@ export function TabelizerPage() {
       {showAddModal && (
         <AddColumnModal
           onAdd={handleAddColumn}
+          onAddMultiple={handleAddMultipleColumns}
           onClose={() => setShowAddModal(false)}
         />
       )}

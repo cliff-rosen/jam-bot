@@ -1,10 +1,27 @@
 import { api } from '@/lib/api/index';
-import { ExtractColumnRequest, ExtractColumnResponse, TabelizerColumn } from '../types';
+import { 
+  ExtractColumnRequest, 
+  ExtractColumnResponse, 
+  ExtractMultipleColumnsRequest,
+  ExtractMultipleColumnsResponse,
+  TabelizerColumn,
+  TabelizerPreset
+} from '../types';
 import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 
 export const tabelizerApi = {
   async extractColumn(request: ExtractColumnRequest): Promise<ExtractColumnResponse> {
     const response = await api.post('/api/tabelizer/extract-column', request);
+    return response.data;
+  },
+
+  async extractMultipleColumns(request: ExtractMultipleColumnsRequest): Promise<ExtractMultipleColumnsResponse> {
+    const response = await api.post('/api/tabelizer/extract-multiple-columns', request);
+    return response.data;
+  },
+
+  async getPresets(): Promise<Record<string, TabelizerPreset>> {
+    const response = await api.get('/api/tabelizer/presets');
     return response.data;
   },
 

@@ -422,6 +422,112 @@ Provide a brief answer in 100 characters or less.
                 results[article['id']] = "no" if column_type == "boolean" else "error"
                 
         return results
+    
+    async def extract_tabelizer_multiple_columns(
+        self,
+        articles: List[Dict[str, Any]],
+        columns_config: Dict[str, Dict[str, str]],
+        user_id: str = None
+    ) -> Dict[str, Dict[str, str]]:
+        """
+        Extract multiple custom columns for Tabelizer using a single extraction call
+        
+        Args:
+            articles: List of articles with id, title, abstract
+            columns_config: Dict of column_name -> {description, type}
+            user_id: User ID for tracking
+            
+        Returns:
+            Dictionary mapping article ID to column_name to extracted value
+        """
+        # Build the multi-column schema
+        properties = {}
+        for col_name, config in columns_config.items():
+            if config['type'] == 'boolean':
+                properties[col_name] = {
+                    "type": "string",
+                    "enum": ["yes", "no"],
+                    "description": config['description']
+                }
+            else:
+                properties[col_name] = {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": config['description']
+                }
+        
+        result_schema = {
+            "type": "object",
+            "properties": properties,
+            "required": list(columns_config.keys())
+        }
+        
+        # Build extraction instructions
+        instruction_parts = ["You are analyzing a research article to extract multiple pieces of information.", ""]
+        instruction_parts.append("Article Title: {title}")
+        instruction_parts.append("Abstract: {abstract}")
+        instruction_parts.append("")
+        instruction_parts.append("Extract the following information:")
+        
+        for col_name, config in columns_config.items():
+            col_type = "Answer with 'yes' or 'no'" if config['type'] == 'boolean' else "Provide a brief answer (max 100 chars)"
+            instruction_parts.append(f"- {col_name}: {config['description']} ({col_type})")
+        
+        extraction_instructions = "\n".join(instruction_parts)
+        
+        # Extract for all articles
+        results = {}
+        for article in articles:
+            try:
+                # Format the instructions with article data
+                formatted_instructions = extraction_instructions.format(
+                    title=article.get('title', ''),
+                    abstract=article.get('abstract', '')
+                )
+                
+                # Use the single item extraction method
+                extraction_result = await self.extract_single_item(
+                    item=article,
+                    result_schema=result_schema,
+                    extraction_instructions=formatted_instructions,
+                    schema_key="tabelizer_multi_column"
+                )
+                
+                # Process the results
+                article_results = {}
+                if extraction_result.extraction:
+                    for col_name, config in columns_config.items():
+                        if col_name in extraction_result.extraction:
+                            value = extraction_result.extraction[col_name]
+                            
+                            # Clean up boolean values
+                            if config['type'] == 'boolean':
+                                value = str(value).lower().strip()
+                                if value not in ["yes", "no"]:
+                                    value = "no"  # Default to no if unclear
+                            else:
+                                # Truncate text values
+                                value = str(value)[:100]
+                            
+                            article_results[col_name] = value
+                        else:
+                            # Handle missing columns
+                            article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                else:
+                    # Handle extraction failure
+                    for col_name, config in columns_config.items():
+                        article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                
+                results[article['id']] = article_results
+                
+            except Exception as e:
+                # On error, use default values for all columns
+                article_results = {}
+                for col_name, config in columns_config.items():
+                    article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                results[article['id']] = article_results
+                
+        return results
 
 
 # Singleton instance

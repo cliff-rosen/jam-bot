@@ -308,9 +308,9 @@ export function TabelizerPage() {
         <ArticleDetailModal
           article={selectedArticle}
           onClose={() => setSelectedArticle(null)}
-          onSendChatMessage={async (message, article, conversationHistory) => {
-            // Use the stateless article chat API
-            return await articleChatApi.sendMessage(message, article, conversationHistory);
+          onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
+            // Use the streaming article chat API
+            await articleChatApi.sendMessageStream(message, article, conversationHistory, onChunk, onComplete, onError);
           }}
         />
       )}

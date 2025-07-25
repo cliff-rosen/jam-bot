@@ -2,10 +2,12 @@
 
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 import os
 import logging
+import json
 
 from models import User
 from services.auth_service import validate_token
@@ -44,18 +46,19 @@ class ArticleChatResponse(BaseModel):
     response: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-@router.post("/chat", response_model=ArticleChatResponse)
-async def chat_about_article(
+@router.post("/chat/stream")
+async def chat_about_article_stream(
     request: ArticleChatRequest,
     current_user: User = Depends(validate_token)
-) -> ArticleChatResponse:
+):
     """
-    Stateless chat endpoint for article discussions.
+    Streaming chat endpoint for article discussions.
     No database persistence - frontend manages conversation history.
     """
-    try:
-        # Build the system prompt
-        system_prompt = f"""You are an expert research analyst specializing in academic literature analysis. 
+    async def generate_response():
+        try:
+            # Build the system prompt
+            system_prompt = f"""You are an expert research analyst specializing in academic literature analysis. 
 You are discussing the following research article:
 
 Title: {request.article_context.title}
@@ -79,51 +82,74 @@ Your role is to:
 
 Keep your responses focused on this article and its content."""
 
-        # Build messages for OpenAI
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add conversation history (last 10 messages for context)
-        for msg in request.conversation_history[-10:]:
+            # Build messages for OpenAI
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            # Add conversation history (last 10 messages for context)
+            for msg in request.conversation_history[-10:]:
+                messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+            
+            # Add current message
             messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
+                "role": "user",
+                "content": request.message
             })
-        
-        # Add current message
-        messages.append({
-            "role": "user",
-            "content": request.message
-        })
-        
-        # Call OpenAI
-        response = await client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1500
-        )
-        
-        assistant_response = response.choices[0].message.content
-        
-        return ArticleChatResponse(
-            response=assistant_response,
-            metadata={
-                "article_id": request.article_context.id,
-                "model": "gpt-4-turbo-preview",
-                "token_usage": {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
+            
+            # Stream response from OpenAI
+            stream = await client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+                stream=True
+            )
+            
+            # Send initial metadata
+            initial_data = {
+                "type": "metadata",
+                "data": {
+                    "article_id": request.article_context.id,
+                    "model": "gpt-4-turbo-preview"
                 }
             }
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in article chat: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process chat request: {str(e)}"
-        )
+            yield f"data: {json.dumps(initial_data)}\n\n"
+            
+            # Stream content chunks
+            async for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    content_data = {
+                        "type": "content",
+                        "data": {
+                            "content": chunk.choices[0].delta.content
+                        }
+                    }
+                    yield f"data: {json.dumps(content_data)}\n\n"
+            
+            # Send completion signal
+            completion_data = {
+                "type": "done",
+                "data": {}
+            }
+            yield f"data: {json.dumps(completion_data)}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in article chat stream: {str(e)}")
+            error_data = {
+                "type": "error",
+                "data": {
+                    "error": str(e)
+                }
+            }
+            yield f"data: {json.dumps(error_data)}\n\n"
+    
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/plain",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
+    )
 
 def format_features(features: Dict[str, Any]) -> str:
     """Format extracted features for the prompt"""

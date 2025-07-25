@@ -8,7 +8,14 @@ import { ChatPanel } from './chat/ChatPanel';
 interface ArticleDetailModalProps {
   article: CanonicalResearchArticle;
   onClose: () => void;
-  onSendChatMessage?: (message: string, article: CanonicalResearchArticle, conversationHistory: Array<{role: string; content: string}>) => Promise<string>;
+  onSendChatMessage?: (
+    message: string, 
+    article: CanonicalResearchArticle, 
+    conversationHistory: Array<{role: string; content: string}>,
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ) => Promise<void>;
 }
 
 export function ArticleDetailModal({ article, onClose, onSendChatMessage }: ArticleDetailModalProps) {

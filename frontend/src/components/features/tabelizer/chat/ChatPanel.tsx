@@ -7,7 +7,14 @@ import { ChatMessage as ChatMessageType } from './types';
 
 interface ChatPanelProps {
   article: CanonicalResearchArticle;
-  onSendMessage?: (message: string, article: CanonicalResearchArticle, conversationHistory: Array<{role: string; content: string}>) => Promise<string>;
+  onSendMessage?: (
+    message: string, 
+    article: CanonicalResearchArticle, 
+    conversationHistory: Array<{role: string; content: string}>,
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ) => Promise<void>;
 }
 
 export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
@@ -43,11 +50,20 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Create a placeholder assistant message for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: ChatMessageType = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
-      let assistantResponse: string;
-      
       if (onSendMessage) {
-        // Build conversation history from current messages (excluding the initial greeting)
+        // Build conversation history from current messages (excluding the initial greeting and current messages)
         const conversationHistory = messages
           .slice(1) // Skip the initial greeting
           .map(msg => ({
@@ -55,31 +71,51 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
             content: msg.content
           }));
         
-        assistantResponse = await onSendMessage(messageContent, article, conversationHistory);
+        await onSendMessage(
+          messageContent, 
+          article, 
+          conversationHistory,
+          // onChunk - append to the assistant message
+          (chunk: string) => {
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + chunk }
+                : msg
+            ));
+          },
+          // onComplete
+          () => {
+            setIsLoading(false);
+          },
+          // onError
+          (error: string) => {
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: `I apologize, but I encountered an error: ${error}. Please try again.` }
+                : msg
+            ));
+            setIsLoading(false);
+          }
+        );
       } else {
         // Fallback simulation for development
         await new Promise(resolve => setTimeout(resolve, 1000));
-        assistantResponse = `I understand you're asking about "${messageContent}". Based on the article "${article.title}", I can help analyze specific aspects. Could you be more specific about what you'd like to know about this research?`;
+        const fallbackResponse = `I understand you're asking about "${messageContent}". Based on the article "${article.title}", I can help analyze specific aspects. Could you be more specific about what you'd like to know about this research?`;
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: fallbackResponse }
+            : msg
+        ));
+        setIsLoading(false);
       }
-
-      const assistantMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: assistantResponse,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Chat error:', error);
-      const errorMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'I apologize, but I encountered an error while processing your message. Please try again.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: 'I apologize, but I encountered an error while processing your message. Please try again.' }
+          : msg
+      ));
       setIsLoading(false);
     }
   };

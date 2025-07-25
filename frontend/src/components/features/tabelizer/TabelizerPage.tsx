@@ -89,10 +89,19 @@ export function TabelizerPage() {
 
       // Convert multi-column response to individual columns
       const newColumns: TabelizerColumn[] = [];
+      const updatedExtractedFeatures: Record<string, Record<string, string>> = {};
+      
       for (const [columnName, config] of Object.entries(columnsConfig)) {
         const columnData: Record<string, string> = {};
         for (const [articleId, articleResults] of Object.entries(response.results)) {
-          columnData[articleId] = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
+          const value = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
+          columnData[articleId] = value;
+          
+          // Track features for article updates
+          if (!updatedExtractedFeatures[articleId]) {
+            updatedExtractedFeatures[articleId] = {};
+          }
+          updatedExtractedFeatures[articleId][columnName] = value;
         }
 
         newColumns.push({
@@ -105,6 +114,16 @@ export function TabelizerPage() {
       }
 
       setColumns([...columns, ...newColumns]);
+
+      // Update articles with extracted features
+      const updatedArticles = articles.map(article => ({
+        ...article,
+        extracted_features: {
+          ...article.extracted_features,
+          ...updatedExtractedFeatures[article.id]
+        }
+      }));
+      setArticles(updatedArticles);
       
       toast({
         title: 'Extraction Complete',
@@ -158,6 +177,16 @@ export function TabelizerPage() {
       };
 
       setColumns([...columns, newColumn]);
+
+      // Update articles with extracted features
+      const updatedArticles = articles.map(article => ({
+        ...article,
+        extracted_features: {
+          ...article.extracted_features,
+          [name]: response.results[article.id]
+        }
+      }));
+      setArticles(updatedArticles);
       
       toast({
         title: 'Extraction Complete',

@@ -269,19 +269,33 @@ export function ArticleDetailModal({ article, onClose }: ArticleDetailModalProps
                 </div>
               )}
 
+              {/* Extracted Features */}
+              {article.extracted_features && Object.keys(article.extracted_features).length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Extracted Features</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(article.extracted_features).map(([key, value]) => (
+                      <div key={key} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize mb-1">
+                          {key.replace(/_/g, ' ')}
+                        </div>
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          {value || 'Not specified'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Additional metadata if available */}
               {article.source_metadata && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Information</h3>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Metadata</h3>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {article.extracted_features && (
-                      <div className="mt-2">
-                        <span className="font-medium">Extracted Features: </span>
-                        <span className="text-xs">
-                          {Object.keys(article.extracted_features).join(', ')}
-                        </span>
-                      </div>
-                    )}
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono">
+                      {JSON.stringify(article.source_metadata, null, 2)}
+                    </div>
                   </div>
                 </div>
               )}

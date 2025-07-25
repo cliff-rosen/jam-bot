@@ -150,12 +150,27 @@ export function TabelizerTable({
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            {/* Fixed column widths for optimal layout */}
+            <col className="w-20" /> {/* ID */}
+            <col className="w-96" /> {/* Title */}
+            <col className="w-32" /> {/* Authors */}
+            <col className="w-40" /> {/* Journal */}
+            <col className="w-16" /> {/* Year */}
+            <col className="w-20" /> {/* Source */}
+            <col className="w-80" /> {/* Abstract */}
+            <col className="w-24" /> {/* Actions */}
+            {/* Custom columns get remaining space */}
+            {columns.map(() => (
+              <col key={Math.random()} className="w-32" />
+            ))}
+          </colgroup>
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
               {/* Fixed Columns */}
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('id')}
               >
                 <div className="flex items-center gap-1">
@@ -164,7 +179,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('title')}
               >
                 <div className="flex items-center gap-1">
@@ -173,7 +188,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('authors')}
               >
                 <div className="flex items-center gap-1">
@@ -182,7 +197,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('journal')}
               >
                 <div className="flex items-center gap-1">
@@ -191,7 +206,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('year')}
               >
                 <div className="flex items-center gap-1">
@@ -200,7 +215,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('source')}
               >
                 <div className="flex items-center gap-1">
@@ -209,7 +224,7 @@ export function TabelizerTable({
                 </div>
               </th>
               <th 
-                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('abstract')}
               >
                 <div className="flex items-center gap-1">
@@ -217,7 +232,7 @@ export function TabelizerTable({
                   {renderSortIcon('abstract')}
                 </div>
               </th>
-              <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+              <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                 Actions
               </th>
               
@@ -225,19 +240,19 @@ export function TabelizerTable({
               {columns.map(column => (
                 <th
                   key={column.id}
-                  className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap group"
+                  className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap group"
                   title={column.description}
                 >
                   <div className="flex items-center justify-between gap-1">
                     <div 
-                      className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded flex-1"
+                      className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded flex-1 min-w-0"
                       onClick={() => handleSort(column.id)}
                     >
-                      {column.name}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                      <span className="truncate">{column.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 flex-shrink-0">
                         ({column.type === 'boolean' ? 'Y/N' : 
                           column.type === 'score' ? 
-                            `Score ${column.options?.min || 1}-${column.options?.max || 10}` : 
+                            `${column.options?.min || 1}-${column.options?.max || 10}` : 
                             'Text'})
                       </span>
                       {renderSortIcon(column.id)}
@@ -245,7 +260,7 @@ export function TabelizerTable({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
                       onClick={() => onDeleteColumn(column.id)}
                       title={`Delete ${column.name} column`}
                     >
@@ -263,34 +278,38 @@ export function TabelizerTable({
                 className={index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'}
               >
                 {/* Fixed Columns */}
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  {article.id.replace('pubmed_', '').replace('scholar_', '')}
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  <div className="truncate" title={article.id}>
+                    {article.id.replace('pubmed_', '').replace('scholar_', '')}
+                  </div>
                 </td>
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="max-w-md truncate" title={article.title}>
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="truncate" title={article.title}>
                     {article.title}
                   </div>
                 </td>
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  {formatAuthors(article.authors)}
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="truncate" title={formatAuthors(article.authors)}>
+                    {formatAuthors(article.authors)}
+                  </div>
                 </td>
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="max-w-xs truncate" title={article.journal || '-'}>
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="truncate" title={article.journal || '-'}>
                     {article.journal || '-'}
                   </div>
                 </td>
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   {article.publication_year || '-'}
                 </td>
-                <td className="p-3 whitespace-nowrap">
+                <td className="p-2 whitespace-nowrap">
                   {getSourceBadge(article.source)}
                 </td>
-                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="max-w-sm" title={article.abstract || 'No abstract available'}>
-                    {truncateAbstract(article.abstract)}
+                <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="truncate" title={article.abstract || 'No abstract available'}>
+                    {truncateAbstract(article.abstract, 100)}
                   </div>
                 </td>
-                <td className="p-3 whitespace-nowrap">
+                <td className="p-2 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
@@ -319,7 +338,7 @@ export function TabelizerTable({
                 {columns.map(column => (
                   <td
                     key={column.id}
-                    className="p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
+                    className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
                   >
                     {column.type === 'boolean' ? (
                       <span className={
@@ -330,7 +349,7 @@ export function TabelizerTable({
                         {column.data[article.id] || '-'}
                       </span>
                     ) : (
-                      <div className="max-w-xs truncate" title={column.data[article.id] || '-'}>
+                      <div className="truncate" title={column.data[article.id] || '-'}>
                         {column.data[article.id] || '-'}
                       </div>
                     )}

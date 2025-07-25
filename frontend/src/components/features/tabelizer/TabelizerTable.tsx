@@ -3,7 +3,7 @@ import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { TabelizerColumn } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye } from 'lucide-react';
 
 interface TabelizerTableProps {
   articles: CanonicalResearchArticle[];
@@ -12,6 +12,7 @@ interface TabelizerTableProps {
   onDeleteColumn: (columnId: string) => void;
   onExport: () => void;
   isExtracting: boolean;
+  onViewArticle: (article: CanonicalResearchArticle) => void;
 }
 
 export function TabelizerTable({
@@ -21,6 +22,7 @@ export function TabelizerTable({
   onDeleteColumn,
   onExport,
   isExtracting,
+  onViewArticle,
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -63,6 +65,10 @@ export function TabelizerTable({
           aValue = a.source;
           bValue = b.source;
           break;
+        case 'abstract':
+          aValue = a.abstract || '';
+          bValue = b.abstract || '';
+          break;
         default:
           // Handle custom columns
           const column = columns.find(c => c.id === sortBy);
@@ -97,6 +103,21 @@ export function TabelizerTable({
     if (authors.length === 0) return '-';
     if (authors.length === 1) return authors[0];
     return `${authors[0]} et al`;
+  };
+
+  const truncateAbstract = (abstract: string | null | undefined, maxLength: number = 150) => {
+    if (!abstract) return '-';
+    if (abstract.length <= maxLength) return abstract;
+    return abstract.substring(0, maxLength) + '...';
+  };
+
+  const getArticleUrl = (article: CanonicalResearchArticle) => {
+    if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
+      const pmid = article.id.replace('pubmed_', '');
+      return `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
+    }
+    // For Scholar articles, we might have a URL in the article data
+    return article.url || null;
   };
 
   return (
@@ -187,6 +208,18 @@ export function TabelizerTable({
                   {renderSortIcon('source')}
                 </div>
               </th>
+              <th 
+                className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleSort('abstract')}
+              >
+                <div className="flex items-center gap-1">
+                  Abstract
+                  {renderSortIcon('abstract')}
+                </div>
+              </th>
+              <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                Actions
+              </th>
               
               {/* Custom Columns */}
               {columns.map(column => (
@@ -251,6 +284,35 @@ export function TabelizerTable({
                 </td>
                 <td className="p-3 whitespace-nowrap">
                   {getSourceBadge(article.source)}
+                </td>
+                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                  <div className="max-w-sm" title={article.abstract || 'No abstract available'}>
+                    {truncateAbstract(article.abstract)}
+                  </div>
+                </td>
+                <td className="p-3 whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewArticle(article)}
+                      className="h-8 w-8 p-0"
+                      title="View full article details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    {getArticleUrl(article) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(getArticleUrl(article)!, '_blank')}
+                        className="h-8 w-8 p-0"
+                        title="Open original article"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </td>
                 
                 {/* Custom Columns */}

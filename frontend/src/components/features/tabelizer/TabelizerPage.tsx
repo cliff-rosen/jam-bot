@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { UnifiedSearchControls } from '@/components/features/workbench/search/UnifiedSearchControls';
 import { TabelizerTable } from './TabelizerTable';
 import { AddColumnModal } from './AddColumnModal';
+import { ArticleDetailModal } from './ArticleDetailModal';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
 import { TabelizerColumn } from './types';
@@ -15,6 +16,7 @@ export function TabelizerPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
   
   // Search state for UnifiedSearchControls
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
@@ -243,6 +245,7 @@ export function TabelizerPage() {
             onDeleteColumn={handleDeleteColumn}
             onExport={handleExport}
             isExtracting={isExtracting}
+            onViewArticle={setSelectedArticle}
           />
         )}
       </div>
@@ -263,6 +266,14 @@ export function TabelizerPage() {
           onAdd={handleAddColumn}
           onAddMultiple={handleAddMultipleColumns}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {/* Article Detail Modal */}
+      {selectedArticle && (
+        <ArticleDetailModal
+          article={selectedArticle}
+          onClose={() => setSelectedArticle(null)}
         />
       )}
     </div>

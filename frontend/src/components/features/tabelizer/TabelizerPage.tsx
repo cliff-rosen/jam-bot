@@ -120,7 +120,7 @@ export function TabelizerPage() {
     }
   };
 
-  const handleAddColumn = async (name: string, description: string, type: 'boolean' | 'text') => {
+  const handleAddColumn = async (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => {
     if (articles.length === 0) {
       toast({
         title: 'No Articles',
@@ -143,6 +143,7 @@ export function TabelizerPage() {
         column_name: name,
         column_description: description,
         column_type: type,
+        column_options: options,
       });
 
       const newColumn: TabelizerColumn = {
@@ -151,6 +152,7 @@ export function TabelizerPage() {
         description,
         type,
         data: response.results,
+        options,
       };
 
       setColumns([...columns, newColumn]);

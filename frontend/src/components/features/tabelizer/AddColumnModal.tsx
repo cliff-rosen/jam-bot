@@ -10,15 +10,18 @@ import { tabelizerApi } from './api/tabelizerApi';
 import { TabelizerPreset } from './types';
 
 interface AddColumnModalProps {
-  onAdd: (name: string, description: string, type: 'boolean' | 'text') => void;
-  onAddMultiple: (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' }>) => void;
+  onAdd: (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => void;
+  onAddMultiple: (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => void;
   onClose: () => void;
 }
 
 export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<'boolean' | 'text'>('boolean');
+  const [type, setType] = useState<'boolean' | 'text' | 'score'>('boolean');
+  const [minValue, setMinValue] = useState(1);
+  const [maxValue, setMaxValue] = useState(10);
+  const [stepValue, setStepValue] = useState(1);
   const [presets, setPresets] = useState<Record<string, TabelizerPreset>>({});
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +41,12 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && description.trim()) {
-      onAdd(name.trim(), description.trim(), type);
+      const options = type === 'score' ? {
+        min: minValue,
+        max: maxValue,
+        step: stepValue
+      } : undefined;
+      onAdd(name.trim(), description.trim(), type, options);
     }
   };
 
@@ -88,7 +96,7 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
                 {/* Column Type */}
                 <div className="space-y-2">
                   <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
-                  <RadioGroup value={type} onValueChange={(value) => setType(value as 'boolean' | 'text')}>
+                  <RadioGroup value={type} onValueChange={(value) => setType(value as 'boolean' | 'text' | 'score')}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="boolean" id="boolean" />
                       <Label htmlFor="boolean" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
@@ -101,13 +109,62 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
                         Text Extraction (100 chars max)
                       </Label>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="score" id="score" />
+                      <Label htmlFor="score" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                        Numeric Score/Rating
+                      </Label>
+                    </div>
                   </RadioGroup>
                 </div>
+
+                {/* Score Range Configuration */}
+                {type === 'score' && (
+                  <div className="space-y-2">
+                    <Label className="text-gray-900 dark:text-gray-100">Score Range</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label htmlFor="min" className="text-xs text-gray-600 dark:text-gray-400">Min</Label>
+                        <Input
+                          id="min"
+                          type="number"
+                          value={minValue}
+                          onChange={(e) => setMinValue(Number(e.target.value))}
+                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="max" className="text-xs text-gray-600 dark:text-gray-400">Max</Label>
+                        <Input
+                          id="max"
+                          type="number"
+                          value={maxValue}
+                          onChange={(e) => setMaxValue(Number(e.target.value))}
+                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="step" className="text-xs text-gray-600 dark:text-gray-400">Step</Label>
+                        <Input
+                          id="step"
+                          type="number"
+                          step="0.1"
+                          value={stepValue}
+                          onChange={(e) => setStepValue(Number(e.target.value))}
+                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Score will be constrained to this range (e.g., 1-10 for rating, 0-100 for percentage)
+                    </p>
+                  </div>
+                )}
 
                 {/* Description/Question */}
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">
-                    {type === 'boolean' ? 'Question' : 'What to Extract'}
+                    {type === 'boolean' ? 'Question' : type === 'score' ? 'Scoring Criteria' : 'What to Extract'}
                   </Label>
                   <Textarea
                     id="description"
@@ -116,6 +173,8 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
                     placeholder={
                       type === 'boolean'
                         ? "e.g., Does this study report any adverse events or side effects?"
+                        : type === 'score'
+                        ? "e.g., Rate the quality of this study's methodology from 1-10"
                         : "e.g., What is the main finding of this study?"
                     }
                     rows={3}
@@ -125,6 +184,8 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {type === 'boolean'
                       ? "The AI will answer with 'yes' or 'no' for each article."
+                      : type === 'score'
+                      ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
                       : "The AI will extract a brief text summary (max 100 characters)."}
                   </p>
                 </div>

@@ -3,7 +3,7 @@ Tabelizer API endpoints for custom column extraction
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 
 from services.extraction_service import ExtractionService, get_extraction_service
@@ -21,12 +21,20 @@ class TabelizerArticle(BaseModel):
     abstract: str
 
 
+class ColumnOptions(BaseModel):
+    """Options for column extraction"""
+    min: Optional[int] = None
+    max: Optional[int] = None
+    step: Optional[float] = None
+
+
 class ExtractColumnRequest(BaseModel):
     """Request to extract a custom column"""
     articles: List[TabelizerArticle]
     column_name: str
     column_description: str
-    column_type: str = "boolean"  # "boolean" or "text"
+    column_type: str = "boolean"  # "boolean", "text", "score"
+    column_options: Optional[ColumnOptions] = None
 
 
 class ExtractColumnResponse(BaseModel):
@@ -64,6 +72,7 @@ async def extract_column(
             column_name=request.column_name,
             column_description=request.column_description,
             column_type=request.column_type,
+            column_options=request.column_options.dict() if request.column_options else None,
             user_id=str(current_user.user_id)
         )
         

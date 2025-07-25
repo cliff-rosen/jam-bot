@@ -202,7 +202,10 @@ export function TabelizerTable({
                     >
                       {column.name}
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                        ({column.type === 'boolean' ? 'Y/N' : 'Text'})
+                        ({column.type === 'boolean' ? 'Y/N' : 
+                          column.type === 'score' ? 
+                            `Score ${column.options?.min || 1}-${column.options?.max || 10}` : 
+                            'Text'})
                       </span>
                       {renderSortIcon(column.id)}
                     </div>

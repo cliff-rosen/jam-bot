@@ -4,8 +4,13 @@ export interface TabelizerColumn {
   id: string;
   name: string;
   description: string;
-  type: 'boolean' | 'text';
+  type: 'boolean' | 'text' | 'score';
   data: Record<string, string>; // articleId -> value
+  options?: {
+    min?: number;
+    max?: number;
+    step?: number;
+  };
 }
 
 export interface TabelizerState {
@@ -23,7 +28,12 @@ export interface ExtractColumnRequest {
   }>;
   column_name: string;
   column_description: string;
-  column_type: 'boolean' | 'text';
+  column_type: 'boolean' | 'text' | 'score';
+  column_options?: {
+    min?: number;
+    max?: number;
+    step?: number;
+  };
 }
 
 export interface ExtractColumnResponse {
@@ -38,7 +48,12 @@ export interface ExtractMultipleColumnsRequest {
   }>;
   columns_config: Record<string, {
     description: string;
-    type: 'boolean' | 'text';
+    type: 'boolean' | 'text' | 'score';
+    options?: {
+      min?: number;
+      max?: number;
+      step?: number;
+    };
   }>;
 }
 
@@ -52,6 +67,11 @@ export interface TabelizerPreset {
   description: string;
   columns: Record<string, {
     description: string;
-    type: 'boolean' | 'text';
+    type: 'boolean' | 'text' | 'score';
+    options?: {
+      min?: number;
+      max?: number;
+      step?: number;
+    };
   }>;
 }

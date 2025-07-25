@@ -320,6 +320,7 @@ class ExtractionService:
         column_name: str,
         column_description: str,
         column_type: str = "boolean",
+        column_options: Optional[Dict[str, Any]] = None,
         user_id: str = None
     ) -> Dict[str, str]:
         """
@@ -358,7 +359,37 @@ Question: {column_description}
 
 Answer with only 'yes' or 'no' based on the article content.
 """
-        else:
+        elif column_type == "score":
+            # Get range from options or use defaults
+            min_val = column_options.get('min', 1) if column_options else 1
+            max_val = column_options.get('max', 10) if column_options else 10
+            step = column_options.get('step', 1) if column_options else 1
+            
+            result_schema = {
+                "type": "object",
+                "properties": {
+                    "answer": {
+                        "type": "number",
+                        "minimum": min_val,
+                        "maximum": max_val,
+                        "description": f"Numeric {column_type} from {min_val} to {max_val}"
+                    }
+                },
+                "required": ["answer"]
+            }
+            
+            extraction_instructions = f"""
+You are analyzing a research article to assign a numeric score.
+
+Article Title: {{title}}
+Abstract: {{abstract}}
+
+Task: {column_description}
+
+Provide a numeric score from {min_val} to {max_val} based on the article content.
+Only return the number, nothing else.
+"""
+        else:  # text
             result_schema = {
                 "type": "object", 
                 "properties": {
@@ -403,11 +434,24 @@ Provide a brief answer in 100 characters or less.
                 if extraction_result.extraction and 'answer' in extraction_result.extraction:
                     answer = extraction_result.extraction['answer']
                     
-                    # Ensure boolean answers are clean
+                    # Clean up answer based on type
                     if column_type == "boolean":
-                        answer = answer.lower().strip()
+                        answer = str(answer).lower().strip()
                         if answer not in ["yes", "no"]:
                             answer = "no"  # Default to no if unclear
+                    elif column_type == "score":
+                        # Ensure numeric answers are valid
+                        try:
+                            num_answer = float(answer)
+                            min_val = column_options.get('min', 1) if column_options else 1
+                            max_val = column_options.get('max', 10) if column_options else 10
+                            # Clamp to range
+                            num_answer = max(min_val, min(max_val, num_answer))
+                            answer = str(num_answer)
+                        except (ValueError, TypeError):
+                            # Default to middle of range if parsing fails
+                            default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
+                            answer = str(default_val)
                     else:
                         # Truncate text answers
                         answer = str(answer)[:100]
@@ -415,11 +459,23 @@ Provide a brief answer in 100 characters or less.
                     results[article['id']] = answer
                 else:
                     # Handle extraction failure
-                    results[article['id']] = "no" if column_type == "boolean" else "error"
+                    if column_type == "boolean":
+                        results[article['id']] = "no"
+                    elif column_type == "score":
+                        default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
+                        results[article['id']] = str(default_val)
+                    else:
+                        results[article['id']] = "error"
                     
             except Exception as e:
                 # On error, use default value
-                results[article['id']] = "no" if column_type == "boolean" else "error"
+                if column_type == "boolean":
+                    results[article['id']] = "no"
+                elif column_type == "score":
+                    default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
+                    results[article['id']] = str(default_val)
+                else:
+                    results[article['id']] = "error"
                 
         return results
     

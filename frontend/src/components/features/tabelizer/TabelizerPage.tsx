@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+
+import { tabelizerApi } from './api/tabelizerApi';
+import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
+
+import { TabelizerColumn } from './types';
+import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
+
 import { UnifiedSearchControls } from '@/components/features/workbench/search/UnifiedSearchControls';
 import { TabelizerTable } from './TabelizerTable';
 import { AddColumnModal } from './AddColumnModal';
 import { ArticleDetailModal } from './ArticleDetailModal';
-import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
-import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
-import { TabelizerColumn } from './types';
-import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
-import { tabelizerApi } from './api/tabelizerApi';
 
 export function TabelizerPage() {
   const [articles, setArticles] = useState<CanonicalResearchArticle[]>([]);
@@ -17,7 +20,7 @@ export function TabelizerPage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
-  
+
   // Search state for UnifiedSearchControls
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
     provider: 'pubmed',
@@ -29,7 +32,7 @@ export function TabelizerPage() {
   });
   const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
   const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
-  
+
   const { toast } = useToast();
 
   const handleSearch = async () => {
@@ -40,7 +43,7 @@ export function TabelizerPage() {
       const response = await unifiedSearchApi.search(limitedParams);
       setArticles(response.articles);
       setColumns([]); // Clear columns on new search
-      
+
       toast({
         title: 'Search Complete',
         description: `Found ${response.articles.length} articles`,
@@ -90,13 +93,13 @@ export function TabelizerPage() {
       // Convert multi-column response to individual columns
       const newColumns: TabelizerColumn[] = [];
       const updatedExtractedFeatures: Record<string, Record<string, string>> = {};
-      
+
       for (const [columnName, config] of Object.entries(columnsConfig)) {
         const columnData: Record<string, string> = {};
         for (const [articleId, articleResults] of Object.entries(response.results)) {
           const value = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
           columnData[articleId] = value;
-          
+
           // Track features for article updates
           if (!updatedExtractedFeatures[articleId]) {
             updatedExtractedFeatures[articleId] = {};
@@ -124,7 +127,7 @@ export function TabelizerPage() {
         }
       }));
       setArticles(updatedArticles);
-      
+
       toast({
         title: 'Extraction Complete',
         description: `Added ${newColumns.length} columns`,
@@ -187,7 +190,7 @@ export function TabelizerPage() {
         }
       }));
       setArticles(updatedArticles);
-      
+
       toast({
         title: 'Extraction Complete',
         description: `Added column "${name}"`,
@@ -207,7 +210,7 @@ export function TabelizerPage() {
   const handleExport = async () => {
     try {
       const csv = await tabelizerApi.exportCsv(articles, columns);
-      
+
       // Download CSV
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -218,7 +221,7 @@ export function TabelizerPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast({
         title: 'Export Complete',
         description: 'CSV file downloaded successfully.',

@@ -1,6 +1,6 @@
 """Article Chat Router - Stateless chat for article discussions"""
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
@@ -23,10 +23,10 @@ class ArticleContext(BaseModel):
     id: str
     title: str
     authors: list[str] = Field(default_factory=list)
-    abstract: str = ""
-    journal: str = ""
-    publication_year: int = None
-    doi: str = None
+    abstract: Optional[str] = None
+    journal: Optional[str] = None
+    publication_year: Optional[int] = None
+    doi: Optional[str] = None
     extracted_features: Dict[str, Any] = Field(default_factory=dict)
     source: str  # 'pubmed' or 'scholar'
 

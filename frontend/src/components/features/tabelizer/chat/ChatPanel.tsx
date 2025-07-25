@@ -7,7 +7,7 @@ import { ChatMessage as ChatMessageType } from './types';
 
 interface ChatPanelProps {
   article: CanonicalResearchArticle;
-  onSendMessage?: (message: string, article: CanonicalResearchArticle) => Promise<string>;
+  onSendMessage?: (message: string, article: CanonicalResearchArticle, conversationHistory: Array<{role: string; content: string}>) => Promise<string>;
 }
 
 export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
@@ -47,7 +47,15 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
       let assistantResponse: string;
       
       if (onSendMessage) {
-        assistantResponse = await onSendMessage(messageContent, article);
+        // Build conversation history from current messages (excluding the initial greeting)
+        const conversationHistory = messages
+          .slice(1) // Skip the initial greeting
+          .map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }));
+        
+        assistantResponse = await onSendMessage(messageContent, article, conversationHistory);
       } else {
         // Fallback simulation for development
         await new Promise(resolve => setTimeout(resolve, 1000));

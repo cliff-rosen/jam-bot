@@ -4,6 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 import { tabelizerApi } from './api/tabelizerApi';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
+import { articleChatApi } from '@/lib/api/articleChatApi';
 
 import { TabelizerColumn } from './types';
 import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
@@ -307,10 +308,9 @@ export function TabelizerPage() {
         <ArticleDetailModal
           article={selectedArticle}
           onClose={() => setSelectedArticle(null)}
-          onSendChatMessage={async (message, article) => {
-            // TODO: Implement actual chat API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return `I understand you're asking about "${message}". Based on the article "${article.title}", I can help analyze specific aspects. Could you be more specific about what you'd like to know about this research?`;
+          onSendChatMessage={async (message, article, conversationHistory) => {
+            // Use the stateless article chat API
+            return await articleChatApi.sendMessage(message, article, conversationHistory);
           }}
         />
       )}

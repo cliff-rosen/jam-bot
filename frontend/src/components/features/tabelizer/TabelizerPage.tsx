@@ -68,7 +68,7 @@ export function TabelizerPage() {
     });
   };
 
-  const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' }>) => {
+  const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => {
     if (articles.length === 0) {
       toast({
         title: 'No Articles',
@@ -113,6 +113,7 @@ export function TabelizerPage() {
           description: config.description,
           type: config.type,
           data: columnData,
+          options: config.options,
         });
       }
 
@@ -306,6 +307,11 @@ export function TabelizerPage() {
         <ArticleDetailModal
           article={selectedArticle}
           onClose={() => setSelectedArticle(null)}
+          onSendChatMessage={async (message, article) => {
+            // TODO: Implement actual chat API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return `I understand you're asking about "${message}". Based on the article "${article.title}", I can help analyze specific aspects. Could you be more specific about what you'd like to know about this research?`;
+          }}
         />
       )}
     </div>

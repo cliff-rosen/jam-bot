@@ -3,9 +3,10 @@
  * 
  * Provides stateless chat functionality for article discussions.
  * No persistence - conversation history is managed by the frontend.
+ * Uses the same streaming pattern as the main chat API.
  */
 
-import { api } from './index';
+import { makeStreamRequest } from './streamUtils';
 import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 
 export interface ArticleChatRequest {
@@ -27,33 +28,52 @@ export interface ArticleChatRequest {
   }>;
 }
 
-export interface ArticleChatResponse {
-  response: string;
-  metadata: {
-    article_id: string;
-    model: string;
-    token_usage?: {
-      prompt_tokens: number;
-      completion_tokens: number;
-      total_tokens: number;
-    };
+export interface ArticleChatStreamResponse {
+  type: 'metadata' | 'content' | 'done' | 'error';
+  data: {
+    content?: string;
+    error?: string;
+    article_id?: string;
+    model?: string;
   };
+}
+
+/**
+ * Parse a Server-Sent Event line into an ArticleChatStreamResponse object
+ */
+export function parseArticleChatStreamLine(line: string): ArticleChatStreamResponse | null {
+  if (!line.startsWith('data: ')) {
+    return null;
+  }
+
+  const jsonStr = line.slice(6);
+
+  try {
+    const data = JSON.parse(jsonStr);
+    
+    // Validate the expected format
+    if (data.type && data.data && typeof data.type === 'string') {
+      return data as ArticleChatStreamResponse;
+    }
+    
+    return null;
+  } catch (e) {
+    console.warn('Failed to parse article chat stream line:', line, e);
+    return null;
+  }
 }
 
 class ArticleChatApi {
   /**
-   * Send a message about an article and get a streaming response
+   * Stream chat messages for article discussions using the same pattern as main chat
    */
-  async sendMessageStream(
+  async* streamMessage(
     message: string,
     article: CanonicalResearchArticle,
-    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
-    onChunk: (chunk: string) => void,
-    onComplete: () => void,
-    onError: (error: string) => void
-  ): Promise<void> {
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  ): AsyncGenerator<ArticleChatStreamResponse> {
     try {
-      const request: ArticleChatRequest = {
+      const chatRequest: ArticleChatRequest = {
         message,
         article_context: {
           id: article.id,
@@ -69,72 +89,61 @@ class ArticleChatApi {
         conversation_history: conversationHistory
       };
 
-      // Get auth token
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
+      const rawStream = makeStreamRequest('/api/article-chat/chat/stream', chatRequest, 'POST');
 
-      const response = await fetch('/api/article-chat/chat/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(request)
-      });
+      for await (const update of rawStream) {
+        const lines = update.data.split('\n');
+        for (const line of lines) {
+          if (!line.trim()) continue;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Failed to get response reader');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) break;
-          
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          
-          // Keep the last incomplete line in the buffer
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                
-                switch (data.type) {
-                  case 'metadata':
-                    // Could use metadata for UI state if needed
-                    break;
-                  case 'content':
-                    onChunk(data.data.content);
-                    break;
-                  case 'done':
-                    onComplete();
-                    return;
-                  case 'error':
-                    onError(data.data.error);
-                    return;
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE data:', line, parseError);
-              }
-            }
+          const response = parseArticleChatStreamLine(line);
+          if (response) {
+            yield response;
           }
         }
-      } finally {
-        reader.releaseLock();
+      }
+    } catch (error) {
+      // Yield error response if stream fails (same pattern as main chat)
+      yield {
+        type: 'error',
+        data: {
+          error: `Stream error: ${error instanceof Error ? error.message : String(error)}`
+        }
+      } as ArticleChatStreamResponse;
+    }
+  }
+
+  /**
+   * Callback-based streaming method for easier integration with existing components
+   */
+  async sendMessageStream(
+    message: string,
+    article: CanonicalResearchArticle,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    try {
+      const stream = this.streamMessage(message, article, conversationHistory);
+      
+      for await (const response of stream) {
+        switch (response.type) {
+          case 'metadata':
+            // Could use metadata for UI state if needed
+            break;
+          case 'content':
+            if (response.data.content) {
+              onChunk(response.data.content);
+            }
+            break;
+          case 'done':
+            onComplete();
+            return;
+          case 'error':
+            onError(response.data.error || 'Unknown error occurred');
+            return;
+        }
       }
     } catch (error) {
       console.error('Article chat stream error:', error);

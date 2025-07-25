@@ -260,25 +260,25 @@ export function ArticleDetailModal({ article, onClose }: ArticleDetailModalProps
               </div>
 
               {/* Citations */}
-              {article.cited_by_count !== undefined && (
+              {article.citation_count !== undefined && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Citations</h3>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Cited by {article.cited_by_count} publications
+                    Cited by {article.citation_count} publications
                   </div>
                 </div>
               )}
 
               {/* Additional metadata if available */}
-              {article.metadata && (
+              {article.source_metadata && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Information</h3>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {article.metadata.features && (
+                    {article.extracted_features && (
                       <div className="mt-2">
                         <span className="font-medium">Extracted Features: </span>
                         <span className="text-xs">
-                          {Object.keys(article.metadata.features).join(', ')}
+                          {Object.keys(article.extracted_features).join(', ')}
                         </span>
                       </div>
                     )}

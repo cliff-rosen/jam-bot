@@ -40,6 +40,10 @@ class ArticleChatRequest(BaseModel):
         default_factory=list,
         description="Previous messages in format [{'role': 'user'|'assistant', 'content': '...'}]"
     )
+    company_context: Optional[str] = Field(
+        default="You are a research agent for Palatin Technologies, a company that is focused on developing novel therapies targeting the melanocortin and natriuretic pathways. Your primary purpose is to alert company personnel to new scientific and medical literature that highlights risks and opportunities relevant to their business. The literature searches are focused on topics such as the safety and efficacy of bremelanotide (Palatin's FDA approved drug for female sexual dysfunction), other molecules that target the melanocortin pathway, as well as molecules that target the natriuretic pathway, especially those that work through the natriuretic peptide C pathway. Palatin is highly interested in the role of the melanocortin and natriuretic pathways as they may related to fibrosis, inflammation, ulcerative colitis, obesity, binge eating, and sexual dysfunction. Overall, this newsletter plays an important role in keeping the Palatin team up-to-date on the latest scientific and medical research, enabling them to make informed decisions about their research and development programs.",
+        description="Company context for the research agent"
+    )
 
 class ArticleChatResponse(BaseModel):
     """Response from article chat"""
@@ -57,9 +61,10 @@ async def chat_about_article_stream(
     """
     async def generate_response():
         try:
-            # Build the system prompt
-            system_prompt = f"""You are an expert research analyst specializing in academic literature analysis. 
-You are discussing the following research article:
+            # Build the system prompt with company context
+            system_prompt = f"""{request.company_context}
+
+You are analyzing the following research article:
 
 Title: {request.article_context.title}
 Authors: {', '.join(request.article_context.authors)}
@@ -74,13 +79,15 @@ Extracted Features:
 {format_features(request.article_context.extracted_features)}
 
 Your role is to:
-1. Answer questions about this specific article accurately
-2. Explain complex concepts in accessible language
-3. Reference specific parts of the article when relevant
-4. Be honest about what information is available vs. not available
-5. Suggest follow-up questions or areas for deeper exploration
+1. Analyze this article through the lens of Palatin's business interests and research focus
+2. Identify potential risks, opportunities, or competitive intelligence relevant to Palatin
+3. Highlight connections to melanocortin and natriuretic pathways when relevant
+4. Assess relevance to Palatin's therapeutic areas (fibrosis, inflammation, ulcerative colitis, obesity, binge eating, sexual dysfunction)
+5. Provide strategic insights about how this research might impact Palatin's programs
+6. Answer questions about the methodology, findings, and implications
+7. Explain complex concepts in accessible language for company personnel
 
-Keep your responses focused on this article and its content."""
+Focus on providing business-relevant analysis while maintaining scientific accuracy."""
 
             # Build messages for OpenAI
             messages = [{"role": "system", "content": system_prompt}]

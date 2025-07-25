@@ -26,6 +26,7 @@ export interface ArticleChatRequest {
     role: 'user' | 'assistant';
     content: string;
   }>;
+  company_context?: string;
 }
 
 export interface ArticleChatStreamResponse {
@@ -86,7 +87,9 @@ class ArticleChatApi {
           extracted_features: article.extracted_features || {},
           source: article.source
         },
-        conversation_history: conversationHistory
+        conversation_history: conversationHistory,
+        // Use default Palatin context - could be made configurable later
+        company_context: undefined // Let backend use default
       };
 
       const rawStream = makeStreamRequest('/api/article-chat/chat/stream', chatRequest, 'POST');

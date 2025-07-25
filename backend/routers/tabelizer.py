@@ -53,7 +53,7 @@ async def extract_column(
             column_name=request.column_name,
             column_description=request.column_description,
             column_type=request.column_type,
-            user_id=str(current_user.id)
+            user_id=str(current_user.user_id)
         )
         
         return ExtractColumnResponse(results=results)

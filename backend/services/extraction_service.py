@@ -323,7 +323,7 @@ class ExtractionService:
         user_id: str = None
     ) -> Dict[str, str]:
         """
-        Extract custom column data for Tabelizer
+        Extract custom column data for Tabelizer using the extraction service pattern
         
         Args:
             articles: List of articles with id, title, abstract
@@ -335,57 +335,88 @@ class ExtractionService:
         Returns:
             Dictionary mapping article ID to extracted value
         """
-        from ..services.llm.base import get_llm_service
-        
-        llm_service = get_llm_service()
-        results = {}
-        
-        for article in articles:
-            # Build prompt based on column type
-            if column_type == "boolean":
-                prompt = f"""
-Article Title: {article['title']}
-Abstract: {article['abstract']}
+        # Define schema based on column type
+        if column_type == "boolean":
+            result_schema = {
+                "type": "object",
+                "properties": {
+                    "answer": {
+                        "type": "string",
+                        "enum": ["yes", "no"],
+                        "description": "Answer to the question"
+                    }
+                },
+                "required": ["answer"]
+            }
+            extraction_instructions = f"""
+You are analyzing a research article to answer a specific question.
+
+Article Title: {{title}}
+Abstract: {{abstract}}
 
 Question: {column_description}
 
-Answer with only 'yes' or 'no'.
+Answer with only 'yes' or 'no' based on the article content.
 """
-            else:
-                prompt = f"""
-Article Title: {article['title']}
-Abstract: {article['abstract']}
+        else:
+            result_schema = {
+                "type": "object", 
+                "properties": {
+                    "answer": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "Brief extracted text answer"
+                    }
+                },
+                "required": ["answer"]
+            }
+            extraction_instructions = f"""
+You are analyzing a research article to extract specific information.
+
+Article Title: {{title}}
+Abstract: {{abstract}}
 
 Task: {column_description}
 
 Provide a brief answer in 100 characters or less.
 """
-            
+        
+        # Use the existing extraction service infrastructure
+        results = {}
+        for article in articles:
             try:
-                # Use simple generation for MVP
-                response = await llm_service.generate(
-                    prompt=prompt,
-                    temperature=0.1,  # Low temperature for consistency
-                    max_tokens=50
+                # Format the instructions with article data
+                formatted_instructions = extraction_instructions.format(
+                    title=article.get('title', ''),
+                    abstract=article.get('abstract', '')
                 )
                 
-                # Clean up response
-                answer = response.strip().lower()
+                # Use the single item extraction method
+                extraction_result = await self.extract_single_item(
+                    item=article,
+                    result_schema=result_schema,
+                    extraction_instructions=formatted_instructions,
+                    schema_key=f"tabelizer_{column_type}"
+                )
                 
-                # For boolean, ensure it's yes/no
-                if column_type == "boolean":
-                    if "yes" in answer:
-                        answer = "yes"
-                    elif "no" in answer:
-                        answer = "no"
+                # Extract the answer
+                if extraction_result.extraction and 'answer' in extraction_result.extraction:
+                    answer = extraction_result.extraction['answer']
+                    
+                    # Ensure boolean answers are clean
+                    if column_type == "boolean":
+                        answer = answer.lower().strip()
+                        if answer not in ["yes", "no"]:
+                            answer = "no"  # Default to no if unclear
                     else:
-                        answer = "no"  # Default to no if unclear
+                        # Truncate text answers
+                        answer = str(answer)[:100]
+                    
+                    results[article['id']] = answer
                 else:
-                    # For text, truncate to 100 chars
-                    answer = answer[:100]
-                
-                results[article['id']] = answer
-                
+                    # Handle extraction failure
+                    results[article['id']] = "no" if column_type == "boolean" else "error"
+                    
             except Exception as e:
                 # On error, use default value
                 results[article['id']] = "no" if column_type == "boolean" else "error"

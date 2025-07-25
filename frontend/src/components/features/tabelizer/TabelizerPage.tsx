@@ -26,7 +26,7 @@ export function TabelizerPage() {
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
     provider: 'pubmed',
     query: '',
-    num_results: 50,
+    num_results: 5,
     sort_by: 'relevance',
     include_citations: false,
     include_pdf_links: false,
@@ -310,7 +310,14 @@ export function TabelizerPage() {
           onClose={() => setSelectedArticle(null)}
           onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
             // Use the streaming article chat API
-            await articleChatApi.sendMessageStream(message, article, conversationHistory, onChunk, onComplete, onError);
+            await articleChatApi.sendMessageStream(
+              message, 
+              article, 
+              conversationHistory as Array<{ role: 'user' | 'assistant'; content: string }>, 
+              onChunk, 
+              onComplete, 
+              onError
+            );
           }}
         />
       )}

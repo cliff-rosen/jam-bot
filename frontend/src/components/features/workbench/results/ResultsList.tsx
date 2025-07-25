@@ -30,7 +30,7 @@ export default function ResultsList({ articles, extracting, onExtract }: Results
                 </Button>
             </div>
             {articles.map((article, index) => (
-                <ArticleCard key={index} article={article} index={index} />
+                <ArticleCard key={index} article={article} />
             ))}
         </div>
     );

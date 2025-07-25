@@ -67,7 +67,7 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
         const conversationHistory = messages
           .slice(1) // Skip the initial greeting
           .map(msg => ({
-            role: msg.role,
+            role: msg.role as 'user' | 'assistant',
             content: msg.content
           }));
         

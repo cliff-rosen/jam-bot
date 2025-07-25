@@ -4,10 +4,9 @@ import ExtractedFeatures from './ExtractedFeatures';
 
 interface ArticleCardProps {
     article: CanonicalScholarArticle;
-    index: number;
 }
 
-export default function ArticleCard({ article, index }: ArticleCardProps) {
+export default function ArticleCard({ article }: ArticleCardProps) {
     return (
         <Card className="p-4 dark:bg-gray-800">
             <div className="flex justify-between items-start mb-2">

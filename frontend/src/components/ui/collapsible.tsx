@@ -32,8 +32,7 @@ const Collapsible: React.FC<CollapsibleProps> = ({
         if (React.isValidElement(child)) {
           if (child.type === CollapsibleTrigger) {
             return React.cloneElement(child as React.ReactElement<CollapsibleTriggerProps>, {
-              onClick: handleToggle,
-              "data-state": isOpen ? "open" : "closed"
+              onClick: handleToggle
             });
           }
           if (child.type === CollapsibleContent) {

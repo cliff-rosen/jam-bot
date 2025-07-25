@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { googleScholarApi } from '@/lib/api/googleScholarApi';
 import { extractApi } from '@/lib/api/extractApi';
-import { CanonicalScholarArticle } from '@/types/canonical_types';
 import { useToast } from '@/components/ui/use-toast';
 import WorkbenchHeader from './WorkbenchHeader';
 import SearchControls from './search/SearchControls';
 import SearchFilters from './search/SearchFilters';
 import MetadataDisplay from './results/MetadataDisplay';
 import ResultsList from './results/ResultsList';
-import { WorkbenchState, WorkbenchFilters, SortOption } from './search/types';
+import { WorkbenchState } from './search/types';
 import { DEFAULT_FILTERS } from './utils/constants';
 import { filterArticles, sortArticles } from './utils/filterUtils';
 

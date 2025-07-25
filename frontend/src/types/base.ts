@@ -154,6 +154,24 @@ export function getCanonicalTypeSchema(type: CustomType): SchemaType {
                 statistics: { type: 'object', description: 'Processing statistics', is_array: false },
                 metadata: { type: 'object', description: 'Additional recap metadata', is_array: false }
             }
+        },
+        scholar_article: {
+            type: 'scholar_article',
+            description: 'Google Scholar article object',
+            is_array: false,
+            fields: {
+                title: { type: 'string', description: 'Article title', is_array: false },
+                authors: { type: 'string', description: 'Article authors', is_array: true },
+                link: { type: 'string', description: 'Link to article', is_array: false },
+                snippet: { type: 'string', description: 'Article snippet/summary', is_array: false },
+                publication_info: { type: 'string', description: 'Publication information', is_array: false },
+                cited_by_count: { type: 'number', description: 'Number of citations', is_array: false },
+                related_pages_link: { type: 'string', description: 'Link to related articles', is_array: false },
+                versions_link: { type: 'string', description: 'Link to article versions', is_array: false },
+                pdf_link: { type: 'string', description: 'Direct PDF link if available', is_array: false },
+                year: { type: 'number', description: 'Publication year', is_array: false },
+                metadata: { type: 'object', description: 'Additional article metadata', is_array: false }
+            }
         }
     };
 

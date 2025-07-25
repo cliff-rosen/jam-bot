@@ -6,7 +6,8 @@
       "Bash(python:*)",
       "Bash(cp:*)",
       "Bash(node:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }

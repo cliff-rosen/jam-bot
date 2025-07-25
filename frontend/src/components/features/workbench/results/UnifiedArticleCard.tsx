@@ -5,7 +5,6 @@
  * Adapts display based on the source and available fields.
  */
 
-import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,6 @@ import ExtractedFeatures from './ExtractedFeatures';
 
 interface UnifiedArticleCardProps {
   article: CanonicalResearchArticle;
-  index: number;
   showExtractedFeatures?: boolean;
 }
 
@@ -49,7 +47,6 @@ const SOURCE_CONFIG = {
 
 export function UnifiedArticleCard({ 
   article, 
-  index, 
   showExtractedFeatures = true 
 }: UnifiedArticleCardProps) {
   const sourceConfig = SOURCE_CONFIG[article.source];
@@ -344,7 +341,7 @@ export function UnifiedArticleCard({
         {/* Extracted features */}
         {showExtractedFeatures && hasExtractedFeatures && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <ExtractedFeatures features={article.extracted_features} />
+            <ExtractedFeatures features={article.extracted_features!} />
           </div>
         )}
       </CardContent>

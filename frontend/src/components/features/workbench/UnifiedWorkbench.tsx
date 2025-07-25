@@ -5,12 +5,12 @@
  * (PubMed, Google Scholar) with a unified interface and consistent results display.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 import {
   UnifiedSearchParams,
@@ -363,11 +363,10 @@ export function UnifiedWorkbench() {
             </div>
 
             <div className="space-y-4">
-              {filteredArticles.map((article, index) => (
+              {filteredArticles.map((article) => (
                 <UnifiedArticleCard
                   key={article.id}
                   article={article}
-                  index={index + 1}
                   showExtractedFeatures={true}
                 />
               ))}

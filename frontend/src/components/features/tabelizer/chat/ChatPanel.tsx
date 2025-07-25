@@ -163,20 +163,20 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleQuickAction("What is the main research question?")}
+              onClick={() => handleQuickAction("How is this research relevant to Palatin's interests and business focus?")}
               className="text-xs h-7"
               disabled={isLoading}
             >
-              Research Question
+              Palatin Relevance
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleQuickAction("What methodology was used?")}
+              onClick={() => handleQuickAction("Can you explain this article in simple, layman's terms that anyone can understand?")}
               className="text-xs h-7"
               disabled={isLoading}
             >
-              Methodology
+              Simple Explanation
             </Button>
             <Button
               variant="outline"
@@ -190,11 +190,11 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleQuickAction("What are the limitations?")}
+              onClick={() => handleQuickAction("What competitive threats or opportunities does this present?")}
               className="text-xs h-7"
               disabled={isLoading}
             >
-              Limitations
+              Business Impact
             </Button>
           </div>
         </div>

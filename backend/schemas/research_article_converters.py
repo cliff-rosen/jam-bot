@@ -32,8 +32,8 @@ def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArt
     """
     # Construct publication date from year/month/day if available
     publication_date = None
-    if hasattr(article, 'year') and article.year:
-        publication_date = article.year
+    if hasattr(article, 'year') and article.year and article.year.strip():
+        publication_date = article.year.strip()
         # Add month/day if available (not implemented in current Article class)
     
     # Convert authors string to list
@@ -78,9 +78,12 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     """
     # Extract publication year from date if available
     publication_year = None
-    if pubmed_article.publication_date:
+    if pubmed_article.publication_date and pubmed_article.publication_date.strip():
         try:
-            publication_year = int(pubmed_article.publication_date.split('-')[0])
+            # Handle both full dates (2023-01-01) and just years (2023)
+            year_str = pubmed_article.publication_date.split('-')[0].strip()
+            if year_str:
+                publication_year = int(year_str)
         except (ValueError, IndexError):
             pass
     

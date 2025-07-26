@@ -52,7 +52,7 @@ export function UnifiedSearchControls({
 
   const getMaxResults = () => {
     if (searchMode === 'single') {
-      return searchParams.provider === 'pubmed' ? 100 : 20;
+      return searchParams.provider === 'pubmed' ? 100 : 100;
     }
     return 20; // Conservative limit for batch searches
   };
@@ -61,7 +61,7 @@ export function UnifiedSearchControls({
     if (searchMode !== 'single') return null;
 
     const provider = searchParams.provider;
-    
+
     if (provider === 'pubmed') {
       return (
         <div className="grid grid-cols-2 gap-3">
@@ -165,7 +165,7 @@ export function UnifiedSearchControls({
                 disabled={isSearching}
               />
             </div>
-            
+
             <div className="flex gap-2">
               <Button
                 className="px-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium"
@@ -175,7 +175,7 @@ export function UnifiedSearchControls({
                 <Search className="w-4 h-4 mr-2" />
                 {isSearching ? 'Searching...' : 'Search'}
               </Button>
-              
+
               {searchMode === 'multi' && selectedProviders.length > 1 && onBatchSearch && (
                 <Button
                   variant="outline"
@@ -276,7 +276,7 @@ export function UnifiedSearchControls({
               <div className="mt-4 pt-4 border-t space-y-4">
                 {/* Provider-specific options */}
                 {renderProviderSpecificOptions()}
-                
+
                 {/* Additional options */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center space-x-2">

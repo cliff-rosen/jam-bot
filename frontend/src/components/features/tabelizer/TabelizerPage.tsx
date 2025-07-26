@@ -78,6 +78,28 @@ export function TabelizerPage() {
     });
   };
 
+  const handleDeleteArticle = (articleId: string) => {
+    // Remove the article from the local articles list
+    const updatedArticles = articles.filter(article => article.id !== articleId);
+    setArticles(updatedArticles);
+    
+    // Also remove any extracted column data for this article
+    const updatedColumns = columns.map(column => ({
+      ...column,
+      data: Object.fromEntries(
+        Object.entries(column.data).filter(([id]) => id !== articleId)
+      )
+    }));
+    setColumns(updatedColumns);
+    
+    toast({
+      title: 'Article Removed',
+      description: currentGroup 
+        ? 'Article removed locally. Save to update the group permanently.'
+        : 'Article has been removed from the results.',
+    });
+  };
+
   const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => {
     if (articles.length === 0) {
       toast({
@@ -421,6 +443,7 @@ export function TabelizerPage() {
             columns={columns}
             onAddColumn={() => setShowAddModal(true)}
             onDeleteColumn={handleDeleteColumn}
+            onDeleteArticle={handleDeleteArticle}
             onExport={handleExport}
             isExtracting={isExtracting}
             onViewArticle={setSelectedArticle}

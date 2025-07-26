@@ -3,13 +3,14 @@ import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { TabelizerColumn } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2 } from 'lucide-react';
 
 interface TabelizerTableProps {
   articles: CanonicalResearchArticle[];
   columns: TabelizerColumn[];
   onAddColumn: () => void;
   onDeleteColumn: (columnId: string) => void;
+  onDeleteArticle: (articleId: string) => void;
   onExport: () => void;
   isExtracting: boolean;
   onViewArticle: (article: CanonicalResearchArticle) => void;
@@ -23,6 +24,7 @@ export function TabelizerTable({
   columns,
   onAddColumn,
   onDeleteColumn,
+  onDeleteArticle,
   onExport,
   isExtracting,
   onViewArticle,
@@ -191,7 +193,7 @@ export function TabelizerTable({
             <col className="w-16" /> {/* Year */}
             <col className="w-20" /> {/* Source */}
             <col className="w-80" /> {/* Abstract */}
-            <col className="w-24" /> {/* Actions */}
+            <col className="w-32" /> {/* Actions */}
             {/* Custom columns get remaining space */}
             {columns.map(() => (
               <col key={Math.random()} className="w-32" />
@@ -362,6 +364,15 @@ export function TabelizerTable({
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDeleteArticle(article.id)}
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      title="Remove article"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </td>
                 

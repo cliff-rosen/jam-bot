@@ -65,7 +65,7 @@ class GoogleScholarService:
         if not query:
             raise ValueError("Query is required")
             
-        num_results = max(1, min(20, num_results))  # Clamp to 1-20
+        num_results = max(1, min(100, num_results))  # Clamp to 1-100
         
         # Build API parameters
         params = {

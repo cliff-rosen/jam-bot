@@ -2,6 +2,8 @@ import requests
 import xml.etree.ElementTree as ET
 import urllib.parse
 import logging
+import time
+import os
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -211,12 +213,56 @@ def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
         'retmax': min(max_results, int(RETMAX)),
         'retmode': 'json'
     }
+    
+    headers = {
+        'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
+    }
+    
+    # Add NCBI API key if available (increases rate limit from 3 to 10 requests/second)
+    ncbi_api_key = os.getenv('NCBI_API_KEY')
+    if ncbi_api_key:
+        params['api_key'] = ncbi_api_key
+        logger.info("Using NCBI API key for increased rate limits")
+    
     logger.info(f'Retrieving article IDs for query: {search_term}')
     logger.debug(f'Parameters: {params}')
     
+    # Retry logic with exponential backoff
+    max_retries = 3
+    retry_delay = 1  # Start with 1 second delay
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params, headers=headers, timeout=30)
+            break  # Success, exit retry loop
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error(f"Request failed after {max_retries} attempts: {e}")
+                raise
+    
     try:
-        response = requests.get(url, params)
         response.raise_for_status()
+        
+        # Log the response headers and first part of content for debugging
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {response.headers}")
+        
+        # Check if we got JSON response
+        content_type = response.headers.get('content-type', '')
+        if 'application/json' not in content_type:
+            logger.error(f"Expected JSON but got content-type: {content_type}")
+            logger.error(f"Response text (first 500 chars): {response.text[:500] if response.text else 'Empty response'}")
+            raise Exception(f"PubMed API returned non-JSON response. Content-Type: {content_type}")
+        
+        # Check if response body is empty
+        if not response.text:
+            logger.error("PubMed API returned empty response body")
+            raise Exception("PubMed API returned empty response")
+        
         content = response.json()
         
         if 'esearchresult' not in content:
@@ -258,12 +304,52 @@ def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: s
         'retmax': RETMAX,
         'retmode': 'json'
     }
+    
+    headers = {
+        'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
+    }
+    
+    # Add NCBI API key if available
+    ncbi_api_key = os.getenv('NCBI_API_KEY')
+    if ncbi_api_key:
+        params['api_key'] = ncbi_api_key
+        logger.info("Using NCBI API key for increased rate limits")
+    
     logger.info('Retrieving article IDs by date range')
     logger.debug(f'Parameters: {params}')
     
+    # Retry logic with exponential backoff
+    max_retries = 3
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params, headers=headers, timeout=30)
+            break
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                logger.error(f"Request failed after {max_retries} attempts: {e}")
+                raise
+    
     try:
-        response = requests.get(url, params)
         response.raise_for_status()
+        
+        # Check if we got JSON response
+        content_type = response.headers.get('content-type', '')
+        if 'application/json' not in content_type:
+            logger.error(f"Expected JSON but got content-type: {content_type}")
+            logger.error(f"Response text (first 500 chars): {response.text[:500] if response.text else 'Empty response'}")
+            raise Exception(f"PubMed API returned non-JSON response. Content-Type: {content_type}")
+        
+        # Check if response body is empty
+        if not response.text:
+            logger.error("PubMed API returned empty response body")
+            raise Exception("PubMed API returned empty response")
+        
         content = response.json()
         
         if 'esearchresult' not in content:

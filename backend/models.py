@@ -103,6 +103,7 @@ class User(Base):
     chats = relationship("Chat", back_populates="user", cascade="all, delete-orphan")
 
     hops = relationship("Hop", cascade="all, delete-orphan")
+    article_groups = relationship("ArticleGroup", back_populates="user", cascade="all, delete-orphan")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -433,4 +434,74 @@ class ChatMessage(Base):
         Index('idx_chat_messages_sequence', 'chat_id', 'sequence_order'),
         Index('idx_chat_messages_role', 'role'),
         Index('idx_chat_messages_created_at', 'created_at'),
+    )
+
+
+class ArticleGroup(Base):
+    """Stores saved Tabelizer search results and custom columns"""
+    __tablename__ = "article_group"
+    
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    
+    # Foreign keys
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    
+    # Group metadata
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # Search context
+    search_query = Column(Text, nullable=True)
+    search_provider = Column(String(50), nullable=True)
+    search_params = Column(JSON, nullable=True)
+    
+    # Column definitions (stored as JSON array)
+    columns = Column(JSON, nullable=False, default=list)
+    
+    # Statistics
+    article_count = Column(Integer, nullable=False, default=0)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="article_groups")
+    articles = relationship("ArticleGroupDetail", back_populates="group", cascade="all, delete-orphan")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_article_group_user_id', 'user_id'),
+        Index('idx_article_group_created_at', 'created_at'),
+        Index('idx_article_group_name', 'user_id', 'name'),
+    )
+
+
+class ArticleGroupDetail(Base):
+    """Stores individual articles within an article group"""
+    __tablename__ = "article_group_detail"
+    
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    
+    # Foreign key
+    article_group_id = Column(String(36), ForeignKey("article_group.id", ondelete="CASCADE"), nullable=False)
+    
+    # Article data (full CanonicalResearchArticle JSON including extracted_features)
+    article_data = Column(JSON, nullable=False)
+    
+    # Display order
+    position = Column(Integer, nullable=False, default=0)
+    
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    group = relationship("ArticleGroup", back_populates="articles")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_article_group_detail_group_id', 'article_group_id'),
+        Index('idx_article_group_detail_position', 'article_group_id', 'position'),
     )

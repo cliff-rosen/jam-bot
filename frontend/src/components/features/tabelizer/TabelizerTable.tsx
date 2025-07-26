@@ -3,7 +3,7 @@ import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { TabelizerColumn } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen } from 'lucide-react';
 
 interface TabelizerTableProps {
   articles: CanonicalResearchArticle[];
@@ -13,6 +13,9 @@ interface TabelizerTableProps {
   onExport: () => void;
   isExtracting: boolean;
   onViewArticle: (article: CanonicalResearchArticle) => void;
+  onSaveGroup: () => void;
+  onLoadGroup: () => void;
+  currentGroup?: { id: string; name: string } | null;
 }
 
 export function TabelizerTable({
@@ -23,6 +26,9 @@ export function TabelizerTable({
   onExport,
   isExtracting,
   onViewArticle,
+  onSaveGroup,
+  onLoadGroup,
+  currentGroup,
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -124,10 +130,35 @@ export function TabelizerTable({
     <div className="flex flex-col h-full">
       {/* Table Header Actions */}
       <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          {articles.length} articles · {columns.length} custom columns
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {currentGroup ? (
+              <Badge variant="outline" className="mr-2">{currentGroup.name}</Badge>
+            ) : (
+              <span className="text-gray-500 italic mr-2">Unsaved Session</span>
+            )}
+            {articles.length} articles · {columns.length} custom columns
+          </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={onLoadGroup}
+            variant="outline"
+            size="sm"
+          >
+            <FolderOpen className="w-4 h-4 mr-1" />
+            Load Group
+          </Button>
+          <Button
+            onClick={onSaveGroup}
+            variant="outline"
+            size="sm"
+            disabled={articles.length === 0}
+          >
+            <Save className="w-4 h-4 mr-1" />
+            Save Group
+          </Button>
+          <div className="border-l mx-2" />
           <Button
             onClick={onAddColumn}
             disabled={isExtracting}

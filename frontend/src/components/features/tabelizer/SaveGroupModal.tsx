@@ -101,10 +101,10 @@ export function SaveGroupModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[525px] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <DialogHeader>
-          <DialogTitle>Save Article Group</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-gray-900 dark:text-gray-100">Save Article Group</DialogTitle>
+          <DialogDescription className="text-gray-600 dark:text-gray-400">
             Save {articleCount} articles and {columnCount} custom columns
           </DialogDescription>
         </DialogHeader>
@@ -113,28 +113,29 @@ export function SaveGroupModal({
           <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'new' | 'existing')}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="new" id="new" />
-              <Label htmlFor="new">Create new group</Label>
+              <Label htmlFor="new" className="text-gray-900 dark:text-gray-100">Create new group</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="existing" id="existing" disabled={groups.length === 0} />
-              <Label htmlFor="existing">Save to existing group</Label>
+              <Label htmlFor="existing" className="text-gray-900 dark:text-gray-100">Save to existing group</Label>
             </div>
           </RadioGroup>
 
           {mode === 'new' ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Group Name *</Label>
+                <Label htmlFor="name" className="text-gray-900 dark:text-gray-100">Group Name *</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g., Melanocortin Research Q1 2024"
                   disabled={isSaving}
+                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
+                <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">Description (optional)</Label>
                 <Textarea
                   id="description"
                   value={description}
@@ -142,6 +143,7 @@ export function SaveGroupModal({
                   placeholder="Describe the purpose or contents of this group..."
                   rows={3}
                   disabled={isSaving}
+                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 />
               </div>
             </div>
@@ -160,7 +162,7 @@ export function SaveGroupModal({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="group">Select Group</Label>
+                  <Label htmlFor="group" className="text-gray-900 dark:text-gray-100">Select Group</Label>
                   <select
                     id="group"
                     value={selectedGroupId}

@@ -132,10 +132,10 @@ export function LoadGroupModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <DialogHeader>
-          <DialogTitle>Load Article Group</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-gray-900 dark:text-gray-100">Load Article Group</DialogTitle>
+          <DialogDescription className="text-gray-600 dark:text-gray-400">
             Select a saved group to load articles and columns
           </DialogDescription>
         </DialogHeader>
@@ -148,7 +148,7 @@ export function LoadGroupModal({
               placeholder="Search groups..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             />
           </div>
 

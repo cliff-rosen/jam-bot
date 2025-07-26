@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, FolderOpen, Save } from 'lucide-react';
+import { Loader2, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -373,80 +373,48 @@ export function TabelizerPage() {
               Create custom research tables with AI-powered data extraction
             </p>
           </div>
-          {currentGroup && (
-            <Badge variant="outline" className="text-sm">
-              <Database className="w-3 h-3 mr-1" />
-              {currentGroup.name}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            {currentGroup && (
+              <Badge variant="outline" className="text-sm">
+                <FolderOpen className="w-3 h-3 mr-1" />
+                {currentGroup.name}
+              </Badge>
+            )}
+            <Button
+              onClick={() => setShowLoadModal(true)}
+              variant="outline"
+              size="sm"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Load Group
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      {/* Search Section */}
+      <div className="border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+        <UnifiedSearchControls
+          searchParams={searchParams}
+          selectedProviders={selectedProviders}
+          searchMode={searchMode}
+          isSearching={isSearching}
+          onSearchParamsChange={setSearchParams}
+          onSelectedProvidersChange={setSelectedProviders}
+          onSearchModeChange={setSearchMode}
+          onSearch={handleSearch}
+        />
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
         {articles.length === 0 ? (
-          /* When no articles are loaded, show the two paths */
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'search' | 'groups')} className="flex-1 flex flex-col">
-            <div className="border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-              <TabsList className="w-full justify-start h-auto p-0 bg-transparent">
-                <TabsTrigger 
-                  value="search" 
-                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 py-4"
-                >
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Articles
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="groups"
-                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 py-4"
-                >
-                  <FolderOpen className="w-4 h-4 mr-2" />
-                  My Saved Groups
-                </TabsTrigger>
-              </TabsList>
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+            <div className="text-center">
+              <p className="text-lg mb-2">No articles yet</p>
+              <p className="text-sm">Search for articles above or load a saved group</p>
             </div>
-            
-            <TabsContent value="search" className="flex-1 mt-0">
-              <div className="p-6">
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Search for Articles</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Find research articles from PubMed and Google Scholar
-                  </p>
-                </div>
-                <UnifiedSearchControls
-                  searchParams={searchParams}
-                  selectedProviders={selectedProviders}
-                  searchMode={searchMode}
-                  isSearching={isSearching}
-                  onSearchParamsChange={setSearchParams}
-                  onSelectedProvidersChange={setSelectedProviders}
-                  onSearchModeChange={setSearchMode}
-                  onSearch={handleSearch}
-                />
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="groups" className="flex-1 mt-0 flex items-center justify-center">
-              <div className="text-center p-8">
-                <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Load a Saved Group
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-                  Continue working with previously saved article collections and their custom columns
-                </p>
-                <Button
-                  onClick={() => setShowLoadModal(true)}
-                  size="lg"
-                  className="gap-2"
-                >
-                  <FolderOpen className="w-5 h-5" />
-                  Browse Saved Groups
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
+          </div>
         ) : (
           <TabelizerTable
             articles={articles}

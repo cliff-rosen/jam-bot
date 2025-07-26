@@ -106,7 +106,9 @@ class GoogleScholarService:
         articles = self._parse_search_results(data)
         metadata = self._extract_search_metadata(data, query, search_time_ms)
         
-        logger.info(f"Found {len(articles)} articles from Google Scholar")
+        # Log snippet availability for debugging
+        articles_with_snippets = sum(1 for article in articles if article.snippet)
+        logger.info(f"Found {len(articles)} articles from Google Scholar, {articles_with_snippets} with snippets")
         
         return articles, metadata
     
@@ -127,6 +129,21 @@ class GoogleScholarService:
     
     def _parse_single_result(self, result: Dict[str, Any], position: int) -> CanonicalScholarArticle:
         """Parse a single search result into canonical format."""
+        # Extract snippet (used as abstract)
+        snippet = result.get("snippet", "")
+        
+        # Try alternative fields if no snippet
+        if not snippet:
+            # Some results might have abstract in different fields
+            snippet = result.get("abstract", "") or result.get("summary", "")
+            if snippet:
+                logger.info(f"Found abstract in alternative field for result {position}")
+        
+        if not snippet:
+            logger.warning(f"No snippet/abstract found for result {position}: {result.get('title', 'Unknown title')}")
+            # Log the full result to help debug what SerpAPI is returning
+            logger.debug(f"Full result structure: {list(result.keys())}")
+        
         # Extract authors
         authors = self._extract_authors(result)
         
@@ -154,7 +171,7 @@ class GoogleScholarService:
             link=result.get("link"),
             authors=authors,
             publication_info=pub_info_str,
-            snippet=result.get("snippet"),
+            snippet=snippet,
             cited_by_count=cited_by_count,
             cited_by_link=cited_by_link,
             related_pages_link=related_links.get("related_pages"),

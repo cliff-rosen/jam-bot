@@ -151,7 +151,7 @@ def scholar_to_research_article(scholar_article: CanonicalScholarArticle, positi
         source="scholar",
         title=scholar_article.title,
         authors=scholar_article.authors,
-        abstract=None,  # Scholar doesn't provide full abstracts
+        abstract=scholar_article.snippet,  # Use snippet as abstract since Scholar doesn't provide full abstracts
         snippet=scholar_article.snippet,
         journal=journal,
         publication_date=None,  # Scholar doesn't provide structured dates

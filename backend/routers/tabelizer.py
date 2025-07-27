@@ -290,7 +290,7 @@ async def get_article_group(
         search_query=group.search_query,
         search_provider=group.search_provider,
         search_params=group.search_params,
-        columns=group.columns,
+        columns=columns,  # Use the reconstructed columns with data, not metadata
         created_at=group.created_at,
         updated_at=group.updated_at,
         article_count=group.article_count,

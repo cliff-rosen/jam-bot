@@ -23,13 +23,18 @@ import { LoadGroupModal } from './LoadGroupModal';
 export function TabelizerPage() {
   const [articles, setArticles] = useState<CanonicalResearchArticle[]>([]);
   const [columns, setColumns] = useState<TabelizerColumn[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
+  const [currentGroup, setCurrentGroup] = useState<ArticleGroup | null>(null);
+
   const [isSearching, setIsSearching] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
-  const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
-  const [currentGroup, setCurrentGroup] = useState<ArticleGroup | null>(null);
+
+  // Track what type of data we're currently showing
+  const [dataSource, setDataSource] = useState<'search' | 'group'>('search');
 
   // Search state for UnifiedSearchControls
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
@@ -45,7 +50,7 @@ export function TabelizerPage() {
   const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
   const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
 
-  // Pagination state
+  // Single pagination state for the table view
   const [pagination, setPagination] = useState({
     currentPage: 1,
     pageSize: 20,
@@ -59,23 +64,25 @@ export function TabelizerPage() {
 
   const handleSearch = async (page = 1) => {
     setIsSearching(true);
+    setDataSource('search');
+
     try {
       // Use pagination parameters
-      const paginatedParams = { 
-        ...searchParams, 
+      const paginatedParams = {
+        ...searchParams,
         page,
         page_size: pagination.pageSize,
         num_results: pagination.pageSize,
         offset: (page - 1) * pagination.pageSize
       };
-      
+
       const response = await unifiedSearchApi.search(paginatedParams);
       setArticles(response.articles);
-      
+
       // Update pagination state
       const totalResults = response.metadata.total_results || 0;
       const totalPages = Math.ceil(totalResults / pagination.pageSize);
-      
+
       setPagination(prev => ({
         ...prev,
         currentPage: page,
@@ -84,7 +91,7 @@ export function TabelizerPage() {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
       }));
-      
+
       // Clear columns and group only on new search (page 1)
       if (page === 1) {
         setColumns([]);
@@ -108,7 +115,11 @@ export function TabelizerPage() {
   };
 
   const handlePageChange = (page: number) => {
-    handleSearch(page);
+    if (dataSource === 'search') {
+      handleSearch(page);
+    } else if (dataSource === 'group' && currentGroup) {
+      handleLoadGroup(currentGroup.id, page);
+    }
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
@@ -117,14 +128,14 @@ export function TabelizerPage() {
       pageSize: newPageSize,
       currentPage: 1 // Reset to first page when page size changes
     }));
-    
+
     setSearchParams(prev => ({
       ...prev,
       page_size: newPageSize,
       num_results: newPageSize,
       page: 1
     }));
-    
+
     // Trigger new search with updated page size
     if (searchParams.query) {
       handleSearch(1);
@@ -139,11 +150,10 @@ export function TabelizerPage() {
     });
   };
 
-  const handleDeleteArticle = (articleId: string) => {
-    // Remove the article from the local articles list
-    const updatedArticles = articles.filter(article => article.id !== articleId);
-    setArticles(updatedArticles);
-    
+  const handleDeleteArticle = async (articleId: string) => {
+    // Remove the article from the current page view
+    const updatedCurrentPageArticles = articles.filter(article => article.id !== articleId);
+
     // Also remove any extracted column data for this article
     const updatedColumns = columns.map(column => ({
       ...column,
@@ -152,10 +162,44 @@ export function TabelizerPage() {
       )
     }));
     setColumns(updatedColumns);
-    
+
+    if (dataSource === 'group' && currentGroup) {
+      // For groups: Update pagination and potentially navigate pages
+      const newTotalResults = pagination.totalResults - 1;
+      const newTotalPages = Math.ceil(newTotalResults / pagination.pageSize);
+
+      // If we deleted the last article on this page and it's not page 1, go to previous page
+      if (updatedCurrentPageArticles.length === 0 && pagination.currentPage > 1) {
+        const newPage = pagination.currentPage - 1;
+        setPagination(prev => ({
+          ...prev,
+          currentPage: newPage,
+          totalResults: newTotalResults,
+          totalPages: newTotalPages,
+          hasNextPage: newPage < newTotalPages,
+          hasPrevPage: newPage > 1
+        }));
+        // Reload the group at the new page
+        handleLoadGroup(currentGroup.id, newPage);
+      } else {
+        // Just update pagination state and current articles
+        setPagination(prev => ({
+          ...prev,
+          totalResults: newTotalResults,
+          totalPages: newTotalPages,
+          hasNextPage: prev.currentPage < newTotalPages,
+          hasPrevPage: prev.currentPage > 1
+        }));
+        setArticles(updatedCurrentPageArticles);
+      }
+    } else {
+      // For search results: Simple removal (no pagination update needed)
+      setArticles(updatedCurrentPageArticles);
+    }
+
     toast({
       title: 'Article Removed',
-      description: currentGroup 
+      description: currentGroup
         ? 'Article removed locally. Save to update the group permanently.'
         : 'Article has been removed from the results.',
     });
@@ -171,11 +215,20 @@ export function TabelizerPage() {
       return;
     }
 
+    // IMPORTANT: Column extraction should work on ALL articles, not just current page
+    // For groups, we need to get all articles from the group
+    let allArticles = articles;
+    if (dataSource === 'group' && currentGroup) {
+      // Get all group articles for extraction
+      const groupDetail = await articleGroupApi.getGroup(currentGroup.id);
+      allArticles = groupDetail.articles;
+    }
+
     setIsExtracting(true);
 
     try {
       const response = await tabelizerApi.extractMultipleColumns({
-        articles: articles.map(a => ({
+        articles: allArticles.map(a => ({
           id: a.id,
           title: a.title,
           abstract: a.abstract || '',
@@ -212,15 +265,27 @@ export function TabelizerPage() {
 
       setColumns([...columns, ...newColumns]);
 
-      // Update articles with extracted features
-      const updatedArticles = articles.map(article => ({
+      // Update ALL articles with extracted features (including those not on current page)
+      const updatedAllArticles = allArticles.map(article => ({
         ...article,
         extracted_features: {
           ...article.extracted_features,
           ...updatedExtractedFeatures[article.id]
         }
       }));
-      setArticles(updatedArticles);
+
+      // Update only the articles currently displayed on this page
+      const updatedCurrentPageArticles = articles.map(article => ({
+        ...article,
+        extracted_features: {
+          ...article.extracted_features,
+          ...updatedExtractedFeatures[article.id]
+        }
+      }));
+      setArticles(updatedCurrentPageArticles);
+
+      // For groups, we should save the updated articles back to the group
+      // This will be handled when the user saves the group
 
       toast({
         title: 'Extraction Complete',
@@ -248,12 +313,19 @@ export function TabelizerPage() {
       return;
     }
 
+    // Get all articles for extraction (not just current page)
+    let allArticles = articles;
+    if (dataSource === 'group' && currentGroup) {
+      const groupDetail = await articleGroupApi.getGroup(currentGroup.id);
+      allArticles = groupDetail.articles;
+    }
+
     setIsExtracting(true);
     setShowAddModal(false);
 
     try {
       const response = await tabelizerApi.extractColumn({
-        articles: articles.map(a => ({
+        articles: allArticles.map(a => ({
           id: a.id,
           title: a.title,
           abstract: a.abstract || '',
@@ -275,15 +347,15 @@ export function TabelizerPage() {
 
       setColumns([...columns, newColumn]);
 
-      // Update articles with extracted features
-      const updatedArticles = articles.map(article => ({
+      // Update only the articles currently displayed on this page
+      const updatedCurrentPageArticles = articles.map(article => ({
         ...article,
         extracted_features: {
           ...article.extracted_features,
           [name]: response.results[article.id]
         }
       }));
-      setArticles(updatedArticles);
+      setArticles(updatedCurrentPageArticles);
 
       toast({
         title: 'Extraction Complete',
@@ -339,7 +411,7 @@ export function TabelizerPage() {
     try {
       // Prepare column metadata
       const columnMetadata = columns.map(col => articleGroupApi.columnToMetadata(col));
-      
+
       // Prepare save request
       const saveRequest = {
         articles,
@@ -394,16 +466,39 @@ export function TabelizerPage() {
     }
   };
 
-  const handleLoadGroup = async (groupId: string) => {
+  const handleLoadGroup = async (groupId: string, page = 1) => {
     try {
+      setDataSource('group');
+
+      // For now, load all group data to get metadata, then implement pagination
       const groupDetail = await articleGroupApi.getGroup(groupId);
-      
-      // Set articles
-      setArticles(groupDetail.articles);
-      
+
+      // Calculate pagination for group
+      const totalArticles = groupDetail.articles.length;
+      const pageSize = pagination.pageSize;
+      const totalPages = Math.ceil(totalArticles / pageSize);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+
+      // Get articles for current page
+      const paginatedArticles = groupDetail.articles.slice(startIndex, endIndex);
+
+      // Set paginated articles
+      setArticles(paginatedArticles);
+
       // Set columns
       setColumns(groupDetail.columns);
-      
+
+      // Update pagination
+      setPagination(prev => ({
+        ...prev,
+        currentPage: page,
+        totalResults: totalArticles,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }));
+
       // Set current group  
       setCurrentGroup({
         id: groupDetail.id,
@@ -418,8 +513,6 @@ export function TabelizerPage() {
         updated_at: groupDetail.updated_at,
         article_count: groupDetail.article_count
       });
-      
-      // Articles are now loaded and will show the table
 
       // Update search params if available
       if (groupDetail.search_query) {
@@ -432,7 +525,7 @@ export function TabelizerPage() {
 
       toast({
         title: 'Group Loaded',
-        description: `Loaded "${groupDetail.name}" with ${groupDetail.articles.length} articles and ${groupDetail.columns.length} columns`
+        description: `Loaded "${groupDetail.name}" with ${totalArticles} articles (page ${page} of ${totalPages})`
       });
     } catch (error) {
       console.error('Load group failed:', error);
@@ -518,14 +611,19 @@ export function TabelizerPage() {
               />
             </div>
             {pagination.totalPages > 1 && (
-              <Pagination
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-                totalResults={pagination.totalResults}
-                pageSize={pagination.pageSize}
-                disabled={isSearching}
-              />
+              <div className="border-t dark:border-gray-700">
+                <div className="p-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                  {dataSource === 'search' ? 'Search Results' : `Group: ${currentGroup?.name}`}
+                </div>
+                <Pagination
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={handlePageChange}
+                  totalResults={pagination.totalResults}
+                  pageSize={pagination.pageSize}
+                  disabled={isSearching}
+                />
+              </div>
             )}
           </div>
         )}
@@ -558,11 +656,11 @@ export function TabelizerPage() {
           onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
             // Use the streaming article chat API
             await articleChatApi.sendMessageStream(
-              message, 
-              article, 
-              conversationHistory as Array<{ role: 'user' | 'assistant'; content: string }>, 
-              onChunk, 
-              onComplete, 
+              message,
+              article,
+              conversationHistory as Array<{ role: 'user' | 'assistant'; content: string }>,
+              onChunk,
+              onComplete,
               onError
             );
           }}

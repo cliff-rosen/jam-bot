@@ -166,6 +166,9 @@ export interface BatchSearchRequest {
   sort_by: "relevance" | "date";
   year_low?: number;
   year_high?: number;
+  // Pagination support
+  page?: number;
+  page_size?: number;
 }
 
 export interface BatchSearchResponse {

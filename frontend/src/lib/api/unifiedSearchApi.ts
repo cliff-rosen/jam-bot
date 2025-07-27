@@ -44,6 +44,10 @@ class UnifiedSearchApi {
         sort_by: params.sort_by,
         ...(params.year_low !== undefined && { year_low: params.year_low }),
         ...(params.year_high !== undefined && { year_high: params.year_high }),
+        // Pagination parameters
+        ...(params.page !== undefined && { page: params.page }),
+        ...(params.page_size !== undefined && { page_size: params.page_size }),
+        ...(params.offset !== undefined && { offset: params.offset }),
       }
     });
 
@@ -62,6 +66,9 @@ class UnifiedSearchApi {
         providers: request.providers,
         ...(request.year_low !== undefined && { year_low: request.year_low }),
         ...(request.year_high !== undefined && { year_high: request.year_high }),
+        // Add pagination support for batch search
+        ...(request.page !== undefined && { page: request.page }),
+        ...(request.page_size !== undefined && { page_size: request.page_size }),
       }
     });
 

@@ -64,7 +64,10 @@ async def get_available_search_providers(
 async def unified_search(
     provider: Literal["pubmed", "scholar"] = Query(..., description="Search provider to use"),
     query: str = Query(..., description="Search query"),
-    num_results: int = Query(10, ge=1, le=100, description="Number of results to return"),
+    num_results: int = Query(20, ge=1, le=200, description="Number of results per page"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: Optional[int] = Query(None, ge=1, le=200, description="Results per page (overrides num_results)"),
+    offset: Optional[int] = Query(None, ge=0, description="Number of results to skip"),
     sort_by: Literal["relevance", "date"] = Query("relevance", description="Sort order"),
     year_low: Optional[int] = Query(None, description="Minimum publication year"),
     year_high: Optional[int] = Query(None, description="Maximum publication year"),
@@ -107,13 +110,19 @@ async def unified_search(
             detail=f"Could not verify provider availability: {str(e)}"
         )
     
+    # Calculate pagination parameters
+    actual_page_size = page_size or num_results
+    actual_offset = offset if offset is not None else (page - 1) * actual_page_size
+    
     # Build search parameters
     search_params = UnifiedSearchParams(
         query=query,
-        num_results=num_results,
+        num_results=actual_page_size,
         sort_by=sort_by,
         year_low=year_low,
-        year_high=year_high
+        year_high=year_high,
+        offset=actual_offset,
+        page=page
     )
     
     # Perform the search
@@ -145,7 +154,9 @@ async def unified_search(
 async def batch_unified_search(
     providers: List[Literal["pubmed", "scholar"]] = Query(..., description="Search providers to use"),
     query: str = Query(..., description="Search query"),
-    num_results: int = Query(10, ge=1, le=100, description="Number of results per provider"),
+    num_results: int = Query(20, ge=1, le=100, description="Number of results per provider"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: Optional[int] = Query(None, ge=1, le=100, description="Results per page per provider"),
     sort_by: Literal["relevance", "date"] = Query("relevance", description="Sort order"),
     year_low: Optional[int] = Query(None, description="Minimum publication year"),
     year_high: Optional[int] = Query(None, description="Maximum publication year"),
@@ -168,13 +179,19 @@ async def batch_unified_search(
     Returns:
         List of SearchResponse objects, one per provider
     """
+    # Calculate pagination parameters
+    actual_page_size = page_size or num_results
+    actual_offset = (page - 1) * actual_page_size
+    
     # Build search parameters
     search_params = UnifiedSearchParams(
         query=query,
-        num_results=num_results,
+        num_results=actual_page_size,
         sort_by=sort_by,
         year_low=year_low,
-        year_high=year_high
+        year_high=year_high,
+        offset=actual_offset,
+        page=page
     )
     
     results = []

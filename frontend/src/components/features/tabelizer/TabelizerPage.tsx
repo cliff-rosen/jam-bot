@@ -3,6 +3,7 @@ import { Loader2, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { Pagination } from '@/components/ui/pagination';
 
 import { tabelizerApi } from './api/tabelizerApi';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
@@ -34,29 +35,65 @@ export function TabelizerPage() {
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
     provider: 'pubmed',
     query: '',
-    num_results: 5,
+    num_results: 20, // This becomes page_size
     sort_by: 'relevance',
     include_citations: false,
     include_pdf_links: false,
+    page: 1,
+    page_size: 20,
   });
   const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
   const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
 
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    pageSize: 20,
+    totalResults: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+
   const { toast } = useToast();
 
-  const handleSearch = async () => {
+  const handleSearch = async (page = 1) => {
     setIsSearching(true);
     try {
-      // Limit to 50 results for MVP
-      const limitedParams = { ...searchParams, num_results: Math.min(searchParams.num_results, 50) };
-      const response = await unifiedSearchApi.search(limitedParams);
+      // Use pagination parameters
+      const paginatedParams = { 
+        ...searchParams, 
+        page,
+        page_size: pagination.pageSize,
+        num_results: pagination.pageSize,
+        offset: (page - 1) * pagination.pageSize
+      };
+      
+      const response = await unifiedSearchApi.search(paginatedParams);
       setArticles(response.articles);
-      setColumns([]); // Clear columns on new search
-      setCurrentGroup(null); // Clear current group on new search
+      
+      // Update pagination state
+      const totalResults = response.metadata.total_results || 0;
+      const totalPages = Math.ceil(totalResults / pagination.pageSize);
+      
+      setPagination(prev => ({
+        ...prev,
+        currentPage: page,
+        totalResults,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }));
+      
+      // Clear columns and group only on new search (page 1)
+      if (page === 1) {
+        setColumns([]);
+        setCurrentGroup(null);
+      }
 
       toast({
         title: 'Search Complete',
-        description: `Found ${response.articles.length} articles`,
+        description: `Found ${totalResults.toLocaleString()} total results, showing page ${page} of ${totalPages}`,
       });
     } catch (error) {
       console.error('Search failed:', error);
@@ -67,6 +104,30 @@ export function TabelizerPage() {
       });
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    handleSearch(page);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPagination(prev => ({
+      ...prev,
+      pageSize: newPageSize,
+      currentPage: 1 // Reset to first page when page size changes
+    }));
+    
+    setSearchParams(prev => ({
+      ...prev,
+      page_size: newPageSize,
+      num_results: newPageSize,
+      page: 1
+    }));
+    
+    // Trigger new search with updated page size
+    if (searchParams.query) {
+      handleSearch(1);
     }
   };
 
@@ -424,7 +485,9 @@ export function TabelizerPage() {
           onSearchParamsChange={setSearchParams}
           onSelectedProvidersChange={setSelectedProviders}
           onSearchModeChange={setSearchMode}
-          onSearch={handleSearch}
+          onSearch={() => handleSearch(1)}
+          onPageSizeChange={handlePageSizeChange}
+          pagination={pagination}
         />
       </div>
 
@@ -438,19 +501,33 @@ export function TabelizerPage() {
             </div>
           </div>
         ) : (
-          <TabelizerTable
-            articles={articles}
-            columns={columns}
-            onAddColumn={() => setShowAddModal(true)}
-            onDeleteColumn={handleDeleteColumn}
-            onDeleteArticle={handleDeleteArticle}
-            onExport={handleExport}
-            isExtracting={isExtracting}
-            onViewArticle={setSelectedArticle}
-            onSaveGroup={() => setShowSaveModal(true)}
-            onLoadGroup={() => setShowLoadModal(true)}
-            currentGroup={currentGroup}
-          />
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-hidden">
+              <TabelizerTable
+                articles={articles}
+                columns={columns}
+                onAddColumn={() => setShowAddModal(true)}
+                onDeleteColumn={handleDeleteColumn}
+                onDeleteArticle={handleDeleteArticle}
+                onExport={handleExport}
+                isExtracting={isExtracting}
+                onViewArticle={setSelectedArticle}
+                onSaveGroup={() => setShowSaveModal(true)}
+                onLoadGroup={() => setShowLoadModal(true)}
+                currentGroup={currentGroup}
+              />
+            </div>
+            {pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+                totalResults={pagination.totalResults}
+                pageSize={pagination.pageSize}
+                disabled={isSearching}
+              />
+            )}
+          </div>
         )}
       </div>
 

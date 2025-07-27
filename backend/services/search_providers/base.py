@@ -16,10 +16,14 @@ from schemas.canonical_types import CanonicalResearchArticle
 class UnifiedSearchParams(BaseModel):
     """Unified search parameters that work across all providers."""
     query: str = Field(..., description="Search query string")
-    num_results: int = Field(default=10, ge=1, le=100, description="Number of results to return")
+    num_results: int = Field(default=20, ge=1, le=200, description="Number of results to return")
     sort_by: Literal["relevance", "date"] = Field(default="relevance", description="Sort order")
     year_low: Optional[int] = Field(default=None, description="Minimum publication year")
     year_high: Optional[int] = Field(default=None, description="Maximum publication year")
+    
+    # Pagination parameters
+    page: Optional[int] = Field(default=1, ge=1, description="Page number (1-based)")
+    offset: Optional[int] = Field(default=None, ge=0, description="Number of results to skip")
     
     # Provider-specific parameters (ignored by providers that don't support them)
     date_type: Optional[Literal["completion", "publication"]] = Field(
@@ -38,6 +42,13 @@ class SearchMetadata(BaseModel):
     provider: str = Field(..., description="Provider that performed the search")
     query_translation: Optional[str] = Field(default=None, description="How the query was interpreted")
     provider_metadata: Dict[str, Any] = Field(default_factory=dict, description="Provider-specific metadata")
+    
+    # Pagination metadata
+    current_page: Optional[int] = Field(default=None, description="Current page number")
+    page_size: Optional[int] = Field(default=None, description="Number of results per page")
+    total_pages: Optional[int] = Field(default=None, description="Total number of pages")
+    has_next_page: Optional[bool] = Field(default=None, description="Whether there are more pages")
+    has_prev_page: Optional[bool] = Field(default=None, description="Whether there are previous pages")
 
 
 class SearchResponse(BaseModel):

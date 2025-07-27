@@ -73,25 +73,30 @@ class GoogleScholarAdapter(SearchProvider):
             # Get the service instance
             service = get_google_scholar_service()
             
+            # Calculate start index for Scholar pagination
+            start_index = params.offset or 0
+            
             # Perform the search using the service directly
             articles, search_metadata = service.search_articles(
                 query=params.query,
                 num_results=params.num_results,
                 year_low=params.year_low,
                 year_high=params.year_high,
-                sort_by=params.sort_by
+                sort_by=params.sort_by,
+                start_index=start_index
             )
             
             # Convert to canonical format with improved IDs
             canonical_articles = []
             for i, article in enumerate(articles, 1):
                 canonical = scholar_to_research_article(article)
-                # Use simple position-based ID
-                canonical.id = f"scholar_{i}"
-                canonical.search_position = i
+                # Use absolute position accounting for pagination
+                absolute_position = start_index + i
+                canonical.id = f"scholar_{absolute_position}"
+                canonical.search_position = absolute_position
                 # Scholar provides position, so we can calculate better relevance
                 canonical.relevance_score = self._estimate_relevance_score(
-                    i, 
+                    absolute_position, 
                     len(articles) * 10  # Estimate total results
                 )
                 canonical_articles.append(canonical)
@@ -99,17 +104,37 @@ class GoogleScholarAdapter(SearchProvider):
             # Calculate search time
             search_time = (datetime.utcnow() - start_time).total_seconds()
             
+            # Calculate pagination metadata
+            current_page = params.page or 1
+            page_size = params.num_results
+            # Scholar doesn't provide exact total, estimate based on returned results
+            estimated_total = search_metadata.get("total_results", len(canonical_articles) * 10)
+            total_pages = (estimated_total + page_size - 1) // page_size if estimated_total > 0 else 1
+            
+            # Debug pagination calculation
+            logger.debug(f"Scholar pagination: page={current_page}, page_size={page_size}, offset={start_index}")
+            logger.debug(f"Returned {len(canonical_articles)} articles, estimated_total={estimated_total}")
+            if canonical_articles:
+                logger.debug(f"First article ID: {canonical_articles[0].id}, title: {canonical_articles[0].title[:50]}...")
+            
             # Build metadata
             metadata = SearchMetadata(
-                total_results=None,  # Scholar doesn't provide exact total
+                total_results=estimated_total,  # Scholar estimate
                 returned_results=len(canonical_articles),
                 search_time=search_time,
                 provider=self.provider_id,
                 query_translation=params.query,
                 provider_metadata={
                     "sort_by": params.sort_by,
-                    "year_range": f"{params.year_low or 'any'}-{params.year_high or 'any'}"
-                }
+                    "year_range": f"{params.year_low or 'any'}-{params.year_high or 'any'}",
+                    "start_index": start_index
+                },
+                # Pagination metadata
+                current_page=current_page,
+                page_size=page_size,
+                total_pages=total_pages,
+                has_next_page=len(canonical_articles) == page_size,  # Assume more if we got full page
+                has_prev_page=current_page > 1
             )
             
             return SearchResponse(
@@ -178,10 +203,10 @@ class GoogleScholarAdapter(SearchProvider):
         Returns:
             Validated parameters
         """
-        # Scholar typically returns max 10-20 results per page
-        # We'll limit to 20 for a single request
+        # Scholar has a hard limit of 20 results per request
+        # This is a SerpAPI/Google Scholar constraint
         if params.num_results > 20:
-            logger.info(f"Limiting Scholar results to 20 (from {params.num_results})")
+            logger.warning(f"Google Scholar limited to 20 results per page, requested {params.num_results}")
             params.num_results = 20
         
         # Scholar doesn't support completion date filtering

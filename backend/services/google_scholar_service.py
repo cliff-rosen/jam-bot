@@ -39,7 +39,8 @@ class GoogleScholarService:
         num_results: int = 10,
         year_low: Optional[int] = None,
         year_high: Optional[int] = None,
-        sort_by: str = "relevance"
+        sort_by: str = "relevance",
+        start_index: int = 0
     ) -> Tuple[List[CanonicalScholarArticle], Dict[str, Any]]:
         """
         Search Google Scholar for academic articles.
@@ -50,6 +51,7 @@ class GoogleScholarService:
             year_low: Filter results from this year onwards
             year_high: Filter results up to this year
             sort_by: Sort by 'relevance' or 'date'
+            start_index: Starting index for pagination (0-based)
             
         Returns:
             Tuple of (list of articles, search metadata)
@@ -75,6 +77,10 @@ class GoogleScholarService:
             "num": num_results
         }
         
+        # Only add start parameter if we're not on the first page
+        if start_index > 0:
+            params["start"] = start_index
+        
         # Add optional parameters
         if year_low:
             params["as_ylo"] = year_low
@@ -83,7 +89,12 @@ class GoogleScholarService:
         if sort_by == "date":
             params["scisbd"] = 1  # Sort by date
             
-        logger.info(f"Searching Google Scholar for: {query} (num_results={num_results})")
+        logger.info(f"Searching Google Scholar for: {query} (num_results={num_results}, start_index={start_index})")
+        logger.debug(f"Scholar API params: {params}")
+        
+        # Add a unique identifier to help detect if we're getting cached results
+        if start_index > 0:
+            logger.info(f"PAGINATION REQUEST: start={start_index}, query hash={hash(query) % 10000}")
         
         # Make API request
         start_time = datetime.now()
@@ -98,6 +109,13 @@ class GoogleScholarService:
         
         data = response.json()
         
+        # Debug: Log SerpAPI response structure for pagination debugging
+        logger.debug(f"SerpAPI response keys: {list(data.keys())}")
+        if "search_metadata" in data:
+            logger.debug(f"Search metadata: {data['search_metadata']}")
+        if "serpapi_pagination" in data:
+            logger.debug(f"Pagination info: {data['serpapi_pagination']}")
+        
         # Check for API errors
         if "error" in data:
             raise Exception(f"SerpAPI error: {data['error']}")
@@ -109,6 +127,12 @@ class GoogleScholarService:
         # Log snippet availability for debugging
         articles_with_snippets = sum(1 for article in articles if article.snippet)
         logger.info(f"Found {len(articles)} articles from Google Scholar, {articles_with_snippets} with snippets")
+        
+        # Debug: Log first article title to verify pagination is working
+        if articles:
+            logger.debug(f"First article title: {articles[0].title[:50]}...")
+            if len(articles) > 1:
+                logger.debug(f"Second article title: {articles[1].title[:50]}...")
         
         return articles, metadata
     

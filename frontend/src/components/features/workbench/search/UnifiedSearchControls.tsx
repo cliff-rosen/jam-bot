@@ -15,6 +15,15 @@ import { ChevronDown, ChevronUp, Search, Zap } from 'lucide-react';
 import { UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
 import { ProviderSelector } from './ProviderSelector';
 
+interface PaginationState {
+  currentPage: number;
+  pageSize: number;
+  totalResults: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 interface UnifiedSearchControlsProps {
   searchParams: UnifiedSearchParams;
   selectedProviders: SearchProvider[];
@@ -25,6 +34,8 @@ interface UnifiedSearchControlsProps {
   onSearchModeChange: (mode: 'single' | 'multi') => void;
   onSearch: () => void;
   onBatchSearch?: () => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  pagination?: PaginationState;
 }
 
 export function UnifiedSearchControls({
@@ -36,7 +47,9 @@ export function UnifiedSearchControls({
   onSelectedProvidersChange,
   onSearchModeChange,
   onSearch,
-  onBatchSearch
+  onBatchSearch,
+  onPageSizeChange,
+  pagination
 }: UnifiedSearchControlsProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProviders, setShowProviders] = useState(true);
@@ -50,11 +63,30 @@ export function UnifiedSearchControls({
     onSearchParamsChange({ ...searchParams, provider });
   };
 
-  const getMaxResults = () => {
+  const getMaxPageSize = () => {
     if (searchMode === 'single') {
-      return searchParams.provider === 'pubmed' ? 100 : 100;
+      if (searchParams.provider === 'pubmed') return 200;
+      if (searchParams.provider === 'scholar') return 20;
+      return 100;
     }
-    return 20; // Conservative limit for batch searches
+    return 20; // Conservative limit for batch searches (Scholar constraint)
+  };
+
+  const getPageSizeOptions = () => {
+    const maxSize = getMaxPageSize();
+    const options = [10, 20];
+    
+    if (maxSize >= 50) options.push(50);
+    if (maxSize >= 100) options.push(100);
+    if (maxSize >= 200) options.push(200);
+    
+    return options;
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    if (onPageSizeChange) {
+      onPageSizeChange(newPageSize);
+    }
   };
 
   const renderProviderSpecificOptions = () => {
@@ -194,20 +226,23 @@ export function UnifiedSearchControls({
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="w-32">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Results
+                Per Page
               </label>
-              <Input
-                type="number"
-                min="1"
-                max={getMaxResults()}
-                value={searchParams.num_results}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  num_results: Math.min(parseInt(e.target.value) || 10, getMaxResults())
-                })}
-                className="dark:bg-gray-800 dark:text-gray-100"
+              <select
+                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                value={pagination?.pageSize || searchParams.page_size || searchParams.num_results || 20}
+                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
                 disabled={isSearching}
-              />
+              >
+                {getPageSizeOptions().map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              {searchParams.provider === 'scholar' && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Scholar max: 20/page
+                </div>
+              )}
             </div>
             <div className="w-40">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">

@@ -65,6 +65,10 @@ export interface UnifiedSearchParams {
   date_type?: "completion" | "publication";
   include_citations: boolean;
   include_pdf_links: boolean;
+  // Pagination support
+  page?: number;
+  page_size?: number;
+  offset?: number;
 }
 
 export interface SearchMetadata {
@@ -74,6 +78,12 @@ export interface SearchMetadata {
   provider: string;
   query_translation?: string;
   provider_metadata: Record<string, any>;
+  // Pagination metadata
+  current_page?: number;
+  page_size?: number;
+  total_pages?: number;
+  has_next_page?: boolean;
+  has_prev_page?: boolean;
 }
 
 export interface UnifiedSearchResponse {

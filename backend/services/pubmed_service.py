@@ -264,14 +264,24 @@ def _get_date_clause(start_date: str, end_date: str, date_type: str = "publicati
     return clause
 
 
-def get_article_ids(search_term: str, max_results: int = 100, sort_by: str = "relevance") -> List[str]:
+def get_article_ids(
+    search_term: str, 
+    max_results: int = 100, 
+    sort_by: str = "relevance",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    date_type: str = "publication"
+) -> List[str]:
     """
-    Basic PubMed search without date restrictions.
+    Search PubMed for article IDs with optional date filtering.
     
     Args:
         search_term: Search query string
         max_results: Maximum number of results to return
         sort_by: Sort order ('relevance' or 'date')
+        start_date: Optional start date (YYYY-MM-DD or YYYY/MM/DD)
+        end_date: Optional end date (YYYY-MM-DD or YYYY/MM/DD)
+        date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
         
     Returns:
         List of article IDs
@@ -280,9 +290,16 @@ def get_article_ids(search_term: str, max_results: int = 100, sort_by: str = "re
         Exception: If API call fails or returns non-200 status
     """
     url = PUBMED_API_SEARCH_URL
+    
+    # Build search term with optional date clause
+    if start_date and end_date:
+        full_term = f'({search_term}){_get_date_clause(start_date, end_date, date_type)}'
+    else:
+        full_term = search_term
+    
     params = {
         'db': 'pubmed',
-        'term': search_term,
+        'term': full_term,
         'retmax': min(max_results, int(RETMAX)),
         'retmode': 'json'
     }
@@ -365,103 +382,7 @@ def get_article_ids(search_term: str, max_results: int = 100, sort_by: str = "re
         raise
 
 
-def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List[str]:
-    """
-    Retrieve PubMed article IDs within a specified date range.
-    
-    Args:
-        filter_term: Search query string
-        start_date: Start date (YYYY-MM-DD)
-        end_date: End date (YYYY-MM-DD)
-        date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
-        sort_by: Sort order ('relevance' or 'date')
-        
-    Returns:
-        List of article IDs
-        
-    Raises:
-        Exception: If API call fails or returns non-200 status
-    """
-    url = PUBMED_API_SEARCH_URL
-    params = {
-        'db': 'pubmed',
-        'term': '(' + filter_term + ')' + _get_date_clause(start_date, end_date, date_type),
-        'retmax': RETMAX,
-        'retmode': 'json'
-    }
-    
-    # Map unified sort values to PubMed API sort values
-    sort_mapping = {
-        'relevance': None,  # Default, don't need to specify
-        'date': 'pub_date'  # Sort by publication date
-    }
-    
-    pubmed_sort = sort_mapping.get(sort_by)
-    if pubmed_sort:
-        params['sort'] = pubmed_sort
-    
-    headers = {
-        'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
-    }
-    
-    # Add NCBI API key if available
-    ncbi_api_key = os.getenv('NCBI_API_KEY')
-    if ncbi_api_key:
-        params['api_key'] = ncbi_api_key
-        logger.info("Using NCBI API key for increased rate limits")
-    
-    logger.info('Retrieving article IDs by date range')
-    logger.debug(f'Parameters: {params}')
-    
-    # Retry logic with exponential backoff
-    max_retries = 3
-    retry_delay = 1
-    
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, params, headers=headers, timeout=30)
-            break
-        except requests.exceptions.RequestException as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
-                time.sleep(retry_delay)
-                retry_delay *= 2
-            else:
-                logger.error(f"Request failed after {max_retries} attempts: {e}")
-                raise
-    
-    try:
-        response.raise_for_status()
-        
-        # Check if we got JSON response
-        content_type = response.headers.get('content-type', '')
-        if 'application/json' not in content_type:
-            logger.error(f"Expected JSON but got content-type: {content_type}")
-            logger.error(f"Response text (first 500 chars): {response.text[:500] if response.text else 'Empty response'}")
-            raise Exception(f"PubMed API returned non-JSON response. Content-Type: {content_type}")
-        
-        # Check if response body is empty
-        if not response.text:
-            logger.error("PubMed API returned empty response body")
-            raise Exception("PubMed API returned empty response")
-        
-        content = response.json()
-        
-        if 'esearchresult' not in content:
-            raise Exception("Invalid response format from PubMed API")
-            
-        count = content['esearchresult']['count']
-        ids = content['esearchresult']['idlist']
-        
-        logger.info(f"Found {count} articles, returning {len(ids)} IDs")
-        return ids
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"HTTP error in PubMed date range search: {e}", exc_info=True)
-        raise Exception(f"PubMed API request failed: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error in PubMed date range search: {e}", exc_info=True)
-        raise
+# Removed get_article_ids_by_date_range - consolidated into get_article_ids
 
 
 def get_articles_from_ids(ids: List[str]) -> List[Article]:
@@ -530,7 +451,14 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}, date_type={date_type}")
     
     # Get article IDs - function now throws exception on error
-    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date, date_type, sort_by)
+    article_ids = get_article_ids(
+        search_term=filter_term,
+        max_results=int(RETMAX),
+        sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date,
+        date_type=date_type
+    )
     logger.info(f"Found {len(article_ids)} article IDs")
     
     if not article_ids:

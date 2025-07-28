@@ -216,7 +216,11 @@ class PubMedAdapter(SearchProvider):
         # Get more article IDs than needed to support pagination
         # We'll get up to offset + num_results to handle the current page
         max_ids_needed = offset + params.num_results
-        article_ids = get_article_ids(params.query, max_ids_needed, params.sort_by)
+        article_ids = get_article_ids(
+            search_term=params.query,
+            max_results=max_ids_needed,
+            sort_by=params.sort_by
+        )
         
         if not article_ids:
             return [], {"total_results": 0}

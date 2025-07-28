@@ -486,7 +486,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
                 abstract=article.abstract,
                 authors=article.authors.split(', ') if article.authors else [],
                 journal=article.journal,
-                publication_date=article.pub_date if article.pub_date else (f"{article.year}" if article.year else None),
+                publication_date=article.pub_date if article.pub_date else None,
                 keywords=[],  # Would need to extract from XML
                 mesh_terms=[],  # Would need to extract from XML
                 metadata={

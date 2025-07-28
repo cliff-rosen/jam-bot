@@ -96,64 +96,6 @@ class CanonicalScholarArticle(BaseModel):
     position: int = Field(description="Position in search results")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional Scholar metadata")
 
-class CanonicalResearchArticle(BaseModel):
-    """
-    Unified canonical research article schema that both PubMed and Google Scholar 
-    can map to for consistent workbench representation.
-    """
-    model_config = ConfigDict(extra='forbid')
-    # Core identification
-    id: str = Field(description="Unique identifier (PMID for PubMed, URL or generated ID for Scholar)")
-    source: Literal["pubmed", "scholar"] = Field(description="Source system: 'pubmed' or 'scholar'")
-    
-    # Core metadata
-    title: str = Field(description="Article title")
-    authors: List[str] = Field(default=[], description="List of author names")
-    abstract: Optional[str] = Field(default=None, description="Article abstract (mainly from PubMed)")
-    snippet: Optional[str] = Field(default=None, description="Article snippet/excerpt (mainly from Scholar)")
-    
-    # Publication details
-    journal: Optional[str] = Field(default=None, description="Journal or publication venue")
-    publication_date: Optional[str] = Field(default=None, description="Publication date")
-    publication_year: Optional[int] = Field(default=None, description="Publication year")
-    
-    # PubMed-specific date fields (always populated for PubMed articles)
-    date_completed: Optional[str] = Field(default=None, description="Date record was completed (YYYY-MM-DD)")
-    date_revised: Optional[str] = Field(default=None, description="Date record was last revised (YYYY-MM-DD)")
-    date_entered: Optional[str] = Field(default=None, description="Date entered into PubMed (YYYY-MM-DD)")
-    date_published: Optional[str] = Field(default=None, description="Publication date with full precision (YYYY-MM-DD)")
-    
-    # Identifiers and links
-    doi: Optional[str] = Field(default=None, description="Digital Object Identifier")
-    url: Optional[str] = Field(default=None, description="Direct link to article")
-    pdf_url: Optional[str] = Field(default=None, description="Direct PDF link")
-    
-    # Classification and keywords
-    keywords: List[str] = Field(default=[], description="Article keywords")
-    mesh_terms: List[str] = Field(default=[], description="MeSH terms (PubMed)")
-    categories: List[str] = Field(default=[], description="Subject categories")
-    
-    # Citation and related content
-    citation_count: Optional[int] = Field(default=None, description="Number of citations")
-    cited_by_url: Optional[str] = Field(default=None, description="Link to citing articles")
-    related_articles_url: Optional[str] = Field(default=None, description="Link to related articles")
-    versions_url: Optional[str] = Field(default=None, description="Link to different versions (Scholar)")
-    
-    # Search context (for Scholar results)
-    search_position: Optional[int] = Field(default=None, description="Position in search results")
-    relevance_score: Optional[float] = Field(default=None, description="Search relevance score (0-10)")
-    
-    # Research analysis results
-    extracted_features: Optional[Dict[str, Any]] = Field(default=None, description="LLM-extracted research features")
-    quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
-    
-    # Source preservation
-    source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Original source-specific fields")
-    
-    # System metadata
-    indexed_at: Optional[str] = Field(default=None, description="When this article was indexed")
-    retrieved_at: Optional[str] = Field(default=None, description="When this article was retrieved from the source")
-
 class CanonicalPubMedExtraction(BaseModel):
     """
     Canonical PubMed Extraction schema - the definitive structure for extracted features from articles.
@@ -178,6 +120,8 @@ class CanonicalResearchArticle(BaseModel):
     Unified canonical schema for research articles from any source (PubMed, Google Scholar, etc).
     This provides a consistent interface for the research workbench regardless of the data source.
     """
+    model_config = ConfigDict(extra='forbid')
+    
     # Core identification fields
     id: str = Field(description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
     source: str = Field(description="Data source (e.g., 'pubmed', 'google_scholar')")
@@ -186,8 +130,14 @@ class CanonicalResearchArticle(BaseModel):
     # Core metadata
     authors: List[str] = Field(default=[], description="List of author names")
     publication_date: Optional[str] = Field(default=None, description="Publication date (ISO format preferred)")
-    year: Optional[int] = Field(default=None, description="Publication year")
+    publication_year: Optional[int] = Field(default=None, description="Publication year")
     journal: Optional[str] = Field(default=None, description="Journal or publication venue name")
+    
+    # PubMed-specific date fields (always populated for PubMed articles)
+    date_completed: Optional[str] = Field(default=None, description="Date record was completed (YYYY-MM-DD)")
+    date_revised: Optional[str] = Field(default=None, description="Date record was last revised (YYYY-MM-DD)")
+    date_entered: Optional[str] = Field(default=None, description="Date entered into PubMed (YYYY-MM-DD)")
+    date_published: Optional[str] = Field(default=None, description="Publication date with full precision (YYYY-MM-DD)")
     
     # Article content
     abstract: Optional[str] = Field(default=None, description="Full abstract text")
@@ -205,7 +155,7 @@ class CanonicalResearchArticle(BaseModel):
     
     # Metrics and citations
     citation_count: Optional[int] = Field(default=None, description="Number of citations")
-    citations_url: Optional[str] = Field(default=None, description="Link to citing articles")
+    cited_by_url: Optional[str] = Field(default=None, description="Link to citing articles")
     
     # Related content
     related_articles_url: Optional[str] = Field(default=None, description="Link to related articles")
@@ -220,11 +170,11 @@ class CanonicalResearchArticle(BaseModel):
     
     # Extraction and analysis results (if applicable)
     extracted_features: Optional[Dict[str, Any]] = Field(default=None, description="Extracted research features")
-    quality_score: Optional[float] = Field(default=None, description="Article quality score (0-1)")
+    quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
     
     # Timestamps
-    indexed_date: Optional[datetime] = Field(default=None, description="When article was indexed by source")
-    retrieved_date: Optional[datetime] = Field(default=None, description="When article was retrieved")
+    indexed_at: Optional[str] = Field(default=None, description="When article was indexed by source")
+    retrieved_at: Optional[str] = Field(default=None, description="When article was retrieved")
 
 class CanonicalNewsletter(BaseModel):
     """

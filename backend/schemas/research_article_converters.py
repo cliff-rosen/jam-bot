@@ -61,6 +61,10 @@ def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArt
             'issue': article.issue if hasattr(article, 'issue') else None,
             'pages': article.pages if hasattr(article, 'pages') else None,
             'comp_date': article.comp_date if hasattr(article, 'comp_date') else None,
+            'date_revised': article.date_revised if hasattr(article, 'date_revised') else None,
+            'article_date': article.article_date if hasattr(article, 'article_date') else None,
+            'entry_date': article.entry_date if hasattr(article, 'entry_date') else None,
+            'pub_date': article.pub_date if hasattr(article, 'pub_date') else None,
             'medium': article.medium if hasattr(article, 'medium') else None
         }
     )
@@ -90,7 +94,16 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     # Extract all dates from metadata if available
     metadata = pubmed_article.metadata or {}
     
-    return CanonicalResearchArticle(
+    # Log debug info about date extraction
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Converting PubMed article {pubmed_article.pmid} - metadata: {metadata}")
+    logger.info(f"  pub_date from metadata: {metadata.get('pub_date')}")
+    logger.info(f"  comp_date from metadata: {metadata.get('comp_date')}")
+    logger.info(f"  date_revised from metadata: {metadata.get('date_revised')}")
+    logger.info(f"  entry_date from metadata: {metadata.get('entry_date')}")
+    
+    result = CanonicalResearchArticle(
         id=f"pubmed_{pubmed_article.pmid}",  # Use consistent ID format
         source="pubmed",
         title=pubmed_article.title,
@@ -98,13 +111,13 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         abstract=pubmed_article.abstract,
         snippet=None,  # PubMed has abstracts, not snippets
         journal=pubmed_article.journal,
-        publication_date=pubmed_article.publication_date,
+        publication_date=metadata.get('pub_date') or pubmed_article.publication_date,
         publication_year=publication_year,
-        # Populate all 4 date fields from metadata
-        date_completed=metadata.get('comp_date'),
-        date_revised=metadata.get('date_revised'),
-        date_entered=metadata.get('entry_date'),
-        date_published=metadata.get('pub_date'),
+        # Populate all 4 date fields from metadata (convert empty strings to None)
+        date_completed=metadata.get('comp_date') if metadata.get('comp_date') else None,
+        date_revised=metadata.get('date_revised') if metadata.get('date_revised') else None,
+        date_entered=metadata.get('entry_date') if metadata.get('entry_date') else None,
+        date_published=metadata.get('pub_date') if metadata.get('pub_date') else pubmed_article.publication_date,
         doi=pubmed_article.doi,
         url=f"https://pubmed.ncbi.nlm.nih.gov/{pubmed_article.pmid}/" if pubmed_article.pmid else None,
         pdf_url=None,  # PubMed doesn't provide direct PDF links
@@ -124,9 +137,15 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         retrieved_at=datetime.utcnow().isoformat()
     )
     
-    # Debug: Log source metadata being set
-    from services.pubmed_service import logger
-    logger.debug(f"Converting PubMed article {pubmed_article.pmid} - source_metadata: {pubmed_article.metadata}")
+    # Log the final result to verify dates are populated
+    logger.info(f"Final CanonicalResearchArticle for {pubmed_article.pmid}:")
+    logger.info(f"  publication_date: {result.publication_date}")
+    logger.info(f"  date_published: {result.date_published}")
+    logger.info(f"  date_completed: {result.date_completed}")
+    logger.info(f"  date_revised: {result.date_revised}")
+    logger.info(f"  date_entered: {result.date_entered}")
+    
+    return result
 
 
 def scholar_to_research_article(scholar_article: CanonicalScholarArticle, position: Optional[int] = None) -> CanonicalResearchArticle:

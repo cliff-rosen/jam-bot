@@ -125,14 +125,14 @@ export function TabelizerTable({
     // For PubMed articles, use the first-class date fields
     switch (dateType) {
       case 'completion':
-        return article.date_completed || article.date_published || article.publication_date || '-';
+        return article.date_completed || article.source_metadata?.comp_date || article.publication_date || '-';
       case 'entry':
-        return article.date_entered || article.date_published || article.publication_date || '-';
+        return article.date_entered || article.source_metadata?.entry_date || article.publication_date || '-';
       case 'revised':
-        return article.date_revised || article.date_published || article.publication_date || '-';
+        return article.date_revised || article.source_metadata?.date_revised || article.publication_date || '-';
       case 'publication':
       default:
-        return article.date_published || article.publication_date || article.publication_year?.toString() || '-';
+        return article.date_published || article.source_metadata?.pub_date || article.publication_date || article.publication_year?.toString() || '-';
     }
   };
 

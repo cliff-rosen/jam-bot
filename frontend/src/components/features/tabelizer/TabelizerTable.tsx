@@ -17,6 +17,7 @@ interface TabelizerTableProps {
   onSaveGroup: () => void;
   onLoadGroup: () => void;
   currentGroup?: { id: string; name: string } | null;
+  displayDateType?: "completion" | "publication" | "entry" | "revised";
 }
 
 export function TabelizerTable({
@@ -31,6 +32,7 @@ export function TabelizerTable({
   onSaveGroup,
   onLoadGroup,
   currentGroup,
+  displayDateType = 'publication',
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -111,6 +113,42 @@ export function TabelizerTable({
     if (authors.length === 0) return '-';
     if (authors.length === 1) return authors[0];
     return `${authors[0]} et al`;
+  };
+
+  const getArticleDate = (article: CanonicalResearchArticle, dateType: string): string => {
+    // For non-PubMed articles, always use publication year
+    if (article.source !== 'pubmed') {
+      return article.publication_year?.toString() || '-';
+    }
+
+    // For PubMed articles, check source_metadata for the requested date type
+    const metadata = article.source_metadata || {};
+    
+    switch (dateType) {
+      case 'completion':
+        return metadata.comp_date || metadata.publication_date || article.publication_year?.toString() || '-';
+      case 'entry':
+        // Entry date not in current metadata, would need to add to PubMed XML extraction
+        return metadata.publication_date || article.publication_year?.toString() || '-';
+      case 'revised':
+        return metadata.date_revised || metadata.publication_date || article.publication_year?.toString() || '-';
+      case 'publication':
+      default:
+        return metadata.pub_date || metadata.publication_date || article.publication_year?.toString() || '-';
+    }
+  };
+
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr || dateStr === '-') return '-';
+    
+    // If it's just a year, return as-is
+    if (/^\d{4}$/.test(dateStr)) return dateStr;
+    
+    // Try to extract just the year from a full date
+    const yearMatch = dateStr.match(/^(\d{4})/);
+    if (yearMatch) return yearMatch[1];
+    
+    return dateStr;
   };
 
   const truncateAbstract = (abstract: string | null | undefined, maxLength: number = 150) => {
@@ -243,7 +281,10 @@ export function TabelizerTable({
                 onClick={() => handleSort('year')}
               >
                 <div className="flex items-center gap-1">
-                  Year
+                  {displayDateType === 'publication' ? 'Year' : 
+                   displayDateType === 'completion' ? 'Completed' :
+                   displayDateType === 'revised' ? 'Revised' :
+                   displayDateType === 'entry' ? 'Entered' : 'Year'}
                   {renderSortIcon('year')}
                 </div>
               </th>
@@ -332,7 +373,7 @@ export function TabelizerTable({
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  {article.publication_year || '-'}
+                  {formatDate(getArticleDate(article, displayDateType))}
                 </td>
                 <td className="p-2 whitespace-nowrap">
                   {getSourceBadge(article.source)}

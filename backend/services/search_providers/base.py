@@ -26,7 +26,7 @@ class UnifiedSearchParams(BaseModel):
     offset: Optional[int] = Field(default=None, ge=0, description="Number of results to skip")
     
     # Provider-specific parameters (ignored by providers that don't support them)
-    date_type: Optional[Literal["completion", "publication"]] = Field(
+    date_type: Optional[Literal["completion", "publication", "entry", "revised"]] = Field(
         default=None, 
         description="Date type for filtering (PubMed-specific)"
     )

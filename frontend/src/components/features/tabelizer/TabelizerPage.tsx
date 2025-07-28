@@ -611,6 +611,7 @@ export function TabelizerPage() {
                 onSaveGroup={() => setShowSaveModal(true)}
                 onLoadGroup={() => setShowLoadModal(true)}
                 currentGroup={currentGroup}
+                displayDateType={searchParams.display_date_type || searchParams.date_type || 'publication'}
               />
             </div>
             {pagination.totalPages > 1 && (

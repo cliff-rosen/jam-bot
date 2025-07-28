@@ -50,6 +50,8 @@ class Article():
         PMID_node = medline_citation_node.find(".//PMID")
         article_node = medline_citation_node.find('.//Article')
         date_completed_node = medline_citation_node.find(".//DateCompleted")
+        date_revised_node = medline_citation_node.find(".//DateRevised")
+        article_date_node = article_node.find(".//ArticleDate") if article_node is not None else None
 
         journal_node = article_node.find('.//Journal')
         journal_issue_node = journal_node.find(".//JournalIssue")
@@ -75,6 +77,9 @@ class Article():
         issue = ""
         pages = ""           
         date_completed = ""
+        date_revised = ""
+        article_date = ""
+        pub_date = ""
 
         if PMID_node is not None:
             PMID = PMID_node.text
@@ -94,6 +99,22 @@ class Article():
         if pagination_node is not None:
             pages = pagination_node.text
         date_completed = cls._get_date_from_node(date_completed_node)
+        date_revised = cls._get_date_from_node(date_revised_node)
+        article_date = cls._get_date_from_node(article_date_node)
+        # Get pub_date from year/month/day already extracted
+        if year:
+            pub_date = year
+            if pubdate_node is not None:
+                month_node = pubdate_node.find(".//Month")
+                day_node = pubdate_node.find(".//Day")
+                if month_node is not None:
+                    month = month_node.text
+                    pub_date += f"-{month.zfill(2)}"
+                    if day_node is not None:
+                        day = day_node.text
+                        pub_date += f"-{day.zfill(2)}"
+                else:
+                    pub_date += "-01-01"  # Default to Jan 1 if no month
 
         MAX_AUTHOR_COUNT = 3
         author_list = []
@@ -126,6 +147,9 @@ class Article():
         return Article(
                     PMID=PMID,
                     comp_date=date_completed,
+                    date_revised=date_revised,
+                    article_date=article_date,
+                    pub_date=pub_date,
                     title=title,
                     abstract=abstract,
                     authors=authors,
@@ -141,6 +165,9 @@ class Article():
         #print(kwargs)
         self.PMID = kwargs['PMID']
         self.comp_date = kwargs['comp_date']
+        self.date_revised = kwargs.get('date_revised', '')
+        self.article_date = kwargs.get('article_date', '')
+        self.pub_date = kwargs.get('pub_date', '')
         self.title = kwargs['title']
         self.abstract = kwargs['abstract']
         self.authors = kwargs['authors']
@@ -185,10 +212,18 @@ class Article():
         return year + "-" + month + "-" + day
 
 
-def _get_date_clause(start_date: str, end_date: str) -> str:
-    clause = 'AND (("<sdate>"[Date - Completion] : "<edate>"[Date - Completion]))'
-    clause = clause.replace("<sdate>", start_date)
-    clause = clause.replace("<edate>", end_date)
+def _get_date_clause(start_date: str, end_date: str, date_type: str = "publication") -> str:
+    """Build PubMed date filter clause based on date type."""
+    # Map date types to PubMed search field tags
+    date_field_map = {
+        "completion": "Date - Completion",
+        "publication": "Date - Publication", 
+        "entry": "Date - Entry",
+        "revised": "Date - Last Revision"
+    }
+    
+    field = date_field_map.get(date_type, "Date - Publication")
+    clause = f'AND (("{start_date}"[{field}] : "{end_date}"[{field}]))'
     return clause
 
 
@@ -282,7 +317,7 @@ def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
         raise
 
 
-def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str) -> List[str]:
+def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication") -> List[str]:
     """
     Retrieve PubMed article IDs within a specified date range.
     
@@ -290,6 +325,7 @@ def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: s
         filter_term: Search query string
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
+        date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
         
     Returns:
         List of article IDs
@@ -300,7 +336,7 @@ def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: s
     url = PUBMED_API_SEARCH_URL
     params = {
         'db': 'pubmed',
-        'term': '(' + filter_term + ')' + _get_date_clause(start_date, end_date),
+        'term': '(' + filter_term + ')' + _get_date_clause(start_date, end_date, date_type),
         'retmax': RETMAX,
         'retmode': 'json'
     }
@@ -413,7 +449,7 @@ def get_citation_from_article(article: Article) -> str:
     return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
 
 
-def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str) -> List['CanonicalPubMedArticle']:
+def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication") -> List['CanonicalPubMedArticle']:
     """
     Search for PubMed articles within a specified date range and return canonical articles.
     
@@ -421,6 +457,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
         filter_term: Search query string
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
+        date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
         
     Returns:
         List of CanonicalPubMedArticle objects
@@ -430,10 +467,10 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     """
     from schemas.canonical_types import CanonicalPubMedArticle
     
-    logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}")
+    logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}, date_type={date_type}")
     
     # Get article IDs - function now throws exception on error
-    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date)
+    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date, date_type)
     logger.info(f"Found {len(article_ids)} article IDs")
     
     if not article_ids:
@@ -462,7 +499,10 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
                     "issue": article.issue,
                     "pages": article.pages,
                     "medium": article.medium,
-                    "comp_date": article.comp_date
+                    "comp_date": article.comp_date,
+                    "date_revised": article.date_revised,
+                    "article_date": article.article_date,
+                    "pub_date": article.pub_date
                 }
             )
             canonical_articles.append(canonical_article)

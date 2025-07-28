@@ -245,7 +245,8 @@ class PubMedAdapter(SearchProvider):
         canonical_articles = search_articles_by_date_range(
             filter_term=params.query,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            date_type=params.date_type or "publication"
         )
         
         # Sort by date if requested

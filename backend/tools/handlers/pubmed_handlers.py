@@ -19,7 +19,6 @@ from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
 from services.pubmed_service import (
     get_article_ids,
-    get_article_ids_by_date_range, 
     get_articles_from_ids, 
     Article
 )
@@ -143,19 +142,17 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
         if not query:
             raise ValueError("search_query is required")
         
-        # If date range is provided, use the date-specific search
-        if start_date and end_date:
-            search_result = get_article_ids_by_date_range(query, start_date, end_date)
-        else:
-            # Use basic search without date restrictions
-            search_result = get_article_ids(query, max_results)
+        # Use unified search function with optional date parameters
+        article_ids = get_article_ids(
+            search_term=query,
+            max_results=max_results,
+            sort_by=sort_order,
+            start_date=start_date,
+            end_date=end_date
+        )
         
-        if search_result['status_code'] != 200:
-            raise Exception(f"PubMed API returned status code: {search_result['status_code']}")
-        
-        # Limit results to max_results
-        article_ids = search_result['ids'][:max_results]
-        total_found = int(search_result['count'])
+        # The function now returns a list of IDs directly
+        total_found = len(article_ids)
         
         # Fetch full article details
         articles_data = get_articles_from_ids(article_ids)

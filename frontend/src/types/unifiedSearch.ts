@@ -23,6 +23,12 @@ export interface CanonicalResearchArticle {
   publication_date?: string;
   publication_year?: number;
   
+  // PubMed-specific date fields (always populated for PubMed articles)
+  date_completed?: string;     // Date record was completed (YYYY-MM-DD)
+  date_revised?: string;       // Date record was last revised (YYYY-MM-DD)
+  date_entered?: string;       // Date entered into PubMed (YYYY-MM-DD)
+  date_published?: string;     // Publication date with full precision (YYYY-MM-DD)
+  
   // Identifiers and links
   doi?: string;
   url?: string;

@@ -87,6 +87,9 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         except (ValueError, IndexError):
             pass
     
+    # Extract all dates from metadata if available
+    metadata = pubmed_article.metadata or {}
+    
     return CanonicalResearchArticle(
         id=f"pubmed_{pubmed_article.pmid}",  # Use consistent ID format
         source="pubmed",
@@ -97,6 +100,11 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         journal=pubmed_article.journal,
         publication_date=pubmed_article.publication_date,
         publication_year=publication_year,
+        # Populate all 4 date fields from metadata
+        date_completed=metadata.get('comp_date'),
+        date_revised=metadata.get('date_revised'),
+        date_entered=metadata.get('entry_date'),
+        date_published=metadata.get('pub_date'),
         doi=pubmed_article.doi,
         url=f"https://pubmed.ncbi.nlm.nih.gov/{pubmed_article.pmid}/" if pubmed_article.pmid else None,
         pdf_url=None,  # PubMed doesn't provide direct PDF links

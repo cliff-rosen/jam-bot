@@ -36,9 +36,7 @@ export function TabelizerTable({
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  
-  // Use the prop directly instead of local state
-  const displayDateType = initialDisplayDateType;
+  const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);
 
   const handleSort = (columnId: string) => {
     if (sortBy === columnId) {
@@ -119,28 +117,22 @@ export function TabelizerTable({
   };
 
   const getArticleDate = (article: CanonicalResearchArticle, dateType: string): string => {
-    // Debug logging
-    console.log(`Getting date for article ${article.id}, dateType: ${dateType}`);
-    console.log(`Article source_metadata:`, article.source_metadata);
-    
     // For non-PubMed articles, always use publication year
     if (article.source !== 'pubmed') {
       return article.publication_year?.toString() || '-';
     }
 
-    // For PubMed articles, check source_metadata for the requested date type
-    const metadata = article.source_metadata || {};
-    
+    // For PubMed articles, use the first-class date fields
     switch (dateType) {
       case 'completion':
-        return metadata.comp_date || metadata.publication_date || article.publication_year?.toString() || '-';
+        return article.date_completed || article.date_published || article.publication_date || '-';
       case 'entry':
-        return metadata.entry_date || metadata.publication_date || article.publication_year?.toString() || '-';
+        return article.date_entered || article.date_published || article.publication_date || '-';
       case 'revised':
-        return metadata.date_revised || metadata.publication_date || article.publication_year?.toString() || '-';
+        return article.date_revised || article.date_published || article.publication_date || '-';
       case 'publication':
       default:
-        return metadata.pub_date || metadata.publication_date || article.publication_year?.toString() || '-';
+        return article.date_published || article.publication_date || article.publication_year?.toString() || '-';
     }
   };
 
@@ -285,16 +277,31 @@ export function TabelizerTable({
                   {renderSortIcon('journal')}
                 </div>
               </th>
-              <th 
-                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
-                onClick={() => handleSort('year')}
-              >
-                <div className="flex items-center gap-1">
-                  {displayDateType === 'publication' ? 'Publication Date' : 
-                   displayDateType === 'completion' ? 'Completion Date' :
-                   displayDateType === 'revised' ? 'Revised Date' :
-                   displayDateType === 'entry' ? 'Entry Date' : 'Date'}
-                  {renderSortIcon('year')}
+              <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                <div className="flex flex-col gap-1">
+                  <div 
+                    className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded"
+                    onClick={() => handleSort('year')}
+                  >
+                    <span>
+                      {displayDateType === 'publication' ? 'Publication Date' : 
+                       displayDateType === 'completion' ? 'Completion Date' :
+                       displayDateType === 'revised' ? 'Revised Date' :
+                       displayDateType === 'entry' ? 'Entry Date' : 'Date'}
+                    </span>
+                    {renderSortIcon('year')}
+                  </div>
+                  <select
+                    className="text-xs px-1 py-0.5 border rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                    value={displayDateType}
+                    onChange={(e) => setDisplayDateType(e.target.value as "completion" | "publication" | "entry" | "revised")}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="publication">Publication</option>
+                    <option value="completion">Completion</option>
+                    <option value="entry">Entry</option>
+                    <option value="revised">Revised</option>
+                  </select>
                 </div>
               </th>
               <th 

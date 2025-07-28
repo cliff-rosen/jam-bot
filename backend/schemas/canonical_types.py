@@ -9,7 +9,7 @@ This ensures consistency, maintainability, and type safety across the entire
 codebase.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Optional, List, Any, Union, Literal
 from datetime import datetime
 from schemas.base import SchemaType
@@ -101,6 +101,7 @@ class CanonicalResearchArticle(BaseModel):
     Unified canonical research article schema that both PubMed and Google Scholar 
     can map to for consistent workbench representation.
     """
+    model_config = ConfigDict(extra='forbid')
     # Core identification
     id: str = Field(description="Unique identifier (PMID for PubMed, URL or generated ID for Scholar)")
     source: Literal["pubmed", "scholar"] = Field(description="Source system: 'pubmed' or 'scholar'")
@@ -115,6 +116,12 @@ class CanonicalResearchArticle(BaseModel):
     journal: Optional[str] = Field(default=None, description="Journal or publication venue")
     publication_date: Optional[str] = Field(default=None, description="Publication date")
     publication_year: Optional[int] = Field(default=None, description="Publication year")
+    
+    # PubMed-specific date fields (always populated for PubMed articles)
+    date_completed: Optional[str] = Field(default=None, description="Date record was completed (YYYY-MM-DD)")
+    date_revised: Optional[str] = Field(default=None, description="Date record was last revised (YYYY-MM-DD)")
+    date_entered: Optional[str] = Field(default=None, description="Date entered into PubMed (YYYY-MM-DD)")
+    date_published: Optional[str] = Field(default=None, description="Publication date with full precision (YYYY-MM-DD)")
     
     # Identifiers and links
     doi: Optional[str] = Field(default=None, description="Digital Object Identifier")

@@ -116,6 +116,13 @@ class Article():
         article_date = cls._get_date_from_node(article_date_node)
         entry_date = cls._get_date_from_node(entry_date_node)
         
+        # Add debug logging for date extraction
+        logger.info(f"PMID {PMID} - Extracted dates:")
+        logger.info(f"  date_completed: {date_completed}")
+        logger.info(f"  date_revised: {date_revised}")
+        logger.info(f"  article_date: {article_date}")
+        logger.info(f"  entry_date: {entry_date}")
+        
         # Debug logging
         logger.debug(f"PMID {PMID} - Date extraction:")
         logger.debug(f"  date_completed: {date_completed}")
@@ -479,7 +486,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
                 abstract=article.abstract,
                 authors=article.authors.split(', ') if article.authors else [],
                 journal=article.journal,
-                publication_date=f"{article.year}" if article.year else None,
+                publication_date=article.pub_date if article.pub_date else (f"{article.year}" if article.year else None),
                 keywords=[],  # Would need to extract from XML
                 mesh_terms=[],  # Would need to extract from XML
                 metadata={
@@ -496,7 +503,13 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
             )
             
             # Debug: Log what we're putting in metadata
-            logger.debug(f"PMID {canonical_article.pmid} metadata: {canonical_article.metadata}")
+            logger.info(f"PMID {canonical_article.pmid} - All dates from article object:")
+            logger.info(f"  comp_date: {article.comp_date}")
+            logger.info(f"  date_revised: {article.date_revised}")
+            logger.info(f"  entry_date: {article.entry_date}")
+            logger.info(f"  pub_date: {article.pub_date}")
+            logger.info(f"  year: {article.year}")
+            logger.info(f"PMID {canonical_article.pmid} metadata: {canonical_article.metadata}")
             canonical_articles.append(canonical_article)
         except Exception as e:
             logger.warning(f"Failed to convert article {article.PMID} to canonical format: {e}")

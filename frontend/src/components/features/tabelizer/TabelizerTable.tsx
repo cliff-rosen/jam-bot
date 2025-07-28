@@ -47,6 +47,26 @@ export function TabelizerTable({
     }
   };
 
+  const getArticleDate = (article: CanonicalResearchArticle, dateType: string): string => {
+    // For non-PubMed articles, always use publication year
+    if (article.source !== 'pubmed') {
+      return article.publication_year?.toString() || '-';
+    }
+
+    // For PubMed articles, use the first-class date fields
+    switch (dateType) {
+      case 'completion':
+        return article.date_completed || article.source_metadata?.comp_date || article.publication_date || '-';
+      case 'entry':
+        return article.date_entered || article.source_metadata?.entry_date || article.publication_date || '-';
+      case 'revised':
+        return article.date_revised || article.source_metadata?.date_revised || article.publication_date || '-';
+      case 'publication':
+      default:
+        return article.date_published || article.source_metadata?.pub_date || article.publication_date || article.publication_year?.toString() || '-';
+    }
+  };
+
   const sortedArticles = useMemo(() => {
     if (!sortBy) return articles;
 
@@ -69,8 +89,12 @@ export function TabelizerTable({
           bValue = b.journal || '';
           break;
         case 'year':
-          aValue = a.publication_year || 0;
-          bValue = b.publication_year || 0;
+          // Use the currently selected date type for sorting
+          aValue = getArticleDate(a, displayDateType);
+          bValue = getArticleDate(b, displayDateType);
+          // Convert dates to comparable format for sorting
+          aValue = aValue === '-' ? '0000-00-00' : aValue;
+          bValue = bValue === '-' ? '0000-00-00' : bValue;
           break;
         case 'source':
           aValue = a.source;
@@ -114,26 +138,6 @@ export function TabelizerTable({
     if (authors.length === 0) return '-';
     if (authors.length === 1) return authors[0];
     return `${authors[0]} et al`;
-  };
-
-  const getArticleDate = (article: CanonicalResearchArticle, dateType: string): string => {
-    // For non-PubMed articles, always use publication year
-    if (article.source !== 'pubmed') {
-      return article.publication_year?.toString() || '-';
-    }
-
-    // For PubMed articles, use the first-class date fields
-    switch (dateType) {
-      case 'completion':
-        return article.date_completed || article.source_metadata?.comp_date || article.publication_date || '-';
-      case 'entry':
-        return article.date_entered || article.source_metadata?.entry_date || article.publication_date || '-';
-      case 'revised':
-        return article.date_revised || article.source_metadata?.date_revised || article.publication_date || '-';
-      case 'publication':
-      default:
-        return article.date_published || article.source_metadata?.pub_date || article.publication_date || article.publication_year?.toString() || '-';
-    }
   };
 
   const formatDate = (dateStr: string): string => {
@@ -224,16 +228,14 @@ export function TabelizerTable({
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
-            {/* Fixed column widths for optimal layout */}
-            <col className="w-20" /> {/* ID */}
-            <col className="w-96" /> {/* Title */}
-            <col className="w-32" /> {/* Authors */}
-            <col className="w-40" /> {/* Journal */}
-            <col className="w-24" /> {/* Date */}
-            <col className="w-20" /> {/* Source */}
-            <col className="w-80" /> {/* Abstract */}
-            <col className="w-32" /> {/* Actions */}
-            {/* Custom columns get remaining space */}
+            <col className="w-20" />
+            <col className="w-96" />
+            <col className="w-32" />
+            <col className="w-40" />
+            <col className="w-24" />
+            <col className="w-20" />
+            <col className="w-80" />
+            <col className="w-32" />
             {columns.map(() => (
               <col key={Math.random()} className="w-32" />
             ))}
@@ -278,30 +280,29 @@ export function TabelizerTable({
                 </div>
               </th>
               <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                   <div 
                     className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded"
                     onClick={() => handleSort('year')}
                   >
-                    <span>
-                      {displayDateType === 'publication' ? 'Publication Date' : 
-                       displayDateType === 'completion' ? 'Completion Date' :
-                       displayDateType === 'revised' ? 'Revised Date' :
-                       displayDateType === 'entry' ? 'Entry Date' : 'Date'}
-                    </span>
+                    <span className="text-sm">Date</span>
                     {renderSortIcon('year')}
                   </div>
-                  <select
-                    className="text-xs px-1 py-0.5 border rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
-                    value={displayDateType}
-                    onChange={(e) => setDisplayDateType(e.target.value as "completion" | "publication" | "entry" | "revised")}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value="publication">Publication</option>
-                    <option value="completion">Completion</option>
-                    <option value="entry">Entry</option>
-                    <option value="revised">Revised</option>
-                  </select>
+                  <div className="flex flex-col">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type:</label>
+                    <select
+                      className="text-xs px-2 py-1 border rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-w-0"
+                      value={displayDateType}
+                      onChange={(e) => setDisplayDateType(e.target.value as "completion" | "publication" | "entry" | "revised")}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Select which date type to display in the table"
+                    >
+                      <option value="publication">Publication</option>
+                      <option value="completion">Completion</option>
+                      <option value="entry">Entry</option>
+                      <option value="revised">Revised</option>
+                    </select>
+                  </div>
                 </div>
               </th>
               <th 
@@ -389,7 +390,14 @@ export function TabelizerTable({
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  {formatDate(getArticleDate(article, displayDateType))}
+                  <div className="flex flex-col">
+                    <span>{formatDate(getArticleDate(article, displayDateType))}</span>
+                    {article.source === 'pubmed' && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 capitalize">
+                        {displayDateType}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2 whitespace-nowrap">
                   {getSourceBadge(article.source)}

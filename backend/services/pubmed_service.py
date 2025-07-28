@@ -51,7 +51,19 @@ class Article():
         article_node = medline_citation_node.find('.//Article')
         date_completed_node = medline_citation_node.find(".//DateCompleted")
         date_revised_node = medline_citation_node.find(".//DateRevised")
-        article_date_node = article_node.find(".//ArticleDate") if article_node is not None else None
+        # ArticleDate can be in Article or directly in MedlineCitation
+        article_date_node = None
+        if article_node is not None:
+            article_date_node = article_node.find(".//ArticleDate")
+        if article_date_node is None:
+            article_date_node = medline_citation_node.find(".//ArticleDate")
+        # Entry date is in PubmedData/History/PubMedPubDate with PubStatus="entrez"
+        pubmed_data_node = pubmed_article_node.find('.//PubmedData')
+        entry_date_node = None
+        if pubmed_data_node is not None:
+            history_node = pubmed_data_node.find('.//History')
+            if history_node is not None:
+                entry_date_node = history_node.find('.//PubMedPubDate[@PubStatus="entrez"]')
 
         journal_node = article_node.find('.//Journal')
         journal_issue_node = journal_node.find(".//JournalIssue")
@@ -79,6 +91,7 @@ class Article():
         date_completed = ""
         date_revised = ""
         article_date = ""
+        entry_date = ""
         pub_date = ""
 
         if PMID_node is not None:
@@ -101,6 +114,14 @@ class Article():
         date_completed = cls._get_date_from_node(date_completed_node)
         date_revised = cls._get_date_from_node(date_revised_node)
         article_date = cls._get_date_from_node(article_date_node)
+        entry_date = cls._get_date_from_node(entry_date_node)
+        
+        # Debug logging
+        logger.debug(f"PMID {PMID} - Date extraction:")
+        logger.debug(f"  date_completed: {date_completed}")
+        logger.debug(f"  date_revised: {date_revised}")
+        logger.debug(f"  article_date: {article_date}")
+        logger.debug(f"  entry_date: {entry_date}")
         # Get pub_date from year/month/day already extracted
         if year:
             pub_date = year
@@ -149,6 +170,7 @@ class Article():
                     comp_date=date_completed,
                     date_revised=date_revised,
                     article_date=article_date,
+                    entry_date=entry_date,
                     pub_date=pub_date,
                     title=title,
                     abstract=abstract,
@@ -167,6 +189,7 @@ class Article():
         self.comp_date = kwargs['comp_date']
         self.date_revised = kwargs.get('date_revised', '')
         self.article_date = kwargs.get('article_date', '')
+        self.entry_date = kwargs.get('entry_date', '')
         self.pub_date = kwargs.get('pub_date', '')
         self.title = kwargs['title']
         self.abstract = kwargs['abstract']
@@ -194,35 +217,49 @@ class Article():
         return line + res
 
     @staticmethod
-    def _get_date_from_node(date_completed_node: Optional[ET.Element]) -> str:
-        if date_completed_node is None:
+    def _get_date_from_node(date_node: Optional[ET.Element]) -> str:
+        if date_node is None:
             return ""
-        year_node = date_completed_node.find(".//Year")
-        month_node = date_completed_node.find(".//Month")
-        day_node = date_completed_node.find(".//Day")
+        
+        year_node = date_node.find(".//Year")
+        month_node = date_node.find(".//Month")
+        day_node = date_node.find(".//Day")
+        
+        # Debug logging
+        logger.debug(f"Date node tag: {date_node.tag}")
+        logger.debug(f"Year node: {year_node.text if year_node is not None else 'None'}")
+        logger.debug(f"Month node: {month_node.text if month_node is not None else 'None'}")
+        logger.debug(f"Day node: {day_node.text if day_node is not None else 'None'}")
+        
+        # Year is required
+        if year_node is None or year_node.text is None:
+            logger.debug("No year found, returning empty string")
+            return ""
+        
         year = year_node.text
-        if month_node is not None:
-            month = month_node.text
-        else:
-            month = "01"
-        if day_node is not None:
-            day = day_node.text
-        else:
-            day = "01"
-        return year + "-" + month + "-" + day
+        month = month_node.text if month_node is not None and month_node.text else "01"
+        day = day_node.text if day_node is not None and day_node.text else "01"
+        
+        # Ensure month and day are zero-padded
+        month = month.zfill(2)
+        day = day.zfill(2)
+        
+        result = f"{year}-{month}-{day}"
+        logger.debug(f"Returning date: {result}")
+        return result
 
 
 def _get_date_clause(start_date: str, end_date: str, date_type: str = "publication") -> str:
     """Build PubMed date filter clause based on date type."""
-    # Map date types to PubMed search field tags
+    # Map date types to PubMed E-utilities search field tags
     date_field_map = {
-        "completion": "Date - Completion",
-        "publication": "Date - Publication", 
-        "entry": "Date - Entry",
-        "revised": "Date - Last Revision"
+        "completion": "DCOM",  # Date Completed
+        "publication": "DP",   # Date of Publication 
+        "entry": "EDAT",       # Entry Date (formerly Entrez Date)
+        "revised": "LR"        # Date Last Revised
     }
     
-    field = date_field_map.get(date_type, "Date - Publication")
+    field = date_field_map.get(date_type, "DP")
     clause = f'AND (("{start_date}"[{field}] : "{end_date}"[{field}]))'
     return clause
 
@@ -502,9 +539,13 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
                     "comp_date": article.comp_date,
                     "date_revised": article.date_revised,
                     "article_date": article.article_date,
+                    "entry_date": article.entry_date,
                     "pub_date": article.pub_date
                 }
             )
+            
+            # Debug: Log what we're putting in metadata
+            logger.debug(f"PMID {canonical_article.pmid} metadata: {canonical_article.metadata}")
             canonical_articles.append(canonical_article)
         except Exception as e:
             logger.warning(f"Failed to convert article {article.PMID} to canonical format: {e}")

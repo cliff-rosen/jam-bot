@@ -63,7 +63,6 @@ export interface UnifiedSearchParams {
   year_low?: number;
   year_high?: number;
   date_type?: "completion" | "publication" | "entry" | "revised";
-  display_date_type?: "completion" | "publication" | "entry" | "revised";
   include_citations: boolean;
   include_pdf_links: boolean;
   // Pagination support

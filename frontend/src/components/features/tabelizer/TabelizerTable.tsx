@@ -32,10 +32,11 @@ export function TabelizerTable({
   onSaveGroup,
   onLoadGroup,
   currentGroup,
-  displayDateType = 'publication',
+  displayDateType: initialDisplayDateType = 'publication',
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);
 
   const handleSort = (columnId: string) => {
     if (sortBy === columnId) {
@@ -116,6 +117,10 @@ export function TabelizerTable({
   };
 
   const getArticleDate = (article: CanonicalResearchArticle, dateType: string): string => {
+    // Debug logging
+    console.log(`Getting date for article ${article.id}, dateType: ${dateType}`);
+    console.log(`Article source_metadata:`, article.source_metadata);
+    
     // For non-PubMed articles, always use publication year
     if (article.source !== 'pubmed') {
       return article.publication_year?.toString() || '-';
@@ -128,8 +133,7 @@ export function TabelizerTable({
       case 'completion':
         return metadata.comp_date || metadata.publication_date || article.publication_year?.toString() || '-';
       case 'entry':
-        // Entry date not in current metadata, would need to add to PubMed XML extraction
-        return metadata.publication_date || article.publication_year?.toString() || '-';
+        return metadata.entry_date || metadata.publication_date || article.publication_year?.toString() || '-';
       case 'revised':
         return metadata.date_revised || metadata.publication_date || article.publication_year?.toString() || '-';
       case 'publication':
@@ -144,7 +148,10 @@ export function TabelizerTable({
     // If it's just a year, return as-is
     if (/^\d{4}$/.test(dateStr)) return dateStr;
     
-    // Try to extract just the year from a full date
+    // If it's a full date (YYYY-MM-DD), return the full date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    
+    // Try to extract the year from other formats as fallback
     const yearMatch = dateStr.match(/^(\d{4})/);
     if (yearMatch) return yearMatch[1];
     
@@ -228,7 +235,7 @@ export function TabelizerTable({
             <col className="w-96" /> {/* Title */}
             <col className="w-32" /> {/* Authors */}
             <col className="w-40" /> {/* Journal */}
-            <col className="w-16" /> {/* Year */}
+            <col className="w-24" /> {/* Date */}
             <col className="w-20" /> {/* Source */}
             <col className="w-80" /> {/* Abstract */}
             <col className="w-32" /> {/* Actions */}
@@ -276,16 +283,31 @@ export function TabelizerTable({
                   {renderSortIcon('journal')}
                 </div>
               </th>
-              <th 
-                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
-                onClick={() => handleSort('year')}
-              >
-                <div className="flex items-center gap-1">
-                  {displayDateType === 'publication' ? 'Year' : 
-                   displayDateType === 'completion' ? 'Completed' :
-                   displayDateType === 'revised' ? 'Revised' :
-                   displayDateType === 'entry' ? 'Entered' : 'Year'}
-                  {renderSortIcon('year')}
+              <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1">
+                    <span 
+                      className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded"
+                      onClick={() => handleSort('year')}
+                    >
+                      {displayDateType === 'publication' ? 'Year' : 
+                       displayDateType === 'completion' ? 'Completed' :
+                       displayDateType === 'revised' ? 'Revised' :
+                       displayDateType === 'entry' ? 'Entered' : 'Year'}
+                      {renderSortIcon('year')}
+                    </span>
+                  </div>
+                  <select
+                    className="text-xs px-1 py-0.5 border rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                    value={displayDateType}
+                    onChange={(e) => setDisplayDateType(e.target.value as "completion" | "publication" | "entry" | "revised")}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="publication">Pub</option>
+                    <option value="completion">Comp</option>
+                    <option value="entry">Entry</option>
+                    <option value="revised">Rev</option>
+                  </select>
                 </div>
               </th>
               <th 

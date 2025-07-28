@@ -115,6 +115,10 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         indexed_at=None,
         retrieved_at=datetime.utcnow().isoformat()
     )
+    
+    # Debug: Log source metadata being set
+    from services.pubmed_service import logger
+    logger.debug(f"Converting PubMed article {pubmed_article.pmid} - source_metadata: {pubmed_article.metadata}")
 
 
 def scholar_to_research_article(scholar_article: CanonicalScholarArticle, position: Optional[int] = None) -> CanonicalResearchArticle:

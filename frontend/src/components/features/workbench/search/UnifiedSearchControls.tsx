@@ -97,46 +97,26 @@ export function UnifiedSearchControls({
     if (provider === 'pubmed') {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Filter Date Type
-              </label>
-              <select
-                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={searchParams.date_type || 'publication'}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
-                })}
-              >
-                <option value="publication">Publication Date</option>
-                <option value="completion">Completion Date</option>
-                <option value="entry">Entry Date</option>
-                <option value="revised">Revised Date</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Display Date Type
-              </label>
-              <select
-                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={searchParams.display_date_type || searchParams.date_type || 'publication'}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  display_date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
-                })}
-              >
-                <option value="publication">Publication Date</option>
-                <option value="completion">Completion Date</option>
-                <option value="entry">Entry Date</option>
-                <option value="revised">Revised Date</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Date Type
+            </label>
+            <select
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+              value={searchParams.date_type || 'publication'}
+              onChange={(e) => onSearchParamsChange({
+                ...searchParams,
+                date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
+              })}
+            >
+              <option value="publication">Publication Date</option>
+              <option value="completion">Completion Date</option>
+              <option value="entry">Entry Date</option>
+              <option value="revised">Revised Date</option>
+            </select>
           </div>
           <Badge variant="secondary" className="text-xs">
-            PubMed supports multiple date types for filtering and display
+            PubMed supports date filtering by completion, publication, entry, or revision dates
           </Badge>
         </div>
       );

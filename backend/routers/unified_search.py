@@ -71,6 +71,9 @@ async def unified_search(
     sort_by: Literal["relevance", "date"] = Query("relevance", description="Sort order"),
     year_low: Optional[int] = Query(None, description="Minimum publication year"),
     year_high: Optional[int] = Query(None, description="Maximum publication year"),
+    date_type: Optional[Literal["completion", "publication", "entry", "revised"]] = Query(None, description="Date type for filtering (PubMed-specific)"),
+    include_citations: bool = Query(True, description="Include citation information"),
+    include_pdf_links: bool = Query(True, description="Include PDF links where available"),
     current_user: User = Depends(validate_token)
 ):
     """
@@ -121,6 +124,9 @@ async def unified_search(
         sort_by=sort_by,
         year_low=year_low,
         year_high=year_high,
+        date_type=date_type,
+        include_citations=include_citations,
+        include_pdf_links=include_pdf_links,
         offset=actual_offset,
         page=page
     )
@@ -160,6 +166,9 @@ async def batch_unified_search(
     sort_by: Literal["relevance", "date"] = Query("relevance", description="Sort order"),
     year_low: Optional[int] = Query(None, description="Minimum publication year"),
     year_high: Optional[int] = Query(None, description="Maximum publication year"),
+    date_type: Optional[Literal["completion", "publication", "entry", "revised"]] = Query(None, description="Date type for filtering (PubMed-specific)"),
+    include_citations: bool = Query(True, description="Include citation information"),
+    include_pdf_links: bool = Query(True, description="Include PDF links where available"),
     current_user: User = Depends(validate_token)
 ):
     """
@@ -190,6 +199,9 @@ async def batch_unified_search(
         sort_by=sort_by,
         year_low=year_low,
         year_high=year_high,
+        date_type=date_type,
+        include_citations=include_citations,
+        include_pdf_links=include_pdf_links,
         offset=actual_offset,
         page=page
     )

@@ -72,24 +72,29 @@ class PubMedAdapter(SearchProvider):
             
             # Convert unified params to PubMed-specific search
             if params.year_low or params.year_high:
-                # Use date range search
+                # Use date range search - returns research articles directly
                 articles, pagination_meta = await self._search_by_date_range(params)
+                canonical_articles = []
+                for i, article in enumerate(articles, 1):
+                    # Articles are already research articles, just set positioning
+                    article.search_position = i
+                    article.relevance_score = self._estimate_relevance_score(i, len(articles))
+                    canonical_articles.append(article)
             else:
-                # Use basic search
+                # Use basic search - returns raw articles
                 articles, pagination_meta = await self._basic_search(params)
-            
-            # Convert to canonical format with better IDs
-            canonical_articles = []
-            for i, article in enumerate(articles, 1):
-                # First convert legacy Article to CanonicalPubMedArticle
-                canonical_pubmed = legacy_article_to_canonical_pubmed(article)
-                # Then convert to CanonicalResearchArticle
-                canonical = pubmed_to_research_article(canonical_pubmed)
-                # Use simple ID format
-                canonical.id = f"pubmed_{article.PMID}"
-                canonical.search_position = i
-                canonical.relevance_score = self._estimate_relevance_score(i, len(articles))
-                canonical_articles.append(canonical)
+                # Convert to canonical format with better IDs
+                canonical_articles = []
+                for i, article in enumerate(articles, 1):
+                    # First convert legacy Article to CanonicalPubMedArticle
+                    canonical_pubmed = legacy_article_to_canonical_pubmed(article)
+                    # Then convert to CanonicalResearchArticle
+                    canonical = pubmed_to_research_article(canonical_pubmed)
+                    # Use simple ID format
+                    canonical.id = f"pubmed_{article.PMID}"
+                    canonical.search_position = i
+                    canonical.relevance_score = self._estimate_relevance_score(i, len(articles))
+                    canonical_articles.append(canonical)
             
             # Calculate search time
             search_time = (datetime.utcnow() - start_time).total_seconds()
@@ -258,25 +263,13 @@ class PubMedAdapter(SearchProvider):
         total_results = len(canonical_articles)
         paginated_articles = canonical_articles[offset:offset + params.num_results]
         
-        # Convert back to the expected format for now
-        # (This is temporary until we fully migrate to canonical format)
+        # Convert canonical articles to research articles format to preserve metadata
+        from schemas.research_article_converters import pubmed_to_research_article
         articles = []
         for canonical in paginated_articles:
-            # Create a simple article object that the converter expects
-            article = type('Article', (), {
-                'PMID': canonical.pmid,
-                'title': canonical.title,
-                'abstract': canonical.abstract,
-                'authors': ', '.join(canonical.authors),
-                'journal': canonical.journal,
-                'year': canonical.publication_date.split('-')[0] if canonical.publication_date else None,
-                'volume': canonical.metadata.get('volume', '') if canonical.metadata else '',
-                'issue': canonical.metadata.get('issue', '') if canonical.metadata else '',
-                'pages': canonical.metadata.get('pages', '') if canonical.metadata else '',
-                'medium': canonical.metadata.get('medium', '') if canonical.metadata else '',
-                'comp_date': canonical.metadata.get('comp_date', '') if canonical.metadata else ''
-            })()
-            articles.append(article)
+            # Convert directly to research article format to preserve source_metadata
+            research_article = pubmed_to_research_article(canonical)
+            articles.append(research_article)
         
         # Return articles and pagination metadata
         pagination_meta = {

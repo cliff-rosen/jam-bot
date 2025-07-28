@@ -264,13 +264,14 @@ def _get_date_clause(start_date: str, end_date: str, date_type: str = "publicati
     return clause
 
 
-def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
+def get_article_ids(search_term: str, max_results: int = 100, sort_by: str = "relevance") -> List[str]:
     """
     Basic PubMed search without date restrictions.
     
     Args:
         search_term: Search query string
         max_results: Maximum number of results to return
+        sort_by: Sort order ('relevance' or 'date')
         
     Returns:
         List of article IDs
@@ -285,6 +286,16 @@ def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
         'retmax': min(max_results, int(RETMAX)),
         'retmode': 'json'
     }
+    
+    # Map unified sort values to PubMed API sort values
+    sort_mapping = {
+        'relevance': None,  # Default, don't need to specify
+        'date': 'pub_date'  # Sort by publication date
+    }
+    
+    pubmed_sort = sort_mapping.get(sort_by)
+    if pubmed_sort:
+        params['sort'] = pubmed_sort
     
     headers = {
         'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
@@ -354,7 +365,7 @@ def get_article_ids(search_term: str, max_results: int = 100) -> List[str]:
         raise
 
 
-def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication") -> List[str]:
+def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List[str]:
     """
     Retrieve PubMed article IDs within a specified date range.
     
@@ -363,6 +374,7 @@ def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: s
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
         date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
+        sort_by: Sort order ('relevance' or 'date')
         
     Returns:
         List of article IDs
@@ -377,6 +389,16 @@ def get_article_ids_by_date_range(filter_term: str, start_date: str, end_date: s
         'retmax': RETMAX,
         'retmode': 'json'
     }
+    
+    # Map unified sort values to PubMed API sort values
+    sort_mapping = {
+        'relevance': None,  # Default, don't need to specify
+        'date': 'pub_date'  # Sort by publication date
+    }
+    
+    pubmed_sort = sort_mapping.get(sort_by)
+    if pubmed_sort:
+        params['sort'] = pubmed_sort
     
     headers = {
         'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
@@ -486,7 +508,7 @@ def get_citation_from_article(article: Article) -> str:
     return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
 
 
-def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication") -> List['CanonicalPubMedArticle']:
+def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List['CanonicalPubMedArticle']:
     """
     Search for PubMed articles within a specified date range and return canonical articles.
     
@@ -495,6 +517,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
         date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
+        sort_by: Sort order ('relevance' or 'date')
         
     Returns:
         List of CanonicalPubMedArticle objects
@@ -507,7 +530,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}, date_type={date_type}")
     
     # Get article IDs - function now throws exception on error
-    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date, date_type)
+    article_ids = get_article_ids_by_date_range(filter_term, start_date, end_date, date_type, sort_by)
     logger.info(f"Found {len(article_ids)} article IDs")
     
     if not article_ids:

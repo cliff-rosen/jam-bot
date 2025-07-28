@@ -18,8 +18,12 @@ class UnifiedSearchParams(BaseModel):
     query: str = Field(..., description="Search query string")
     num_results: int = Field(default=20, ge=1, le=200, description="Number of results to return")
     sort_by: Literal["relevance", "date"] = Field(default="relevance", description="Sort order")
-    year_low: Optional[int] = Field(default=None, description="Minimum publication year")
-    year_high: Optional[int] = Field(default=None, description="Maximum publication year")
+    
+    # Date filtering - dual support for precision levels
+    year_low: Optional[int] = Field(default=None, description="Minimum publication year (Scholar compatibility)")
+    year_high: Optional[int] = Field(default=None, description="Maximum publication year (Scholar compatibility)")
+    date_from: Optional[str] = Field(default=None, description="Start date in YYYY-MM-DD format (PubMed full precision)")
+    date_to: Optional[str] = Field(default=None, description="End date in YYYY-MM-DD format (PubMed full precision)")
     
     # Pagination parameters
     page: Optional[int] = Field(default=1, ge=1, description="Page number (1-based)")

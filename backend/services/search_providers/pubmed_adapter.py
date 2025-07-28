@@ -71,7 +71,8 @@ class PubMedAdapter(SearchProvider):
             params = await self.validate_params(params)
             
             # Convert unified params to PubMed-specific search
-            if params.year_low or params.year_high:
+            # Use date range search if any date parameters are provided
+            if params.date_from or params.date_to or params.year_low or params.year_high:
                 # Use date range search - returns research articles directly
                 articles, pagination_meta = await self._search_by_date_range(params)
                 canonical_articles = []
@@ -200,7 +201,7 @@ class PubMedAdapter(SearchProvider):
             params.num_results = 10000
         
         # Default date type if using date filtering
-        if (params.year_low or params.year_high) and not params.date_type:
+        if (params.year_low or params.year_high or params.date_from or params.date_to) and not params.date_type:
             params.date_type = "publication"
         
         return params
@@ -215,7 +216,7 @@ class PubMedAdapter(SearchProvider):
         # Get more article IDs than needed to support pagination
         # We'll get up to offset + num_results to handle the current page
         max_ids_needed = offset + params.num_results
-        article_ids = get_article_ids(params.query, max_ids_needed)
+        article_ids = get_article_ids(params.query, max_ids_needed, params.sort_by)
         
         if not article_ids:
             return [], {"total_results": 0}
@@ -226,9 +227,7 @@ class PubMedAdapter(SearchProvider):
         # Get full article data for current page
         articles = get_articles_from_ids(paginated_ids)
         
-        # Sort by date if requested
-        if params.sort_by == "date":
-            articles.sort(key=lambda a: a.year or "0000", reverse=True)
+        # No need for client-side sorting - PubMed API handles sorting
         
         # Return articles and pagination metadata
         pagination_meta = {
@@ -242,21 +241,26 @@ class PubMedAdapter(SearchProvider):
     
     async def _search_by_date_range(self, params: UnifiedSearchParams) -> tuple[List[Any], Dict[str, Any]]:
         """Perform a PubMed search with date filtering."""
-        # Build date strings
-        start_date = f"{params.year_low or 1900}/01/01"
-        end_date = f"{params.year_high or datetime.now().year}/12/31"
+        # Build date strings - prefer full dates if available, fall back to years
+        if params.date_from or params.date_to:
+            # Use full date precision (YYYY-MM-DD)
+            start_date = params.date_from or "1900-01-01"
+            end_date = params.date_to or f"{datetime.now().year}-12-31"
+        else:
+            # Fall back to year-based dates (for backwards compatibility)
+            start_date = f"{params.year_low or 1900}/01/01"
+            end_date = f"{params.year_high or datetime.now().year}/12/31"
         
         # Use the service method that returns canonical articles directly
         canonical_articles = search_articles_by_date_range(
             filter_term=params.query,
             start_date=start_date,
             end_date=end_date,
-            date_type=params.date_type or "publication"
+            date_type=params.date_type or "publication",
+            sort_by=params.sort_by
         )
         
-        # Sort by date if requested
-        if params.sort_by == "date":
-            canonical_articles.sort(key=lambda a: a.publication_date or "0000", reverse=True)
+        # No need for client-side sorting - PubMed API handles sorting
         
         # Apply pagination
         offset = params.offset or 0

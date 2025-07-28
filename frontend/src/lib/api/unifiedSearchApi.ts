@@ -44,6 +44,8 @@ class UnifiedSearchApi {
         sort_by: params.sort_by,
         ...(params.year_low !== undefined && { year_low: params.year_low }),
         ...(params.year_high !== undefined && { year_high: params.year_high }),
+        ...(params.date_from !== undefined && { date_from: params.date_from }),
+        ...(params.date_to !== undefined && { date_to: params.date_to }),
         ...(params.date_type !== undefined && { date_type: params.date_type }),
         ...(params.include_citations !== undefined && { include_citations: params.include_citations }),
         ...(params.include_pdf_links !== undefined && { include_pdf_links: params.include_pdf_links }),

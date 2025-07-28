@@ -60,8 +60,11 @@ export interface UnifiedSearchParams {
   query: string;
   num_results: number;
   sort_by: "relevance" | "date";
-  year_low?: number;
-  year_high?: number;
+  // Date filtering - dual support for precision levels
+  year_low?: number;  // Scholar compatibility
+  year_high?: number; // Scholar compatibility  
+  date_from?: string; // PubMed full precision (YYYY-MM-DD)
+  date_to?: string;   // PubMed full precision (YYYY-MM-DD)
   date_type?: "completion" | "publication" | "entry" | "revised";
   include_citations: boolean;
   include_pdf_links: boolean;

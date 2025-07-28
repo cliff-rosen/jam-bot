@@ -258,45 +258,90 @@ export function UnifiedSearchControls({
                 disabled={isSearching}
               >
                 <option value="relevance">Relevance</option>
-                <option value="date">Date</option>
+                <option value="date">Publication Date</option>
               </select>
+              {searchMode === 'single' && searchParams.provider === 'pubmed' && searchParams.sort_by === 'date' && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Note: Sorting is always by publication date, regardless of filter date type
+                </div>
+              )}
             </div>
-            <div className="w-28">
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                From Year
-              </label>
-              <Input
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                value={searchParams.year_low || ''}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  year_low: e.target.value ? parseInt(e.target.value) : undefined
-                })}
-                placeholder="2020"
-                className="dark:bg-gray-800 dark:text-gray-100"
-                disabled={isSearching}
-              />
-            </div>
-            <div className="w-28">
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                To Year
-              </label>
-              <Input
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                value={searchParams.year_high || ''}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  year_high: e.target.value ? parseInt(e.target.value) : undefined
-                })}
-                placeholder="2024"
-                className="dark:bg-gray-800 dark:text-gray-100"
-                disabled={isSearching}
-              />
-            </div>
+            {/* Date range inputs - different for PubMed vs Scholar */}
+            {searchMode === 'single' && searchParams.provider === 'pubmed' ? (
+              // PubMed: Full date precision (YYYY-MM-DD)
+              <>
+                <div className="w-32">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    From Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={searchParams.date_from || ''}
+                    onChange={(e) => onSearchParamsChange({
+                      ...searchParams,
+                      date_from: e.target.value || undefined
+                    })}
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    To Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={searchParams.date_to || ''}
+                    onChange={(e) => onSearchParamsChange({
+                      ...searchParams,
+                      date_to: e.target.value || undefined
+                    })}
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+              </>
+            ) : (
+              // Scholar or multi-provider: Year-only precision
+              <>
+                <div className="w-28">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    From Year
+                  </label>
+                  <Input
+                    type="number"
+                    min="1900"
+                    max={new Date().getFullYear()}
+                    value={searchParams.year_low || ''}
+                    onChange={(e) => onSearchParamsChange({
+                      ...searchParams,
+                      year_low: e.target.value ? parseInt(e.target.value) : undefined
+                    })}
+                    placeholder="2020"
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+                <div className="w-28">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    To Year
+                  </label>
+                  <Input
+                    type="number"
+                    min="1900"
+                    max={new Date().getFullYear()}
+                    value={searchParams.year_high || ''}
+                    onChange={(e) => onSearchParamsChange({
+                      ...searchParams,
+                      year_high: e.target.value ? parseInt(e.target.value) : undefined
+                    })}
+                    placeholder="2024"
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Advanced options toggle */}

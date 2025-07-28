@@ -36,7 +36,9 @@ export function TabelizerTable({
 }: TabelizerTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);
+  
+  // Use the prop directly instead of local state
+  const displayDateType = initialDisplayDateType;
 
   const handleSort = (columnId: string) => {
     if (sortBy === columnId) {
@@ -283,31 +285,16 @@ export function TabelizerTable({
                   {renderSortIcon('journal')}
                 </div>
               </th>
-              <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1">
-                    <span 
-                      className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded"
-                      onClick={() => handleSort('year')}
-                    >
-                      {displayDateType === 'publication' ? 'Year' : 
-                       displayDateType === 'completion' ? 'Completed' :
-                       displayDateType === 'revised' ? 'Revised' :
-                       displayDateType === 'entry' ? 'Entered' : 'Year'}
-                      {renderSortIcon('year')}
-                    </span>
-                  </div>
-                  <select
-                    className="text-xs px-1 py-0.5 border rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
-                    value={displayDateType}
-                    onChange={(e) => setDisplayDateType(e.target.value as "completion" | "publication" | "entry" | "revised")}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value="publication">Pub</option>
-                    <option value="completion">Comp</option>
-                    <option value="entry">Entry</option>
-                    <option value="revised">Rev</option>
-                  </select>
+              <th 
+                className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+                onClick={() => handleSort('year')}
+              >
+                <div className="flex items-center gap-1">
+                  {displayDateType === 'publication' ? 'Publication Date' : 
+                   displayDateType === 'completion' ? 'Completion Date' :
+                   displayDateType === 'revised' ? 'Revised Date' :
+                   displayDateType === 'entry' ? 'Entry Date' : 'Date'}
+                  {renderSortIcon('year')}
                 </div>
               </th>
               <th 

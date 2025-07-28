@@ -403,7 +403,7 @@ export function TabelizerPage() {
   };
 
   const handleSaveGroup = async (
-    mode: 'new' | 'existing',
+    mode: 'new' | 'existing' | 'add',
     groupId?: string,
     name?: string,
     description?: string
@@ -419,7 +419,7 @@ export function TabelizerPage() {
         search_query: searchParams.query,
         search_provider: searchParams.provider,
         search_params: searchParams,
-        overwrite: true
+        overwrite: mode === 'existing' // Only overwrite for existing mode, not add mode
       };
 
       let response;
@@ -427,8 +427,11 @@ export function TabelizerPage() {
         // Create new group and save
         response = await articleGroupApi.createAndSaveGroup(name, description, saveRequest);
       } else if (mode === 'existing' && groupId) {
-        // Save to existing group
+        // Replace existing group
         response = await articleGroupApi.saveToGroup(groupId, saveRequest);
+      } else if (mode === 'add' && groupId) {
+        // Add to existing group (merge mode)
+        response = await articleGroupApi.addToGroup(groupId, saveRequest);
       } else {
         throw new Error('Invalid save parameters');
       }

@@ -77,35 +77,6 @@ class CanonicalPubMedArticle(BaseModel):
     citation_count: Optional[int] = Field(default=None, description="Number of citations")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional article metadata")
 
-class CanonicalNewsletter(BaseModel):
-    """
-    Canonical Newsletter schema - the definitive structure for newsletter objects.
-    """
-    id: str = Field(description="Newsletter unique identifier")
-    title: str = Field(description="Newsletter title")
-    content: str = Field(description="Newsletter content")
-    source: str = Field(description="Newsletter source/publisher")
-    publish_date: datetime = Field(description="Publication date")
-    subject_line: Optional[str] = Field(default=None, description="Email subject line")
-    categories: List[str] = Field(default=[], description="Newsletter categories/tags")
-    articles: List[Dict[str, Any]] = Field(default=[], description="Individual articles within newsletter")
-    summary: Optional[str] = Field(default=None, description="Newsletter summary")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional newsletter metadata")
-
-class CanonicalDailyNewsletterRecap(BaseModel):
-    """
-    Canonical Daily Newsletter Recap schema - the definitive structure for daily recap objects.
-    """
-    date: str = Field(description="Recap date (ISO format)")
-    title: str = Field(description="Recap title")
-    summary: str = Field(description="Daily summary content")
-    newsletter_count: int = Field(description="Number of newsletters processed")
-    key_topics: List[str] = Field(default=[], description="Key topics covered")
-    sentiment_score: Optional[float] = Field(default=None, description="Overall sentiment score")
-    top_articles: List[Dict[str, Any]] = Field(default=[], description="Most important articles")
-    statistics: Optional[Dict[str, Any]] = Field(default=None, description="Processing statistics")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional recap metadata")
-
 class CanonicalScholarArticle(BaseModel):
     """
     Canonical Google Scholar Article schema - the definitive structure for Google Scholar
@@ -124,7 +95,6 @@ class CanonicalScholarArticle(BaseModel):
     year: Optional[int] = Field(default=None, description="Publication year")
     position: int = Field(description="Position in search results")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional Scholar metadata")
-
 
 class CanonicalResearchArticle(BaseModel):
     """
@@ -176,7 +146,6 @@ class CanonicalResearchArticle(BaseModel):
     # System metadata
     indexed_at: Optional[str] = Field(default=None, description="When this article was indexed")
     retrieved_at: Optional[str] = Field(default=None, description="When this article was retrieved from the source")
-
 
 class CanonicalPubMedExtraction(BaseModel):
     """
@@ -249,6 +218,35 @@ class CanonicalResearchArticle(BaseModel):
     # Timestamps
     indexed_date: Optional[datetime] = Field(default=None, description="When article was indexed by source")
     retrieved_date: Optional[datetime] = Field(default=None, description="When article was retrieved")
+
+class CanonicalNewsletter(BaseModel):
+    """
+    Canonical Newsletter schema - the definitive structure for newsletter objects.
+    """
+    id: str = Field(description="Newsletter unique identifier")
+    title: str = Field(description="Newsletter title")
+    content: str = Field(description="Newsletter content")
+    source: str = Field(description="Newsletter source/publisher")
+    publish_date: datetime = Field(description="Publication date")
+    subject_line: Optional[str] = Field(default=None, description="Email subject line")
+    categories: List[str] = Field(default=[], description="Newsletter categories/tags")
+    articles: List[Dict[str, Any]] = Field(default=[], description="Individual articles within newsletter")
+    summary: Optional[str] = Field(default=None, description="Newsletter summary")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional newsletter metadata")
+
+class CanonicalDailyNewsletterRecap(BaseModel):
+    """
+    Canonical Daily Newsletter Recap schema - the definitive structure for daily recap objects.
+    """
+    date: str = Field(description="Recap date (ISO format)")
+    title: str = Field(description="Recap title")
+    summary: str = Field(description="Daily summary content")
+    newsletter_count: int = Field(description="Number of newsletters processed")
+    key_topics: List[str] = Field(default=[], description="Key topics covered")
+    sentiment_score: Optional[float] = Field(default=None, description="Overall sentiment score")
+    top_articles: List[Dict[str, Any]] = Field(default=[], description="Most important articles")
+    statistics: Optional[Dict[str, Any]] = Field(default=None, description="Processing statistics")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional recap metadata")
 
 # --- Schema Type Definitions ---
 

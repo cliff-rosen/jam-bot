@@ -172,6 +172,8 @@ class PubMedAdapter(SearchProvider):
             return is_available
             
         except Exception as e:
+            print("ERROR")
+            print(e)
             logger.warning(f"PubMed availability check failed: {e}")
             self._is_available_cache = False
             self._last_availability_check = datetime.utcnow()

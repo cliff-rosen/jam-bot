@@ -140,6 +140,17 @@ export const articleGroupApi = {
   },
 
   /**
+   * Add articles to an existing group (merge mode with duplicate removal)
+   */
+  async addToGroup(groupId: string, request: SaveToGroupRequest): Promise<ArticleGroupSaveResponse> {
+    const response = await api.post<ArticleGroupSaveResponse>(
+      `/api/tabelizer/groups/${groupId}/add`,
+      request
+    );
+    return response.data;
+  },
+
+  /**
    * Create a new group and save data to it
    */
   async createAndSaveGroup(

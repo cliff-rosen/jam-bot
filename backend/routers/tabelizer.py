@@ -435,6 +435,92 @@ async def save_to_group(
     )
 
 
+@router.post("/groups/{group_id}/add", response_model=ArticleGroupSaveResponse)
+async def add_to_group(
+    group_id: str,
+    request: SaveToGroupRequest,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> ArticleGroupSaveResponse:
+    """
+    Add articles to existing group with duplicate removal and column merging
+    """
+    # Get group
+    group = db.query(ArticleGroup).filter(
+        ArticleGroup.id == group_id,
+        ArticleGroup.user_id == str(current_user.user_id)
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Article group not found")
+    
+    # Get existing articles to check for duplicates
+    existing_articles = db.query(ArticleGroupDetail).filter(
+        ArticleGroupDetail.article_group_id == group_id
+    ).all()
+    
+    # Create set of existing article IDs for duplicate detection
+    existing_ids = {detail.article_data.get("id") for detail in existing_articles}
+    
+    # Filter out duplicates from new articles
+    new_articles = [article for article in request.articles if article.id not in existing_ids]
+    
+    # Merge column metadata
+    existing_columns = group.columns or []
+    new_columns = []
+    for col in request.columns:
+        new_columns.append({
+            "id": col.id,
+            "name": col.name,
+            "description": col.description,
+            "type": col.type,
+            "options": col.options
+        })
+    
+    # Merge columns - keep existing ones and add new ones (avoid duplicate column names)
+    existing_column_names = {col.get("name") for col in existing_columns}
+    merged_columns = existing_columns.copy()
+    
+    for new_col in new_columns:
+        if new_col.get("name") not in existing_column_names:
+            merged_columns.append(new_col)
+    
+    # Update group metadata with merged columns
+    group.columns = merged_columns
+    
+    # Add new articles
+    articles_saved = 0
+    current_position = len(existing_articles)  # Start after existing articles
+    
+    for article in new_articles:
+        article_detail = ArticleGroupDetail(
+            article_group_id=group_id,
+            article_data=article.dict(),
+            position=current_position + articles_saved
+        )
+        db.add(article_detail)
+        articles_saved += 1
+    
+    # Update article count
+    group.article_count = db.query(func.count(ArticleGroupDetail.id)).filter(
+        ArticleGroupDetail.article_group_id == group_id
+    ).scalar()
+    
+    db.commit()
+    
+    duplicates_removed = len(request.articles) - articles_saved
+    message = f"Added {articles_saved} new articles to group '{group.name}'"
+    if duplicates_removed > 0:
+        message += f" ({duplicates_removed} duplicates removed)"
+    
+    return ArticleGroupSaveResponse(
+        success=True,
+        message=message,
+        group_id=group_id,
+        articles_saved=articles_saved
+    )
+
+
 @router.post("/groups/create-and-save", response_model=ArticleGroupSaveResponse)
 async def create_and_save_group(
     request: SaveToGroupRequest,

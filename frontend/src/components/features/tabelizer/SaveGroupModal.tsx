@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 interface SaveGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (mode: 'new' | 'existing', groupId?: string, name?: string, description?: string) => Promise<void>;
+  onSave: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<void>;
   articleCount: number;
   columnCount: number;
 }
@@ -24,7 +24,7 @@ export function SaveGroupModal({
   articleCount,
   columnCount
 }: SaveGroupModalProps) {
-  const [mode, setMode] = useState<'new' | 'existing'>('new');
+  const [mode, setMode] = useState<'new' | 'existing' | 'add'>('new');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -70,7 +70,7 @@ export function SaveGroupModal({
       return;
     }
 
-    if (mode === 'existing' && !selectedGroupId) {
+    if ((mode === 'existing' || mode === 'add') && !selectedGroupId) {
       toast({
         title: 'Error',
         description: 'Please select a group',
@@ -83,7 +83,7 @@ export function SaveGroupModal({
     try {
       await onSave(
         mode,
-        mode === 'existing' ? selectedGroupId : undefined,
+        (mode === 'existing' || mode === 'add') ? selectedGroupId : undefined,
         mode === 'new' ? name : undefined,
         mode === 'new' ? description : undefined
       );
@@ -110,14 +110,18 @@ export function SaveGroupModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'new' | 'existing')}>
+          <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'new' | 'existing' | 'add')}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="new" id="new" />
               <Label htmlFor="new" className="text-gray-900 dark:text-gray-100">Create new group</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="existing" id="existing" disabled={groups.length === 0} />
-              <Label htmlFor="existing" className="text-gray-900 dark:text-gray-100">Save to existing group</Label>
+              <Label htmlFor="existing" className="text-gray-900 dark:text-gray-100">Replace existing group</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="add" id="add" disabled={groups.length === 0} />
+              <Label htmlFor="add" className="text-gray-900 dark:text-gray-100">Add to existing group</Label>
             </div>
           </RadioGroup>
 
@@ -177,11 +181,19 @@ export function SaveGroupModal({
                       </option>
                     ))}
                   </select>
-                  {selectedGroupId && (
+                  {selectedGroupId && mode === 'existing' && (
                     <div className="flex items-start gap-2 p-3 mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
                       <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                       <div className="text-sm text-amber-800 dark:text-amber-200">
                         This will replace all existing data in the selected group.
+                      </div>
+                    </div>
+                  )}
+                  {selectedGroupId && mode === 'add' && (
+                    <div className="flex items-start gap-2 p-3 mt-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                      <div className="text-sm text-blue-800 dark:text-blue-200">
+                        Articles will be added to the selected group. Duplicates will be automatically removed.
                       </div>
                     </div>
                   )}

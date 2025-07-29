@@ -174,7 +174,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadSearchResults = useCallback((articles: CanonicalResearchArticle[], searchContext?: WorkbenchState['searchContext']) => {
-    setState({
+    setState(prev => ({
+      ...prev,
       articles,
       columns: [],
       source: 'search',
@@ -183,11 +184,12 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       localArticleData: {},
       hasModifications: false,
       lastModified: new Date()
-    });
+    }));
   }, []);
 
   const loadGroup = useCallback((group: ArticleGroup, articles: CanonicalResearchArticle[], columns: WorkbenchColumn[]) => {
-    setState({
+    setState(prev => ({
+      ...prev,
       articles,
       columns,
       source: 'group',
@@ -200,7 +202,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       localArticleData: {},
       hasModifications: false,
       lastModified: new Date()
-    });
+    }));
   }, []);
 
   const addArticles = useCallback((articles: CanonicalResearchArticle[]) => {

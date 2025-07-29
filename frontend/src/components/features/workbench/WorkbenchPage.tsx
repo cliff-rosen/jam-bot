@@ -5,24 +5,23 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
 
-import { tabelizerApi } from './api/tabelizerApi';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { articleChatApi } from '@/lib/api/articleChatApi';
-import { articleGroupApi, ArticleGroup } from '@/lib/api/articleGroupApi';
+import { workbenchApi } from '@/lib/api/workbenchApi';
 
-import { TabelizerColumn } from './types';
+import { WorkbenchColumn, ArticleGroup } from '@/types/workbench';
 import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
 
-import { UnifiedSearchControls } from '@/components/features/workbench/search/UnifiedSearchControls';
-import { TabelizerTable } from './TabelizerTable';
+import { UnifiedSearchControls } from './search/UnifiedSearchControls';
+import { WorkbenchTable } from './WorkbenchTable';
 import { AddColumnModal } from './AddColumnModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
 
-export function TabelizerPage() {
+export function WorkbenchPage() {
   const [articles, setArticles] = useState<CanonicalResearchArticle[]>([]);
-  const [columns, setColumns] = useState<TabelizerColumn[]>([]);
+  const [columns, setColumns] = useState<WorkbenchColumn[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
   const [currentGroup, setCurrentGroup] = useState<ArticleGroup | null>(null);
 
@@ -220,24 +219,20 @@ export function TabelizerPage() {
     let allArticles = articles;
     if (dataSource === 'group' && currentGroup) {
       // Get all group articles for extraction
-      const groupDetail = await articleGroupApi.getGroup(currentGroup.id);
-      allArticles = groupDetail.articles;
+      const groupDetailResponse = await workbenchApi.getGroupDetail(currentGroup.id);
+      allArticles = groupDetailResponse.group.articles.map(item => item.article);
     }
 
     setIsExtracting(true);
 
     try {
-      const response = await tabelizerApi.extractMultipleColumns({
-        articles: allArticles.map(a => ({
-          id: a.id,
-          title: a.title,
-          abstract: a.abstract || '',
-        })),
+      const response = await workbenchApi.extractMultipleColumns({
+        articles: workbenchApi.convertArticlesForExtraction(allArticles),
         columns_config: columnsConfig,
       });
 
       // Convert multi-column response to individual columns
-      const newColumns: TabelizerColumn[] = [];
+      const newColumns: WorkbenchColumn[] = [];
       const updatedExtractedFeatures: Record<string, Record<string, string>> = {};
 
       for (const [columnName, config] of Object.entries(columnsConfig)) {
@@ -316,27 +311,23 @@ export function TabelizerPage() {
     // Get all articles for extraction (not just current page)
     let allArticles = articles;
     if (dataSource === 'group' && currentGroup) {
-      const groupDetail = await articleGroupApi.getGroup(currentGroup.id);
-      allArticles = groupDetail.articles;
+      const groupDetailResponse = await workbenchApi.getGroupDetail(currentGroup.id);
+      allArticles = groupDetailResponse.group.articles.map(item => item.article);
     }
 
     setIsExtracting(true);
     setShowAddModal(false);
 
     try {
-      const response = await tabelizerApi.extractColumn({
-        articles: allArticles.map(a => ({
-          id: a.id,
-          title: a.title,
-          abstract: a.abstract || '',
-        })),
+      const response = await workbenchApi.extractColumn({
+        articles: workbenchApi.convertArticlesForExtraction(allArticles),
         column_name: name,
         column_description: description,
         column_type: type,
         column_options: options,
       });
 
-      const newColumn: TabelizerColumn = {
+      const newColumn: WorkbenchColumn = {
         id: `col_${Date.now()}`,
         name,
         description,
@@ -375,18 +366,8 @@ export function TabelizerPage() {
 
   const handleExport = async () => {
     try {
-      const csv = await tabelizerApi.exportCsv(articles, columns);
-
-      // Download CSV
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tabelizer_export_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      const filename = `workbench_export_${new Date().toISOString().split('T')[0]}.csv`;
+      workbenchApi.exportAsCSV(articles, columns, filename);
 
       toast({
         title: 'Export Complete',
@@ -410,28 +391,43 @@ export function TabelizerPage() {
   ) => {
     try {
       // Prepare column metadata
-      const columnMetadata = columns.map(col => articleGroupApi.columnToMetadata(col));
-
-      // Prepare save request
-      const saveRequest = {
-        articles,
-        columns: columnMetadata,
-        search_query: searchParams.query,
-        search_provider: searchParams.provider,
-        search_params: searchParams,
-        overwrite: mode === 'existing' // Only overwrite for existing mode, not add mode
-      };
+      const columnMetadata = columns.map(col => ({
+        name: col.name,
+        description: col.description,
+        type: col.type,
+        options: col.options,
+        is_extracted: true,
+        extraction_method: 'ai' as const
+      }));
 
       let response;
       if (mode === 'new' && name) {
         // Create new group and save
-        response = await articleGroupApi.createAndSaveGroup(name, description, saveRequest);
+        response = await workbenchApi.createAndSaveGroup({
+          group_name: name,
+          group_description: description,
+          articles,
+          columns: columnMetadata,
+          search_query: searchParams.query,
+          search_provider: searchParams.provider,
+          search_params: searchParams
+        });
       } else if (mode === 'existing' && groupId) {
         // Replace existing group
-        response = await articleGroupApi.saveToGroup(groupId, saveRequest);
+        response = await workbenchApi.saveWorkbenchState(groupId, {
+          group_name: name || currentGroup?.name || 'Untitled',
+          group_description: description,
+          articles,
+          columns: columnMetadata,
+          search_query: searchParams.query,
+          search_provider: searchParams.provider,
+          search_params: searchParams
+        });
       } else if (mode === 'add' && groupId) {
         // Add to existing group (merge mode)
-        response = await articleGroupApi.addToGroup(groupId, saveRequest);
+        response = await workbenchApi.addArticlesToGroup(groupId, {
+          articles
+        });
       } else {
         throw new Error('Invalid save parameters');
       }
@@ -443,15 +439,16 @@ export function TabelizerPage() {
 
       // Load the saved group to update current state
       if (response.group_id) {
-        const group = await articleGroupApi.getGroup(response.group_id);
+        const groupDetailResponse = await workbenchApi.getGroupDetail(response.group_id);
+        const group = groupDetailResponse.group;
         setCurrentGroup({
           id: group.id,
-          user_id: group.user_id,
+          user_id: group.user_id || 0,
           name: group.name,
           description: group.description,
-          search_query: group.search_query,
-          search_provider: group.search_provider,
-          search_params: group.search_params,
+          search_query: group.search_context?.query,
+          search_provider: group.search_context?.provider,
+          search_params: group.search_context?.parameters,
           columns: group.columns,
           created_at: group.created_at,
           updated_at: group.updated_at,
@@ -473,8 +470,20 @@ export function TabelizerPage() {
     try {
       setDataSource('group');
 
-      // For now, load all group data to get metadata, then implement pagination
-      const groupDetail = await articleGroupApi.getGroup(groupId);
+      // Load group data using the unified workbench API
+      const groupDetailResponse = await workbenchApi.getGroupDetail(groupId);
+      const groupDetail = {
+        ...groupDetailResponse.group,
+        articles: groupDetailResponse.group.articles.map(item => item.article),
+        columns: groupDetailResponse.group.columns.map(col => ({
+          id: `col_${col.name}`,
+          name: col.name,
+          description: col.description,
+          type: col.type,
+          data: {},
+          options: col.options
+        }))
+      };
 
       // Calculate pagination for group
       const totalArticles = groupDetail.articles.length;
@@ -504,25 +513,25 @@ export function TabelizerPage() {
 
       // Set current group  
       setCurrentGroup({
-        id: groupDetail.id,
-        user_id: groupDetail.user_id,
-        name: groupDetail.name,
-        description: groupDetail.description,
-        search_query: groupDetail.search_query,
-        search_provider: groupDetail.search_provider,
-        search_params: groupDetail.search_params,
-        columns: groupDetail.columns,
-        created_at: groupDetail.created_at,
-        updated_at: groupDetail.updated_at,
-        article_count: groupDetail.article_count
+        id: groupDetailResponse.group.id,
+        user_id: groupDetailResponse.group.user_id || 0,
+        name: groupDetailResponse.group.name,
+        description: groupDetailResponse.group.description,
+        search_query: groupDetailResponse.group.search_context?.query,
+        search_provider: groupDetailResponse.group.search_context?.provider,
+        search_params: groupDetailResponse.group.search_context?.parameters,
+        columns: groupDetailResponse.group.columns,
+        created_at: groupDetailResponse.group.created_at,
+        updated_at: groupDetailResponse.group.updated_at,
+        article_count: groupDetailResponse.group.article_count
       });
 
       // Update search params if available
-      if (groupDetail.search_query) {
+      if (groupDetailResponse.group.search_context?.query) {
         setSearchParams(prev => ({
           ...prev,
-          query: groupDetail.search_query || prev.query,
-          provider: groupDetail.search_provider as SearchProvider || prev.provider
+          query: groupDetailResponse.group.search_context.query || prev.query,
+          provider: groupDetailResponse.group.search_context.provider as SearchProvider || prev.provider
         }));
       }
 
@@ -547,7 +556,7 @@ export function TabelizerPage() {
       <div className="border-b dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tabelizer</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Workbench</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Create custom research tables with AI-powered data extraction
             </p>
@@ -599,7 +608,7 @@ export function TabelizerPage() {
         ) : (
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-hidden">
-              <TabelizerTable
+              <WorkbenchTable
                 articles={articles}
                 columns={columns}
                 onAddColumn={() => setShowAddModal(true)}
@@ -671,7 +680,7 @@ export function TabelizerPage() {
           }}
           onFeatureAdded={(feature) => {
             // When a feature is added from the workbench, add it as a new column
-            const newColumn: TabelizerColumn = {
+            const newColumn: WorkbenchColumn = {
               id: `feature_${Date.now()}`,
               name: feature.name,
               description: `Extracted feature: ${feature.name}`,
@@ -687,7 +696,7 @@ export function TabelizerPage() {
           }}
           onArticleUpdated={(updatedArticle) => {
             // Update the article in the local state
-            setArticles(prev => prev.map(article => 
+            setArticles(prev => prev.map(article =>
               article.id === updatedArticle.id ? updatedArticle : article
             ));
           }}

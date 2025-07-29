@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { tabelizerApi } from './api/tabelizerApi';
-import { TabelizerPreset } from './types';
+import { workbenchApi } from '@/lib/api/workbenchApi';
+import { AnalysisPreset } from '@/types/workbench';
 
 interface AddColumnModalProps {
   onAdd: (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => void;
@@ -22,14 +22,14 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
   const [minValue, setMinValue] = useState(1);
   const [maxValue, setMaxValue] = useState(10);
   const [stepValue, setStepValue] = useState(1);
-  const [presets, setPresets] = useState<Record<string, TabelizerPreset>>({});
+  const [presets, setPresets] = useState<Record<string, AnalysisPreset>>({});
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const presetsData = await tabelizerApi.getPresets();
+        const presetsData = await workbenchApi.getAnalysisPresets();
         setPresets(presetsData);
       } catch (error) {
         console.error('Failed to load presets:', error);

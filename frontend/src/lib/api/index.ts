@@ -97,4 +97,7 @@ export * from './hopApi';
 export * from './sessionApi';
 export * from './stateTransitionApi';
 export * from './googleScholarApi';
-export * from './extractApi'; 
+export * from './extractApi';
+
+// Unified workbench API (replaces tabelizer, articleGroup, articleWorkbench APIs)
+export * from './workbenchApi'; 

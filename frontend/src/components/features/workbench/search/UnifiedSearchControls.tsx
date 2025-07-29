@@ -6,23 +6,16 @@
  */
 
 import { useState } from 'react';
+import { ChevronDown, ChevronUp, Search, Zap } from 'lucide-react';
+
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp, Search, Zap } from 'lucide-react';
+
 import { UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
 import { ProviderSelector } from './ProviderSelector';
-
-interface PaginationState {
-  currentPage: number;
-  pageSize: number;
-  totalResults: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
 
 interface UnifiedSearchControlsProps {
   searchParams: UnifiedSearchParams;
@@ -35,7 +28,10 @@ interface UnifiedSearchControlsProps {
   onSearch: () => void;
   onBatchSearch?: () => void;
   onPageSizeChange?: (pageSize: number) => void;
-  pagination?: PaginationState;
+  pagination?: {
+    pageSize: number;
+    totalResults: number;
+  };
 }
 
 export function UnifiedSearchControls({
@@ -63,30 +59,11 @@ export function UnifiedSearchControls({
     onSearchParamsChange({ ...searchParams, provider });
   };
 
-  const getMaxPageSize = () => {
+  const getMaxResults = () => {
     if (searchMode === 'single') {
-      if (searchParams.provider === 'pubmed') return 200;
-      if (searchParams.provider === 'scholar') return 20;
-      return 100;
+      return searchParams.provider === 'pubmed' ? 100 : 20;
     }
-    return 20; // Conservative limit for batch searches (Scholar constraint)
-  };
-
-  const getPageSizeOptions = () => {
-    const maxSize = getMaxPageSize();
-    const options = [10, 20];
-    
-    if (maxSize >= 50) options.push(50);
-    if (maxSize >= 100) options.push(100);
-    if (maxSize >= 200) options.push(200);
-    
-    return options;
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    if (onPageSizeChange) {
-      onPageSizeChange(newPageSize);
-    }
+    return 20; // Conservative limit for batch searches
   };
 
   const renderProviderSpecificOptions = () => {
@@ -96,7 +73,7 @@ export function UnifiedSearchControls({
 
     if (provider === 'pubmed') {
       return (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
               Date Type
@@ -106,7 +83,7 @@ export function UnifiedSearchControls({
               value={searchParams.date_type || 'publication'}
               onChange={(e) => onSearchParamsChange({
                 ...searchParams,
-                date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
+                date_type: e.target.value as 'completion' | 'publication'
               })}
             >
               <option value="publication">Publication Date</option>
@@ -115,9 +92,24 @@ export function UnifiedSearchControls({
               <option value="revised">Revised Date</option>
             </select>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            PubMed supports date filtering by completion, publication, entry, or revision dates
-          </Badge>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Display Date Type
+            </label>
+            <select
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+              value={searchParams.display_date_type || 'publication'}
+              onChange={(e) => onSearchParamsChange({
+                ...searchParams,
+                display_date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
+              })}
+            >
+              <option value="publication">Publication Date</option>
+              <option value="completion">Completion Date</option>
+              <option value="entry">Entry Date</option>
+              <option value="revised">Revised Date</option>
+            </select>
+          </div>
         </div>
       );
     }
@@ -226,23 +218,20 @@ export function UnifiedSearchControls({
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="w-32">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Per Page
+                Results
               </label>
-              <select
-                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={pagination?.pageSize || searchParams.page_size || searchParams.num_results || 20}
-                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+              <Input
+                type="number"
+                min="1"
+                max={getMaxResults()}
+                value={searchParams.num_results}
+                onChange={(e) => onSearchParamsChange({
+                  ...searchParams,
+                  num_results: Math.min(parseInt(e.target.value) || 10, getMaxResults())
+                })}
+                className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
-              >
-                {getPageSizeOptions().map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-              {searchParams.provider === 'scholar' && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Scholar max: 20/page
-                </div>
-              )}
+              />
             </div>
             <div className="w-40">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
@@ -258,89 +247,62 @@ export function UnifiedSearchControls({
                 disabled={isSearching}
               >
                 <option value="relevance">Relevance</option>
-                <option value="date">Publication Date</option>
+                <option value="date">Date</option>
               </select>
-              {searchMode === 'single' && searchParams.provider === 'pubmed' && searchParams.sort_by === 'date' && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Note: Sorting is always by publication date, regardless of filter date type
-                </div>
-              )}
             </div>
-            {/* Date range inputs - different for PubMed vs Scholar */}
-            {searchMode === 'single' && searchParams.provider === 'pubmed' ? (
-              // PubMed: Full date precision (YYYY-MM-DD)
-              <>
-                <div className="w-32">
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                    From Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={searchParams.date_from || ''}
-                    onChange={(e) => onSearchParamsChange({
-                      ...searchParams,
-                      date_from: e.target.value || undefined
-                    })}
-                    className="dark:bg-gray-800 dark:text-gray-100"
-                    disabled={isSearching}
-                  />
-                </div>
-                <div className="w-32">
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                    To Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={searchParams.date_to || ''}
-                    onChange={(e) => onSearchParamsChange({
-                      ...searchParams,
-                      date_to: e.target.value || undefined
-                    })}
-                    className="dark:bg-gray-800 dark:text-gray-100"
-                    disabled={isSearching}
-                  />
-                </div>
-              </>
-            ) : (
-              // Scholar or multi-provider: Year-only precision
-              <>
-                <div className="w-28">
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                    From Year
-                  </label>
-                  <Input
-                    type="number"
-                    min="1900"
-                    max={new Date().getFullYear()}
-                    value={searchParams.year_low || ''}
-                    onChange={(e) => onSearchParamsChange({
-                      ...searchParams,
-                      year_low: e.target.value ? parseInt(e.target.value) : undefined
-                    })}
-                    placeholder="2020"
-                    className="dark:bg-gray-800 dark:text-gray-100"
-                    disabled={isSearching}
-                  />
-                </div>
-                <div className="w-28">
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                    To Year
-                  </label>
-                  <Input
-                    type="number"
-                    min="1900"
-                    max={new Date().getFullYear()}
-                    value={searchParams.year_high || ''}
-                    onChange={(e) => onSearchParamsChange({
-                      ...searchParams,
-                      year_high: e.target.value ? parseInt(e.target.value) : undefined
-                    })}
-                    placeholder="2024"
-                    className="dark:bg-gray-800 dark:text-gray-100"
-                    disabled={isSearching}
-                  />
-                </div>
-              </>
+            <div className="w-28">
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                From Year
+              </label>
+              <Input
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={searchParams.year_low || ''}
+                onChange={(e) => onSearchParamsChange({
+                  ...searchParams,
+                  year_low: e.target.value ? parseInt(e.target.value) : undefined
+                })}
+                placeholder="2020"
+                className="dark:bg-gray-800 dark:text-gray-100"
+                disabled={isSearching}
+              />
+            </div>
+            <div className="w-28">
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                To Year
+              </label>
+              <Input
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={searchParams.year_high || ''}
+                onChange={(e) => onSearchParamsChange({
+                  ...searchParams,
+                  year_high: e.target.value ? parseInt(e.target.value) : undefined
+                })}
+                placeholder="2024"
+                className="dark:bg-gray-800 dark:text-gray-100"
+                disabled={isSearching}
+              />
+            </div>
+            {onPageSizeChange && (
+              <div className="w-32">
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                  Page Size
+                </label>
+                <select
+                  className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                  value={pagination?.pageSize || 20}
+                  onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
+                  disabled={isSearching}
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
             )}
           </div>
 

@@ -14,7 +14,8 @@ import {
   Hash,
   Calendar
 } from 'lucide-react';
-import { articleGroupApi, ArticleGroup } from '@/lib/api/articleGroupApi';
+import { workbenchApi } from '@/lib/api/workbenchApi';
+import { ArticleGroup } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -59,9 +60,10 @@ export function LoadGroupModal({
   const loadGroups = async () => {
     setIsLoading(true);
     try {
-      const response = await articleGroupApi.listGroups(0, 100);
-      setGroups(response.groups);
-      setFilteredGroups(response.groups);
+      const response = await workbenchApi.getGroups(1, 100);
+      const groups = response.groups || [];
+      setGroups(groups);
+      setFilteredGroups(groups);
     } catch (error) {
       console.error('Failed to load groups:', error);
       toast({
@@ -99,7 +101,7 @@ export function LoadGroupModal({
 
     setDeletingGroupId(groupId);
     try {
-      await articleGroupApi.deleteGroup(groupId);
+      await workbenchApi.deleteGroup(groupId);
       toast({
         title: 'Success',
         description: `Group "${groupName}" deleted successfully`

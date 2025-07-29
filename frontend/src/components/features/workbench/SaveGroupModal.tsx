@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-import { articleGroupApi, ArticleGroup } from '@/lib/api/articleGroupApi';
+import { workbenchApi } from '@/lib/api/workbenchApi';
+import { ArticleGroup } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
 
 interface SaveGroupModalProps {
@@ -43,8 +44,8 @@ export function SaveGroupModal({
   const loadGroups = async () => {
     setIsLoading(true);
     try {
-      const response = await articleGroupApi.listGroups();
-      setGroups(response.groups);
+      const response = await workbenchApi.getGroups(1, 100);
+      setGroups(response.groups || []);
       if (response.groups.length > 0 && !selectedGroupId) {
         setSelectedGroupId(response.groups[0].id);
       }

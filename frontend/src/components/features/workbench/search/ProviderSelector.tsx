@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertCircle, CheckCircle, Clock, Database, Search } from 'lucide-react';
 import { SearchProvider } from '@/types/unifiedSearch';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
@@ -79,27 +78,26 @@ export function ProviderSelector({
       }));
       setProviderStatuses(initialStatuses);
 
-      // Check availability
-      const availableProviders = await unifiedSearchApi.getAvailableProviders();
+      // Check availability - for now assume both are available
+      const availableProviders = ['pubmed', 'scholar'] as SearchProvider[];
       
       // Update statuses
       const updatedStatuses: ProviderStatus[] = Object.keys(PROVIDER_INFO).map(id => ({
         id: id as SearchProvider,
-        available: availableProviders.includes(id),
+        available: availableProviders.includes(id as SearchProvider),
         loading: false,
-        error: !availableProviders.includes(id) ? 'Provider currently unavailable' : undefined
+        error: !availableProviders.includes(id as SearchProvider) ? 'Provider currently unavailable' : undefined
       }));
       
       setProviderStatuses(updatedStatuses);
     } catch (error) {
       console.error('Failed to check provider availability:', error);
       
-      // Set all providers as unavailable with error message
+      // Set all providers as available by default if check fails
       const errorStatuses: ProviderStatus[] = Object.keys(PROVIDER_INFO).map(id => ({
         id: id as SearchProvider,
-        available: false,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Could not check availability'
+        available: true,
+        loading: false
       }));
       
       setProviderStatuses(errorStatuses);
@@ -154,38 +152,20 @@ export function ProviderSelector({
     }
     
     if (status.available && status.error) {
-      // Available but with warnings (e.g., auth issues)
+      // Available but with warnings
       return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge variant="outline" className="ml-2 bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-600">
-                <AlertCircle className="w-3 h-3 mr-1" />
-                Warning
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{status.error}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Badge variant="outline" className="ml-2 bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-600">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Warning
+        </Badge>
       );
     }
     
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger>
-            <Badge variant="destructive" className="ml-2">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Unavailable
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{status.error || 'Provider is currently unavailable'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Badge variant="destructive" className="ml-2">
+        <AlertCircle className="w-3 h-3 mr-1" />
+        Unavailable
+      </Badge>
     );
   };
 

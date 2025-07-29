@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import { CanonicalResearchArticle } from '@/types/unifiedSearch';
-import { TabelizerColumn } from './types';
+import { WorkbenchColumn } from '@/types/workbench';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2 } from 'lucide-react';
 
-interface TabelizerTableProps {
+interface WorkbenchTableProps {
   articles: CanonicalResearchArticle[];
-  columns: TabelizerColumn[];
+  columns: WorkbenchColumn[];
   onAddColumn: () => void;
   onDeleteColumn: (columnId: string) => void;
   onDeleteArticle: (articleId: string) => void;
@@ -20,7 +20,7 @@ interface TabelizerTableProps {
   displayDateType?: "completion" | "publication" | "entry" | "revised";
 }
 
-export function TabelizerTable({
+export function WorkbenchTable({
   articles,
   columns,
   onAddColumn,
@@ -33,7 +33,7 @@ export function TabelizerTable({
   onLoadGroup,
   currentGroup,
   displayDateType: initialDisplayDateType = 'publication',
-}: TabelizerTableProps) {
+}: WorkbenchTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);

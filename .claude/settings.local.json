@@ -8,7 +8,9 @@
       "Bash(node:*)",
       "Bash(find:*)",
       "Bash(npm run build:*)",
-      "Bash(alembic revision:*)"
+      "Bash(alembic revision:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

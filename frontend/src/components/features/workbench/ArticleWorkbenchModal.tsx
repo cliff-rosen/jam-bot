@@ -7,23 +7,24 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  ExternalLink, Calendar, Users, BookOpen, MessageCircle, X, 
+import {
+  ExternalLink, Calendar, Users, BookOpen, MessageCircle, X,
   FileText, Zap, FolderOpen, Settings, Star, Tag, Plus,
   Save, Edit3, Trash2, Clock, Brain, Award
 } from 'lucide-react';
 import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { ChatPanel } from './chat/ChatPanel';
-import { articleWorkbenchApi, WorkbenchData } from '@/lib/api/articleWorkbenchApi';
+import { workbenchApi } from '@/lib/api/workbenchApi';
+import { WorkbenchData } from '@/types/workbench';
 
 interface ArticleWorkbenchModalProps {
   article: CanonicalResearchArticle;
   currentGroup?: { id: string; name: string } | null;
   onClose: () => void;
   onSendChatMessage?: (
-    message: string, 
-    article: CanonicalResearchArticle, 
-    conversationHistory: Array<{role: string; content: string}>,
+    message: string,
+    article: CanonicalResearchArticle,
+    conversationHistory: Array<{ role: string; content: string }>,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: string) => void
@@ -33,10 +34,10 @@ interface ArticleWorkbenchModalProps {
 }
 
 
-export function ArticleWorkbenchModal({ 
-  article, 
+export function ArticleWorkbenchModal({
+  article,
   currentGroup,
-  onClose, 
+  onClose,
   onSendChatMessage,
   onFeatureAdded,
   onArticleUpdated
@@ -45,7 +46,7 @@ export function ArticleWorkbenchModal({
   const [workbenchData, setWorkbenchData] = useState<WorkbenchData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   // Form states
   const [noteText, setNoteText] = useState('');
   const [newFeatureName, setNewFeatureName] = useState('');
@@ -66,12 +67,12 @@ export function ArticleWorkbenchModal({
 
   const loadWorkbenchData = async () => {
     if (!currentGroup?.id) return;
-    
+
     setIsLoading(true);
     try {
-      const data = await articleWorkbenchApi.getWorkbenchData(currentGroup.id, article.id);
+      const data = await workbenchApi.getArticleWorkbenchData(currentGroup.id, article.id);
       setWorkbenchData(data);
-      
+
       // Populate form states
       setNoteText(data.notes || '');
       setTags(data.metadata?.tags || []);
@@ -92,9 +93,9 @@ export function ArticleWorkbenchModal({
 
   const saveNotes = async () => {
     if (!currentGroup?.id) return;
-    
+
     try {
-      await articleWorkbenchApi.updateNotes(currentGroup.id, article.id, noteText);
+      await workbenchApi.updateNotes(currentGroup.id, article.id, noteText);
       await loadWorkbenchData(); // Refresh data
       toast({
         title: 'Notes Saved',
@@ -112,22 +113,22 @@ export function ArticleWorkbenchModal({
 
   const extractFeature = async () => {
     if (!currentGroup?.id || !newFeatureName.trim() || !newFeaturePrompt.trim()) return;
-    
+
     try {
-      const result = await articleWorkbenchApi.extractFeature(
-        currentGroup.id, 
-        article.id, 
-        newFeatureName, 
-        newFeatureType, 
+      const result = await workbenchApi.extractFeature(
+        currentGroup.id,
+        article.id,
+        newFeatureName,
+        newFeatureType,
         newFeaturePrompt
       );
-      
+
       await loadWorkbenchData(); // Refresh data
-      
+
       // Reset form
       setNewFeatureName('');
       setNewFeaturePrompt('');
-      
+
       // Notify parent component
       if (onFeatureAdded) {
         onFeatureAdded({
@@ -136,7 +137,7 @@ export function ArticleWorkbenchModal({
           type: newFeatureType
         });
       }
-      
+
       toast({
         title: 'Feature Extracted',
         description: `"${newFeatureName}" has been extracted and added to the table.`,
@@ -153,9 +154,9 @@ export function ArticleWorkbenchModal({
 
   const saveMetadata = async () => {
     if (!currentGroup?.id) return;
-    
+
     try {
-      await articleWorkbenchApi.updateMetadata(currentGroup.id, article.id, {
+      await workbenchApi.updateMetadata(currentGroup.id, article.id, {
         tags,
         rating,
         priority,
@@ -178,9 +179,9 @@ export function ArticleWorkbenchModal({
 
   const deleteFeature = async (featureName: string) => {
     if (!currentGroup?.id) return;
-    
+
     try {
-      await articleWorkbenchApi.deleteFeature(currentGroup.id, article.id, featureName);
+      await workbenchApi.deleteFeature(currentGroup.id, article.id, featureName);
       await loadWorkbenchData(); // Refresh data
       toast({
         title: 'Feature Deleted',
@@ -216,10 +217,10 @@ export function ArticleWorkbenchModal({
   };
 
   const getSourceBadge = (source: string) => {
-    const config = source === 'pubmed' 
+    const config = source === 'pubmed'
       ? { label: 'PubMed', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
       : { label: 'Google Scholar', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
-    
+
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
@@ -233,7 +234,7 @@ export function ArticleWorkbenchModal({
     if (article.source !== 'pubmed') {
       return article.publication_year?.toString() || '-';
     }
-    
+
     switch (dateType) {
       case 'completion':
         return article.date_completed || article.source_metadata?.comp_date || '-';
@@ -253,7 +254,7 @@ export function ArticleWorkbenchModal({
         <DialogTitle className="sr-only">
           Research Workbench: {article.title}
         </DialogTitle>
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -293,7 +294,7 @@ export function ArticleWorkbenchModal({
         <div className="flex h-[calc(95vh-80px)]">
           {/* Left Side - Chat Panel */}
           <div className="w-96 border-r dark:border-gray-700">
-            <ChatPanel 
+            <ChatPanel
               article={article}
               onSendMessage={onSendChatMessage}
             />
@@ -457,8 +458,8 @@ export function ArticleWorkbenchModal({
                           onChange={(e) => setNoteText(e.target.value)}
                           className="min-h-[200px] resize-none"
                         />
-                        <Button 
-                          onClick={saveNotes} 
+                        <Button
+                          onClick={saveNotes}
                           disabled={!noteText.trim()}
                           className="gap-2"
                         >
@@ -501,8 +502,8 @@ export function ArticleWorkbenchModal({
                                   {featureData.method || 'Manual'} • {featureData.confidence ? `${(featureData.confidence * 100).toFixed(0)}% confidence` : ''}
                                 </div>
                               </div>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => deleteFeature(featureName)}
                               >
@@ -516,7 +517,7 @@ export function ArticleWorkbenchModal({
                       {/* Feature Extraction Form */}
                       <div className="space-y-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <h4 className="font-medium text-gray-900 dark:text-gray-100">Extract New Feature</h4>
-                        
+
                         <div className="grid grid-cols-2 gap-3">
                           <Input
                             placeholder="Feature name (e.g., 'Study Type')"
@@ -535,15 +536,15 @@ export function ArticleWorkbenchModal({
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <Textarea
                           placeholder="Extraction prompt (e.g., 'What type of study is this? Look for keywords like randomized, controlled, observational, etc.')"
                           value={newFeaturePrompt}
                           onChange={(e) => setNewFeaturePrompt(e.target.value)}
                           className="min-h-[80px]"
                         />
-                        
-                        <Button 
+
+                        <Button
                           onClick={extractFeature}
                           disabled={!newFeatureName.trim() || !newFeaturePrompt.trim()}
                           className="gap-2"
@@ -579,7 +580,7 @@ export function ArticleWorkbenchModal({
                   {/* Article Metadata */}
                   <div className="space-y-4">
                     <h4 className="font-medium text-gray-900 dark:text-gray-100">Article Metadata</h4>
-                    
+
                     {/* Tags */}
                     <div>
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Tags</label>
@@ -616,9 +617,9 @@ export function ArticleWorkbenchModal({
                             <SelectValue placeholder="Rate..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {[1,2,3,4,5].map(n => (
+                            {[1, 2, 3, 4, 5].map(n => (
                               <SelectItem key={n} value={n.toString()}>
-                                {'★'.repeat(n)}{'☆'.repeat(5-n)} ({n})
+                                {'★'.repeat(n)}{'☆'.repeat(5 - n)} ({n})
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -1,5 +1,5 @@
-import { UnifiedWorkbench } from '@/components/features/workbench/UnifiedWorkbench';
+import { WorkbenchPage } from '@/components/features/workbench';
 
-export default function WorkbenchPage() {
-    return <UnifiedWorkbench />;
-} 
+export default function Workbench() {
+  return <WorkbenchPage />;
+}

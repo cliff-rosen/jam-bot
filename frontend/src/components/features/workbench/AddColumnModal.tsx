@@ -29,8 +29,16 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const presetsData = await workbenchApi.getAnalysisPresets();
-        setPresets(presetsData);
+        const response = await workbenchApi.getAnalysisPresets();
+        // Handle the API response structure
+        if (response && response.presets && Array.isArray(response.presets)) {
+          // Convert array of presets to Record<string, AnalysisPreset>
+          const presetsMap: Record<string, AnalysisPreset> = {};
+          response.presets.forEach((preset: AnalysisPreset) => {
+            presetsMap[preset.id] = preset;
+          });
+          setPresets(presetsMap);
+        }
       } catch (error) {
         console.error('Failed to load presets:', error);
       }
@@ -226,9 +234,11 @@ export function AddColumnModal({ onAdd, onAddMultiple, onClose }: AddColumnModal
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-6">
                         {preset.description}
                       </p>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 ml-6">
-                        {Object.keys(preset.columns).length} columns: {Object.keys(preset.columns).join(', ')}
-                      </div>
+                      {preset.columns && (
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 ml-6">
+                          {Object.keys(preset.columns).length} columns: {Object.keys(preset.columns).join(', ')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

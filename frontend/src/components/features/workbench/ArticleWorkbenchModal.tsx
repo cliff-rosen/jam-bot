@@ -17,7 +17,7 @@ import {
 import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { ChatPanel } from './chat/ChatPanel';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { WorkbenchData } from '@/types/workbench';
+import { WorkbenchData, AnalysisPreset } from '@/types/workbench';
 
 interface ArticleWorkbenchModalProps {
   article: CanonicalResearchArticle;
@@ -62,6 +62,10 @@ export function ArticleWorkbenchModal({
   const [rating, setRating] = useState<number | undefined>();
   const [priority, setPriority] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const [columnsTab, setColumnsTab] = useState<'single' | 'preset'>('single');
+  const [presets, setPresets] = useState<Record<string, AnalysisPreset>>({});
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [presetsLoading, setPresetsLoading] = useState(false);
 
   // Load workbench data when modal opens
   useEffect(() => {
@@ -69,6 +73,28 @@ export function ArticleWorkbenchModal({
       loadWorkbenchData();
     }
   }, [article.id, currentGroup?.id]);
+
+  // Load presets for columns tab
+  useEffect(() => {
+    loadPresets();
+  }, []);
+
+  const loadPresets = async () => {
+    try {
+      const response = await workbenchApi.getAnalysisPresets();
+      // Handle the API response structure
+      if (response && response.presets && Array.isArray(response.presets)) {
+        // Convert array of presets to Record<string, AnalysisPreset>
+        const presetsMap: Record<string, AnalysisPreset> = {};
+        response.presets.forEach((preset: AnalysisPreset) => {
+          presetsMap[preset.id] = preset;
+        });
+        setPresets(presetsMap);
+      }
+    } catch (error) {
+      console.error('Failed to load presets:', error);
+    }
+  };
 
   const loadWorkbenchData = async () => {
     if (!currentGroup?.id) return;
@@ -113,6 +139,44 @@ export function ArticleWorkbenchModal({
         description: 'Failed to save notes',
         variant: 'destructive',
       });
+    }
+  };
+
+  const applyPreset = async () => {
+    if (!currentGroup?.id || !selectedPreset || !presets[selectedPreset]) return;
+
+    setPresetsLoading(true);
+    try {
+      const preset = presets[selectedPreset];
+      const promises = Object.entries(preset.columns).map(([columnName, columnConfig]) => 
+        workbenchApi.extractFeature(
+          currentGroup.id,
+          article.id,
+          columnName,
+          columnConfig.type,
+          columnConfig.description
+        )
+      );
+
+      await Promise.all(promises);
+      await loadWorkbenchData(); // Refresh data
+
+      toast({
+        title: 'Preset Applied',
+        description: `${Object.keys(preset.columns).length} columns have been extracted.`,
+      });
+
+      setSelectedPreset('');
+      setColumnsTab('single');
+    } catch (error) {
+      console.error('Error applying preset:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to apply preset columns',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresetsLoading(false);
     }
   };
 
@@ -523,127 +587,195 @@ export function ArticleWorkbenchModal({
                         </div>
                       )}
 
-                      {/* Add Column Form */}
-                      <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Add New Column</h4>
+                      {/* Add Column Tabs */}
+                      <Tabs value={columnsTab} onValueChange={(v) => setColumnsTab(v as 'single' | 'preset')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="single">Single Column</TabsTrigger>
+                          <TabsTrigger value="preset">Preset Columns</TabsTrigger>
+                        </TabsList>
 
-                        {/* Column Name */}
-                        <div className="space-y-2">
-                          <Label htmlFor="column-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
-                          <Input
-                            id="column-name"
-                            placeholder="e.g., Study Type"
-                            value={newColumnName}
-                            onChange={(e) => setNewColumnName(e.target.value)}
-                            className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                          />
-                        </div>
+                        <TabsContent value="single" className="space-y-4">
+                          <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                            {/* Column Name */}
+                            <div className="space-y-2">
+                              <Label htmlFor="column-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
+                              <Input
+                                id="column-name"
+                                placeholder="e.g., Has Side Effects"
+                                value={newColumnName}
+                                onChange={(e) => setNewColumnName(e.target.value)}
+                                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                              />
+                            </div>
 
-                        {/* Column Type */}
-                        <div className="space-y-2">
-                          <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
-                          <RadioGroup value={newColumnType} onValueChange={(value) => setNewColumnType(value as 'boolean' | 'text' | 'score')}>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="boolean" id="boolean" />
-                              <Label htmlFor="boolean" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
-                                Yes/No Question
-                              </Label>
+                            {/* Column Type */}
+                            <div className="space-y-2">
+                              <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
+                              <RadioGroup value={newColumnType} onValueChange={(value) => setNewColumnType(value as 'boolean' | 'text' | 'score')}>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="boolean" id="boolean" />
+                                  <Label htmlFor="boolean" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                    Yes/No Question
+                                  </Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="text" id="text" />
+                                  <Label htmlFor="text" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                    Text Extraction (100 chars max)
+                                  </Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="score" id="score" />
+                                  <Label htmlFor="score" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                    Numeric Score/Rating
+                                  </Label>
+                                </div>
+                              </RadioGroup>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="text" id="text" />
-                              <Label htmlFor="text" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
-                                Text Extraction (100 chars max)
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="score" id="score" />
-                              <Label htmlFor="score" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
-                                Numeric Score/Rating
-                              </Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
 
-                        {/* Score Range Configuration */}
-                        {newColumnType === 'score' && (
-                          <div className="space-y-2">
-                            <Label className="text-gray-900 dark:text-gray-100">Score Range</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <Label htmlFor="min" className="text-xs text-gray-600 dark:text-gray-400">Min</Label>
-                                <Input
-                                  id="min"
-                                  type="number"
-                                  value={minValue}
-                                  onChange={(e) => setMinValue(Number(e.target.value))}
-                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                />
+                            {/* Score Range Configuration */}
+                            {newColumnType === 'score' && (
+                              <div className="space-y-2">
+                                <Label className="text-gray-900 dark:text-gray-100">Score Range</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <Label htmlFor="min" className="text-xs text-gray-600 dark:text-gray-400">Min</Label>
+                                    <Input
+                                      id="min"
+                                      type="number"
+                                      value={minValue}
+                                      onChange={(e) => setMinValue(Number(e.target.value))}
+                                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="max" className="text-xs text-gray-600 dark:text-gray-400">Max</Label>
+                                    <Input
+                                      id="max"
+                                      type="number"
+                                      value={maxValue}
+                                      onChange={(e) => setMaxValue(Number(e.target.value))}
+                                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="step" className="text-xs text-gray-600 dark:text-gray-400">Step</Label>
+                                    <Input
+                                      id="step"
+                                      type="number"
+                                      step="0.1"
+                                      value={stepValue}
+                                      onChange={(e) => setStepValue(Number(e.target.value))}
+                                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    />
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Score will be constrained to this range (e.g., 1-10 for rating, 0-100 for percentage)
+                                </p>
                               </div>
-                              <div>
-                                <Label htmlFor="max" className="text-xs text-gray-600 dark:text-gray-400">Max</Label>
-                                <Input
-                                  id="max"
-                                  type="number"
-                                  value={maxValue}
-                                  onChange={(e) => setMaxValue(Number(e.target.value))}
-                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="step" className="text-xs text-gray-600 dark:text-gray-400">Step</Label>
-                                <Input
-                                  id="step"
-                                  type="number"
-                                  step="0.1"
-                                  value={stepValue}
-                                  onChange={(e) => setStepValue(Number(e.target.value))}
-                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                />
-                              </div>
+                            )}
+
+                            {/* Description/Question */}
+                            <div className="space-y-2">
+                              <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">
+                                {newColumnType === 'boolean' ? 'Question' : newColumnType === 'score' ? 'Scoring Criteria' : 'What to Extract'}
+                              </Label>
+                              <Textarea
+                                id="description"
+                                value={newColumnDescription}
+                                onChange={(e) => setNewColumnDescription(e.target.value)}
+                                placeholder={
+                                  newColumnType === 'boolean'
+                                    ? "e.g., Does this study report any adverse events or side effects?"
+                                    : newColumnType === 'score'
+                                    ? "e.g., Rate the quality of this study's methodology from 1-10"
+                                    : "e.g., What is the main finding of this study?"
+                                }
+                                rows={3}
+                                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                              />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {newColumnType === 'boolean'
+                                  ? "The AI will answer with 'yes' or 'no' for each article."
+                                  : newColumnType === 'score'
+                                  ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
+                                  : "The AI will extract a brief text summary (max 100 characters)."}
+                              </p>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Score will be constrained to this range (e.g., 1-10 for rating, 0-100 for percentage)
-                            </p>
+
+                            <Button
+                              onClick={extractColumn}
+                              disabled={!newColumnName.trim() || !newColumnDescription.trim()}
+                              className="w-full gap-2"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Column
+                            </Button>
                           </div>
-                        )}
+                        </TabsContent>
 
-                        {/* Description/Question */}
-                        <div className="space-y-2">
-                          <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">
-                            {newColumnType === 'boolean' ? 'Question' : newColumnType === 'score' ? 'Scoring Criteria' : 'What to Extract'}
-                          </Label>
-                          <Textarea
-                            id="description"
-                            value={newColumnDescription}
-                            onChange={(e) => setNewColumnDescription(e.target.value)}
-                            placeholder={
-                              newColumnType === 'boolean'
-                                ? "e.g., Does this study report any adverse events or side effects?"
-                                : newColumnType === 'score'
-                                ? "e.g., Rate the quality of this study's methodology from 1-10"
-                                : "e.g., What is the main finding of this study?"
-                            }
-                            rows={3}
-                            className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                          />
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {newColumnType === 'boolean'
-                              ? "The AI will answer with 'yes' or 'no' for each article."
-                              : newColumnType === 'score'
-                              ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
-                              : "The AI will extract a brief text summary (max 100 characters)."}
-                          </p>
-                        </div>
+                        <TabsContent value="preset" className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-gray-900 dark:text-gray-100">Select Preset</Label>
+                            <div className="space-y-3">
+                              {Object.entries(presets).length === 0 ? (
+                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                  <p>No presets available yet.</p>
+                                  <p className="text-sm mt-2">Check back later for preconfigured column sets.</p>
+                                </div>
+                              ) : (
+                                Object.entries(presets).map(([key, preset]) => (
+                                  <div key={key} className="border rounded-lg p-3 dark:border-gray-600">
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="radio"
+                                        id={`preset-${key}`}
+                                        name="preset"
+                                        value={key}
+                                        checked={selectedPreset === key}
+                                        onChange={(e) => setSelectedPreset(e.target.value)}
+                                        className="w-4 h-4 text-blue-600"
+                                      />
+                                      <Label htmlFor={`preset-${key}`} className="font-medium cursor-pointer text-gray-900 dark:text-gray-100">
+                                        {preset.name}
+                                      </Label>
+                                    </div>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-6">
+                                      {preset.description}
+                                    </p>
+                                    {preset.columns && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 ml-6">
+                                        {Object.keys(preset.columns).length} columns: {Object.keys(preset.columns).join(', ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
 
-                        <Button
-                          onClick={extractColumn}
-                          disabled={!newColumnName.trim() || !newColumnDescription.trim()}
-                          className="w-full gap-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Column
-                        </Button>
-                      </div>
+                          {Object.entries(presets).length > 0 && (
+                            <Button
+                              onClick={applyPreset}
+                              disabled={!selectedPreset || presetsLoading}
+                              className="w-full gap-2"
+                            >
+                              {presetsLoading ? (
+                                <>
+                                  <span className="animate-spin">⌛</span>
+                                  Adding Columns...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4" />
+                                  Add Preset Columns
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </TabsContent>
+                      </Tabs>
                     </>
                   )}
                 </TabsContent>

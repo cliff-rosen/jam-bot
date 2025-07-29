@@ -288,10 +288,248 @@ async def get_analysis_presets(
     current_user: User = Depends(validate_token)
 ):
     """Get predefined analysis presets."""
-    # TODO: Implement preset functionality in extraction service
+    presets = [
+        {
+            "id": "doi_poi_analysis",
+            "name": "DOI/POI Analysis",
+            "description": "Extract drug and patient population information",
+            "category": "Core Analysis",
+            "columns": {
+                "DOI": {
+                    "description": "What is the drug of interest (DOI) studied in this paper?",
+                    "type": "text"
+                },
+                "POI": {
+                    "description": "What is the patient population of interest (POI) in this study?",
+                    "type": "text"
+                },
+                "Indication": {
+                    "description": "What medical condition or indication is being studied?",
+                    "type": "text"
+                },
+                "Study Phase": {
+                    "description": "What phase of clinical development is this? (preclinical, phase I, II, III, IV, or N/A)",
+                    "type": "text"
+                },
+                "Efficacy Reported": {
+                    "description": "Does this study report efficacy data for the DOI in the POI?",
+                    "type": "boolean"
+                },
+                "Safety Reported": {
+                    "description": "Does this study report safety/adverse event data?",
+                    "type": "boolean"
+                },
+                "Comparator": {
+                    "description": "What is the comparator or control used in this study?",
+                    "type": "text"
+                },
+                "Primary Endpoint Met": {
+                    "description": "Did the study meet its primary endpoint?",
+                    "type": "boolean"
+                },
+                "Key Results": {
+                    "description": "What are the key quantitative results? (e.g., response rates, p-values)",
+                    "type": "text"
+                },
+                "Relevance Score": {
+                    "description": "Rate the relevance of this paper to your research question",
+                    "type": "score",
+                    "options": {"min": 1, "max": 5, "step": 1}
+                }
+            }
+        },
+        {
+            "id": "clinical_trial",
+            "name": "Clinical Trial Analysis",
+            "description": "Extract key information from clinical trial papers",
+            "category": "Medical Research",
+            "columns": {
+                "Study Type": {
+                    "description": "What type of study is this? (e.g., RCT, observational, meta-analysis)",
+                    "type": "text"
+                },
+                "Sample Size": {
+                    "description": "What is the total sample size of the study?",
+                    "type": "text"
+                },
+                "Blinded": {
+                    "description": "Is this a blinded study (single-blind, double-blind, or open-label)?",
+                    "type": "text"
+                },
+                "Primary Outcome": {
+                    "description": "What is the primary outcome measure?",
+                    "type": "text"
+                },
+                "Statistical Significance": {
+                    "description": "Was the primary outcome statistically significant?",
+                    "type": "boolean"
+                },
+                "Adverse Events": {
+                    "description": "Were any serious adverse events reported?",
+                    "type": "boolean"
+                },
+                "Study Quality": {
+                    "description": "Rate the overall quality of the study methodology",
+                    "type": "score",
+                    "options": {"min": 1, "max": 10, "step": 1}
+                }
+            }
+        },
+        {
+            "id": "systematic_review",
+            "name": "Systematic Review",
+            "description": "Analyze systematic reviews and meta-analyses",
+            "category": "Medical Research",
+            "columns": {
+                "Search Strategy": {
+                    "description": "Is the search strategy clearly described?",
+                    "type": "boolean"
+                },
+                "Databases Searched": {
+                    "description": "Which databases were searched? (list them)",
+                    "type": "text"
+                },
+                "Studies Included": {
+                    "description": "How many studies were included in the final analysis?",
+                    "type": "text"
+                },
+                "Total Participants": {
+                    "description": "What is the total number of participants across all studies?",
+                    "type": "text"
+                },
+                "Risk of Bias": {
+                    "description": "Was risk of bias assessment performed?",
+                    "type": "boolean"
+                },
+                "Meta-Analysis": {
+                    "description": "Was a meta-analysis conducted?",
+                    "type": "boolean"
+                },
+                "GRADE Assessment": {
+                    "description": "Was GRADE used to assess quality of evidence?",
+                    "type": "boolean"
+                },
+                "Evidence Quality": {
+                    "description": "Rate the overall quality of evidence presented",
+                    "type": "score",
+                    "options": {"min": 1, "max": 5, "step": 1}
+                }
+            }
+        },
+        {
+            "id": "drug_discovery",
+            "name": "Drug Discovery",
+            "description": "Extract drug discovery and development information",
+            "category": "Pharmaceutical",
+            "columns": {
+                "Drug Name": {
+                    "description": "What is the name or identifier of the drug/compound?",
+                    "type": "text"
+                },
+                "Target": {
+                    "description": "What is the molecular target?",
+                    "type": "text"
+                },
+                "In Vitro": {
+                    "description": "Were in vitro studies performed?",
+                    "type": "boolean"
+                },
+                "In Vivo": {
+                    "description": "Were in vivo/animal studies performed?",
+                    "type": "boolean"
+                },
+                "IC50/EC50": {
+                    "description": "What is the IC50 or EC50 value (if reported)?",
+                    "type": "text"
+                },
+                "Toxicity": {
+                    "description": "Were toxicity studies performed?",
+                    "type": "boolean"
+                },
+                "Development Stage": {
+                    "description": "What stage of development? (preclinical, phase I, II, III)",
+                    "type": "text"
+                }
+            }
+        },
+        {
+            "id": "epidemiology",
+            "name": "Epidemiological Study",
+            "description": "Key metrics for epidemiological research",
+            "category": "Public Health",
+            "columns": {
+                "Study Design": {
+                    "description": "What is the epidemiological study design?",
+                    "type": "text"
+                },
+                "Population": {
+                    "description": "Describe the study population",
+                    "type": "text"
+                },
+                "Exposure": {
+                    "description": "What is the primary exposure or risk factor?",
+                    "type": "text"
+                },
+                "Outcome": {
+                    "description": "What is the primary health outcome?",
+                    "type": "text"
+                },
+                "Follow-up Period": {
+                    "description": "What is the follow-up period (if applicable)?",
+                    "type": "text"
+                },
+                "Confounders Adjusted": {
+                    "description": "Were confounders adjusted for in the analysis?",
+                    "type": "boolean"
+                },
+                "Risk Estimate": {
+                    "description": "What is the main risk estimate (OR, RR, HR)?",
+                    "type": "text"
+                }
+            }
+        },
+        {
+            "id": "basic_research",
+            "name": "Basic Science",
+            "description": "For molecular biology and basic science papers",
+            "category": "Basic Science",
+            "columns": {
+                "Model System": {
+                    "description": "What model system was used? (cell line, organism)",
+                    "type": "text"
+                },
+                "Key Finding": {
+                    "description": "What is the main scientific finding?",
+                    "type": "text"
+                },
+                "Mechanism": {
+                    "description": "Is a molecular mechanism proposed?",
+                    "type": "boolean"
+                },
+                "Novel": {
+                    "description": "Is this finding claimed to be novel?",
+                    "type": "boolean"
+                },
+                "Validation": {
+                    "description": "Were findings validated with multiple methods?",
+                    "type": "boolean"
+                },
+                "Clinical Relevance": {
+                    "description": "Is clinical relevance discussed?",
+                    "type": "boolean"
+                },
+                "Innovation Score": {
+                    "description": "Rate the innovation/novelty of the research",
+                    "type": "score",
+                    "options": {"min": 1, "max": 10, "step": 1}
+                }
+            }
+        }
+    ]
+    
     return {
-        "presets": [],
-        "message": "Analysis presets not yet implemented"
+        "presets": presets,
+        "categories": ["Core Analysis", "Medical Research", "Pharmaceutical", "Public Health", "Basic Science"]
     }
 
 

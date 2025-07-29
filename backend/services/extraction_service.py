@@ -479,6 +479,40 @@ Provide a brief answer in 100 characters or less.
                 
         return results
     
+    def extract_multiple_columns(
+        self,
+        articles: List[Dict[str, Any]],
+        columns_config: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Synchronous wrapper for extract_tabelizer_multiple_columns to match expected interface.
+        
+        Args:
+            articles: List of articles with id, title, abstract
+            columns_config: Dict of column_name -> {description, type, options}
+            
+        Returns:
+            Dictionary with results and metadata
+        """
+        import asyncio
+        
+        # Run the async method synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            results = loop.run_until_complete(
+                self.extract_tabelizer_multiple_columns(articles, columns_config)
+            )
+            return {
+                "results": results,
+                "metadata": {
+                    "total_articles": len(articles),
+                    "total_columns": len(columns_config)
+                }
+            }
+        finally:
+            loop.close()
+    
     async def extract_tabelizer_multiple_columns(
         self,
         articles: List[Dict[str, Any]],
@@ -499,10 +533,22 @@ Provide a brief answer in 100 characters or less.
         # Build the multi-column schema
         properties = {}
         for col_name, config in columns_config.items():
-            if config['type'] == 'boolean':
+            col_type = config.get('type', 'text')
+            if col_type == 'boolean':
                 properties[col_name] = {
                     "type": "string",
                     "enum": ["yes", "no"],
+                    "description": config['description']
+                }
+            elif col_type == 'score' or col_type == 'number':
+                # Get range from options
+                options = config.get('options', {})
+                min_val = options.get('min', 1)
+                max_val = options.get('max', 10)
+                properties[col_name] = {
+                    "type": "number",
+                    "minimum": min_val,
+                    "maximum": max_val,
                     "description": config['description']
                 }
             else:
@@ -526,8 +572,17 @@ Provide a brief answer in 100 characters or less.
         instruction_parts.append("Extract the following information:")
         
         for col_name, config in columns_config.items():
-            col_type = "Answer with 'yes' or 'no'" if config['type'] == 'boolean' else "Provide a brief answer (max 100 chars)"
-            instruction_parts.append(f"- {col_name}: {config['description']} ({col_type})")
+            col_type = config.get('type', 'text')
+            if col_type == 'boolean':
+                type_instruction = "Answer with 'yes' or 'no'"
+            elif col_type == 'score' or col_type == 'number':
+                options = config.get('options', {})
+                min_val = options.get('min', 1)
+                max_val = options.get('max', 10)
+                type_instruction = f"Provide a numeric score from {min_val} to {max_val}"
+            else:
+                type_instruction = "Provide a brief answer (max 100 chars)"
+            instruction_parts.append(f"- {col_name}: {config['description']} ({type_instruction})")
         
         extraction_instructions = "\n".join(instruction_parts)
         
@@ -553,14 +608,30 @@ Provide a brief answer in 100 characters or less.
                 article_results = {}
                 if extraction_result.extraction:
                     for col_name, config in columns_config.items():
+                        col_type = config.get('type', 'text')
                         if col_name in extraction_result.extraction:
                             value = extraction_result.extraction[col_name]
                             
-                            # Clean up boolean values
-                            if config['type'] == 'boolean':
+                            # Clean up values based on type
+                            if col_type == 'boolean':
                                 value = str(value).lower().strip()
                                 if value not in ["yes", "no"]:
                                     value = "no"  # Default to no if unclear
+                            elif col_type == 'score' or col_type == 'number':
+                                # Ensure numeric values are valid
+                                try:
+                                    num_value = float(value)
+                                    options = config.get('options', {})
+                                    min_val = options.get('min', 1)
+                                    max_val = options.get('max', 10)
+                                    # Clamp to range
+                                    num_value = max(min_val, min(max_val, num_value))
+                                    value = str(num_value)
+                                except (ValueError, TypeError):
+                                    # Default to middle of range if parsing fails
+                                    options = config.get('options', {})
+                                    default_val = (options.get('min', 1) + options.get('max', 10)) / 2
+                                    value = str(default_val)
                             else:
                                 # Truncate text values
                                 value = str(value)[:100]
@@ -568,11 +639,26 @@ Provide a brief answer in 100 characters or less.
                             article_results[col_name] = value
                         else:
                             # Handle missing columns
-                            article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                            if col_type == 'boolean':
+                                article_results[col_name] = "no"
+                            elif col_type == 'score' or col_type == 'number':
+                                options = config.get('options', {})
+                                default_val = (options.get('min', 1) + options.get('max', 10)) / 2
+                                article_results[col_name] = str(default_val)
+                            else:
+                                article_results[col_name] = "error"
                 else:
                     # Handle extraction failure
                     for col_name, config in columns_config.items():
-                        article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                        col_type = config.get('type', 'text')
+                        if col_type == 'boolean':
+                            article_results[col_name] = "no"
+                        elif col_type == 'score' or col_type == 'number':
+                            options = config.get('options', {})
+                            default_val = (options.get('min', 1) + options.get('max', 10)) / 2
+                            article_results[col_name] = str(default_val)
+                        else:
+                            article_results[col_name] = "error"
                 
                 results[article['id']] = article_results
                 
@@ -580,7 +666,15 @@ Provide a brief answer in 100 characters or less.
                 # On error, use default values for all columns
                 article_results = {}
                 for col_name, config in columns_config.items():
-                    article_results[col_name] = "no" if config['type'] == 'boolean' else "error"
+                    col_type = config.get('type', 'text')
+                    if col_type == 'boolean':
+                        article_results[col_name] = "no"
+                    elif col_type == 'score' or col_type == 'number':
+                        options = config.get('options', {})
+                        default_val = (options.get('min', 1) + options.get('max', 10)) / 2
+                        article_results[col_name] = str(default_val)
+                    else:
+                        article_results[col_name] = "error"
                 results[article['id']] = article_results
                 
         return results

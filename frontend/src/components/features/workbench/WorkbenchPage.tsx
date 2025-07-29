@@ -591,8 +591,6 @@ export function WorkbenchPage() {
           onSelectedProvidersChange={setSelectedProviders}
           onSearchModeChange={setSearchMode}
           onSearch={() => handleSearch(1)}
-          onPageSizeChange={handlePageSizeChange}
-          pagination={pagination}
         />
       </div>
 
@@ -620,7 +618,7 @@ export function WorkbenchPage() {
                 onSaveGroup={() => setShowSaveModal(true)}
                 onLoadGroup={() => setShowLoadModal(true)}
                 currentGroup={currentGroup}
-                displayDateType={searchParams.display_date_type || searchParams.date_type || 'publication'}
+                displayDateType="publication"
               />
             </div>
             {pagination.totalPages > 1 && (

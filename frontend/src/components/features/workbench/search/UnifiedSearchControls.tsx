@@ -27,11 +27,6 @@ interface UnifiedSearchControlsProps {
   onSearchModeChange: (mode: 'single' | 'multi') => void;
   onSearch: () => void;
   onBatchSearch?: () => void;
-  onPageSizeChange?: (pageSize: number) => void;
-  pagination?: {
-    pageSize: number;
-    totalResults: number;
-  };
 }
 
 export function UnifiedSearchControls({
@@ -43,9 +38,7 @@ export function UnifiedSearchControls({
   onSelectedProvidersChange,
   onSearchModeChange,
   onSearch,
-  onBatchSearch,
-  onPageSizeChange,
-  pagination
+  onBatchSearch
 }: UnifiedSearchControlsProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProviders, setShowProviders] = useState(true);
@@ -73,10 +66,10 @@ export function UnifiedSearchControls({
 
     if (provider === 'pubmed') {
       return (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Date Type
+              Date Type for Filtering
             </label>
             <select
               className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -84,24 +77,6 @@ export function UnifiedSearchControls({
               onChange={(e) => onSearchParamsChange({
                 ...searchParams,
                 date_type: e.target.value as 'completion' | 'publication'
-              })}
-            >
-              <option value="publication">Publication Date</option>
-              <option value="completion">Completion Date</option>
-              <option value="entry">Entry Date</option>
-              <option value="revised">Revised Date</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Display Date Type
-            </label>
-            <select
-              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-              value={searchParams.display_date_type || 'publication'}
-              onChange={(e) => onSearchParamsChange({
-                ...searchParams,
-                display_date_type: e.target.value as 'completion' | 'publication' | 'entry' | 'revised'
               })}
             >
               <option value="publication">Publication Date</option>
@@ -216,22 +191,24 @@ export function UnifiedSearchControls({
 
           {/* Basic options row */}
           <div className="flex flex-wrap gap-3 mb-4">
-            <div className="w-32">
+            <div className="w-36">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Results
+                Max Articles
               </label>
-              <Input
-                type="number"
-                min="1"
-                max={getMaxResults()}
+              <select
+                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 value={searchParams.num_results}
                 onChange={(e) => onSearchParamsChange({
                   ...searchParams,
-                  num_results: Math.min(parseInt(e.target.value) || 10, getMaxResults())
+                  num_results: parseInt(e.target.value)
                 })}
-                className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
-              />
+              >
+                <option value="10">10 articles</option>
+                <option value="20">20 articles</option>
+                <option value="50">50 articles</option>
+                <option value="100">100 articles</option>
+              </select>
             </div>
             <div className="w-40">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
@@ -286,24 +263,6 @@ export function UnifiedSearchControls({
                 disabled={isSearching}
               />
             </div>
-            {onPageSizeChange && (
-              <div className="w-32">
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                  Page Size
-                </label>
-                <select
-                  className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                  value={pagination?.pageSize || 20}
-                  onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
-                  disabled={isSearching}
-                >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
-            )}
           </div>
 
           {/* Advanced options toggle */}

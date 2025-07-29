@@ -269,9 +269,10 @@ export interface ArticleGroupDetailResponse {
 }
 
 export interface ArticleGroupSaveResponse {
+  success: boolean;
   message: string;
   group_id: string;
-  total_articles: number;
+  articles_saved: number;
 }
 
 export interface ArticleGroupDeleteResponse {

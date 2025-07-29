@@ -178,9 +178,10 @@ class ArticleGroupService:
         self.db.refresh(group)
         
         return ArticleGroupSaveResponse(
+            success=True,
             message=f"Added {len(request.articles)} articles to group",
             group_id=group_id,
-            total_articles=group.article_count
+            articles_saved=len(request.articles)
         )
     
     def save_tabelizer_state(
@@ -218,9 +219,10 @@ class ArticleGroupService:
         self.db.refresh(group)
         
         return ArticleGroupSaveResponse(
+            success=True,
             message=f"Saved tabelizer state to group",
             group_id=group_id,
-            total_articles=group.article_count
+            articles_saved=group.article_count
         )
     
     def create_and_save_group(
@@ -249,9 +251,10 @@ class ArticleGroupService:
         self.db.refresh(group)
         
         return ArticleGroupSaveResponse(
+            success=True,
             message=f"Created group '{group.name}' with {group.article_count} articles",
             group_id=group.id,
-            total_articles=group.article_count
+            articles_saved=group.article_count
         )
     
     def _add_articles_to_group(

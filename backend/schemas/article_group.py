@@ -53,6 +53,8 @@ class UpdateArticleGroupRequest(ArticleGroupBase):
 
 class SaveToGroupRequest(BaseModel):
     """Request to save current Tabelizer state to a group"""
+    group_name: str = Field(..., min_length=1, max_length=255, description="Group name")
+    group_description: Optional[str] = Field(None, description="Group description")
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles with extracted_features")
     columns: List[TabelizerColumnMetadata] = Field(..., description="Column metadata only")
     search_query: Optional[str] = Field(None, description="Search query used")

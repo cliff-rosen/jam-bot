@@ -140,7 +140,7 @@ export function TabelizerTable({
     return `${authors[0]} et al`;
   };
 
-  const formatDate = (dateStr: string): string => {
+  const formatDate = (dateStr: string, dateType: string): string => {
     if (!dateStr || dateStr === '-') return '-';
     
     // If it's just a year, return as-is
@@ -149,9 +149,14 @@ export function TabelizerTable({
     // If it's a full date (YYYY-MM-DD), return the full date
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
     
-    // Try to extract the year from other formats as fallback
+    // Handle PubMed format like "2025-Jul-24" - keep full format for publication dates
+    if (dateType === 'publication' && dateStr.includes('-') && !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateStr; // Keep the full format like "2025-Jul-24"
+    }
+    
+    // Try to extract the year from other formats as fallback for non-publication dates
     const yearMatch = dateStr.match(/^(\d{4})/);
-    if (yearMatch) return yearMatch[1];
+    if (yearMatch && dateType !== 'publication') return yearMatch[1];
     
     return dateStr;
   };
@@ -391,7 +396,7 @@ export function TabelizerTable({
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span>{formatDate(getArticleDate(article, displayDateType))}</span>
+                    <span>{formatDate(getArticleDate(article, displayDateType), displayDateType)}</span>
                     {article.source === 'pubmed' && (
                       <span className="text-xs text-gray-400 dark:text-gray-500 capitalize">
                         {displayDateType}

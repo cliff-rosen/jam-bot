@@ -479,13 +479,13 @@ Provide a brief answer in 100 characters or less.
                 
         return results
     
-    def extract_multiple_columns(
+    async def extract_multiple_columns(
         self,
         articles: List[Dict[str, Any]],
         columns_config: Dict[str, Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        Synchronous wrapper for extract_tabelizer_multiple_columns to match expected interface.
+        Extract multiple columns from articles to match expected interface.
         
         Args:
             articles: List of articles with id, title, abstract
@@ -494,24 +494,14 @@ Provide a brief answer in 100 characters or less.
         Returns:
             Dictionary with results and metadata
         """
-        import asyncio
-        
-        # Run the async method synchronously
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            results = loop.run_until_complete(
-                self.extract_tabelizer_multiple_columns(articles, columns_config)
-            )
-            return {
-                "results": results,
-                "metadata": {
-                    "total_articles": len(articles),
-                    "total_columns": len(columns_config)
-                }
+        results = await self.extract_tabelizer_multiple_columns(articles, columns_config)
+        return {
+            "results": results,
+            "metadata": {
+                "total_articles": len(articles),
+                "total_columns": len(columns_config)
             }
-        finally:
-            loop.close()
+        }
     
     async def extract_tabelizer_multiple_columns(
         self,

@@ -205,7 +205,7 @@ async def extract_column_standalone(
             }
         }
         
-        result = extraction_service.extract_multiple_columns(extraction_data, column_config)
+        result = await extraction_service.extract_multiple_columns(extraction_data, column_config)
         
         # Extract just the single column results
         column_results = {}
@@ -266,7 +266,7 @@ async def extract_multiple_columns_standalone(
 ):
     """Extract multiple columns from articles (standalone operation)."""
     try:
-        result = extraction_service.extract_multiple_columns(
+        result = await extraction_service.extract_multiple_columns(
             request.articles, 
             request.columns_config
         )

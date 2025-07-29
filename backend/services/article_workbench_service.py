@@ -7,7 +7,7 @@ No database logic should exist in routers - it all goes here.
 
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from datetime import datetime
 
 from models import ArticleGroup, ArticleGroupDetail, User
@@ -275,7 +275,7 @@ class ArticleWorkbenchService:
         articles_to_process = self.db.query(ArticleGroupDetail).filter(
             and_(
                 ArticleGroupDetail.article_group_id == group_id,
-                ArticleGroupDetail.article_data.op("->>")(["id"]).in_(article_ids)
+                func.json_extract(ArticleGroupDetail.article_data, "$.id").in_(article_ids)
             )
         ).all()
         
@@ -376,7 +376,7 @@ class ArticleWorkbenchService:
         articles_to_update = self.db.query(ArticleGroupDetail).filter(
             and_(
                 ArticleGroupDetail.article_group_id == group_id,
-                ArticleGroupDetail.article_data.op("->>")(["id"]).in_(list(metadata_updates.keys()))
+                func.json_extract(ArticleGroupDetail.article_data, "$.id").in_(list(metadata_updates.keys()))
             )
         ).all()
         
@@ -425,7 +425,7 @@ class ArticleWorkbenchService:
             and_(
                 ArticleGroup.user_id == user_id,
                 ArticleGroup.id == group_id,
-                ArticleGroupDetail.article_data.op("->>")(["id"]) == article_id
+                func.json_extract(ArticleGroupDetail.article_data, "$.id") == article_id
             )
         ).first()
 

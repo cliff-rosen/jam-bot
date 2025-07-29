@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ExternalLink, Calendar, Users, BookOpen, MessageCircle, X,
@@ -49,9 +51,12 @@ export function ArticleWorkbenchModal({
 
   // Form states
   const [noteText, setNoteText] = useState('');
-  const [newFeatureName, setNewFeatureName] = useState('');
-  const [newFeatureType, setNewFeatureType] = useState('text');
-  const [newFeaturePrompt, setNewFeaturePrompt] = useState('');
+  const [newColumnName, setNewColumnName] = useState('');
+  const [newColumnType, setNewColumnType] = useState<'boolean' | 'text' | 'score'>('boolean');
+  const [newColumnDescription, setNewColumnDescription] = useState('');
+  const [minValue, setMinValue] = useState(1);
+  const [maxValue, setMaxValue] = useState(10);
+  const [stepValue, setStepValue] = useState(1);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [rating, setRating] = useState<number | undefined>();
@@ -111,42 +116,42 @@ export function ArticleWorkbenchModal({
     }
   };
 
-  const extractFeature = async () => {
-    if (!currentGroup?.id || !newFeatureName.trim() || !newFeaturePrompt.trim()) return;
+  const extractColumn = async () => {
+    if (!currentGroup?.id || !newColumnName.trim() || !newColumnDescription.trim()) return;
 
     try {
       const result = await workbenchApi.extractFeature(
         currentGroup.id,
         article.id,
-        newFeatureName,
-        newFeatureType,
-        newFeaturePrompt
+        newColumnName,
+        newColumnType,
+        newColumnDescription
       );
 
       await loadWorkbenchData(); // Refresh data
 
       // Reset form
-      setNewFeatureName('');
-      setNewFeaturePrompt('');
+      setNewColumnName('');
+      setNewColumnDescription('');
 
       // Notify parent component
       if (onFeatureAdded) {
         onFeatureAdded({
-          name: newFeatureName,
+          name: newColumnName,
           value: result.feature_data.value,
-          type: newFeatureType
+          type: newColumnType
         });
       }
 
       toast({
-        title: 'Feature Extracted',
-        description: `"${newFeatureName}" has been extracted and added to the table.`,
+        title: 'Column Added',
+        description: `"${newColumnName}" has been extracted and added to the table.`,
       });
     } catch (error) {
-      console.error('Error extracting feature:', error);
+      console.error('Error extracting column:', error);
       toast({
         title: 'Error',
-        description: 'Failed to extract feature',
+        description: 'Failed to extract column',
         variant: 'destructive',
       });
     }
@@ -254,6 +259,9 @@ export function ArticleWorkbenchModal({
         <DialogTitle className="sr-only">
           Research Workbench: {article.title}
         </DialogTitle>
+        <DialogDescription className="sr-only">
+          Article research workbench with chat, notes, feature extraction, and organization tools
+        </DialogDescription>
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
@@ -313,8 +321,8 @@ export function ArticleWorkbenchModal({
                   Notes
                 </TabsTrigger>
                 <TabsTrigger value="features" className="gap-1">
-                  <Zap className="w-4 h-4" />
-                  Features
+                  <Plus className="w-4 h-4" />
+                  Columns
                 </TabsTrigger>
                 <TabsTrigger value="groups" className="gap-1">
                   <FolderOpen className="w-4 h-4" />
@@ -474,38 +482,39 @@ export function ArticleWorkbenchModal({
                 <TabsContent value="features" className="mt-0 space-y-4">
                   {!currentGroup ? (
                     <div className="text-center py-8">
-                      <Zap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <Plus className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Group Selected</h3>
                       <p className="text-gray-500 dark:text-gray-400">
-                        Features are tied to groups. Please save this article to a group first.
+                        Columns are tied to groups. Please save this article to a group first.
                       </p>
                     </div>
                   ) : (
                     <>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Feature Extraction</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Columns</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                           Extract specific data points from this article that will become columns in your table.
                         </p>
                       </div>
 
-                      {/* Existing Features */}
+                      {/* Existing Columns */}
                       {workbenchData?.extracted_features && Object.keys(workbenchData.extracted_features).length > 0 && (
                         <div className="space-y-2">
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100">Extracted Features</h4>
-                          {Object.entries(workbenchData.extracted_features).map(([featureName, featureData]) => (
-                            <div key={featureName} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100">Extracted Columns</h4>
+                          {Object.entries(workbenchData.extracted_features).map(([columnName, columnData]) => (
+                            <div key={columnName} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                               <div>
-                                <div className="font-medium text-sm">{featureName}</div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">{featureData.value || featureData}</div>
-                                <div className="text-xs text-gray-500">
-                                  {featureData.method || 'Manual'} • {featureData.confidence ? `${(featureData.confidence * 100).toFixed(0)}% confidence` : ''}
+                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{columnName}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">{columnData.value || columnData}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {columnData.extraction_method || 'AI'} • {columnData.confidence ? `${(columnData.confidence * 100).toFixed(0)}% confidence` : 'Extracted'}
                                 </div>
                               </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteFeature(featureName)}
+                                onClick={() => deleteFeature(columnName)}
+                                className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -514,43 +523,125 @@ export function ArticleWorkbenchModal({
                         </div>
                       )}
 
-                      {/* Feature Extraction Form */}
-                      <div className="space-y-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Extract New Feature</h4>
+                      {/* Add Column Form */}
+                      <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Add New Column</h4>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Column Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="column-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
                           <Input
-                            placeholder="Feature name (e.g., 'Study Type')"
-                            value={newFeatureName}
-                            onChange={(e) => setNewFeatureName(e.target.value)}
+                            id="column-name"
+                            placeholder="e.g., Study Type"
+                            value={newColumnName}
+                            onChange={(e) => setNewColumnName(e.target.value)}
+                            className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                           />
-                          <Select value={newFeatureType} onValueChange={setNewFeatureType}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Text</SelectItem>
-                              <SelectItem value="boolean">Yes/No</SelectItem>
-                              <SelectItem value="score">Score (1-10)</SelectItem>
-                              <SelectItem value="number">Number</SelectItem>
-                            </SelectContent>
-                          </Select>
                         </div>
 
-                        <Textarea
-                          placeholder="Extraction prompt (e.g., 'What type of study is this? Look for keywords like randomized, controlled, observational, etc.')"
-                          value={newFeaturePrompt}
-                          onChange={(e) => setNewFeaturePrompt(e.target.value)}
-                          className="min-h-[80px]"
-                        />
+                        {/* Column Type */}
+                        <div className="space-y-2">
+                          <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
+                          <RadioGroup value={newColumnType} onValueChange={(value) => setNewColumnType(value as 'boolean' | 'text' | 'score')}>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="boolean" id="boolean" />
+                              <Label htmlFor="boolean" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                Yes/No Question
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="text" id="text" />
+                              <Label htmlFor="text" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                Text Extraction (100 chars max)
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="score" id="score" />
+                              <Label htmlFor="score" className="font-normal cursor-pointer text-gray-900 dark:text-gray-100">
+                                Numeric Score/Rating
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+
+                        {/* Score Range Configuration */}
+                        {newColumnType === 'score' && (
+                          <div className="space-y-2">
+                            <Label className="text-gray-900 dark:text-gray-100">Score Range</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <Label htmlFor="min" className="text-xs text-gray-600 dark:text-gray-400">Min</Label>
+                                <Input
+                                  id="min"
+                                  type="number"
+                                  value={minValue}
+                                  onChange={(e) => setMinValue(Number(e.target.value))}
+                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="max" className="text-xs text-gray-600 dark:text-gray-400">Max</Label>
+                                <Input
+                                  id="max"
+                                  type="number"
+                                  value={maxValue}
+                                  onChange={(e) => setMaxValue(Number(e.target.value))}
+                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="step" className="text-xs text-gray-600 dark:text-gray-400">Step</Label>
+                                <Input
+                                  id="step"
+                                  type="number"
+                                  step="0.1"
+                                  value={stepValue}
+                                  onChange={(e) => setStepValue(Number(e.target.value))}
+                                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Score will be constrained to this range (e.g., 1-10 for rating, 0-100 for percentage)
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Description/Question */}
+                        <div className="space-y-2">
+                          <Label htmlFor="description" className="text-gray-900 dark:text-gray-100">
+                            {newColumnType === 'boolean' ? 'Question' : newColumnType === 'score' ? 'Scoring Criteria' : 'What to Extract'}
+                          </Label>
+                          <Textarea
+                            id="description"
+                            value={newColumnDescription}
+                            onChange={(e) => setNewColumnDescription(e.target.value)}
+                            placeholder={
+                              newColumnType === 'boolean'
+                                ? "e.g., Does this study report any adverse events or side effects?"
+                                : newColumnType === 'score'
+                                ? "e.g., Rate the quality of this study's methodology from 1-10"
+                                : "e.g., What is the main finding of this study?"
+                            }
+                            rows={3}
+                            className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                          />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {newColumnType === 'boolean'
+                              ? "The AI will answer with 'yes' or 'no' for each article."
+                              : newColumnType === 'score'
+                              ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
+                              : "The AI will extract a brief text summary (max 100 characters)."}
+                          </p>
+                        </div>
 
                         <Button
-                          onClick={extractFeature}
-                          disabled={!newFeatureName.trim() || !newFeaturePrompt.trim()}
-                          className="gap-2"
+                          onClick={extractColumn}
+                          disabled={!newColumnName.trim() || !newColumnDescription.trim()}
+                          className="w-full gap-2"
                         >
-                          <Zap className="w-4 h-4" />
-                          Extract Feature
+                          <Plus className="w-4 h-4" />
+                          Add Column
                         </Button>
                       </div>
                     </>

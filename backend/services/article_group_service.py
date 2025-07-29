@@ -16,7 +16,7 @@ from schemas.article_group import (
     CreateArticleGroupRequest, UpdateArticleGroupRequest, SaveToGroupRequest,
     AddArticlesRequest, ArticleGroupResponse, ArticleGroupDetail, ArticleGroupDetailResponse,
     ArticleGroupListResponse, ArticleGroupSaveResponse, ArticleGroupDeleteResponse,
-    TabelizerColumnData
+    ArticleGroupItem, TabelizerColumnData
 )
 
 
@@ -320,29 +320,36 @@ class ArticleGroupService:
             ArticleGroupDetail.article_group_id == group.id
         ).order_by(ArticleGroupDetail.position).all()
         
-        # Start with base group data
-        base_data = self._group_to_summary(group)
-        
-        # Add detailed article data
-        base_data.update({
-            "articles": [
-                {
-                    "article": detail.article_data,
-                    "position": detail.position,
-                    "column_data": detail.extracted_features,
-                    "workbench_summary": {
-                        "has_notes": bool(detail.notes),
-                        "feature_count": len(detail.extracted_features),
-                        "tags": detail.article_metadata.get("tags", []),
-                        "rating": detail.article_metadata.get("rating")
-                    }
+        # Create proper ArticleGroupItem objects
+        article_items = []
+        for detail in articles:
+            article_items.append(ArticleGroupItem(
+                article=CanonicalResearchArticle(**detail.article_data),
+                position=detail.position,
+                column_data=detail.extracted_features,
+                workbench_summary={
+                    "has_notes": bool(detail.notes),
+                    "feature_count": len(detail.extracted_features),
+                    "tags": detail.article_metadata.get("tags", []),
+                    "rating": detail.article_metadata.get("rating")
                 }
-                for detail in articles
-            ],
-            "columns": group.columns  # Column metadata for reconstruction
-        })
+            ))
         
-        return base_data
+        # Return data that can be used to construct ArticleGroupDetail
+        return {
+            "id": group.id,
+            "user_id": group.user_id,
+            "name": group.name,
+            "description": group.description,
+            "search_query": group.search_query,
+            "search_provider": group.search_provider,
+            "search_params": group.search_params,
+            "columns": group.columns,
+            "article_count": group.article_count,
+            "created_at": group.created_at,
+            "updated_at": group.updated_at,
+            "articles": article_items
+        }
 
 
 def get_article_group_service(db: Session = None) -> ArticleGroupService:

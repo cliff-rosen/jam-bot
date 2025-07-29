@@ -44,6 +44,8 @@ class CreateArticleGroupRequest(ArticleGroupBase):
     search_query: Optional[str] = Field(None, description="Search query used")
     search_provider: Optional[str] = Field(None, description="Search provider used")
     search_params: Optional[Dict[str, Any]] = Field(None, description="Search parameters")
+    articles: Optional[List[CanonicalResearchArticle]] = Field(None, description="Articles to add to the group")
+    columns: Optional[List[TabelizerColumnMetadata]] = Field(None, description="Column metadata")
 
 
 class UpdateArticleGroupRequest(ArticleGroupBase):
@@ -91,9 +93,16 @@ class ArticleGroupListResponse(BaseModel):
     total_pages: int = Field(..., description="Total number of pages")
 
 
+class ArticleGroupItem(BaseModel):
+    """Individual article item in a group with metadata"""
+    article: CanonicalResearchArticle = Field(..., description="The article data")
+    position: int = Field(..., description="Position in the group")
+    column_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted column data")
+    workbench_summary: Dict[str, Any] = Field(default_factory=dict, description="Workbench metadata summary")
+
 class ArticleGroupDetail(ArticleGroupResponse):
     """Detailed article group with articles and reconstructed columns"""
-    articles: List[CanonicalResearchArticle] = Field(..., description="Articles with extracted_features")
+    articles: List[ArticleGroupItem] = Field(..., description="Articles with metadata")
     columns: List[TabelizerColumnData] = Field(..., description="Reconstructed column data")
 
 class ArticleGroupDetailResponse(BaseModel):

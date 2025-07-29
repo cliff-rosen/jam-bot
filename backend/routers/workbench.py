@@ -290,51 +290,30 @@ async def get_analysis_presets(
     """Get predefined analysis presets."""
     presets = [
         {
-            "id": "doi_poi_analysis",
-            "name": "DOI/POI Analysis",
-            "description": "Extract drug and patient population information",
+            "id": "research_features",
+            "name": "Research Features",
+            "description": "Extract research features for DOI/POI analysis",
             "category": "Core Analysis",
             "columns": {
-                "DOI": {
-                    "description": "What is the drug of interest (DOI) studied in this paper?",
-                    "type": "text"
-                },
-                "POI": {
-                    "description": "What is the patient population of interest (POI) in this study?",
-                    "type": "text"
-                },
-                "Indication": {
-                    "description": "What medical condition or indication is being studied?",
-                    "type": "text"
-                },
-                "Study Phase": {
-                    "description": "What phase of clinical development is this? (preclinical, phase I, II, III, IV, or N/A)",
-                    "type": "text"
-                },
-                "Efficacy Reported": {
-                    "description": "Does this study report efficacy data for the DOI in the POI?",
+                "poi_relevance": {
+                    "description": "Does this article relate to melanocortin or natriuretic pathways? Melanocortin keywords: melanocortin receptor, MC1R, MC2R, MC3R, MC4R, MC5R, ACTH, α-MSH, β-MSH, γ-MSH, melanocyte, pigmentation, appetite regulation. Natriuretic keywords: natriuretic peptide, ANP, BNP, CNP, NPR-A, NPR-B, NPR-C, guanylate cyclase, cardiac function",
                     "type": "boolean"
                 },
-                "Safety Reported": {
-                    "description": "Does this study report safety/adverse event data?",
+                "doi_relevance": {
+                    "description": "Does this article relate to dry eye, ulcerative colitis, crohn's disease, retinopathy, or retinal disease? Dry eye keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film. IBD keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis. Retinal keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration",
                     "type": "boolean"
                 },
-                "Comparator": {
-                    "description": "What is the comparator or control used in this study?",
-                    "type": "text"
-                },
-                "Primary Endpoint Met": {
-                    "description": "Did the study meet its primary endpoint?",
+                "is_systematic": {
+                    "description": "Is this a systematic study? Look for: randomized controlled clinical trials (RCTs), clinical trials, epidemiological studies, cohort studies, case-control studies, open label trials, case reports. Systematic reviews and meta-analyses should also be marked as 'yes'. Basic science, in vitro, and animal studies can also be systematic if they follow rigorous methodology",
                     "type": "boolean"
                 },
-                "Key Results": {
-                    "description": "What are the key quantitative results? (e.g., response rates, p-values)",
+                "study_type": {
+                    "description": "Type of study: 'human RCT' (randomized controlled clinical trials with humans), 'human non-RCT' (human studies that are not RCTs - observational, cohort, case-control, case series), 'non-human life science' (animal studies, in vitro studies, cell culture, molecular biology), 'non life science' (non-biological research), 'not a study' (reviews non-systematic, editorials, opinions, commentaries, theoretical papers)",
                     "type": "text"
                 },
-                "Relevance Score": {
-                    "description": "Rate the relevance of this paper to your research question",
-                    "type": "score",
-                    "options": {"min": 1, "max": 5, "step": 1}
+                "study_outcome": {
+                    "description": "Primary outcome focus: 'effectiveness' (testing if treatment/intervention works), 'safety' (testing safety, adverse events, toxicity, side effects), 'diagnostics' (developing or testing diagnostic methods), 'biomarker' (identifying or validating biomarkers non-diagnostic, prognostic markers), 'other' (basic science mechanisms, pathophysiology, epidemiology)",
+                    "type": "text"
                 }
             }
         },

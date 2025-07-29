@@ -66,13 +66,13 @@ export function WorkbenchPage() {
     setDataSource('search');
 
     try {
-      // Use pagination parameters
+      // Use search parameters - num_results from user selection
       const paginatedParams = {
         ...searchParams,
         page,
-        page_size: pagination.pageSize,
-        num_results: pagination.pageSize,
-        offset: (page - 1) * pagination.pageSize
+        page_size: searchParams.num_results,
+        num_results: searchParams.num_results,
+        offset: (page - 1) * searchParams.num_results
       };
 
       const response = await unifiedSearchApi.search(paginatedParams);
@@ -80,11 +80,12 @@ export function WorkbenchPage() {
 
       // Update pagination state
       const totalResults = response.metadata.total_results || 0;
-      const totalPages = Math.ceil(totalResults / pagination.pageSize);
+      const totalPages = Math.ceil(totalResults / searchParams.num_results);
 
       setPagination(prev => ({
         ...prev,
         currentPage: page,
+        pageSize: searchParams.num_results,
         totalResults,
         totalPages,
         hasNextPage: page < totalPages,

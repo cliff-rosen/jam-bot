@@ -14,7 +14,7 @@ from models import ArticleGroup, ArticleGroupDetail, User
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.article_group import (
     CreateArticleGroupRequest, UpdateArticleGroupRequest, SaveToGroupRequest,
-    AddArticlesRequest, ArticleGroupResponse, ArticleGroupDetailResponse,
+    AddArticlesRequest, ArticleGroupResponse, ArticleGroupDetail, ArticleGroupDetailResponse,
     ArticleGroupListResponse, ArticleGroupSaveResponse, ArticleGroupDeleteResponse,
     TabelizerColumnData
 )
@@ -81,9 +81,7 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupResponse(
-            group=self._group_to_detail(group)
-        )
+        return ArticleGroupResponse(**self._group_to_summary(group))
     
     def get_group_detail(self, user_id: int, group_id: str) -> Optional[ArticleGroupDetailResponse]:
         """Get detailed information about a specific group."""
@@ -98,7 +96,7 @@ class ArticleGroupService:
             return None
             
         return ArticleGroupDetailResponse(
-            group=self._group_to_detail(group)
+            group=ArticleGroupDetail(**self._group_to_detail(group))
         )
     
     def update_group(self, user_id: int, group_id: str, request: UpdateArticleGroupRequest) -> Optional[ArticleGroupResponse]:
@@ -126,9 +124,7 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupResponse(
-            group=self._group_to_detail(group)
-        )
+        return ArticleGroupResponse(**self._group_to_summary(group))
     
     def delete_group(self, user_id: int, group_id: str) -> Optional[ArticleGroupDeleteResponse]:
         """Delete a group and all its articles."""
@@ -150,6 +146,7 @@ class ArticleGroupService:
         self.db.commit()
         
         return ArticleGroupDeleteResponse(
+            success=True,
             message=f"Group '{group.name}' deleted successfully",
             deleted_group_id=group_id,
             deleted_articles_count=article_count
@@ -304,11 +301,16 @@ class ArticleGroupService:
         """Convert ArticleGroup to summary format."""
         return {
             "id": group.id,
+            "user_id": group.user_id,
             "name": group.name,
             "description": group.description,
+            "search_query": group.search_query,
+            "search_provider": group.search_provider,
+            "search_params": group.search_params,
+            "columns": group.columns,
             "article_count": group.article_count,
-            "created_at": group.created_at.isoformat(),
-            "updated_at": group.updated_at.isoformat() if group.updated_at else None
+            "created_at": group.created_at,
+            "updated_at": group.updated_at
         }
     
     def _group_to_detail(self, group: ArticleGroup) -> dict:
@@ -318,19 +320,11 @@ class ArticleGroupService:
             ArticleGroupDetail.article_group_id == group.id
         ).order_by(ArticleGroupDetail.position).all()
         
-        return {
-            "id": group.id,
-            "name": group.name,
-            "description": group.description,
-            "article_count": group.article_count,
-            "columns": group.columns,
-            "search_context": {
-                "query": group.search_query,
-                "provider": group.search_provider,
-                "parameters": group.search_params
-            } if group.search_query else None,
-            "created_at": group.created_at.isoformat(),
-            "updated_at": group.updated_at.isoformat() if group.updated_at else None,
+        # Start with base group data
+        base_data = self._group_to_summary(group)
+        
+        # Add detailed article data
+        base_data.update({
             "articles": [
                 {
                     "article": detail.article_data,
@@ -344,8 +338,11 @@ class ArticleGroupService:
                     }
                 }
                 for detail in articles
-            ]
-        }
+            ],
+            "columns": group.columns  # Column metadata for reconstruction
+        })
+        
+        return base_data
 
 
 def get_article_group_service(db: Session = None) -> ArticleGroupService:

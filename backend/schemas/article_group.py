@@ -86,12 +86,19 @@ class ArticleGroupListResponse(BaseModel):
     """Response with list of article groups"""
     groups: List[ArticleGroupResponse] = Field(..., description="List of groups")
     total: int = Field(..., description="Total number of groups")
+    page: int = Field(..., description="Current page number")
+    limit: int = Field(..., description="Number of items per page")
+    total_pages: int = Field(..., description="Total number of pages")
 
 
-class ArticleGroupDetailResponse(ArticleGroupResponse):
-    """Response with full article group details including articles and reconstructed columns"""
+class ArticleGroupDetail(ArticleGroupResponse):
+    """Detailed article group with articles and reconstructed columns"""
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles with extracted_features")
     columns: List[TabelizerColumnData] = Field(..., description="Reconstructed column data")
+
+class ArticleGroupDetailResponse(BaseModel):
+    """Response wrapper for article group details"""
+    group: ArticleGroupDetail = Field(..., description="Detailed group information")
 
 
 class ArticleGroupSaveResponse(BaseModel):
@@ -106,3 +113,5 @@ class ArticleGroupDeleteResponse(BaseModel):
     """Response after deleting a group"""
     success: bool = Field(..., description="Whether deletion was successful")
     message: str = Field(..., description="Success or error message")
+    deleted_group_id: str = Field(..., description="ID of the deleted group")
+    deleted_articles_count: int = Field(..., description="Number of articles that were deleted")

@@ -3,7 +3,7 @@ import { CanonicalResearchArticle } from '@/types/unifiedSearch';
 import { WorkbenchColumn } from '@/types/workbench';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2, RotateCcw } from 'lucide-react';
 
 interface WorkbenchTableProps {
   articles: CanonicalResearchArticle[];
@@ -12,6 +12,7 @@ interface WorkbenchTableProps {
   onDeleteColumn: (columnId: string) => void;
   onDeleteArticle: (articleId: string) => void;
   onExport: () => void;
+  onClearResults: () => void;
   isExtracting: boolean;
   onViewArticle: (article: CanonicalResearchArticle) => void;
   onSaveGroup: () => void;
@@ -27,6 +28,7 @@ export function WorkbenchTable({
   onDeleteColumn,
   onDeleteArticle,
   onExport,
+  onClearResults,
   isExtracting,
   onViewArticle,
   onSaveGroup,
@@ -257,6 +259,15 @@ export function WorkbenchTable({
           >
             <Download className="w-4 h-4 mr-1" />
             Export CSV
+          </Button>
+          <Button
+            onClick={onClearResults}
+            variant="outline"
+            size="sm"
+            disabled={articles.length === 0}
+          >
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Clear Results
           </Button>
         </div>
       </div>

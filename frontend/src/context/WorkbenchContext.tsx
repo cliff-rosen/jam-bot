@@ -107,6 +107,7 @@ interface WorkbenchActions {
 
   // State management
   clearWorkbench: () => void;
+  clearResults: () => void;
   markClean: () => void;
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
@@ -436,9 +437,45 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // Reset methods
+  const clearResults = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      articles: [],
+      columns: [],
+      source: 'search',
+      sourceGroup: undefined,
+      localArticleData: {},
+      hasModifications: false,
+      selectedArticle: null,
+      pagination: {
+        currentPage: 1,
+        pageSize: 20,
+        totalResults: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    }));
+  }, []);
+
   // High-level API orchestration methods
   const performSearch = useCallback(async (page = 1) => {
     setSearching(true);
+
+    // Clear existing results when starting a new search (page 1)
+    if (page === 1) {
+      setState(prev => ({
+        ...prev,
+        articles: [],
+        columns: [],
+        source: 'search',
+        sourceGroup: undefined,
+        localArticleData: {},
+        hasModifications: false,
+        selectedArticle: null
+      }));
+    }
 
     try {
       // Use search parameters from context
@@ -775,6 +812,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     setSelectedArticle,
     updatePagination,
     clearWorkbench,
+    clearResults,
     markClean,
     saveToLocalStorage,
     loadFromLocalStorage

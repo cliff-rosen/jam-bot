@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, FolderOpen, Cloud, CloudOff } from 'lucide-react';
+import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -205,6 +205,22 @@ export function WorkbenchPage() {
     }
   };
 
+  const handleResetAll = () => {
+    workbench.clearWorkbench();
+    toast({
+      title: 'Workbench Reset',
+      description: 'All data and search parameters have been cleared.'
+    });
+  };
+
+  const handleClearResults = () => {
+    workbench.clearResults();
+    toast({
+      title: 'Results Cleared',
+      description: 'Articles and columns cleared. Search parameters preserved.'
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -237,6 +253,14 @@ export function WorkbenchPage() {
             >
               <FolderOpen className="w-4 h-4 mr-2" />
               Load Group
+            </Button>
+            <Button
+              onClick={handleResetAll}
+              variant="outline"
+              size="sm"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset All
             </Button>
           </div>
         </div>
@@ -275,6 +299,7 @@ export function WorkbenchPage() {
                 onDeleteColumn={handleDeleteColumn}
                 onDeleteArticle={handleDeleteArticle}
                 onExport={handleExport}
+                onClearResults={handleClearResults}
                 isExtracting={workbench.isExtracting}
                 onViewArticle={workbench.setSelectedArticle}
                 onSaveGroup={() => setShowSaveModal(true)}

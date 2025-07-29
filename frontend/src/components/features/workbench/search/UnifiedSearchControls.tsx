@@ -193,21 +193,21 @@ export function UnifiedSearchControls({
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="w-36">
               <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Max Articles
+                Page Size
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={searchParams.num_results}
+                value={searchParams.page_size}
                 onChange={(e) => onSearchParamsChange({
                   ...searchParams,
-                  num_results: parseInt(e.target.value)
+                  page_size: parseInt(e.target.value)
                 })}
                 disabled={isSearching}
               >
-                <option value="10">10 articles</option>
-                <option value="20">20 articles</option>
-                <option value="50">50 articles</option>
-                <option value="100">100 articles</option>
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
               </select>
             </div>
             <div className="w-40">

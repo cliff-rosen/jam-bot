@@ -130,12 +130,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     currentSearchParams: {
       provider: 'pubmed',
       query: '',
-      num_results: 20,
+      page_size: 20,
       sort_by: 'relevance',
       include_citations: false,
       include_pdf_links: false,
       page: 1,
-      page_size: 20,
     },
     selectedProviders: ['pubmed'],
     searchMode: 'single',
@@ -322,12 +321,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       currentSearchParams: {
         provider: 'pubmed',
         query: '',
-        num_results: 20,
+        page_size: 20,
         sort_by: 'relevance',
         include_citations: false,
         include_pdf_links: false,
         page: 1,
-        page_size: 20,
       },
       selectedProviders: ['pubmed'],
       searchMode: 'single',
@@ -480,7 +478,6 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       const searchParams = {
         ...state.currentSearchParams,
         page: 1,
-        page_size: state.currentSearchParams.num_results,
         offset: 0
       };
 
@@ -488,11 +485,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
       // Update pagination state
       const totalResults = response.total_results || 0;
-      const totalPages = Math.ceil(totalResults / state.currentSearchParams.num_results);
+      const totalPages = Math.ceil(totalResults / state.currentSearchParams.page_size);
 
       updatePagination({
         currentPage: 1,
-        pageSize: state.currentSearchParams.num_results,
+        pageSize: state.currentSearchParams.page_size,
         totalResults,
         totalPages,
         hasNextPage: totalPages > 1,
@@ -523,8 +520,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       const searchParams = {
         ...state.currentSearchParams,
         page,
-        page_size: state.currentSearchParams.num_results,
-        offset: (page - 1) * state.currentSearchParams.num_results
+        offset: (page - 1) * state.currentSearchParams.page_size
       };
 
       const response = await unifiedSearchApi.search(searchParams);

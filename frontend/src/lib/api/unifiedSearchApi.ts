@@ -13,7 +13,6 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 export interface UnifiedSearchParams {
   provider: 'pubmed' | 'scholar';
   query: string;
-  num_results?: number;
   page?: number;
   page_size?: number;
   offset?: number;
@@ -42,7 +41,6 @@ export interface UnifiedSearchResponse {
 export interface BatchSearchRequest {
   providers: string[];
   query: string;
-  num_results?: number;
   page?: number;
   page_size?: number;
   sort_by?: 'relevance' | 'date';
@@ -79,7 +77,6 @@ class UnifiedSearchApi {
       params: {
         provider: params.provider,
         query: params.query,
-        num_results: params.num_results,
         sort_by: params.sort_by,
         ...(params.year_low !== undefined && { year_low: params.year_low }),
         ...(params.year_high !== undefined && { year_high: params.year_high }),
@@ -105,7 +102,6 @@ class UnifiedSearchApi {
     const response = await api.post('/api/unified-search/search/batch', {}, {
       params: {
         query: request.query,
-        num_results: request.num_results,
         sort_by: request.sort_by,
         providers: request.providers,
         ...(request.year_low !== undefined && { year_low: request.year_low }),

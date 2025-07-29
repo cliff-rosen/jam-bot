@@ -31,7 +31,7 @@ class ArticleGroupService:
         page: int = 1, 
         limit: int = 20,
         search: Optional[str] = None
-    ) -> WorkbenchGroupListResponse:
+    ) -> Dict[str, Any]:
         """Get paginated list of user's article groups."""
         query = self.db.query(ArticleGroupModel).filter(ArticleGroupModel.user_id == user_id)
         
@@ -49,15 +49,15 @@ class ArticleGroupService:
         offset = (page - 1) * limit
         groups = query.order_by(ArticleGroupModel.updated_at.desc()).offset(offset).limit(limit).all()
         
-        return WorkbenchGroupListResponse(
-            groups=[self._group_to_summary(group) for group in groups],
-            total=total,
-            page=page,
-            limit=limit,
-            total_pages=(total + limit - 1) // limit
-        )
+        return {
+            "groups": [self._group_to_summary(group) for group in groups],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total + limit - 1) // limit
+        }
     
-    def create_group(self, user_id: int, request: CreateWorkbenchGroupRequest) -> WorkbenchGroupResponse:
+    def create_group(self, user_id: int, request) -> Dict[str, Any]:
         """Create a new article group."""
         group = ArticleGroupModel(
             user_id=user_id,
@@ -80,9 +80,9 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return WorkbenchGroupResponse(**self._group_to_summary(group))
+        return self._group_to_summary(group)
     
-    def get_group_detail(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDetailResponse]:
+    def get_group_detail(self, user_id: int, group_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific group."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -97,14 +97,14 @@ class ArticleGroupService:
         try:
             detail_data = self._group_to_detail(group)
             print(f"Detail data keys: {detail_data.keys()}")
-            detail_obj = WorkbenchGroupDetail(**detail_data)
-            return WorkbenchGroupDetailResponse(group=detail_obj)
+            # detail_obj = WorkbenchGroupDetail(**detail_data)  # Not needed for dict return
+            return detail_data
         except Exception as e:
             print(f"Error in get_group_detail: {e}")
             print(f"Detail data: {detail_data}")
             raise
     
-    def update_group(self, user_id: int, group_id: str, request: UpdateWorkbenchGroupRequest) -> Optional[WorkbenchGroupResponse]:
+    def update_group(self, user_id: int, group_id: str, request) -> Optional[Dict[str, Any]]:
         """Update group metadata."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -129,9 +129,9 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return WorkbenchGroupResponse(**self._group_to_summary(group))
+        return self._group_to_summary(group)
     
-    def delete_group(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDeleteResponse]:
+    def delete_group(self, user_id: int, group_id: str) -> Optional[Dict[str, Any]]:
         """Delete a group and all its articles."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -150,19 +150,19 @@ class ArticleGroupService:
         self.db.delete(group)
         self.db.commit()
         
-        return WorkbenchGroupDeleteResponse(
-            success=True,
-            message=f"Group '{group.name}' deleted successfully",
-            deleted_group_id=group_id,
-            deleted_articles_count=article_count
-        )
+        return {
+            "success": True,
+            "message": f"Group '{group.name}' deleted successfully",
+            "deleted_group_id": group_id,
+            "deleted_articles_count": article_count
+        }
     
     def add_articles_to_group(
         self, 
         user_id: int, 
         group_id: str, 
-        request: AddArticlesToWorkbenchGroupRequest
-    ) -> Optional[WorkbenchGroupSaveResponse]:
+        request
+    ) -> Optional[Dict[str, Any]]:
         """Add articles to an existing group."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -179,19 +179,19 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return WorkbenchGroupSaveResponse(
-            success=True,
-            message=f"Added {len(request.articles)} articles to group",
-            group_id=group_id,
-            articles_saved=len(request.articles)
-        )
+        return {
+            "success": True,
+            "message": f"Added {len(request.articles)} articles to group",
+            "group_id": group_id,
+            "articles_saved": len(request.articles)
+        }
     
     def save_tabelizer_state(
         self, 
         user_id: int, 
         group_id: str, 
-        request: SaveToWorkbenchGroupRequest
-    ) -> Optional[WorkbenchGroupSaveResponse]:
+        request
+    ) -> Optional[Dict[str, Any]]:
         """Save tabelizer state (articles + columns) to existing group."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -220,18 +220,18 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return WorkbenchGroupSaveResponse(
-            success=True,
-            message=f"Saved tabelizer state to group",
-            group_id=group_id,
-            articles_saved=group.article_count
-        )
+        return {
+            "success": True,
+            "message": f"Saved tabelizer state to group",
+            "group_id": group_id,
+            "articles_saved": group.article_count
+        }
     
     def create_and_save_group(
         self, 
         user_id: int, 
-        request: SaveToWorkbenchGroupRequest
-    ) -> WorkbenchGroupSaveResponse:
+        request
+    ) -> Dict[str, Any]:
         """Create a new group and save tabelizer state to it."""
         group = ArticleGroupModel(
             user_id=user_id,
@@ -252,27 +252,28 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return WorkbenchGroupSaveResponse(
-            success=True,
-            message=f"Created group '{group.name}' with {group.article_count} articles",
-            group_id=group.id,
-            articles_saved=group.article_count
-        )
+        return {
+            "success": True,
+            "message": f"Created group '{group.name}' with {group.article_count} articles",
+            "group_id": group.id,
+            "articles_saved": group.article_count
+        }
     
     def _add_articles_to_group(
         self, 
         group: ArticleGroupModel, 
         articles: List[CanonicalResearchArticle],
-        columns: List[TabelizerColumnData]
+        columns: List[Dict[str, Any]]
     ):
         """Helper to add articles to a group with extracted column data."""
         # Create column data lookup
         column_data_by_article = {}
         for column in columns:
-            for article_id, value in column.data.items():
-                if article_id not in column_data_by_article:
-                    column_data_by_article[article_id] = {}
-                column_data_by_article[article_id][column.name] = value
+            if "data" in column and "name" in column:
+                for article_id, value in column["data"].items():
+                    if article_id not in column_data_by_article:
+                        column_data_by_article[article_id] = {}
+                    column_data_by_article[article_id][column["name"]] = value
         
         # Add articles to group
         for position, article in enumerate(articles):

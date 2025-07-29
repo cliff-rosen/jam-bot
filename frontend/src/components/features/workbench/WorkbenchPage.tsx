@@ -128,31 +128,16 @@ export function WorkbenchPage() {
     });
   };
 
-  const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => {
-    try {
-      await workbench.extractMultipleColumns(columnsConfig);
-      toast({
-        title: 'Extraction Complete',
-        description: `Added ${Object.keys(columnsConfig).length} columns`,
-      });
-    } catch (error) {
-      console.error('Multi-column extraction failed:', error);
-      toast({
-        title: 'Extraction Failed',
-        description: error instanceof Error ? error.message : 'Unable to extract column data. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
 
-  const handleAddColumn = async (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => {
+  const handleAddColumns = async (columns: { name: string; description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }[]) => {
     setShowAddModal(false);
 
     try {
-      await workbench.extractSingleColumn(name, description, type, options);
+      await workbench.extractColumns(columns);
+      const columnNames = columns.map(col => col.name).join(', ');
       toast({
         title: 'Extraction Complete',
-        description: `Added column "${name}"`,
+        description: `Added ${columns.length} column${columns.length === 1 ? '' : 's'}: ${columnNames}`,
       });
     } catch (error) {
       console.error('Column extraction failed:', error);
@@ -359,8 +344,7 @@ export function WorkbenchPage() {
       {/* Add Column Modal */}
       {showAddModal && (
         <AddColumnModal
-          onAdd={handleAddColumn}
-          onAddMultiple={handleAddMultipleColumns}
+          onAdd={handleAddColumns}
           onClose={() => setShowAddModal(false)}
         />
       )}

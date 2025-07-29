@@ -11,7 +11,8 @@
       "Bash(alembic revision:*)",
       "Bash(mv:*)",
       "Bash(rm:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run typecheck:*)"
     ],
     "deny": []
   }

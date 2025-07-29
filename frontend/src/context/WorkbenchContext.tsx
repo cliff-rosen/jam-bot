@@ -15,7 +15,7 @@ import {
 } from '@/types/workbench';
 import { CanonicalResearchArticle, SearchProvider, UnifiedSearchParams } from '@/types/unifiedSearch';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
-import { workbenchApi } from '@/lib/api/workbenchApi';
+import { workbenchApi, ColumnDefinition } from '@/lib/api/workbenchApi';
 
 interface WorkbenchState {
   // Current data
@@ -71,8 +71,7 @@ interface WorkbenchActions {
   performSearchPagination: (page: number) => Promise<void>;
   loadWorkbenchGroup: (groupId: string, page?: number) => Promise<void>;
   saveWorkbenchGroup: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<void>;
-  extractSingleColumn: (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => Promise<void>;
-  extractMultipleColumns: (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => Promise<void>;
+  extractColumns: (columns: { name: string; description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }[]) => Promise<void>;
   exportWorkbenchData: () => Promise<void>;
 
   // Data loading (internal)
@@ -678,11 +677,9 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.articles, state.columns, state.searchContext, state.currentSearchParams, state.sourceGroup, loadWorkbenchGroup, markClean]);
 
-  const extractSingleColumn = useCallback(async (
-    name: string,
-    description: string,
-    type: 'boolean' | 'text' | 'score',
-    options?: { min?: number; max?: number; step?: number }
+  // New unified extract method
+  const extractColumns = useCallback(async (
+    columns: ColumnDefinition[]
   ) => {
     if (state.articles.length === 0) {
       throw new Error('No articles available for extraction');
@@ -698,87 +695,35 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     setExtracting(true);
 
     try {
-      const response = await workbenchApi.extractColumn({
+      const response = await workbenchApi.extract({
         articles: workbenchApi.convertArticlesForExtraction(allArticles),
-        column_name: name,
-        column_description: description,
-        column_type: type,
-        column_options: options,
+        columns: columns
       });
 
-      const newColumn: WorkbenchColumn = {
-        id: `col_${Date.now()}`,
-        name,
-        description,
-        type,
-        data: response.results,
-        options,
-      };
-
-      // Add column to workbench
-      addColumn(newColumn);
-      
-      // Update features in workbench
-      for (const article of allArticles) {
-        const extractedValue = response.results[article.id];
-        if (extractedValue) {
-          updateArticleFeatures(article.id, { [name]: extractedValue });
-        }
-      }
-    } catch (error) {
-      console.error('Column extraction failed:', error);
-      throw error;
-    } finally {
-      setExtracting(false);
-    }
-  }, [state.articles, state.source, state.sourceGroup, setExtracting, addColumn, updateArticleFeatures]);
-
-  const extractMultipleColumns = useCallback(async (
-    columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>
-  ) => {
-    if (state.articles.length === 0) {
-      throw new Error('No articles available for extraction');
-    }
-
-    // Get all articles for extraction (not just current page)
-    let allArticles = state.articles;
-    if (state.source === 'group' && state.sourceGroup) {
-      const groupDetailResponse = await workbenchApi.getGroupDetail(state.sourceGroup.id);
-      allArticles = groupDetailResponse.group.articles.map(item => item.article);
-    }
-
-    setExtracting(true);
-
-    try {
-      const response = await workbenchApi.extractMultipleColumns({
-        articles: workbenchApi.convertArticlesForExtraction(allArticles),
-        columns_config: columnsConfig,
-      });
-
-      // Convert multi-column response to individual columns
+      // Convert response to WorkbenchColumns and add to workbench
       const newColumns: WorkbenchColumn[] = [];
       const updatedExtractedFeatures: Record<string, Record<string, string>> = {};
 
-      for (const [columnName, config] of Object.entries(columnsConfig)) {
+      for (const column of columns) {
         const columnData: Record<string, string> = {};
         for (const [articleId, articleResults] of Object.entries(response.results)) {
-          const value = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
+          const value = articleResults[column.name] || (column.type === 'boolean' ? 'no' : 'error');
           columnData[articleId] = value;
 
           // Track features for article updates
           if (!updatedExtractedFeatures[articleId]) {
             updatedExtractedFeatures[articleId] = {};
           }
-          updatedExtractedFeatures[articleId][columnName] = value;
+          updatedExtractedFeatures[articleId][column.name] = value;
         }
 
         newColumns.push({
-          id: `col_${Date.now()}_${columnName}`,
-          name: columnName,
-          description: config.description,
-          type: config.type,
+          id: `col_${Date.now()}_${column.name}`,
+          name: column.name,
+          description: column.description,
+          type: column.type,
           data: columnData,
-          options: config.options,
+          options: column.options,
         });
       }
 
@@ -792,12 +737,13 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         updateArticleFeatures(articleId, features);
       }
     } catch (error) {
-      console.error('Multi-column extraction failed:', error);
+      console.error('Column extraction failed:', error);
       throw error;
     } finally {
       setExtracting(false);
     }
   }, [state.articles, state.source, state.sourceGroup, setExtracting, addColumn, updateArticleFeatures]);
+
 
   const exportWorkbenchData = useCallback(async () => {
     try {
@@ -816,8 +762,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     performSearchPagination,
     loadWorkbenchGroup,
     saveWorkbenchGroup,
-    extractSingleColumn,
-    extractMultipleColumns,
+    extractColumns,
     exportWorkbenchData,
     // Data loading (internal)
     loadSearchResults,

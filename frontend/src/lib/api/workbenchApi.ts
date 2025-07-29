@@ -20,6 +20,46 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 // ================== REQUEST/RESPONSE TYPES ==================
 
+// Column Definition Types
+export interface ColumnDefinition {
+  name: string;
+  description: string;
+  type: 'boolean' | 'text' | 'score';
+  options?: {
+    min?: number;
+    max?: number;
+    step?: number;
+  };
+}
+
+export interface ColumnPreset {
+  id: string;
+  name: string;
+  description: string;
+  category?: string;
+  columns: ColumnDefinition[];
+}
+
+// New Extract Request/Response
+export interface ExtractRequest {
+  articles: Array<{
+    id: string;
+    title: string;
+    abstract: string;
+  }>;
+  columns: ColumnDefinition[];
+}
+
+export interface ExtractResponse {
+  results: Record<string, Record<string, string>>; // articleId -> columnName -> value
+  metadata?: Record<string, any>;
+}
+
+export interface ColumnPresetsResponse {
+  presets: ColumnPreset[];
+  categories: string[];
+}
+
 // Article Group Management Requests
 export interface CreateArticleGroupRequest {
   name: string;
@@ -55,40 +95,6 @@ export interface AddArticlesRequest {
 }
 
 // Analysis Requests
-export interface ExtractColumnRequest {
-  articles: Array<{
-    id: string;
-    title: string;
-    abstract: string;
-  }>;
-  column_name: string;
-  column_description: string;
-  column_type: 'boolean' | 'text' | 'score' | 'number';
-  column_options?: {
-    min?: number;
-    max?: number;
-    step?: number;
-    choices?: string[];
-  };
-}
-
-export interface ExtractMultipleColumnsRequest {
-  articles: Array<{
-    id: string;
-    title: string;
-    abstract: string;
-  }>;
-  columns_config: Record<string, {
-    description: string;
-    type: 'boolean' | 'text' | 'score' | 'number';
-    options?: {
-      min?: number;
-      max?: number;
-      step?: number;
-      choices?: string[];
-    };
-  }>;
-}
 
 export interface BatchExtractFeaturesRequest {
   article_ids: string[];
@@ -133,15 +139,6 @@ export interface ArticleGroupDeleteResponse {
   deleted_articles_count: number;
 }
 
-export interface ExtractColumnResponse {
-  results: Record<string, string>; // articleId -> value
-  metadata?: Record<string, any>;
-}
-
-export interface ExtractMultipleColumnsResponse {
-  results: Record<string, Record<string, string>>; // articleId -> columnName -> value
-  metadata?: Record<string, any>;
-}
 
 export interface BatchOperationResponse {
   results: Record<string, any>;
@@ -153,10 +150,6 @@ export interface BatchOperationResponse {
   };
 }
 
-export interface AnalysisPresetsResponse {
-  presets: AnalysisPreset[];
-  categories: string[];
-}
 
 export class WorkbenchApi {
 
@@ -215,25 +208,18 @@ export class WorkbenchApi {
 
   // ================== ANALYSIS OPERATIONS ==================
 
-  async extractColumn(request: ExtractColumnRequest): Promise<ExtractColumnResponse> {
-    const response = await api.post('/api/workbench/analysis/extract-column', request);
+  // New unified extract method
+  async extract(request: ExtractRequest): Promise<ExtractResponse> {
+    const response = await api.post('/api/workbench/extract', request);
     return response.data;
   }
 
-  async extractColumnForGroup(groupId: string, request: ExtractColumnRequest): Promise<ExtractColumnResponse> {
-    const response = await api.post(`/api/workbench/groups/${groupId}/extract-column`, request);
+  // New method to get column presets
+  async getColumnPresets(): Promise<ColumnPresetsResponse> {
+    const response = await api.get('/api/workbench/column-presets');
     return response.data;
   }
 
-  async extractMultipleColumns(request: ExtractMultipleColumnsRequest): Promise<ExtractMultipleColumnsResponse> {
-    const response = await api.post('/api/workbench/analysis/extract-multiple-columns', request);
-    return response.data;
-  }
-
-  async getAnalysisPresets(): Promise<AnalysisPresetsResponse> {
-    const response = await api.get('/api/workbench/analysis/presets');
-    return response.data;
-  }
 
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 

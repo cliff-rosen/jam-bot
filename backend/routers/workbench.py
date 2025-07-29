@@ -91,6 +91,38 @@ class ArticleGroupDeleteResponse(BaseModel):
 
 # ================== WORKBENCH ANALYSIS MODELS ==================
 
+# New Unified Extraction Models
+class ColumnDefinition(BaseModel):
+    """Definition of a column to extract"""
+    name: str
+    description: str  
+    type: str = "text"  # "boolean", "text", "score"
+    options: Optional[Dict[str, Any]] = None
+
+class ExtractRequest(BaseModel):
+    """Unified request to extract multiple columns"""
+    articles: List[Dict[str, str]]  # [{id, title, abstract}]
+    columns: List[ColumnDefinition]
+
+class ExtractResponse(BaseModel):
+    """Unified response with extracted column data"""
+    results: Dict[str, Dict[str, str]]  # article_id -> column_name -> value
+    metadata: Optional[Dict[str, Any]] = None
+
+class ColumnPreset(BaseModel):
+    """Pre-configured column set"""
+    id: str
+    name: str
+    description: str
+    category: Optional[str] = None
+    columns: List[ColumnDefinition]
+
+class ColumnPresetsResponse(BaseModel):
+    """Response with available column presets"""
+    presets: List[ColumnPreset]
+    categories: List[str]
+
+# Legacy Models (for deprecated endpoints)
 class ExtractColumnRequest(BaseModel):
     """Request to extract a custom column"""
     articles: List[Dict[str, str]]  # [{id, title, abstract}]
@@ -246,6 +278,108 @@ async def add_articles_to_group(
 
 # ================== ANALYSIS ENDPOINTS ==================
 
+# New Unified Extraction Endpoints
+@router.post("/extract", response_model=ExtractResponse)
+async def extract_unified(
+    request: ExtractRequest,
+    current_user: User = Depends(validate_token),
+    extraction_service: ExtractionService = Depends(get_extraction_service)
+):
+    """Unified endpoint to extract multiple columns from articles in a single LLM call."""
+    try:
+        # Convert columns to extraction service format
+        columns_config = {}
+        for col in request.columns:
+            columns_config[col.name] = {
+                "description": col.description,
+                "type": col.type,
+                "options": col.options or {}
+            }
+        
+        result = await extraction_service.extract_multiple_columns(
+            request.articles, 
+            columns_config
+        )
+        
+        return ExtractResponse(
+            results=result.get("results", {}),
+            metadata=result.get("metadata")
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Column extraction failed: {str(e)}"
+        )
+
+@router.get("/column-presets", response_model=ColumnPresetsResponse)
+async def get_column_presets(
+    current_user: User = Depends(validate_token)
+):
+    """Get available column presets for extraction."""
+    presets = [
+        ColumnPreset(
+            id="clinical_trial",
+            name="Clinical Trial Analysis",
+            description="Extract key information from clinical trial papers",
+            category="Medical Research",
+            columns=[
+                ColumnDefinition(name="Study Type", description="What type of study is this? (e.g., RCT, observational, meta-analysis)", type="text"),
+                ColumnDefinition(name="Sample Size", description="What is the total sample size of the study?", type="text"),
+                ColumnDefinition(name="Blinded", description="Is this a blinded study (single-blind, double-blind, or open-label)?", type="text"),
+                ColumnDefinition(name="Primary Outcome", description="What is the primary outcome measure?", type="text"),
+                ColumnDefinition(name="Statistical Significance", description="Was the primary outcome statistically significant?", type="boolean"),
+                ColumnDefinition(name="Adverse Events", description="Were any serious adverse events reported?", type="boolean"),
+                ColumnDefinition(name="Study Quality", description="Rate the overall quality of the study methodology", type="score", options={"min": 1, "max": 10, "step": 1})
+            ]
+        ),
+        ColumnPreset(
+            id="systematic_review",
+            name="Systematic Review",
+            description="Analyze systematic reviews and meta-analyses",
+            category="Medical Research",
+            columns=[
+                ColumnDefinition(name="Search Strategy", description="Is the search strategy clearly described?", type="boolean"),
+                ColumnDefinition(name="Databases Searched", description="Which databases were searched? (list them)", type="text"),
+                ColumnDefinition(name="Studies Included", description="How many studies were included in the final analysis?", type="text"),
+                ColumnDefinition(name="Meta-Analysis", description="Was a meta-analysis conducted?", type="boolean"),
+                ColumnDefinition(name="Evidence Quality", description="Rate the overall quality of evidence presented", type="score", options={"min": 1, "max": 5, "step": 1})
+            ]
+        ),
+        ColumnPreset(
+            id="drug_discovery",
+            name="Drug Discovery",
+            description="Extract drug discovery and development information",
+            category="Pharmaceutical",
+            columns=[
+                ColumnDefinition(name="Drug Name", description="What is the name or identifier of the drug/compound?", type="text"),
+                ColumnDefinition(name="Target", description="What is the molecular target?", type="text"),
+                ColumnDefinition(name="In Vitro", description="Were in vitro studies performed?", type="boolean"),
+                ColumnDefinition(name="In Vivo", description="Were in vivo/animal studies performed?", type="boolean"),
+                ColumnDefinition(name="Development Stage", description="What stage of development? (preclinical, phase I, II, III)", type="text")
+            ]
+        ),
+        ColumnPreset(
+            id="basic_research",
+            name="Basic Science",
+            description="For molecular biology and basic science papers",
+            category="Basic Science",
+            columns=[
+                ColumnDefinition(name="Model System", description="What model system was used? (cell line, organism)", type="text"),
+                ColumnDefinition(name="Key Finding", description="What is the main scientific finding?", type="text"),
+                ColumnDefinition(name="Mechanism", description="Is a molecular mechanism proposed?", type="boolean"),
+                ColumnDefinition(name="Novel", description="Is this finding claimed to be novel?", type="boolean"),
+                ColumnDefinition(name="Innovation Score", description="Rate the innovation/novelty of the research", type="score", options={"min": 1, "max": 10, "step": 1})
+            ]
+        )
+    ]
+    
+    return ColumnPresetsResponse(
+        presets=presets,
+        categories=["Medical Research", "Pharmaceutical", "Basic Science"]
+    )
+
+# Legacy endpoints (deprecated)
 @router.post("/analysis/extract-column", response_model=ExtractColumnResponse)
 async def extract_column_standalone(
     request: ExtractColumnRequest,

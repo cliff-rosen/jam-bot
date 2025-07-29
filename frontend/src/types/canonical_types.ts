@@ -82,6 +82,60 @@ export interface CanonicalDailyNewsletterRecap {
     newsletters: CanonicalNewsletter[];
 }
 
+export interface CanonicalResearchArticle {
+    // Core identification
+    id: string;
+    source: 'pubmed' | 'scholar';
+    
+    // Core metadata
+    title: string;
+    authors: string[];
+    abstract?: string;
+    snippet?: string;
+    
+    // Publication details
+    journal?: string;
+    publication_date?: string;
+    publication_year?: number;
+    
+    // PubMed-specific date fields (always populated for PubMed articles)
+    date_completed?: string;     // Date record was completed (YYYY-MM-DD)
+    date_revised?: string;       // Date record was last revised (YYYY-MM-DD)
+    date_entered?: string;       // Date entered into PubMed (YYYY-MM-DD)
+    date_published?: string;     // Publication date with full precision (YYYY-MM-DD)
+    
+    // Identifiers and links
+    doi?: string;
+    url?: string;
+    pdf_url?: string;
+    
+    // Classification and keywords
+    keywords: string[];
+    mesh_terms: string[];
+    categories: string[];
+    
+    // Citation and related content
+    citation_count?: number;
+    cited_by_url?: string;
+    related_articles_url?: string;
+    versions_url?: string;
+    
+    // Search context
+    search_position?: number;
+    relevance_score?: number;
+    
+    // Research analysis results
+    extracted_features?: Record<string, any>;
+    quality_scores?: Record<string, number>;
+    
+    // Source preservation
+    source_metadata?: Record<string, any>;
+    
+    // System metadata
+    indexed_at?: string;
+    retrieved_at?: string;
+}
+
 export interface CanonicalScholarArticle {
     title: string;
     link?: string;

@@ -9,30 +9,154 @@
 
 import { api } from './index';
 import {
-  // Core types
+  WorkbenchColumnMetadata,
+  ArticleGroup,
+  ArticleGroupDetail,
+  ArticleGroupSummary,
   WorkbenchData,
-
-  // Request types
-  CreateArticleGroupRequest,
-  UpdateArticleGroupRequest,
-  SaveToGroupRequest,
-  AddArticlesRequest,
-  ExtractColumnRequest,
-  ExtractMultipleColumnsRequest,
-  BatchExtractFeaturesRequest,
-  BatchUpdateMetadataRequest,
-
-  // Response types
-  ArticleGroupListResponse,
-  ArticleGroupResponse,
-  ArticleGroupDetailResponse,
-  ArticleGroupSaveResponse,
-  ArticleGroupDeleteResponse,
-  ExtractColumnResponse,
-  ExtractMultipleColumnsResponse,
-  BatchOperationResponse,
-  AnalysisPresetsResponse
+  AnalysisPreset
 } from '@/types/workbench';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
+
+// ================== REQUEST/RESPONSE TYPES ==================
+
+// Article Group Management Requests
+export interface CreateArticleGroupRequest {
+  name: string;
+  description?: string;
+  articles?: CanonicalResearchArticle[];
+  columns?: WorkbenchColumnMetadata[];
+  search_context?: {
+    query: string;
+    provider: string;
+    parameters: Record<string, any>;
+  };
+}
+
+export interface UpdateArticleGroupRequest {
+  name?: string;
+  description?: string;
+  columns?: WorkbenchColumnMetadata[];
+}
+
+export interface SaveToGroupRequest {
+  group_name: string;
+  group_description?: string;
+  articles: CanonicalResearchArticle[];
+  columns: WorkbenchColumnMetadata[];
+  search_query?: string;
+  search_provider?: string;
+  search_params?: Record<string, any>;
+}
+
+export interface AddArticlesRequest {
+  articles: CanonicalResearchArticle[];
+  extract_columns?: boolean;
+}
+
+// Analysis Requests
+export interface ExtractColumnRequest {
+  articles: Array<{
+    id: string;
+    title: string;
+    abstract: string;
+  }>;
+  column_name: string;
+  column_description: string;
+  column_type: 'boolean' | 'text' | 'score' | 'number';
+  column_options?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    choices?: string[];
+  };
+}
+
+export interface ExtractMultipleColumnsRequest {
+  articles: Array<{
+    id: string;
+    title: string;
+    abstract: string;
+  }>;
+  columns_config: Record<string, {
+    description: string;
+    type: 'boolean' | 'text' | 'score' | 'number';
+    options?: {
+      min?: number;
+      max?: number;
+      step?: number;
+      choices?: string[];
+    };
+  }>;
+}
+
+export interface BatchExtractFeaturesRequest {
+  article_ids: string[];
+  feature_name: string;
+  feature_type: 'boolean' | 'text' | 'score' | 'number';
+  extraction_prompt: string;
+}
+
+export interface BatchUpdateMetadataRequest {
+  metadata_updates: Record<string, Record<string, any>>; // article_id -> metadata
+}
+
+// Response Types
+export interface ArticleGroupListResponse {
+  groups: ArticleGroupSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface ArticleGroupResponse {
+  group: ArticleGroupDetail;
+  message?: string;
+}
+
+export interface ArticleGroupDetailResponse {
+  group: ArticleGroupDetail;
+}
+
+export interface ArticleGroupSaveResponse {
+  success: boolean;
+  message: string;
+  group_id: string;
+  articles_saved: number;
+}
+
+export interface ArticleGroupDeleteResponse {
+  success: boolean;
+  message: string;
+  deleted_group_id: string;
+  deleted_articles_count: number;
+}
+
+export interface ExtractColumnResponse {
+  results: Record<string, string>; // articleId -> value
+  metadata?: Record<string, any>;
+}
+
+export interface ExtractMultipleColumnsResponse {
+  results: Record<string, Record<string, string>>; // articleId -> columnName -> value
+  metadata?: Record<string, any>;
+}
+
+export interface BatchOperationResponse {
+  results: Record<string, any>;
+  failures: Record<string, string>;
+  summary: {
+    total_requested: number;
+    successful: number;
+    failed: number;
+  };
+}
+
+export interface AnalysisPresetsResponse {
+  presets: AnalysisPreset[];
+  categories: string[];
+}
 
 export class WorkbenchApi {
 
@@ -53,17 +177,17 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  async createGroup(request: CreateArticleGroupRequest): Promise<ArticleGroupResponse> {
+  async createGroup(request: CreateArticleGroupRequest): Promise<ArticleGroup> {
     const response = await api.post('/api/workbench/groups', request);
     return response.data;
   }
 
-  async getGroupDetail(groupId: string): Promise<ArticleGroupDetailResponse> {
+  async getGroupDetail(groupId: string): Promise<ArticleGroupDetail> {
     const response = await api.get(`/api/workbench/groups/${groupId}`);
     return response.data;
   }
 
-  async updateGroup(groupId: string, request: UpdateArticleGroupRequest): Promise<ArticleGroupResponse> {
+  async updateGroup(groupId: string, request: UpdateArticleGroupRequest): Promise<ArticleGroup> {
     const response = await api.put(`/api/workbench/groups/${groupId}`, request);
     return response.data;
   }

@@ -6,14 +6,53 @@
  */
 
 import { api } from './index';
-import {
-  UnifiedSearchParams,
-  UnifiedSearchResponse,
-  BatchSearchRequest,
-  BatchSearchResponse,
-  SearchProvider,
-  CanonicalResearchArticle
-} from '@/types/unifiedSearch';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
+
+// ================== REQUEST/RESPONSE TYPES ==================
+
+export interface UnifiedSearchParams {
+  provider: 'pubmed' | 'scholar';
+  query: string;
+  num_results?: number;
+  page?: number;
+  page_size?: number;
+  offset?: number;
+  sort_by?: 'relevance' | 'date';
+  year_low?: number;
+  year_high?: number;
+  date_from?: string;
+  date_to?: string;
+  date_type?: 'completion' | 'publication' | 'entry' | 'revised';
+  include_citations?: boolean;
+  include_pdf_links?: boolean;
+}
+
+export interface UnifiedSearchResponse {
+  articles: CanonicalResearchArticle[];
+  total_results: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  provider: string;
+  query: string;
+  search_time: number;
+  metadata?: Record<string, any>;
+}
+
+export interface BatchSearchRequest {
+  providers: string[];
+  query: string;
+  num_results?: number;
+  page?: number;
+  page_size?: number;
+  sort_by?: 'relevance' | 'date';
+  year_low?: number;
+  year_high?: number;
+}
+
+export interface BatchSearchResponse {
+  results: Record<string, UnifiedSearchResponse>;
+}
 
 class UnifiedSearchApi {
   /**
@@ -80,106 +119,6 @@ class UnifiedSearchApi {
     return { results: response.data };
   }
 
-  /**
-   * Extract features from unified articles
-   * Uses the existing extraction endpoints with unified article format
-   */
-  async extractFeatures(
-    articles: CanonicalResearchArticle[],
-    provider: SearchProvider
-  ): Promise<{ results: any[]; metadata: any }> {
-    const endpoint = provider === 'scholar'
-      ? '/api/extraction/scholar-features'
-      : '/api/extraction/pubmed-features';
-
-    const response = await api.post(endpoint, { articles });
-    return response.data;
-  }
-
-  /**
-   * Convert legacy Scholar articles to unified format (client-side helper)
-   */
-  convertScholarToUnified(
-    scholarArticles: any[],
-    searchPosition: number = 0
-  ): CanonicalResearchArticle[] {
-    return scholarArticles.map((article, index) => ({
-      id: `scholar_${searchPosition + index + 1}`,
-      source: 'scholar' as const,
-      title: article.title || '',
-      authors: article.authors || [],
-      abstract: undefined,
-      snippet: article.snippet,
-      journal: this.extractJournalFromPublicationInfo(article.publication_info),
-      publication_date: undefined,
-      publication_year: article.year,
-      doi: undefined,
-      url: article.link,
-      pdf_url: article.pdf_link,
-      keywords: [],
-      mesh_terms: [],
-      categories: [],
-      citation_count: article.cited_by_count,
-      cited_by_url: article.cited_by_link,
-      related_articles_url: article.related_pages_link,
-      versions_url: article.versions_link,
-      search_position: searchPosition + index + 1,
-      relevance_score: undefined,
-      extracted_features: article.metadata?.features,
-      quality_scores: undefined,
-      source_metadata: {
-        position: article.position,
-        publication_info: article.publication_info,
-        ...article.metadata
-      },
-      indexed_at: undefined,
-      retrieved_at: new Date().toISOString(),
-    }));
-  }
-
-  /**
-   * Convert legacy PubMed articles to unified format (client-side helper)
-   */
-  convertPubMedToUnified(pubmedArticles: any[]): CanonicalResearchArticle[] {
-    return pubmedArticles.map((article, index) => ({
-      id: `pubmed_${article.pmid}`,
-      source: 'pubmed' as const,
-      title: article.title || '',
-      authors: article.authors || [],
-      abstract: article.abstract,
-      snippet: undefined,
-      journal: article.journal,
-      publication_date: article.publication_date,
-      publication_year: article.publication_date ?
-        parseInt(article.publication_date.split('-')[0]) : undefined,
-      doi: article.doi,
-      url: article.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${article.pmid}/` : undefined,
-      pdf_url: undefined,
-      keywords: article.keywords || [],
-      mesh_terms: article.mesh_terms || [],
-      categories: [],
-      citation_count: article.citation_count,
-      cited_by_url: undefined,
-      related_articles_url: article.pmid ?
-        `https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed&from_uid=${article.pmid}` : undefined,
-      versions_url: undefined,
-      search_position: index + 1,
-      relevance_score: undefined,
-      extracted_features: article.metadata?.features,
-      quality_scores: undefined,
-      source_metadata: article.metadata,
-      indexed_at: undefined,
-      retrieved_at: new Date().toISOString(),
-    }));
-  }
-
-  private extractJournalFromPublicationInfo(publicationInfo?: string): string | undefined {
-    if (!publicationInfo) return undefined;
-
-    // Publication info format: "Journal Name, Volume, Pages, Year"
-    const parts = publicationInfo.split(',');
-    return parts.length > 0 ? parts[0].trim() : undefined;
-  }
 }
 
 export const unifiedSearchApi = new UnifiedSearchApi();

@@ -10,22 +10,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime
 
-from models import ArticleGroup, User
+from models import ArticleGroup as ArticleGroupModel, User
 from models import ArticleGroupDetail as ArticleGroupDetailModel
 from schemas.canonical_types import CanonicalResearchArticle
-from schemas.workbench import TabelizerColumnData, WorkbenchGroupItem, WorkbenchGroupDetail
-from schemas.workbench_requests import (
-    CreateWorkbenchGroupRequest, UpdateWorkbenchGroupRequest, SaveToWorkbenchGroupRequest,
-    AddArticlesToWorkbenchGroupRequest
-)
-from schemas.workbench_responses import (
-    WorkbenchGroupResponse, WorkbenchGroupDetailResponse, WorkbenchGroupListResponse,
-    WorkbenchGroupSaveResponse, WorkbenchGroupDeleteResponse
+from schemas.workbench import (
+    ArticleGroup, ArticleGroupDetail, ArticleGroupItem,
+    WorkbenchColumnMetadata, TabelizerColumnData
 )
 
 
-class WorkbenchService:
-    """Service for managing workbench groups and their contents."""
+class ArticleGroupService:
+    """Service for managing article groups and their contents."""
     
     def __init__(self, db: Session):
         self.db = db
@@ -38,13 +33,13 @@ class WorkbenchService:
         search: Optional[str] = None
     ) -> WorkbenchGroupListResponse:
         """Get paginated list of user's article groups."""
-        query = self.db.query(ArticleGroup).filter(ArticleGroup.user_id == user_id)
+        query = self.db.query(ArticleGroupModel).filter(ArticleGroupModel.user_id == user_id)
         
         # Apply search filter if provided
         if search:
             query = query.filter(
-                ArticleGroup.name.ilike(f"%{search}%") |
-                ArticleGroup.description.ilike(f"%{search}%")
+                ArticleGroupModel.name.ilike(f"%{search}%") |
+                ArticleGroupModel.description.ilike(f"%{search}%")
             )
         
         # Get total count for pagination
@@ -52,7 +47,7 @@ class WorkbenchService:
         
         # Apply pagination
         offset = (page - 1) * limit
-        groups = query.order_by(ArticleGroup.updated_at.desc()).offset(offset).limit(limit).all()
+        groups = query.order_by(ArticleGroupModel.updated_at.desc()).offset(offset).limit(limit).all()
         
         return WorkbenchGroupListResponse(
             groups=[self._group_to_summary(group) for group in groups],
@@ -64,7 +59,7 @@ class WorkbenchService:
     
     def create_group(self, user_id: int, request: CreateWorkbenchGroupRequest) -> WorkbenchGroupResponse:
         """Create a new article group."""
-        group = ArticleGroup(
+        group = ArticleGroupModel(
             user_id=user_id,
             name=request.name,
             description=request.description,
@@ -89,10 +84,10 @@ class WorkbenchService:
     
     def get_group_detail(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDetailResponse]:
         """Get detailed information about a specific group."""
-        group = self.db.query(ArticleGroup).filter(
+        group = self.db.query(ArticleGroupModel).filter(
             and_(
-                ArticleGroup.id == group_id,
-                ArticleGroup.user_id == user_id
+                ArticleGroupModel.id == group_id,
+                ArticleGroupModel.user_id == user_id
             )
         ).first()
         
@@ -111,10 +106,10 @@ class WorkbenchService:
     
     def update_group(self, user_id: int, group_id: str, request: UpdateWorkbenchGroupRequest) -> Optional[WorkbenchGroupResponse]:
         """Update group metadata."""
-        group = self.db.query(ArticleGroup).filter(
+        group = self.db.query(ArticleGroupModel).filter(
             and_(
-                ArticleGroup.id == group_id,
-                ArticleGroup.user_id == user_id
+                ArticleGroupModel.id == group_id,
+                ArticleGroupModel.user_id == user_id
             )
         ).first()
         
@@ -138,10 +133,10 @@ class WorkbenchService:
     
     def delete_group(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDeleteResponse]:
         """Delete a group and all its articles."""
-        group = self.db.query(ArticleGroup).filter(
+        group = self.db.query(ArticleGroupModel).filter(
             and_(
-                ArticleGroup.id == group_id,
-                ArticleGroup.user_id == user_id
+                ArticleGroupModel.id == group_id,
+                ArticleGroupModel.user_id == user_id
             )
         ).first()
         
@@ -169,10 +164,10 @@ class WorkbenchService:
         request: AddArticlesToWorkbenchGroupRequest
     ) -> Optional[WorkbenchGroupSaveResponse]:
         """Add articles to an existing group."""
-        group = self.db.query(ArticleGroup).filter(
+        group = self.db.query(ArticleGroupModel).filter(
             and_(
-                ArticleGroup.id == group_id,
-                ArticleGroup.user_id == user_id
+                ArticleGroupModel.id == group_id,
+                ArticleGroupModel.user_id == user_id
             )
         ).first()
         
@@ -198,10 +193,10 @@ class WorkbenchService:
         request: SaveToWorkbenchGroupRequest
     ) -> Optional[WorkbenchGroupSaveResponse]:
         """Save tabelizer state (articles + columns) to existing group."""
-        group = self.db.query(ArticleGroup).filter(
+        group = self.db.query(ArticleGroupModel).filter(
             and_(
-                ArticleGroup.id == group_id,
-                ArticleGroup.user_id == user_id
+                ArticleGroupModel.id == group_id,
+                ArticleGroupModel.user_id == user_id
             )
         ).first()
         
@@ -238,7 +233,7 @@ class WorkbenchService:
         request: SaveToWorkbenchGroupRequest
     ) -> WorkbenchGroupSaveResponse:
         """Create a new group and save tabelizer state to it."""
-        group = ArticleGroup(
+        group = ArticleGroupModel(
             user_id=user_id,
             name=request.group_name,
             description=request.group_description,
@@ -266,7 +261,7 @@ class WorkbenchService:
     
     def _add_articles_to_group(
         self, 
-        group: ArticleGroup, 
+        group: ArticleGroupModel, 
         articles: List[CanonicalResearchArticle],
         columns: List[TabelizerColumnData]
     ):
@@ -307,8 +302,8 @@ class WorkbenchService:
         group.article_count = len(articles)
         group.updated_at = datetime.utcnow()
     
-    def _group_to_summary(self, group: ArticleGroup) -> dict:
-        """Convert ArticleGroup to summary format."""
+    def _group_to_summary(self, group: ArticleGroupModel) -> dict:
+        """Convert ArticleGroupModel to summary format."""
         return {
             "id": group.id,
             "user_id": group.user_id,
@@ -323,18 +318,18 @@ class WorkbenchService:
             "updated_at": group.updated_at
         }
     
-    def _group_to_detail(self, group: ArticleGroup) -> dict:
-        """Convert ArticleGroup to detailed format with articles."""
+    def _group_to_detail(self, group: ArticleGroupModel) -> dict:
+        """Convert ArticleGroupModel to detailed format with articles."""
         # Get articles
         articles = self.db.query(ArticleGroupDetailModel).filter(
             ArticleGroupDetailModel.article_group_id == group.id
         ).order_by(ArticleGroupDetailModel.position).all()
         
-        # Create proper WorkbenchGroupItem objects
+        # Create proper ArticleGroupItem objects
         article_items = []
         for detail in articles:
             try:
-                article_items.append(WorkbenchGroupItem(
+                article_items.append(ArticleGroupItem(
                     article=CanonicalResearchArticle(**detail.article_data),
                     position=detail.position,
                     column_data=detail.extracted_features,
@@ -346,7 +341,7 @@ class WorkbenchService:
                     }
                 ))
             except Exception as e:
-                print(f"Error creating WorkbenchGroupItem: {e}")
+                print(f"Error creating ArticleGroupItem: {e}")
                 print(f"Detail data: {detail.__dict__}")
                 raise
         
@@ -368,7 +363,7 @@ class WorkbenchService:
                 "options": column_meta.get("options", {})
             })
 
-        # Return data that can be used to construct ArticleGroupDetail
+        # Return data that can be used to construct ArticleGroupModelDetail
         return {
             "id": group.id,
             "user_id": group.user_id,
@@ -385,6 +380,6 @@ class WorkbenchService:
         }
 
 
-def get_workbench_service(db: Session = None) -> WorkbenchService:
-    """Dependency injection for WorkbenchService."""
-    return WorkbenchService(db)
+def get_article_group_service(db: Session = None) -> ArticleGroupService:
+    """Dependency injection for ArticleGroupService."""
+    return ArticleGroupService(db)

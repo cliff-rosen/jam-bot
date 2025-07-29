@@ -67,6 +67,38 @@ export function TabelizerTable({
     }
   };
 
+  const normalizeDateForSorting = (dateStr: string): string => {
+    if (!dateStr || dateStr === '-') return '0000-00-00';
+    
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    
+    // Just a year (YYYY)
+    if (/^\d{4}$/.test(dateStr)) return `${dateStr}-00-00`;
+    
+    // Handle PubMed format like "2025-Jul-24" or "2025-Jun-25"
+    const monthMap: Record<string, string> = {
+      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+      'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+      'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+    };
+    
+    const pubmedMatch = dateStr.match(/^(\d{4})-([A-Za-z]{3})-(\d{1,2})$/);
+    if (pubmedMatch) {
+      const [, year, monthName, day] = pubmedMatch;
+      const monthNum = monthMap[monthName] || '00';
+      const dayPadded = day.padStart(2, '0');
+      return `${year}-${monthNum}-${dayPadded}`;
+    }
+    
+    // Try to extract year and use that
+    const yearMatch = dateStr.match(/^(\d{4})/);
+    if (yearMatch) return `${yearMatch[1]}-00-00`;
+    
+    // Fallback
+    return '0000-00-00';
+  };
+
   const sortedArticles = useMemo(() => {
     if (!sortBy) return articles;
 
@@ -138,38 +170,6 @@ export function TabelizerTable({
     if (authors.length === 0) return '-';
     if (authors.length === 1) return authors[0];
     return `${authors[0]} et al`;
-  };
-
-  const normalizeDateForSorting = (dateStr: string): string => {
-    if (!dateStr || dateStr === '-') return '0000-00-00';
-    
-    // Already in YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
-    // Just a year (YYYY)
-    if (/^\d{4}$/.test(dateStr)) return `${dateStr}-00-00`;
-    
-    // Handle PubMed format like "2025-Jul-24" or "2025-Jun-25"
-    const monthMap: Record<string, string> = {
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-      'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-      'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-    };
-    
-    const pubmedMatch = dateStr.match(/^(\d{4})-([A-Za-z]{3})-(\d{1,2})$/);
-    if (pubmedMatch) {
-      const [, year, monthName, day] = pubmedMatch;
-      const monthNum = monthMap[monthName] || '00';
-      const dayPadded = day.padStart(2, '0');
-      return `${year}-${monthNum}-${dayPadded}`;
-    }
-    
-    // Try to extract year and use that
-    const yearMatch = dateStr.match(/^(\d{4})/);
-    if (yearMatch) return `${yearMatch[1]}-00-00`;
-    
-    // Fallback
-    return '0000-00-00';
   };
 
   const formatDate = (dateStr: string, dateType: string): string => {

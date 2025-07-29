@@ -67,7 +67,8 @@ interface WorkbenchState {
 
 interface WorkbenchActions {
   // High-level API orchestration
-  performSearch: (page?: number) => Promise<void>;
+  performNewSearch: () => Promise<void>;
+  performSearchPagination: (page: number) => Promise<void>;
   loadWorkbenchGroup: (groupId: string, page?: number) => Promise<void>;
   saveWorkbenchGroup: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<void>;
   extractSingleColumn: (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => Promise<void>;
@@ -460,67 +461,95 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // High-level API orchestration methods
-  const performSearch = useCallback(async (page = 1) => {
+  const performNewSearch = useCallback(async () => {
     setSearching(true);
 
-    // Clear existing results when starting a new search (page 1)
-    if (page === 1) {
-      setState(prev => ({
-        ...prev,
-        articles: [],
-        columns: [],
-        source: 'search',
-        sourceGroup: undefined,
-        localArticleData: {},
-        hasModifications: false,
-        selectedArticle: null
-      }));
-    }
+    // ALWAYS clear everything for a new search
+    setState(prev => ({
+      ...prev,
+      articles: [],
+      columns: [],
+      source: 'search',
+      sourceGroup: undefined,
+      localArticleData: {},
+      hasModifications: false,
+      selectedArticle: null
+    }));
 
     try {
-      // Use search parameters from context
-      const paginatedParams = {
+      const searchParams = {
+        ...state.currentSearchParams,
+        page: 1,
+        page_size: state.currentSearchParams.num_results,
+        offset: 0
+      };
+
+      const response = await unifiedSearchApi.search(searchParams);
+
+      // Update pagination state
+      const totalResults = response.total_results || 0;
+      const totalPages = Math.ceil(totalResults / state.currentSearchParams.num_results);
+
+      updatePagination({
+        currentPage: 1,
+        pageSize: state.currentSearchParams.num_results,
+        totalResults,
+        totalPages,
+        hasNextPage: totalPages > 1,
+        hasPrevPage: false
+      });
+
+      // Load fresh search results
+      if (response.articles.length > 0) {
+        const searchContext = {
+          query: searchParams.query,
+          provider: searchParams.provider,
+          parameters: searchParams
+        };
+        loadSearchResults(response.articles, searchContext);
+      }
+    } catch (error) {
+      console.error('New search failed:', error);
+      throw error;
+    } finally {
+      setSearching(false);
+    }
+  }, [state.currentSearchParams, setSearching, updatePagination, loadSearchResults]);
+
+  const performSearchPagination = useCallback(async (page: number) => {
+    setSearching(true);
+
+    try {
+      const searchParams = {
         ...state.currentSearchParams,
         page,
         page_size: state.currentSearchParams.num_results,
         offset: (page - 1) * state.currentSearchParams.num_results
       };
 
-      const response = await unifiedSearchApi.search(paginatedParams);
+      const response = await unifiedSearchApi.search(searchParams);
 
       // Update pagination state
-      const totalResults = response.metadata.total_results || 0;
-      const totalPages = Math.ceil(totalResults / state.currentSearchParams.num_results);
-
       updatePagination({
         currentPage: page,
-        pageSize: state.currentSearchParams.num_results,
-        totalResults,
-        totalPages,
-        hasNextPage: page < totalPages,
+        hasNextPage: page < state.pagination.totalPages,
         hasPrevPage: page > 1
       });
 
-      // Load search results into workbench
-      if (page === 1 && response.articles.length > 0) {
-        // New search - load fresh results
-        const searchContext = {
-          query: paginatedParams.query,
-          provider: paginatedParams.provider,
-          parameters: paginatedParams
-        };
-        loadSearchResults(response.articles, searchContext);
-      } else if (response.articles.length > 0) {
-        // Pagination - add more articles
-        addArticles(response.articles);
+      // Replace articles with new page results
+      if (response.articles.length > 0) {
+        setState(prev => ({
+          ...prev,
+          articles: response.articles
+        }));
       }
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error('Search pagination failed:', error);
       throw error;
     } finally {
       setSearching(false);
     }
-  }, [state.currentSearchParams, setSearching, updatePagination, loadSearchResults, addArticles]);
+  }, [state.currentSearchParams, state.pagination.totalPages, setSearching, updatePagination]);
 
   const loadWorkbenchGroup = useCallback(async (groupId: string, page = 1) => {
     try {
@@ -787,7 +816,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const contextValue: WorkbenchContextType = {
     ...state,
     // High-level API orchestration
-    performSearch,
+    performNewSearch,
+    performSearchPagination,
     loadWorkbenchGroup,
     saveWorkbenchGroup,
     extractSingleColumn,

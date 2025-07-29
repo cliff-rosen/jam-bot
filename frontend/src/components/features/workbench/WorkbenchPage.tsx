@@ -37,12 +37,12 @@ export function WorkbenchPage() {
     }
   }, [workbench.searchContext]);
 
-  const handleSearch = async (page = 1) => {
+  const handleNewSearch = async () => {
     try {
-      await workbench.performSearch(page);
+      await workbench.performNewSearch();
       toast({
         title: 'Search Complete',
-        description: `Found ${workbench.pagination.totalResults.toLocaleString()} total results, showing page ${page} of ${workbench.pagination.totalPages}`,
+        description: `Found ${workbench.pagination.totalResults.toLocaleString()} total results, showing page 1 of ${workbench.pagination.totalPages}`,
       });
     } catch (error) {
       console.error('Search failed:', error);
@@ -56,9 +56,26 @@ export function WorkbenchPage() {
 
   const handlePageChange = (page: number) => {
     if (workbench.source === 'search' || workbench.source === 'modified') {
-      handleSearch(page);
+      handleSearchPagination(page);
     } else if (workbench.source === 'group' && workbench.sourceGroup) {
       handleLoadGroup(workbench.sourceGroup.id, page);
+    }
+  };
+
+  const handleSearchPagination = async (page: number) => {
+    try {
+      await workbench.performSearchPagination(page);
+      toast({
+        title: 'Page Changed',
+        description: `Showing page ${page} of ${workbench.pagination.totalPages}`,
+      });
+    } catch (error) {
+      console.error('Search pagination failed:', error);
+      toast({
+        title: 'Page Change Failed',
+        description: 'Unable to change page. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -276,7 +293,7 @@ export function WorkbenchPage() {
           onSearchParamsChange={workbench.updateSearchParams}
           onSelectedProvidersChange={workbench.updateSelectedProviders}
           onSearchModeChange={workbench.updateSearchMode}
-          onSearch={() => handleSearch(1)}
+          onSearch={handleNewSearch}
         />
       </div>
 

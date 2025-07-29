@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Loader2, FolderOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, FolderOpen, Cloud, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,6 +8,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { articleChatApi } from '@/lib/api/articleChatApi';
 import { workbenchApi } from '@/lib/api/workbenchApi';
+import { useWorkbench } from '@/context/WorkbenchContext';
 
 import { WorkbenchColumn, ArticleGroup } from '@/types/workbench';
 import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
@@ -20,10 +21,8 @@ import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
 
 export function WorkbenchPage() {
-  const [articles, setArticles] = useState<CanonicalResearchArticle[]>([]);
-  const [columns, setColumns] = useState<WorkbenchColumn[]>([]);
+  const workbench = useWorkbench();
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
-  const [currentGroup, setCurrentGroup] = useState<ArticleGroup | null>(null);
 
   const [isSearching, setIsSearching] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -31,9 +30,6 @@ export function WorkbenchPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
-
-  // Track what type of data we're currently showing
-  const [dataSource, setDataSource] = useState<'search' | 'group'>('search');
 
   // Search state for UnifiedSearchControls
   const [searchParams, setSearchParams] = useState<UnifiedSearchParams>({
@@ -61,9 +57,19 @@ export function WorkbenchPage() {
 
   const { toast } = useToast();
 
+  // Initialize search params from workbench context if available
+  useEffect(() => {
+    if (workbench.searchContext) {
+      setSearchParams(prev => ({
+        ...prev,
+        query: workbench.searchContext?.query || prev.query,
+        provider: workbench.searchContext?.provider as SearchProvider || prev.provider
+      }));
+    }
+  }, [workbench.searchContext]);
+
   const handleSearch = async (page = 1) => {
     setIsSearching(true);
-    setDataSource('search');
 
     try {
       // Use search parameters - num_results from user selection
@@ -76,7 +82,6 @@ export function WorkbenchPage() {
       };
 
       const response = await unifiedSearchApi.search(paginatedParams);
-      setArticles(response.articles);
 
       // Update pagination state
       const totalResults = response.metadata.total_results || 0;
@@ -92,10 +97,18 @@ export function WorkbenchPage() {
         hasPrevPage: page > 1
       }));
 
-      // Clear columns and group only on new search (page 1)
-      if (page === 1) {
-        setColumns([]);
-        setCurrentGroup(null);
+      // Load search results into workbench
+      if (page === 1 && response.articles.length > 0) {
+        // New search - load fresh results
+        const searchContext = {
+          query: paginatedParams.query,
+          provider: paginatedParams.provider,
+          parameters: paginatedParams
+        };
+        workbench.loadSearchResults(response.articles, searchContext);
+      } else if (response.articles.length > 0) {
+        // Pagination - add more articles
+        workbench.addArticles(response.articles);
       }
 
       toast({
@@ -115,15 +128,16 @@ export function WorkbenchPage() {
   };
 
   const handlePageChange = (page: number) => {
-    if (dataSource === 'search') {
+    if (workbench.source === 'search' || workbench.source === 'modified') {
       handleSearch(page);
-    } else if (dataSource === 'group' && currentGroup) {
-      handleLoadGroup(currentGroup.id, page);
+    } else if (workbench.source === 'group' && workbench.sourceGroup) {
+      handleLoadGroup(workbench.sourceGroup.id, page);
     }
   };
 
   const handleDeleteColumn = (columnId: string) => {
-    setColumns(columns.filter(col => col.id !== columnId));
+    workbench.removeColumn(columnId);
+    
     toast({
       title: 'Column Deleted',
       description: 'Column has been removed from the table.',
@@ -131,25 +145,16 @@ export function WorkbenchPage() {
   };
 
   const handleDeleteArticle = async (articleId: string) => {
-    // Remove the article from the current page view
-    const updatedCurrentPageArticles = articles.filter(article => article.id !== articleId);
+    workbench.removeArticle(articleId);
 
-    // Also remove any extracted column data for this article
-    const updatedColumns = columns.map(column => ({
-      ...column,
-      data: Object.fromEntries(
-        Object.entries(column.data).filter(([id]) => id !== articleId)
-      )
-    }));
-    setColumns(updatedColumns);
-
-    if (dataSource === 'group' && currentGroup) {
-      // For groups: Update pagination and potentially navigate pages
+    // Handle pagination updates for groups
+    if (workbench.source === 'group' && workbench.sourceGroup) {
       const newTotalResults = pagination.totalResults - 1;
       const newTotalPages = Math.ceil(newTotalResults / pagination.pageSize);
+      const currentPageArticles = workbench.articles.filter(article => article.id !== articleId);
 
       // If we deleted the last article on this page and it's not page 1, go to previous page
-      if (updatedCurrentPageArticles.length === 0 && pagination.currentPage > 1) {
+      if (currentPageArticles.length === 0 && pagination.currentPage > 1) {
         const newPage = pagination.currentPage - 1;
         setPagination(prev => ({
           ...prev,
@@ -160,9 +165,9 @@ export function WorkbenchPage() {
           hasPrevPage: newPage > 1
         }));
         // Reload the group at the new page
-        handleLoadGroup(currentGroup.id, newPage);
+        handleLoadGroup(workbench.sourceGroup.id, newPage);
       } else {
-        // Just update pagination state and current articles
+        // Just update pagination state
         setPagination(prev => ({
           ...prev,
           totalResults: newTotalResults,
@@ -170,23 +175,19 @@ export function WorkbenchPage() {
           hasNextPage: prev.currentPage < newTotalPages,
           hasPrevPage: prev.currentPage > 1
         }));
-        setArticles(updatedCurrentPageArticles);
       }
-    } else {
-      // For search results: Simple removal (no pagination update needed)
-      setArticles(updatedCurrentPageArticles);
     }
 
     toast({
       title: 'Article Removed',
-      description: currentGroup
+      description: workbench.source === 'group' && workbench.hasModifications
         ? 'Article removed locally. Save to update the group permanently.'
-        : 'Article has been removed from the results.',
+        : 'Article has been removed.',
     });
   };
 
   const handleAddMultipleColumns = async (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => {
-    if (articles.length === 0) {
+    if (workbench.articles.length === 0) {
       toast({
         title: 'No Articles',
         description: 'Please search for articles first.',
@@ -197,10 +198,10 @@ export function WorkbenchPage() {
 
     // IMPORTANT: Column extraction should work on ALL articles, not just current page
     // For groups, we need to get all articles from the group
-    let allArticles = articles;
-    if (dataSource === 'group' && currentGroup) {
+    let allArticles = workbench.articles;
+    if (workbench.source === 'group' && workbench.sourceGroup) {
       // Get all group articles for extraction
-      const groupDetailResponse = await workbenchApi.getGroupDetail(currentGroup.id);
+      const groupDetailResponse = await workbenchApi.getGroupDetail(workbench.sourceGroup.id);
       allArticles = groupDetailResponse.group.articles.map(item => item.article);
     }
 
@@ -239,26 +240,15 @@ export function WorkbenchPage() {
         });
       }
 
-      setColumns([...columns, ...newColumns]);
-
-      // Update ALL articles with extracted features (including those not on current page)
-      const updatedAllArticles = allArticles.map(article => ({
-        ...article,
-        extracted_features: {
-          ...article.extracted_features,
-          ...updatedExtractedFeatures[article.id]
-        }
-      }));
-
-      // Update only the articles currently displayed on this page
-      const updatedCurrentPageArticles = articles.map(article => ({
-        ...article,
-        extracted_features: {
-          ...article.extracted_features,
-          ...updatedExtractedFeatures[article.id]
-        }
-      }));
-      setArticles(updatedCurrentPageArticles);
+      // Add columns to workbench
+      newColumns.forEach(column => {
+        workbench.addColumn(column);
+      });
+      
+      // Update features in workbench
+      for (const [articleId, features] of Object.entries(updatedExtractedFeatures)) {
+        workbench.updateArticleFeatures(articleId, features);
+      }
 
       // For groups, we should save the updated articles back to the group
       // This will be handled when the user saves the group
@@ -280,7 +270,7 @@ export function WorkbenchPage() {
   };
 
   const handleAddColumn = async (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => {
-    if (articles.length === 0) {
+    if (workbench.articles.length === 0) {
       toast({
         title: 'No Articles',
         description: 'Please search for articles first.',
@@ -290,9 +280,9 @@ export function WorkbenchPage() {
     }
 
     // Get all articles for extraction (not just current page)
-    let allArticles = articles;
-    if (dataSource === 'group' && currentGroup) {
-      const groupDetailResponse = await workbenchApi.getGroupDetail(currentGroup.id);
+    let allArticles = workbench.articles;
+    if (workbench.source === 'group' && workbench.sourceGroup) {
+      const groupDetailResponse = await workbenchApi.getGroupDetail(workbench.sourceGroup.id);
       allArticles = groupDetailResponse.group.articles.map(item => item.article);
     }
 
@@ -317,17 +307,16 @@ export function WorkbenchPage() {
         options,
       };
 
-      setColumns([...columns, newColumn]);
-
-      // Update only the articles currently displayed on this page
-      const updatedCurrentPageArticles = articles.map(article => ({
-        ...article,
-        extracted_features: {
-          ...article.extracted_features,
-          [name]: response.results[article.id]
+      // Add column to workbench
+      workbench.addColumn(newColumn);
+      
+      // Update features in workbench
+      for (const article of allArticles) {
+        const extractedValue = response.results[article.id];
+        if (extractedValue) {
+          workbench.updateArticleFeatures(article.id, { [name]: extractedValue });
         }
-      }));
-      setArticles(updatedCurrentPageArticles);
+      }
 
       toast({
         title: 'Extraction Complete',
@@ -348,7 +337,7 @@ export function WorkbenchPage() {
   const handleExport = async () => {
     try {
       const filename = `workbench_export_${new Date().toISOString().split('T')[0]}.csv`;
-      workbenchApi.exportAsCSV(articles, columns, filename);
+      workbenchApi.exportAsCSV(workbench.articles, workbench.columns, filename);
 
       toast({
         title: 'Export Complete',
@@ -371,8 +360,17 @@ export function WorkbenchPage() {
     description?: string
   ) => {
     try {
+      // Use current workbench data
+      const articlesToSave = workbench.articles;
+      const columnsToSave = workbench.columns;
+      const searchContextToSave = workbench.searchContext || {
+        query: searchParams.query,
+        provider: searchParams.provider,
+        parameters: searchParams
+      };
+        
       // Prepare column metadata
-      const columnMetadata = columns.map(col => ({
+      const columnMetadata = columnsToSave.map(col => ({
         name: col.name,
         description: col.description,
         type: col.type,
@@ -387,27 +385,27 @@ export function WorkbenchPage() {
         response = await workbenchApi.createAndSaveGroup({
           group_name: name,
           group_description: description,
-          articles,
+          articles: articlesToSave,
           columns: columnMetadata,
-          search_query: searchParams.query,
-          search_provider: searchParams.provider,
-          search_params: searchParams
+          search_query: searchContextToSave.query,
+          search_provider: searchContextToSave.provider,
+          search_params: searchContextToSave.parameters
         });
       } else if (mode === 'existing' && groupId) {
         // Replace existing group
         response = await workbenchApi.saveWorkbenchState(groupId, {
-          group_name: name || currentGroup?.name || 'Untitled',
+          group_name: name || workbench.sourceGroup?.name || 'Untitled',
           group_description: description,
-          articles,
+          articles: articlesToSave,
           columns: columnMetadata,
-          search_query: searchParams.query,
-          search_provider: searchParams.provider,
-          search_params: searchParams
+          search_query: searchContextToSave.query,
+          search_provider: searchContextToSave.provider,
+          search_params: searchContextToSave.parameters
         });
       } else if (mode === 'add' && groupId) {
         // Add to existing group (merge mode)
         response = await workbenchApi.addArticlesToGroup(groupId, {
-          articles
+          articles: articlesToSave
         });
       } else {
         throw new Error('Invalid save parameters');
@@ -418,11 +416,11 @@ export function WorkbenchPage() {
         description: response.message
       });
 
-      // Load the saved group to update current state
+      // Load the saved group to update workbench state
       if (response.group_id) {
         const groupDetailResponse = await workbenchApi.getGroupDetail(response.group_id);
         const group = groupDetailResponse.group;
-        setCurrentGroup({
+        const groupData: ArticleGroup = {
           id: group.id,
           user_id: group.user_id || 0,
           name: group.name,
@@ -434,7 +432,20 @@ export function WorkbenchPage() {
           created_at: group.created_at,
           updated_at: group.updated_at,
           article_count: group.article_count
-        });
+        };
+        
+        const articles = group.articles.map(item => item.article);
+        const columns = group.columns.map(col => ({
+          id: `col_${col.name}`,
+          name: col.name,
+          description: col.description,
+          type: col.type,
+          data: {},
+          options: col.options
+        }));
+        
+        workbench.loadGroup(groupData, articles, columns);
+        workbench.markClean(); // Mark as clean since it was just saved
       }
     } catch (error) {
       console.error('Save group failed:', error);
@@ -449,38 +460,41 @@ export function WorkbenchPage() {
 
   const handleLoadGroup = async (groupId: string, page = 1) => {
     try {
-      setDataSource('group');
-
       // Load group data using the unified workbench API
       const groupDetailResponse = await workbenchApi.getGroupDetail(groupId);
-      const groupDetail = {
-        ...groupDetailResponse.group,
-        articles: groupDetailResponse.group.articles.map(item => item.article),
-        columns: groupDetailResponse.group.columns.map(col => ({
-          id: `col_${col.name}`,
-          name: col.name,
-          description: col.description,
-          type: col.type,
-          data: {},
-          options: col.options
-        }))
+      const group = groupDetailResponse.group;
+      
+      const groupData: ArticleGroup = {
+        id: group.id,
+        user_id: group.user_id || 0,
+        name: group.name,
+        description: group.description,
+        search_query: group.search_context?.query,
+        search_provider: group.search_context?.provider,
+        search_params: group.search_context?.parameters,
+        columns: group.columns,
+        created_at: group.created_at,
+        updated_at: group.updated_at,
+        article_count: group.article_count
       };
+      
+      const articles = group.articles.map(item => item.article);
+      const columns = group.columns.map(col => ({
+        id: `col_${col.name}`,
+        name: col.name,
+        description: col.description,
+        type: col.type,
+        data: {},
+        options: col.options
+      }));
+      
+      // Load into workbench
+      workbench.loadGroup(groupData, articles, columns);
 
       // Calculate pagination for group
-      const totalArticles = groupDetail.articles.length;
+      const totalArticles = articles.length;
       const pageSize = pagination.pageSize;
       const totalPages = Math.ceil(totalArticles / pageSize);
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-
-      // Get articles for current page
-      const paginatedArticles = groupDetail.articles.slice(startIndex, endIndex);
-
-      // Set paginated articles
-      setArticles(paginatedArticles);
-
-      // Set columns
-      setColumns(groupDetail.columns);
 
       // Update pagination
       setPagination(prev => ({
@@ -492,33 +506,18 @@ export function WorkbenchPage() {
         hasPrevPage: page > 1
       }));
 
-      // Set current group  
-      setCurrentGroup({
-        id: groupDetailResponse.group.id,
-        user_id: groupDetailResponse.group.user_id || 0,
-        name: groupDetailResponse.group.name,
-        description: groupDetailResponse.group.description,
-        search_query: groupDetailResponse.group.search_context?.query,
-        search_provider: groupDetailResponse.group.search_context?.provider,
-        search_params: groupDetailResponse.group.search_context?.parameters,
-        columns: groupDetailResponse.group.columns,
-        created_at: groupDetailResponse.group.created_at,
-        updated_at: groupDetailResponse.group.updated_at,
-        article_count: groupDetailResponse.group.article_count
-      });
-
       // Update search params if available
-      if (groupDetailResponse.group.search_context?.query) {
+      if (group.search_context?.query) {
         setSearchParams(prev => ({
           ...prev,
-          query: groupDetailResponse.group.search_context.query || prev.query,
-          provider: groupDetailResponse.group.search_context.provider as SearchProvider || prev.provider
+          query: group.search_context?.query || prev.query,
+          provider: group.search_context?.provider as SearchProvider || prev.provider
         }));
       }
 
       toast({
         title: 'Group Loaded',
-        description: `Loaded "${groupDetail.name}" with ${totalArticles} articles (page ${page} of ${totalPages})`
+        description: `Loaded "${group.name}" with ${totalArticles} articles (page ${page} of ${totalPages})`
       });
     } catch (error) {
       console.error('Load group failed:', error);
@@ -543,10 +542,17 @@ export function WorkbenchPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {currentGroup && (
+            {workbench.sourceGroup && (
               <Badge variant="outline" className="text-sm">
                 <FolderOpen className="w-3 h-3 mr-1" />
-                {currentGroup.name}
+                {workbench.sourceGroup.name}
+              </Badge>
+            )}
+            {workbench.source !== 'group' && workbench.articles.length > 0 && (
+              <Badge variant="outline" className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <CloudOff className="w-3 h-3 mr-1" />
+                Working Data
+                {workbench.hasModifications && <span className="ml-1">*</span>}
               </Badge>
             )}
             <Button
@@ -577,7 +583,7 @@ export function WorkbenchPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {articles.length === 0 ? (
+        {workbench.articles.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-center">
               <p className="text-lg mb-2">No articles yet</p>
@@ -588,8 +594,8 @@ export function WorkbenchPage() {
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-hidden">
               <WorkbenchTable
-                articles={articles}
-                columns={columns}
+                articles={workbench.articles}
+                columns={workbench.columns}
                 onAddColumn={() => setShowAddModal(true)}
                 onDeleteColumn={handleDeleteColumn}
                 onDeleteArticle={handleDeleteArticle}
@@ -598,14 +604,16 @@ export function WorkbenchPage() {
                 onViewArticle={setSelectedArticle}
                 onSaveGroup={() => setShowSaveModal(true)}
                 onLoadGroup={() => setShowLoadModal(true)}
-                currentGroup={currentGroup}
+                currentGroup={workbench.sourceGroup}
                 displayDateType="publication"
               />
             </div>
             {pagination.totalPages > 1 && (
               <div className="border-t dark:border-gray-700">
                 <div className="p-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {dataSource === 'search' ? 'Search Results' : `Group: ${currentGroup?.name}`}
+                  {workbench.source === 'search' ? 'Search Results' : 
+                   workbench.source === 'modified' ? 'Modified Data' : 
+                   `Group: ${workbench.sourceGroup?.name}`}
                 </div>
                 <Pagination
                   currentPage={pagination.currentPage}
@@ -644,7 +652,7 @@ export function WorkbenchPage() {
       {selectedArticle && (
         <ArticleWorkbenchModal
           article={selectedArticle}
-          currentGroup={currentGroup}
+          currentGroup={workbench.sourceGroup}
           onClose={() => setSelectedArticle(null)}
           onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
             // Use the streaming article chat API
@@ -667,17 +675,15 @@ export function WorkbenchPage() {
               data: { [selectedArticle.id]: feature.value },
               options: feature.type === 'score' ? { min: 1, max: 10 } : undefined
             };
-            setColumns(prev => [...prev, newColumn]);
+            workbench.addColumn(newColumn);
             toast({
               title: 'Feature Added',
               description: `"${feature.name}" has been added as a new column.`,
             });
           }}
           onArticleUpdated={(updatedArticle) => {
-            // Update the article in the local state
-            setArticles(prev => prev.map(article =>
-              article.id === updatedArticle.id ? updatedArticle : article
-            ));
+            // This will be handled by the workbench context automatically
+            // since the article objects are references
           }}
         />
       )}
@@ -688,8 +694,8 @@ export function WorkbenchPage() {
           isOpen={showSaveModal}
           onClose={() => setShowSaveModal(false)}
           onSave={handleSaveGroup}
-          articleCount={articles.length}
-          columnCount={columns.length}
+          articleCount={workbench.articles.length}
+          columnCount={workbench.columns.length}
         />
       )}
 
@@ -699,7 +705,7 @@ export function WorkbenchPage() {
           isOpen={showLoadModal}
           onClose={() => setShowLoadModal(false)}
           onLoad={handleLoadGroup}
-          currentGroupId={currentGroup?.id}
+          currentGroupId={workbench.sourceGroup?.id}
         />
       )}
     </div>

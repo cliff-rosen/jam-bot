@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/toaster';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
 import { JamBotProvider } from './context/JamBotContext';
+import { WorkbenchProvider } from './context/WorkbenchContext';
 
 // utils
 import { setStreamSessionExpiredHandler } from './lib/api/streamUtils';
@@ -81,7 +82,9 @@ function App() {
     >
       <ThemeProvider>
         <JamBotProvider>
-          <AuthenticatedApp />
+          <WorkbenchProvider>
+            <AuthenticatedApp />
+          </WorkbenchProvider>
         </JamBotProvider>
         <Toaster />
       </ThemeProvider>

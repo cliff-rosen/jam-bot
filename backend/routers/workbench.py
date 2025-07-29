@@ -15,16 +15,19 @@ from sqlalchemy.orm import Session
 
 from models import User
 from database import get_db
-from schemas.article_group import (
-    CreateArticleGroupRequest, UpdateArticleGroupRequest, SaveToGroupRequest,
-    AddArticlesRequest, ArticleGroupResponse, ArticleGroupDetailResponse,
-    ArticleGroupListResponse, ArticleGroupSaveResponse, ArticleGroupDeleteResponse,
-    TabelizerColumnData
+from schemas.workbench import TabelizerColumnData
+from schemas.workbench_requests import (
+    CreateWorkbenchGroupRequest, UpdateWorkbenchGroupRequest, SaveToWorkbenchGroupRequest,
+    AddArticlesToWorkbenchGroupRequest
+)
+from schemas.workbench_responses import (
+    WorkbenchGroupResponse, WorkbenchGroupDetailResponse, WorkbenchGroupListResponse,
+    WorkbenchGroupSaveResponse, WorkbenchGroupDeleteResponse
 )
 
 from services.auth_service import validate_token
 from services.extraction_service import ExtractionService, get_extraction_service
-from services.article_group_service import ArticleGroupService
+from services.workbench_service import WorkbenchService
 from services.article_workbench_service import ArticleWorkbenchService
 
 router = APIRouter(prefix="/workbench", tags=["workbench"])
@@ -83,7 +86,7 @@ class BatchUpdateMetadataRequest(BaseModel):
 
 # ================== GROUP MANAGEMENT ENDPOINTS ==================
 
-@router.get("/groups", response_model=ArticleGroupListResponse)
+@router.get("/groups", response_model=WorkbenchGroupListResponse)
 async def get_user_groups(
     page: int = 1,
     limit: int = 20,
@@ -92,29 +95,29 @@ async def get_user_groups(
     db: Session = Depends(get_db)
 ):
     """Get paginated list of user's workbench groups."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     return group_service.get_user_groups(current_user.user_id, page, limit, search)
 
 
-@router.post("/groups", response_model=ArticleGroupResponse)
+@router.post("/groups", response_model=WorkbenchGroupResponse)
 async def create_group(
-    request: CreateArticleGroupRequest,
+    request: CreateWorkbenchGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Create a new workbench group."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     return group_service.create_group(current_user.user_id, request)
 
 
-@router.get("/groups/{group_id}", response_model=ArticleGroupDetailResponse)
+@router.get("/groups/{group_id}", response_model=WorkbenchGroupDetailResponse)
 async def get_group_detail(
     group_id: str,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Get detailed information about a specific group."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     result = group_service.get_group_detail(current_user.user_id, group_id)
     
     if not result:
@@ -126,15 +129,15 @@ async def get_group_detail(
     return result
 
 
-@router.put("/groups/{group_id}", response_model=ArticleGroupResponse)
+@router.put("/groups/{group_id}", response_model=WorkbenchGroupResponse)
 async def update_group(
     group_id: str,
-    request: UpdateArticleGroupRequest,
+    request: UpdateWorkbenchGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Update group metadata."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     result = group_service.update_group(current_user.user_id, group_id, request)
     
     if not result:
@@ -146,14 +149,14 @@ async def update_group(
     return result
 
 
-@router.delete("/groups/{group_id}", response_model=ArticleGroupDeleteResponse)
+@router.delete("/groups/{group_id}", response_model=WorkbenchGroupDeleteResponse)
 async def delete_group(
     group_id: str,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Delete a group and all its articles."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     result = group_service.delete_group(current_user.user_id, group_id)
     
     if not result:
@@ -165,15 +168,15 @@ async def delete_group(
     return result
 
 
-@router.post("/groups/{group_id}/articles", response_model=ArticleGroupSaveResponse)
+@router.post("/groups/{group_id}/articles", response_model=WorkbenchGroupSaveResponse)
 async def add_articles_to_group(
     group_id: str,
-    request: AddArticlesRequest,
+    request: AddArticlesToWorkbenchGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Add articles to an existing group."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     result = group_service.add_articles_to_group(current_user.user_id, group_id, request)
     
     if not result:
@@ -234,7 +237,7 @@ async def extract_column_for_group(
 ):
     """Extract a column for all articles in a group."""
     # Verify group access
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     group_detail = group_service.get_group_detail(current_user.user_id, group_id)
     
     if not group_detail:
@@ -685,15 +688,15 @@ async def batch_update_metadata(
 
 # ================== CONVENIENCE/LEGACY ENDPOINTS ==================
 
-@router.post("/groups/{group_id}/save", response_model=ArticleGroupSaveResponse)
+@router.post("/groups/{group_id}/save", response_model=WorkbenchGroupSaveResponse)
 async def save_workbench_state(
     group_id: str,
-    request: SaveToGroupRequest,
+    request: SaveToWorkbenchGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Save workbench state (articles + columns) to existing group."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     result = group_service.save_tabelizer_state(current_user.user_id, group_id, request)
     
     if not result:
@@ -705,12 +708,12 @@ async def save_workbench_state(
     return result
 
 
-@router.post("/groups/create-and-save", response_model=ArticleGroupSaveResponse)
+@router.post("/groups/create-and-save", response_model=WorkbenchGroupSaveResponse)
 async def create_and_save_group(
-    request: SaveToGroupRequest,
+    request: SaveToWorkbenchGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """Create a new group and save workbench state to it."""
-    group_service = ArticleGroupService(db)
+    group_service = WorkbenchService(db)
     return group_service.create_and_save_group(current_user.user_id, request)

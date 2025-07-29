@@ -1,7 +1,7 @@
 """
-Article Group Service
+Workbench Service
 
-Handles all database operations for article groups and their details.
+Handles all database operations for workbench groups and their details.
 No database logic should exist in routers - it all goes here.
 """
 
@@ -13,16 +13,19 @@ from datetime import datetime
 from models import ArticleGroup, User
 from models import ArticleGroupDetail as ArticleGroupDetailModel
 from schemas.canonical_types import CanonicalResearchArticle
-from schemas.article_group import (
-    CreateArticleGroupRequest, UpdateArticleGroupRequest, SaveToGroupRequest,
-    AddArticlesRequest, ArticleGroupResponse, ArticleGroupDetail, ArticleGroupDetailResponse,
-    ArticleGroupListResponse, ArticleGroupSaveResponse, ArticleGroupDeleteResponse,
-    ArticleGroupItem, TabelizerColumnData
+from schemas.workbench import TabelizerColumnData, WorkbenchGroupItem, WorkbenchGroupDetail
+from schemas.workbench_requests import (
+    CreateWorkbenchGroupRequest, UpdateWorkbenchGroupRequest, SaveToWorkbenchGroupRequest,
+    AddArticlesToWorkbenchGroupRequest
+)
+from schemas.workbench_responses import (
+    WorkbenchGroupResponse, WorkbenchGroupDetailResponse, WorkbenchGroupListResponse,
+    WorkbenchGroupSaveResponse, WorkbenchGroupDeleteResponse
 )
 
 
-class ArticleGroupService:
-    """Service for managing article groups and their contents."""
+class WorkbenchService:
+    """Service for managing workbench groups and their contents."""
     
     def __init__(self, db: Session):
         self.db = db
@@ -33,7 +36,7 @@ class ArticleGroupService:
         page: int = 1, 
         limit: int = 20,
         search: Optional[str] = None
-    ) -> ArticleGroupListResponse:
+    ) -> WorkbenchGroupListResponse:
         """Get paginated list of user's article groups."""
         query = self.db.query(ArticleGroup).filter(ArticleGroup.user_id == user_id)
         
@@ -51,7 +54,7 @@ class ArticleGroupService:
         offset = (page - 1) * limit
         groups = query.order_by(ArticleGroup.updated_at.desc()).offset(offset).limit(limit).all()
         
-        return ArticleGroupListResponse(
+        return WorkbenchGroupListResponse(
             groups=[self._group_to_summary(group) for group in groups],
             total=total,
             page=page,
@@ -59,7 +62,7 @@ class ArticleGroupService:
             total_pages=(total + limit - 1) // limit
         )
     
-    def create_group(self, user_id: int, request: CreateArticleGroupRequest) -> ArticleGroupResponse:
+    def create_group(self, user_id: int, request: CreateWorkbenchGroupRequest) -> WorkbenchGroupResponse:
         """Create a new article group."""
         group = ArticleGroup(
             user_id=user_id,
@@ -82,9 +85,9 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupResponse(**self._group_to_summary(group))
+        return WorkbenchGroupResponse(**self._group_to_summary(group))
     
-    def get_group_detail(self, user_id: int, group_id: str) -> Optional[ArticleGroupDetailResponse]:
+    def get_group_detail(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDetailResponse]:
         """Get detailed information about a specific group."""
         group = self.db.query(ArticleGroup).filter(
             and_(
@@ -99,14 +102,14 @@ class ArticleGroupService:
         try:
             detail_data = self._group_to_detail(group)
             print(f"Detail data keys: {detail_data.keys()}")
-            detail_obj = ArticleGroupDetail(**detail_data)
-            return ArticleGroupDetailResponse(group=detail_obj)
+            detail_obj = WorkbenchGroupDetail(**detail_data)
+            return WorkbenchGroupDetailResponse(group=detail_obj)
         except Exception as e:
             print(f"Error in get_group_detail: {e}")
             print(f"Detail data: {detail_data}")
             raise
     
-    def update_group(self, user_id: int, group_id: str, request: UpdateArticleGroupRequest) -> Optional[ArticleGroupResponse]:
+    def update_group(self, user_id: int, group_id: str, request: UpdateWorkbenchGroupRequest) -> Optional[WorkbenchGroupResponse]:
         """Update group metadata."""
         group = self.db.query(ArticleGroup).filter(
             and_(
@@ -131,9 +134,9 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupResponse(**self._group_to_summary(group))
+        return WorkbenchGroupResponse(**self._group_to_summary(group))
     
-    def delete_group(self, user_id: int, group_id: str) -> Optional[ArticleGroupDeleteResponse]:
+    def delete_group(self, user_id: int, group_id: str) -> Optional[WorkbenchGroupDeleteResponse]:
         """Delete a group and all its articles."""
         group = self.db.query(ArticleGroup).filter(
             and_(
@@ -152,7 +155,7 @@ class ArticleGroupService:
         self.db.delete(group)
         self.db.commit()
         
-        return ArticleGroupDeleteResponse(
+        return WorkbenchGroupDeleteResponse(
             success=True,
             message=f"Group '{group.name}' deleted successfully",
             deleted_group_id=group_id,
@@ -163,8 +166,8 @@ class ArticleGroupService:
         self, 
         user_id: int, 
         group_id: str, 
-        request: AddArticlesRequest
-    ) -> Optional[ArticleGroupSaveResponse]:
+        request: AddArticlesToWorkbenchGroupRequest
+    ) -> Optional[WorkbenchGroupSaveResponse]:
         """Add articles to an existing group."""
         group = self.db.query(ArticleGroup).filter(
             and_(
@@ -181,7 +184,7 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupSaveResponse(
+        return WorkbenchGroupSaveResponse(
             success=True,
             message=f"Added {len(request.articles)} articles to group",
             group_id=group_id,
@@ -192,8 +195,8 @@ class ArticleGroupService:
         self, 
         user_id: int, 
         group_id: str, 
-        request: SaveToGroupRequest
-    ) -> Optional[ArticleGroupSaveResponse]:
+        request: SaveToWorkbenchGroupRequest
+    ) -> Optional[WorkbenchGroupSaveResponse]:
         """Save tabelizer state (articles + columns) to existing group."""
         group = self.db.query(ArticleGroup).filter(
             and_(
@@ -222,7 +225,7 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupSaveResponse(
+        return WorkbenchGroupSaveResponse(
             success=True,
             message=f"Saved tabelizer state to group",
             group_id=group_id,
@@ -232,8 +235,8 @@ class ArticleGroupService:
     def create_and_save_group(
         self, 
         user_id: int, 
-        request: SaveToGroupRequest
-    ) -> ArticleGroupSaveResponse:
+        request: SaveToWorkbenchGroupRequest
+    ) -> WorkbenchGroupSaveResponse:
         """Create a new group and save tabelizer state to it."""
         group = ArticleGroup(
             user_id=user_id,
@@ -254,7 +257,7 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
-        return ArticleGroupSaveResponse(
+        return WorkbenchGroupSaveResponse(
             success=True,
             message=f"Created group '{group.name}' with {group.article_count} articles",
             group_id=group.id,
@@ -327,11 +330,11 @@ class ArticleGroupService:
             ArticleGroupDetailModel.article_group_id == group.id
         ).order_by(ArticleGroupDetailModel.position).all()
         
-        # Create proper ArticleGroupItem objects
+        # Create proper WorkbenchGroupItem objects
         article_items = []
         for detail in articles:
             try:
-                article_items.append(ArticleGroupItem(
+                article_items.append(WorkbenchGroupItem(
                     article=CanonicalResearchArticle(**detail.article_data),
                     position=detail.position,
                     column_data=detail.extracted_features,
@@ -343,7 +346,7 @@ class ArticleGroupService:
                     }
                 ))
             except Exception as e:
-                print(f"Error creating ArticleGroupItem: {e}")
+                print(f"Error creating WorkbenchGroupItem: {e}")
                 print(f"Detail data: {detail.__dict__}")
                 raise
         
@@ -382,6 +385,6 @@ class ArticleGroupService:
         }
 
 
-def get_article_group_service(db: Session = None) -> ArticleGroupService:
-    """Dependency injection for ArticleGroupService."""
-    return ArticleGroupService(db)
+def get_workbench_service(db: Session = None) -> WorkbenchService:
+    """Dependency injection for WorkbenchService."""
+    return WorkbenchService(db)

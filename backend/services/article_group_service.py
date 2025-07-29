@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime
 
-from models import ArticleGroup, ArticleGroupDetail, User
+from models import ArticleGroup, User
+from models import ArticleGroupDetail as ArticleGroupDetailModel
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.article_group import (
     CreateArticleGroupRequest, UpdateArticleGroupRequest, SaveToGroupRequest,
@@ -94,10 +95,16 @@ class ArticleGroupService:
         
         if not group:
             return None
-            
-        return ArticleGroupDetailResponse(
-            group=ArticleGroupDetail(**self._group_to_detail(group))
-        )
+        
+        try:
+            detail_data = self._group_to_detail(group)
+            print(f"Detail data keys: {detail_data.keys()}")
+            detail_obj = ArticleGroupDetail(**detail_data)
+            return ArticleGroupDetailResponse(group=detail_obj)
+        except Exception as e:
+            print(f"Error in get_group_detail: {e}")
+            print(f"Detail data: {detail_data}")
+            raise
     
     def update_group(self, user_id: int, group_id: str, request: UpdateArticleGroupRequest) -> Optional[ArticleGroupResponse]:
         """Update group metadata."""
@@ -206,8 +213,8 @@ class ArticleGroupService:
         group.updated_at = datetime.utcnow()
         
         # Clear existing articles and add new ones
-        self.db.query(ArticleGroupDetail).filter(
-            ArticleGroupDetail.article_group_id == group_id
+        self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group_id
         ).delete()
         
         self._add_articles_to_group(group, request.articles, request.columns)
@@ -282,7 +289,7 @@ class ArticleGroupService:
                         "extracted_at": datetime.utcnow().isoformat()
                     }
             
-            article_detail = ArticleGroupDetail(
+            article_detail = ArticleGroupDetailModel(
                 article_group_id=group.id,
                 article_data=article.dict(),
                 notes='',
@@ -316,25 +323,48 @@ class ArticleGroupService:
     def _group_to_detail(self, group: ArticleGroup) -> dict:
         """Convert ArticleGroup to detailed format with articles."""
         # Get articles
-        articles = self.db.query(ArticleGroupDetail).filter(
-            ArticleGroupDetail.article_group_id == group.id
-        ).order_by(ArticleGroupDetail.position).all()
+        articles = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).order_by(ArticleGroupDetailModel.position).all()
         
         # Create proper ArticleGroupItem objects
         article_items = []
         for detail in articles:
-            article_items.append(ArticleGroupItem(
-                article=CanonicalResearchArticle(**detail.article_data),
-                position=detail.position,
-                column_data=detail.extracted_features,
-                workbench_summary={
-                    "has_notes": bool(detail.notes),
-                    "feature_count": len(detail.extracted_features),
-                    "tags": detail.article_metadata.get("tags", []),
-                    "rating": detail.article_metadata.get("rating")
-                }
-            ))
+            try:
+                article_items.append(ArticleGroupItem(
+                    article=CanonicalResearchArticle(**detail.article_data),
+                    position=detail.position,
+                    column_data=detail.extracted_features,
+                    workbench_summary={
+                        "has_notes": bool(detail.notes),
+                        "feature_count": len(detail.extracted_features),
+                        "tags": detail.article_metadata.get("tags", []),
+                        "rating": detail.article_metadata.get("rating")
+                    }
+                ))
+            except Exception as e:
+                print(f"Error creating ArticleGroupItem: {e}")
+                print(f"Detail data: {detail.__dict__}")
+                raise
         
+        # Reconstruct TabelizerColumnData from group columns and article data
+        reconstructed_columns = []
+        for column_meta in group.columns:
+            column_data = {}
+            for article_item in article_items:
+                article_id = article_item.article.id
+                if column_meta["name"] in article_item.column_data:
+                    column_data[article_id] = str(article_item.column_data[column_meta["name"]].get("value", ""))
+            
+            reconstructed_columns.append({
+                "id": column_meta.get("id", column_meta["name"]),
+                "name": column_meta["name"],
+                "description": column_meta["description"],
+                "type": column_meta["type"],
+                "data": column_data,
+                "options": column_meta.get("options", {})
+            })
+
         # Return data that can be used to construct ArticleGroupDetail
         return {
             "id": group.id,
@@ -344,7 +374,7 @@ class ArticleGroupService:
             "search_query": group.search_query,
             "search_provider": group.search_provider,
             "search_params": group.search_params,
-            "columns": group.columns,
+            "columns": reconstructed_columns,
             "article_count": group.article_count,
             "created_at": group.created_at,
             "updated_at": group.updated_at,

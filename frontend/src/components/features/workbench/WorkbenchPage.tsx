@@ -122,26 +122,6 @@ export function WorkbenchPage() {
     }
   };
 
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPagination(prev => ({
-      ...prev,
-      pageSize: newPageSize,
-      currentPage: 1 // Reset to first page when page size changes
-    }));
-
-    setSearchParams(prev => ({
-      ...prev,
-      page_size: newPageSize,
-      num_results: newPageSize,
-      page: 1
-    }));
-
-    // Trigger new search with updated page size
-    if (searchParams.query) {
-      handleSearch(1);
-    }
-  };
-
   const handleDeleteColumn = (columnId: string) => {
     setColumns(columns.filter(col => col.id !== columnId));
     toast({

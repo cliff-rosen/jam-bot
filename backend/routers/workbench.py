@@ -319,6 +319,39 @@ async def get_column_presets(
     """Get available column presets for extraction."""
     presets = [
         ColumnPreset(
+            id="research_features",
+            name="Research Features",
+            description="Extract research features for DOI/POI analysis",
+            category="Core Analysis",
+            columns=[
+                ColumnDefinition(
+                    name="poi_relevance", 
+                    description="Does this article relate to melanocortin or natriuretic pathways? Melanocortin keywords: melanocortin receptor, MC1R, MC2R, MC3R, MC4R, MC5R, ACTH, α-MSH, β-MSH, γ-MSH, melanocyte, pigmentation, appetite regulation. Natriuretic keywords: natriuretic peptide, ANP, BNP, CNP, NPR-A, NPR-B, NPR-C, guanylate cyclase, cardiac function", 
+                    type="boolean"
+                ),
+                ColumnDefinition(
+                    name="doi_relevance", 
+                    description="Does this article relate to dry eye, ulcerative colitis, crohn's disease, retinopathy, or retinal disease? Dry eye keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film. IBD keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis. Retinal keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration", 
+                    type="boolean"
+                ),
+                ColumnDefinition(
+                    name="is_systematic", 
+                    description="Is this a systematic study? Look for: randomized controlled clinical trials (RCTs), clinical trials, epidemiological studies, cohort studies, case-control studies, open label trials, case reports. Systematic reviews and meta-analyses should also be marked as 'yes'. Basic science, in vitro, and animal studies can also be systematic if they follow rigorous methodology", 
+                    type="boolean"
+                ),
+                ColumnDefinition(
+                    name="study_type", 
+                    description="Type of study: 'human RCT' (randomized controlled clinical trials with humans), 'human non-RCT' (human studies that are not RCTs - observational, cohort, case-control, case series), 'non-human life science' (animal studies, in vitro studies, cell culture, molecular biology), 'non life science' (non-biological research), 'not a study' (reviews non-systematic, editorials, opinions, commentaries, theoretical papers)", 
+                    type="text"
+                ),
+                ColumnDefinition(
+                    name="study_outcome", 
+                    description="Primary outcome focus: 'effectiveness' (testing if treatment/intervention works), 'safety' (testing safety, adverse events, toxicity, side effects), 'diagnostics' (developing or testing diagnostic methods), 'biomarker' (identifying or validating biomarkers non-diagnostic, prognostic markers), 'other' (basic science mechanisms, pathophysiology, epidemiology)", 
+                    type="text"
+                )
+            ]
+        ),
+        ColumnPreset(
             id="clinical_trial",
             name="Clinical Trial Analysis",
             description="Extract key information from clinical trial papers",
@@ -376,7 +409,7 @@ async def get_column_presets(
     
     return ColumnPresetsResponse(
         presets=presets,
-        categories=["Medical Research", "Pharmaceutical", "Basic Science"]
+        categories=["Core Analysis", "Medical Research", "Pharmaceutical", "Basic Science"]
     )
 
 # Legacy endpoints (deprecated)

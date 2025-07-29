@@ -16,7 +16,7 @@ import { CanonicalResearchArticle, UnifiedSearchParams, SearchProvider } from '@
 import { UnifiedSearchControls } from '@/components/features/workbench/search/UnifiedSearchControls';
 import { TabelizerTable } from './TabelizerTable';
 import { AddColumnModal } from './AddColumnModal';
-import { ArticleDetailModal } from './ArticleDetailModal';
+import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
 
@@ -652,10 +652,11 @@ export function TabelizerPage() {
         />
       )}
 
-      {/* Article Detail Modal */}
+      {/* Article Workbench Modal */}
       {selectedArticle && (
-        <ArticleDetailModal
+        <ArticleWorkbenchModal
           article={selectedArticle}
+          currentGroup={currentGroup}
           onClose={() => setSelectedArticle(null)}
           onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
             // Use the streaming article chat API
@@ -667,6 +668,28 @@ export function TabelizerPage() {
               onComplete,
               onError
             );
+          }}
+          onFeatureAdded={(feature) => {
+            // When a feature is added from the workbench, add it as a new column
+            const newColumn: TabelizerColumn = {
+              id: `feature_${Date.now()}`,
+              name: feature.name,
+              description: `Extracted feature: ${feature.name}`,
+              type: feature.type,
+              data: { [selectedArticle.id]: feature.value },
+              options: feature.type === 'score' ? { min: 1, max: 10 } : undefined
+            };
+            setColumns(prev => [...prev, newColumn]);
+            toast({
+              title: 'Feature Added',
+              description: `"${feature.name}" has been added as a new column.`,
+            });
+          }}
+          onArticleUpdated={(updatedArticle) => {
+            // Update the article in the local state
+            setArticles(prev => prev.map(article => 
+              article.id === updatedArticle.id ? updatedArticle : article
+            ));
           }}
         />
       )}

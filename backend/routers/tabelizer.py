@@ -19,7 +19,7 @@ from schemas.article_group import (
     TabelizerColumnData
 )
 
-router = APIRouter(prefix="/api/tabelizer", tags=["tabelizer"])
+router = APIRouter(prefix="/tabelizer", tags=["tabelizer"])
 
 
 class TabelizerArticle(BaseModel):

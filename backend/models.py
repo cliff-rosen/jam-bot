@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP, JSON, LargeBinary, Boolean, UniqueConstraint, Index, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, foreign, remote, validates
 from datetime import datetime
@@ -470,6 +470,7 @@ class ArticleGroup(Base):
     user = relationship("User", back_populates="article_groups")
     articles = relationship("ArticleGroupDetail", back_populates="group", cascade="all, delete-orphan")
     
+    
     # Indexes
     __table_args__ = (
         Index('idx_article_group_user_id', 'user_id'),
@@ -491,11 +492,17 @@ class ArticleGroupDetail(Base):
     # Article data (full CanonicalResearchArticle JSON including extracted_features)
     article_data = Column(JSON, nullable=False)
     
+    # Workbench data - all scoped to this article in this group
+    notes = Column(Text, nullable=True, default='')  # User's research notes
+    extracted_features = Column(JSON, nullable=False, default=dict)  # {feature_name: feature_value}
+    article_metadata = Column(JSON, nullable=False, default=dict)  # {tags: [], rating: 5, status: "read", priority: "high"}
+    
     # Display order
     position = Column(Integer, nullable=False, default=0)
     
-    # Timestamp
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     group = relationship("ArticleGroup", back_populates="articles")
@@ -505,3 +512,4 @@ class ArticleGroupDetail(Base):
         Index('idx_article_group_detail_group_id', 'article_group_id'),
         Index('idx_article_group_detail_position', 'article_group_id', 'position'),
     )
+

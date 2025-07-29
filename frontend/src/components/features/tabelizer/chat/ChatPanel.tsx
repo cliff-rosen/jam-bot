@@ -125,7 +125,7 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
   };
 
   return (
-    <div className="w-1/3 border-r dark:border-gray-700 flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Chat Header */}
       <div className="p-4 border-b dark:border-gray-700">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Article Chat</h3>

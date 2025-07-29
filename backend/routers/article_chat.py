@@ -15,7 +15,7 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/article-chat", tags=["article-chat"])
+router = APIRouter(prefix="/article-chat", tags=["article-chat"])
 
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)

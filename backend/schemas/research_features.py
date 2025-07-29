@@ -63,7 +63,7 @@ RESEARCH_FEATURES_SCHEMA = {
     "type": "object",
     "properties": {
         "poi_relevance": {
-            "type": "string",
+            "type": "string", 
             "enum": ["yes", "no"],
             "description": "Pathway of Interest relevance (melanocortin, natriuretic pathways)"
         },

@@ -13,7 +13,9 @@ import {
   WorkbenchColumn,
   ArticleGroup,
 } from '@/types/workbench';
-import { CanonicalResearchArticle } from '@/types/unifiedSearch';
+import { CanonicalResearchArticle, SearchProvider, UnifiedSearchParams } from '@/types/unifiedSearch';
+import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
+import { workbenchApi } from '@/lib/api/workbenchApi';
 
 interface WorkbenchState {
   // Current data
@@ -29,6 +31,28 @@ interface WorkbenchState {
     parameters: Record<string, any>;
   };
 
+  // Search state
+  currentSearchParams: UnifiedSearchParams;
+  selectedProviders: SearchProvider[];
+  searchMode: 'single' | 'multi';
+  
+  // Pagination state
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalResults: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  
+  // Loading states
+  isSearching: boolean;
+  isExtracting: boolean;
+  
+  // UI state
+  selectedArticle: CanonicalResearchArticle | null;
+  
   // Local modifications
   localArticleData: Record<string, {
     notes?: string;
@@ -42,7 +66,15 @@ interface WorkbenchState {
 }
 
 interface WorkbenchActions {
-  // Data loading
+  // High-level API orchestration
+  performSearch: (page?: number) => Promise<void>;
+  loadWorkbenchGroup: (groupId: string, page?: number) => Promise<void>;
+  saveWorkbenchGroup: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<void>;
+  extractSingleColumn: (name: string, description: string, type: 'boolean' | 'text' | 'score', options?: { min?: number; max?: number; step?: number }) => Promise<void>;
+  extractMultipleColumns: (columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>) => Promise<void>;
+  exportWorkbenchData: () => Promise<void>;
+
+  // Data loading (internal)
   loadSearchResults: (articles: CanonicalResearchArticle[], searchContext: WorkbenchState['searchContext']) => void;
   loadGroup: (group: ArticleGroup, articles: CanonicalResearchArticle[], columns: WorkbenchColumn[]) => void;
 
@@ -59,6 +91,19 @@ interface WorkbenchActions {
   updateArticleNotes: (articleId: string, notes: string) => void;
   updateArticleFeatures: (articleId: string, features: Record<string, any>) => void;
   updateArticleMetadata: (articleId: string, metadata: Record<string, any>) => void;
+
+  // Search state management
+  updateSearchParams: (params: Partial<UnifiedSearchParams>) => void;
+  updateSelectedProviders: (providers: SearchProvider[]) => void;
+  updateSearchMode: (mode: 'single' | 'multi') => void;
+  setSearching: (isSearching: boolean) => void;
+  setExtracting: (isExtracting: boolean) => void;
+  
+  // UI state management
+  setSelectedArticle: (article: CanonicalResearchArticle | null) => void;
+
+  // Pagination management
+  updatePagination: (pagination: Partial<WorkbenchState['pagination']>) => void;
 
   // State management
   clearWorkbench: () => void;
@@ -79,7 +124,30 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     columns: [],
     source: 'search',
     localArticleData: {},
-    hasModifications: false
+    hasModifications: false,
+    currentSearchParams: {
+      provider: 'pubmed',
+      query: '',
+      num_results: 20,
+      sort_by: 'relevance',
+      include_citations: false,
+      include_pdf_links: false,
+      page: 1,
+      page_size: 20,
+    },
+    selectedProviders: ['pubmed'],
+    searchMode: 'single',
+    pagination: {
+      currentPage: 1,
+      pageSize: 20,
+      totalResults: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false
+    },
+    isSearching: false,
+    isExtracting: false,
+    selectedArticle: null
   });
 
   // Load from localStorage on mount
@@ -246,7 +314,30 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       sourceGroup: undefined,
       searchContext: undefined,
       localArticleData: {},
-      hasModifications: false
+      hasModifications: false,
+      currentSearchParams: {
+        provider: 'pubmed',
+        query: '',
+        num_results: 20,
+        sort_by: 'relevance',
+        include_citations: false,
+        include_pdf_links: false,
+        page: 1,
+        page_size: 20,
+      },
+      selectedProviders: ['pubmed'],
+      searchMode: 'single',
+      pagination: {
+        currentPage: 1,
+        pageSize: 20,
+        totalResults: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      },
+      isSearching: false,
+      isExtracting: false,
+      selectedArticle: null
     });
     localStorage.removeItem(STORAGE_KEY);
   }, []);
@@ -288,8 +379,382 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateSearchParams = useCallback((params: Partial<UnifiedSearchParams>) => {
+    setState(prev => ({
+      ...prev,
+      currentSearchParams: {
+        ...prev.currentSearchParams,
+        ...params
+      }
+    }));
+  }, []);
+
+  const updateSelectedProviders = useCallback((providers: SearchProvider[]) => {
+    setState(prev => ({
+      ...prev,
+      selectedProviders: providers
+    }));
+  }, []);
+
+  const updateSearchMode = useCallback((mode: 'single' | 'multi') => {
+    setState(prev => ({
+      ...prev,
+      searchMode: mode
+    }));
+  }, []);
+
+  const setSearching = useCallback((isSearching: boolean) => {
+    setState(prev => ({
+      ...prev,
+      isSearching
+    }));
+  }, []);
+
+  const setExtracting = useCallback((isExtracting: boolean) => {
+    setState(prev => ({
+      ...prev,
+      isExtracting
+    }));
+  }, []);
+
+  const updatePagination = useCallback((paginationUpdates: Partial<WorkbenchState['pagination']>) => {
+    setState(prev => ({
+      ...prev,
+      pagination: {
+        ...prev.pagination,
+        ...paginationUpdates
+      }
+    }));
+  }, []);
+
+  const setSelectedArticle = useCallback((article: CanonicalResearchArticle | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedArticle: article
+    }));
+  }, []);
+
+  // High-level API orchestration methods
+  const performSearch = useCallback(async (page = 1) => {
+    setSearching(true);
+
+    try {
+      // Use search parameters from context
+      const paginatedParams = {
+        ...state.currentSearchParams,
+        page,
+        page_size: state.currentSearchParams.num_results,
+        offset: (page - 1) * state.currentSearchParams.num_results
+      };
+
+      const response = await unifiedSearchApi.search(paginatedParams);
+
+      // Update pagination state
+      const totalResults = response.metadata.total_results || 0;
+      const totalPages = Math.ceil(totalResults / state.currentSearchParams.num_results);
+
+      updatePagination({
+        currentPage: page,
+        pageSize: state.currentSearchParams.num_results,
+        totalResults,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      });
+
+      // Load search results into workbench
+      if (page === 1 && response.articles.length > 0) {
+        // New search - load fresh results
+        const searchContext = {
+          query: paginatedParams.query,
+          provider: paginatedParams.provider,
+          parameters: paginatedParams
+        };
+        loadSearchResults(response.articles, searchContext);
+      } else if (response.articles.length > 0) {
+        // Pagination - add more articles
+        addArticles(response.articles);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      throw error;
+    } finally {
+      setSearching(false);
+    }
+  }, [state.currentSearchParams, setSearching, updatePagination, loadSearchResults, addArticles]);
+
+  const loadWorkbenchGroup = useCallback(async (groupId: string, page = 1) => {
+    try {
+      // Load group data using the unified workbench API
+      const groupDetailResponse = await workbenchApi.getGroupDetail(groupId);
+      const group = groupDetailResponse.group;
+      
+      const groupData: ArticleGroup = {
+        id: group.id,
+        user_id: group.user_id || 0,
+        name: group.name,
+        description: group.description,
+        search_query: group.search_context?.query,
+        search_provider: group.search_context?.provider,
+        search_params: group.search_context?.parameters,
+        columns: group.columns,
+        created_at: group.created_at,
+        updated_at: group.updated_at,
+        article_count: group.article_count
+      };
+      
+      const articles = group.articles.map(item => item.article);
+      const columns = group.columns.map(col => ({
+        id: `col_${col.name}`,
+        name: col.name,
+        description: col.description,
+        type: col.type,
+        data: {},
+        options: col.options
+      }));
+      
+      // Load into workbench
+      loadGroup(groupData, articles, columns);
+
+      // Calculate pagination for group
+      const totalArticles = articles.length;
+      const pageSize = state.pagination.pageSize;
+      const totalPages = Math.ceil(totalArticles / pageSize);
+
+      // Update pagination
+      updatePagination({
+        currentPage: page,
+        totalResults: totalArticles,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      });
+
+      // Update search params if available
+      if (group.search_context?.query) {
+        updateSearchParams({
+          query: group.search_context.query,
+          provider: group.search_context.provider as SearchProvider
+        });
+      }
+    } catch (error) {
+      console.error('Load group failed:', error);
+      throw error;
+    }
+  }, [state.pagination.pageSize, loadGroup, updatePagination, updateSearchParams]);
+
+  const saveWorkbenchGroup = useCallback(async (
+    mode: 'new' | 'existing' | 'add',
+    groupId?: string,
+    name?: string,
+    description?: string
+  ) => {
+    try {
+      // Use current workbench data
+      const articlesToSave = state.articles;
+      const columnsToSave = state.columns;
+      const searchContextToSave = state.searchContext || {
+        query: state.currentSearchParams.query,
+        provider: state.currentSearchParams.provider,
+        parameters: state.currentSearchParams
+      };
+        
+      // Prepare column metadata
+      const columnMetadata = columnsToSave.map(col => ({
+        name: col.name,
+        description: col.description,
+        type: col.type,
+        options: col.options,
+        is_extracted: true,
+        extraction_method: 'ai' as const
+      }));
+
+      let response;
+      if (mode === 'new' && name) {
+        // Create new group and save
+        response = await workbenchApi.createAndSaveGroup({
+          group_name: name,
+          group_description: description,
+          articles: articlesToSave,
+          columns: columnMetadata,
+          search_query: searchContextToSave.query,
+          search_provider: searchContextToSave.provider,
+          search_params: searchContextToSave.parameters
+        });
+      } else if (mode === 'existing' && groupId) {
+        // Replace existing group
+        response = await workbenchApi.saveWorkbenchState(groupId, {
+          group_name: name || state.sourceGroup?.name || 'Untitled',
+          group_description: description,
+          articles: articlesToSave,
+          columns: columnMetadata,
+          search_query: searchContextToSave.query,
+          search_provider: searchContextToSave.provider,
+          search_params: searchContextToSave.parameters
+        });
+      } else if (mode === 'add' && groupId) {
+        // Add to existing group (merge mode)
+        response = await workbenchApi.addArticlesToGroup(groupId, {
+          articles: articlesToSave
+        });
+      } else {
+        throw new Error('Invalid save parameters');
+      }
+
+      // Load the saved group to update workbench state
+      if (response.group_id) {
+        await loadWorkbenchGroup(response.group_id);
+        markClean(); // Mark as clean since it was just saved
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Save group failed:', error);
+      throw error;
+    }
+  }, [state.articles, state.columns, state.searchContext, state.currentSearchParams, state.sourceGroup, loadWorkbenchGroup, markClean]);
+
+  const extractSingleColumn = useCallback(async (
+    name: string,
+    description: string,
+    type: 'boolean' | 'text' | 'score',
+    options?: { min?: number; max?: number; step?: number }
+  ) => {
+    if (state.articles.length === 0) {
+      throw new Error('No articles available for extraction');
+    }
+
+    // Get all articles for extraction (not just current page)
+    let allArticles = state.articles;
+    if (state.source === 'group' && state.sourceGroup) {
+      const groupDetailResponse = await workbenchApi.getGroupDetail(state.sourceGroup.id);
+      allArticles = groupDetailResponse.group.articles.map(item => item.article);
+    }
+
+    setExtracting(true);
+
+    try {
+      const response = await workbenchApi.extractColumn({
+        articles: workbenchApi.convertArticlesForExtraction(allArticles),
+        column_name: name,
+        column_description: description,
+        column_type: type,
+        column_options: options,
+      });
+
+      const newColumn: WorkbenchColumn = {
+        id: `col_${Date.now()}`,
+        name,
+        description,
+        type,
+        data: response.results,
+        options,
+      };
+
+      // Add column to workbench
+      addColumn(newColumn);
+      
+      // Update features in workbench
+      for (const article of allArticles) {
+        const extractedValue = response.results[article.id];
+        if (extractedValue) {
+          updateArticleFeatures(article.id, { [name]: extractedValue });
+        }
+      }
+    } catch (error) {
+      console.error('Column extraction failed:', error);
+      throw error;
+    } finally {
+      setExtracting(false);
+    }
+  }, [state.articles, state.source, state.sourceGroup, setExtracting, addColumn, updateArticleFeatures]);
+
+  const extractMultipleColumns = useCallback(async (
+    columnsConfig: Record<string, { description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }>
+  ) => {
+    if (state.articles.length === 0) {
+      throw new Error('No articles available for extraction');
+    }
+
+    // Get all articles for extraction (not just current page)
+    let allArticles = state.articles;
+    if (state.source === 'group' && state.sourceGroup) {
+      const groupDetailResponse = await workbenchApi.getGroupDetail(state.sourceGroup.id);
+      allArticles = groupDetailResponse.group.articles.map(item => item.article);
+    }
+
+    setExtracting(true);
+
+    try {
+      const response = await workbenchApi.extractMultipleColumns({
+        articles: workbenchApi.convertArticlesForExtraction(allArticles),
+        columns_config: columnsConfig,
+      });
+
+      // Convert multi-column response to individual columns
+      const newColumns: WorkbenchColumn[] = [];
+      const updatedExtractedFeatures: Record<string, Record<string, string>> = {};
+
+      for (const [columnName, config] of Object.entries(columnsConfig)) {
+        const columnData: Record<string, string> = {};
+        for (const [articleId, articleResults] of Object.entries(response.results)) {
+          const value = articleResults[columnName] || (config.type === 'boolean' ? 'no' : 'error');
+          columnData[articleId] = value;
+
+          // Track features for article updates
+          if (!updatedExtractedFeatures[articleId]) {
+            updatedExtractedFeatures[articleId] = {};
+          }
+          updatedExtractedFeatures[articleId][columnName] = value;
+        }
+
+        newColumns.push({
+          id: `col_${Date.now()}_${columnName}`,
+          name: columnName,
+          description: config.description,
+          type: config.type,
+          data: columnData,
+          options: config.options,
+        });
+      }
+
+      // Add columns to workbench
+      newColumns.forEach(column => {
+        addColumn(column);
+      });
+      
+      // Update features in workbench
+      for (const [articleId, features] of Object.entries(updatedExtractedFeatures)) {
+        updateArticleFeatures(articleId, features);
+      }
+    } catch (error) {
+      console.error('Multi-column extraction failed:', error);
+      throw error;
+    } finally {
+      setExtracting(false);
+    }
+  }, [state.articles, state.source, state.sourceGroup, setExtracting, addColumn, updateArticleFeatures]);
+
+  const exportWorkbenchData = useCallback(async () => {
+    try {
+      const filename = `workbench_export_${new Date().toISOString().split('T')[0]}.csv`;
+      workbenchApi.exportAsCSV(state.articles, state.columns, filename);
+    } catch (error) {
+      console.error('Export failed:', error);
+      throw error;
+    }
+  }, [state.articles, state.columns]);
+
   const contextValue: WorkbenchContextType = {
     ...state,
+    // High-level API orchestration
+    performSearch,
+    loadWorkbenchGroup,
+    saveWorkbenchGroup,
+    extractSingleColumn,
+    extractMultipleColumns,
+    exportWorkbenchData,
+    // Data loading (internal)
     loadSearchResults,
     loadGroup,
     addArticles,
@@ -300,6 +765,13 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     updateArticleNotes,
     updateArticleFeatures,
     updateArticleMetadata,
+    updateSearchParams,
+    updateSelectedProviders,
+    updateSearchMode,
+    setSearching,
+    setExtracting,
+    setSelectedArticle,
+    updatePagination,
     clearWorkbench,
     markClean,
     saveToLocalStorage,

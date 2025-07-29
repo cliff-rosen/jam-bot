@@ -287,23 +287,24 @@ async def extract_unified(
 ):
     """Unified endpoint to extract multiple columns from articles in a single LLM call."""
     try:
-        # Convert columns to extraction service format
-        columns_config = {}
+        # Convert columns to unified extraction format
+        columns = []
         for col in request.columns:
-            columns_config[col.name] = {
+            columns.append({
+                "name": col.name,
                 "description": col.description,
                 "type": col.type,
                 "options": col.options or {}
-            }
+            })
         
-        result = await extraction_service.extract_multiple_columns(
+        results = await extraction_service.extract_unified_columns(
             request.articles, 
-            columns_config
+            columns
         )
         
         return ExtractResponse(
-            results=result.get("results", {}),
-            metadata=result.get("metadata")
+            results=results,
+            metadata={"total_articles": len(request.articles), "total_columns": len(columns)}
         )
         
     except Exception as e:
@@ -431,16 +432,24 @@ async def extract_column_standalone(
             }
         }
         
-        result = await extraction_service.extract_multiple_columns(extraction_data, column_config)
+        # Convert to unified format
+        columns = [{
+            "name": request.column_name,
+            "description": request.column_description,
+            "type": request.column_type,
+            "options": request.column_options or {}
+        }]
+        
+        result = await extraction_service.extract_unified_columns(extraction_data, columns)
         
         # Extract just the single column results
         column_results = {}
-        for article_id, columns in result.get("results", {}).items():
+        for article_id, columns in result.items():
             column_results[article_id] = columns.get(request.column_name, "")
         
         return ExtractColumnResponse(
             results=column_results,
-            metadata=result.get("metadata")
+            metadata={"total_articles": len(extraction_data), "total_columns": 1}
         )
         
     except Exception as e:
@@ -492,14 +501,24 @@ async def extract_multiple_columns_standalone(
 ):
     """Extract multiple columns from articles (standalone operation)."""
     try:
-        result = await extraction_service.extract_multiple_columns(
+        # Convert old format to new unified format
+        columns = []
+        for col_name, config in request.columns_config.items():
+            columns.append({
+                "name": col_name,
+                "description": config["description"],
+                "type": config.get("type", "text"),
+                "options": config.get("options", {})
+            })
+        
+        result = await extraction_service.extract_unified_columns(
             request.articles, 
-            request.columns_config
+            columns
         )
         
         return ExtractMultipleColumnsResponse(
-            results=result.get("results", {}),
-            metadata=result.get("metadata")
+            results=result,
+            metadata={"total_articles": len(request.articles), "total_columns": len(columns)}
         )
         
     except Exception as e:

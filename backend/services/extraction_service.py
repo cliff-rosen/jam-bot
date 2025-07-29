@@ -314,271 +314,134 @@ class ExtractionService:
         
         return processed_results
     
-    async def extract_tabelizer_column(
-        self,
-        articles: List[Dict[str, Any]],
-        column_name: str,
-        column_description: str,
-        column_type: str = "boolean",
-        column_options: Optional[Dict[str, Any]] = None,
-        user_id: str = None
-    ) -> Dict[str, str]:
-        """
-        Extract custom column data for Tabelizer using the extraction service pattern
-        
-        Args:
-            articles: List of articles with id, title, abstract
-            column_name: Name of the column
-            column_description: Natural language description of what to extract
-            column_type: "boolean" or "text"
-            user_id: User ID for tracking
-            
-        Returns:
-            Dictionary mapping article ID to extracted value
-        """
-        # Define schema based on column type
+    def _get_default_value(self, column_type: str, column_options: Optional[Dict[str, Any]] = None) -> str:
+        """Get default value for a column type when extraction fails"""
         if column_type == "boolean":
-            result_schema = {
-                "type": "object",
-                "properties": {
-                    "answer": {
-                        "type": "string",
-                        "enum": ["yes", "no"],
-                        "description": "Answer to the question"
-                    }
-                },
-                "required": ["answer"]
-            }
-            extraction_instructions = f"""
-You are analyzing a research article to answer a specific question.
-
-Article Title: {{title}}
-Abstract: {{abstract}}
-
-Question: {column_description}
-
-Answer with only 'yes' or 'no' based on the article content.
-"""
-        elif column_type == "score":
-            # Get range from options or use defaults
-            min_val = column_options.get('min', 1) if column_options else 1
-            max_val = column_options.get('max', 10) if column_options else 10
-            step = column_options.get('step', 1) if column_options else 1
-            
-            result_schema = {
-                "type": "object",
-                "properties": {
-                    "answer": {
-                        "type": "number",
-                        "minimum": min_val,
-                        "maximum": max_val,
-                        "description": f"Numeric {column_type} from {min_val} to {max_val}"
-                    }
-                },
-                "required": ["answer"]
-            }
-            
-            extraction_instructions = f"""
-You are analyzing a research article to assign a numeric score.
-
-Article Title: {{title}}
-Abstract: {{abstract}}
-
-Task: {column_description}
-
-Provide a numeric score from {min_val} to {max_val} based on the article content.
-Only return the number, nothing else.
-"""
+            return "no"
+        elif column_type in ["score", "number"]:
+            options = column_options or {}
+            min_val = options.get('min', 1)
+            max_val = options.get('max', 10)
+            default_val = (min_val + max_val) / 2
+            return str(default_val)
         else:  # text
-            result_schema = {
-                "type": "object", 
-                "properties": {
-                    "answer": {
-                        "type": "string",
-                        "maxLength": 100,
-                        "description": "Brief extracted text answer"
-                    }
-                },
-                "required": ["answer"]
-            }
-            extraction_instructions = f"""
-You are analyzing a research article to extract specific information.
-
-Article Title: {{title}}
-Abstract: {{abstract}}
-
-Task: {column_description}
-
-Provide a brief answer in 100 characters or less.
-"""
-        
-        # Use the existing extraction service infrastructure
-        results = {}
-        for article in articles:
+            return "error"
+    
+    def _clean_extracted_value(self, value: Any, column_type: str, column_options: Optional[Dict[str, Any]] = None) -> str:
+        """Clean and validate extracted values based on column type"""
+        if column_type == "boolean":
+            clean_val = str(value).lower().strip()
+            return clean_val if clean_val in ["yes", "no"] else "no"
+        elif column_type in ["score", "number"]:
             try:
-                # Format the instructions with article data
-                formatted_instructions = extraction_instructions.format(
-                    title=article.get('title', ''),
-                    abstract=article.get('abstract', '')
-                )
-                
-                # Use the single item extraction method
-                extraction_result = await self.extract_single_item(
-                    item=article,
-                    result_schema=result_schema,
-                    extraction_instructions=formatted_instructions,
-                    schema_key=f"tabelizer_{column_type}"
-                )
-                
-                # Extract the answer
-                if extraction_result.extraction and 'answer' in extraction_result.extraction:
-                    answer = extraction_result.extraction['answer']
-                    
-                    # Clean up answer based on type
-                    if column_type == "boolean":
-                        answer = str(answer).lower().strip()
-                        if answer not in ["yes", "no"]:
-                            answer = "no"  # Default to no if unclear
-                    elif column_type == "score":
-                        # Ensure numeric answers are valid
-                        try:
-                            num_answer = float(answer)
-                            min_val = column_options.get('min', 1) if column_options else 1
-                            max_val = column_options.get('max', 10) if column_options else 10
-                            # Clamp to range
-                            num_answer = max(min_val, min(max_val, num_answer))
-                            answer = str(num_answer)
-                        except (ValueError, TypeError):
-                            # Default to middle of range if parsing fails
-                            default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
-                            answer = str(default_val)
-                    else:
-                        # Truncate text answers
-                        answer = str(answer)[:100]
-                    
-                    results[article['id']] = answer
-                else:
-                    # Handle extraction failure
-                    if column_type == "boolean":
-                        results[article['id']] = "no"
-                    elif column_type == "score":
-                        default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
-                        results[article['id']] = str(default_val)
-                    else:
-                        results[article['id']] = "error"
-                    
-            except Exception as e:
-                # On error, use default value
-                if column_type == "boolean":
-                    results[article['id']] = "no"
-                elif column_type == "score":
-                    default_val = (column_options.get('min', 1) + column_options.get('max', 10)) / 2 if column_options else 5
-                    results[article['id']] = str(default_val)
-                else:
-                    results[article['id']] = "error"
-                
-        return results
+                num_val = float(value)
+                options = column_options or {}
+                min_val = options.get('min', 1)
+                max_val = options.get('max', 10)
+                # Clamp to range
+                clamped_val = max(min_val, min(max_val, num_val))
+                return str(clamped_val)
+            except (ValueError, TypeError):
+                return self._get_default_value(column_type, column_options)
+        else:  # text
+            return str(value)[:100]
     
-    async def extract_multiple_columns(
-        self,
-        articles: List[Dict[str, Any]],
-        columns_config: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """
-        Extract multiple columns from articles to match expected interface.
+    def _build_column_schema_property(self, column_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Build schema property for a single column"""
+        col_type = column_config.get('type', 'text')
+        description = column_config['description']
         
-        Args:
-            articles: List of articles with id, title, abstract
-            columns_config: Dict of column_name -> {description, type, options}
-            
-        Returns:
-            Dictionary with results and metadata
-        """
-        results = await self.extract_tabelizer_multiple_columns(articles, columns_config)
-        return {
-            "results": results,
-            "metadata": {
-                "total_articles": len(articles),
-                "total_columns": len(columns_config)
+        if col_type == 'boolean':
+            return {
+                "type": "string",
+                "enum": ["yes", "no"],
+                "description": description
             }
-        }
-    
-    async def extract_tabelizer_multiple_columns(
+        elif col_type in ['score', 'number']:
+            options = column_config.get('options', {})
+            min_val = options.get('min', 1)
+            max_val = options.get('max', 10)
+            return {
+                "type": "number",
+                "minimum": min_val,
+                "maximum": max_val,
+                "description": description
+            }
+        else:  # text
+            return {
+                "type": "string",
+                "maxLength": 100,
+                "description": description
+            }
+
+    async def extract_unified_columns(
         self,
         articles: List[Dict[str, Any]],
-        columns_config: Dict[str, Dict[str, str]],
-        user_id: str = None
+        columns: List[Dict[str, Any]]
     ) -> Dict[str, Dict[str, str]]:
         """
-        Extract multiple custom columns for Tabelizer using a single extraction call
+        Main unified column extraction method that matches the new API pattern.
+        Extracts multiple columns from articles using a single LLM call per article.
         
         Args:
             articles: List of articles with id, title, abstract
-            columns_config: Dict of column_name -> {description, type}
-            user_id: User ID for tracking
+            columns: List of column definitions with name, description, type, options
             
         Returns:
             Dictionary mapping article ID to column_name to extracted value
         """
+        if not columns:
+            return {}
+        
         # Build the multi-column schema
         properties = {}
-        for col_name, config in columns_config.items():
-            col_type = config.get('type', 'text')
-            if col_type == 'boolean':
-                properties[col_name] = {
-                    "type": "string",
-                    "enum": ["yes", "no"],
-                    "description": config['description']
-                }
-            elif col_type == 'score' or col_type == 'number':
-                # Get range from options
-                options = config.get('options', {})
-                min_val = options.get('min', 1)
-                max_val = options.get('max', 10)
-                properties[col_name] = {
-                    "type": "number",
-                    "minimum": min_val,
-                    "maximum": max_val,
-                    "description": config['description']
-                }
-            else:
-                properties[col_name] = {
-                    "type": "string",
-                    "maxLength": 100,
-                    "description": config['description']
-                }
+        column_map = {}  # name -> config for easy lookup
+        
+        for column in columns:
+            col_name = column['name']
+            column_map[col_name] = column
+            properties[col_name] = self._build_column_schema_property(column)
         
         result_schema = {
             "type": "object",
             "properties": properties,
-            "required": list(columns_config.keys())
+            "required": list(column_map.keys())
         }
         
         # Build extraction instructions
-        instruction_parts = ["You are analyzing a research article to extract multiple pieces of information.", ""]
-        instruction_parts.append("Article Title: {title}")
-        instruction_parts.append("Abstract: {abstract}")
-        instruction_parts.append("")
-        instruction_parts.append("Extract the following information:")
+        instruction_parts = [
+            "You are analyzing a research article to extract multiple pieces of information.",
+            "",
+            "Article Title: {title}",
+            "Abstract: {abstract}",
+            "",
+            "Extract the following information:"
+        ]
         
-        for col_name, config in columns_config.items():
-            col_type = config.get('type', 'text')
+        for column in columns:
+            col_name = column['name']
+            col_type = column.get('type', 'text')
+            description = column['description']
+            
             if col_type == 'boolean':
                 type_instruction = "Answer with 'yes' or 'no'"
-            elif col_type == 'score' or col_type == 'number':
-                options = config.get('options', {})
+            elif col_type in ['score', 'number']:
+                options = column.get('options', {})
                 min_val = options.get('min', 1)
                 max_val = options.get('max', 10)
                 type_instruction = f"Provide a numeric score from {min_val} to {max_val}"
             else:
                 type_instruction = "Provide a brief answer (max 100 chars)"
-            instruction_parts.append(f"- {col_name}: {config['description']} ({type_instruction})")
+            
+            instruction_parts.append(f"- {col_name}: {description} ({type_instruction})")
         
         extraction_instructions = "\n".join(instruction_parts)
         
         # Extract for all articles
         results = {}
         for article in articles:
+            article_id = article['id']
+            
             try:
                 # Format the instructions with article data
                 formatted_instructions = extraction_instructions.format(
@@ -591,81 +454,41 @@ Provide a brief answer in 100 characters or less.
                     item=article,
                     result_schema=result_schema,
                     extraction_instructions=formatted_instructions,
-                    schema_key="tabelizer_multi_column"
+                    schema_key="unified_columns"
                 )
                 
                 # Process the results
                 article_results = {}
                 if extraction_result.extraction:
-                    for col_name, config in columns_config.items():
-                        col_type = config.get('type', 'text')
+                    for column in columns:
+                        col_name = column['name']
+                        col_type = column.get('type', 'text')
+                        col_options = column.get('options')
+                        
                         if col_name in extraction_result.extraction:
-                            value = extraction_result.extraction[col_name]
-                            
-                            # Clean up values based on type
-                            if col_type == 'boolean':
-                                value = str(value).lower().strip()
-                                if value not in ["yes", "no"]:
-                                    value = "no"  # Default to no if unclear
-                            elif col_type == 'score' or col_type == 'number':
-                                # Ensure numeric values are valid
-                                try:
-                                    num_value = float(value)
-                                    options = config.get('options', {})
-                                    min_val = options.get('min', 1)
-                                    max_val = options.get('max', 10)
-                                    # Clamp to range
-                                    num_value = max(min_val, min(max_val, num_value))
-                                    value = str(num_value)
-                                except (ValueError, TypeError):
-                                    # Default to middle of range if parsing fails
-                                    options = config.get('options', {})
-                                    default_val = (options.get('min', 1) + options.get('max', 10)) / 2
-                                    value = str(default_val)
-                            else:
-                                # Truncate text values
-                                value = str(value)[:100]
-                            
-                            article_results[col_name] = value
+                            raw_value = extraction_result.extraction[col_name]
+                            article_results[col_name] = self._clean_extracted_value(raw_value, col_type, col_options)
                         else:
-                            # Handle missing columns
-                            if col_type == 'boolean':
-                                article_results[col_name] = "no"
-                            elif col_type == 'score' or col_type == 'number':
-                                options = config.get('options', {})
-                                default_val = (options.get('min', 1) + options.get('max', 10)) / 2
-                                article_results[col_name] = str(default_val)
-                            else:
-                                article_results[col_name] = "error"
+                            article_results[col_name] = self._get_default_value(col_type, col_options)
                 else:
-                    # Handle extraction failure
-                    for col_name, config in columns_config.items():
-                        col_type = config.get('type', 'text')
-                        if col_type == 'boolean':
-                            article_results[col_name] = "no"
-                        elif col_type == 'score' or col_type == 'number':
-                            options = config.get('options', {})
-                            default_val = (options.get('min', 1) + options.get('max', 10)) / 2
-                            article_results[col_name] = str(default_val)
-                        else:
-                            article_results[col_name] = "error"
+                    # Handle extraction failure - use defaults for all columns
+                    for column in columns:
+                        col_name = column['name']
+                        col_type = column.get('type', 'text')
+                        col_options = column.get('options')
+                        article_results[col_name] = self._get_default_value(col_type, col_options)
                 
-                results[article['id']] = article_results
+                results[article_id] = article_results
                 
             except Exception as e:
                 # On error, use default values for all columns
                 article_results = {}
-                for col_name, config in columns_config.items():
-                    col_type = config.get('type', 'text')
-                    if col_type == 'boolean':
-                        article_results[col_name] = "no"
-                    elif col_type == 'score' or col_type == 'number':
-                        options = config.get('options', {})
-                        default_val = (options.get('min', 1) + options.get('max', 10)) / 2
-                        article_results[col_name] = str(default_val)
-                    else:
-                        article_results[col_name] = "error"
-                results[article['id']] = article_results
+                for column in columns:
+                    col_name = column['name']
+                    col_type = column.get('type', 'text')
+                    col_options = column.get('options')
+                    article_results[col_name] = self._get_default_value(col_type, col_options)
+                results[article_id] = article_results
                 
         return results
 

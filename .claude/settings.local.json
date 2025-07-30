@@ -13,7 +13,8 @@
       "Bash(rm:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npx typescript:*)"
+      "Bash(npx typescript:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

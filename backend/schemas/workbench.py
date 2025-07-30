@@ -11,56 +11,55 @@ from pydantic import BaseModel, Field
 from schemas.canonical_types import CanonicalResearchArticle
 
 
-# ================== COLUMN METADATA AND DATA STRUCTURES ==================
+# ================== FEATURE METADATA AND DATA STRUCTURES ==================
 
-class WorkbenchColumnMetadata(BaseModel):
-    """Column metadata stored in article groups - matches frontend WorkbenchColumnMetadata"""
-    name: str = Field(..., description="Column name")
-    description: str = Field(..., description="Column description for LLM extraction")
-    type: Literal['boolean', 'text', 'score', 'number'] = Field(..., description="Column data type")
-    options: Optional[Dict[str, Any]] = Field(None, description="Column options (e.g., min/max for score)")
-    is_extracted: bool = Field(..., description="Whether this column has been extracted")
-    extraction_method: Optional[Literal['ai', 'manual', 'computed']] = Field(None, description="How column was extracted")
+class FeatureDefinition(BaseModel):
+    """Feature metadata stored in article groups - defines what features to extract"""
+    id: str = Field(..., description="Stable UUID for feature identification")
+    name: str = Field(..., description="Feature display name") 
+    description: str = Field(..., description="Feature description for LLM extraction")
+    type: Literal['boolean', 'text', 'score'] = Field(..., description="Feature data type")
+    options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
+
+# Legacy alias for backward compatibility during transition
+WorkbenchColumnMetadata = FeatureDefinition
 
 
-# Note: WorkbenchColumn exists only in frontend (includes id and data)
-# Backend uses TabelizerColumnData for internal operations
-
-class TabelizerColumnData(BaseModel):
-    """Full column data including values for display - used internally by backend"""
-    id: str = Field(..., description="Unique column identifier")
-    name: str = Field(..., description="Column name")
-    description: str = Field(..., description="Column description")
-    type: Literal['boolean', 'text', 'score', 'number'] = Field(..., description="Column data type")
-    data: Dict[str, str] = Field(default_factory=dict, description="Mapping of article_id to value")
-    options: Optional[Dict[str, Any]] = Field(None, description="Column options")
+# Note: Feature data is stored directly in ArticleGroupDetail.feature_data
+# No separate column data structure needed
 
 
 # ================== ARTICLE GROUP STRUCTURES ==================
 
-class ArticleGroupItem(BaseModel):
-    """Individual article item in a group with metadata - matches frontend ArticleGroupItem"""
-    article: CanonicalResearchArticle = Field(..., description="The article data")
-    position: int = Field(..., description="Position in the group")
-    column_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted column data")
-    workbench_summary: Dict[str, Any] = Field(default_factory=dict, description="Workbench metadata summary")
-
-
 class ArticleGroupDetail(BaseModel):
-    """Detailed article group with articles and columns - matches frontend ArticleGroupDetail"""
+    """Individual article item within a group context - junction model"""
+    id: str = Field(..., description="Unique detail record ID")
+    article_id: str = Field(..., description="Article ID")
+    group_id: str = Field(..., description="Group ID")
+    article: CanonicalResearchArticle = Field(..., description="The article data")
+    feature_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted feature data keyed by feature.id")
+    position: Optional[int] = Field(None, description="Position in the group")
+    added_at: str = Field(..., description="When article was added to group")
+
+# Legacy alias for backward compatibility  
+ArticleGroupItem = ArticleGroupDetail
+
+
+class ArticleGroupWithDetails(BaseModel):
+    """Complete article group with embedded articles - full group context"""
     id: str = Field(..., description="Group ID")
     name: str = Field(..., description="Group name")
     description: Optional[str] = Field(None, description="Group description")
     article_count: int = Field(..., description="Number of articles in group")
-    columns: List[WorkbenchColumnMetadata] = Field(..., description="Column metadata")
+    feature_definitions: List[FeatureDefinition] = Field(..., description="Feature definitions")
     search_context: Optional[Dict[str, Any]] = Field(None, description="Search context")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
-    articles: List[ArticleGroupItem] = Field(..., description="Articles with metadata")
+    articles: List[ArticleGroupDetail] = Field(..., description="Articles with feature data")
 
 
 class ArticleGroup(BaseModel):
-    """Base article group info - matches frontend ArticleGroup"""
+    """Base article group info - lightweight group metadata"""
     id: str = Field(..., description="Group ID")
     user_id: int = Field(..., description="Owner user ID")
     name: str = Field(..., description="Group name")
@@ -68,7 +67,7 @@ class ArticleGroup(BaseModel):
     search_query: Optional[str] = Field(None, description="Search query used")
     search_provider: Optional[str] = Field(None, description="Search provider used")
     search_params: Optional[Dict[str, Any]] = Field(None, description="Search parameters")
-    columns: List[WorkbenchColumnMetadata] = Field(default_factory=list, description="Column metadata")
+    feature_definitions: List[FeatureDefinition] = Field(default_factory=list, description="Feature definitions")
     article_count: int = Field(..., description="Number of articles in group")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")

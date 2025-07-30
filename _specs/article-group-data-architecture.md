@@ -14,90 +14,90 @@ This document defines the complete data architecture for articles and groups, fr
 
 ## Database Models
 
-### extracted_features Record Semantics
+### feature_data Record Semantics
 
-The `extracted_features` field is a JSONB column that stores key-value pairs where:
-- **Key**: Column ID (string) - matches `ColumnDefinition.id` (NOT name, which can change)
-- **Value**: Extracted value (any type) - conforms to `ColumnDefinition.type`
+The `feature_data` field is a JSONB column that stores key-value pairs where:
+- **Key**: Feature ID (string) - matches `FeatureDefinition.id` (NOT name, which can change)
+- **Value**: Extracted value (any type) - conforms to `FeatureDefinition.type`
 
 #### Structure
 ```json
 {
-  "column_id_uuid_1": extracted_value,
-  "column_id_uuid_2": another_value
+  "feature_id_uuid_1": extracted_value,
+  "feature_id_uuid_2": another_value
 }
 ```
 
 #### Example: Research Paper Analysis Group
 ```json
 {
-  "col_f47ac10b-58cc-4372-a567-0e02b2c3d479": "yes",
-  "col_6ba7b810-9dad-11d1-80b4-00c04fd430c8": "systematic review", 
-  "col_6ba7b811-9dad-11d1-80b4-00c04fd430c8": "no",
-  "col_f47ac10c-58cc-4372-a567-0e02b2c3d479": "156",
-  "col_550e8400-e29b-41d4-a716-446655440000": "7.5"
+  "feat_f47ac10b-58cc-4372-a567-0e02b2c3d479": "yes",
+  "feat_6ba7b810-9dad-11d1-80b4-00c04fd430c8": "systematic review", 
+  "feat_6ba7b811-9dad-11d1-80b4-00c04fd430c8": "no",
+  "feat_f47ac10c-58cc-4372-a567-0e02b2c3d479": "156",
+  "feat_550e8400-e29b-41d4-a716-446655440000": "7.5"
 }
 ```
 
 #### Value Type Mapping
-| ColumnDefinition.type | Example Value | Validation Rules |
+| FeatureDefinition.type | Example Value | Validation Rules |
 |----------------------|---------------|------------------|
 | `'boolean'` | `"yes"` or `"no"` | Must be exactly "yes" or "no" (string) |
 | `'text'` | `"systematic review"` | String, max 100 chars, descriptive |
 | `'score'` | `"7.5"` | Numeric string within min/max range |
 
 #### Key Constraints
-1. **Keys must exist in group.column_definitions**: Every key in extracted_features must match a ColumnDefinition.id
-2. **Values must match type**: Boolean columns store "yes"/"no", scores store numeric strings
-3. **Complete coverage**: All columns defined in group should have values (use defaults for missing)
+1. **Keys must exist in group.feature_definitions**: Every key in feature_data must match a FeatureDefinition.id
+2. **Values must match type**: Boolean features store "yes"/"no", scores store numeric strings
+3. **Complete coverage**: All features defined in group should have values (use defaults for missing)
 4. **Immutable after extraction**: Values don't change unless re-extracted
 5. **Group-scoped**: Same article can have different features in different groups
-6. **ID-based mapping**: Never rely on column names for mapping, always use stable column IDs
+6. **ID-based mapping**: Never rely on feature names for mapping, always use stable feature IDs
 
 #### Lifecycle
 ```
-Group Creation → extracted_features: {} (empty)
+Group Creation → feature_data: {} (empty)
     ↓
-Feature Extraction → extracted_features: {"col1": "value1", ...}
+Feature Extraction → feature_data: {"feat_id1": "value1", ...}
     ↓  
-Re-extraction → extracted_features: {"col1": "new_value1", ...} (replaces)
+Re-extraction → feature_data: {"feat_id1": "new_value1", ...} (replaces)
 ```
 
 #### Real-World Example
 For a research paper titled "Machine Learning in Healthcare: A Systematic Review":
 
 **Group**: "Healthcare AI Papers"
-**Column Definitions**:
-- ID: `col_f47ac10b-58cc-4372-a567-0e02b2c3d479`, Name: `has_methodology_section` (boolean)
-- ID: `col_6ba7b810-9dad-11d1-80b4-00c04fd430c8`, Name: `primary_research_method` (text)
-- ID: `col_f47ac10c-58cc-4372-a567-0e02b2c3d479`, Name: `sample_size` (text)
-- ID: `col_550e8400-e29b-41d4-a716-446655440000`, Name: `clinical_validation` (boolean)
-- ID: `col_6ba7b811-9dad-11d1-80b4-00c04fd430c8`, Name: `novelty_score` (score, 1-10)
+**Feature Definitions**:
+- ID: `feat_f47ac10b-58cc-4372-a567-0e02b2c3d479`, Name: `has_methodology_section` (boolean)
+- ID: `feat_6ba7b810-9dad-11d1-80b4-00c04fd430c8`, Name: `primary_research_method` (text)
+- ID: `feat_f47ac10c-58cc-4372-a567-0e02b2c3d479`, Name: `sample_size` (text)
+- ID: `feat_550e8400-e29b-41d4-a716-446655440000`, Name: `clinical_validation` (boolean)
+- ID: `feat_6ba7b811-9dad-11d1-80b4-00c04fd430c8`, Name: `novelty_score` (score, 1-10)
 
-**Extracted Features**:
+**Feature Data**:
 ```json
 {
-  "col_f47ac10b-58cc-4372-a567-0e02b2c3d479": "yes",
-  "col_6ba7b810-9dad-11d1-80b4-00c04fd430c8": "systematic review and meta-analysis",
-  "col_f47ac10c-58cc-4372-a567-0e02b2c3d479": "47 studies analyzed",
-  "col_550e8400-e29b-41d4-a716-446655440000": "no", 
-  "col_6ba7b811-9dad-11d1-80b4-00c04fd430c8": "6.5"
+  "feat_f47ac10b-58cc-4372-a567-0e02b2c3d479": "yes",
+  "feat_6ba7b810-9dad-11d1-80b4-00c04fd430c8": "systematic review and meta-analysis",
+  "feat_f47ac10c-58cc-4372-a567-0e02b2c3d479": "47 studies analyzed",
+  "feat_550e8400-e29b-41d4-a716-446655440000": "no", 
+  "feat_6ba7b811-9dad-11d1-80b4-00c04fd430c8": "6.5"
 }
 ```
 
 **Same article in different group**:
 **Group**: "Meta-Analysis Papers"
-**Column Definitions**:
-- ID: `col_123e4567-e89b-12d3-a456-426614174000`, Name: `study_count` (text)
-- ID: `col_987fcdeb-51a2-43d7-8f9e-123456789abc`, Name: `quality_assessment` (boolean)
-- ID: `col_456789ab-cdef-1234-5678-90abcdef1234`, Name: `heterogeneity_reported` (boolean)
+**Feature Definitions**:
+- ID: `feat_123e4567-e89b-12d3-a456-426614174000`, Name: `study_count` (text)
+- ID: `feat_987fcdeb-51a2-43d7-8f9e-123456789abc`, Name: `quality_assessment` (boolean)
+- ID: `feat_456789ab-cdef-1234-5678-90abcdef1234`, Name: `heterogeneity_reported` (boolean)
 
-**Extracted Features**:
+**Feature Data**:
 ```json
 {
-  "col_123e4567-e89b-12d3-a456-426614174000": "47",
-  "col_987fcdeb-51a2-43d7-8f9e-123456789abc": "yes",
-  "col_456789ab-cdef-1234-5678-90abcdef1234": "yes"
+  "feat_123e4567-e89b-12d3-a456-426614174000": "47",
+  "feat_987fcdeb-51a2-43d7-8f9e-123456789abc": "yes",
+  "feat_456789ab-cdef-1234-5678-90abcdef1234": "yes"
 }
 ```
 
@@ -125,7 +125,7 @@ CREATE TABLE article_groups (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    column_definitions JSONB NOT NULL DEFAULT '[]', -- ColumnDefinition[]
+    feature_definitions JSONB NOT NULL DEFAULT '[]', -- FeatureDefinition[]
     user_id UUID NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -136,7 +136,7 @@ CREATE TABLE article_group_details (
     id UUID PRIMARY KEY,
     article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     group_id UUID NOT NULL REFERENCES article_groups(id) ON DELETE CASCADE,
-    extracted_features JSONB DEFAULT '{}', -- Group-specific features
+    feature_data JSONB DEFAULT '{}', -- Group-specific features
     position INTEGER, -- Order within group
     added_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(article_id, group_id)
@@ -148,8 +148,8 @@ CREATE TABLE article_group_details (
 | Data Type | Owner | Storage Location | Scope |
 |-----------|-------|------------------|-------|
 | Bibliographic data | Article | `articles` table | Global |
-| Column definitions | Group | `article_groups.column_definitions` | Group-specific |
-| Extracted features | Article-Group relationship | `article_group_details.extracted_features` | Contextual |
+| Feature definitions | Group | `article_groups.feature_definitions` | Group-specific |
+| Feature data | Article-Group relationship | `article_group_details.feature_data` | Contextual |
 | Article ordering | Group context | `article_group_details.position` | Group-specific |
 
 ## Backend Models (Python/Pydantic)
@@ -170,9 +170,9 @@ class CanonicalResearchArticle(BaseModel):
     updated_at: Optional[str] = None
     # NO extracted_features field
 
-class ColumnDefinition(BaseModel):
+class FeatureDefinition(BaseModel):
     """Definition of an extractable feature"""
-    id: str  # Stable UUID for mapping extracted_features
+    id: str  # Stable UUID for mapping feature_data
     name: str  # Display name (can change)
     description: str
     type: Literal['boolean', 'text', 'score']
@@ -184,7 +184,7 @@ class ArticleGroupDetail(BaseModel):
     article_id: str
     group_id: str
     article: CanonicalResearchArticle  # Embedded clean article
-    extracted_features: Dict[str, Any] = {}  # Group-specific features
+    feature_data: Dict[str, Any] = {}  # Group-specific features
     position: Optional[int] = None
     added_at: str
 
@@ -193,7 +193,7 @@ class ArticleGroup(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    column_definitions: List[ColumnDefinition] = []
+    feature_definitions: List[FeatureDefinition] = []
     articles: List[ArticleGroupDetail] = []  # Articles with group context
     user_id: str
     created_at: str
@@ -231,7 +231,7 @@ class CreateGroupRequest(BaseModel):
 # POST /api/workbench/extract
 class ExtractRequest(BaseModel):
     group_id: str
-    columns: List[ColumnDefinition]
+    features: List[FeatureDefinition]
     
 class ExtractResponse(BaseModel):
     updated_articles: List[ArticleGroupDetail]  # With new features
@@ -264,8 +264,8 @@ interface ArticleCollection {
   // Articles with contextual data
   articles: ArticleGroupDetail[];                // Always wrapped, may have empty features
   
-  // Column/feature definitions
-  column_definitions: ColumnDefinition[];        // What features this collection extracts
+  // Feature definitions  
+  feature_definitions: FeatureDefinition[];      // What features this collection extracts
   
   // Source metadata
   search_params?: SearchParams;                  // If source=SEARCH
@@ -304,10 +304,10 @@ const searchCollection: ArticleCollection = {
     article_id: article.id,
     group_id: '', // Not persisted yet
     article: article,
-    extracted_features: {}, // Empty initially
+    feature_data: {}, // Empty initially
     added_at: new Date().toISOString()
   })),
-  column_definitions: [], // No features yet
+  feature_definitions: [], // No features yet
   search_params: params,
   is_saved: false,
   is_modified: false,
@@ -326,8 +326,8 @@ const savedCollection: ArticleCollection = {
   id: groupResponse.group.id,
   source: CollectionSource.SAVED_GROUP,
   name: groupResponse.group.name,
-  articles: groupResponse.group.articles, // Has extracted_features
-  column_definitions: groupResponse.group.column_definitions,
+  articles: groupResponse.group.articles, // Has feature_data
+  feature_definitions: groupResponse.group.feature_definitions,
   saved_group_id: groupResponse.group.id,
   is_saved: true,
   is_modified: false,
@@ -403,7 +403,7 @@ async function performSearch(query: string, params: SearchParams) {
 ```typescript
 async function saveCollection(collection: ArticleCollection, name: string) {
   const articleIds = collection.articles.map(a => a.article_id);
-  const savedGroup = await createGroup(name, articleIds, collection.column_definitions);
+  const savedGroup = await createGroup(name, articleIds, collection.feature_definitions);
   
   const savedCollection: ArticleCollection = {
     ...collection,
@@ -421,15 +421,15 @@ async function saveCollection(collection: ArticleCollection, name: string) {
 ```
 
 **3. Collection → Extract Features**
-```typescript
+```typescript  
 async function extractFeaturesFromCollection(
   collection: ArticleCollection, 
-  columns: ColumnDefinition[]
+  features: FeatureDefinition[]
 ) {
-  // Update column definitions
+  // Update feature definitions
   const updatedCollection = {
     ...collection,
-    column_definitions: [...collection.column_definitions, ...columns],
+    feature_definitions: [...collection.feature_definitions, ...features],
     is_modified: true,
     updated_at: new Date().toISOString()
   };
@@ -437,7 +437,7 @@ async function extractFeaturesFromCollection(
   // Extract features (same for all collection types)
   const extractResponse = await extractFeatures(
     collection.saved_group_id || 'temp', 
-    columns
+    features
   );
   
   // Update articles with new features
@@ -445,9 +445,9 @@ async function extractFeaturesFromCollection(
     const updatedFeatures = extractResponse.find(r => r.article_id === articleDetail.article_id);
     return {
       ...articleDetail,
-      extracted_features: {
-        ...articleDetail.extracted_features,
-        ...updatedFeatures?.extracted_features
+      feature_data: {
+        ...articleDetail.feature_data,
+        ...updatedFeatures?.feature_data
       }
     };
   });
@@ -463,15 +463,15 @@ async function extractFeaturesFromCollection(
 // Works with ANY collection type
 interface ArticleTableProps {
   collection: ArticleCollection;
-  onExtractFeatures: (columns: ColumnDefinition[]) => void;
+  onExtractFeatures: (features: FeatureDefinition[]) => void;
   onSaveCollection: (name: string) => void;
   onModifyCollection: (filter: ArticleFilter) => void;
 }
 
 // Displays:
 // - Core article columns: title, abstract, authors, etc.
-// - Feature columns from: collection.column_definitions
-// - Feature values from: collection.articles[].extracted_features[column.id]
+// - Feature columns from: collection.feature_definitions
+// - Feature values from: collection.articles[].feature_data[feature.id]
 // - Collection metadata: source, is_saved, is_modified states
 ```
 
@@ -498,13 +498,13 @@ function renderTableColumns(collection: ArticleCollection) {
     { id: 'authors', header: 'Authors', accessorFn: (item: ArticleGroupDetail) => item.article.authors.join(', ') },
     { id: 'year', header: 'Year', accessorFn: (item: ArticleGroupDetail) => item.article.publication_year },
     
-    // Feature columns (dynamic based on collection.column_definitions)
-    ...collection.column_definitions.map(column => ({
-      id: column.id,
-      header: column.name,  // Display name
+    // Feature columns (dynamic based on collection.feature_definitions)
+    ...collection.feature_definitions.map(feature => ({
+      id: feature.id,
+      header: feature.name,  // Display name
       accessorFn: (item: ArticleGroupDetail) => 
-        item.extracted_features[column.id] || getDefaultValue(column.type),
-      cell: ({ getValue }) => formatCellValue(getValue(), column.type)
+        item.feature_data[feature.id] || getDefaultValue(feature.type),
+      cell: ({ getValue }) => formatCellValue(getValue(), feature.type)
     }))
   ];
   
@@ -565,8 +565,8 @@ function getCollectionActions(collection: ArticleCollection) {
 **Unified Collection Rules**:
 1. Every collection MUST have a unique `id` and `source`
 2. `articles` array always contains `ArticleGroupDetail[]` (even for search results)
-3. `extracted_features` may be empty `{}` but must exist
-4. Feature keys MUST match `collection.column_definitions[].id`
+3. `feature_data` may be empty `{}` but must exist
+4. Feature keys MUST match `collection.feature_definitions[].id`
 5. `is_saved` and `is_modified` flags control available actions
 
 **State Management Rules**:
@@ -577,7 +577,7 @@ function getCollectionActions(collection: ArticleCollection) {
 
 **UI Consistency Rules**:
 1. Same table component works for all collection types
-2. Feature columns appear when `column_definitions` exist
+2. Feature columns appear when `feature_definitions` exist
 3. Collection header shows context-appropriate information
 4. Actions menu adapts to collection source and state
 
@@ -600,8 +600,8 @@ interface CanonicalResearchArticle {
   // NO extracted_features
 }
 
-interface ColumnDefinition {
-  id: string;  // Stable UUID for mapping extracted_features
+interface FeatureDefinition {
+  id: string;  // Stable UUID for mapping feature_data
   name: string;  // Display name (can change)
   description: string;
   type: 'boolean' | 'text' | 'score';
@@ -613,7 +613,7 @@ interface ArticleGroupDetail {
   article_id: string;
   group_id: string;
   article: CanonicalResearchArticle;
-  extracted_features: Record<string, any>;
+  feature_data: Record<string, any>;
   position?: number;
   added_at: string;
 }
@@ -622,7 +622,7 @@ interface ArticleGroup {
   id: string;
   name: string;
   description?: string;
-  column_definitions: ColumnDefinition[];
+  feature_definitions: FeatureDefinition[];
   articles: ArticleGroupDetail[];
   user_id: string;
   created_at: string;
@@ -662,7 +662,7 @@ interface WorkbenchApi {
   // Group operations work with contextual data
   loadGroup(groupId: string): Promise<ArticleGroup>;
   createGroup(name: string, articleIds: string[]): Promise<ArticleGroup>;
-  extractFeatures(groupId: string, columns: ColumnDefinition[]): Promise<ArticleGroup>;
+  extractFeatures(groupId: string, features: FeatureDefinition[]): Promise<ArticleGroup>;
 }
 ```
 

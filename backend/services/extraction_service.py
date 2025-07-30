@@ -12,62 +12,8 @@ import uuid
 import json
 
 from agents.prompts.base_prompt_caller import BasePromptCaller
-from pydantic import BaseModel, Field, create_model
-from typing import Type, Union
-
-
-# Removed duplicate relevance scoring - now using unified calculate_relevance_score from research_features.py
-
-def json_schema_to_pydantic_model(schema: Dict[str, Any], model_name: str = "DynamicModel") -> Type[BaseModel]:
-    """
-    Convert a JSON schema to a Pydantic model class dynamically.
-    
-    Args:
-        schema: JSON schema dictionary
-        model_name: Name for the generated model class
-        
-    Returns:
-        Dynamically created Pydantic model class
-    """
-    if schema.get("type") != "object":
-        raise ValueError("Only object type schemas are supported")
-    
-    properties = schema.get("properties", {})
-    required = schema.get("required", [])
-    
-    # Build field definitions for create_model
-    field_definitions = {}
-    
-    for prop_name, prop_schema in properties.items():
-        prop_type = prop_schema.get("type", "string")
-        description = prop_schema.get("description", "")
-        
-        # Map JSON schema types to Python types
-        if prop_type == "string":
-            if "enum" in prop_schema:
-                # Create literal type for enums
-                from typing import Literal
-                enum_values = tuple(prop_schema["enum"])
-                python_type = Literal[enum_values]
-            else:
-                python_type = str
-        elif prop_type == "number":
-            python_type = float
-        elif prop_type == "integer":
-            python_type = int
-        elif prop_type == "boolean":
-            python_type = bool
-        else:
-            python_type = str  # Default fallback
-        
-        # Handle required vs optional fields
-        if prop_name in required:
-            field_definitions[prop_name] = (python_type, Field(description=description))
-        else:
-            field_definitions[prop_name] = (Optional[python_type], Field(None, description=description))
-    
-    # Create the dynamic model
-    return create_model(model_name, **field_definitions)
+from pydantic import BaseModel, Field
+from typing import Union
 
 
 class ExtractionResult(BaseModel):
@@ -90,8 +36,6 @@ class ExtractionPromptCaller(BasePromptCaller):
         Args:
             result_schema: The JSON schema for the expected result
         """
-        self.result_schema = result_schema
-        
         # Define the system message template
         system_message = """You are an extraction function that processes data according to specific instructions.
 
@@ -114,24 +58,11 @@ Given a source item and field instructions, extract the requested information ac
 {source_item}
 
 Please extract the required information and return it in the specified schema format."""
-
-        # Create a dynamic response model based on the actual schema
-        try:
-            # Generate the dynamic model from the schema
-            dynamic_model = json_schema_to_pydantic_model(
-                result_schema, 
-                model_name=f"ExtractionModel_{hash(json.dumps(result_schema, sort_keys=True))}"
-            )   
-        except Exception as e:
-            # Fallback to generic model if schema conversion fails
-            class DynamicExtractionResult(BaseModel):
-                class Config:
-                    extra = "allow"
-            dynamic_model = DynamicExtractionResult
         
-        # Initialize the base class with the dynamic model
+        # Initialize the base class with the JSON schema directly
+        # BasePromptCaller will handle the conversion to Pydantic model
         super().__init__(
-            response_model=dynamic_model,
+            response_model=result_schema,  # Pass JSON schema directly
             system_message=system_message,
             messages_placeholder=False  # We don't need conversation history for extraction
         )
@@ -159,15 +90,17 @@ Please extract the required information and return it in the specified schema fo
             source_item=source_item_str,
             extraction_instructions=extraction_instructions,
             messages=[],  # No conversation history needed
-            result_schema=json.dumps(self.result_schema, indent=2)
+            result_schema=json.dumps(self.get_schema(), indent=2)
         )
         
-        # The response is now the actual structured model, convert to dict
-        if hasattr(response, 'dict'):
+        # The response is the structured Pydantic model, convert to dict
+        if hasattr(response, 'model_dump'):
+            return response.model_dump()
+        elif hasattr(response, 'dict'):
             return response.dict()
         else:
-            # Fallback for generic model
-            return response.result if hasattr(response, 'result') else response
+            # Fallback - should not happen with proper Pydantic models
+            return dict(response) if hasattr(response, '__dict__') else response
 
 
 class ExtractionService:

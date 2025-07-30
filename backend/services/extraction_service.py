@@ -41,26 +41,21 @@ class ExtractionPromptCaller(BasePromptCaller):
         self.result_schema = result_schema
         
         # Define the system message template
-        system_message = """You are an extraction function that processes data according to specific instructions and returns results in a defined schema.
+        system_message = """You are an extraction function that processes data according to specific instructions.
 
 ## Your Task
-Given a source item and extraction instructions, you must:
-1. Analyze the source item according to the instructions
-2. Extract or compute the required information
-3. Return the result in the exact format specified by the schema
+Given a source item and field instructions, extract the requested information according to the schema.
 
-## Important Guidelines
-- Follow the extraction instructions precisely
-- Return results that exactly match the provided schema
-- If the schema specifies required fields, ensure all are present
-- If a field cannot be extracted, use null or an appropriate default value
+## Guidelines
+- Follow field-specific instructions precisely
+- Use exact output format specified in schema
+- Return null/default for missing information
 - Maintain data types as specified in the schema (string, number, boolean, array, object)
-- If you're uncertain about an extraction, note this in confidence_score or extraction_notes if available
 
 ## Schema
 {result_schema}
 
-## Extraction Instructions
+## Field Instructions
 {extraction_instructions}
 
 ## Source Item
@@ -102,10 +97,10 @@ Please extract the required information and return it in the specified schema fo
         
         # Call the base invoke method with our variables
         response = await self.invoke(
-            messages=[],  # No conversation history needed
-            result_schema=json.dumps(self.result_schema, indent=2),
+            source_item=source_item_str,
             extraction_instructions=extraction_instructions,
-            source_item=source_item_str
+            messages=[],  # No conversation history needed
+            result_schema=json.dumps(self.result_schema, indent=2)
         )
         
         return response.result
@@ -136,7 +131,7 @@ class ExtractionService:
             self._prompt_callers[schema_key] = ExtractionPromptCaller(result_schema)
         return self._prompt_callers[schema_key]
     
-    async def extract_single_item(
+    async def perform_extraction(
         self,
         item: Dict[str, Any],
         result_schema: Dict[str, Any],
@@ -212,7 +207,7 @@ class ExtractionService:
         
         for item in items:
             try:
-                result = await self.extract_single_item(
+                result = await self.perform_extraction(
                     item=item,
                     result_schema=result_schema,
                     extraction_instructions=extraction_instructions,
@@ -408,32 +403,26 @@ class ExtractionService:
             "required": list(column_map.keys())
         }
         
-        # Build extraction instructions
-        instruction_parts = [
-            "You are analyzing a research article to extract multiple pieces of information.",
-            "",
-            "Article Title: {title}",
-            "Abstract: {abstract}",
-            "",
-            "Extract the following information:"
-        ]
+        # Build clean field instructions (domain-specific knowledge goes here)
+        instruction_parts = []
         
         for column in columns:
             col_name = column['name']
             col_type = column.get('type', 'text')
-            description = column['description']
+            description = column['description']  # Already contains article-specific context
             
+            # Add output format hints based on type
             if col_type == 'boolean':
-                type_instruction = "Answer with 'yes' or 'no'"
+                format_hint = "(Answer: 'yes' or 'no')"
             elif col_type in ['score', 'number']:
                 options = column.get('options', {})
                 min_val = options.get('min', 1)
                 max_val = options.get('max', 10)
-                type_instruction = f"Provide a numeric score from {min_val} to {max_val}"
+                format_hint = f"(Numeric score {min_val}-{max_val})"
             else:
-                type_instruction = "Provide a brief answer (max 100 chars)"
+                format_hint = "(Brief text, max 100 chars)"
             
-            instruction_parts.append(f"- {col_name}: {description} ({type_instruction})")
+            instruction_parts.append(f"- {col_name}: {description} {format_hint}")
         
         extraction_instructions = "\n".join(instruction_parts)
         
@@ -443,17 +432,18 @@ class ExtractionService:
             article_id = article['id']
             
             try:
-                # Format the instructions with article data
-                formatted_instructions = extraction_instructions.format(
-                    title=article.get('title', ''),
-                    abstract=article.get('abstract', '')
-                )
+                # Clean source item structure
+                source_item = {
+                    "id": article['id'],
+                    "title": article.get('title', ''),
+                    "abstract": article.get('abstract', '')
+                }
                 
                 # Use the single item extraction method
-                extraction_result = await self.extract_single_item(
-                    item=article,
+                extraction_result = await self.perform_extraction(
+                    item=source_item,
                     result_schema=result_schema,
-                    extraction_instructions=formatted_instructions,
+                    extraction_instructions=extraction_instructions,
                     schema_key="unified_columns"
                 )
                 

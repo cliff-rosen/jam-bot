@@ -6,9 +6,11 @@ allowing external access to LLM-powered data extraction capabilities.
 """
 
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
+import logging
 
 from database import get_db
 from models import User
@@ -21,6 +23,8 @@ router = APIRouter(
     prefix="/extraction",
     tags=["extraction"]
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionRequest(BaseModel):
@@ -137,6 +141,7 @@ async def extract_multiple_items(
 
 @router.post("/extract-single", response_model=SingleExtractionResponse)
 async def extract_single_item(
+    raw_request: Request,
     request: SingleExtractionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
@@ -159,11 +164,22 @@ async def extract_single_item(
         HTTPException: If extraction fails or parameters are invalid
     """
     try:
+        # Log raw request body for debugging JSON issues
+        body = await raw_request.body()
+        logger.info(f"Raw request body: {body.decode()[:500]}...")
+        
+        # Log the parsed request for debugging
+        logger.info(f"Extraction request received for user {current_user.user_id}")
+        logger.info(f"Item keys: {list(request.item.keys())}")
+        logger.info(f"Schema type: {request.result_schema.get('type', 'unknown')}")
+        logger.info(f"Instructions length: {len(request.extraction_instructions)}")
+        logger.info(f"Schema key: {request.schema_key}")
+        
         # Get the extraction service
         extraction_service = get_extraction_service()
         
         # Perform the extraction
-        extraction_result = await extraction_service.extract_single_item(
+        extraction_result = await extraction_service.perform_extraction(
             item=request.item,
             result_schema=request.result_schema,
             extraction_instructions=request.extraction_instructions,
@@ -180,18 +196,23 @@ async def extract_single_item(
         
         if extraction_result.error:
             api_result["error"] = extraction_result.error
+            logger.warning(f"Extraction had error: {extraction_result.error}")
             
         if extraction_result.confidence_score is not None:
             api_result["confidence_score"] = extraction_result.confidence_score
+        
+        logger.info(f"Extraction completed successfully: {extraction_result.error is None}")
         
         return SingleExtractionResponse(
             result=api_result,
             success=extraction_result.error is None
         )
         
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as ve:
+        logger.error(f"Validation error in extraction: {str(ve)}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
     except Exception as e:
+        logger.error(f"Unexpected error in extraction: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 
@@ -341,7 +362,7 @@ async def test_extraction_service(
         }
         test_instructions = "Summarize the content and provide a confidence score between 0 and 1."
         
-        result = await extraction_service.extract_single_item(
+        result = await extraction_service.perform_extraction(
             item=test_item,
             result_schema=test_schema,
             extraction_instructions=test_instructions

@@ -315,8 +315,8 @@ class ArticleGroupService:
             "search_params": group.search_params,
             "columns": group.columns,
             "article_count": group.article_count,
-            "created_at": group.created_at,
-            "updated_at": group.updated_at
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+            "updated_at": group.updated_at.isoformat() if group.updated_at else None
         }
     
     def _group_to_detail(self, group: ArticleGroupModel) -> dict:
@@ -375,8 +375,8 @@ class ArticleGroupService:
             "search_params": group.search_params,
             "columns": reconstructed_columns,
             "article_count": group.article_count,
-            "created_at": group.created_at,
-            "updated_at": group.updated_at,
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+            "updated_at": group.updated_at.isoformat() if group.updated_at else None,
             "articles": article_items
         }
 

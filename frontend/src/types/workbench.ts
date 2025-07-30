@@ -5,7 +5,7 @@
  * These must align exactly with the backend schemas in workbench.py
  */
 
-import { CanonicalResearchArticle } from './unifiedSearch';
+import { CanonicalResearchArticle } from './canonical_types';
 
 // ================== COLUMN METADATA AND DATA STRUCTURES ==================
 

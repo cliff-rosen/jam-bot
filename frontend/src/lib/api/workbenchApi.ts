@@ -333,7 +333,6 @@ export const workbenchApi = new WorkbenchApi();
 
 // Legacy exports for backward compatibility
 export {
-  workbenchApi as tabelizerApi,
   workbenchApi as articleGroupApi,
   workbenchApi as articleWorkbenchApi
 };

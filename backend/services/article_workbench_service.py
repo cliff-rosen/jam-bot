@@ -133,7 +133,7 @@ class ArticleWorkbenchService:
             "updated_at": article_detail.updated_at.isoformat()
         }
     
-    def extract_feature(
+    async def extract_feature(
         self, 
         user_id: int, 
         group_id: str, 
@@ -161,22 +161,22 @@ class ArticleWorkbenchService:
         
         # Use extraction service to extract the feature
         try:
-            # Create column config for extraction service
-            column_config = {
-                feature_name: {
-                    "description": extraction_prompt,
-                    "type": feature_type
-                }
-            }
+            # Create column definition for unified extraction
+            columns = [{
+                "name": feature_name,
+                "description": extraction_prompt,
+                "type": feature_type,
+                "options": {}
+            }]
             
-            # Extract using the service
-            extraction_result = self.extraction_service.extract_multiple_columns(
+            # Extract using the unified service
+            extraction_result = await self.extraction_service.extract_unified_columns(
                 extraction_data, 
-                column_config
+                columns
             )
             
             # Get the extracted value
-            extracted_value = extraction_result.get("results", {}).get(article["id"], {}).get(feature_name, "")
+            extracted_value = extraction_result.get(article["id"], {}).get(feature_name, "")
             
             # Create feature object
             feature_data = {
@@ -247,7 +247,7 @@ class ArticleWorkbenchService:
             "deleted_feature": feature_name
         }
     
-    def batch_extract_features(
+    async def batch_extract_features(
         self, 
         user_id: int, 
         group_id: str,
@@ -297,16 +297,16 @@ class ArticleWorkbenchService:
         
         # Perform batch extraction
         try:
-            column_config = {
-                feature_name: {
-                    "description": extraction_prompt,
-                    "type": feature_type
-                }
-            }
+            columns = [{
+                "name": feature_name,
+                "description": extraction_prompt,
+                "type": feature_type,
+                "options": {}
+            }]
             
-            extraction_result = self.extraction_service.extract_multiple_columns(
+            extraction_result = await self.extraction_service.extract_unified_columns(
                 extraction_data, 
-                column_config
+                columns
             )
             
             # Update each article with extracted feature
@@ -315,7 +315,7 @@ class ArticleWorkbenchService:
             
             for article_id, detail in article_details_map.items():
                 try:
-                    extracted_value = extraction_result.get("results", {}).get(article_id, {}).get(feature_name, "")
+                    extracted_value = extraction_result.get(article_id, {}).get(feature_name, "")
                     
                     feature_data = {
                         "value": extracted_value,

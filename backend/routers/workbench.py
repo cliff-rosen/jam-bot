@@ -467,7 +467,7 @@ async def extract_article_feature(
     """Extract a single feature from an article using AI."""
     workbench_service = ArticleWorkbenchService(db, extraction_service)
     
-    result = workbench_service.extract_feature(
+    result = await workbench_service.extract_feature(
         current_user.user_id, 
         group_id, 
         article_id,
@@ -519,7 +519,7 @@ async def batch_extract_features(
     """Extract a feature across multiple articles in a group."""
     workbench_service = ArticleWorkbenchService(db, extraction_service)
     
-    result = workbench_service.batch_extract_features(
+    result = await workbench_service.batch_extract_features(
         current_user.user_id,
         group_id,
         request.article_ids,

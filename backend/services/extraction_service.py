@@ -380,7 +380,7 @@ class ExtractionService:
         columns: List[Dict[str, Any]]
     ) -> Dict[str, Dict[str, str]]:
         """
-        Main unified column extraction method that matches the new API pattern.
+        Wrapper for extract_multiple_columns that uses the unified extraction service.
         Extracts multiple columns from articles using a single LLM call per article.
         
         Args:

@@ -103,73 +103,68 @@ For a research paper titled "Machine Learning in Healthcare: A Systematic Review
 
 This demonstrates how the same article has completely different contextual features depending on which analytical group it belongs to.
 
-### Core Tables
+### Core Tables (Existing - Minimal Changes)
 
 ```sql
--- Canonical articles (bibliographic data only)
-CREATE TABLE articles (
-    id UUID PRIMARY KEY,
-    title TEXT NOT NULL,
-    abstract TEXT,
-    authors JSONB,
-    publication_year INTEGER,
-    doi TEXT,
-    arxiv_id TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-    -- NO extracted_features column
-);
-
--- Article groups (analytical collections)
-CREATE TABLE article_groups (
-    id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
+-- Article groups (analytical collections) - EXISTING TABLE
+CREATE TABLE article_group (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id),
+    name VARCHAR(255) NOT NULL,
     description TEXT,
-    feature_definitions JSONB NOT NULL DEFAULT '[]', -- FeatureDefinition[]
-    user_id UUID NOT NULL,
+    search_query TEXT,
+    search_provider VARCHAR(50),
+    search_params JSON,
+    columns JSON NOT NULL DEFAULT '[]', -- Stores FeatureDefinition[] 
+    article_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Junction table: articles within groups (with contextual features)
-CREATE TABLE article_group_details (
-    id UUID PRIMARY KEY,
-    article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-    group_id UUID NOT NULL REFERENCES article_groups(id) ON DELETE CASCADE,
-    feature_data JSONB DEFAULT '{}', -- Group-specific features
-    position INTEGER, -- Order within group
-    added_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(article_id, group_id)
+-- Articles within groups (embedded storage) - EXISTING TABLE  
+CREATE TABLE article_group_detail (
+    id VARCHAR(36) PRIMARY KEY,
+    article_group_id VARCHAR(36) NOT NULL REFERENCES article_group(id),
+    article_data JSON NOT NULL, -- Full CanonicalResearchArticle JSON
+    extracted_features JSON NOT NULL DEFAULT '{}', -- Feature data keyed by feature.id
+    notes TEXT DEFAULT '',
+    article_metadata JSON NOT NULL DEFAULT '{}',
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- NO separate articles table - articles embedded in article_group_detail
+-- This avoids complex ID matching across different sources (PubMed, Scholar, etc.)
 ```
 
 ### Data Ownership Rules
 
 | Data Type | Owner | Storage Location | Scope |
 |-----------|-------|------------------|-------|
-| Bibliographic data | Article | `articles` table | Global |
-| Feature definitions | Group | `article_groups.feature_definitions` | Group-specific |
-| Feature data | Article-Group relationship | `article_group_details.feature_data` | Contextual |
-| Article ordering | Group context | `article_group_details.position` | Group-specific |
+| Bibliographic data | Article-Group relationship | `article_group_detail.article_data` | Contextual |
+| Feature definitions | Group | `article_group.columns` | Group-specific |
+| Feature data | Article-Group relationship | `article_group_detail.extracted_features` | Contextual |
+| Article ordering | Group context | `article_group_detail.position` | Group-specific |
 
 ## Backend Models (Python/Pydantic)
 
-### Base Models
+### Existing Models (Minimal Changes Required)
 
 ```python
+# CanonicalResearchArticle already exists in schemas/canonical_types.py
 class CanonicalResearchArticle(BaseModel):
-    """Clean article with only bibliographic data"""
+    """Unified canonical schema for research articles - EXISTING"""
     id: str
     title: str
     abstract: Optional[str] = None
     authors: List[str] = []
     publication_year: Optional[int] = None
     doi: Optional[str] = None
-    arxiv_id: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    # NO extracted_features field
+    # ... other fields ...
+    extracted_features: Optional[Dict[str, Any]] = None  # Already exists!
 
+# NEW - Added to schemas/workbench.py
 class FeatureDefinition(BaseModel):
     """Definition of an extractable feature"""
     id: str  # Stable UUID for mapping feature_data
@@ -178,24 +173,26 @@ class FeatureDefinition(BaseModel):
     type: Literal['boolean', 'text', 'score']
     options: Optional[Dict[str, Any]] = {}
 
+# UPDATED - Modified in schemas/workbench.py  
 class ArticleGroupDetail(BaseModel):
     """Junction model: article within a group context"""
     id: str
     article_id: str
     group_id: str
-    article: CanonicalResearchArticle  # Embedded clean article
-    feature_data: Dict[str, Any] = {}  # Group-specific features
+    article: CanonicalResearchArticle  # Full embedded article
+    feature_data: Dict[str, Any] = {}  # Feature data keyed by feature.id
     position: Optional[int] = None
     added_at: str
 
+# UPDATED - Modified in schemas/workbench.py
 class ArticleGroup(BaseModel):
     """Complete group with articles and their contextual features"""
     id: str
     name: str
     description: Optional[str] = None
-    feature_definitions: List[FeatureDefinition] = []
-    articles: List[ArticleGroupDetail] = []  # Articles with group context
-    user_id: str
+    feature_definitions: List[FeatureDefinition] = []  # Was 'columns'
+    articles: List[ArticleGroupDetail] = []
+    user_id: int
     created_at: str
     updated_at: str
 ```

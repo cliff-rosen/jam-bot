@@ -12,7 +12,8 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(npx typescript:*)"
     ],
     "deny": []
   }

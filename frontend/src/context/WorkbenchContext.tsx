@@ -13,7 +13,9 @@ import {
   WorkbenchColumn,
   ArticleGroup,
 } from '@/types/workbench';
-import { CanonicalResearchArticle, SearchProvider, UnifiedSearchParams } from '@/types/unifiedSearch';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
+import { SearchProvider } from '@/types/unifiedSearch';
+import { UnifiedSearchParams } from '@/lib/api/unifiedSearchApi';
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { workbenchApi, ColumnDefinition } from '@/lib/api/workbenchApi';
 
@@ -35,7 +37,7 @@ interface WorkbenchState {
   currentSearchParams: UnifiedSearchParams;
   selectedProviders: SearchProvider[];
   searchMode: 'single' | 'multi';
-  
+
   // Pagination state
   pagination: {
     currentPage: number;
@@ -45,14 +47,14 @@ interface WorkbenchState {
     hasNextPage: boolean;
     hasPrevPage: boolean;
   };
-  
+
   // Loading states
   isSearching: boolean;
   isExtracting: boolean;
-  
+
   // UI state
   selectedArticle: CanonicalResearchArticle | null;
-  
+
   // Local modifications
   localArticleData: Record<string, {
     notes?: string;
@@ -70,7 +72,7 @@ interface WorkbenchActions {
   performNewSearch: () => Promise<void>;
   performSearchPagination: (page: number) => Promise<void>;
   loadWorkbenchGroup: (groupId: string, page?: number) => Promise<void>;
-  saveWorkbenchGroup: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<void>;
+  saveWorkbenchGroup: (mode: 'new' | 'existing' | 'add', groupId?: string, name?: string, description?: string) => Promise<any>;
   extractColumns: (columns: { name: string; description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }[]) => Promise<void>;
   exportWorkbenchData: () => Promise<void>;
 
@@ -98,7 +100,7 @@ interface WorkbenchActions {
   updateSearchMode: (mode: 'single' | 'multi') => void;
   setSearching: (isSearching: boolean) => void;
   setExtracting: (isExtracting: boolean) => void;
-  
+
   // UI state management
   setSelectedArticle: (article: CanonicalResearchArticle | null) => void;
 
@@ -135,7 +137,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       include_pdf_links: false,
       page: 1,
     },
-    selectedProviders: ['pubmed'],
+    selectedProviders: ['pubmed'] as SearchProvider[],
     searchMode: 'single',
     pagination: {
       currentPage: 1,
@@ -326,7 +328,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         include_pdf_links: false,
         page: 1,
       },
-      selectedProviders: ['pubmed'],
+      selectedProviders: ['pubmed'] as SearchProvider[],
       searchMode: 'single',
       pagination: {
         currentPage: 1,
@@ -484,11 +486,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
       // Update pagination state
       const totalResults = response.total_results || 0;
-      const totalPages = Math.ceil(totalResults / state.currentSearchParams.page_size);
+      const totalPages = Math.ceil(totalResults / (state.currentSearchParams.page_size || 20));
 
       updatePagination({
         currentPage: 1,
-        pageSize: state.currentSearchParams.page_size,
+        pageSize: state.currentSearchParams.page_size || 20,
         totalResults,
         totalPages,
         hasNextPage: totalPages > 1,
@@ -496,7 +498,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Load fresh search results
-      if (response.articles.length > 0) {
+      if (response.articles?.length > 0) {
         const searchContext = {
           query: searchParams.query,
           provider: searchParams.provider,
@@ -519,7 +521,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       const searchParams = {
         ...state.currentSearchParams,
         page,
-        offset: (page - 1) * state.currentSearchParams.page_size
+        offset: (page - 1) * (state.currentSearchParams.page_size || 20)
       };
 
       const response = await unifiedSearchApi.search(searchParams);
@@ -532,7 +534,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Replace articles with new page results
-      if (response.articles.length > 0) {
+      if (response.articles?.length > 0) {
         setState(prev => ({
           ...prev,
           articles: response.articles
@@ -549,12 +551,11 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const loadWorkbenchGroup = useCallback(async (groupId: string, page = 1) => {
     try {
       // Load group data using the unified workbench API
-      const groupDetailResponse = await workbenchApi.getGroupDetail(groupId);
-      const group = groupDetailResponse.group;
-      
+      const group = await workbenchApi.getGroupDetail(groupId);
+
       const groupData: ArticleGroup = {
         id: group.id,
-        user_id: group.user_id || 0,
+        user_id: 0,
         name: group.name,
         description: group.description,
         search_query: group.search_context?.query,
@@ -565,17 +566,17 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         updated_at: group.updated_at,
         article_count: group.article_count
       };
-      
-      const articles = group.articles.map(item => item.article);
-      const columns = group.columns.map(col => ({
+
+      const articles = group.articles?.map(item => item.article) || [];
+      const columns = group.columns?.map(col => ({
         id: `col_${col.name}`,
         name: col.name,
         description: col.description,
         type: col.type,
         data: {},
         options: col.options
-      }));
-      
+      })) || [];
+
       // Load into workbench
       loadGroup(groupData, articles, columns);
 
@@ -621,7 +622,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         provider: state.currentSearchParams.provider,
         parameters: state.currentSearchParams
       };
-        
+
       // Prepare column metadata
       const columnMetadata = columnsToSave.map(col => ({
         name: col.name,
@@ -665,7 +666,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Load the saved group to update workbench state
-      if (response.group_id) {
+      if (response?.group_id) {
         await loadWorkbenchGroup(response.group_id);
         markClean(); // Mark as clean since it was just saved
       }
@@ -688,8 +689,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     // Get all articles for extraction (not just current page)
     let allArticles = state.articles;
     if (state.source === 'group' && state.sourceGroup) {
-      const groupDetailResponse = await workbenchApi.getGroupDetail(state.sourceGroup.id);
-      allArticles = groupDetailResponse.group.articles.map(item => item.article);
+      const groupDetail = await workbenchApi.getGroupDetail(state.sourceGroup.id);
+      allArticles = groupDetail.articles?.map(item => item.article) || [];
     }
 
     setExtracting(true);
@@ -706,7 +707,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
       for (const column of columns) {
         const columnData: Record<string, string> = {};
-        for (const [articleId, articleResults] of Object.entries(response.results)) {
+        for (const [articleId, articleResults] of Object.entries(response.results || {})) {
           const value = articleResults[column.name] || (column.type === 'boolean' ? 'no' : 'error');
           columnData[articleId] = value;
 
@@ -731,7 +732,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       newColumns.forEach(column => {
         addColumn(column);
       });
-      
+
       // Update features in workbench
       for (const [articleId, features] of Object.entries(updatedExtractedFeatures)) {
         updateArticleFeatures(articleId, features);

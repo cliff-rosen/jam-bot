@@ -438,7 +438,13 @@ class ChatMessage(Base):
 
 
 class ArticleGroup(Base):
-    """Stores saved Tabelizer search results and custom columns"""
+    """
+    Article groups - collections of research articles with shared analysis context.
+    
+    Groups define feature extraction schemas and contain articles with contextual 
+    feature data. Each group acts as an analytical workspace where articles can
+    have different extracted features based on the research focus.
+    """
     __tablename__ = "article_group"
     
     # Primary key
@@ -451,13 +457,15 @@ class ArticleGroup(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     
-    # Search context
+    # Search context (if group was created from search results)
     search_query = Column(Text, nullable=True)
     search_provider = Column(String(50), nullable=True)
     search_params = Column(JSON, nullable=True)
     
-    # Column definitions (stored as JSON array)
-    columns = Column(JSON, nullable=False, default=list)
+    # Feature definitions - what features can be extracted for articles in this group
+    # Stores List[FeatureDefinition] as JSON array
+    # Each FeatureDefinition has: {id: str, name: str, description: str, type: str, options: dict}
+    feature_definitions = Column(JSON, nullable=False, default=list)
     
     # Statistics
     article_count = Column(Integer, nullable=False, default=0)
@@ -470,6 +478,17 @@ class ArticleGroup(Base):
     user = relationship("User", back_populates="article_groups")
     articles = relationship("ArticleGroupDetail", back_populates="group", cascade="all, delete-orphan")
     
+    # Helper methods for working with feature definitions
+    def get_feature_definition_by_id(self, feature_id: str):
+        """Get a specific feature definition by its ID."""
+        for feature_def in (self.feature_definitions or []):
+            if isinstance(feature_def, dict) and feature_def.get('id') == feature_id:
+                return feature_def
+        return None
+    
+    def has_feature_definition(self, feature_id: str) -> bool:
+        """Check if this group has a specific feature definition."""
+        return self.get_feature_definition_by_id(feature_id) is not None
     
     # Indexes
     __table_args__ = (
@@ -480,7 +499,13 @@ class ArticleGroup(Base):
 
 
 class ArticleGroupDetail(Base):
-    """Stores individual articles within an article group"""
+    """
+    Individual articles within an article group context - junction model.
+    
+    Represents the many-to-many relationship between articles and groups, storing
+    contextual data that is specific to this article-group pairing. The same article
+    can exist in multiple groups with different extracted features and metadata.
+    """
     __tablename__ = "article_group_detail"
     
     # Primary key
@@ -489,15 +514,26 @@ class ArticleGroupDetail(Base):
     # Foreign key
     article_group_id = Column(String(36), ForeignKey("article_group.id", ondelete="CASCADE"), nullable=False)
     
-    # Article data (full CanonicalResearchArticle JSON including extracted_features)
+    # Article data - full CanonicalResearchArticle JSON embedded storage
+    # Contains only canonical bibliographic data (title, authors, abstract, etc.)
+    # Does NOT contain extracted_features - those are stored separately below
     article_data = Column(JSON, nullable=False)
     
-    # Workbench data - all scoped to this article in this group
-    notes = Column(Text, nullable=True, default='')  # User's research notes
-    extracted_features = Column(JSON, nullable=False, default=dict)  # {feature_name: feature_value}
-    article_metadata = Column(JSON, nullable=False, default=dict)  # {tags: [], rating: 5, status: "read", priority: "high"}
+    # Contextual data - all scoped to this article in this specific group
+    notes = Column(Text, nullable=True, default='')  # User's research notes for this article in this group
     
-    # Display order
+    # Feature data - extracted features specific to this article-group relationship
+    # Stores feature_data as {feature_id: extracted_value} where:
+    # - Keys are FeatureDefinition.id (stable UUIDs like "feat_f47ac10b-58cc-4372-a567-0e02b2c3d479")
+    # - Values are extracted feature values (strings: "yes"/"no" for boolean, text for text, numeric strings for scores)
+    # - Keys must match feature definitions in the parent ArticleGroup.feature_definitions
+    feature_data = Column(JSON, nullable=False, default=dict)
+    
+    # Article metadata - user annotations specific to this article in this group
+    # Example: {tags: ["important", "methodology"], rating: 5, status: "read", priority: "high"}
+    article_metadata = Column(JSON, nullable=False, default=dict)
+    
+    # Display order within the group
     position = Column(Integer, nullable=False, default=0)
     
     # Timestamps
@@ -506,6 +542,34 @@ class ArticleGroupDetail(Base):
     
     # Relationships
     group = relationship("ArticleGroup", back_populates="articles")
+    
+    # Helper methods for working with feature data
+    def get_feature_value(self, feature_id: str, default=None):
+        """Get the value of a specific feature by its ID."""
+        return (self.feature_data or {}).get(feature_id, default)
+    
+    def set_feature_value(self, feature_id: str, value):
+        """Set the value of a specific feature by its ID."""
+        if self.feature_data is None:
+            self.feature_data = {}
+        self.feature_data[feature_id] = value
+    
+    def has_feature_value(self, feature_id: str) -> bool:
+        """Check if this article has a value for a specific feature."""
+        return feature_id in (self.feature_data or {})
+    
+    def remove_feature_value(self, feature_id: str):
+        """Remove a feature value by its ID."""
+        if self.feature_data and feature_id in self.feature_data:
+            del self.feature_data[feature_id]
+    
+    @property
+    def article(self):
+        """
+        Get the embedded article data as a CanonicalResearchArticle.
+        Note: This returns the raw JSON - you may want to validate it with the Pydantic model.
+        """
+        return self.article_data
     
     # Indexes
     __table_args__ = (

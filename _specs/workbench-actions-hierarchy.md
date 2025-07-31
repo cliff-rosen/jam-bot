@@ -123,14 +123,160 @@ Top Header:
 ```
 
 ### Result Header Layout
+The result header must clearly distinguish between search results and saved groups while maintaining consistent structure.
+
+#### Search Results Header
 ```
-Collection Info: [Name] [X of Y articles] [• Z features]
+🔍 Search Results                                    [Collection Info]
+"query terms here" • X total results • Page Y/Z     [• A features]
 
 Actions Bar:
 Primary: [Add Features] [Extract Features]
+Secondary: [Save as Group] [Add to Group]
+Selection: [Select All] [Select None]
+```
+
+#### Saved Group Header (Unmodified)
+```
+📁 Saved Group                                       [Collection Info]  
+"Group Name" • X articles total                     [• A features]
+
+Actions Bar:
+Primary: [Add Features] [Extract Features]
+Secondary: [Save as Group] [Add to Group]
+Selection: [Select All] [Select None]
+```
+
+#### Saved Group Header (Modified)
+```
+📁 Saved Group (Modified)*                          [Collection Info]
+"Group Name" • X articles total                     [• A features]
+
+Actions Bar:
+Primary: [Add Features] [Extract Features]  
 Secondary: [Save Changes] [Save as Group] [Add to Group]
 Selection: [Select All] [Select None] [Remove Selected]
 ```
+
+## Collection Header Branding Rules
+
+### Search Results Branding
+**Visual Identity**:
+- **Icon**: 🔍 Search icon (magnifying glass)
+- **Title**: "Search Results" 
+- **Badge Color**: Blue background (`bg-blue-50 dark:bg-blue-900/20`)
+- **Query Display**: Show actual search query in quotes
+- **Count Format**: "X total results" (emphasizes total available)
+- **Pagination**: "Page Y/Z" when multiple pages
+
+**Example**:
+```
+🔍 Search Results
+"melanocortin receptor signaling" • 1,247 total results • Page 1/63 • 5 features
+```
+
+### Saved Group Branding  
+**Visual Identity**:
+- **Icon**: 📁 Folder icon  
+- **Title**: "Saved Group" or "Saved Group (Modified)*"
+- **Badge Color**: 
+  - Green (`bg-green-50 dark:bg-green-900/20`) for unmodified
+  - Yellow (`bg-yellow-50 dark:bg-yellow-900/20`) for modified
+- **Name Display**: Show group name (user-defined)
+- **Count Format**: "X articles total" (emphasizes contained articles)
+- **No Pagination**: Groups show all articles at once
+
+**Examples**:
+```
+📁 Saved Group  
+"MC4R Studies Q3 2024" • 23 articles total • 8 features
+```
+
+```
+📁 Saved Group (Modified)*
+"MC4R Studies Q3 2024" • 25 articles total • 8 features  
+```
+
+### Information Hierarchy in Headers
+
+#### Primary Information (Left Side)
+1. **Collection Type Icon + Label** - Visual brand identity
+2. **Collection Name/Query** - What the user is looking at
+3. **Total Count** - How many items in the collection
+4. **Pagination Info** - (Search results only) Current position
+5. **Feature Count** - How many features are defined
+
+#### Secondary Information (Right Side) 
+- Feature count badge when features exist
+- Modification indicators (asterisk, "Modified" text)
+
+### Header Layout Examples
+
+#### Responsive Design
+**Desktop Layout**:
+```
+🔍 Search Results                                                    • 5 features
+"CRISPR gene editing cardiac function" • 892 total results • Page 2/45
+```
+
+**Mobile Layout**:
+```
+🔍 Search Results • 5 features
+"CRISPR gene editing cardiac function"  
+892 total results • Page 2/45
+```
+
+#### Different States
+**Search with Features**:
+```
+🔍 Search Results                                    • 3 features
+"retinal degeneration treatment" • 445 total results • Page 1/23
+```
+
+**Search without Features**:  
+```
+🔍 Search Results
+"retinal degeneration treatment" • 445 total results • Page 1/23
+```
+
+**New Group**:
+```
+📁 Saved Group
+"Retinal Studies Collection" • 15 articles total
+```
+
+**Modified Group with Features**:
+```
+📁 Saved Group (Modified)*                          • 7 features  
+"Retinal Studies Collection" • 17 articles total
+```
+
+### Styling Specifications
+
+#### Typography
+- **Collection Type**: `text-lg font-semibold` 
+- **Collection Name/Query**: `text-base font-medium` in quotes for search
+- **Count Information**: `text-sm text-muted-foreground`
+- **Feature Badge**: `text-xs` in colored badge
+
+#### Colors & Badges
+**Search Results**:
+- Header badge: `bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800`
+- Icon: `text-blue-600 dark:text-blue-400`
+
+**Saved Group (Clean)**:
+- Header badge: `bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800`  
+- Icon: `text-green-600 dark:text-green-400`
+
+**Saved Group (Modified)**:
+- Header badge: `bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800`
+- Icon: `text-yellow-600 dark:text-yellow-400`
+- Asterisk: `text-yellow-600 dark:text-yellow-400`
+
+#### Spacing
+- Consistent padding: `p-4` for header container
+- Gap between elements: `gap-3` for main items, `gap-2` for sub-items
+- Feature badge positioned with `ml-auto` or flexbox end alignment
 
 ## State Indicators
 

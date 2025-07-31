@@ -175,7 +175,7 @@ export class WorkbenchApi {
 
   async getGroupDetail(groupId: string): Promise<ArticleGroupDetail> {
     const response = await api.get(`/api/workbench/groups/${groupId}`);
-    return response.data;
+    return response.data.group; // Extract group from response wrapper
   }
 
   // Alias for the new context

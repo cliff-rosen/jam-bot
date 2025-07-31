@@ -178,12 +178,14 @@ async def create_group(
 @router.get("/groups/{group_id}", response_model=ArticleGroupDetailResponse)
 async def get_group_detail(
     group_id: str,
+    page: int = 1,
+    page_size: int = 20,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
-    """Get detailed information about a specific group."""
+    """Get detailed information about a specific group with pagination."""
     group_service = ArticleGroupService(db)
-    result = group_service.get_group_detail(current_user.user_id, group_id)
+    result = group_service.get_group_detail(current_user.user_id, group_id, page, page_size)
     
     if not result:
         raise HTTPException(

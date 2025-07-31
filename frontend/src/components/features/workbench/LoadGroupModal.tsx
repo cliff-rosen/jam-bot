@@ -17,7 +17,7 @@ import {
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import { ArticleGroup } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 
 interface LoadGroupModalProps {
   open: boolean;
@@ -199,7 +199,7 @@ export function LoadGroupModal({
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDistanceToNow(new Date(group.updated_at), { addSuffix: true })}
+                            {format(new Date(group.updated_at), 'MMM d, yyyy h:mm a')}
                           </span>
                         </div>
                       </div>

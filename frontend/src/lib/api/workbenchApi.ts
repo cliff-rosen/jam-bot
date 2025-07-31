@@ -174,14 +174,18 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  async getGroupDetail(groupId: string): Promise<ArticleGroupWithDetails> {
-    const response = await api.get(`/api/workbench/groups/${groupId}`);
+  async getGroupDetail(groupId: string, page: number = 1, pageSize: number = 20): Promise<ArticleGroupWithDetails> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString()
+    });
+    const response = await api.get(`/api/workbench/groups/${groupId}?${params}`);
     return response.data.group; // Extract group from response wrapper
   }
 
   // Alias for the new context
-  async getGroupDetails(groupId: string): Promise<ArticleGroupWithDetails> {
-    return this.getGroupDetail(groupId);
+  async getGroupDetails(groupId: string, page: number = 1, pageSize: number = 20): Promise<ArticleGroupWithDetails> {
+    return this.getGroupDetail(groupId, page, pageSize);
   }
 
   async updateGroup(groupId: string, request: UpdateArticleGroupRequest): Promise<ArticleGroup> {

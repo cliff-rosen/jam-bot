@@ -72,14 +72,20 @@ export function WorkbenchPage() {
     }
   };
 
-  const handleLoadGroup = async (groupId: string) => {
+  const handleLoadGroup = async (groupId: string, page: number = 1) => {
     try {
-      await workbench.loadGroup(groupId);
-      setShowLoadModal(false);
-      toast({
-        title: 'Group Loaded',
-        description: `Loaded "${workbench.currentCollection?.name}" with ${workbench.currentCollection?.articles.length || 0} articles`,
-      });
+      await workbench.loadGroup(groupId, page);
+      if (page === 1) { // Only close modal on initial load
+        setShowLoadModal(false);
+      }
+      const totalArticles = workbench.groupPagination?.totalResults || workbench.currentCollection?.article_count || 0;
+      const currentPageArticles = workbench.currentCollection?.articles.length || 0;
+      if (page === 1) {
+        toast({
+          title: 'Group Loaded',
+          description: `Loaded "${workbench.currentCollection?.name}" (${totalArticles} articles total)`,
+        });
+      }
     } catch (error) {
       console.error('Load group failed:', error);
       toast({
@@ -338,7 +344,7 @@ export function WorkbenchPage() {
             isExtracting={workbench.isExtracting}
           />
 
-          {/* Pagination Controls - only show for search results */}
+          {/* Pagination Controls */}
           {workbench.currentCollection.source === CollectionSource.SEARCH && workbench.searchPagination && (
             <PaginationControls
               currentPage={workbench.searchPagination.currentPage}
@@ -346,6 +352,16 @@ export function WorkbenchPage() {
               totalResults={workbench.searchPagination.totalResults}
               pageSize={workbench.searchPagination.pageSize}
               onPageChange={(page) => handleNewSearch(page)}
+              isLoading={workbench.collectionLoading}
+            />
+          )}
+          {workbench.currentCollection.source === CollectionSource.SAVED_GROUP && workbench.groupPagination && (
+            <PaginationControls
+              currentPage={workbench.groupPagination.currentPage}
+              totalPages={workbench.groupPagination.totalPages}
+              totalResults={workbench.groupPagination.totalResults}
+              pageSize={workbench.groupPagination.pageSize}
+              onPageChange={(page) => handleLoadGroup(workbench.currentCollection.saved_group_id || '', page)}
               isLoading={workbench.collectionLoading}
             />
           )}

@@ -39,6 +39,12 @@ export interface ArticleGroupWithDetails {
   created_at: string;                      // Creation timestamp
   updated_at: string;                      // Last update timestamp
   articles: ArticleGroupDetail[];          // Articles with feature data
+  pagination?: {                           // Pagination metadata (optional for backward compatibility)
+    current_page: number;
+    total_pages: number;
+    total_results: number;
+    page_size: number;
+  };
 }
 
 export interface ArticleGroup {

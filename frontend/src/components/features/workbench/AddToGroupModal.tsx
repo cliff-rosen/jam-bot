@@ -17,7 +17,7 @@ import {
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import { ArticleGroup, ArticleGroupWithDetails } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 
 interface AddToGroupModalProps {
   open: boolean;
@@ -58,13 +58,13 @@ export function AddToGroupModal({
       const groupsData: ArticleGroup[] = response.groups || [];
       setGroups(groupsData);
       setFilteredGroups(groupsData);
-      
+
       // Load article IDs for each group to check for duplicates
       const groupArticleMap: Record<string, Set<string>> = {};
       await Promise.all(
         groupsData.map(async (group: ArticleGroup) => {
           try {
-            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetail(group.id);
+            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetail(group.id, 1, 1000); // Get all articles for duplicate checking
             groupArticleMap[group.id] = new Set<string>(
               detail.articles.map(item => item.article.id)
             );
@@ -104,7 +104,7 @@ export function AddToGroupModal({
       if (currentGroupId && group.id === currentGroupId) {
         return false;
       }
-      
+
       // Apply search filter
       return group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -114,7 +114,7 @@ export function AddToGroupModal({
 
   const handleSelectGroup = async () => {
     if (!selectedGroupId) return;
-    
+
     const selectedGroup = groups.find(g => g.id === selectedGroupId);
     if (!selectedGroup) return;
 
@@ -123,7 +123,7 @@ export function AddToGroupModal({
     const duplicateIds = articlesToAdd
       .filter(article => targetArticleIds.has(article.id))
       .map(article => article.id);
-    
+
     setDuplicateInfo({
       total: articlesToAdd.length,
       duplicates: duplicateIds
@@ -143,18 +143,19 @@ export function AddToGroupModal({
 
   const handleNavigationChoice = async (navigateToGroup: boolean) => {
     setModalStep('adding');
-    
+
     try {
       // If navigating, trigger the navigation
       if (navigateToGroup) {
         await onAddToGroup(selectedGroupId, true);
       }
-      
+
       // Store user preference if they checked the box
       if (rememberChoice) {
         localStorage.setItem('addToGroupNavigationChoice', navigateToGroup ? 'navigate' : 'stay');
       }
-      
+
+      setModalStep('select-group');
       onOpenChange(false);
     } catch (error) {
       console.error('Navigation failed:', error);
@@ -190,16 +191,15 @@ export function AddToGroupModal({
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto">
             {articlesToAdd.slice(0, 5).map((article) => {
-              const isDuplicate = selectedGroupId && 
+              const isDuplicate = selectedGroupId &&
                 (groupArticles[selectedGroupId]?.has(article.id) || false);
               return (
-                <div 
-                  key={article.id} 
-                  className={`text-xs truncate flex items-center gap-2 ${
-                    isDuplicate 
-                      ? 'text-amber-700 dark:text-amber-300' 
+                <div
+                  key={article.id}
+                  className={`text-xs truncate flex items-center gap-2 ${isDuplicate
+                      ? 'text-amber-700 dark:text-amber-300'
                       : 'text-blue-700 dark:text-blue-300'
-                  }`}
+                    }`}
                 >
                   <span>•</span>
                   <span className="flex-1 truncate">{article.title}</span>
@@ -265,11 +265,10 @@ export function AddToGroupModal({
                 {filteredGroups.map((group) => (
                   <div
                     key={group.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedGroupId === group.id
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
+                      }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -295,7 +294,7 @@ export function AddToGroupModal({
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDistanceToNow(new Date(group.updated_at), { addSuffix: true })}
+                            {format(new Date(group.updated_at), 'MMM d, yyyy h:mm a')}
                           </span>
                         </div>
                       </div>
@@ -372,7 +371,7 @@ export function AddToGroupModal({
         </div>
 
         <div className="flex items-center justify-center space-x-2 pt-4">
-          <Checkbox 
+          <Checkbox
             id="remember-choice"
             checked={rememberChoice}
             onCheckedChange={(checked) => setRememberChoice(checked as boolean)}
@@ -402,8 +401,8 @@ export function AddToGroupModal({
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 dark:text-blue-400" />
           <div className="space-y-1">
             <p className="font-medium text-gray-900 dark:text-white">
-              Adding {duplicateInfo && duplicateInfo.duplicates.length > 0 
-                ? `${articlesToAdd.length - duplicateInfo.duplicates.length} new articles` 
+              Adding {duplicateInfo && duplicateInfo.duplicates.length > 0
+                ? `${articlesToAdd.length - duplicateInfo.duplicates.length} new articles`
                 : `${articlesToAdd.length} articles`} to
             </p>
             <p className="text-sm text-muted-foreground">"{targetGroupName}"</p>

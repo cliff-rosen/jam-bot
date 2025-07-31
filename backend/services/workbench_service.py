@@ -81,8 +81,8 @@ class ArticleGroupService:
         
         return self._group_to_summary(group)
     
-    def get_group_detail(self, user_id: int, group_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed information about a specific group."""
+    def get_group_detail(self, user_id: int, group_id: str, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific group with pagination."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
                 ArticleGroupModel.id == group_id,
@@ -94,13 +94,10 @@ class ArticleGroupService:
             return None
         
         try:
-            detail_data = self._group_to_detail(group)
-            print(f"Detail data keys: {detail_data.keys()}")
-            # detail_obj = WorkbenchGroupDetail(**detail_data)  # Not needed for dict return
+            detail_data = self._group_to_detail_paginated(group, page, page_size)
             return detail_data
         except Exception as e:
             print(f"Error in get_group_detail: {e}")
-            print(f"Detail data: {detail_data}")
             raise
     
     def update_group(self, user_id: int, group_id: str, request) -> Optional[Dict[str, Any]]:
@@ -346,6 +343,86 @@ class ArticleGroupService:
             "article_count": group.article_count,
             "created_at": group.created_at.isoformat() if group.created_at else None,
             "updated_at": group.updated_at.isoformat() if group.updated_at else None
+        }
+    
+    def _group_to_detail_paginated(self, group: ArticleGroupModel, page: int = 1, page_size: int = 20) -> dict:
+        """Convert ArticleGroupModel to detailed format with paginated articles."""
+        # Calculate offset
+        offset = (page - 1) * page_size
+        
+        # Get total count
+        total_count = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).count()
+        
+        # Get paginated articles
+        articles = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).order_by(ArticleGroupDetailModel.position).offset(offset).limit(page_size).all()
+        
+        # Create proper ArticleGroupDetail objects
+        article_items = []
+        for detail in articles:
+            try:
+                article_detail = ArticleGroupDetail(
+                    id=detail.id,
+                    article_id=detail.article_data.get('id', ''),
+                    group_id=detail.article_group_id,
+                    article=CanonicalResearchArticle(**detail.article_data),
+                    feature_data=detail.feature_data,
+                    position=detail.position,
+                    added_at=detail.created_at.isoformat()
+                )
+                # Convert to dict to avoid serialization issues
+                article_items.append(article_detail.dict())
+            except Exception as e:
+                print(f"Error creating ArticleGroupDetail: {e}")
+                print(f"Detail data: {detail.__dict__}")
+                raise
+        
+        # Reconstruct feature data for each feature definition
+        # For paginated results, we only include data for articles on current page
+        reconstructed_features = []
+        for feature_def in group.feature_definitions:
+            feature_values = {}
+            for article_item in article_items:
+                article_id = article_item['article']['id']
+                feature_id = feature_def.get("id", feature_def["name"])
+                if feature_id in article_item['feature_data']:
+                    feature_values[article_id] = str(article_item['feature_data'][feature_id])
+            
+            reconstructed_features.append({
+                "id": feature_def.get("id", feature_def["name"]),
+                "name": feature_def["name"],
+                "description": feature_def["description"],
+                "type": feature_def["type"],
+                "data": feature_values,
+                "options": feature_def.get("options", {})
+            })
+        
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size
+        
+        # Return data with pagination metadata
+        return {
+            "id": group.id,
+            "user_id": group.user_id,
+            "name": group.name,
+            "description": group.description,
+            "search_query": group.search_query,
+            "search_provider": group.search_provider,
+            "search_params": group.search_params,
+            "feature_definitions": reconstructed_features,
+            "article_count": group.article_count,
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+            "updated_at": group.updated_at.isoformat() if group.updated_at else None,
+            "articles": article_items,
+            "pagination": {
+                "current_page": page,
+                "total_pages": total_pages,
+                "total_results": total_count,
+                "page_size": page_size
+            }
         }
     
     def _group_to_detail(self, group: ArticleGroupModel) -> dict:

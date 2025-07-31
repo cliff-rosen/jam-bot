@@ -50,6 +50,13 @@ interface WorkbenchState {
     totalResults: number;
     pageSize: number;
   } | null;
+  
+  groupPagination: {
+    currentPage: number;
+    totalPages: number;
+    totalResults: number;
+    pageSize: number;
+  } | null;
 
   // UI STATE  
   selectedArticleIds: Set<string>;               // For operations on articles
@@ -141,6 +148,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   });
   
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
+  const [groupPagination, setGroupPagination] = useState<WorkbenchState['groupPagination']>(null);
   const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -234,15 +242,29 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchQuery, selectedProviders, searchParams]);
 
-  const loadGroup = useCallback(async (groupId: string) => {
+  const loadGroup = useCallback(async (groupId: string, page: number = 1) => {
     setCollectionLoading(true);
     setError(null);
 
     try {
-      const group = await workbenchApi.getGroupDetails(groupId);
+      const pageSize = searchParams.pageSize; // Use same page size as search
+      const group = await workbenchApi.getGroupDetails(groupId, page, pageSize);
       const collection = createSavedGroupCollection(group);
       setCurrentCollection(collection);
-      setSearchPagination(null); // Clear pagination for saved groups
+      setSearchPagination(null); // Clear search pagination
+      
+      // Set group pagination if available
+      if (group.pagination) {
+        setGroupPagination({
+          currentPage: group.pagination.current_page,
+          totalPages: group.pagination.total_pages,
+          totalResults: group.pagination.total_results,
+          pageSize: group.pagination.page_size
+        });
+      } else {
+        setGroupPagination(null);
+      }
+      
       setSelectedArticleIds(new Set());
       setSelectedArticle(null);
     } catch (err) {
@@ -251,7 +273,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, []);
+  }, [searchParams.pageSize]);
 
   const loadGroupList = useCallback(async () => {
     try {
@@ -718,6 +740,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // Reset collection state
     setCurrentCollection(null);
     setSearchPagination(null);
+    setGroupPagination(null);
     setSelectedArticleIds(new Set());
     setSelectedArticle(null);
     setIsExtracting(false);
@@ -750,6 +773,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     searchMode,
     searchParams,
     searchPagination,
+    groupPagination,
     selectedArticleIds,
     selectedArticle,
     isExtracting,

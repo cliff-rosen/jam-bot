@@ -15,6 +15,7 @@ import { AddFeatureModal } from './AddFeatureModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
+import { AddToGroupModal } from './AddToGroupModal';
 import { ExtractionAnimation } from './ExtractionAnimation';
 import { PaginationControls } from './PaginationControls';
 import { CollectionHeader } from './CollectionHeader';
@@ -25,6 +26,7 @@ export function WorkbenchPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
   // Selection state
@@ -187,8 +189,46 @@ export function WorkbenchPage() {
   };
 
   const handleAddSelectedToGroup = () => {
-    // TODO: Implement Add to Group modal in Phase 4
-    console.log('Add selected to Group clicked');
+    setShowAddToGroupModal(true);
+  };
+
+  const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean) => {
+    if (!workbench.currentCollection) return;
+
+    try {
+      // Get articles to add (selected or all visible)
+      const articlesToAdd = selectedArticleIds.length > 0 
+        ? workbench.currentCollection.articles.filter(item => selectedArticleIds.includes(item.article.id))
+        : workbench.currentCollection.articles;
+
+      const articleIds = articlesToAdd.map(item => item.article.id);
+
+      // Always add articles to the group first
+      await workbench.addToExistingGroup(groupId, articleIds);
+
+      // Clear selection after successful addition
+      setSelectedArticleIds([]);
+
+      if (navigateToGroup) {
+        // Navigate to the group and show navigation success message
+        await workbench.loadGroup(groupId);
+        
+        toast({
+          title: 'Switched to Group',
+          description: `Added ${articlesToAdd.length} articles and switched to the group`,
+        });
+      } else {
+        // Stay here and show add success message
+        toast({
+          title: 'Added to Group',
+          description: `Added ${articlesToAdd.length} articles to the group`,
+        });
+      }
+
+    } catch (error) {
+      console.error('Add to group failed:', error);
+      throw error; // Re-throw so modal can handle the error
+    }
   };
 
   return (
@@ -380,6 +420,24 @@ export function WorkbenchPage() {
         open={showLoadModal}
         onOpenChange={setShowLoadModal}
         onLoad={handleLoadGroup}
+      />
+
+      <AddToGroupModal
+        open={showAddToGroupModal}
+        onOpenChange={setShowAddToGroupModal}
+        onAddToGroup={handleAddToGroupAction}
+        articlesToAdd={
+          workbench.currentCollection 
+            ? (selectedArticleIds.length > 0 
+                ? workbench.currentCollection.articles
+                    .filter(item => selectedArticleIds.includes(item.article.id))
+                    .map(item => ({ id: item.article.id, title: item.article.title }))
+                : workbench.currentCollection.articles
+                    .map(item => ({ id: item.article.id, title: item.article.title }))
+              )
+            : []
+        }
+        sourceCollectionName={workbench.currentCollection?.name || ''}
       />
 
       {workbench.selectedArticle && (

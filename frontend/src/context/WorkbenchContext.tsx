@@ -81,7 +81,7 @@ interface WorkbenchActions {
   loadGroup: (groupId: string) => Promise<void>;
   loadGroupList: () => Promise<any[]>;
   saveCollection: (name: string, description?: string) => Promise<void>;
-  addToExistingGroup: (groupId: string) => Promise<void>;
+  addToExistingGroup: (groupId: string, articleIds?: string[]) => Promise<void>;
   saveCollectionChanges: () => Promise<void>;
   deleteCollection: () => Promise<void>;
 
@@ -304,17 +304,25 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [currentCollection]);
 
-  const addToExistingGroup = useCallback(async (groupId: string) => {
+  const addToExistingGroup = useCallback(async (groupId: string, articleIds?: string[]) => {
     if (!currentCollection) return;
 
     setCollectionLoading(true);
     setError(null);
 
     try {
-      const articleData = currentCollection.articles.map(a => a.article);
+      // Get articles to add - either specified IDs or all articles
+      let articlesToAdd;
+      if (articleIds && articleIds.length > 0) {
+        articlesToAdd = currentCollection.articles
+          .filter(item => articleIds.includes(item.article.id))
+          .map(item => item.article);
+      } else {
+        articlesToAdd = currentCollection.articles.map(a => a.article);
+      }
 
       await workbenchApi.addArticlesToGroup(groupId, {
-        articles: articleData,
+        articles: articlesToAdd,
         extract_features: false // Don't auto-extract when adding to existing group
       });
 

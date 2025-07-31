@@ -29,6 +29,20 @@ interface WorkbenchState {
   currentCollection: ArticleCollection | null;   // The active collection
   collectionLoading: boolean;
 
+  // SEARCH STATE
+  searchQuery: string;
+  selectedProviders: SearchProvider[];
+  searchMode: 'single' | 'multi';
+  searchParams: {
+    pageSize: number;
+    sortBy: 'relevance' | 'date';
+    yearLow?: number;
+    yearHigh?: number;
+    dateType: 'completion' | 'publication' | 'entry' | 'revised';
+    includeCitations: boolean;
+    includePdfLinks: boolean;
+  };
+
   // PAGINATION STATE
   searchPagination: {
     currentPage: number;
@@ -56,8 +70,14 @@ interface WorkbenchState {
 // ================== ACTIONS INTERFACE ==================
 
 interface WorkbenchActions {
+  // Search State Management
+  updateSearchQuery: (query: string) => void;
+  updateSelectedProviders: (providers: SearchProvider[]) => void;
+  updateSearchMode: (mode: 'single' | 'multi') => void;
+  updateSearchParams: (params: Partial<WorkbenchState['searchParams']>) => void;
+
   // Collection Management
-  performSearch: (query: string, params: SearchParams) => Promise<void>;
+  performSearch: (page?: number) => Promise<void>;
   loadGroup: (groupId: string) => Promise<void>;
   loadGroupList: () => Promise<any[]>;
   saveCollection: (name: string, description?: string) => Promise<void>;
@@ -105,6 +125,21 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   // State
   const [currentCollection, setCurrentCollection] = useState<ArticleCollection | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
+  const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
+  const [searchParams, setSearchParams] = useState<WorkbenchState['searchParams']>({
+    pageSize: 20,
+    sortBy: 'relevance',
+    yearLow: undefined,
+    yearHigh: undefined,
+    dateType: 'publication',
+    includeCitations: false,
+    includePdfLinks: false
+  });
+  
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
   const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
@@ -112,44 +147,80 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const [extractionProgress, setExtractionProgress] = useState<WorkbenchState['extractionProgress']>();
   const [error, setError] = useState<string | null>(null);
 
+  // ================== SEARCH STATE MANAGEMENT ==================
+
+  const updateSearchQuery = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  const updateSelectedProviders = useCallback((providers: SearchProvider[]) => {
+    setSelectedProviders(providers);
+  }, []);
+
+  const updateSearchMode = useCallback((mode: 'single' | 'multi') => {
+    setSearchMode(mode);
+  }, []);
+
+  const updateSearchParams = useCallback((params: Partial<WorkbenchState['searchParams']>) => {
+    setSearchParams(prev => ({ ...prev, ...params }));
+  }, []);
+
   // ================== COLLECTION MANAGEMENT ==================
 
-  const performSearch = useCallback(async (query: string, params: SearchParams) => {
+  const performSearch = useCallback(async (page: number = 1) => {
+    if (!searchQuery.trim()) {
+      setError('Please enter a search query');
+      return;
+    }
     setCollectionLoading(true);
     setError(null);
 
     try {
       const searchResult = await unifiedSearchApi.search({
-        query,
-        provider: params.provider ? params.provider as SearchProvider : 'pubmed',
-        page: params.page || 1,
-        page_size: params.page_size || 20,
-        sort_by: params.sort_by,
-        year_low: params.year_low,
-        year_high: params.year_high,
-        date_type: params.date_type,
-        include_citations: params.include_citations,
-        include_pdf_links: params.include_pdf_links
+        query: searchQuery,
+        provider: selectedProviders[0] || 'pubmed',
+        page: page,
+        page_size: searchParams.pageSize,
+        sort_by: searchParams.sortBy,
+        year_low: searchParams.yearLow,
+        year_high: searchParams.yearHigh,
+        date_type: searchParams.dateType,
+        include_citations: searchParams.includeCitations,
+        include_pdf_links: searchParams.includePdfLinks
       });
 
-      const collection = createSearchCollection(searchResult.articles, params);
+      const searchParamsForCollection: SearchParams = {
+        query: searchQuery,
+        filters: {},
+        page: page,
+        page_size: searchParams.pageSize,
+        provider: selectedProviders[0] || 'pubmed',
+        sort_by: searchParams.sortBy,
+        year_low: searchParams.yearLow,
+        year_high: searchParams.yearHigh,
+        date_type: searchParams.dateType,
+        include_citations: searchParams.includeCitations,
+        include_pdf_links: searchParams.includePdfLinks
+      };
+
+      const collection = createSearchCollection(searchResult.articles, searchParamsForCollection);
       setCurrentCollection(collection);
       
       // Update pagination state from metadata
       if (searchResult.metadata) {
         setSearchPagination({
-          currentPage: searchResult.metadata.current_page || params.page || 1,
+          currentPage: searchResult.metadata.current_page || page,
           totalPages: searchResult.metadata.total_pages || 1,
           totalResults: searchResult.metadata.total_results || searchResult.articles.length,
-          pageSize: searchResult.metadata.page_size || params.page_size || 20
+          pageSize: searchResult.metadata.page_size || searchParams.pageSize
         });
       } else {
         // Fallback for responses without metadata
         setSearchPagination({
-          currentPage: params.page || 1,
+          currentPage: page,
           totalPages: 1,
           totalResults: searchResult.articles.length,
-          pageSize: params.page_size || 20
+          pageSize: searchParams.pageSize
         });
       }
       
@@ -161,7 +232,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, []);
+  }, [searchQuery, selectedProviders, searchParams]);
 
   const loadGroup = useCallback(async (groupId: string) => {
     setCollectionLoading(true);
@@ -636,6 +707,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, []);
 
   const resetWorkbench = useCallback(() => {
+    // Reset collection state
     setCurrentCollection(null);
     setSearchPagination(null);
     setSelectedArticleIds(new Set());
@@ -643,6 +715,20 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setIsExtracting(false);
     setExtractionProgress(undefined);
     setError(null);
+    
+    // Reset search state
+    setSearchQuery('');
+    setSelectedProviders(['pubmed']);
+    setSearchMode('single');
+    setSearchParams({
+      pageSize: 20,
+      sortBy: 'relevance',
+      yearLow: undefined,
+      yearHigh: undefined,
+      dateType: 'publication',
+      includeCitations: false,
+      includePdfLinks: false
+    });
   }, []);
 
   // ================== CONTEXT VALUE ==================
@@ -651,6 +737,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // State
     currentCollection,
     collectionLoading,
+    searchQuery,
+    selectedProviders,
+    searchMode,
+    searchParams,
     searchPagination,
     selectedArticleIds,
     selectedArticle,
@@ -659,6 +749,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     error,
 
     // Actions
+    updateSearchQuery,
+    updateSelectedProviders,
+    updateSearchMode,
+    updateSearchParams,
     performSearch,
     loadGroup,
     loadGroupList,

@@ -35,24 +35,10 @@ export function WorkbenchPage() {
     setSelectedArticleIds([]);
   }, [workbench.currentCollection?.id]);
 
-  // Local search state for the search controls
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
-  const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
-  const [searchParams, setSearchParams] = useState({
-    pageSize: 20,
-    sortBy: 'relevance' as 'relevance' | 'date',
-    yearLow: undefined as number | undefined,
-    yearHigh: undefined as number | undefined,
-    dateType: 'publication' as 'completion' | 'publication' | 'entry' | 'revised',
-    includeCitations: false,
-    includePdfLinks: false
-  });
-
   const { toast } = useToast();
 
   const handleNewSearch = async (page: number = 1) => {
-    if (!searchQuery.trim()) {
+    if (!workbench.searchQuery.trim()) {
       toast({
         title: 'Search Required',
         description: 'Please enter a search query',
@@ -62,19 +48,7 @@ export function WorkbenchPage() {
     }
 
     try {
-      await workbench.performSearch(searchQuery, {
-        query: searchQuery,
-        filters: {},
-        page: page,
-        page_size: searchParams.pageSize,
-        provider: selectedProviders[0], // Use first selected provider
-        sort_by: searchParams.sortBy,
-        year_low: searchParams.yearLow,
-        year_high: searchParams.yearHigh,
-        date_type: searchParams.dateType,
-        include_citations: searchParams.includeCitations,
-        include_pdf_links: searchParams.includePdfLinks
-      });
+      await workbench.performSearch(page);
 
       if (page === 1) {
         // Use a small delay to ensure pagination is updated, or use current collection count
@@ -252,28 +226,28 @@ export function WorkbenchPage() {
       {/* Search Controls */}
       <div className="bg-card rounded-lg border p-6">
         <UnifiedSearchControls
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          selectedProviders={selectedProviders}
-          onProvidersChange={setSelectedProviders}
-          searchMode={searchMode}
-          onSearchModeChange={setSearchMode}
+          query={workbench.searchQuery}
+          onQueryChange={workbench.updateSearchQuery}
+          selectedProviders={workbench.selectedProviders}
+          onProvidersChange={workbench.updateSelectedProviders}
+          searchMode={workbench.searchMode}
+          onSearchModeChange={workbench.updateSearchMode}
           onSearch={() => handleNewSearch(1)}
           isSearching={workbench.collectionLoading}
-          pageSize={searchParams.pageSize}
-          onPageSizeChange={(pageSize) => setSearchParams(prev => ({ ...prev, pageSize }))}
-          sortBy={searchParams.sortBy}
-          onSortByChange={(sortBy) => setSearchParams(prev => ({ ...prev, sortBy }))}
-          yearLow={searchParams.yearLow}
-          onYearLowChange={(yearLow) => setSearchParams(prev => ({ ...prev, yearLow }))}
-          yearHigh={searchParams.yearHigh}
-          onYearHighChange={(yearHigh) => setSearchParams(prev => ({ ...prev, yearHigh }))}
-          dateType={searchParams.dateType}
-          onDateTypeChange={(dateType) => setSearchParams(prev => ({ ...prev, dateType }))}
-          includeCitations={searchParams.includeCitations}
-          onIncludeCitationsChange={(includeCitations) => setSearchParams(prev => ({ ...prev, includeCitations }))}
-          includePdfLinks={searchParams.includePdfLinks}
-          onIncludePdfLinksChange={(includePdfLinks) => setSearchParams(prev => ({ ...prev, includePdfLinks }))}
+          pageSize={workbench.searchParams.pageSize}
+          onPageSizeChange={(pageSize) => workbench.updateSearchParams({ pageSize })}
+          sortBy={workbench.searchParams.sortBy}
+          onSortByChange={(sortBy) => workbench.updateSearchParams({ sortBy })}
+          yearLow={workbench.searchParams.yearLow}
+          onYearLowChange={(yearLow) => workbench.updateSearchParams({ yearLow })}
+          yearHigh={workbench.searchParams.yearHigh}
+          onYearHighChange={(yearHigh) => workbench.updateSearchParams({ yearHigh })}
+          dateType={workbench.searchParams.dateType}
+          onDateTypeChange={(dateType) => workbench.updateSearchParams({ dateType })}
+          includeCitations={workbench.searchParams.includeCitations}
+          onIncludeCitationsChange={(includeCitations) => workbench.updateSearchParams({ includeCitations })}
+          includePdfLinks={workbench.searchParams.includePdfLinks}
+          onIncludePdfLinksChange={(includePdfLinks) => workbench.updateSearchParams({ includePdfLinks })}
         />
       </div>
 

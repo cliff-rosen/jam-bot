@@ -24,6 +24,7 @@ export function WorkbenchPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
   // Local search state for the search controls
   const [searchQuery, setSearchQuery] = useState('');

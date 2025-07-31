@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
-import { FeatureDefinition, ArticleGroupDetail } from '@/types/workbench';
 import { ArticleCollection } from '@/types/articleCollection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -500,7 +499,7 @@ export function WorkbenchTable({
                 {features.map(feature => {
                   const articleDetail = articleDetails.find(d => d.article.id === article.id);
                   const featureValue = articleDetail?.feature_data[feature.id];
-                  
+
                   return (
                     <td
                       key={feature.id}

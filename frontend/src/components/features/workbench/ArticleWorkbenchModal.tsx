@@ -14,7 +14,7 @@ import {
   FileText, Zap, FolderOpen, Settings, Star, Tag, Plus,
   Save, Edit3, Trash2, Clock, Brain, Award
 } from 'lucide-react';
-import { CanonicalResearchArticle } from '@/types/unifiedSearch';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatPanel } from './chat/ChatPanel';
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import { WorkbenchData, AnalysisPreset } from '@/types/workbench';
@@ -81,7 +81,7 @@ export function ArticleWorkbenchModal({
 
   const loadPresets = async () => {
     try {
-      const response = await workbenchApi.getAnalysisPresets();
+      const response = await workbenchApi.getColumnPresets();
       // Handle the API response structure
       if (response && response.presets && Array.isArray(response.presets)) {
         // Convert array of presets to Record<string, AnalysisPreset>
@@ -148,7 +148,7 @@ export function ArticleWorkbenchModal({
     setPresetsLoading(true);
     try {
       const preset = presets[selectedPreset];
-      const promises = Object.entries(preset.columns).map(([columnName, columnConfig]) => 
+      const promises = Object.entries(preset.features).map(([columnName, columnConfig]) =>
         workbenchApi.extractFeature(
           currentGroup.id,
           article.id,
@@ -163,7 +163,7 @@ export function ArticleWorkbenchModal({
 
       toast({
         title: 'Preset Applied',
-        description: `${Object.keys(preset.columns).length} columns have been extracted.`,
+        description: `${Object.keys(preset.features).length} features have been extracted.`,
       });
 
       setSelectedPreset('');
@@ -513,7 +513,7 @@ export function ArticleWorkbenchModal({
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Saved Notes</span>
                             <span className="text-xs text-yellow-600 dark:text-yellow-400">
-                              Last updated: {workbenchData.updated_at ? new Date(workbenchData.updated_at).toLocaleDateString() : 'Unknown'}
+                              Last updated: {workbenchData.last_modified ? new Date(workbenchData.last_modified).toLocaleDateString() : 'Unknown'}
                             </span>
                           </div>
                           <div className="text-sm text-yellow-900 dark:text-yellow-100 whitespace-pre-wrap">
@@ -689,8 +689,8 @@ export function ArticleWorkbenchModal({
                                   newColumnType === 'boolean'
                                     ? "e.g., Does this study report any adverse events or side effects?"
                                     : newColumnType === 'score'
-                                    ? "e.g., Rate the quality of this study's methodology from 1-10"
-                                    : "e.g., What is the main finding of this study?"
+                                      ? "e.g., Rate the quality of this study's methodology from 1-10"
+                                      : "e.g., What is the main finding of this study?"
                                 }
                                 rows={3}
                                 className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -699,8 +699,8 @@ export function ArticleWorkbenchModal({
                                 {newColumnType === 'boolean'
                                   ? "The AI will answer with 'yes' or 'no' for each article."
                                   : newColumnType === 'score'
-                                  ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
-                                  : "The AI will extract a brief text summary (max 100 characters)."}
+                                    ? `The AI will assign a numeric score within your specified range (${minValue}-${maxValue}).`
+                                    : "The AI will extract a brief text summary (max 100 characters)."}
                               </p>
                             </div>
 
@@ -744,9 +744,9 @@ export function ArticleWorkbenchModal({
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-6">
                                       {preset.description}
                                     </p>
-                                    {preset.columns && (
+                                    {preset.features && (
                                       <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 ml-6">
-                                        {Object.keys(preset.columns).length} columns: {Object.keys(preset.columns).join(', ')}
+                                        {Object.keys(preset.features).length} features: {Object.keys(preset.features).join(', ')}
                                       </div>
                                     )}
                                   </div>

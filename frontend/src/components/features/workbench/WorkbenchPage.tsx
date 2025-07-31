@@ -308,7 +308,7 @@ export function WorkbenchPage() {
       {/* Modals */}
       <AddFeatureModal
         open={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onOpenChange={setShowAddModal}
         onAdd={(features) => {
           workbench.addFeatureDefinitions(features);
           setShowAddModal(false);

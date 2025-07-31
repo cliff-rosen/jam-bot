@@ -12,11 +12,12 @@ import { Plus, X, Settings } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 
 interface AddFeatureModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAdd: (features: FeatureDefinition[]) => void;
-  onClose: () => void;
 }
 
-export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
+export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalProps) {
   const [features, setFeatures] = useState<FeatureDefinition[]>([{
     id: '',
     name: '',
@@ -80,7 +81,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
 
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[90vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -167,7 +168,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
                         </div>
 
                         {/* Score Range Configuration */}
-                        {column.type === 'score' && (
+                        {feature.type === 'score' && (
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Score Range</Label>
                             <div className="grid grid-cols-3 gap-2">
@@ -243,7 +244,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
                       <Button
                         type="button"
                         variant="ghost"
-                        onClick={addColumn}
+                        onClick={addFeature}
                         className="flex flex-col items-center gap-2 h-auto py-4"
                       >
                         <Plus className="w-8 h-8 text-gray-400" />
@@ -254,7 +255,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
                 </div>
 
                 <DialogFooter className="flex-shrink-0 mt-6">
-                  <Button type="button" variant="outline" onClick={onClose}>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
                   <Button
@@ -314,7 +315,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
                 </div>
 
                 <DialogFooter className="flex-shrink-0 mt-6">
-                  <Button type="button" variant="outline" onClick={onClose}>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
                   <Button

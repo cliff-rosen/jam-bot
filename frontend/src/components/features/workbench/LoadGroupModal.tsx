@@ -20,17 +20,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 interface LoadGroupModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onLoad: (groupId: string) => Promise<void>;
-  currentGroupId?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onLoad: (groupId: string) => void;
 }
 
 export function LoadGroupModal({
-  isOpen,
-  onClose,
-  onLoad,
-  currentGroupId
+  open,
+  onOpenChange,
+  onLoad
 }: LoadGroupModalProps) {
   const [groups, setGroups] = useState<ArticleGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>([]);
@@ -76,22 +74,13 @@ export function LoadGroupModal({
     }
   };
 
-  const handleLoad = async () => {
+  const handleLoad = () => {
     if (!selectedGroupId) {
-      toast({
-        title: 'Error',
-        description: 'Please select a group to load',
-        variant: 'destructive'
-      });
       return;
     }
 
-    try {
-      await onLoad(selectedGroupId);
-      onClose();
-    } catch (error) {
-      console.error('Load failed:', error);
-    }
+    onLoad(selectedGroupId);
+    onOpenChange(false);
   };
 
   const handleDelete = async (groupId: string, groupName: string) => {
@@ -133,7 +122,7 @@ export function LoadGroupModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[80vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         <DialogHeader>
           <DialogTitle className="text-gray-900 dark:text-gray-100">Load Article Group</DialogTitle>
@@ -176,7 +165,7 @@ export function LoadGroupModal({
                       selectedGroupId === group.id
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    } ${currentGroupId === group.id ? 'ring-2 ring-green-500' : ''}`}
+                    }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
                     <div className="flex items-start justify-between">
@@ -185,11 +174,6 @@ export function LoadGroupModal({
                           <h3 className="font-medium text-gray-900 dark:text-gray-100">
                             {group.name}
                           </h3>
-                          {currentGroupId === group.id && (
-                            <Badge variant="outline" className="text-green-600 border-green-600">
-                              Current
-                            </Badge>
-                          )}
                           {getProviderBadge(group.search_provider)}
                         </div>
                         
@@ -246,7 +230,7 @@ export function LoadGroupModal({
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button 

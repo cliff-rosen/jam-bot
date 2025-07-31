@@ -318,8 +318,6 @@ export function WorkbenchPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onAdd={async (features, extractImmediately) => {
-          setShowAddModal(false);
-          
           if (extractImmediately) {
             await workbench.addFeatureDefinitionsAndExtract(features);
           } else {

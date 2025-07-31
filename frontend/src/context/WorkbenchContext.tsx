@@ -323,13 +323,18 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, [currentCollection]);
 
   const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[]) => {
-    if (!currentCollection) return;
+    console.log('addFeatureDefinitionsAndExtract called with:', features);
+    if (!currentCollection) {
+      console.log('No current collection, aborting');
+      return;
+    }
 
     // Ensure unique IDs
     const newFeatures = features.map(f => ({
       ...f,
       id: f.id || generatePrefixedUUID('feat')
     }));
+    console.log('New features with IDs:', newFeatures);
 
     // Create updated collection with new features
     const updatedCollection = {

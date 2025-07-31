@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { workbenchApi, FeaturePreset } from '@/lib/api/workbenchApi';
-import { Plus, Settings, Trash2 } from 'lucide-react';
+import { Plus, Settings, Trash2, Loader2 } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
@@ -99,7 +99,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     ));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
     if (!selectedTemplateData) return;
 
@@ -115,7 +115,16 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     }
 
     if (featuresToAdd.length > 0) {
-      onAdd(featuresToAdd, extractImmediately);
+      setLoading(true);
+      try {
+        await onAdd(featuresToAdd, extractImmediately);
+        onOpenChange(false); // Only close after successful completion
+      } catch (error) {
+        console.error('Failed to add features:', error);
+        // Modal stays open so user can retry
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -323,7 +332,19 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
           </p>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Loading Overlay */}
+          {loading && (
+            <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-50 flex items-center justify-center">
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-4 rounded-lg shadow-lg border">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <span className="text-sm font-medium text-foreground">
+                  {extractImmediately ? 'Extracting features from articles...' : 'Adding features...'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Left Panel - Template List */}
           <div className="w-80 border-r bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Available Options</h3>
@@ -387,15 +408,24 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
             </div>
             
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={!canSubmit() || loading}
-                className="min-w-[120px]"
+                className="min-w-[140px]"
               >
-                {loading ? 'Processing...' : (extractImmediately ? 'Extract Features' : 'Add Features')}
+                {loading ? (
+                  extractImmediately ? 'Extracting...' : 'Adding...'
+                ) : (
+                  extractImmediately ? 'Extract Features' : 'Add Features'
+                )}
               </Button>
             </div>
           </div>

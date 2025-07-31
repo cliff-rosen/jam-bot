@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from models import User
 from database import get_db
 from schemas.workbench import (
-    ArticleGroup, ArticleGroupDetail, FeatureDefinition
+    ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails, FeatureDefinition
 )
 from schemas.canonical_types import CanonicalResearchArticle
 
@@ -72,7 +72,7 @@ class ArticleGroupListResponse(BaseModel):
 
 class ArticleGroupDetailResponse(BaseModel):
     """Response wrapper for article group details"""
-    group: ArticleGroupDetail = Field(..., description="Detailed group information")
+    group: ArticleGroupWithDetails = Field(..., description="Detailed group information")
 
 class ArticleGroupSaveResponse(BaseModel):
     """Response after saving to a group"""
@@ -191,7 +191,7 @@ async def get_group_detail(
             detail="Group not found or access denied"
         )
     
-    return result
+    return ArticleGroupDetailResponse(group=result)
 
 
 @router.put("/groups/{group_id}", response_model=ArticleGroup)

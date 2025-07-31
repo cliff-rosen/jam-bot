@@ -326,7 +326,7 @@ class ArticleGroupService:
         article_items = []
         for detail in articles:
             try:
-                article_items.append(ArticleGroupDetail(
+                article_detail = ArticleGroupDetail(
                     id=detail.id,
                     article_id=detail.article_data.get('id', ''),
                     group_id=detail.article_group_id,
@@ -334,7 +334,9 @@ class ArticleGroupService:
                     feature_data=detail.feature_data,
                     position=detail.position,
                     added_at=detail.created_at.isoformat()
-                ))
+                )
+                # Convert to dict to avoid serialization issues
+                article_items.append(article_detail.dict())
             except Exception as e:
                 print(f"Error creating ArticleGroupDetail: {e}")
                 print(f"Detail data: {detail.__dict__}")

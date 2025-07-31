@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 // ScrollArea component not available, using div with overflow
-import { 
-  Loader2, 
-  Search, 
-  FolderOpen, 
-  Trash2, 
+import {
+  Loader2,
+  Search,
+  FolderOpen,
+  Trash2,
   AlertCircle,
   FileText,
   Hash,
@@ -47,7 +47,7 @@ export function LoadGroupModal({
 
   // Filter groups based on search
   useEffect(() => {
-    const filtered = groups.filter(group => 
+    const filtered = groups.filter(group =>
       group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (group.search_query && group.search_query.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -115,7 +115,7 @@ export function LoadGroupModal({
 
   const getProviderBadge = (provider?: string) => {
     if (!provider) return null;
-    const config = provider === 'pubmed' 
+    const config = provider === 'pubmed'
       ? { label: 'PubMed', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
       : { label: 'Scholar', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
     return <Badge className={config.className}>{config.label}</Badge>;
@@ -161,11 +161,10 @@ export function LoadGroupModal({
                 {filteredGroups.map((group) => (
                   <div
                     key={group.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedGroupId === group.id
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
+                      }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
                     <div className="flex items-start justify-between">
@@ -176,7 +175,7 @@ export function LoadGroupModal({
                           </h3>
                           {getProviderBadge(group.search_provider)}
                         </div>
-                        
+
                         {group.description && (
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                             {group.description}
@@ -196,7 +195,7 @@ export function LoadGroupModal({
                           </span>
                           <span className="flex items-center gap-1">
                             <Hash className="w-3 h-3" />
-                            {group.columns.length} columns
+                            {group.feature_definitions?.length || 0} features
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
@@ -233,8 +232,8 @@ export function LoadGroupModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleLoad} 
+          <Button
+            onClick={handleLoad}
             disabled={!selectedGroupId || isLoading}
           >
             <FolderOpen className="w-4 h-4 mr-2" />

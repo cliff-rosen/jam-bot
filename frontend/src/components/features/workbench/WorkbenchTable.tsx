@@ -213,65 +213,6 @@ export function WorkbenchTable({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Table Header Actions */}
-      <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {collection.is_saved ? (
-              <Badge variant="outline" className="mr-2">{collection.name}</Badge>
-            ) : (
-              <span className="text-gray-500 dark:text-gray-400 italic mr-2">Unsaved Session</span>
-            )}
-            {articles.length} articles · {features.length} custom features
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {onLoadGroup && (
-            <Button
-              onClick={onLoadGroup}
-              variant="outline"
-              size="sm"
-            >
-              <FolderOpen className="w-4 h-4 mr-1" />
-              Load Group
-            </Button>
-          )}
-          {onSaveGroup && (
-            <Button
-              onClick={onSaveGroup}
-              variant="outline"
-              size="sm"
-              disabled={articles.length === 0}
-            >
-              <Save className="w-4 h-4 mr-1" />
-              Save Group
-            </Button>
-          )}
-          {(onLoadGroup || onSaveGroup) && <div className="border-l mx-2" />}
-          {onExport && (
-            <Button
-              onClick={onExport}
-              variant="outline"
-              size="sm"
-            >
-              <Download className="w-4 h-4 mr-1" />
-              Export CSV
-            </Button>
-          )}
-          {onClearResults && (
-            <Button
-              onClick={onClearResults}
-              variant="outline"
-              size="sm"
-              disabled={articles.length === 0}
-            >
-              <RotateCcw className="w-4 h-4 mr-1" />
-              Clear Results
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse table-fixed">

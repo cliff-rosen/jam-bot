@@ -42,7 +42,7 @@ export function CollectionHeader({
   const searchQuery = collection.search_params?.query || collection.name;
   
   return (
-    <div className="flex items-center justify-between p-4 border rounded-lg bg-white dark:bg-gray-900">
+    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-b">
       {/* Left side: Icon + Name + Stats */}
       <div className="flex items-center gap-3">
         {isSearchResult ? (

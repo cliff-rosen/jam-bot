@@ -17,6 +17,7 @@ import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
 import { ExtractionAnimation } from './ExtractionAnimation';
+import { PaginationControls } from './PaginationControls';
 
 export function WorkbenchPage() {
   const workbench = useWorkbench();
@@ -30,10 +31,19 @@ export function WorkbenchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
   const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
+  const [searchParams, setSearchParams] = useState({
+    pageSize: 20,
+    sortBy: 'relevance' as 'relevance' | 'date',
+    yearLow: undefined as number | undefined,
+    yearHigh: undefined as number | undefined,
+    dateType: 'publication' as 'completion' | 'publication' | 'entry' | 'revised',
+    includeCitations: false,
+    includePdfLinks: false
+  });
 
   const { toast } = useToast();
 
-  const handleNewSearch = async () => {
+  const handleNewSearch = async (page: number = 1) => {
     if (!searchQuery.trim()) {
       toast({
         title: 'Search Required',
@@ -47,15 +57,23 @@ export function WorkbenchPage() {
       await workbench.performSearch(searchQuery, {
         query: searchQuery,
         filters: {},
-        page: 1,
-        page_size: 20,
-        provider: selectedProviders[0] // Use first selected provider
+        page: page,
+        page_size: searchParams.pageSize,
+        provider: selectedProviders[0], // Use first selected provider
+        sort_by: searchParams.sortBy,
+        year_low: searchParams.yearLow,
+        year_high: searchParams.yearHigh,
+        date_type: searchParams.dateType,
+        include_citations: searchParams.includeCitations,
+        include_pdf_links: searchParams.includePdfLinks
       });
 
-      toast({
-        title: 'Search Complete',
-        description: `Found ${workbench.currentCollection?.articles.length || 0} articles`,
-      });
+      if (page === 1) {
+        toast({
+          title: 'Search Complete',
+          description: `Found ${workbench.searchPagination?.totalResults || 0} articles`,
+        });
+      }
     } catch (error) {
       console.error('Search failed:', error);
       toast({
@@ -183,7 +201,7 @@ export function WorkbenchPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Research Workbench</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground dark:text-gray-400">
             Search, analyze, and organize research articles with AI-powered insights
           </p>
         </div>
@@ -236,8 +254,22 @@ export function WorkbenchPage() {
           onProvidersChange={setSelectedProviders}
           searchMode={searchMode}
           onSearchModeChange={setSearchMode}
-          onSearch={handleNewSearch}
+          onSearch={() => handleNewSearch(1)}
           isSearching={workbench.collectionLoading}
+          pageSize={searchParams.pageSize}
+          onPageSizeChange={(pageSize) => setSearchParams(prev => ({ ...prev, pageSize }))}
+          sortBy={searchParams.sortBy}
+          onSortByChange={(sortBy) => setSearchParams(prev => ({ ...prev, sortBy }))}
+          yearLow={searchParams.yearLow}
+          onYearLowChange={(yearLow) => setSearchParams(prev => ({ ...prev, yearLow }))}
+          yearHigh={searchParams.yearHigh}
+          onYearHighChange={(yearHigh) => setSearchParams(prev => ({ ...prev, yearHigh }))}
+          dateType={searchParams.dateType}
+          onDateTypeChange={(dateType) => setSearchParams(prev => ({ ...prev, dateType }))}
+          includeCitations={searchParams.includeCitations}
+          onIncludeCitationsChange={(includeCitations) => setSearchParams(prev => ({ ...prev, includeCitations }))}
+          includePdfLinks={searchParams.includePdfLinks}
+          onIncludePdfLinksChange={(includePdfLinks) => setSearchParams(prev => ({ ...prev, includePdfLinks }))}
         />
       </div>
 
@@ -267,7 +299,14 @@ export function WorkbenchPage() {
                 {workbench.currentCollection.name}
               </h2>
               <span className="text-sm text-muted-foreground">
-                {workbench.currentCollection.articles.length} articles
+                {workbench.searchPagination ? (
+                  <>
+                    {workbench.currentCollection.articles.length} of {workbench.searchPagination.totalResults} articles
+                    {workbench.searchPagination.totalPages > 1 && ` • Page ${workbench.searchPagination.currentPage}/${workbench.searchPagination.totalPages}`}
+                  </>
+                ) : (
+                  `${workbench.currentCollection.articles.length} articles`
+                )}
               </span>
               {workbench.currentCollection.feature_definitions.length > 0 && (
                 <span className="text-sm text-muted-foreground">
@@ -321,13 +360,25 @@ export function WorkbenchPage() {
           </div>
 
           {/* Table */}
-          <WorkbenchTable 
-            collection={workbench.currentCollection} 
+          <WorkbenchTable
+            collection={workbench.currentCollection}
             onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId)}
             onDeleteArticle={(articleId) => workbench.removeArticles([articleId])}
             onViewArticle={(article) => workbench.selectArticle(article)}
             isExtracting={workbench.isExtracting}
           />
+
+          {/* Pagination Controls - only show for search results */}
+          {workbench.currentCollection.source === CollectionSource.SEARCH && workbench.searchPagination && (
+            <PaginationControls
+              currentPage={workbench.searchPagination.currentPage}
+              totalPages={workbench.searchPagination.totalPages}
+              totalResults={workbench.searchPagination.totalResults}
+              pageSize={workbench.searchPagination.pageSize}
+              onPageChange={(page) => handleNewSearch(page)}
+              isLoading={workbench.collectionLoading}
+            />
+          )}
         </div>
       ) : (
         <div className="text-center py-12">

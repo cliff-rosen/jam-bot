@@ -143,7 +143,7 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
             raise ValueError("search_query is required")
         
         # Use unified search function with optional date parameters
-        article_ids = get_article_ids(
+        article_ids, total_count = get_article_ids(
             search_term=query,
             max_results=max_results,
             sort_by=sort_order,
@@ -151,8 +151,8 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
             end_date=end_date
         )
         
-        # The function now returns a list of IDs directly
-        total_found = len(article_ids)
+        # The function now returns a list of IDs and total count
+        total_found = total_count
         
         # Fetch full article details
         articles_data = get_articles_from_ids(article_ids)

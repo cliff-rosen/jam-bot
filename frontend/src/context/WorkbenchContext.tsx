@@ -29,6 +29,14 @@ interface WorkbenchState {
   currentCollection: ArticleCollection | null;   // The active collection
   collectionLoading: boolean;
 
+  // PAGINATION STATE
+  searchPagination: {
+    currentPage: number;
+    totalPages: number;
+    totalResults: number;
+    pageSize: number;
+  } | null;
+
   // UI STATE  
   selectedArticleIds: Set<string>;               // For operations on articles
   selectedArticle: CanonicalResearchArticle | null;  // For detail view
@@ -97,6 +105,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   // State
   const [currentCollection, setCurrentCollection] = useState<ArticleCollection | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
+  const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
   const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
   const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -113,12 +122,37 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const searchResult = await unifiedSearchApi.search({
         query,
         provider: params.provider ? params.provider as SearchProvider : 'pubmed',
-        page: params.page,
-        page_size: params.page_size
+        page: params.page || 1,
+        page_size: params.page_size || 20,
+        sort_by: params.sort_by,
+        year_low: params.year_low,
+        year_high: params.year_high,
+        date_type: params.date_type,
+        include_citations: params.include_citations,
+        include_pdf_links: params.include_pdf_links
       });
 
       const collection = createSearchCollection(searchResult.articles, params);
       setCurrentCollection(collection);
+      
+      // Update pagination state from metadata
+      if (searchResult.metadata) {
+        setSearchPagination({
+          currentPage: searchResult.metadata.current_page || params.page || 1,
+          totalPages: searchResult.metadata.total_pages || 1,
+          totalResults: searchResult.metadata.total_results || searchResult.articles.length,
+          pageSize: searchResult.metadata.page_size || params.page_size || 20
+        });
+      } else {
+        // Fallback for responses without metadata
+        setSearchPagination({
+          currentPage: params.page || 1,
+          totalPages: 1,
+          totalResults: searchResult.articles.length,
+          pageSize: params.page_size || 20
+        });
+      }
+      
       setSelectedArticleIds(new Set());
       setSelectedArticle(null);
     } catch (err) {
@@ -137,6 +171,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const group = await workbenchApi.getGroupDetails(groupId);
       const collection = createSavedGroupCollection(group);
       setCurrentCollection(collection);
+      setSearchPagination(null); // Clear pagination for saved groups
       setSelectedArticleIds(new Set());
       setSelectedArticle(null);
     } catch (err) {
@@ -418,24 +453,24 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const updatedArticles = updatedCollection.articles.map(article => {
         const articleFeatures = extractionResult.results[article.article_id] || {};
         console.log(`Article ${article.article_id} features:`, articleFeatures);
-        
+
         // Handle both feature ID and feature name keys
         const processedFeatures: Record<string, string> = {};
-        
+
         // First, try direct mapping (if API uses feature IDs)
         Object.keys(articleFeatures).forEach(key => {
           processedFeatures[key] = articleFeatures[key];
         });
-        
+
         // Also try mapping feature names to IDs (if API uses feature names)
         newFeatures.forEach(feature => {
           if (articleFeatures[feature.name]) {
             processedFeatures[feature.id] = articleFeatures[feature.name];
           }
         });
-        
+
         console.log(`Processed features for article ${article.article_id}:`, processedFeatures);
-        
+
         return {
           ...article,
           feature_data: {
@@ -602,6 +637,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const resetWorkbench = useCallback(() => {
     setCurrentCollection(null);
+    setSearchPagination(null);
     setSelectedArticleIds(new Set());
     setSelectedArticle(null);
     setIsExtracting(false);
@@ -615,6 +651,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // State
     currentCollection,
     collectionLoading,
+    searchPagination,
     selectedArticleIds,
     selectedArticle,
     isExtracting,

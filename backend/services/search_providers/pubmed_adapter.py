@@ -9,13 +9,10 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import requests
 
-from schemas.research_article_converters import pubmed_to_research_article, legacy_article_to_canonical_pubmed
-
 from services.search_providers.base import (
     SearchProvider, UnifiedSearchParams, SearchResponse, 
     SearchMetadata, ProviderInfo
 )
-from services.pubmed_service import search_articles_by_date_range, get_article_ids
 
 logger = logging.getLogger(__name__)
 
@@ -70,54 +67,56 @@ class PubMedAdapter(SearchProvider):
             # Validate parameters
             params = await self.validate_params(params)
             
-            # Convert unified params to PubMed-specific search
-            # Use date range search if any date parameters are provided
-            if params.date_from or params.date_to or params.year_low or params.year_high:
-                # Use date range search - returns research articles directly
-                articles, pagination_meta = await self._search_by_date_range(params)
-                canonical_articles = []
-                for i, article in enumerate(articles, 1):
-                    # Articles are already research articles, just set positioning
-                    article.search_position = i
-                    article.relevance_score = self._estimate_relevance_score(i, len(articles))
-                    canonical_articles.append(article)
-            else:
-                # Use basic search - returns raw articles
-                articles, pagination_meta = await self._basic_search(params)
-                # Convert to canonical format with better IDs
-                canonical_articles = []
-                for i, article in enumerate(articles, 1):
-                    # First convert legacy Article to CanonicalPubMedArticle
-                    canonical_pubmed = legacy_article_to_canonical_pubmed(article)
-                    # Then convert to CanonicalResearchArticle
-                    canonical = pubmed_to_research_article(canonical_pubmed)
-                    # Use simple ID format
-                    canonical.id = f"pubmed_{article.PMID}"
-                    canonical.search_position = i
-                    canonical.relevance_score = self._estimate_relevance_score(i, len(articles))
-                    canonical_articles.append(canonical)
+            # Calculate offset for pagination
+            offset = params.offset or ((params.page - 1) * params.num_results if params.page else 0)
+            
+            # Convert date parameters
+            start_date = None
+            end_date = None
+            if params.date_from or params.date_to:
+                start_date = params.date_from
+                end_date = params.date_to
+            elif params.year_low or params.year_high:
+                start_date = f"{params.year_low or 1900}/01/01"
+                end_date = f"{params.year_high or datetime.now().year}/12/31"
+            
+            # Call the unified PubMed service
+            from services.pubmed_service import search_pubmed
+            articles, service_metadata = search_pubmed(
+                query=params.query,
+                max_results=params.num_results,
+                offset=offset,
+                sort_by=params.sort_by,
+                start_date=start_date,
+                end_date=end_date,
+                date_type=params.date_type
+            )
+            
+            # Add search position and relevance scores
+            for i, article in enumerate(articles):
+                article.search_position = offset + i + 1
+                article.relevance_score = self._estimate_relevance_score(i + 1, len(articles))
             
             # Calculate search time
             search_time = (datetime.utcnow() - start_time).total_seconds()
             
             # Calculate pagination metadata
-            total_results = pagination_meta["total_results"]
-            current_page = pagination_meta["current_page"]
-            page_size = pagination_meta["page_size"]
+            total_results = service_metadata["total_results"]
+            page_size = params.num_results
+            current_page = params.page or ((offset // page_size) + 1)
             total_pages = (total_results + page_size - 1) // page_size if total_results > 0 else 0
             
             # Build metadata
             metadata = SearchMetadata(
                 total_results=total_results,
-                returned_results=len(canonical_articles),
+                returned_results=len(articles),
                 search_time=search_time,
                 provider=self.provider_id,
-                query_translation=params.query,  # Could parse actual query translation
+                query_translation=params.query,
                 provider_metadata={
                     "date_type": params.date_type,
                     "database": "pubmed"
                 },
-                # Pagination metadata
                 current_page=current_page,
                 page_size=page_size,
                 total_pages=total_pages,
@@ -126,7 +125,7 @@ class PubMedAdapter(SearchProvider):
             )
             
             return SearchResponse(
-                articles=canonical_articles,
+                articles=articles,
                 metadata=metadata,
                 success=True
             )
@@ -206,85 +205,3 @@ class PubMedAdapter(SearchProvider):
         
         return params
     
-    async def _basic_search(self, params: UnifiedSearchParams) -> tuple[List[Any], Dict[str, Any]]:
-        """Perform a basic PubMed search without date filtering."""
-        from services.pubmed_service import get_article_ids, get_articles_from_ids
-        
-        # Calculate offset for pagination
-        offset = params.offset or 0
-        
-        # Get more article IDs than needed to support pagination
-        # We'll get up to offset + num_results to handle the current page
-        max_ids_needed = offset + params.num_results
-        article_ids = get_article_ids(
-            search_term=params.query,
-            max_results=max_ids_needed,
-            sort_by=params.sort_by
-        )
-        
-        if not article_ids:
-            return [], {"total_results": 0}
-        
-        # Apply pagination to article IDs
-        paginated_ids = article_ids[offset:offset + params.num_results]
-        
-        # Get full article data for current page
-        articles = get_articles_from_ids(paginated_ids)
-        
-        # No need for client-side sorting - PubMed API handles sorting
-        
-        # Return articles and pagination metadata
-        pagination_meta = {
-            "total_results": len(article_ids),  # This is approximate for basic search
-            "current_page": params.page or 1,
-            "page_size": params.num_results,
-            "offset": offset
-        }
-        
-        return articles, pagination_meta
-    
-    async def _search_by_date_range(self, params: UnifiedSearchParams) -> tuple[List[Any], Dict[str, Any]]:
-        """Perform a PubMed search with date filtering."""
-        # Build date strings - prefer full dates if available, fall back to years
-        if params.date_from or params.date_to:
-            # Use full date precision (YYYY-MM-DD)
-            start_date = params.date_from or "1900-01-01"
-            end_date = params.date_to or f"{datetime.now().year}-12-31"
-        else:
-            # Fall back to year-based dates (for backwards compatibility)
-            start_date = f"{params.year_low or 1900}/01/01"
-            end_date = f"{params.year_high or datetime.now().year}/12/31"
-        
-        # Use the service method that returns canonical articles directly
-        canonical_articles = search_articles_by_date_range(
-            filter_term=params.query,
-            start_date=start_date,
-            end_date=end_date,
-            date_type=params.date_type or "publication",
-            sort_by=params.sort_by
-        )
-        
-        # No need for client-side sorting - PubMed API handles sorting
-        
-        # Apply pagination
-        offset = params.offset or 0
-        total_results = len(canonical_articles)
-        paginated_articles = canonical_articles[offset:offset + params.num_results]
-        
-        # Convert canonical articles to research articles format to preserve metadata
-        from schemas.research_article_converters import pubmed_to_research_article
-        articles = []
-        for canonical in paginated_articles:
-            # Convert directly to research article format to preserve source_metadata
-            research_article = pubmed_to_research_article(canonical)
-            articles.append(research_article)
-        
-        # Return articles and pagination metadata
-        pagination_meta = {
-            "total_results": total_results,
-            "current_page": params.page or 1,
-            "page_size": params.num_results,
-            "offset": offset
-        }
-        
-        return articles, pagination_meta

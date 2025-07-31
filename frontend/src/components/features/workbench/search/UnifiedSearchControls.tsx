@@ -27,6 +27,21 @@ interface UnifiedSearchControlsProps {
   onSearch: () => void;
   isSearching: boolean;
   onBatchSearch?: () => void;
+  // Search parameters
+  pageSize?: number;
+  onPageSizeChange?: (pageSize: number) => void;
+  sortBy?: 'relevance' | 'date';
+  onSortByChange?: (sortBy: 'relevance' | 'date') => void;
+  yearLow?: number;
+  onYearLowChange?: (yearLow: number | undefined) => void;
+  yearHigh?: number;
+  onYearHighChange?: (yearHigh: number | undefined) => void;
+  dateType?: 'completion' | 'publication' | 'entry' | 'revised';
+  onDateTypeChange?: (dateType: 'completion' | 'publication' | 'entry' | 'revised') => void;
+  includeCitations?: boolean;
+  onIncludeCitationsChange?: (includeCitations: boolean) => void;
+  includePdfLinks?: boolean;
+  onIncludePdfLinksChange?: (includePdfLinks: boolean) => void;
 }
 
 export function UnifiedSearchControls({
@@ -38,19 +53,24 @@ export function UnifiedSearchControls({
   onSearchModeChange,
   onSearch,
   isSearching,
-  onBatchSearch
+  onBatchSearch,
+  pageSize = 20,
+  onPageSizeChange,
+  sortBy = 'relevance',
+  onSortByChange,
+  yearLow,
+  onYearLowChange,
+  yearHigh,
+  onYearHighChange,
+  dateType = 'publication',
+  onDateTypeChange,
+  includeCitations = false,
+  onIncludeCitationsChange,
+  includePdfLinks = false,
+  onIncludePdfLinksChange
 }: UnifiedSearchControlsProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProviders, setShowProviders] = useState(true);
-  
-  // Local search parameter state
-  const [pageSize, setPageSize] = useState(20);
-  const [sortBy, setSortBy] = useState<'relevance' | 'date'>('relevance');
-  const [yearLow, setYearLow] = useState<number | undefined>();
-  const [yearHigh, setYearHigh] = useState<number | undefined>();
-  const [dateType, setDateType] = useState<'completion' | 'publication'>('publication');
-  const [includeCitations, setIncludeCitations] = useState(false);
-  const [includePdfLinks, setIncludePdfLinks] = useState(false);
   
   const currentProvider = searchMode === 'single' ? selectedProviders[0] : undefined;
 
@@ -85,7 +105,7 @@ export function UnifiedSearchControls({
             <select
               className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
               value={dateType}
-              onChange={(e) => setDateType(e.target.value as 'completion' | 'publication')}
+              onChange={(e) => onDateTypeChange?.(e.target.value as 'completion' | 'publication' | 'entry' | 'revised')}
             >
               <option value="publication">Publication Date</option>
               <option value="completion">Completion Date</option>
@@ -206,7 +226,7 @@ export function UnifiedSearchControls({
               <select
                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 value={pageSize}
-                onChange={(e) => setPageSize(parseInt(e.target.value))}
+                onChange={(e) => onPageSizeChange?.(parseInt(e.target.value))}
                 disabled={isSearching}
               >
                 <option value="10">10 per page</option>
@@ -222,7 +242,7 @@ export function UnifiedSearchControls({
               <select
                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'relevance' | 'date')}
+                onChange={(e) => onSortByChange?.(e.target.value as 'relevance' | 'date')}
                 disabled={isSearching}
               >
                 <option value="relevance">Relevance</option>
@@ -238,7 +258,7 @@ export function UnifiedSearchControls({
                 min="1900"
                 max={new Date().getFullYear()}
                 value={yearLow || ''}
-                onChange={(e) => setYearLow(e.target.value ? parseInt(e.target.value) : undefined)}
+                onChange={(e) => onYearLowChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="2020"
                 className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
@@ -253,7 +273,7 @@ export function UnifiedSearchControls({
                 min="1900"
                 max={new Date().getFullYear()}
                 value={yearHigh || ''}
-                onChange={(e) => setYearHigh(e.target.value ? parseInt(e.target.value) : undefined)}
+                onChange={(e) => onYearHighChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="2024"
                 className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
@@ -281,7 +301,7 @@ export function UnifiedSearchControls({
                       type="checkbox"
                       id="include_citations"
                       checked={includeCitations}
-                      onChange={(e) => setIncludeCitations(e.target.checked)}
+                      onChange={(e) => onIncludeCitationsChange?.(e.target.checked)}
                       disabled={isSearching}
                       className="rounded border-gray-300"
                     />
@@ -294,7 +314,7 @@ export function UnifiedSearchControls({
                       type="checkbox"
                       id="include_pdf_links"
                       checked={includePdfLinks}
-                      onChange={(e) => setIncludePdfLinks(e.target.checked)}
+                      onChange={(e) => onIncludePdfLinksChange?.(e.target.checked)}
                       disabled={isSearching}
                       className="rounded border-gray-300"
                     />

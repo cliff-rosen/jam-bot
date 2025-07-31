@@ -28,14 +28,21 @@ export interface UnifiedSearchParams {
 
 export interface UnifiedSearchResponse {
   articles: CanonicalResearchArticle[];
-  total_results: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-  provider: string;
-  query: string;
-  search_time: number;
-  metadata?: Record<string, any>;
+  metadata: {
+    total_results: number;
+    returned_results: number;
+    search_time: number;
+    provider: string;
+    query_translation?: string;
+    provider_metadata?: Record<string, any>;
+    current_page?: number;
+    page_size?: number;
+    total_pages?: number;
+    has_next_page?: boolean;
+    has_prev_page?: boolean;
+  };
+  success: boolean;
+  error?: string;
 }
 
 export interface BatchSearchRequest {
@@ -85,9 +92,9 @@ class UnifiedSearchApi {
         ...(params.date_type !== undefined && { date_type: params.date_type }),
         ...(params.include_citations !== undefined && { include_citations: params.include_citations }),
         ...(params.include_pdf_links !== undefined && { include_pdf_links: params.include_pdf_links }),
-        // Pagination parameters
+        // Pagination parameters - backend expects num_results
         ...(params.page !== undefined && { page: params.page }),
-        ...(params.page_size !== undefined && { page_size: params.page_size }),
+        ...(params.page_size !== undefined && { num_results: params.page_size }),
         ...(params.offset !== undefined && { offset: params.offset }),
       }
     });

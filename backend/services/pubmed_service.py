@@ -376,11 +376,11 @@ def get_article_ids(
         if 'esearchresult' not in content:
             raise Exception("Invalid response format from PubMed API")
             
-        count = content['esearchresult']['count']
+        count = int(content['esearchresult']['count'])
         ids = content['esearchresult']['idlist']
         
         logger.info(f"Found {count} articles, returning {len(ids)} IDs")
-        return ids
+        return ids, count
         
     except requests.exceptions.RequestException as e:
         logger.error(f"HTTP error in PubMed search: {e}", exc_info=True)
@@ -388,9 +388,6 @@ def get_article_ids(
     except Exception as e:
         logger.error(f"Error in PubMed search: {e}", exc_info=True)
         raise
-
-
-# Removed get_article_ids_by_date_range - consolidated into get_article_ids
 
 
 def get_articles_from_ids(ids: List[str]) -> List[Article]:
@@ -437,8 +434,131 @@ def get_citation_from_article(article: Article) -> str:
     return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
 
 
-def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List['CanonicalPubMedArticle']:
+def search_pubmed(
+    query: str,
+    max_results: int = 100,
+    offset: int = 0,
+    sort_by: str = "relevance",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    date_type: Optional[str] = None
+) -> tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
     """
+    Unified PubMed search function that handles all search scenarios.
+    
+    Args:
+        query: Search query string
+        max_results: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        sort_by: Sort order ('relevance' or 'date')
+        start_date: Optional start date (YYYY-MM-DD or YYYY/MM/DD)
+        end_date: Optional end date (YYYY-MM-DD or YYYY/MM/DD)
+        date_type: Type of date to filter on ('completion', 'publication', 'entry', 'revised')
+    
+    Returns:
+        Tuple of (articles, metadata) where:
+        - articles: List of CanonicalResearchArticle objects
+        - metadata: Dict with pagination info (total_results, offset, etc.)
+    """
+    from schemas.canonical_types import CanonicalPubMedArticle
+    from schemas.research_article_converters import pubmed_to_research_article
+    
+    logger.info(f"PubMed search: query='{query}', max_results={max_results}, offset={offset}")
+    
+    # Get article IDs with total count
+    article_ids, total_count = get_article_ids(
+        search_term=query,
+        max_results=offset + max_results,  # Get enough IDs for pagination
+        sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date,
+        date_type=date_type
+    )
+    
+    logger.info(f"Found {total_count} total results, retrieved {len(article_ids)} IDs")
+    
+    # Apply pagination to IDs
+    paginated_ids = article_ids[offset:offset + max_results]
+    
+    if not paginated_ids:
+        return [], {
+            "total_results": total_count,
+            "offset": offset,
+            "returned": 0
+        }
+    
+    # Get full article data for the current page
+    logger.info(f"Fetching article data for {len(paginated_ids)} articles")
+    articles = get_articles_from_ids(paginated_ids)
+    logger.info(f"Retrieved {len(articles)} articles")
+    
+    # Convert to canonical format
+    canonical_articles = []
+    for i, article in enumerate(articles):
+        try:
+            # Create CanonicalPubMedArticle
+            canonical_pubmed = CanonicalPubMedArticle(
+                pmid=article.PMID,
+                title=article.title,
+                abstract=article.abstract,
+                authors=article.authors.split(', ') if article.authors else [],
+                journal=article.journal,
+                publication_date=article.pub_date if article.pub_date else None,
+                keywords=[],  # Would need to extract from XML
+                mesh_terms=[],  # Would need to extract from XML
+                metadata={
+                    "volume": article.volume,
+                    "issue": article.issue,
+                    "pages": article.pages,
+                    "medium": article.medium,
+                    "comp_date": article.comp_date,
+                    "date_revised": article.date_revised,
+                    "article_date": article.article_date,
+                    "entry_date": article.entry_date,
+                    "pub_date": article.pub_date
+                }
+            )
+            
+            # Convert to CanonicalResearchArticle
+            research_article = pubmed_to_research_article(canonical_pubmed)
+            research_article.search_position = offset + i + 1
+            canonical_articles.append(research_article)
+            
+        except Exception as e:
+            logger.error(f"Error converting article {article.PMID}: {e}")
+            continue
+    
+    metadata = {
+        "total_results": total_count,
+        "offset": offset,
+        "returned": len(canonical_articles)
+    }
+    
+    return canonical_articles, metadata
+
+
+# Keep the old function for backward compatibility but have it call the new one
+def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List['CanonicalResearchArticle']:
+    """
+    DEPRECATED: Use search_pubmed() instead.
+    
+    This function is kept for backward compatibility.
+    """
+    # Just call the new unified search function
+    articles, _ = search_pubmed(
+        query=filter_term,
+        max_results=int(RETMAX),
+        offset=0,
+        sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date,
+        date_type=date_type
+    )
+    return articles
+
+
+    """
+    OLD IMPLEMENTATION - kept for reference only.
     Search for PubMed articles within a specified date range and return canonical articles.
     
     Args:
@@ -459,7 +579,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     logger.info(f"Searching PubMed articles: term='{filter_term}', dates={start_date} to {end_date}, date_type={date_type}")
     
     # Get article IDs - function now throws exception on error
-    article_ids = get_article_ids(
+    article_ids, total_count = get_article_ids(
         search_term=filter_term,
         max_results=int(RETMAX),
         sort_by=sort_by,

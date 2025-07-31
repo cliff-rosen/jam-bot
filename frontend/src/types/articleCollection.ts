@@ -23,6 +23,12 @@ export interface SearchParams {
   page: number;
   page_size: number;
   provider?: string;
+  sort_by?: 'relevance' | 'date';
+  year_low?: number;
+  year_high?: number;
+  date_type?: 'completion' | 'publication' | 'entry' | 'revised';
+  include_citations?: boolean;
+  include_pdf_links?: boolean;
 }
 
 export interface ArticleCollection {

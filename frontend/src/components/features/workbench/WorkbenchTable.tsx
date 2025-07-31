@@ -7,27 +7,29 @@ import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, Fol
 
 interface WorkbenchTableProps {
   collection: ArticleCollection;
+  selectedArticleIds: string[];
   onDeleteFeature?: (featureId: string) => void;
-  onDeleteArticle?: (articleId: string) => void;
   onExport?: () => void;
   onClearResults?: () => void;
   isExtracting?: boolean;
   onViewArticle?: (article: CanonicalResearchArticle) => void;
   onSaveGroup?: () => void;
   onLoadGroup?: () => void;
+  onToggleArticleSelection: (articleId: string) => void;
   displayDateType?: "completion" | "publication" | "entry" | "revised";
 }
 
 export function WorkbenchTable({
   collection,
+  selectedArticleIds,
   onDeleteFeature,
-  onDeleteArticle,
   onExport,
   onClearResults,
   isExtracting = false,
   onViewArticle,
   onSaveGroup,
   onLoadGroup,
+  onToggleArticleSelection,
   displayDateType: initialDisplayDateType = 'publication',
 }: WorkbenchTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
@@ -217,6 +219,7 @@ export function WorkbenchTable({
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
+            <col className="w-12" />  {/* Checkbox column */}
             <col className="w-20" />
             <col className="w-96" />
             <col className="w-32" />
@@ -224,13 +227,39 @@ export function WorkbenchTable({
             <col className="w-24" />
             <col className="w-20" />
             <col className="w-80" />
-            <col className="w-32" />
+            <col className="w-24" />  {/* Reduced actions column width */}
             {features.map(() => (
               <col key={Math.random()} className="w-32" />
             ))}
           </colgroup>
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
+              {/* Selection Checkbox */}
+              <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 dark:border-gray-600"
+                  checked={selectedArticleIds.length > 0 && selectedArticleIds.length === articles.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      // Select all articles on current page
+                      articles.forEach(article => {
+                        if (!selectedArticleIds.includes(article.id)) {
+                          onToggleArticleSelection(article.id);
+                        }
+                      });
+                    } else {
+                      // Deselect all articles on current page
+                      articles.forEach(article => {
+                        if (selectedArticleIds.includes(article.id)) {
+                          onToggleArticleSelection(article.id);
+                        }
+                      });
+                    }
+                  }}
+                />
+              </th>
+              
               {/* Fixed Columns */}
               <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
@@ -357,8 +386,20 @@ export function WorkbenchTable({
             {sortedArticles.map((article, index) => (
               <tr
                 key={article.id}
-                className={index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'}
+                className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'} ${
+                  selectedArticleIds.includes(article.id) ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''
+                }`}
               >
+                {/* Selection Checkbox */}
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 dark:border-gray-600"
+                    checked={selectedArticleIds.includes(article.id)}
+                    onChange={() => onToggleArticleSelection(article.id)}
+                  />
+                </td>
+                
                 {/* Fixed Columns */}
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   <div className="truncate" title={article.id}>
@@ -420,17 +461,6 @@ export function WorkbenchTable({
                         title="Open original article"
                       >
                         <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {onDeleteArticle && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDeleteArticle(article.id)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                        title="Remove article"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </Button>
                     )}
                   </div>

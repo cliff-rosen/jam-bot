@@ -3,7 +3,6 @@ import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw, Search, Folder } from 
 import { useToast } from '@/components/ui/use-toast';
 
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 import { useWorkbench } from '@/context/WorkbenchContext';
 
@@ -27,6 +26,14 @@ export function WorkbenchPage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
+
+  // Selection state
+  const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([]);
+
+  // Clear selection when collection changes
+  useEffect(() => {
+    setSelectedArticleIds([]);
+  }, [workbench.currentCollection?.id]);
 
   // Local search state for the search controls
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,10 +77,14 @@ export function WorkbenchPage() {
       });
 
       if (page === 1) {
-        toast({
-          title: 'Search Complete',
-          description: `Found ${workbench.searchPagination?.totalResults || 0} articles`,
-        });
+        // Use a small delay to ensure pagination is updated, or use current collection count
+        setTimeout(() => {
+          const totalResults = workbench.searchPagination?.totalResults || workbench.currentCollection?.articles.length || 0;
+          toast({
+            title: 'Search Complete',
+            description: `Found ${totalResults} articles`,
+          });
+        }, 100);
       }
     } catch (error) {
       console.error('Search failed:', error);
@@ -153,13 +164,58 @@ export function WorkbenchPage() {
     }
   };
 
+  // Selection handlers
+  const handleToggleArticleSelection = (articleId: string) => {
+    setSelectedArticleIds(prev =>
+      prev.includes(articleId)
+        ? prev.filter(id => id !== articleId)
+        : [...prev, articleId]
+    );
+  };
 
-  const canSave = workbench.currentCollection &&
-    (workbench.currentCollection.source === CollectionSource.SEARCH ||
-      (workbench.currentCollection.source === CollectionSource.SAVED_GROUP && workbench.currentCollection.is_modified));
+  const handleSelectAll = () => {
+    if (workbench.currentCollection) {
+      const currentPageArticleIds = workbench.currentCollection.articles.map(item => item.article.id);
+      setSelectedArticleIds(prev => {
+        const newSelection = [...prev];
+        currentPageArticleIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
+    }
+  };
 
-  const canSaveChanges = workbench.currentCollection?.source === CollectionSource.SAVED_GROUP &&
-    workbench.currentCollection.is_modified;
+  const handleSelectNone = () => {
+    setSelectedArticleIds([]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedArticleIds.length === 0) return;
+
+    try {
+      await workbench.removeArticles(selectedArticleIds);
+      setSelectedArticleIds([]);
+      toast({
+        title: 'Articles Removed',
+        description: `Removed ${selectedArticleIds.length} articles from the group`,
+      });
+    } catch (error) {
+      console.error('Delete selected failed:', error);
+      toast({
+        title: 'Delete Failed',
+        description: error instanceof Error ? error.message : 'Failed to delete articles',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleAddSelectedToGroup = () => {
+    // TODO: Implement Add to Group modal in Phase 4
+    console.log('Add selected to Group clicked');
+  };
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -244,11 +300,16 @@ export function WorkbenchPage() {
           <CollectionHeader
             collection={workbench.currentCollection}
             searchPagination={workbench.searchPagination}
+            selectedArticleIds={selectedArticleIds}
             onLoadGroup={() => setShowLoadModal(true)}
             onAddFeatures={() => setShowAddModal(true)}
             onExtractFeatures={() => workbench.extractFeatures()}
             onSaveChanges={() => workbench.saveCollectionChanges()}
             onSaveAsGroup={() => setShowSaveModal(true)}
+            onAddToGroup={handleAddSelectedToGroup}
+            onDeleteSelected={handleDeleteSelected}
+            onSelectAll={handleSelectAll}
+            onSelectNone={handleSelectNone}
             isExtracting={workbench.isExtracting}
             isLoading={workbench.collectionLoading}
           />
@@ -256,9 +317,10 @@ export function WorkbenchPage() {
           {/* Table */}
           <WorkbenchTable
             collection={workbench.currentCollection}
+            selectedArticleIds={selectedArticleIds}
             onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId)}
-            onDeleteArticle={(articleId) => workbench.removeArticles([articleId])}
             onViewArticle={(article) => workbench.selectArticle(article)}
+            onToggleArticleSelection={handleToggleArticleSelection}
             isExtracting={workbench.isExtracting}
           />
 

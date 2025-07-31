@@ -18,7 +18,7 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatPanel } from './chat/ChatPanel';
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import { ArticleCollection } from '@/types/articleCollection';
-import { FeatureDefinition, AnalysisPreset } from '@/types/workbench';
+import { FeatureDefinition, AnalysisPreset, WorkbenchData } from '@/types/workbench';
 
 interface ArticleWorkbenchModalProps {
   article: CanonicalResearchArticle;
@@ -51,6 +51,10 @@ export function ArticleWorkbenchModal({
   const featureDefinitions = collection?.feature_definitions || [];
   const featureData = articleDetail?.feature_data || {};
 
+  // Add missing state variables
+  const [isLoading, setIsLoading] = useState(false);
+  const [workbenchData, setWorkbenchData] = useState<WorkbenchData | null>(null);
+
   // Form states
   const [noteText, setNoteText] = useState('');
   const [newColumnName, setNewColumnName] = useState('');
@@ -71,7 +75,7 @@ export function ArticleWorkbenchModal({
 
   // Load workbench data when modal opens
   useEffect(() => {
-    if (collection?.id) {
+    if (collection?.id && collection?.saved_group_id) {
       loadWorkbenchData();
     }
   }, [article.id, collection?.id]);
@@ -99,11 +103,11 @@ export function ArticleWorkbenchModal({
   };
 
   const loadWorkbenchData = async () => {
-    if (!currentGroup?.id) return;
+    if (!collection?.saved_group_id) return;
 
     setIsLoading(true);
     try {
-      const data = await workbenchApi.getArticleWorkbenchData(currentGroup.id, article.id);
+      const data = await workbenchApi.getArticleWorkbenchData(collection.saved_group_id, article.id);
       setWorkbenchData(data);
 
       // Populate form states
@@ -125,10 +129,10 @@ export function ArticleWorkbenchModal({
   };
 
   const saveNotes = async () => {
-    if (!currentGroup?.id) return;
+    if (!collection?.saved_group_id) return;
 
     try {
-      await workbenchApi.updateNotes(currentGroup.id, article.id, noteText);
+      await workbenchApi.updateNotes(collection.saved_group_id, article.id, noteText);
       await loadWorkbenchData(); // Refresh data
       toast({
         title: 'Notes Saved',
@@ -145,14 +149,14 @@ export function ArticleWorkbenchModal({
   };
 
   const applyPreset = async () => {
-    if (!currentGroup?.id || !selectedPreset || !presets[selectedPreset]) return;
+    if (!collection?.saved_group_id || !selectedPreset || !presets[selectedPreset]) return;
 
     setPresetsLoading(true);
     try {
       const preset = presets[selectedPreset];
       const promises = Object.entries(preset.features).map(([columnName, columnConfig]) =>
         workbenchApi.extractFeature(
-          currentGroup.id,
+          collection.saved_group_id!,
           article.id,
           columnName,
           columnConfig.type,
@@ -183,11 +187,11 @@ export function ArticleWorkbenchModal({
   };
 
   const extractColumn = async () => {
-    if (!currentGroup?.id || !newColumnName.trim() || !newColumnDescription.trim()) return;
+    if (!collection?.saved_group_id || !newColumnName.trim() || !newColumnDescription.trim()) return;
 
     try {
       const result = await workbenchApi.extractFeature(
-        currentGroup.id,
+        collection.saved_group_id,
         article.id,
         newColumnName,
         newColumnType,
@@ -200,13 +204,16 @@ export function ArticleWorkbenchModal({
       setNewColumnName('');
       setNewColumnDescription('');
 
-      // Notify parent component
+      // Notify parent component with proper structure
       if (onFeatureAdded) {
-        onFeatureAdded({
+        const newFeature: FeatureDefinition = {
+          id: newColumnName.toLowerCase().replace(/\s+/g, '_'),
           name: newColumnName,
-          value: result.feature_data.value,
-          type: newColumnType
-        });
+          description: newColumnDescription,
+          type: newColumnType,
+          options: newColumnType === 'score' ? { min: minValue, max: maxValue, step: stepValue } : undefined
+        };
+        onFeatureAdded([newFeature], true);
       }
 
       toast({
@@ -224,10 +231,10 @@ export function ArticleWorkbenchModal({
   };
 
   const saveMetadata = async () => {
-    if (!currentGroup?.id) return;
+    if (!collection?.saved_group_id) return;
 
     try {
-      await workbenchApi.updateMetadata(currentGroup.id, article.id, {
+      await workbenchApi.updateMetadata(collection.saved_group_id, article.id, {
         tags,
         rating,
         priority,
@@ -249,10 +256,10 @@ export function ArticleWorkbenchModal({
   };
 
   const deleteFeature = async (featureName: string) => {
-    if (!currentGroup?.id) return;
+    if (!collection?.saved_group_id) return;
 
     try {
-      await workbenchApi.deleteFeature(currentGroup.id, article.id, featureName);
+      await workbenchApi.deleteFeature(collection.saved_group_id, article.id, featureName);
       await loadWorkbenchData(); // Refresh data
       toast({
         title: 'Feature Deleted',
@@ -335,9 +342,9 @@ export function ArticleWorkbenchModal({
             <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             <h2 className="text-lg font-semibold truncate">Research Workbench</h2>
             {getSourceBadge(article.source)}
-            {currentGroup && (
+            {collection && (
               <Badge variant="outline" className="text-xs">
-                {currentGroup.name}
+                {collection.name}
               </Badge>
             )}
           </div>
@@ -401,124 +408,170 @@ export function ArticleWorkbenchModal({
                     </h1>
                   </div>
 
-                  {/* Article Metadata */}
-                  <div className="space-y-4">
-                    {/* Primary Metadata */}
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <div className="space-y-3">
+                  {/* Article Metadata - Improved Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Left Column - Basic Info */}
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Publication Details</h3>
+
                         {/* Authors */}
-                        <div className="flex items-start gap-3">
-                          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Authors</div>
-                            <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        <div className="flex items-start gap-3 mb-3">
+                          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Authors</div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
                               {article.authors.length > 0 ? (
-                                <span className="font-medium">{article.authors[0]}</span>
+                                <>
+                                  <span className="font-medium">{article.authors[0]}</span>
+                                  {article.authors.length > 1 && (
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                      {article.authors.length === 2
+                                        ? ` and ${article.authors[1]}`
+                                        : ` et al. (${article.authors.length} authors)`
+                                      }
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <span className="text-gray-500 dark:text-gray-400 italic">Not specified</span>
-                              )}
-                              {article.authors.length > 1 && (
-                                <span className="text-gray-600 dark:text-gray-400">
-                                  {article.authors.length === 2
-                                    ? ` and ${article.authors[1]}`
-                                    : ` et al. (${article.authors.length} authors)`
-                                  }
-                                </span>
                               )}
                             </div>
                           </div>
                         </div>
 
                         {/* Journal */}
-                        <div className="flex items-start gap-3">
-                          <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Journal</div>
-                            <div className="text-gray-700 dark:text-gray-300 font-medium">
+                        <div className="flex items-start gap-3 mb-3">
+                          <BookOpen className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Journal</div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
                               {article.journal || <span className="text-gray-500 dark:text-gray-400 italic font-normal">Not specified</span>}
                             </div>
                           </div>
                         </div>
 
-                        {/* Publication Info */}
+                        {/* Publication Date & Citations */}
                         <div className="flex items-start gap-3">
-                          <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Published</div>
-                              <div className="text-gray-700 dark:text-gray-300 font-medium">
-                                {formatDate(getArticleDate('publication'))}
-                              </div>
+                          <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Published</div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                              {formatDate(getArticleDate('publication'))}
+                              {article.citation_count && (
+                                <span className="ml-3 text-gray-600 dark:text-gray-400">
+                                  • {article.citation_count} citations
+                                </span>
+                              )}
                             </div>
-                            {article.citation_count && (
-                              <div className="pl-4 border-l border-gray-300 dark:border-gray-600">
-                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Citations</div>
-                                <div className="text-gray-700 dark:text-gray-300 font-medium">
-                                  {article.citation_count}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* PubMed Dates (if applicable) */}
+                      {article.source === 'pubmed' && (
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">PubMed Timeline</h3>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Entry Date</div>
+                              <div className="font-medium">{formatDate(getArticleDate('entry'))}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Completion</div>
+                              <div className="font-medium">{formatDate(getArticleDate('completion'))}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Last Revised</div>
+                              <div className="font-medium">{formatDate(getArticleDate('revised'))}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Article ID</div>
+                              <div className="font-mono text-xs">{article.id}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column - Extracted Features */}
+                    <div className="space-y-4">
+                      {featureDefinitions.length > 0 ? (
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Extracted Features</h3>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {featureDefinitions.map((feature) => {
+                              const value = featureData[feature.id];
+                              const hasValue = value !== undefined && value !== null && value !== '';
+
+                              return (
+                                <div key={feature.id} className="flex items-start justify-between py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                  <div className="flex-1 pr-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                                      <Badge variant="outline" className="text-xs">
+                                        {feature.type}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-400">{feature.description}</div>
+                                  </div>
+                                  <div className="text-sm font-medium min-w-[80px] text-right">
+                                    {hasValue ? (
+                                      <span className={feature.type === 'boolean' && value === 'yes' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}>
+                                        {String(value)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400 dark:text-gray-500 italic">-</span>
+                                    )}
+                                  </div>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-8 border border-gray-200 dark:border-gray-700 text-center">
+                          <Zap className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            No features extracted yet. Use the "Add Features" tab to extract data points from this article.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Workbench Metadata (if available) */}
+                      {workbenchData && (
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Research Metadata</h3>
+                          <div className="space-y-2 text-sm">
+                            {workbenchData.metadata.tags.length > 0 && (
+                              <div>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">Tags:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {workbenchData.metadata.tags.map(tag => (
+                                    <Badge key={tag} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {workbenchData.metadata.rating && (
+                              <div>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">Rating:</span>
+                                <span className="ml-2">{'★'.repeat(workbenchData.metadata.rating)}{'☆'.repeat(5 - workbenchData.metadata.rating)}</span>
+                              </div>
+                            )}
+                            {workbenchData.metadata.status && (
+                              <div>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">Status:</span>
+                                <Badge variant="outline" className="ml-2 text-xs">{workbenchData.metadata.status}</Badge>
                               </div>
                             )}
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* PubMed Date Details */}
-                  {article.source === 'pubmed' && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Publication Date</div>
-                        <div className="text-sm">{formatDate(getArticleDate('publication'))}</div>
-                      </div>
-                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <div className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Entry Date</div>
-                        <div className="text-sm">{formatDate(getArticleDate('entry'))}</div>
-                      </div>
-                      <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium mb-1">Completion Date</div>
-                        <div className="text-sm">{formatDate(getArticleDate('completion'))}</div>
-                      </div>
-                      <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium mb-1">Revised Date</div>
-                        <div className="text-sm">{formatDate(getArticleDate('revised'))}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Extracted Features */}
-                  {featureDefinitions.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Extracted Features</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {featureDefinitions.map((feature) => {
-                          const value = featureData[feature.id];
-                          const hasValue = value !== undefined && value !== null && value !== '';
-
-                          return (
-                            <div key={feature.id} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{feature.name}</span>
-                                <Badge variant={hasValue ? "default" : "secondary"} className="text-xs">
-                                  {feature.type}
-                                </Badge>
-                              </div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">{feature.description}</div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {hasValue ? (
-                                  <span className={feature.type === 'boolean' && value === 'yes' ? 'text-green-600 dark:text-green-400' : ''}>
-                                    {String(value)}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400 dark:text-gray-500 italic">Not extracted</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Abstract */}
                   <div>
@@ -564,17 +617,103 @@ export function ArticleWorkbenchModal({
                           className="min-h-[200px] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                         <Button
-                          onClick={() => {
-                            toast({
-                              title: 'Notes Saved',
-                              description: 'Your research notes have been saved successfully.',
-                            });
-                          }}
-                          disabled={!noteText.trim()}
+                          onClick={saveNotes}
+                          disabled={!noteText.trim() || !collection.saved_group_id}
                           className="gap-2"
                         >
                           <Save className="w-4 h-4" />
                           Save Notes
+                        </Button>
+                      </div>
+
+                      {/* Article Metadata */}
+                      <div className="space-y-4 pt-6 border-t dark:border-gray-700">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">Article Metadata</h4>
+
+                        {/* Tags */}
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Tags</label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {tags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="gap-1">
+                                <Tag className="w-3 h-3" />
+                                {tag}
+                                <button onClick={() => removeTag(tag)} className="ml-1 hover:text-red-500">
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Add tag..."
+                              value={newTag}
+                              onChange={(e) => setNewTag(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && addTag()}
+                              className="bg-white dark:bg-gray-700"
+                            />
+                            <Button onClick={addTag} size="sm">
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Rating, Priority, Status */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Rating</label>
+                            <Select value={rating?.toString()} onValueChange={(v) => setRating(parseInt(v))}>
+                              <SelectTrigger className="bg-white dark:bg-gray-700">
+                                <SelectValue placeholder="Rate..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[1, 2, 3, 4, 5].map(n => (
+                                  <SelectItem key={n} value={n.toString()}>
+                                    {'★'.repeat(n)}{'☆'.repeat(5 - n)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Priority</label>
+                            <Select value={priority} onValueChange={setPriority}>
+                              <SelectTrigger className="bg-white dark:bg-gray-700">
+                                <SelectValue placeholder="Priority..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Status</label>
+                            <Select value={status} onValueChange={setStatus}>
+                              <SelectTrigger className="bg-white dark:bg-gray-700">
+                                <SelectValue placeholder="Status..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unread">Unread</SelectItem>
+                                <SelectItem value="reading">Reading</SelectItem>
+                                <SelectItem value="read">Read</SelectItem>
+                                <SelectItem value="reviewed">Reviewed</SelectItem>
+                                <SelectItem value="archived">Archived</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={saveMetadata}
+                          className="gap-2"
+                          disabled={!collection.saved_group_id}
+                        >
+                          <Save className="w-4 h-4" />
+                          Save Metadata
                         </Button>
                       </div>
                     </>
@@ -582,40 +721,46 @@ export function ArticleWorkbenchModal({
                 </TabsContent>
 
                 <TabsContent value="features" className="mt-0 space-y-4">
-                  {!currentGroup ? (
+                  {!collection || !collection.saved_group_id ? (
                     <div className="text-center py-8">
                       <Plus className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Group Selected</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Saved Group</h3>
                       <p className="text-gray-500 dark:text-gray-400">
-                        Columns are tied to groups. Please save this article to a group first.
+                        Features can only be added to saved article groups. Save this collection first.
                       </p>
                     </div>
                   ) : (
                     <>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Columns</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Features</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                           Extract specific data points from this article that will become columns in your table.
                         </p>
                       </div>
 
-                      {/* Existing Columns */}
+                      {/* Existing Features */}
                       {workbenchData?.extracted_features && Object.keys(workbenchData.extracted_features).length > 0 && (
                         <div className="space-y-2">
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100">Extracted Columns</h4>
-                          {Object.entries(workbenchData.extracted_features).map(([columnName, columnData]) => (
-                            <div key={columnName} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100">Extracted Features</h4>
+                          {Object.entries(workbenchData.extracted_features).map(([featureName, featureData]) => (
+                            <div key={featureName} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                               <div>
-                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{columnName}</div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">{columnData.value || columnData}</div>
+                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{featureName}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                  {typeof featureData === 'object' && featureData !== null && 'value' in featureData
+                                    ? featureData.value
+                                    : featureData}
+                                </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {columnData.extraction_method || 'AI'} • {columnData.confidence ? `${(columnData.confidence * 100).toFixed(0)}% confidence` : 'Extracted'}
+                                  {typeof featureData === 'object' && featureData !== null && 'extraction_method' in featureData
+                                    ? `${featureData.extraction_method} • ${featureData.confidence ? `${(featureData.confidence * 100).toFixed(0)}% confidence` : 'Extracted'}`
+                                    : 'AI • Extracted'}
                                 </div>
                               </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteFeature(columnName)}
+                                onClick={() => deleteFeature(featureName)}
                                 className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -625,20 +770,20 @@ export function ArticleWorkbenchModal({
                         </div>
                       )}
 
-                      {/* Add Column Tabs */}
+                      {/* Add Feature Tabs */}
                       <Tabs value={columnsTab} onValueChange={(v) => setColumnsTab(v as 'single' | 'preset')} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="single">Single Column</TabsTrigger>
-                          <TabsTrigger value="preset">Preset Columns</TabsTrigger>
+                          <TabsTrigger value="single">Single Feature</TabsTrigger>
+                          <TabsTrigger value="preset">Preset Features</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="single" className="space-y-4">
                           <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
-                            {/* Column Name */}
+                            {/* Feature Name */}
                             <div className="space-y-2">
-                              <Label htmlFor="column-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
+                              <Label htmlFor="feature-name" className="text-gray-900 dark:text-gray-100">Feature Name</Label>
                               <Input
-                                id="column-name"
+                                id="feature-name"
                                 placeholder="e.g., Has Side Effects"
                                 value={newColumnName}
                                 onChange={(e) => setNewColumnName(e.target.value)}
@@ -646,9 +791,9 @@ export function ArticleWorkbenchModal({
                               />
                             </div>
 
-                            {/* Column Type */}
+                            {/* Feature Type */}
                             <div className="space-y-2">
-                              <Label className="text-gray-900 dark:text-gray-100">Column Type</Label>
+                              <Label className="text-gray-900 dark:text-gray-100">Feature Type</Label>
                               <RadioGroup value={newColumnType} onValueChange={(value) => setNewColumnType(value as 'boolean' | 'text' | 'score')}>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="boolean" id="boolean" />
@@ -748,7 +893,7 @@ export function ArticleWorkbenchModal({
                               className="w-full gap-2"
                             >
                               <Plus className="w-4 h-4" />
-                              Add Column
+                              Add Feature
                             </Button>
                           </div>
                         </TabsContent>
@@ -760,7 +905,7 @@ export function ArticleWorkbenchModal({
                               {Object.entries(presets).length === 0 ? (
                                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                   <p>No presets available yet.</p>
-                                  <p className="text-sm mt-2">Check back later for preconfigured column sets.</p>
+                                  <p className="text-sm mt-2">Check back later for preconfigured feature sets.</p>
                                 </div>
                               ) : (
                                 Object.entries(presets).map(([key, preset]) => (
@@ -784,7 +929,7 @@ export function ArticleWorkbenchModal({
                                     </p>
                                     {preset.features && (
                                       <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 ml-6">
-                                        {Object.keys(preset.features).length} features: {Object.keys(preset.features).join(', ')}
+                                        {preset.features.length} features
                                       </div>
                                     )}
                                   </div>
@@ -802,12 +947,12 @@ export function ArticleWorkbenchModal({
                               {presetsLoading ? (
                                 <>
                                   <span className="animate-spin">⌛</span>
-                                  Adding Columns...
+                                  Adding Features...
                                 </>
                               ) : (
                                 <>
                                   <Plus className="w-4 h-4" />
-                                  Add Preset Columns
+                                  Add Preset Features
                                 </>
                               )}
                             </Button>
@@ -816,172 +961,6 @@ export function ArticleWorkbenchModal({
                       </Tabs>
                     </>
                   )}
-                </TabsContent>
-
-                <TabsContent value="groups" className="mt-0 space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Group Management</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      Manage which groups this article belongs to and view group-specific data.
-                    </p>
-                  </div>
-
-                  {currentGroup && (
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FolderOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span className="font-medium text-blue-900 dark:text-blue-100">Current Group</span>
-                      </div>
-                      <div className="text-sm text-blue-800 dark:text-blue-200">
-                        {currentGroup.name}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Article Metadata */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900 dark:text-gray-100">Article Metadata</h4>
-
-                    {/* Tags */}
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Tags</label>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="gap-1">
-                            <Tag className="w-3 h-3" />
-                            {tag}
-                            <button onClick={() => removeTag(tag)} className="ml-1 hover:text-red-500">
-                              ×
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Add tag..."
-                          value={newTag}
-                          onChange={(e) => setNewTag(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                        />
-                        <Button onClick={addTag} size="sm">
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Rating, Priority, Status */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Rating</label>
-                        <Select value={rating?.toString()} onValueChange={(v) => setRating(parseInt(v))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Rate..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 4, 5].map(n => (
-                              <SelectItem key={n} value={n.toString()}>
-                                {'★'.repeat(n)}{'☆'.repeat(5 - n)} ({n})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Priority</label>
-                        <Select value={priority} onValueChange={setPriority}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Priority..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Status</label>
-                        <Select value={status} onValueChange={setStatus}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unread">Unread</SelectItem>
-                            <SelectItem value="reading">Reading</SelectItem>
-                            <SelectItem value="read">Read</SelectItem>
-                            <SelectItem value="reviewed">Reviewed</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <Button onClick={saveMetadata} className="gap-2">
-                      <Save className="w-4 h-4" />
-                      Save Metadata
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="tools" className="mt-0 space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Research Tools</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      Additional tools and utilities for analyzing this article.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5" />
-                        <span className="font-medium">Generate Citation</span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
-                        Create APA, MLA, or Chicago style citations
-                      </span>
-                    </Button>
-
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-5 h-5" />
-                        <span className="font-medium">Reading Time</span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
-                        Estimate reading time based on word count
-                      </span>
-                    </Button>
-
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <Brain className="w-5 h-5" />
-                        <span className="font-medium">Similar Articles</span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
-                        Find related research articles
-                      </span>
-                    </Button>
-
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <ExternalLink className="w-5 h-5" />
-                        <span className="font-medium">Export Data</span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
-                        Export article data in various formats
-                      </span>
-                    </Button>
-                  </div>
-
-                  {/* Article ID for reference */}
-                  <div className="mt-6 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Article ID</div>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                      {article.id}
-                    </code>
-                  </div>
                 </TabsContent>
               </div>
             </Tabs>

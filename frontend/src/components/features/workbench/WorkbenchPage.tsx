@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
 import { useWorkbench } from '@/context/WorkbenchContext';
+
 import { CollectionSource } from '@/types/articleCollection';
 import { SearchProvider } from '@/types/unifiedSearch';
 
@@ -276,7 +278,14 @@ export function WorkbenchPage() {
           </div>
 
           {/* Table */}
-          <WorkbenchTable articles={workbench.currentCollection.articles} features={workbench.currentCollection.feature_definitions} />
+          <WorkbenchTable 
+            collection={workbench.currentCollection} 
+            onAddFeature={() => setShowAddModal(true)}
+            onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId)}
+            onDeleteArticle={(articleId) => workbench.removeArticles([articleId])}
+            onViewArticle={(article) => workbench.selectArticle(article)}
+            isExtracting={workbench.isExtracting}
+          />
         </div>
       ) : (
         <div className="text-center py-12">

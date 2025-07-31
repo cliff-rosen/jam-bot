@@ -63,7 +63,7 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
     }
   };
 
-  const addColumn = () => {
+  const addFeature = () => {
     setFeatures([...features, {
       id: '',
       name: '',
@@ -72,23 +72,12 @@ export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
     }]);
   };
 
-  const removeColumn = (index: number) => {
+  const removeFeature = (index: number) => {
     if (features.length > 1) {
       setFeatures(features.filter((_, i) => i !== index));
     }
   };
 
-  const updateColumn = (index: number, field: keyof ColumnDefinition, value: any) => {
-    const updated = [...features];
-    updated[index] = { ...updated[index], [field]: value };
-    setFeatures(updated);
-  };
-
-  const updateColumnOptions = (index: number, options: ColumnDefinition['options']) => {
-    const updated = [...features];
-    updated[index] = { ...updated[index], options };
-    setFeatures(updated);
-  };
 
   return (
     <Dialog open onOpenChange={onClose}>

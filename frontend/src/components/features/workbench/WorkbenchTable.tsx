@@ -473,15 +473,17 @@ export function WorkbenchTable({
                 </td>
                 <td className="p-2 whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onViewArticle(article)}
-                      className="h-8 w-8 p-0"
-                      title="View full article details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    {onViewArticle && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onViewArticle(article)}
+                        className="h-8 w-8 p-0"
+                        title="View full article details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     {getArticleUrl(article) && (
                       <Button
                         variant="ghost"
@@ -493,39 +495,46 @@ export function WorkbenchTable({
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDeleteArticle(article.id)}
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                      title="Remove article"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {onDeleteArticle && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteArticle(article.id)}
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                        title="Remove article"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </td>
 
-                {/* Custom Columns */}
-                {columns.map(column => (
-                  <td
-                    key={column.id}
-                    className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
-                  >
-                    {column.type === 'boolean' ? (
-                      <span className={
-                        column.data[article.id] === 'yes'
-                          ? 'text-green-600 dark:text-green-400 font-medium'
-                          : 'text-gray-500 dark:text-gray-400'
-                      }>
-                        {column.data[article.id] || '-'}
-                      </span>
-                    ) : (
-                      <div className="truncate" title={column.data[article.id] || '-'}>
-                        {column.data[article.id] || '-'}
-                      </div>
-                    )}
-                  </td>
-                ))}
+                {/* Custom Features */}
+                {features.map(feature => {
+                  const articleDetail = articleDetails.find(d => d.article.id === article.id);
+                  const featureValue = articleDetail?.feature_data[feature.id];
+                  
+                  return (
+                    <td
+                      key={feature.id}
+                      className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap"
+                    >
+                      {feature.type === 'boolean' ? (
+                        <span className={
+                          featureValue === 'yes' || featureValue === true
+                            ? 'text-green-600 dark:text-green-400 font-medium'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }>
+                          {featureValue ? String(featureValue) : '-'}
+                        </span>
+                      ) : (
+                        <div className="truncate" title={featureValue ? String(featureValue) : '-'}>
+                          {featureValue ? String(featureValue) : '-'}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

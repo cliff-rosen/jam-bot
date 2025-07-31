@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   ExternalLink, Calendar, Users, BookOpen, MessageCircle, X,
   FileText, Zap, FolderOpen, Settings, Star, Tag, Plus,
-  Save, Edit3, Trash2, Clock, Brain, Award
+  Save, Edit3, Trash2, Clock, Brain, Award, ChevronDown, ChevronRight, Hash
 } from 'lucide-react';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatPanel } from './chat/ChatPanel';
@@ -54,6 +54,7 @@ export function ArticleWorkbenchModal({
   // Add missing state variables
   const [isLoading, setIsLoading] = useState(false);
   const [workbenchData, setWorkbenchData] = useState<WorkbenchData | null>(null);
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
 
   // Form states
   const [noteText, setNoteText] = useState('');
@@ -326,6 +327,25 @@ export function ArticleWorkbenchModal({
     }
   };
 
+  const toggleFeatureExpansion = (featureId: string) => {
+    setExpandedFeatures(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+      }
+      return newSet;
+    });
+  };
+
+  const getPubMedId = () => {
+    if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
+      return article.id.replace('pubmed_', '');
+    }
+    return null;
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-0">
@@ -402,10 +422,30 @@ export function ArticleWorkbenchModal({
               <div className="flex-1 overflow-y-auto p-4">
                 <TabsContent value="overview" className="mt-0 space-y-6">
                   {/* Title */}
-                  <div>
+                  <div className="space-y-3">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                       {article.title}
                     </h1>
+                    
+                    {/* Article Identifiers */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {getSourceBadge(article.source)}
+                      {getPubMedId() && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                          <Hash className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            PMID: {getPubMedId()}
+                          </span>
+                        </div>
+                      )}
+                      {article.doi && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 dark:bg-purple-900/20 rounded-md border border-purple-200 dark:border-purple-800">
+                          <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                            DOI: {article.doi}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Article Metadata - Improved Layout */}
@@ -414,7 +454,7 @@ export function ArticleWorkbenchModal({
                     <div className="space-y-4">
                       <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Publication Details</h3>
-
+                        
                         {/* Authors */}
                         <div className="flex items-start gap-3 mb-3">
                           <Users className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
@@ -486,8 +526,8 @@ export function ArticleWorkbenchModal({
                               <div className="font-medium">{formatDate(getArticleDate('revised'))}</div>
                             </div>
                             <div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Article ID</div>
-                              <div className="font-mono text-xs">{article.id}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Publication</div>
+                              <div className="font-medium">{formatDate(getArticleDate('publication'))}</div>
                             </div>
                           </div>
                         </div>
@@ -499,31 +539,82 @@ export function ArticleWorkbenchModal({
                       {featureDefinitions.length > 0 ? (
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Extracted Features</h3>
-                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                          <div className="space-y-1 max-h-96 overflow-y-auto">
                             {featureDefinitions.map((feature) => {
                               const value = featureData[feature.id];
                               const hasValue = value !== undefined && value !== null && value !== '';
+                              const isExpanded = expandedFeatures.has(feature.id);
 
                               return (
-                                <div key={feature.id} className="flex items-start justify-between py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
-                                  <div className="flex-1 pr-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
-                                      <Badge variant="outline" className="text-xs">
-                                        {feature.type}
-                                      </Badge>
+                                <div key={feature.id} className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                                  <div 
+                                    className="flex items-center justify-between p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                                    onClick={() => toggleFeatureExpansion(feature.id)}
+                                  >
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <button className="p-0.5">
+                                        {isExpanded ? (
+                                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                                        )}
+                                      </button>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                            {feature.name}
+                                          </span>
+                                          <Badge 
+                                            variant="outline" 
+                                            className={`text-xs flex-shrink-0 ${
+                                              feature.type === 'boolean' ? 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300' :
+                                              feature.type === 'score' ? 'border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-300' :
+                                              'border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300'
+                                            }`}
+                                          >
+                                            {feature.type}
+                                          </Badge>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-xs text-gray-600 dark:text-gray-400">{feature.description}</div>
+                                    <div className="text-sm font-medium ml-3 flex-shrink-0">
+                                      {hasValue ? (
+                                        <span className={`
+                                          ${feature.type === 'boolean' && value === 'yes' ? 'text-green-600 dark:text-green-400' : ''}
+                                          ${feature.type === 'boolean' && value === 'no' ? 'text-red-600 dark:text-red-400' : ''}
+                                          ${feature.type === 'score' ? 'text-purple-600 dark:text-purple-400' : ''}
+                                          ${feature.type === 'text' ? 'text-gray-900 dark:text-gray-100' : ''}
+                                        `}>
+                                          {feature.type === 'boolean' ? (
+                                            value === 'yes' ? '✓ Yes' : '✗ No'
+                                          ) : feature.type === 'score' ? (
+                                            `${value}${feature.options?.max ? `/${feature.options.max}` : ''}`
+                                          ) : (
+                                            String(value).length > 30 ? `${String(value).substring(0, 30)}...` : String(value)
+                                          )}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400 dark:text-gray-500 italic">Not extracted</span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-sm font-medium min-w-[80px] text-right">
-                                    {hasValue ? (
-                                      <span className={feature.type === 'boolean' && value === 'yes' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}>
-                                        {String(value)}
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400 dark:text-gray-500 italic">-</span>
-                                    )}
-                                  </div>
+                                  {isExpanded && (
+                                    <div className="px-3 pb-3 pt-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                        <span className="font-medium">Description:</span> {feature.description}
+                                      </div>
+                                      {feature.type === 'text' && hasValue && String(value).length > 30 && (
+                                        <div className="text-xs text-gray-700 dark:text-gray-300 mt-2">
+                                          <span className="font-medium">Full value:</span> {String(value)}
+                                        </div>
+                                      )}
+                                      {feature.type === 'score' && feature.options && (
+                                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                          <span className="font-medium">Range:</span> {feature.options.min}-{feature.options.max}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}

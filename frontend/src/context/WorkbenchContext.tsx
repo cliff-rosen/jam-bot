@@ -314,27 +314,28 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       id: f.id || generatePrefixedUUID('feat')
     }));
 
+    // Filter out any features that already exist (prevent duplicates)
+    const existingIds = new Set(currentCollection.feature_definitions.map(f => f.id));
+    const uniqueNewFeatures = newFeatures.filter(f => !existingIds.has(f.id));
+
+    if (uniqueNewFeatures.length === 0) return; // No new features to add
+
     setCurrentCollection({
       ...currentCollection,
-      feature_definitions: [...currentCollection.feature_definitions, ...newFeatures],
+      feature_definitions: [...currentCollection.feature_definitions, ...uniqueNewFeatures],
       is_modified: true,
       updated_at: new Date().toISOString()
     });
   }, [currentCollection]);
 
   const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[]) => {
-    console.log('addFeatureDefinitionsAndExtract called with:', features);
-    if (!currentCollection) {
-      console.log('No current collection, aborting');
-      return;
-    }
+    if (!currentCollection) return;
 
     // Ensure unique IDs
     const newFeatures = features.map(f => ({
       ...f,
       id: f.id || generatePrefixedUUID('feat')
     }));
-    console.log('New features with IDs:', newFeatures);
 
     // Create updated collection with new features
     const updatedCollection = {
@@ -363,17 +364,42 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         features: newFeatures // Use the new features directly
       });
 
+      console.log('Extraction API Response:', extractionResult);
+      console.log('Articles data sent:', articlesData);
+      console.log('Features sent:', newFeatures);
+
       // Update article feature_data
       const updatedArticles = updatedCollection.articles.map(article => {
         const articleFeatures = extractionResult.results[article.article_id] || {};
+        console.log(`Article ${article.article_id} features:`, articleFeatures);
+        
+        // Handle both feature ID and feature name keys
+        const processedFeatures: Record<string, string> = {};
+        
+        // First, try direct mapping (if API uses feature IDs)
+        Object.keys(articleFeatures).forEach(key => {
+          processedFeatures[key] = articleFeatures[key];
+        });
+        
+        // Also try mapping feature names to IDs (if API uses feature names)
+        newFeatures.forEach(feature => {
+          if (articleFeatures[feature.name]) {
+            processedFeatures[feature.id] = articleFeatures[feature.name];
+          }
+        });
+        
+        console.log(`Processed features for article ${article.article_id}:`, processedFeatures);
+        
         return {
           ...article,
           feature_data: {
             ...article.feature_data,
-            ...articleFeatures
+            ...processedFeatures
           }
         };
       });
+
+      console.log('Updated articles with feature data:', updatedArticles);
 
       setCurrentCollection({
         ...updatedCollection,
@@ -414,7 +440,6 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, [currentCollection]);
 
   const extractFeatures = useCallback(async (featureIds?: string[]) => {
-    console.log('Extracting features', featureIds);
     if (!currentCollection || currentCollection.feature_definitions.length === 0) return;
 
     setIsExtracting(true);

@@ -99,7 +99,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     ));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
     if (!selectedTemplateData) return;
 
@@ -115,16 +115,9 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     }
 
     if (featuresToAdd.length > 0) {
-      setLoading(true);
-      try {
-        await onAdd(featuresToAdd, extractImmediately);
-        onOpenChange(false); // Only close after successful completion
-      } catch (error) {
-        console.error('Failed to add features:', error);
-        // Modal stays open so user can retry
-      } finally {
-        setLoading(false);
-      }
+      // Configuration is done - pass to parent and close modal
+      onAdd(featuresToAdd, extractImmediately);
+      onOpenChange(false);
     }
   };
 
@@ -332,19 +325,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
           </p>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden relative">
-          {/* Loading Overlay */}
-          {loading && (
-            <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-50 flex items-center justify-center">
-              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-4 rounded-lg shadow-lg border">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                <span className="text-sm font-medium text-foreground">
-                  {extractImmediately ? 'Extracting features from articles...' : 'Adding features...'}
-                </span>
-              </div>
-            </div>
-          )}
-
+        <div className="flex-1 flex overflow-hidden">
           {/* Left Panel - Template List */}
           <div className="w-80 border-r bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Available Options</h3>
@@ -412,20 +393,15 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                 type="button" 
                 variant="outline" 
                 onClick={() => onOpenChange(false)}
-                disabled={loading}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!canSubmit() || loading}
+                disabled={!canSubmit()}
                 className="min-w-[140px]"
               >
-                {loading ? (
-                  extractImmediately ? 'Extracting...' : 'Adding...'
-                ) : (
-                  extractImmediately ? 'Extract Features' : 'Add Features'
-                )}
+                {extractImmediately ? 'Extract Features' : 'Add Features'}
               </Button>
             </div>
           </div>

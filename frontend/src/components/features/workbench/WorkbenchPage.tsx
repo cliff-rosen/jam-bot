@@ -16,6 +16,7 @@ import { AddFeatureModal } from './AddFeatureModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
+import { ExtractionAnimation } from './ExtractionAnimation';
 
 export function WorkbenchPage() {
   const workbench = useWorkbench();
@@ -345,6 +346,13 @@ export function WorkbenchPage() {
           onClose={() => workbench.selectArticle(null)}
         />
       )}
+
+      {/* Extraction Animation Overlay */}
+      <ExtractionAnimation
+        isVisible={workbench.isExtracting}
+        featuresCount={workbench.currentCollection?.feature_definitions.length || 0}
+        articlesCount={workbench.currentCollection?.articles.length || 0}
+      />
     </div>
   );
 }

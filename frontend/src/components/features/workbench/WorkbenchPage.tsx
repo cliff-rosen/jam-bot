@@ -404,6 +404,7 @@ export function WorkbenchPage() {
       {workbench.selectedArticle && (
         <ArticleWorkbenchModal
           article={workbench.selectedArticle}
+          collection={workbench.currentCollection}
           onClose={() => workbench.selectArticle(null)}
         />
       )}

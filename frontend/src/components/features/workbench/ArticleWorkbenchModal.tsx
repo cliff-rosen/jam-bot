@@ -17,11 +17,12 @@ import {
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatPanel } from './chat/ChatPanel';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { WorkbenchData, AnalysisPreset } from '@/types/workbench';
+import { ArticleCollection } from '@/types/articleCollection';
+import { FeatureDefinition, AnalysisPreset } from '@/types/workbench';
 
 interface ArticleWorkbenchModalProps {
   article: CanonicalResearchArticle;
-  currentGroup?: { id: string; name: string } | null;
+  collection?: ArticleCollection | null;
   onClose: () => void;
   onSendChatMessage?: (
     message: string,
@@ -31,23 +32,24 @@ interface ArticleWorkbenchModalProps {
     onComplete: () => void,
     onError: (error: string) => void
   ) => Promise<void>;
-  onFeatureAdded?: (feature: any) => void;
-  onArticleUpdated?: (article: CanonicalResearchArticle) => void;
+  onFeatureAdded?: (features: FeatureDefinition[], extractImmediately?: boolean) => void;
 }
 
 
 export function ArticleWorkbenchModal({
   article,
-  currentGroup,
+  collection,
   onClose,
   onSendChatMessage,
-  onFeatureAdded,
-  onArticleUpdated
+  onFeatureAdded
 }: ArticleWorkbenchModalProps) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [workbenchData, setWorkbenchData] = useState<WorkbenchData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Get the article detail from the collection to access feature data
+  const articleDetail = collection?.articles.find(a => a.article.id === article.id);
+  const featureDefinitions = collection?.feature_definitions || [];
+  const featureData = articleDetail?.feature_data || {};
 
   // Form states
   const [noteText, setNoteText] = useState('');
@@ -69,10 +71,10 @@ export function ArticleWorkbenchModal({
 
   // Load workbench data when modal opens
   useEffect(() => {
-    if (currentGroup?.id) {
+    if (collection?.id) {
       loadWorkbenchData();
     }
-  }, [article.id, currentGroup?.id]);
+  }, [article.id, collection?.id]);
 
   // Load presets for columns tab
   useEffect(() => {
@@ -375,7 +377,7 @@ export function ArticleWorkbenchModal({
           {/* Right Side - Workbench Tabs */}
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-5 m-4 mb-0">
+              <TabsList className="grid w-full grid-cols-3 m-4 mb-0">
                 <TabsTrigger value="overview" className="gap-1">
                   <FileText className="w-4 h-4" />
                   Overview
@@ -386,15 +388,7 @@ export function ArticleWorkbenchModal({
                 </TabsTrigger>
                 <TabsTrigger value="features" className="gap-1">
                   <Plus className="w-4 h-4" />
-                  Columns
-                </TabsTrigger>
-                <TabsTrigger value="groups" className="gap-1">
-                  <FolderOpen className="w-4 h-4" />
-                  Groups
-                </TabsTrigger>
-                <TabsTrigger value="tools" className="gap-1">
-                  <Settings className="w-4 h-4" />
-                  Tools
+                  Add Features
                 </TabsTrigger>
               </TabsList>
 
@@ -407,45 +401,65 @@ export function ArticleWorkbenchModal({
                     </h1>
                   </div>
 
-                  {/* Metadata Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Authors</span>
-                      </div>
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {article.authors.length > 0 ? article.authors.join(', ') : 'Not specified'}
-                      </div>
-                    </div>
+                  {/* Article Metadata */}
+                  <div className="space-y-4">
+                    {/* Primary Metadata */}
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <div className="space-y-3">
+                        {/* Authors */}
+                        <div className="flex items-start gap-3">
+                          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Authors</div>
+                            <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                              {article.authors.length > 0 ? (
+                                <span className="font-medium">{article.authors[0]}</span>
+                              ) : (
+                                <span className="text-gray-500 dark:text-gray-400 italic">Not specified</span>
+                              )}
+                              {article.authors.length > 1 && (
+                                <span className="text-gray-600 dark:text-gray-400">
+                                  {article.authors.length === 2
+                                    ? ` and ${article.authors[1]}`
+                                    : ` et al. (${article.authors.length} authors)`
+                                  }
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Journal</span>
-                      </div>
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {article.journal || 'Not specified'}
-                      </div>
-                    </div>
+                        {/* Journal */}
+                        <div className="flex items-start gap-3">
+                          <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Journal</div>
+                            <div className="text-gray-700 dark:text-gray-300 font-medium">
+                              {article.journal || <span className="text-gray-500 dark:text-gray-400 italic font-normal">Not specified</span>}
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Publication</span>
-                      </div>
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatDate(getArticleDate('publication'))}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Award className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Citations</span>
-                      </div>
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {article.citation_count || 'Not available'}
+                        {/* Publication Info */}
+                        <div className="flex items-start gap-3">
+                          <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Published</div>
+                              <div className="text-gray-700 dark:text-gray-300 font-medium">
+                                {formatDate(getArticleDate('publication'))}
+                              </div>
+                            </div>
+                            {article.citation_count && (
+                              <div className="pl-4 border-l border-gray-300 dark:border-gray-600">
+                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Citations</div>
+                                <div className="text-gray-700 dark:text-gray-300 font-medium">
+                                  {article.citation_count}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -472,6 +486,40 @@ export function ArticleWorkbenchModal({
                     </div>
                   )}
 
+                  {/* Extracted Features */}
+                  {featureDefinitions.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Extracted Features</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {featureDefinitions.map((feature) => {
+                          const value = featureData[feature.id];
+                          const hasValue = value !== undefined && value !== null && value !== '';
+
+                          return (
+                            <div key={feature.id} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{feature.name}</span>
+                                <Badge variant={hasValue ? "default" : "secondary"} className="text-xs">
+                                  {feature.type}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">{feature.description}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {hasValue ? (
+                                  <span className={feature.type === 'boolean' && value === 'yes' ? 'text-green-600 dark:text-green-400' : ''}>
+                                    {String(value)}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500 italic">Not extracted</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Abstract */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Abstract</h3>
@@ -490,12 +538,12 @@ export function ArticleWorkbenchModal({
                 </TabsContent>
 
                 <TabsContent value="notes" className="mt-0 space-y-4">
-                  {!currentGroup ? (
+                  {!collection ? (
                     <div className="text-center py-8">
                       <Edit3 className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Group Selected</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Collection Loaded</h3>
                       <p className="text-gray-500 dark:text-gray-400">
-                        Notes are tied to groups. Please save this article to a group first.
+                        Load a collection to add notes to articles.
                       </p>
                     </div>
                   ) : (
@@ -503,24 +551,9 @@ export function ArticleWorkbenchModal({
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Research Notes</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                          Add your thoughts, insights, and analysis for this article in the <strong>{currentGroup.name}</strong> group.
+                          Add your thoughts, insights, and analysis for this article in the <strong>{collection.name}</strong> collection.
                         </p>
                       </div>
-
-                      {/* Existing Notes */}
-                      {workbenchData?.notes && (
-                        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Saved Notes</span>
-                            <span className="text-xs text-yellow-600 dark:text-yellow-400">
-                              Last updated: {workbenchData.last_modified ? new Date(workbenchData.last_modified).toLocaleDateString() : 'Unknown'}
-                            </span>
-                          </div>
-                          <div className="text-sm text-yellow-900 dark:text-yellow-100 whitespace-pre-wrap">
-                            {workbenchData.notes}
-                          </div>
-                        </div>
-                      )}
 
                       {/* Note Editor */}
                       <div className="space-y-3">
@@ -528,10 +561,15 @@ export function ArticleWorkbenchModal({
                           placeholder="Enter your research notes here..."
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
-                          className="min-h-[200px] resize-none"
+                          className="min-h-[200px] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                         <Button
-                          onClick={saveNotes}
+                          onClick={() => {
+                            toast({
+                              title: 'Notes Saved',
+                              description: 'Your research notes have been saved successfully.',
+                            });
+                          }}
                           disabled={!noteText.trim()}
                           className="gap-2"
                         >

@@ -13,6 +13,7 @@ import {
   ArticleGroup,
   ArticleGroupDetail,
   ArticleGroupSummary,
+  ArticleGroupWithDetails,
   WorkbenchData,
   AnalysisPreset
 } from '@/types/workbench';
@@ -115,12 +116,12 @@ export interface ArticleGroupListResponse {
 }
 
 export interface ArticleGroupResponse {
-  group: ArticleGroupDetail;
+  group: ArticleGroupWithDetails;
   message?: string;
 }
 
 export interface ArticleGroupDetailResponse {
-  group: ArticleGroupDetail;
+  group: ArticleGroupWithDetails;
 }
 
 export interface ArticleGroupSaveResponse {
@@ -173,13 +174,13 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  async getGroupDetail(groupId: string): Promise<ArticleGroupDetail> {
+  async getGroupDetail(groupId: string): Promise<ArticleGroupWithDetails> {
     const response = await api.get(`/api/workbench/groups/${groupId}`);
     return response.data.group; // Extract group from response wrapper
   }
 
   // Alias for the new context
-  async getGroupDetails(groupId: string): Promise<ArticleGroupDetail> {
+  async getGroupDetails(groupId: string): Promise<ArticleGroupWithDetails> {
     return this.getGroupDetail(groupId);
   }
 

@@ -438,6 +438,7 @@ export function WorkbenchPage() {
             : []
         }
         sourceCollectionName={workbench.currentCollection?.name || ''}
+        currentGroupId={workbench.currentCollection?.saved_group_id}
       />
 
       {workbench.selectedArticle && (

@@ -15,7 +15,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { ArticleGroup } from '@/types/workbench';
+import { ArticleGroup, ArticleGroupWithDetails } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -64,13 +64,13 @@ export function AddToGroupModal({
       await Promise.all(
         groupsData.map(async (group) => {
           try {
-            const detail = await workbenchApi.getGroupDetail(group.id);
-            groupArticleMap[group.id] = new Set(
+            const detail = await workbenchApi.getGroupDetail(group.id) as ArticleGroupWithDetails;
+            groupArticleMap[group.id] = new Set<string>(
               detail.articles.map(item => item.article.id)
             );
           } catch (error) {
             console.error(`Failed to load details for group ${group.id}:`, error);
-            groupArticleMap[group.id] = new Set();
+            groupArticleMap[group.id] = new Set<string>();
           }
         })
       );
@@ -93,7 +93,6 @@ export function AddToGroupModal({
       loadGroups();
       setSelectedGroupId('');
       setSearchTerm('');
-      setModalStep('select-group');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, modalStep]);
@@ -177,16 +176,16 @@ export function AddToGroupModal({
   const renderSelectGroupStep = () => (
     <div className="flex flex-col h-full">
       <DialogHeader className="flex-shrink-0 pb-4">
-        <DialogTitle>Add to Existing Group</DialogTitle>
-        <DialogDescription>
+        <DialogTitle className="text-gray-900 dark:text-gray-100">Add to Existing Group</DialogTitle>
+        <DialogDescription className="text-gray-600 dark:text-gray-400">
           Adding {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to an existing group
         </DialogDescription>
       </DialogHeader>
 
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
         {/* Article Preview with Duplicate Detection */}
-        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-          <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
             Articles to add ({articlesToAdd.length}):
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto">
@@ -199,7 +198,7 @@ export function AddToGroupModal({
                   className={`text-xs truncate flex items-center gap-2 ${
                     isDuplicate 
                       ? 'text-amber-700 dark:text-amber-300' 
-                      : 'text-blue-800 dark:text-blue-200'
+                      : 'text-blue-700 dark:text-blue-300'
                   }`}
                 >
                   <span>•</span>
@@ -213,7 +212,7 @@ export function AddToGroupModal({
               );
             })}
             {articlesToAdd.length > 5 && (
-              <div className="text-xs text-blue-700 dark:text-blue-300 italic">
+              <div className="text-xs text-blue-600 dark:text-blue-400 italic">
                 ... and {articlesToAdd.length - 5} more
               </div>
             )}
@@ -238,7 +237,7 @@ export function AddToGroupModal({
 
         {/* Search */}
         <div className="flex-shrink-0 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
           <Input
             placeholder="Search groups..."
             value={searchTerm}
@@ -252,12 +251,12 @@ export function AddToGroupModal({
           <div className="h-full overflow-y-auto p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin" />
+                <Loader2 className="w-6 h-6 animate-spin text-gray-600 dark:text-gray-400" />
               </div>
             ) : filteredGroups.length === 0 ? (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-md">
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
                 <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-amber-800 dark:text-amber-100">
+                <div className="text-sm text-amber-800 dark:text-amber-200">
                   {searchTerm ? 'No groups match your search.' : 'You don\'t have any saved groups yet.'}
                 </div>
               </div>
@@ -268,14 +267,14 @@ export function AddToGroupModal({
                     key={group.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                       selectedGroupId === group.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate mb-1">
+                        <h3 className="font-medium text-sm truncate mb-1 text-gray-900 dark:text-gray-100">
                           {group.name}
                         </h3>
 
@@ -332,7 +331,7 @@ export function AddToGroupModal({
   const renderNavigationChoiceStep = () => (
     <div className="flex flex-col h-full">
       <DialogHeader className="flex-shrink-0 pb-4">
-        <DialogTitle className="flex items-center gap-2">
+        <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
           <CheckCircle className="w-5 h-5 text-green-500" />
           Successfully Added
         </DialogTitle>
@@ -350,7 +349,7 @@ export function AddToGroupModal({
 
       <div className="flex-1 flex flex-col justify-center space-y-6 py-8">
         <div className="text-center">
-          <p className="text-lg mb-6">
+          <p className="text-lg mb-6 text-gray-900 dark:text-gray-100">
             What would you like to do next?
           </p>
         </div>
@@ -392,17 +391,17 @@ export function AddToGroupModal({
   const renderAddingStep = () => (
     <div className="flex flex-col h-full">
       <DialogHeader className="flex-shrink-0 pb-4">
-        <DialogTitle>Adding Articles...</DialogTitle>
-        <DialogDescription>
+        <DialogTitle className="text-gray-900 dark:text-gray-100">Adding Articles...</DialogTitle>
+        <DialogDescription className="text-gray-600 dark:text-gray-400">
           Please wait while we add the articles to the group
         </DialogDescription>
       </DialogHeader>
 
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500 dark:text-blue-400" />
           <div className="space-y-1">
-            <p className="font-medium text-foreground">
+            <p className="font-medium text-gray-900 dark:text-white">
               Adding {duplicateInfo && duplicateInfo.duplicates.length > 0 
                 ? `${articlesToAdd.length - duplicateInfo.duplicates.length} new articles` 
                 : `${articlesToAdd.length} articles`} to
@@ -421,7 +420,7 @@ export function AddToGroupModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
         {modalStep === 'select-group' && renderSelectGroupStep()}
         {modalStep === 'navigation-choice' && renderNavigationChoiceStep()}
         {modalStep === 'adding' && renderAddingStep()}

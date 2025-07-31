@@ -25,6 +25,7 @@ interface AddToGroupModalProps {
   onAddToGroup: (groupId: string, navigateToGroup: boolean) => Promise<void>;
   articlesToAdd: Array<{ id: string; title: string }>;
   sourceCollectionName: string;
+  currentGroupId?: string; // Hide this group from the list
 }
 
 type ModalStep = 'select-group' | 'navigation-choice' | 'adding';
@@ -34,7 +35,8 @@ export function AddToGroupModal({
   onOpenChange,
   onAddToGroup,
   articlesToAdd,
-  sourceCollectionName
+  sourceCollectionName,
+  currentGroupId
 }: AddToGroupModalProps) {
   const [groups, setGroups] = useState<ArticleGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>([]);
@@ -44,6 +46,8 @@ export function AddToGroupModal({
   const [modalStep, setModalStep] = useState<ModalStep>('select-group');
   const [targetGroupName, setTargetGroupName] = useState('');
   const [rememberChoice, setRememberChoice] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ total: number; duplicates: string[] } | null>(null);
+  const [groupArticles, setGroupArticles] = useState<Record<string, Set<string>>>({});
   const { toast } = useToast();
 
   // Load groups when modal opens
@@ -56,14 +60,20 @@ export function AddToGroupModal({
     }
   }, [open]);
 
-  // Filter groups based on search
+  // Filter groups based on search and exclude current group
   useEffect(() => {
-    const filtered = groups.filter(group =>
-      group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filtered = groups.filter(group => {
+      // Exclude the current group from the list
+      if (currentGroupId && group.id === currentGroupId) {
+        return false;
+      }
+      
+      // Apply search filter
+      return group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
     setFilteredGroups(filtered);
-  }, [groups, searchTerm]);
+  }, [groups, searchTerm, currentGroupId]);
 
   const loadGroups = async () => {
     setIsLoading(true);
@@ -72,6 +82,23 @@ export function AddToGroupModal({
       const groups = response.groups || [];
       setGroups(groups);
       setFilteredGroups(groups);
+      
+      // Load article IDs for each group to check for duplicates
+      const groupArticleMap: Record<string, Set<string>> = {};
+      await Promise.all(
+        groups.map(async (group) => {
+          try {
+            const detail = await workbenchApi.getGroupDetail(group.id);
+            groupArticleMap[group.id] = new Set(
+              detail.articles.map(item => item.article.id)
+            );
+          } catch (error) {
+            console.error(`Failed to load details for group ${group.id}:`, error);
+            groupArticleMap[group.id] = new Set();
+          }
+        })
+      );
+      setGroupArticles(groupArticleMap);
     } catch (error) {
       console.error('Failed to load groups:', error);
       toast({
@@ -89,6 +116,17 @@ export function AddToGroupModal({
     
     const selectedGroup = groups.find(g => g.id === selectedGroupId);
     if (!selectedGroup) return;
+
+    // Calculate duplicates
+    const targetArticleIds = groupArticles[selectedGroupId] || new Set();
+    const duplicateIds = articlesToAdd
+      .filter(article => targetArticleIds.has(article.id))
+      .map(article => article.id);
+    
+    setDuplicateInfo({
+      total: articlesToAdd.length,
+      duplicates: duplicateIds
+    });
 
     setTargetGroupName(selectedGroup.name);
     setModalStep('adding');
@@ -135,115 +173,145 @@ export function AddToGroupModal({
   };
 
   const renderSelectGroupStep = () => (
-    <>
-      <DialogHeader>
-        <DialogTitle className="text-gray-900 dark:text-gray-100">Add to Existing Group</DialogTitle>
-        <DialogDescription className="text-gray-600 dark:text-gray-400">
+    <div className="flex flex-col h-full">
+      <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogTitle>Add to Existing Group</DialogTitle>
+        <DialogDescription>
           Adding {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to an existing group
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-4">
-        {/* Article Preview */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+      <div className="flex flex-col space-y-4 flex-1 min-h-0">
+        {/* Article Preview with Duplicate Detection */}
+        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
             Articles to add ({articlesToAdd.length}):
           </div>
-          <div className="space-y-1 max-h-20 overflow-y-auto">
-            {articlesToAdd.slice(0, 3).map((article, index) => (
-              <div key={article.id} className="text-xs text-blue-800 dark:text-blue-200 truncate">
-                • {article.title}
-              </div>
-            ))}
-            {articlesToAdd.length > 3 && (
+          <div className="space-y-1 max-h-24 overflow-y-auto">
+            {articlesToAdd.slice(0, 5).map((article) => {
+              const isDuplicate = selectedGroupId && 
+                (groupArticles[selectedGroupId]?.has(article.id) || false);
+              return (
+                <div 
+                  key={article.id} 
+                  className={`text-xs truncate flex items-center gap-2 ${
+                    isDuplicate 
+                      ? 'text-amber-700 dark:text-amber-300' 
+                      : 'text-blue-800 dark:text-blue-200'
+                  }`}
+                >
+                  <span>•</span>
+                  <span className="flex-1 truncate">{article.title}</span>
+                  {isDuplicate && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                      Duplicate
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+            {articlesToAdd.length > 5 && (
               <div className="text-xs text-blue-700 dark:text-blue-300 italic">
-                ... and {articlesToAdd.length - 3} more
+                ... and {articlesToAdd.length - 5} more
               </div>
             )}
           </div>
+          {selectedGroupId && groupArticles[selectedGroupId] && (() => {
+            const duplicateCount = articlesToAdd.filter(
+              article => groupArticles[selectedGroupId].has(article.id)
+            ).length;
+            if (duplicateCount > 0) {
+              return (
+                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{duplicateCount} duplicate{duplicateCount > 1 ? 's' : ''} will be skipped</span>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+        <div className="flex-shrink-0 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             placeholder="Search groups..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+            className="pl-10"
           />
         </div>
 
-        {/* Groups List */}
-        <div className="h-[300px] pr-4 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-600 dark:text-gray-400" />
-            </div>
-          ) : filteredGroups.length === 0 ? (
-            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
-              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="text-sm text-amber-800 dark:text-amber-200">
-                {searchTerm ? 'No groups match your search.' : 'You don\'t have any saved groups yet.'}
+        {/* Groups List - Scrollable */}
+        <div className="flex-1 min-h-0 border rounded-lg">
+          <div className="h-full overflow-y-auto p-2">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
               </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredGroups.map((group) => (
-                <div
-                  key={group.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  onClick={() => setSelectedGroupId(group.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-gray-900 dark:text-gray-100">
+            ) : filteredGroups.length === 0 ? (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 rounded-md">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-amber-800 dark:text-amber-100">
+                  {searchTerm ? 'No groups match your search.' : 'You don\'t have any saved groups yet.'}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredGroups.map((group) => (
+                  <div
+                    key={group.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                    onClick={() => setSelectedGroupId(group.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm truncate mb-1">
                           {group.name}
                         </h3>
-                      </div>
 
-                      {group.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {group.description}
-                        </p>
-                      )}
+                        {group.description && (
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                            {group.description}
+                          </p>
+                        )}
 
-                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-3 h-3" />
-                          {group.article_count} articles
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Hash className="w-3 h-3" />
-                          {group.feature_definitions?.length || 0} features
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(group.updated_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {selectedGroupId === group.id && (
-                      <div className="ml-2">
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-3 h-3 text-white" />
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            {group.article_count}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Hash className="w-3 h-3" />
+                            {group.feature_definitions?.length || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {formatDistanceToNow(new Date(group.updated_at), { addSuffix: true })}
+                          </span>
                         </div>
                       </div>
-                    )}
+
+                      {selectedGroupId === group.id && (
+                        <CheckCircle className="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t">
+      {/* Footer */}
+      <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
         <Button variant="outline" onClick={handleClose}>
           Cancel
         </Button>
@@ -255,46 +323,53 @@ export function AddToGroupModal({
           Add to Group
         </Button>
       </div>
-    </>
+    </div>
   );
 
   const renderNavigationChoiceStep = () => (
-    <>
-      <DialogHeader>
-        <DialogTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="flex flex-col h-full">
+      <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogTitle className="flex items-center gap-2">
           <CheckCircle className="w-5 h-5 text-green-500" />
           Successfully Added
         </DialogTitle>
-        <DialogDescription className="text-gray-600 dark:text-gray-400">
-          Added {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to "{targetGroupName}"
+        <DialogDescription className="text-muted-foreground">
+          {duplicateInfo && duplicateInfo.duplicates.length > 0 ? (
+            <>
+              Added {duplicateInfo.total - duplicateInfo.duplicates.length} new {duplicateInfo.total - duplicateInfo.duplicates.length === 1 ? 'article' : 'articles'} to "{targetGroupName}"
+              <span className="text-amber-600 dark:text-amber-400"> ({duplicateInfo.duplicates.length} duplicate{duplicateInfo.duplicates.length > 1 ? 's' : ''} skipped)</span>
+            </>
+          ) : (
+            <>Added {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to "{targetGroupName}"</>
+          )}
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-6 py-4">
+      <div className="flex-1 flex flex-col justify-center space-y-6 py-8">
         <div className="text-center">
-          <p className="text-gray-900 dark:text-gray-100 mb-4">
+          <p className="text-lg mb-6">
             What would you like to do next?
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <Button
             onClick={() => handleNavigationChoice(false)}
             variant="outline"
-            className="flex-1"
+            className="flex-1 h-12"
           >
             Stay Here
           </Button>
           <Button
             onClick={() => handleNavigationChoice(true)}
             variant="default"
-            className="flex-1"
+            className="flex-1 h-12"
           >
             Go to Group
           </Button>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-center space-x-2 pt-4">
           <Checkbox 
             id="remember-choice"
             checked={rememberChoice}
@@ -302,36 +377,48 @@ export function AddToGroupModal({
           />
           <label
             htmlFor="remember-choice"
-            className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+            className="text-sm text-muted-foreground cursor-pointer"
           >
             Remember my choice
           </label>
         </div>
       </div>
-    </>
+    </div>
   );
 
   const renderAddingStep = () => (
-    <>
-      <DialogHeader>
-        <DialogTitle className="text-gray-900 dark:text-gray-100">Adding Articles...</DialogTitle>
-        <DialogDescription className="text-gray-600 dark:text-gray-400">
+    <div className="flex flex-col h-full">
+      <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogTitle>Adding Articles...</DialogTitle>
+        <DialogDescription>
           Please wait while we add the articles to the group
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex items-center justify-center py-8">
-        <div className="flex items-center gap-3 text-foreground">
-          <Loader2 className="w-6 h-6 animate-spin text-foreground" />
-          <span>Adding {articlesToAdd.length} articles to "{targetGroupName}"...</span>
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">
+              Adding {duplicateInfo && duplicateInfo.duplicates.length > 0 
+                ? `${articlesToAdd.length - duplicateInfo.duplicates.length} new articles` 
+                : `${articlesToAdd.length} articles`} to
+            </p>
+            <p className="text-sm text-muted-foreground">"{targetGroupName}"</p>
+            {duplicateInfo && duplicateInfo.duplicates.length > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Skipping {duplicateInfo.duplicates.length} duplicate{duplicateInfo.duplicates.length > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
         {modalStep === 'select-group' && renderSelectGroupStep()}
         {modalStep === 'navigation-choice' && renderNavigationChoiceStep()}
         {modalStep === 'adding' && renderAddingStep()}

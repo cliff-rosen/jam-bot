@@ -173,16 +173,26 @@ class ArticleGroupService:
         if not group:
             return None
         
+        # Get count before adding
+        count_before = group.article_count
+        
         self._add_articles_to_group(group, request.articles, group.feature_definitions)
         
         self.db.commit()
         self.db.refresh(group)
         
+        # Calculate how many were actually added
+        count_after = group.article_count
+        articles_added = count_after - count_before
+        duplicates_skipped = len(request.articles) - articles_added
+        
         return {
             "success": True,
-            "message": f"Added {len(request.articles)} articles to group",
+            "message": f"Added {articles_added} new articles to group" + 
+                      (f" ({duplicates_skipped} duplicates skipped)" if duplicates_skipped > 0 else ""),
             "group_id": group_id,
-            "articles_saved": len(request.articles)
+            "articles_saved": articles_added,
+            "duplicates_skipped": duplicates_skipped
         }
     
     def save_tabelizer_state(
@@ -265,6 +275,14 @@ class ArticleGroupService:
         feature_definitions: List[Dict[str, Any]]
     ):
         """Helper to add articles to a group with extracted feature data."""
+        # Get existing article IDs in the group to check for duplicates
+        existing_article_ids = set(
+            detail.article_data.get('id', '') 
+            for detail in self.db.query(ArticleGroupDetailModel)
+                                 .filter(ArticleGroupDetailModel.article_group_id == group.id)
+                                 .all()
+        )
+        
         # Create feature data lookup from legacy format if needed
         feature_data_by_article = {}
         for feature in feature_definitions:
@@ -275,8 +293,19 @@ class ArticleGroupService:
                         feature_data_by_article[article_id] = {}
                     feature_data_by_article[article_id][feature["name"]] = value
         
-        # Add articles to group
-        for position, article in enumerate(articles):
+        # Get current max position for appending
+        max_position_result = self.db.query(func.max(ArticleGroupDetailModel.position)).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).scalar()
+        current_position = (max_position_result or -1) + 1
+        
+        # Add articles to group, skipping duplicates
+        articles_added = 0
+        for article in articles:
+            # Skip if article already exists in group
+            if article.id in existing_article_ids:
+                continue
+                
             # Get extracted features for this article
             feature_data = {}
             if article.id in feature_data_by_article:
@@ -290,13 +319,17 @@ class ArticleGroupService:
                 notes='',
                 feature_data=feature_data,
                 article_metadata={},
-                position=position
+                position=current_position
             )
             
             self.db.add(article_detail)
+            current_position += 1
+            articles_added += 1
         
         # Update article count
-        group.article_count = len(articles)
+        group.article_count = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).count()
         group.updated_at = datetime.utcnow()
     
     def _group_to_summary(self, group: ArticleGroupModel) -> dict:

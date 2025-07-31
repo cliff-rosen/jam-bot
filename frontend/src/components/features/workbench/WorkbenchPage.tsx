@@ -148,7 +148,7 @@ export function WorkbenchPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Research Workbench</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Research Workbench</h1>
           <p className="text-muted-foreground">
             Search, analyze, and organize research articles with AI-powered insights
           </p>
@@ -229,7 +229,7 @@ export function WorkbenchPage() {
           {/* Collection Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-lg font-semibold text-foreground">
                 {workbench.currentCollection.name}
               </h2>
               <span className="text-sm text-muted-foreground">

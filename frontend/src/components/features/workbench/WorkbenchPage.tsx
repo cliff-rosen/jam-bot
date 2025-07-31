@@ -166,16 +166,14 @@ export function WorkbenchPage() {
             Load Group
           </Button>
 
-          {canSave && (
-            <Button
-              onClick={() => setShowSaveModal(true)}
-              variant="outline"
-              size="sm"
-            >
-              <Cloud className="w-4 h-4 mr-2" />
-              {workbench.currentCollection?.source === CollectionSource.SEARCH ? 'Save as Group' : 'Save'}
-            </Button>
-          )}
+          <Button
+            onClick={() => workbench.resetWorkbench()}
+            variant="outline"
+            size="sm"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
 
           {canSaveChanges && (
             <Button
@@ -274,13 +272,23 @@ export function WorkbenchPage() {
                   )}
                 </Button>
               )}
+
+              {canSave && (
+                <Button
+                  onClick={() => setShowSaveModal(true)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Cloud className="w-4 h-4 mr-2" />
+                  {workbench.currentCollection?.source === CollectionSource.SEARCH ? 'Save as Group' : 'Save'}
+                </Button>
+              )}
             </div>
           </div>
 
           {/* Table */}
           <WorkbenchTable 
             collection={workbench.currentCollection} 
-            onAddFeature={() => setShowAddModal(true)}
             onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId)}
             onDeleteArticle={(articleId) => workbench.removeArticles([articleId])}
             onViewArticle={(article) => workbench.selectArticle(article)}
@@ -309,8 +317,12 @@ export function WorkbenchPage() {
       <AddFeatureModal
         open={showAddModal}
         onOpenChange={setShowAddModal}
-        onAdd={(features) => {
+        onAdd={async (features, extractImmediately) => {
           workbench.addFeatureDefinitions(features);
+          if (extractImmediately) {
+            const featureIds = features.map(f => f.id);
+            await workbench.extractFeatures(featureIds);
+          }
           setShowAddModal(false);
         }}
       />

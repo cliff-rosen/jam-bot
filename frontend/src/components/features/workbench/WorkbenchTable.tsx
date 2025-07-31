@@ -8,7 +8,6 @@ import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, Fol
 
 interface WorkbenchTableProps {
   collection: ArticleCollection;
-  onAddFeature?: () => void;
   onDeleteFeature?: (featureId: string) => void;
   onDeleteArticle?: (articleId: string) => void;
   onExport?: () => void;
@@ -22,7 +21,6 @@ interface WorkbenchTableProps {
 
 export function WorkbenchTable({
   collection,
-  onAddFeature,
   onDeleteFeature,
   onDeleteArticle,
   onExport,
@@ -251,17 +249,6 @@ export function WorkbenchTable({
             </Button>
           )}
           {(onLoadGroup || onSaveGroup) && <div className="border-l mx-2" />}
-          {onAddFeature && (
-            <Button
-              onClick={onAddFeature}
-              disabled={isExtracting}
-              variant="outline"
-              size="sm"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Feature
-            </Button>
-          )}
           {onExport && (
             <Button
               onClick={onExport}

@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { workbenchApi, ColumnDefinition, ColumnPreset } from '@/lib/api/workbenchApi';
+import { workbenchApi, FeaturePreset } from '@/lib/api/workbenchApi';
 import { Plus, X, Settings } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
@@ -15,7 +16,7 @@ import { generatePrefixedUUID } from '@/lib/utils/uuid';
 interface AddFeatureModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (features: FeatureDefinition[]) => void;
+  onAdd: (features: FeatureDefinition[], extractImmediately?: boolean) => void;
 }
 
 export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalProps) {
@@ -25,14 +26,15 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     description: '',
     type: 'boolean'
   }]);
-  const [presets, setPresets] = useState<ColumnPreset[]>([]);
+  const [presets, setPresets] = useState<FeaturePreset[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [extractImmediately, setExtractImmediately] = useState(true);
 
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const response = await workbenchApi.getColumnPresets();
+        const response = await workbenchApi.getFeaturePresets();
         setPresets(response.presets || []);
       } catch (error) {
         console.error('Failed to load presets:', error);
@@ -47,7 +49,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
       feature.name.trim() && feature.description.trim()
     );
     if (validFeatures.length > 0) {
-      onAdd(validFeatures);
+      onAdd(validFeatures, extractImmediately);
     }
   };
 
@@ -57,7 +59,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
 
     setLoading(true);
     try {
-      onAdd(preset.features);
+      onAdd(preset.features, extractImmediately);
     } catch (error) {
       console.error('Failed to apply preset:', error);
     } finally {
@@ -78,6 +80,18 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     if (features.length > 1) {
       setFeatures(features.filter((_, i) => i !== index));
     }
+  };
+
+  const updateFeature = (index: number, field: keyof FeatureDefinition, value: any) => {
+    setFeatures(prev => prev.map((feature, i) => 
+      i === index ? { ...feature, [field]: value } : feature
+    ));
+  };
+
+  const updateFeatureOptions = (index: number, options: any) => {
+    setFeatures(prev => prev.map((feature, i) => 
+      i === index ? { ...feature, options } : feature
+    ));
   };
 
 
@@ -119,7 +133,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                               type="button"
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeColumn(index)}
+                              onClick={() => removeFeature(index)}
                               className="text-red-600 hover:text-red-700 p-1"
                             >
                               <X className="w-4 h-4" />
@@ -255,6 +269,21 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                   </Card>
                 </div>
 
+                {/* Extract Immediately Option */}
+                <div className="flex items-center space-x-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <Checkbox
+                    id="extract-immediately"
+                    checked={extractImmediately}
+                    onCheckedChange={(checked) => setExtractImmediately(!!checked)}
+                  />
+                  <Label htmlFor="extract-immediately" className="text-sm font-medium cursor-pointer">
+                    Extract features immediately after adding
+                  </Label>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    (Recommended - processes all articles with AI)
+                  </span>
+                </div>
+
                 <DialogFooter className="flex-shrink-0 mt-6">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
@@ -264,7 +293,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                     disabled={!features.some(feature => feature.name.trim() && feature.description.trim())}
                     className="min-w-[120px]"
                   >
-                    Extract {features.filter(feature => feature.name.trim() && feature.description.trim()).length} Column{features.filter(feature => feature.name.trim() && feature.description.trim()).length === 1 ? '' : 's'}
+                    {extractImmediately ? 'Extract' : 'Add'} {features.filter(feature => feature.name.trim() && feature.description.trim()).length} Column{features.filter(feature => feature.name.trim() && feature.description.trim()).length === 1 ? '' : 's'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -315,6 +344,21 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                   ))}
                 </div>
 
+                {/* Extract Immediately Option */}
+                <div className="flex items-center space-x-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <Checkbox
+                    id="extract-immediately-preset"
+                    checked={extractImmediately}
+                    onCheckedChange={(checked) => setExtractImmediately(!!checked)}
+                  />
+                  <Label htmlFor="extract-immediately-preset" className="text-sm font-medium cursor-pointer">
+                    Extract features immediately after adding
+                  </Label>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    (Recommended - processes all articles with AI)
+                  </span>
+                </div>
+
                 <DialogFooter className="flex-shrink-0 mt-6">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
@@ -324,7 +368,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                     disabled={!selectedPreset || loading}
                     className="min-w-[120px]"
                   >
-                    {loading ? 'Extracting...' : 'Extract Preset'}
+                    {loading ? 'Extracting...' : (extractImmediately ? 'Extract Preset' : 'Add Preset')}
                   </Button>
                 </DialogFooter>
               </div>

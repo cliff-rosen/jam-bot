@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw } from 'lucide-react';
+import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw, Search, Folder } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
 import { ExtractionAnimation } from './ExtractionAnimation';
 import { PaginationControls } from './PaginationControls';
+import { CollectionHeader } from './CollectionHeader';
 
 export function WorkbenchPage() {
   const workbench = useWorkbench();
@@ -152,41 +153,6 @@ export function WorkbenchPage() {
     }
   };
 
-  const getCollectionBadge = () => {
-    if (!workbench.currentCollection) return null;
-
-    const { source, name, is_saved, is_modified } = workbench.currentCollection;
-
-    switch (source) {
-      case CollectionSource.SEARCH:
-        return (
-          <Badge variant="outline" className="text-sm bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <Cloud className="w-3 h-3 mr-1" />
-            {name}
-          </Badge>
-        );
-
-      case CollectionSource.SAVED_GROUP:
-        return (
-          <Badge variant="outline" className="text-sm bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-            <FolderOpen className="w-3 h-3 mr-1" />
-            {name}
-            {is_modified && <span className="ml-1">*</span>}
-          </Badge>
-        );
-
-      case CollectionSource.MODIFIED:
-        return (
-          <Badge variant="outline" className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-            <CloudOff className="w-3 h-3 mr-1" />
-            {name}
-          </Badge>
-        );
-
-      default:
-        return null;
-    }
-  };
 
   const canSave = workbench.currentCollection &&
     (workbench.currentCollection.source === CollectionSource.SEARCH ||
@@ -207,8 +173,6 @@ export function WorkbenchPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {getCollectionBadge()}
-
           <Button
             onClick={() => setShowLoadModal(true)}
             variant="outline"
@@ -226,22 +190,6 @@ export function WorkbenchPage() {
             <RotateCcw className="w-4 h-4 mr-2" />
             Reset
           </Button>
-
-          {canSaveChanges && (
-            <Button
-              onClick={() => workbench.saveCollectionChanges()}
-              variant="default"
-              size="sm"
-              disabled={workbench.collectionLoading}
-            >
-              {workbench.collectionLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
-              ) : (
-                <Cloud className="w-4 h-4 mr-2" />
-              )}
-              Save Changes
-            </Button>
-          )}
         </div>
       </div>
 
@@ -292,72 +240,20 @@ export function WorkbenchPage() {
       {/* Results Section */}
       {workbench.currentCollection ? (
         <div className="space-y-4">
-          {/* Collection Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                {workbench.currentCollection.name}
-              </h2>
-              <span className="text-sm text-muted-foreground">
-                {workbench.searchPagination ? (
-                  <>
-                    {workbench.currentCollection.articles.length} of {workbench.searchPagination.totalResults} articles
-                    {workbench.searchPagination.totalPages > 1 && ` • Page ${workbench.searchPagination.currentPage}/${workbench.searchPagination.totalPages}`}
-                  </>
-                ) : (
-                  `${workbench.currentCollection.articles.length} articles`
-                )}
-              </span>
-              {workbench.currentCollection.feature_definitions.length > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  • {workbench.currentCollection.feature_definitions.length} features
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setShowAddModal(true)}
-                variant="outline"
-                size="sm"
-                disabled={workbench.currentCollection.articles.length === 0}
-              >
-                Add Features
-              </Button>
-
-              {workbench.currentCollection.feature_definitions.length > 0 && (
-                <Button
-                  onClick={() => workbench.extractFeatures()}
-                  variant="default"
-                  size="sm"
-                  disabled={workbench.isExtracting}
-                >
-                  {workbench.isExtracting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
-                      Extracting...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Extract Features
-                    </>
-                  )}
-                </Button>
-              )}
-
-              {canSave && (
-                <Button
-                  onClick={() => setShowSaveModal(true)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Cloud className="w-4 h-4 mr-2" />
-                  {workbench.currentCollection?.source === CollectionSource.SEARCH ? 'Save as Group' : 'Save'}
-                </Button>
-              )}
-            </div>
-          </div>
+          {/* Collection Header with Branding and Actions */}
+          <CollectionHeader
+            collection={workbench.currentCollection}
+            searchPagination={workbench.searchPagination}
+            onLoadGroup={() => setShowLoadModal(true)}
+            onAddFeatures={() => setShowAddModal(true)}
+            onExtractFeatures={() => workbench.extractFeatures()}
+            onSaveChanges={() => workbench.saveCollectionChanges()}
+            onSaveAsGroup={() => setShowSaveModal(true)}
+            canSaveChanges={canSaveChanges}
+            canSave={canSave || false}
+            isExtracting={workbench.isExtracting}
+            isLoading={workbench.collectionLoading}
+          />
 
           {/* Table */}
           <WorkbenchTable

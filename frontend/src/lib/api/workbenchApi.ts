@@ -108,7 +108,7 @@ export interface BatchUpdateMetadataRequest {
 
 // Response Types
 export interface ArticleGroupListResponse {
-  groups: ArticleGroupSummary[];
+  groups: ArticleGroup[];
   total: number;
   page: number;
   limit: number;

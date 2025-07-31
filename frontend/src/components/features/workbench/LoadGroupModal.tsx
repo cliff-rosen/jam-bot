@@ -59,9 +59,9 @@ export function LoadGroupModal({
     setIsLoading(true);
     try {
       const response = await workbenchApi.getGroups(1, 100);
-      const groups = response.groups || [];
-      setGroups(groups);
-      setFilteredGroups(groups);
+      const groupsData: ArticleGroup[] = response.groups || [];
+      setGroups(groupsData);
+      setFilteredGroups(groupsData);
     } catch (error) {
       console.error('Failed to load groups:', error);
       toast({

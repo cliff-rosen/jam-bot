@@ -104,16 +104,101 @@ Top Header:
 
 ## Selection Behavior
 
+### Selection Mode Activation
+Selection mode is activated when user checks any article checkbox or clicks "Select All/None" buttons.
+
+**Visual Changes When Selection Mode Active**:
+- Article checkboxes become prominent
+- Selected articles get highlighted background
+- Selection action buttons appear/become enabled
+- Selection count indicator shows (e.g., "3 selected")
+
 ### Page-Scoped Selection
 - Selection operates only on currently visible results (current page)
 - "Select All" selects all articles on current page only
-- Actions like "Add to Group" operate on selected articles only
-- If no articles selected, actions operate on all visible articles
-
-### Cross-Page Considerations
-- Users must navigate pages to select articles from different pages
 - Selection state is maintained when navigating between pages
-- Clear indication of total selected count across pages
+- Clear indication of total selected count across all pages: "X selected across Y pages"
+
+### Selection-Based Actions
+
+#### Available in All Collection Types (Search Results & Groups)
+**Add Features**: Add feature definitions and optionally extract on selected articles
+- Button text: "Add Features to Selected" (when articles selected)
+- Default text: "Add Features" (when none selected, operates on all visible)
+- Feature extraction, if enabled, runs only on selected articles
+
+**Save as Group**: Create new group containing only selected articles
+- Button text: "Save Selected as Group" (when articles selected)
+- Default text: "Save as Group" (when none selected, operates on all visible)
+
+**Add to Group**: Merge selected articles into existing group  
+- Button text: "Add Selected to Group" (when articles selected)
+- Default text: "Add to Group" (when none selected, operates on all visible)
+- After completion, user chooses: stay in current view or navigate to the target group
+
+#### Available Only in Saved Groups (Not Search Results)
+**Delete Selected**: Remove selected articles from the group
+- Button text: "Delete Selected" (red/destructive styling)
+- Only appears when in saved group AND articles are selected
+- Requires confirmation dialog
+- Updates group's modified state
+
+### Selection State Management
+
+#### Selection Count Display
+**No Selection**:
+```
+Actions: [Add Features] [Save as Group] [Add to Group]
+```
+
+**With Selection (Search Results)**:
+```
+3 selected • Actions: [Add Features to Selected] [Save Selected as Group] [Add Selected to Group] [Clear Selection]
+```
+
+**With Selection (Saved Group)**:
+```
+3 selected • Actions: [Add Features to Selected] [Save Selected as Group] [Add Selected to Group] [Delete Selected] [Clear Selection]
+```
+
+#### Multi-Page Selection  
+**Search Results with Cross-Page Selection**:
+```
+7 selected across 3 pages • Actions: [Add Features to Selected] [Save Selected as Group] [Add Selected to Group] [Clear Selection]
+```
+
+**Saved Group (no pagination, all on one "page")**:
+```
+4 selected • Actions: [Add Features to Selected] [Save Selected as Group] [Add Selected to Group] [Delete Selected] [Clear Selection]
+```
+
+### Selection Action Behavior
+
+#### When Articles Selected
+- **Add Features to Selected**: Adds feature definitions to collection, runs extraction only on selected articles
+- **Save Selected as Group**: Creates new group with only selected articles
+- **Add Selected to Group**: Adds only selected articles to chosen existing group, with navigation choice
+- **Delete Selected**: Removes selected articles from current group (groups only)
+
+#### When No Articles Selected  
+- **Add Features**: Adds feature definitions to collection, runs extraction on all visible articles
+- **Save as Group**: Creates new group with all visible articles (current page for search, all articles for group)
+- **Add to Group**: Adds all visible articles to chosen existing group, with navigation choice
+- **Delete Selected**: Button not visible/available
+
+### Cross-Page Selection Workflow
+
+#### For Search Results
+1. User selects articles on page 1
+2. Navigates to page 2, selects more articles
+3. Selection indicator shows: "5 selected across 2 pages"
+4. "Save Selected as Group" creates group with all 5 selected articles
+5. User can navigate back to see which articles are selected on each page
+
+#### For Saved Groups (No Pagination)
+1. All articles visible on single view
+2. Selection works normally within the visible set
+3. No cross-page complexity
 
 ## Button Grouping and Visual Hierarchy
 

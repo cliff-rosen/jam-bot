@@ -238,7 +238,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     if (!currentCollection) return;
 
     const newArticleDetails: ArticleGroupDetail[] = articles.map(article => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       article_id: article.id,
       group_id: currentCollection.saved_group_id || '',
       article,
@@ -310,7 +310,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // Ensure unique IDs
     const newFeatures = features.map(f => ({
       ...f,
-      id: f.id || `feat_${crypto.randomUUID()}`
+      id: f.id || generatePrefixedUUID('feat')
     }));
 
     setCurrentCollection({

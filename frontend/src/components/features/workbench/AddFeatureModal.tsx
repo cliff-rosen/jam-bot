@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { workbenchApi, ColumnDefinition, ColumnPreset } from '@/lib/api/workbenchApi';
 import { Plus, X, Settings } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
+import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 interface AddFeatureModalProps {
   open: boolean;
@@ -19,7 +20,7 @@ interface AddFeatureModalProps {
 
 export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalProps) {
   const [features, setFeatures] = useState<FeatureDefinition[]>([{
-    id: '',
+    id: generatePrefixedUUID('feat'),
     name: '',
     description: '',
     type: 'boolean'
@@ -66,7 +67,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
 
   const addFeature = () => {
     setFeatures([...features, {
-      id: '',
+      id: generatePrefixedUUID('feat'),
       name: '',
       description: '',
       type: 'boolean'

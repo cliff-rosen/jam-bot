@@ -16,8 +16,7 @@ from sqlalchemy.orm import Session
 from models import User
 from database import get_db
 from schemas.workbench import (
-    ArticleGroup, ArticleGroupDetail, ArticleGroupItem, 
-    WorkbenchColumnMetadata, TabelizerColumnData
+    ArticleGroup, ArticleGroupDetail, FeatureDefinition
 )
 from schemas.canonical_types import CanonicalResearchArticle
 
@@ -40,7 +39,7 @@ class CreateArticleGroupRequest(BaseModel):
     search_provider: Optional[str] = Field(None, description="Search provider used")
     search_params: Optional[Dict[str, Any]] = Field(None, description="Search parameters")
     articles: Optional[List[CanonicalResearchArticle]] = Field(None, description="Articles to add to the group")
-    columns: Optional[List[WorkbenchColumnMetadata]] = Field(None, description="Column metadata")
+    feature_definitions: Optional[List[FeatureDefinition]] = Field(None, description="Feature definitions")
 
 class UpdateArticleGroupRequest(BaseModel):
     """Request to update article group metadata"""
@@ -52,7 +51,7 @@ class SaveToGroupRequest(BaseModel):
     group_name: str = Field(..., min_length=1, max_length=255, description="Group name")
     group_description: Optional[str] = Field(None, description="Group description")
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles with extracted_features")
-    columns: List[WorkbenchColumnMetadata] = Field(..., description="Column metadata only")
+    feature_definitions: List[FeatureDefinition] = Field(..., description="Feature definitions")
     search_query: Optional[str] = Field(None, description="Search query used")
     search_provider: Optional[str] = Field(None, description="Search provider used")
     search_params: Optional[Dict[str, Any]] = Field(None, description="Search parameters")
@@ -92,35 +91,36 @@ class ArticleGroupDeleteResponse(BaseModel):
 # ================== WORKBENCH ANALYSIS MODELS ==================
 
 # New Unified Extraction Models
-class ColumnDefinition(BaseModel):
-    """Definition of a column to extract"""
+class FeatureDefinition(BaseModel):
+    """Definition of a feature to extract"""
+    id: str  # Stable UUID for feature identification
     name: str
     description: str  
     type: str = "text"  # "boolean", "text", "score"
     options: Optional[Dict[str, Any]] = None
 
+
 class ExtractRequest(BaseModel):
-    """Unified request to extract multiple columns"""
+    """Unified request to extract multiple features"""
     articles: List[Dict[str, str]]  # [{id, title, abstract}]
-    columns: List[ColumnDefinition]
+    features: List[FeatureDefinition]
 
 class ExtractResponse(BaseModel):
-    """Unified response with extracted column data"""
-    results: Dict[str, Dict[str, str]]  # article_id -> column_name -> value
+    """Unified response with extracted feature data"""
+    results: Dict[str, Dict[str, str]]  # article_id -> feature_name -> value
     metadata: Optional[Dict[str, Any]] = None
 
-class ColumnPreset(BaseModel):
-    """Pre-configured column set"""
+class FeaturePreset(BaseModel):
+    """Pre-configured feature set"""
     id: str
     name: str
     description: str
     category: Optional[str] = None
-    columns: List[ColumnDefinition]
+    features: List[FeatureDefinition]
 
-class ColumnPresetsResponse(BaseModel):
-    """Response with available column presets"""
-    presets: List[ColumnPreset]
-    categories: List[str]
+class FeaturePresetsResponse(BaseModel):
+    """Response with available feature presets"""
+    presets: List[FeaturePreset]
 
 
 class UpdateNotesRequest(BaseModel):
@@ -264,14 +264,14 @@ async def extract_unified(
 ):
     """Unified endpoint to extract multiple columns from articles in a single LLM call."""
     try:
-        # Convert columns to unified extraction format
+        # Convert features to unified extraction format
         columns = []
-        for col in request.columns:
+        for feature in request.features:
             columns.append({
-                "name": col.name,
-                "description": col.description,
-                "type": col.type,
-                "options": col.options or {}
+                "name": feature.name,
+                "description": feature.description,
+                "type": feature.type,
+                "options": feature.options or {}
             })
         
         results = await extraction_service.extract_unified_columns(
@@ -281,114 +281,115 @@ async def extract_unified(
         
         return ExtractResponse(
             results=results,
-            metadata={"total_articles": len(request.articles), "total_columns": len(columns)}
+            metadata={"total_articles": len(request.articles), "total_features": len(columns)}
         )
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Column extraction failed: {str(e)}"
+            detail=f"Feature extraction failed: {str(e)}"
         )
 
-@router.get("/column-presets", response_model=ColumnPresetsResponse)
-async def get_column_presets(
+@router.get("/feature-presets", response_model=FeaturePresetsResponse)
+async def get_feature_presets(
     current_user: User = Depends(validate_token)
 ):
-    """Get available column presets for extraction."""
+    """Get available feature presets for extraction."""
     presets = [
-        ColumnPreset(
+        FeaturePreset(
             id="research_features",
             name="Research Features",
             description="Extract research features for DOI/POI analysis",
             category="Core Analysis",
-            columns=[
-                ColumnDefinition(
+            features=[
+                FeatureDefinition(
+                    id="feat_poi_relevance",
                     name="poi_relevance", 
                     description="Does this article relate to melanocortin or natriuretic pathways? Melanocortin keywords: melanocortin receptor, MC1R, MC2R, MC3R, MC4R, MC5R, ACTH, α-MSH, β-MSH, γ-MSH, melanocyte, pigmentation, appetite regulation. Natriuretic keywords: natriuretic peptide, ANP, BNP, CNP, NPR-A, NPR-B, NPR-C, guanylate cyclase, cardiac function", 
                     type="boolean"
                 ),
-                ColumnDefinition(
+                FeatureDefinition(
                     name="doi_relevance", 
                     description="Does this article relate to dry eye, ulcerative colitis, crohn's disease, retinopathy, or retinal disease? Dry eye keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film. IBD keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis. Retinal keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration", 
                     type="boolean"
                 ),
-                ColumnDefinition(
+                FeatureDefinition(
                     name="is_systematic", 
                     description="Is this a systematic study? Look for: randomized controlled clinical trials (RCTs), clinical trials, epidemiological studies, cohort studies, case-control studies, open label trials, case reports. Systematic reviews and meta-analyses should also be marked as 'yes'. Basic science, in vitro, and animal studies can also be systematic if they follow rigorous methodology", 
                     type="boolean"
                 ),
-                ColumnDefinition(
+                FeatureDefinition(
                     name="study_type", 
                     description="Type of study: 'human RCT' (randomized controlled clinical trials with humans), 'human non-RCT' (human studies that are not RCTs - observational, cohort, case-control, case series), 'non-human life science' (animal studies, in vitro studies, cell culture, molecular biology), 'non life science' (non-biological research), 'not a study' (reviews non-systematic, editorials, opinions, commentaries, theoretical papers)", 
                     type="text"
                 ),
-                ColumnDefinition(
+                FeatureDefinition(
                     name="study_outcome", 
                     description="Primary outcome focus: 'effectiveness' (testing if treatment/intervention works), 'safety' (testing safety, adverse events, toxicity, side effects), 'diagnostics' (developing or testing diagnostic methods), 'biomarker' (identifying or validating biomarkers non-diagnostic, prognostic markers), 'other' (basic science mechanisms, pathophysiology, epidemiology)", 
                     type="text"
                 )
             ]
         ),
-        ColumnPreset(
+        FeaturePreset(
             id="clinical_trial",
             name="Clinical Trial Analysis",
             description="Extract key information from clinical trial papers",
             category="Medical Research",
-            columns=[
-                ColumnDefinition(name="Study Type", description="What type of study is this? (e.g., RCT, observational, meta-analysis)", type="text"),
-                ColumnDefinition(name="Sample Size", description="What is the total sample size of the study?", type="text"),
-                ColumnDefinition(name="Blinded", description="Is this a blinded study (single-blind, double-blind, or open-label)?", type="text"),
-                ColumnDefinition(name="Primary Outcome", description="What is the primary outcome measure?", type="text"),
-                ColumnDefinition(name="Statistical Significance", description="Was the primary outcome statistically significant?", type="boolean"),
-                ColumnDefinition(name="Adverse Events", description="Were any serious adverse events reported?", type="boolean"),
-                ColumnDefinition(name="Study Quality", description="Rate the overall quality of the study methodology", type="score", options={"min": 1, "max": 10, "step": 1})
+            features=[
+                FeatureDefinition(name="Study Type", description="What type of study is this? (e.g., RCT, observational, meta-analysis)", type="text"),
+                FeatureDefinition(name="Sample Size", description="What is the total sample size of the study?", type="text"),
+                FeatureDefinition(name="Blinded", description="Is this a blinded study (single-blind, double-blind, or open-label)?", type="text"),
+                FeatureDefinition(name="Primary Outcome", description="What is the primary outcome measure?", type="text"),
+                FeatureDefinition(name="Statistical Significance", description="Was the primary outcome statistically significant?", type="boolean"),
+                FeatureDefinition(name="Adverse Events", description="Were any serious adverse events reported?", type="boolean"),
+                FeatureDefinition(name="Study Quality", description="Rate the overall quality of the study methodology", type="score", options={"min": 1, "max": 10, "step": 1})
             ]
         ),
-        ColumnPreset(
+        FeaturePreset(
             id="systematic_review",
             name="Systematic Review",
             description="Analyze systematic reviews and meta-analyses",
             category="Medical Research",
-            columns=[
-                ColumnDefinition(name="Search Strategy", description="Is the search strategy clearly described?", type="boolean"),
-                ColumnDefinition(name="Databases Searched", description="Which databases were searched? (list them)", type="text"),
-                ColumnDefinition(name="Studies Included", description="How many studies were included in the final analysis?", type="text"),
-                ColumnDefinition(name="Meta-Analysis", description="Was a meta-analysis conducted?", type="boolean"),
-                ColumnDefinition(name="Evidence Quality", description="Rate the overall quality of evidence presented", type="score", options={"min": 1, "max": 5, "step": 1})
+            features=[
+                FeatureDefinition(name="Search Strategy", description="Is the search strategy clearly described?", type="boolean"),
+                FeatureDefinition(name="Databases Searched", description="Which databases were searched? (list them)", type="text"),
+                FeatureDefinition(name="Studies Included", description="How many studies were included in the final analysis?", type="text"),
+                FeatureDefinition(name="Meta-Analysis", description="Was a meta-analysis conducted?", type="boolean"),
+                FeatureDefinition(name="Evidence Quality", description="Rate the overall quality of evidence presented", type="score", options={"min": 1, "max": 5, "step": 1})
             ]
         ),
-        ColumnPreset(
+        FeaturePreset(
             id="drug_discovery",
             name="Drug Discovery",
             description="Extract drug discovery and development information",
             category="Pharmaceutical",
-            columns=[
-                ColumnDefinition(name="Drug Name", description="What is the name or identifier of the drug/compound?", type="text"),
-                ColumnDefinition(name="Target", description="What is the molecular target?", type="text"),
-                ColumnDefinition(name="In Vitro", description="Were in vitro studies performed?", type="boolean"),
-                ColumnDefinition(name="In Vivo", description="Were in vivo/animal studies performed?", type="boolean"),
-                ColumnDefinition(name="Development Stage", description="What stage of development? (preclinical, phase I, II, III)", type="text")
+            features=[
+                FeatureDefinition(name="Drug Name", description="What is the name or identifier of the drug/compound?", type="text"),
+                FeatureDefinition(name="Target", description="What is the molecular target?", type="text"),
+                FeatureDefinition(name="In Vitro", description="Were in vitro studies performed?", type="boolean"),
+                FeatureDefinition(name="In Vivo", description="Were in vivo/animal studies performed?", type="boolean"),
+                FeatureDefinition(name="Development Stage", description="What stage of development? (preclinical, phase I, II, III)", type="text")
             ]
         ),
-        ColumnPreset(
+        FeaturePreset(
             id="basic_research",
             name="Basic Science",
             description="For molecular biology and basic science papers",
             category="Basic Science",
-            columns=[
-                ColumnDefinition(name="Model System", description="What model system was used? (cell line, organism)", type="text"),
-                ColumnDefinition(name="Key Finding", description="What is the main scientific finding?", type="text"),
-                ColumnDefinition(name="Mechanism", description="Is a molecular mechanism proposed?", type="boolean"),
-                ColumnDefinition(name="Novel", description="Is this finding claimed to be novel?", type="boolean"),
-                ColumnDefinition(name="Innovation Score", description="Rate the innovation/novelty of the research", type="score", options={"min": 1, "max": 10, "step": 1})
+            features=[
+                FeatureDefinition(name="Model System", description="What model system was used? (cell line, organism)", type="text"),
+                FeatureDefinition(name="Key Finding", description="What is the main scientific finding?", type="text"),
+                FeatureDefinition(name="Mechanism", description="Is a molecular mechanism proposed?", type="boolean"),
+                FeatureDefinition(name="Novel", description="Is this finding claimed to be novel?", type="boolean"),
+                FeatureDefinition(name="Innovation Score", description="Rate the innovation/novelty of the research", type="score", options={"min": 1, "max": 10, "step": 1})
             ]
         )
     ]
     
-    return ColumnPresetsResponse(
-        presets=presets,
-        categories=["Core Analysis", "Medical Research", "Pharmaceutical", "Basic Science"]
+    return FeaturePresetsResponse(
+        presets=presets
     )
+
 
 
 # ================== INDIVIDUAL ARTICLE RESEARCH ENDPOINTS ==================

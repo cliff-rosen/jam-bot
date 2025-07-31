@@ -21,8 +21,6 @@ class FeatureDefinition(BaseModel):
     type: Literal['boolean', 'text', 'score'] = Field(..., description="Feature data type")
     options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
 
-# Legacy alias for backward compatibility during transition
-WorkbenchColumnMetadata = FeatureDefinition
 
 
 # Note: Feature data is stored directly in ArticleGroupDetail.feature_data
@@ -41,8 +39,6 @@ class ArticleGroupDetail(BaseModel):
     position: Optional[int] = Field(None, description="Position in the group")
     added_at: str = Field(..., description="When article was added to group")
 
-# Legacy alias for backward compatibility  
-ArticleGroupItem = ArticleGroupDetail
 
 
 class ArticleGroupWithDetails(BaseModel):

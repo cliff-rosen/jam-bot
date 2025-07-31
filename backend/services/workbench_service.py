@@ -14,8 +14,7 @@ from models import ArticleGroup as ArticleGroupModel, User
 from models import ArticleGroupDetail as ArticleGroupDetailModel
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.workbench import (
-    ArticleGroup, ArticleGroupDetail, ArticleGroupItem,
-    WorkbenchColumnMetadata, TabelizerColumnData
+    ArticleGroupDetail
 )
 
 
@@ -66,7 +65,7 @@ class ArticleGroupService:
             search_query=request.search_query,
             search_provider=request.search_provider,
             search_params=request.search_params or {},
-            columns=request.columns or [],
+            feature_definitions=request.feature_definitions or [],
             article_count=0
         )
         
@@ -75,7 +74,7 @@ class ArticleGroupService:
         
         # Add articles if provided
         if request.articles:
-            self._add_articles_to_group(group, request.articles, request.columns or [])
+            self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
         
         self.db.commit()
         self.db.refresh(group)
@@ -121,8 +120,8 @@ class ArticleGroupService:
             group.name = request.name
         if request.description is not None:
             group.description = request.description
-        if request.columns is not None:
-            group.columns = request.columns
+        if request.feature_definitions is not None:
+            group.feature_definitions = request.feature_definitions
         
         group.updated_at = datetime.utcnow()
         
@@ -174,7 +173,7 @@ class ArticleGroupService:
         if not group:
             return None
         
-        self._add_articles_to_group(group, request.articles, group.columns)
+        self._add_articles_to_group(group, request.articles, group.feature_definitions)
         
         self.db.commit()
         self.db.refresh(group)
@@ -207,7 +206,7 @@ class ArticleGroupService:
         group.search_query = request.search_query
         group.search_provider = request.search_provider
         group.search_params = request.search_params or {}
-        group.columns = request.columns
+        group.feature_definitions = request.feature_definitions or []
         group.updated_at = datetime.utcnow()
         
         # Clear existing articles and add new ones
@@ -215,7 +214,7 @@ class ArticleGroupService:
             ArticleGroupDetailModel.article_group_id == group_id
         ).delete()
         
-        self._add_articles_to_group(group, request.articles, request.columns)
+        self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
         
         self.db.commit()
         self.db.refresh(group)
@@ -240,14 +239,14 @@ class ArticleGroupService:
             search_query=request.search_query,
             search_provider=request.search_provider,
             search_params=request.search_params or {},
-            columns=request.columns,
+            feature_definitions=request.feature_definitions or [],
             article_count=0
         )
         
         self.db.add(group)
         self.db.flush()  # Get the ID
         
-        self._add_articles_to_group(group, request.articles, request.columns)
+        self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
         
         self.db.commit()
         self.db.refresh(group)
@@ -313,7 +312,7 @@ class ArticleGroupService:
             "search_query": group.search_query,
             "search_provider": group.search_provider,
             "search_params": group.search_params,
-            "columns": group.columns,
+            "feature_definitions": group.feature_definitions,
             "article_count": group.article_count,
             "created_at": group.created_at.isoformat() if group.created_at else None,
             "updated_at": group.updated_at.isoformat() if group.updated_at else None
@@ -326,42 +325,41 @@ class ArticleGroupService:
             ArticleGroupDetailModel.article_group_id == group.id
         ).order_by(ArticleGroupDetailModel.position).all()
         
-        # Create proper ArticleGroupItem objects
+        # Create proper ArticleGroupDetail objects
         article_items = []
         for detail in articles:
             try:
-                article_items.append(ArticleGroupItem(
+                article_items.append(ArticleGroupDetail(
+                    id=detail.id,
+                    article_id=detail.article_data.get('id', ''),
+                    group_id=detail.article_group_id,
                     article=CanonicalResearchArticle(**detail.article_data),
+                    feature_data=detail.feature_data,
                     position=detail.position,
-                    column_data=detail.extracted_features,
-                    workbench_summary={
-                        "has_notes": bool(detail.notes),
-                        "feature_count": len(detail.extracted_features),
-                        "tags": detail.article_metadata.get("tags", []),
-                        "rating": detail.article_metadata.get("rating")
-                    }
+                    added_at=detail.created_at.isoformat()
                 ))
             except Exception as e:
-                print(f"Error creating ArticleGroupItem: {e}")
+                print(f"Error creating ArticleGroupDetail: {e}")
                 print(f"Detail data: {detail.__dict__}")
                 raise
         
-        # Reconstruct TabelizerColumnData from group columns and article data
-        reconstructed_columns = []
-        for column_meta in group.columns:
-            column_data = {}
+        # Reconstruct feature data for each feature definition
+        reconstructed_features = []
+        for feature_def in group.feature_definitions:
+            feature_values = {}
             for article_item in article_items:
                 article_id = article_item.article.id
-                if column_meta["name"] in article_item.column_data:
-                    column_data[article_id] = str(article_item.column_data[column_meta["name"]].get("value", ""))
+                feature_id = feature_def.get("id", feature_def["name"])
+                if feature_id in article_item.feature_data:
+                    feature_values[article_id] = str(article_item.feature_data[feature_id])
             
-            reconstructed_columns.append({
-                "id": column_meta.get("id", column_meta["name"]),
-                "name": column_meta["name"],
-                "description": column_meta["description"],
-                "type": column_meta["type"],
-                "data": column_data,
-                "options": column_meta.get("options", {})
+            reconstructed_features.append({
+                "id": feature_def.get("id", feature_def["name"]),
+                "name": feature_def["name"],
+                "description": feature_def["description"],
+                "type": feature_def["type"],
+                "data": feature_values,
+                "options": feature_def.get("options", {})
             })
 
         # Return data that can be used to construct ArticleGroupModelDetail
@@ -373,7 +371,7 @@ class ArticleGroupService:
             "search_query": group.search_query,
             "search_provider": group.search_provider,
             "search_params": group.search_params,
-            "columns": reconstructed_columns,
+            "feature_definitions": reconstructed_features,
             "article_count": group.article_count,
             "created_at": group.created_at.isoformat() if group.created_at else None,
             "updated_at": group.updated_at.isoformat() if group.updated_at else None,

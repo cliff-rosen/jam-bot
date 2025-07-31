@@ -221,7 +221,7 @@ export function WorkbenchTable({
             {collection.is_saved ? (
               <Badge variant="outline" className="mr-2">{collection.name}</Badge>
             ) : (
-              <span className="text-gray-500 italic mr-2">Unsaved Session</span>
+              <span className="text-gray-500 dark:text-gray-400 italic mr-2">Unsaved Session</span>
             )}
             {articles.length} articles · {features.length} custom features
           </div>

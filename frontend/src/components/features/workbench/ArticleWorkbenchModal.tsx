@@ -411,7 +411,7 @@ export function ArticleWorkbenchModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-gray-500" />
+                        <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Authors</span>
                       </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -421,7 +421,7 @@ export function ArticleWorkbenchModal({
 
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="w-4 h-4 text-gray-500" />
+                        <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Journal</span>
                       </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -431,7 +431,7 @@ export function ArticleWorkbenchModal({
 
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Publication</span>
                       </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -441,7 +441,7 @@ export function ArticleWorkbenchModal({
 
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <Award className="w-4 h-4 text-gray-500" />
+                        <Award className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Citations</span>
                       </div>
                       <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -492,7 +492,7 @@ export function ArticleWorkbenchModal({
                 <TabsContent value="notes" className="mt-0 space-y-4">
                   {!currentGroup ? (
                     <div className="text-center py-8">
-                      <Edit3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <Edit3 className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Group Selected</h3>
                       <p className="text-gray-500 dark:text-gray-400">
                         Notes are tied to groups. Please save this article to a group first.
@@ -546,7 +546,7 @@ export function ArticleWorkbenchModal({
                 <TabsContent value="features" className="mt-0 space-y-4">
                   {!currentGroup ? (
                     <div className="text-center py-8">
-                      <Plus className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <Plus className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Group Selected</h3>
                       <p className="text-gray-500 dark:text-gray-400">
                         Columns are tied to groups. Please save this article to a group first.
@@ -901,7 +901,7 @@ export function ArticleWorkbenchModal({
                         <FileText className="w-5 h-5" />
                         <span className="font-medium">Generate Citation</span>
                       </div>
-                      <span className="text-sm text-gray-500 text-left">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
                         Create APA, MLA, or Chicago style citations
                       </span>
                     </Button>
@@ -911,7 +911,7 @@ export function ArticleWorkbenchModal({
                         <Clock className="w-5 h-5" />
                         <span className="font-medium">Reading Time</span>
                       </div>
-                      <span className="text-sm text-gray-500 text-left">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
                         Estimate reading time based on word count
                       </span>
                     </Button>
@@ -921,7 +921,7 @@ export function ArticleWorkbenchModal({
                         <Brain className="w-5 h-5" />
                         <span className="font-medium">Similar Articles</span>
                       </div>
-                      <span className="text-sm text-gray-500 text-left">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
                         Find related research articles
                       </span>
                     </Button>
@@ -931,7 +931,7 @@ export function ArticleWorkbenchModal({
                         <ExternalLink className="w-5 h-5" />
                         <span className="font-medium">Export Data</span>
                       </div>
-                      <span className="text-sm text-gray-500 text-left">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 text-left">
                         Export article data in various formats
                       </span>
                     </Button>

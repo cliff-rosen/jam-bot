@@ -262,7 +262,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                         onClick={addFeature}
                         className="flex flex-col items-center gap-2 h-auto py-4"
                       >
-                        <Plus className="w-8 h-8 text-gray-400" />
+                        <Plus className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                         <span className="text-sm text-gray-600 dark:text-gray-400">Add Another Column</span>
                       </Button>
                     </CardContent>

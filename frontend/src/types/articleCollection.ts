@@ -7,6 +7,7 @@
 
 import { CanonicalResearchArticle } from './canonical_types';
 import { FeatureDefinition, ArticleGroupDetail } from './workbench';
+import { generateUUID } from '@/lib/utils/uuid';
 
 // ================== COLLECTION MODEL ==================
 
@@ -99,11 +100,11 @@ export function createSearchCollection(
   const now = new Date().toISOString();
   
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     source: CollectionSource.SEARCH,
     name: `Search: "${searchParams.query}"`,
     articles: articles.map(article => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       article_id: article.id,
       group_id: '',
       article: article,
@@ -142,7 +143,7 @@ export function createModifiedCollection(
   
   return {
     ...originalCollection,
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     source: CollectionSource.MODIFIED,
     name: `${originalCollection.name} (modified)`,
     articles: modifiedArticles,

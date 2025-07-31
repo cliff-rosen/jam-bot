@@ -49,9 +49,13 @@ export interface ExtractResponse {
   metadata?: Record<string, any>;
 }
 
-export interface ColumnPresetsResponse {
-  presets: ColumnPreset[];
-  categories: string[];
+export interface FeaturePresetsResponse {
+  presets: FeaturePreset[];
+}
+
+// Legacy alias
+export interface ColumnPresetsResponse extends FeaturePresetsResponse {
+  categories?: string[];
 }
 
 // Article Group Management Requests
@@ -218,10 +222,19 @@ export class WorkbenchApi {
     return this.extract(request);
   }
 
-  // New method to get column presets
-  async getColumnPresets(): Promise<ColumnPresetsResponse> {
-    const response = await api.get('/api/workbench/column-presets');
+  // Get feature presets
+  async getFeaturePresets(): Promise<FeaturePresetsResponse> {
+    const response = await api.get('/api/workbench/feature-presets');
     return response.data;
+  }
+
+  // Legacy alias
+  async getColumnPresets(): Promise<ColumnPresetsResponse> {
+    const response = await this.getFeaturePresets();
+    return {
+      ...response,
+      categories: [] // Categories not currently supported
+    };
   }
 
 

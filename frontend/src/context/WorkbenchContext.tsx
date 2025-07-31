@@ -20,6 +20,7 @@ import { SearchProvider } from '@/types/unifiedSearch';
 
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { workbenchApi } from '@/lib/api/workbenchApi';
+import { generateUUID, generatePrefixedUUID } from '@/lib/utils/uuid';
 
 // ================== STATE INTERFACE ==================
 

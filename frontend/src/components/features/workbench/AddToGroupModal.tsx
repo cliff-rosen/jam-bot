@@ -35,7 +35,7 @@ export function AddToGroupModal({
   onOpenChange,
   onAddToGroup,
   articlesToAdd,
-  sourceCollectionName,
+  sourceCollectionName: _sourceCollectionName, // Not used currently
   currentGroupId
 }: AddToGroupModalProps) {
   const [groups, setGroups] = useState<ArticleGroup[]>([]);
@@ -50,43 +50,19 @@ export function AddToGroupModal({
   const [groupArticles, setGroupArticles] = useState<Record<string, Set<string>>>({});
   const { toast } = useToast();
 
-  // Load groups when modal opens
-  useEffect(() => {
-    if (open && modalStep === 'select-group') {
-      loadGroups();
-      setSelectedGroupId('');
-      setSearchTerm('');
-      setModalStep('select-group');
-    }
-  }, [open]);
-
-  // Filter groups based on search and exclude current group
-  useEffect(() => {
-    const filtered = groups.filter(group => {
-      // Exclude the current group from the list
-      if (currentGroupId && group.id === currentGroupId) {
-        return false;
-      }
-      
-      // Apply search filter
-      return group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    });
-    setFilteredGroups(filtered);
-  }, [groups, searchTerm, currentGroupId]);
-
+  // Define loadGroups before using it in useEffect
   const loadGroups = async () => {
     setIsLoading(true);
     try {
       const response = await workbenchApi.getGroups(1, 100);
-      const groups = response.groups || [];
-      setGroups(groups);
-      setFilteredGroups(groups);
+      const groupsData = response.groups || [];
+      setGroups(groupsData);
+      setFilteredGroups(groupsData);
       
       // Load article IDs for each group to check for duplicates
       const groupArticleMap: Record<string, Set<string>> = {};
       await Promise.all(
-        groups.map(async (group) => {
+        groupsData.map(async (group) => {
           try {
             const detail = await workbenchApi.getGroupDetail(group.id);
             groupArticleMap[group.id] = new Set(
@@ -110,6 +86,32 @@ export function AddToGroupModal({
       setIsLoading(false);
     }
   };
+
+  // Load groups when modal opens
+  useEffect(() => {
+    if (open && modalStep === 'select-group') {
+      loadGroups();
+      setSelectedGroupId('');
+      setSearchTerm('');
+      setModalStep('select-group');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, modalStep]);
+
+  // Filter groups based on search and exclude current group
+  useEffect(() => {
+    const filtered = groups.filter(group => {
+      // Exclude the current group from the list
+      if (currentGroupId && group.id === currentGroupId) {
+        return false;
+      }
+      
+      // Apply search filter
+      return group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
+    setFilteredGroups(filtered);
+  }, [groups, searchTerm, currentGroupId]);
 
   const handleSelectGroup = async () => {
     if (!selectedGroupId) return;
@@ -264,10 +266,11 @@ export function AddToGroupModal({
                 {filteredGroups.map((group) => (
                   <div
                     key={group.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedGroupId === group.id
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
+                    }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >
                     <div className="flex items-start justify-between gap-3">

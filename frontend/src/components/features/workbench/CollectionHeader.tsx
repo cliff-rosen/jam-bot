@@ -111,149 +111,174 @@ export function CollectionHeader({
       </div>
 
       {/* Right side: Action Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         {selectedArticleIds.length > 0 ? (
           // Selection Mode Active
           <>
-            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               {selectedArticleIds.length} selected
             </span>
-            
-            <Button
-              onClick={onAddFeatures}
-              variant="outline"
-              size="sm"
-            >
-              Add Features to Selected
-            </Button>
 
-            <Button
-              onClick={onSaveAsGroup}
-              variant="outline"
-              size="sm"
-            >
-              <Cloud className="w-4 h-4 mr-2" />
-              Save Selected as Group
-            </Button>
-
-            <Button
-              onClick={onAddToGroup}
-              variant="outline"
-              size="sm"
-            >
-              Add Selected to Group
-            </Button>
-
-            {/* Delete Selected - only for saved groups */}
-            {collection.source === CollectionSource.SAVED_GROUP && (
+            {/* Group Management */}
+            <div className="flex items-center gap-2">
               <Button
-                onClick={onDeleteSelected}
+                onClick={onSaveAsGroup}
                 variant="outline"
                 size="sm"
-                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
               >
-                Delete Selected
+                <Cloud className="w-4 h-4 mr-2" />
+                Save Selected as Group
               </Button>
-            )}
 
-            <Button
-              onClick={onSelectNone}
-              variant="ghost"
-              size="sm"
-            >
-              Clear Selection
-            </Button>
+              <Button
+                onClick={onAddToGroup}
+                variant="outline"
+                size="sm"
+              >
+                Add Selected to Group
+              </Button>
+            </div>
+
+            {/* Separator */}
+            <div className="h-6 border-l border-gray-300 dark:border-gray-600" />
+
+            {/* Features */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={onAddFeatures}
+                variant="outline"
+                size="sm"
+              >
+                Add Features to Selected
+              </Button>
+            </div>
+
+            {/* Separator */}
+            <div className="h-6 border-l border-gray-300 dark:border-gray-600" />
+
+            {/* Delete & Clear */}
+            <div className="flex items-center gap-2">
+              {/* Delete Selected - only for saved groups */}
+              {collection.source === CollectionSource.SAVED_GROUP && (
+                <Button
+                  onClick={onDeleteSelected}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                >
+                  Delete Selected
+                </Button>
+              )}
+
+              <Button
+                onClick={onSelectNone}
+                variant="ghost"
+                size="sm"
+              >
+                Clear Selection
+              </Button>
+            </div>
           </>
         ) : (
           // Normal Mode
           <>
-            {/* Load Group - duplicate for convenience */}
-            <Button
-              onClick={onLoadGroup}
-              variant="outline"
-              size="sm"
-            >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Load Group
-            </Button>
-
-            {/* Selection Controls */}
-            <Button
-              onClick={onSelectAll}
-              variant="ghost"
-              size="sm"
-              disabled={collection.articles.length === 0}
-            >
-              Select All
-            </Button>
-
-            {/* Add Features - always available */}
-            <Button
-              onClick={onAddFeatures}
-              variant="outline"
-              size="sm"
-              disabled={collection.articles.length === 0}
-            >
-              Add Features
-            </Button>
-
-            {/* Extract Features - only when features defined */}
-            {collection.feature_definitions.length > 0 && (
+            {/* Group Management */}
+            <div className="flex items-center gap-2">
               <Button
-                onClick={onExtractFeatures}
-                variant="default"
+                onClick={onLoadGroup}
+                variant="outline"
                 size="sm"
-                disabled={isExtracting}
               >
-                {isExtracting ? (
-                  <>
+                <FolderOpen className="w-4 h-4 mr-2" />
+                Load Group
+              </Button>
+
+              {/* Save Changes - only for modified saved groups */}
+              {collection.source === CollectionSource.SAVED_GROUP && isModified && (
+                <Button
+                  onClick={onSaveChanges}
+                  variant="default"
+                  size="sm"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
-                    Extracting...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Extract Features
-                  </>
-                )}
-              </Button>
-            )}
+                  ) : (
+                    <Cloud className="w-4 h-4 mr-2" />
+                  )}
+                  Save Changes
+                </Button>
+              )}
 
-            {/* Save Changes - only for modified saved groups */}
-            {collection.source === CollectionSource.SAVED_GROUP && isModified && (
               <Button
-                onClick={onSaveChanges}
-                variant="default"
+                onClick={onSaveAsGroup}
+                variant="outline"
                 size="sm"
-                disabled={isLoading}
               >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
-                ) : (
-                  <Cloud className="w-4 h-4 mr-2" />
-                )}
-                Save Changes
+                <Cloud className="w-4 h-4 mr-2" />
+                {collection.source === CollectionSource.SEARCH ? 'Save as Group' : 'Copy to New Group'}
               </Button>
-            )}
 
-            {/* Save as Group - always available (creates copy for groups, saves for search) */}
-            <Button
-              onClick={onSaveAsGroup}
-              variant="outline"
-              size="sm"
-            >
-              <Cloud className="w-4 h-4 mr-2" />
-              {collection.source === CollectionSource.SEARCH ? 'Save as Group' : 'Copy to New Group'}
-            </Button>
+              <Button
+                onClick={onAddToGroup}
+                variant="outline"
+                size="sm"
+              >
+                Add to Group
+              </Button>
+            </div>
 
-            {/* Add to Group - always available */}
-            <Button
-              onClick={onAddToGroup}
-              variant="outline"
-              size="sm"
-            >
-              Add to Group
-            </Button>
+            {/* Separator */}
+            <div className="h-6 border-l border-gray-300 dark:border-gray-600" />
+
+            {/* Features */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={onAddFeatures}
+                variant="outline"
+                size="sm"
+                disabled={collection.articles.length === 0}
+              >
+                Add Features
+              </Button>
+
+              {/* Extract Features - only when features defined */}
+              {collection.feature_definitions.length > 0 && (
+                <Button
+                  onClick={onExtractFeatures}
+                  variant="default"
+                  size="sm"
+                  disabled={isExtracting}
+                >
+                  {isExtracting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Extract Features
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Separator */}
+            <div className="h-6 border-l border-gray-300 dark:border-gray-600" />
+
+            {/* Selection */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={onSelectAll}
+                variant="ghost"
+                size="sm"
+                disabled={collection.articles.length === 0}
+              >
+                Select All
+              </Button>
+            </div>
           </>
         )}
       </div>

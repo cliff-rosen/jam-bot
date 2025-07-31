@@ -235,7 +235,7 @@ export function WorkbenchPage() {
               disabled={workbench.collectionLoading}
             >
               {workbench.collectionLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
               ) : (
                 <Cloud className="w-4 h-4 mr-2" />
               )}
@@ -334,7 +334,7 @@ export function WorkbenchPage() {
                 >
                   {workbench.isExtracting ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
                       Extracting...
                     </>
                   ) : (
@@ -391,8 +391,8 @@ export function WorkbenchPage() {
       {/* Loading State */}
       {workbench.collectionLoading && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin" />
+          <div className="flex items-center gap-3 text-foreground">
+            <Loader2 className="w-6 h-6 animate-spin text-foreground" />
             <span>Loading...</span>
           </div>
         </div>

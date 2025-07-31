@@ -147,7 +147,7 @@ export function LoadGroupModal({
           <div className="h-[400px] pr-4 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin" />
+                <Loader2 className="w-6 h-6 animate-spin text-gray-600 dark:text-gray-400" />
               </div>
             ) : filteredGroups.length === 0 ? (
               <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
@@ -215,7 +215,7 @@ export function LoadGroupModal({
                         className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                       >
                         {deletingGroupId === group.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin text-red-500 dark:text-red-400" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}

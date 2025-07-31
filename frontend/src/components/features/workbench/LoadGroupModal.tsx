@@ -40,10 +40,10 @@ export function LoadGroupModal({
 
   // Load groups when modal opens
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       loadGroups();
     }
-  }, [isOpen]);
+  }, [open]);
 
   // Filter groups based on search
   useEffect(() => {

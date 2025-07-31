@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw, Search, Folder } from 'lucide-react';
+import { Loader2, RotateCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button';
 import { useWorkbench } from '@/context/WorkbenchContext';
 
 import { CollectionSource } from '@/types/articleCollection';
-import { SearchProvider } from '@/types/unifiedSearch';
 
-import { UnifiedSearchControls } from './search/UnifiedSearchControls';
+import { TabbedWorkbenchInterface } from './TabbedWorkbenchInterface';
+import { SearchTab } from './SearchTab';
+import { GroupsTab } from './GroupsTab';
 import { WorkbenchTable } from './WorkbenchTable';
 import { AddFeatureModal } from './AddFeatureModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
-import { LoadGroupModal } from './LoadGroupModal';
 import { AddToGroupModal } from './AddToGroupModal';
 import { ExtractionAnimation } from './ExtractionAnimation';
 import { PaginationControls } from './PaginationControls';
@@ -23,9 +23,11 @@ import { CollectionHeader } from './CollectionHeader';
 export function WorkbenchPage() {
   const workbench = useWorkbench();
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'search' | 'groups'>('search');
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showLoadModal, setShowLoadModal] = useState(false);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
@@ -35,7 +37,7 @@ export function WorkbenchPage() {
   // Clear selection when collection changes
   useEffect(() => {
     setSelectedArticleIds([]);
-  }, [workbench.currentCollection?.id]);
+  }, [workbench.searchCollection?.id, workbench.groupCollection?.id]);
 
   const { toast } = useToast();
 
@@ -51,11 +53,13 @@ export function WorkbenchPage() {
 
     try {
       await workbench.performSearch(page);
+      
+      // Don't switch tabs automatically - let users navigate manually
 
       if (page === 1) {
         // Use a small delay to ensure pagination is updated, or use current collection count
         setTimeout(() => {
-          const totalResults = workbench.searchPagination?.totalResults || workbench.currentCollection?.articles.length || 0;
+          const totalResults = workbench.searchPagination?.totalResults || workbench.searchCollection?.articles.length || 0;
           toast({
             title: 'Search Complete',
             description: `Found ${totalResults} articles`,
@@ -75,15 +79,13 @@ export function WorkbenchPage() {
   const handleLoadGroup = async (groupId: string, page: number = 1) => {
     try {
       await workbench.loadGroup(groupId, page);
-      if (page === 1) { // Only close modal on initial load
-        setShowLoadModal(false);
-      }
-      const totalArticles = workbench.groupPagination?.totalResults || workbench.currentCollection?.article_count || 0;
-      const currentPageArticles = workbench.currentCollection?.articles.length || 0;
+      
+      // Don't switch tabs automatically - let users navigate manually
+      const totalArticles = workbench.groupPagination?.totalResults || workbench.groupCollection?.article_count || 0;
       if (page === 1) {
         toast({
           title: 'Group Loaded',
-          description: `Loaded "${workbench.currentCollection?.name}" (${totalArticles} articles total)`,
+          description: `Loaded "${workbench.groupCollection?.name}" (${totalArticles} articles total)`,
         });
       }
     } catch (error) {
@@ -156,8 +158,9 @@ export function WorkbenchPage() {
   };
 
   const handleSelectAll = () => {
-    if (workbench.currentCollection) {
-      const currentPageArticleIds = workbench.currentCollection.articles.map(item => item.article.id);
+    const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
+    if (currentCollection) {
+      const currentPageArticleIds = currentCollection.articles.map(item => item.article.id);
       setSelectedArticleIds(prev => {
         const newSelection = [...prev];
         currentPageArticleIds.forEach(id => {
@@ -178,7 +181,8 @@ export function WorkbenchPage() {
     if (selectedArticleIds.length === 0) return;
 
     try {
-      await workbench.removeArticles(selectedArticleIds);
+      const collectionType = activeTab === 'search' ? 'search' : 'group';
+      await workbench.removeArticles(selectedArticleIds, collectionType);
       setSelectedArticleIds([]);
       toast({
         title: 'Articles Removed',
@@ -199,18 +203,20 @@ export function WorkbenchPage() {
   };
 
   const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean) => {
-    if (!workbench.currentCollection) return;
+    const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
+    if (!currentCollection) return;
 
     try {
       // Get articles to add (selected or all visible)
       const articlesToAdd = selectedArticleIds.length > 0 
-        ? workbench.currentCollection.articles.filter(item => selectedArticleIds.includes(item.article.id))
-        : workbench.currentCollection.articles;
+        ? currentCollection.articles.filter(item => selectedArticleIds.includes(item.article.id))
+        : currentCollection.articles;
 
       const articleIds = articlesToAdd.map(item => item.article.id);
 
       // Always add articles to the group first
-      await workbench.addToExistingGroup(groupId, articleIds);
+      const collectionType = activeTab === 'search' ? 'search' : 'group';
+      await workbench.addToExistingGroup(groupId, articleIds, collectionType);
 
       // Clear selection after successful addition
       setSelectedArticleIds([]);
@@ -250,15 +256,6 @@ export function WorkbenchPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => setShowLoadModal(true)}
-            variant="outline"
-            size="sm"
-          >
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Load Group
-          </Button>
-
-          <Button
             onClick={() => workbench.resetWorkbench()}
             variant="outline"
             size="sm"
@@ -269,39 +266,154 @@ export function WorkbenchPage() {
         </div>
       </div>
 
-      {/* Search Controls */}
-      <div className="bg-card rounded-lg border p-6">
-        <UnifiedSearchControls
-          query={workbench.searchQuery}
-          onQueryChange={workbench.updateSearchQuery}
-          selectedProviders={workbench.selectedProviders}
-          onProvidersChange={workbench.updateSelectedProviders}
-          searchMode={workbench.searchMode}
-          onSearchModeChange={workbench.updateSearchMode}
-          onSearch={() => handleNewSearch(1)}
-          isSearching={workbench.collectionLoading}
-          pageSize={workbench.searchParams.pageSize}
-          onPageSizeChange={(pageSize) => workbench.updateSearchParams({ pageSize })}
-          sortBy={workbench.searchParams.sortBy}
-          onSortByChange={(sortBy) => workbench.updateSearchParams({ sortBy })}
-          yearLow={workbench.searchParams.yearLow}
-          onYearLowChange={(yearLow) => workbench.updateSearchParams({ yearLow })}
-          yearHigh={workbench.searchParams.yearHigh}
-          onYearHighChange={(yearHigh) => workbench.updateSearchParams({ yearHigh })}
-          dateType={workbench.searchParams.dateType}
-          onDateTypeChange={(dateType) => workbench.updateSearchParams({ dateType })}
-          includeCitations={workbench.searchParams.includeCitations}
-          onIncludeCitationsChange={(includeCitations) => workbench.updateSearchParams({ includeCitations })}
-          includePdfLinks={workbench.searchParams.includePdfLinks}
-          onIncludePdfLinksChange={(includePdfLinks) => workbench.updateSearchParams({ includePdfLinks })}
-        />
-      </div>
+      {/* Tabbed Interface - Always visible */}
+      <TabbedWorkbenchInterface
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchContent={
+          <div className="space-y-4">
+            {/* Search Controls */}
+            <SearchTab onNewSearch={handleNewSearch} />
+            
+            {/* Group Controls - only show for saved groups */}
+            {workbench.searchCollection && workbench.searchCollection.source === CollectionSource.SAVED_GROUP && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Group View Settings</h3>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Articles per page:</label>
+                      <select 
+                        value={workbench.groupParams.pageSize}
+                        onChange={(e) => workbench.updateGroupParams({ pageSize: parseInt(e.target.value) })}
+                        className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-1 text-sm rounded-md"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Results Section - show when we have a search collection */}
+            {workbench.searchCollection && (
+              <div className="space-y-4">
+                {/* Collection Header with Branding and Actions */}
+                <CollectionHeader
+                  collection={workbench.searchCollection}
+                  searchPagination={workbench.searchPagination}
+                  groupPagination={workbench.groupPagination}
+                  selectedArticleIds={selectedArticleIds}
+                  onLoadGroup={() => setActiveTab('groups')}
+                  onAddFeatures={() => setShowAddModal(true)}
+                  onExtractFeatures={() => workbench.extractFeatures(undefined, 'search')}
+                  onSaveChanges={() => workbench.saveCollectionChanges('search')}
+                  onSaveAsGroup={() => setShowSaveModal(true)}
+                  onAddToGroup={handleAddSelectedToGroup}
+                  onDeleteSelected={handleDeleteSelected}
+                  onSelectAll={handleSelectAll}
+                  onSelectNone={handleSelectNone}
+                  isExtracting={workbench.isExtracting}
+                  isLoading={workbench.collectionLoading}
+                />
+
+                {/* Table */}
+                <WorkbenchTable
+                  collection={workbench.searchCollection}
+                  selectedArticleIds={selectedArticleIds}
+                  onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, 'search')}
+                  onViewArticle={(article) => workbench.selectArticle(article)}
+                  onToggleArticleSelection={handleToggleArticleSelection}
+                  isExtracting={workbench.isExtracting}
+                />
+
+                {/* Pagination Controls */}
+                {workbench.searchCollection.source === CollectionSource.SEARCH && workbench.searchPagination && (
+                  <PaginationControls
+                    currentPage={workbench.searchPagination.currentPage}
+                    totalPages={workbench.searchPagination.totalPages}
+                    totalResults={workbench.searchPagination.totalResults}
+                    pageSize={workbench.searchPagination.pageSize}
+                    onPageChange={(page) => handleNewSearch(page)}
+                    isLoading={workbench.collectionLoading}
+                  />
+                )}
+                {workbench.searchCollection.source === CollectionSource.SAVED_GROUP && workbench.groupPagination && (
+                  <PaginationControls
+                    currentPage={workbench.groupPagination.currentPage}
+                    totalPages={workbench.groupPagination.totalPages}
+                    totalResults={workbench.groupPagination.totalResults}
+                    pageSize={workbench.groupPagination.pageSize}
+                    onPageChange={(page) => handleLoadGroup(workbench.searchCollection.saved_group_id || '', page)}
+                    isLoading={workbench.collectionLoading}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        }
+        groupsContent={
+          <div className="space-y-4">
+            <GroupsTab onLoadGroup={handleLoadGroup} />
+            
+            {/* Results Section - show when we have a group collection */}
+            {workbench.groupCollection && (
+              <div className="space-y-4">
+                {/* Collection Header with Branding and Actions */}
+                <CollectionHeader
+                  collection={workbench.groupCollection}
+                  searchPagination={workbench.searchPagination}
+                  groupPagination={workbench.groupPagination}
+                  selectedArticleIds={selectedArticleIds}
+                  onLoadGroup={() => {}} // Groups tab doesn't need this
+                  onAddFeatures={() => setShowAddModal(true)}
+                  onExtractFeatures={() => workbench.extractFeatures(undefined, 'group')}
+                  onSaveChanges={() => workbench.saveCollectionChanges('group')}
+                  onSaveAsGroup={() => setShowSaveModal(true)}
+                  onAddToGroup={handleAddSelectedToGroup}
+                  onDeleteSelected={handleDeleteSelected}
+                  onSelectAll={handleSelectAll}
+                  onSelectNone={handleSelectNone}
+                  isExtracting={workbench.isExtracting}
+                  isLoading={workbench.collectionLoading}
+                />
+
+                {/* Table */}
+                <WorkbenchTable
+                  collection={workbench.groupCollection}
+                  selectedArticleIds={selectedArticleIds}
+                  onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, 'group')}
+                  onViewArticle={(article) => workbench.selectArticle(article)}
+                  onToggleArticleSelection={handleToggleArticleSelection}
+                  isExtracting={workbench.isExtracting}
+                />
+
+                {/* Pagination Controls */}
+                {workbench.groupCollection.source === CollectionSource.SAVED_GROUP && workbench.groupPagination && (
+                  <PaginationControls
+                    currentPage={workbench.groupPagination.currentPage}
+                    totalPages={workbench.groupPagination.totalPages}
+                    totalResults={workbench.groupPagination.totalResults}
+                    pageSize={workbench.groupPagination.pageSize}
+                    onPageChange={(page) => handleLoadGroup(workbench.groupCollection.saved_group_id || '', page)}
+                    isLoading={workbench.collectionLoading}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        }
+      />
 
       {/* Error Display */}
       {workbench.error && (
-        <div className="bg-destructive/15 border border-destructive/20 rounded-lg p-4">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div className="flex items-center justify-between">
-            <p className="text-destructive">{workbench.error}</p>
+            <p className="text-red-800 dark:text-red-200">{workbench.error}</p>
             <Button
               onClick={workbench.clearError}
               variant="ghost"
@@ -310,67 +422,6 @@ export function WorkbenchPage() {
               Dismiss
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Results Section */}
-      {workbench.currentCollection ? (
-        <div className="space-y-4">
-          {/* Collection Header with Branding and Actions */}
-          <CollectionHeader
-            collection={workbench.currentCollection}
-            searchPagination={workbench.searchPagination}
-            selectedArticleIds={selectedArticleIds}
-            onLoadGroup={() => setShowLoadModal(true)}
-            onAddFeatures={() => setShowAddModal(true)}
-            onExtractFeatures={() => workbench.extractFeatures()}
-            onSaveChanges={() => workbench.saveCollectionChanges()}
-            onSaveAsGroup={() => setShowSaveModal(true)}
-            onAddToGroup={handleAddSelectedToGroup}
-            onDeleteSelected={handleDeleteSelected}
-            onSelectAll={handleSelectAll}
-            onSelectNone={handleSelectNone}
-            isExtracting={workbench.isExtracting}
-            isLoading={workbench.collectionLoading}
-          />
-
-          {/* Table */}
-          <WorkbenchTable
-            collection={workbench.currentCollection}
-            selectedArticleIds={selectedArticleIds}
-            onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId)}
-            onViewArticle={(article) => workbench.selectArticle(article)}
-            onToggleArticleSelection={handleToggleArticleSelection}
-            isExtracting={workbench.isExtracting}
-          />
-
-          {/* Pagination Controls */}
-          {workbench.currentCollection.source === CollectionSource.SEARCH && workbench.searchPagination && (
-            <PaginationControls
-              currentPage={workbench.searchPagination.currentPage}
-              totalPages={workbench.searchPagination.totalPages}
-              totalResults={workbench.searchPagination.totalResults}
-              pageSize={workbench.searchPagination.pageSize}
-              onPageChange={(page) => handleNewSearch(page)}
-              isLoading={workbench.collectionLoading}
-            />
-          )}
-          {workbench.currentCollection.source === CollectionSource.SAVED_GROUP && workbench.groupPagination && (
-            <PaginationControls
-              currentPage={workbench.groupPagination.currentPage}
-              totalPages={workbench.groupPagination.totalPages}
-              totalResults={workbench.groupPagination.totalResults}
-              pageSize={workbench.groupPagination.pageSize}
-              onPageChange={(page) => handleLoadGroup(workbench.currentCollection.saved_group_id || '', page)}
-              isLoading={workbench.collectionLoading}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">
-            Start by searching for articles or loading a saved group
-          </p>
         </div>
       )}
 
@@ -408,11 +459,13 @@ export function WorkbenchPage() {
         onSave={handleSaveGroup}
         onUpdateExisting={async () => {
           try {
-            await workbench.saveCollectionChanges();
+            const collectionType = activeTab === 'search' ? 'search' : 'group';
+            await workbench.saveCollectionChanges(collectionType);
+            const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
             setShowSaveModal(false);
             toast({
               title: 'Group Updated',
-              description: `Updated "${workbench.currentCollection?.name}" successfully`,
+              description: `Updated "${currentCollection?.name}" successfully`,
             });
           } catch (error) {
             console.error('Update failed:', error);
@@ -424,43 +477,38 @@ export function WorkbenchPage() {
           }
         }}
         onAddToGroup={handleAddToGroup}
-        defaultName={workbench.currentCollection?.name}
+        defaultName={workbench.searchCollection?.name}
         existingGroups={existingGroups}
-        collectionSource={workbench.currentCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group'}
-        isModified={workbench.currentCollection?.is_modified || false}
-        currentGroupName={workbench.currentCollection?.name}
-        canUpdateExisting={workbench.currentCollection?.source === CollectionSource.SAVED_GROUP && workbench.currentCollection?.saved_group_id != null}
+        collectionSource={workbench.searchCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group'}
+        isModified={workbench.searchCollection?.is_modified || false}
+        currentGroupName={workbench.searchCollection?.name}
+        canUpdateExisting={workbench.searchCollection?.source === CollectionSource.SAVED_GROUP && workbench.searchCollection?.saved_group_id != null}
       />
 
-      <LoadGroupModal
-        open={showLoadModal}
-        onOpenChange={setShowLoadModal}
-        onLoad={handleLoadGroup}
-      />
 
       <AddToGroupModal
         open={showAddToGroupModal}
         onOpenChange={setShowAddToGroupModal}
         onAddToGroup={handleAddToGroupAction}
         articlesToAdd={
-          workbench.currentCollection 
+          workbench.searchCollection 
             ? (selectedArticleIds.length > 0 
-                ? workbench.currentCollection.articles
+                ? workbench.searchCollection.articles
                     .filter(item => selectedArticleIds.includes(item.article.id))
                     .map(item => ({ id: item.article.id, title: item.article.title }))
-                : workbench.currentCollection.articles
+                : workbench.searchCollection.articles
                     .map(item => ({ id: item.article.id, title: item.article.title }))
               )
             : []
         }
-        sourceCollectionName={workbench.currentCollection?.name || ''}
-        currentGroupId={workbench.currentCollection?.saved_group_id}
+        sourceCollectionName={workbench.searchCollection?.name || ''}
+        currentGroupId={workbench.searchCollection?.saved_group_id}
       />
 
       {workbench.selectedArticle && (
         <ArticleWorkbenchModal
           article={workbench.selectedArticle}
-          collection={workbench.currentCollection}
+          collection={workbench.searchCollection}
           onClose={() => workbench.selectArticle(null)}
         />
       )}
@@ -468,8 +516,8 @@ export function WorkbenchPage() {
       {/* Extraction Animation Overlay */}
       <ExtractionAnimation
         isVisible={workbench.isExtracting}
-        featuresCount={workbench.currentCollection?.feature_definitions.length || 0}
-        articlesCount={workbench.currentCollection?.articles.length || 0}
+        featuresCount={workbench.searchCollection?.feature_definitions.length || 0}
+        articlesCount={workbench.searchCollection?.articles.length || 0}
       />
     </div>
   );

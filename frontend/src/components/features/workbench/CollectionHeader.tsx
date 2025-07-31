@@ -11,6 +11,12 @@ interface CollectionHeaderProps {
     totalResults: number;
     pageSize: number;
   } | null;
+  groupPagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalResults: number;
+    pageSize: number;
+  } | null;
   selectedArticleIds: string[];
   onLoadGroup: () => void;
   onAddFeatures: () => void;
@@ -28,6 +34,7 @@ interface CollectionHeaderProps {
 export function CollectionHeader({
   collection,
   searchPagination,
+  groupPagination,
   selectedArticleIds,
   onLoadGroup,
   onAddFeatures,
@@ -95,7 +102,11 @@ export function CollectionHeader({
               <span className="font-medium text-sm text-gray-700 dark:text-gray-300">"{collection.name}"</span>
               <span className="text-gray-500 dark:text-gray-400">•</span>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {collection.articles.length} articles
+                {groupPagination ? (
+                  `${groupPagination.totalResults} articles total • Page ${groupPagination.currentPage}/${groupPagination.totalPages}`
+                ) : (
+                  `${collection.articles.length} articles`
+                )}
               </span>
               {collection.feature_definitions.length > 0 && (
                 <>

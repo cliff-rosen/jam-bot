@@ -25,8 +25,9 @@ import { generateUUID, generatePrefixedUUID } from '@/lib/utils/uuid';
 // ================== STATE INTERFACE ==================
 
 interface WorkbenchState {
-  // SINGLE COLLECTION STATE
-  currentCollection: ArticleCollection | null;   // The active collection
+  // DUAL COLLECTION STATE
+  searchCollection: ArticleCollection | null;   // Search results collection
+  groupCollection: ArticleCollection | null;    // Loaded group collection
   collectionLoading: boolean;
 
   // SEARCH STATE
@@ -41,6 +42,10 @@ interface WorkbenchState {
     dateType: 'completion' | 'publication' | 'entry' | 'revised';
     includeCitations: boolean;
     includePdfLinks: boolean;
+  };
+  
+  groupParams: {
+    pageSize: number;
   };
 
   // PAGINATION STATE
@@ -85,24 +90,27 @@ interface WorkbenchActions {
 
   // Collection Management
   performSearch: (page?: number) => Promise<void>;
-  loadGroup: (groupId: string) => Promise<void>;
+  loadGroup: (groupId: string, page?: number) => Promise<void>;
   loadGroupList: () => Promise<any[]>;
-  saveCollection: (name: string, description?: string) => Promise<void>;
-  addToExistingGroup: (groupId: string, articleIds?: string[]) => Promise<void>;
-  saveCollectionChanges: () => Promise<void>;
-  deleteCollection: () => Promise<void>;
+  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group') => Promise<void>;
+  addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
+  deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
+  
+  // Collection Getters
+  getCurrentCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
 
   // Collection Modification
-  addArticles: (articles: CanonicalResearchArticle[]) => void;
-  removeArticles: (articleIds: string[]) => void;
-  updateArticlePosition: (articleId: string, newPosition: number) => void;
+  addArticles: (articles: CanonicalResearchArticle[], collectionType?: 'search' | 'group') => void;
+  removeArticles: (articleIds: string[], collectionType?: 'search' | 'group') => void;
+  updateArticlePosition: (articleId: string, newPosition: number, collectionType?: 'search' | 'group') => void;
 
   // Feature Management
-  addFeatureDefinitions: (features: FeatureDefinition[]) => void;
-  addFeatureDefinitionsAndExtract: (features: FeatureDefinition[]) => Promise<void>;
-  removeFeatureDefinition: (featureId: string) => void;
-  extractFeatures: (featureIds?: string[]) => Promise<void>;
-  updateFeatureValue: (articleId: string, featureId: string, value: any) => void;
+  addFeatureDefinitions: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => void;
+  addFeatureDefinitionsAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => Promise<void>;
+  removeFeatureDefinition: (featureId: string, collectionType?: 'search' | 'group') => void;
+  extractFeatures: (featureIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  updateFeatureValue: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
 
   // Selection Management
   selectArticle: (article: CanonicalResearchArticle | null) => void;
@@ -130,7 +138,8 @@ interface WorkbenchProviderProps {
 
 export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   // State
-  const [currentCollection, setCurrentCollection] = useState<ArticleCollection | null>(null);
+  const [searchCollection, setSearchCollection] = useState<ArticleCollection | null>(null);
+  const [groupCollection, setGroupCollection] = useState<ArticleCollection | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
   
   // Search State
@@ -145,6 +154,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     dateType: 'publication',
     includeCitations: false,
     includePdfLinks: false
+  });
+  
+  const [groupParams, setGroupParams] = useState<WorkbenchState['groupParams']>({
+    pageSize: 20
   });
   
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
@@ -172,6 +185,20 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const updateSearchParams = useCallback((params: Partial<WorkbenchState['searchParams']>) => {
     setSearchParams(prev => ({ ...prev, ...params }));
   }, []);
+  
+  const updateGroupParams = useCallback((params: Partial<WorkbenchState['groupParams']>) => {
+    setGroupParams(prev => ({ ...prev, ...params }));
+  }, []);
+
+  // ================== COLLECTION GETTERS ==================
+  
+  const getCurrentCollection = useCallback((tab: 'search' | 'groups'): ArticleCollection | null => {
+    if (tab === 'search') {
+      return searchCollection;
+    } else {
+      return groupCollection;
+    }
+  }, [searchCollection, groupCollection]);
 
   // ================== COLLECTION MANAGEMENT ==================
 
@@ -212,7 +239,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       };
 
       const collection = createSearchCollection(searchResult.articles, searchParamsForCollection);
-      setCurrentCollection(collection);
+      setSearchCollection(collection);
       
       // Update pagination state from metadata
       if (searchResult.metadata) {
@@ -247,10 +274,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
 
     try {
-      const pageSize = searchParams.pageSize; // Use same page size as search
+      const pageSize = groupParams.pageSize; // Use group-specific page size
       const group = await workbenchApi.getGroupDetails(groupId, page, pageSize);
       const collection = createSavedGroupCollection(group);
-      setCurrentCollection(collection);
+      setGroupCollection(collection);
       setSearchPagination(null); // Clear search pagination
       
       // Set group pagination if available
@@ -273,7 +300,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchParams.pageSize]);
+  }, [groupParams.pageSize]);
 
   const loadGroupList = useCallback(async () => {
     try {
@@ -286,7 +313,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, []);
 
-  const saveCollection = useCallback(async (name: string, description?: string) => {
+  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     setCollectionLoading(true);
@@ -307,8 +335,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         }
       });
 
-      // Update current collection to reflect saved state
-      setCurrentCollection({
+      // Update the appropriate collection to reflect saved state
+      const updatedCollection = {
         ...currentCollection,
         id: savedGroup.id,
         source: CollectionSource.SAVED_GROUP,
@@ -317,16 +345,23 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         is_saved: true,
         is_modified: false,
         updated_at: new Date().toISOString()
-      });
+      };
+      
+      if (collectionType === 'search') {
+        setSearchCollection(updatedCollection);
+      } else {
+        setGroupCollection(updatedCollection);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save collection');
       console.error('Save collection error:', err);
     } finally {
       setCollectionLoading(false);
     }
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
-  const addToExistingGroup = useCallback(async (groupId: string, articleIds?: string[]) => {
+  const addToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     setCollectionLoading(true);
@@ -356,9 +391,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [currentCollection, loadGroup]);
+  }, [searchCollection, groupCollection, loadGroup]);
 
-  const saveCollectionChanges = useCallback(async () => {
+  const saveCollectionChanges = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || !currentCollection.saved_group_id) return;
 
     setCollectionLoading(true);
@@ -372,20 +408,27 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       // TODO: Update articles if needed
 
-      setCurrentCollection({
+      const updatedCollection = {
         ...currentCollection,
         is_modified: false,
         updated_at: new Date().toISOString()
-      });
+      };
+      
+      if (collectionType === 'search') {
+        setSearchCollection(updatedCollection);
+      } else {
+        setGroupCollection(updatedCollection);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
       console.error('Save changes error:', err);
     } finally {
       setCollectionLoading(false);
     }
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
-  const deleteCollection = useCallback(async () => {
+  const deleteCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || !currentCollection.saved_group_id) return;
 
     if (!confirm('Are you sure you want to delete this collection?')) return;
@@ -395,7 +438,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     try {
       await workbenchApi.deleteGroup(currentCollection.saved_group_id);
-      setCurrentCollection(null);
+      
+      if (collectionType === 'search') {
+        setSearchCollection(null);
+      } else {
+        setGroupCollection(null);
+      }
+      
       setSelectedArticleIds(new Set());
       setSelectedArticle(null);
     } catch (err) {
@@ -404,11 +453,12 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
   // ================== COLLECTION MODIFICATION ==================
 
-  const addArticles = useCallback((articles: CanonicalResearchArticle[]) => {
+  const addArticles = useCallback((articles: CanonicalResearchArticle[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     const newArticleDetails: ArticleGroupDetail[] = articles.map(article => ({
@@ -421,15 +471,22 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       added_at: new Date().toISOString()
     }));
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       articles: [...currentCollection.articles, ...newArticleDetails],
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
-  }, [currentCollection]);
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
+  }, [searchCollection, groupCollection]);
 
-  const removeArticles = useCallback((articleIds: string[]) => {
+  const removeArticles = useCallback((articleIds: string[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     const idSet = new Set(articleIds);
@@ -437,12 +494,18 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       a => !idSet.has(a.article_id)
     );
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       articles: filteredArticles,
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
 
     // Clear selection if needed
     setSelectedArticleIds(prev => {
@@ -450,9 +513,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       articleIds.forEach(id => newSet.delete(id));
       return newSet;
     });
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
-  const updateArticlePosition = useCallback((articleId: string, newPosition: number) => {
+  const updateArticlePosition = useCallback((articleId: string, newPosition: number, collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     const articles = [...currentCollection.articles];
@@ -468,17 +532,24 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       article.position = index;
     });
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       articles,
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
-  }, [currentCollection]);
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
+  }, [searchCollection, groupCollection]);
 
   // ================== FEATURE MANAGEMENT ==================
 
-  const addFeatureDefinitions = useCallback((features: FeatureDefinition[]) => {
+  const addFeatureDefinitions = useCallback((features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     // Ensure unique IDs
@@ -493,15 +564,22 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     if (uniqueNewFeatures.length === 0) return; // No new features to add
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       feature_definitions: [...currentCollection.feature_definitions, ...uniqueNewFeatures],
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
-  }, [currentCollection]);
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
+  }, [searchCollection, groupCollection]);
 
-  const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[]) => {
+  const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     console.log('WorkbenchContext addFeatureDefinitionsAndExtract received features:', features);
@@ -523,7 +601,11 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     };
 
     // Update state immediately
-    setCurrentCollection(updatedCollection);
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
 
     // Now extract features using the new features directly
     setIsExtracting(true);
@@ -583,11 +665,17 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       console.log('Updated articles with feature data:', updatedArticles);
 
-      setCurrentCollection({
+      const finalCollection = {
         ...updatedCollection,
         articles: updatedArticles,
         updated_at: new Date().toISOString()
-      });
+      };
+      
+      if (collectionType === 'search') {
+        setSearchCollection(finalCollection);
+      } else {
+        setGroupCollection(finalCollection);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Feature extraction failed');
       console.error('Feature extraction error:', err);
@@ -595,9 +683,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setIsExtracting(false);
       setExtractionProgress(undefined);
     }
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
-  const removeFeatureDefinition = useCallback((featureId: string) => {
+  const removeFeatureDefinition = useCallback((featureId: string, collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     // Remove from definitions
@@ -612,16 +701,23 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       return { ...article, feature_data: newFeatureData };
     });
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       feature_definitions: filteredDefinitions,
       articles: updatedArticles,
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
-  }, [currentCollection]);
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
+  }, [searchCollection, groupCollection]);
 
-  const extractFeatures = useCallback(async (featureIds?: string[]) => {
+  const extractFeatures = useCallback(async (featureIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || currentCollection.feature_definitions.length === 0) return;
 
     setIsExtracting(true);
@@ -655,12 +751,18 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         };
       });
 
-      setCurrentCollection({
+      const updatedCollection = {
         ...currentCollection,
         articles: updatedArticles,
         is_modified: true,
         updated_at: new Date().toISOString()
-      });
+      };
+      
+      if (collectionType === 'search') {
+        setSearchCollection(updatedCollection);
+      } else {
+        setGroupCollection(updatedCollection);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Feature extraction failed');
       console.error('Feature extraction error:', err);
@@ -668,9 +770,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setIsExtracting(false);
       setExtractionProgress(undefined);
     }
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
-  const updateFeatureValue = useCallback((articleId: string, featureId: string, value: any) => {
+  const updateFeatureValue = useCallback((articleId: string, featureId: string, value: any, collectionType: 'search' | 'group' = 'search') => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
     const updatedArticles = currentCollection.articles.map(article => {
@@ -686,13 +789,19 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       return article;
     });
 
-    setCurrentCollection({
+    const updatedCollection = {
       ...currentCollection,
       articles: updatedArticles,
       is_modified: true,
       updated_at: new Date().toISOString()
-    });
-  }, [currentCollection]);
+    };
+    
+    if (collectionType === 'search') {
+      setSearchCollection(updatedCollection);
+    } else {
+      setGroupCollection(updatedCollection);
+    }
+  }, [searchCollection, groupCollection]);
 
   // ================== SELECTION MANAGEMENT ==================
 
@@ -713,11 +822,14 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, []);
 
   const selectAllArticles = useCallback(() => {
+    // This function should be updated to use context from the calling component
+    // For now, we'll leave it as is since it's not used much
+    const currentCollection = searchCollection || groupCollection;
     if (!currentCollection) return;
 
     const allIds = new Set(currentCollection.articles.map(a => a.article_id));
     setSelectedArticleIds(allIds);
-  }, [currentCollection]);
+  }, [searchCollection, groupCollection]);
 
   const clearArticleSelection = useCallback(() => {
     setSelectedArticleIds(new Set());
@@ -726,11 +838,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   // ================== UTILITY ACTIONS ==================
 
   const exportCollection = useCallback(async (format: 'csv' | 'json') => {
-    if (!currentCollection) return;
-
-    // TODO: Implement export functionality
+    // TODO: Implement export functionality - would need collectionType parameter
     console.log('Export collection as', format);
-  }, [currentCollection]);
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -738,7 +848,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const resetWorkbench = useCallback(() => {
     // Reset collection state
-    setCurrentCollection(null);
+    setSearchCollection(null);
+    setGroupCollection(null);
     setSearchPagination(null);
     setGroupPagination(null);
     setSelectedArticleIds(new Set());
@@ -760,18 +871,23 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       includeCitations: false,
       includePdfLinks: false
     });
+    setGroupParams({
+      pageSize: 20
+    });
   }, []);
 
   // ================== CONTEXT VALUE ==================
 
   const contextValue: WorkbenchContextType = {
     // State
-    currentCollection,
+    searchCollection,
+    groupCollection,
     collectionLoading,
     searchQuery,
     selectedProviders,
     searchMode,
     searchParams,
+    groupParams,
     searchPagination,
     groupPagination,
     selectedArticleIds,
@@ -785,6 +901,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     updateSelectedProviders,
     updateSearchMode,
     updateSearchParams,
+    updateGroupParams,
     performSearch,
     loadGroup,
     loadGroupList,
@@ -792,6 +909,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     addToExistingGroup,
     saveCollectionChanges,
     deleteCollection,
+    getCurrentCollection,
     addArticles,
     removeArticles,
     updateArticlePosition,

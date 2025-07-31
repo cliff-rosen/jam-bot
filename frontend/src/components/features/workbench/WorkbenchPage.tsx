@@ -318,12 +318,13 @@ export function WorkbenchPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onAdd={async (features, extractImmediately) => {
-          workbench.addFeatureDefinitions(features);
-          if (extractImmediately) {
-            const featureIds = features.map(f => f.id);
-            await workbench.extractFeatures(featureIds);
-          }
           setShowAddModal(false);
+          
+          if (extractImmediately) {
+            await workbench.addFeatureDefinitionsAndExtract(features);
+          } else {
+            workbench.addFeatureDefinitions(features);
+          }
         }}
       />
 

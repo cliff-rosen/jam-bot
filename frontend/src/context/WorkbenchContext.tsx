@@ -62,6 +62,7 @@ interface WorkbenchActions {
 
   // Feature Management
   addFeatureDefinitions: (features: FeatureDefinition[]) => void;
+  addFeatureDefinitionsAndExtract: (features: FeatureDefinition[]) => Promise<void>;
   removeFeatureDefinition: (featureId: string) => void;
   extractFeatures: (featureIds?: string[]) => Promise<void>;
   updateFeatureValue: (articleId: string, featureId: string, value: any) => void;
@@ -321,6 +322,68 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     });
   }, [currentCollection]);
 
+  const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[]) => {
+    if (!currentCollection) return;
+
+    // Ensure unique IDs
+    const newFeatures = features.map(f => ({
+      ...f,
+      id: f.id || generatePrefixedUUID('feat')
+    }));
+
+    // Create updated collection with new features
+    const updatedCollection = {
+      ...currentCollection,
+      feature_definitions: [...currentCollection.feature_definitions, ...newFeatures],
+      is_modified: true,
+      updated_at: new Date().toISOString()
+    };
+
+    // Update state immediately
+    setCurrentCollection(updatedCollection);
+
+    // Now extract features using the new features directly
+    setIsExtracting(true);
+    setError(null);
+
+    try {
+      const articlesData = updatedCollection.articles.map(a => ({
+        id: a.article_id,
+        title: a.article.title,
+        abstract: a.article.abstract || ''
+      }));
+
+      const extractionResult = await workbenchApi.extractFeatures({
+        articles: articlesData,
+        features: newFeatures // Use the new features directly
+      });
+
+      // Update article feature_data
+      const updatedArticles = updatedCollection.articles.map(article => {
+        const articleFeatures = extractionResult.results[article.article_id] || {};
+        return {
+          ...article,
+          feature_data: {
+            ...article.feature_data,
+            ...articleFeatures
+          }
+        };
+      });
+
+      setCurrentCollection({
+        ...updatedCollection,
+        articles: updatedArticles,
+        updated_at: new Date().toISOString()
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Feature extraction failed');
+      console.error('Feature extraction error:', err);
+    } finally {
+      setIsExtracting(false);
+      setExtractionProgress(undefined);
+    }
+  }, [currentCollection]);
+
   const removeFeatureDefinition = useCallback((featureId: string) => {
     if (!currentCollection) return;
 
@@ -346,6 +409,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, [currentCollection]);
 
   const extractFeatures = useCallback(async (featureIds?: string[]) => {
+    console.log('Extracting features', featureIds);
     if (!currentCollection || currentCollection.feature_definitions.length === 0) return;
 
     setIsExtracting(true);
@@ -491,6 +555,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     removeArticles,
     updateArticlePosition,
     addFeatureDefinitions,
+    addFeatureDefinitionsAndExtract,
     removeFeatureDefinition,
     extractFeatures,
     updateFeatureValue,

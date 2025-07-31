@@ -16,8 +16,6 @@ interface CollectionHeaderProps {
   onExtractFeatures: () => void;
   onSaveChanges: () => void;
   onSaveAsGroup: () => void;
-  canSaveChanges: boolean;
-  canSave: boolean;
   isExtracting: boolean;
   isLoading: boolean;
 }
@@ -30,8 +28,6 @@ export function CollectionHeader({
   onExtractFeatures,
   onSaveChanges,
   onSaveAsGroup,
-  canSaveChanges,
-  canSave,
   isExtracting,
   isLoading
 }: CollectionHeaderProps) {
@@ -42,7 +38,7 @@ export function CollectionHeader({
   const searchQuery = collection.search_params?.query || collection.name;
   
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 border-b">
+    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-200/50 dark:border-gray-700/50">
       {/* Left side: Icon + Name + Stats */}
       <div className="flex items-center gap-3">
         {isSearchResult ? (
@@ -106,6 +102,7 @@ export function CollectionHeader({
 
       {/* Right side: Action Buttons */}
       <div className="flex items-center gap-2">
+        {/* Load Group - duplicate for convenience */}
         <Button
           onClick={onLoadGroup}
           variant="outline"
@@ -115,6 +112,7 @@ export function CollectionHeader({
           Load Group
         </Button>
 
+        {/* Add Features - always available */}
         <Button
           onClick={onAddFeatures}
           variant="outline"
@@ -124,6 +122,7 @@ export function CollectionHeader({
           Add Features
         </Button>
 
+        {/* Extract Features - only when features defined */}
         {collection.feature_definitions.length > 0 && (
           <Button
             onClick={onExtractFeatures}
@@ -145,7 +144,8 @@ export function CollectionHeader({
           </Button>
         )}
 
-        {canSaveChanges && (
+        {/* Save Changes - only for modified saved groups */}
+        {collection.source === CollectionSource.SAVED_GROUP && isModified && (
           <Button
             onClick={onSaveChanges}
             variant="default"
@@ -161,16 +161,20 @@ export function CollectionHeader({
           </Button>
         )}
 
-        {canSave && (
-          <Button
-            onClick={onSaveAsGroup}
-            variant="outline"
-            size="sm"
-          >
-            <Cloud className="w-4 h-4 mr-2" />
-            {collection.source === CollectionSource.SEARCH ? 'Save as Group' : 'Save'}
-          </Button>
-        )}
+        {/* Save as Group - always available (creates copy for groups, saves for search) */}
+        <Button
+          onClick={onSaveAsGroup}
+          variant="outline"
+          size="sm"
+        >
+          <Cloud className="w-4 h-4 mr-2" />
+          {collection.source === CollectionSource.SEARCH ? 'Save as Group' : 'Copy to New Group'}
+        </Button>
+
+        {/* Add to Group - always available */}
+        {/* TODO: Implement Add to Group functionality */}
+        
+        {/* Select All/None - TODO: Implement in Phase 3 */}
       </div>
     </div>
   );

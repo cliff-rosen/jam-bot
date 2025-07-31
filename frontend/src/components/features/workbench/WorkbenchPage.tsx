@@ -249,8 +249,6 @@ export function WorkbenchPage() {
             onExtractFeatures={() => workbench.extractFeatures()}
             onSaveChanges={() => workbench.saveCollectionChanges()}
             onSaveAsGroup={() => setShowSaveModal(true)}
-            canSaveChanges={canSaveChanges}
-            canSave={canSave || false}
             isExtracting={workbench.isExtracting}
             isLoading={workbench.collectionLoading}
           />

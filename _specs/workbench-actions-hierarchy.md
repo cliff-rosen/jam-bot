@@ -200,6 +200,101 @@ Actions: [Add Features] [Save as Group] [Add to Group]
 2. Selection works normally within the visible set
 3. No cross-page complexity
 
+## Add to Group Workflow
+
+### Modal Dialog Flow
+When user clicks "Add to Group" or "Add Selected to Group":
+
+1. **Group Selection Modal Opens**
+   - Shows list of existing groups with metadata (name, description, article count)
+   - Search/filter capability for large group lists
+   - Preview of articles being added (count and titles)
+
+2. **User Selects Target Group** 
+   - Group list shows which groups already contain some of the articles being added
+   - Warning indicators for potential duplicates
+   - Option to "Skip duplicates" or "Add anyway"
+
+3. **Post-Action Navigation Choice**
+   After successful addition, modal shows confirmation with options:
+   
+   **Success Message**:
+   ```
+   ✅ Added 5 articles to "MC4R Studies Q3 2024"
+   
+   What would you like to do next?
+   
+   [Stay Here]  [Go to Group]
+   ```
+
+### Navigation Options
+
+#### Stay Here (Default)
+- User remains in current view (search results or current group)
+- Selection is cleared
+- Success toast shows: "Added 5 articles to MC4R Studies Q3 2024"
+- User can continue working with current collection
+
+#### Go to Group  
+- User navigates to the target group
+- Target group loads with newly added articles visible
+- Success toast shows: "Added 5 articles from [source collection]"
+- Newly added articles could be highlighted temporarily
+
+### Default Behavior Logic
+
+**Recommended Default**: "Stay Here"
+- Most common workflow: user is browsing search results or working in a group and wants to copy some articles elsewhere
+- Preserves current work context
+- Less disruptive to user's current task
+
+**When "Go to Group" Makes Sense**:
+- User specifically wants to continue working with the combined collection
+- User is done with current view and ready to move to the target group
+- User wants to verify the addition was successful
+
+### Implementation Details
+
+#### Modal UI Structure
+```
+┌─────────────────────────────────────┐
+│ Add to Existing Group               │
+├─────────────────────────────────────┤
+│ Adding 5 selected articles to:     │
+│                                     │
+│ [Search: existing groups...]        │
+│                                     │
+│ ○ MC4R Studies Q3 2024             │
+│   23 articles • Updated 2 days ago  │
+│                                     │  
+│ ○ Melanocortin Research            │
+│   45 articles • Updated 1 week ago  │
+│                                     │
+│ [Cancel]              [Add to Group] │
+└─────────────────────────────────────┘
+```
+
+#### Success Confirmation
+```
+┌─────────────────────────────────────┐
+│ ✅ Successfully Added               │
+├─────────────────────────────────────┤
+│ Added 5 articles to                 │
+│ "MC4R Studies Q3 2024"             │
+│                                     │
+│ What would you like to do next?     │
+│                                     │
+│ [Stay Here]        [Go to Group]    │
+│                                     │
+│ ☐ Remember my choice               │
+└─────────────────────────────────────┘
+```
+
+### User Preference Storage
+- Optional: "Remember my choice" checkbox
+- Stores user preference for future "Add to Group" actions
+- Can be changed in settings or by not checking the box on subsequent actions
+
 ## Button Grouping and Visual Hierarchy
 
 ### Top Header Layout

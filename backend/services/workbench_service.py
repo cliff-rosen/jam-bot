@@ -191,7 +191,7 @@ class ArticleGroupService:
         group_id: str, 
         request
     ) -> Optional[Dict[str, Any]]:
-        """Save tabelizer state (articles + columns) to existing group."""
+        """Save workbench state (articles + features) to existing group."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
                 ArticleGroupModel.id == group_id,
@@ -262,36 +262,33 @@ class ArticleGroupService:
         self, 
         group: ArticleGroupModel, 
         articles: List[CanonicalResearchArticle],
-        columns: List[Dict[str, Any]]
+        feature_definitions: List[Dict[str, Any]]
     ):
-        """Helper to add articles to a group with extracted column data."""
-        # Create column data lookup
-        column_data_by_article = {}
-        for column in columns:
-            if "data" in column and "name" in column:
-                for article_id, value in column["data"].items():
-                    if article_id not in column_data_by_article:
-                        column_data_by_article[article_id] = {}
-                    column_data_by_article[article_id][column["name"]] = value
+        """Helper to add articles to a group with extracted feature data."""
+        # Create feature data lookup from legacy format if needed
+        feature_data_by_article = {}
+        for feature in feature_definitions:
+            if "data" in feature and "name" in feature:
+                # Legacy column format - convert to feature data
+                for article_id, value in feature["data"].items():
+                    if article_id not in feature_data_by_article:
+                        feature_data_by_article[article_id] = {}
+                    feature_data_by_article[article_id][feature["name"]] = value
         
         # Add articles to group
         for position, article in enumerate(articles):
-            # Get extracted features for this article from columns
-            extracted_features = {}
-            if article.id in column_data_by_article:
-                for column_name, value in column_data_by_article[article.id].items():
-                    extracted_features[column_name] = {
-                        "value": value,
-                        "type": "text",  # Default type
-                        "extraction_method": "ai",
-                        "extracted_at": datetime.utcnow().isoformat()
-                    }
+            # Get extracted features for this article
+            feature_data = {}
+            if article.id in feature_data_by_article:
+                # Store feature data using feature ID keys (new format)
+                for feature_name, value in feature_data_by_article[article.id].items():
+                    feature_data[feature_name] = value
             
             article_detail = ArticleGroupDetailModel(
                 article_group_id=group.id,
                 article_data=article.dict(),
                 notes='',
-                extracted_features=extracted_features,
+                feature_data=feature_data,
                 article_metadata={},
                 position=position
             )

@@ -1,44 +1,46 @@
 import { useState, useMemo } from 'react';
-import { CanonicalResearchArticle } from '@/types/unifiedSearch';
-import { WorkbenchColumn } from '@/types/workbench';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
+import { FeatureDefinition, ArticleGroupDetail } from '@/types/workbench';
+import { ArticleCollection } from '@/types/articleCollection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2, RotateCcw } from 'lucide-react';
 
 interface WorkbenchTableProps {
-  articles: CanonicalResearchArticle[];
-  columns: WorkbenchColumn[];
-  onAddColumn: () => void;
-  onDeleteColumn: (columnId: string) => void;
-  onDeleteArticle: (articleId: string) => void;
-  onExport: () => void;
-  onClearResults: () => void;
-  isExtracting: boolean;
-  onViewArticle: (article: CanonicalResearchArticle) => void;
-  onSaveGroup: () => void;
-  onLoadGroup: () => void;
-  currentGroup?: { id: string; name: string } | null;
+  collection: ArticleCollection;
+  onAddFeature?: () => void;
+  onDeleteFeature?: (featureId: string) => void;
+  onDeleteArticle?: (articleId: string) => void;
+  onExport?: () => void;
+  onClearResults?: () => void;
+  isExtracting?: boolean;
+  onViewArticle?: (article: CanonicalResearchArticle) => void;
+  onSaveGroup?: () => void;
+  onLoadGroup?: () => void;
   displayDateType?: "completion" | "publication" | "entry" | "revised";
 }
 
 export function WorkbenchTable({
-  articles,
-  columns,
-  onAddColumn,
-  onDeleteColumn,
+  collection,
+  onAddFeature,
+  onDeleteFeature,
   onDeleteArticle,
   onExport,
   onClearResults,
-  isExtracting,
+  isExtracting = false,
   onViewArticle,
   onSaveGroup,
   onLoadGroup,
-  currentGroup,
   displayDateType: initialDisplayDateType = 'publication',
 }: WorkbenchTableProps) {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);
+
+  // Extract articles and features from collection
+  const articles = collection.articles.map(item => item.article);
+  const features = collection.feature_definitions;
+  const articleDetails = collection.articles;
 
   const handleSort = (columnId: string) => {
     if (sortBy === columnId) {
@@ -71,20 +73,20 @@ export function WorkbenchTable({
 
   const normalizeDateForSorting = (dateStr: string): string => {
     if (!dateStr || dateStr === '-') return '0000-00-00';
-    
+
     // Already in YYYY-MM-DD format
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
+
     // Just a year (YYYY)
     if (/^\d{4}$/.test(dateStr)) return `${dateStr}-00-00`;
-    
+
     // Handle PubMed format like "2025-Jul-24" or "2025-Jun-25"
     const monthMap: Record<string, string> = {
       'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
       'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
       'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
     };
-    
+
     const pubmedMatch = dateStr.match(/^(\d{4})-([A-Za-z]{3})-(\d{1,2})$/);
     if (pubmedMatch) {
       const [, year, monthName, day] = pubmedMatch;
@@ -92,11 +94,11 @@ export function WorkbenchTable({
       const dayPadded = day.padStart(2, '0');
       return `${year}-${monthNum}-${dayPadded}`;
     }
-    
+
     // Try to extract year and use that
     const yearMatch = dateStr.match(/^(\d{4})/);
     if (yearMatch) return `${yearMatch[1]}-00-00`;
-    
+
     // Fallback
     return '0000-00-00';
   };
@@ -139,11 +141,13 @@ export function WorkbenchTable({
           bValue = b.abstract || '';
           break;
         default:
-          // Handle custom columns
-          const column = columns.find(c => c.id === sortBy);
-          if (column) {
-            aValue = column.data[a.id] || '';
-            bValue = column.data[b.id] || '';
+          // Handle custom features - get data from article details
+          const feature = features.find(f => f.id === sortBy);
+          if (feature) {
+            const aDetail = articleDetails.find(d => d.article.id === a.id);
+            const bDetail = articleDetails.find(d => d.article.id === b.id);
+            aValue = aDetail?.feature_data[sortBy] || '';
+            bValue = bDetail?.feature_data[sortBy] || '';
           }
       }
 
@@ -151,20 +155,20 @@ export function WorkbenchTable({
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [articles, columns, sortBy, sortDirection]);
+  }, [articles, features, sortBy, sortDirection, articleDetails]);
 
   const renderSortIcon = (columnId: string) => {
     if (sortBy !== columnId) return null;
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="w-4 h-4" /> : 
+    return sortDirection === 'asc' ?
+      <ChevronUp className="w-4 h-4" /> :
       <ChevronDown className="w-4 h-4" />;
   };
 
   const getSourceBadge = (source: string) => {
-    const config = source === 'pubmed' 
+    const config = source === 'pubmed'
       ? { label: 'PubMed', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
       : { label: 'Scholar', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
-    
+
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
@@ -176,22 +180,22 @@ export function WorkbenchTable({
 
   const formatDate = (dateStr: string, dateType: string): string => {
     if (!dateStr || dateStr === '-') return '-';
-    
+
     // If it's just a year, return as-is
     if (/^\d{4}$/.test(dateStr)) return dateStr;
-    
+
     // If it's a full date (YYYY-MM-DD), return the full date
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
+
     // Handle PubMed format like "2025-Jul-24" - keep full format for publication dates
     if (dateType === 'publication' && dateStr.includes('-') && !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
       return dateStr; // Keep the full format like "2025-Jul-24"
     }
-    
+
     // Try to extract the year from other formats as fallback for non-publication dates
     const yearMatch = dateStr.match(/^(\d{4})/);
     if (yearMatch && dateType !== 'publication') return yearMatch[1];
-    
+
     return dateStr;
   };
 
@@ -216,59 +220,69 @@ export function WorkbenchTable({
       <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
         <div className="flex items-center gap-3">
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            {currentGroup ? (
-              <Badge variant="outline" className="mr-2">{currentGroup.name}</Badge>
+            {collection.is_saved ? (
+              <Badge variant="outline" className="mr-2">{collection.name}</Badge>
             ) : (
               <span className="text-gray-500 italic mr-2">Unsaved Session</span>
             )}
-            {articles.length} articles · {columns.length} custom columns
+            {articles.length} articles · {features.length} custom features
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={onLoadGroup}
-            variant="outline"
-            size="sm"
-          >
-            <FolderOpen className="w-4 h-4 mr-1" />
-            Load Group
-          </Button>
-          <Button
-            onClick={onSaveGroup}
-            variant="outline"
-            size="sm"
-            disabled={articles.length === 0}
-          >
-            <Save className="w-4 h-4 mr-1" />
-            Save Group
-          </Button>
-          <div className="border-l mx-2" />
-          <Button
-            onClick={onAddColumn}
-            disabled={isExtracting}
-            variant="outline"
-            size="sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Column
-          </Button>
-          <Button
-            onClick={onExport}
-            variant="outline"
-            size="sm"
-          >
-            <Download className="w-4 h-4 mr-1" />
-            Export CSV
-          </Button>
-          <Button
-            onClick={onClearResults}
-            variant="outline"
-            size="sm"
-            disabled={articles.length === 0}
-          >
-            <RotateCcw className="w-4 h-4 mr-1" />
-            Clear Results
-          </Button>
+          {onLoadGroup && (
+            <Button
+              onClick={onLoadGroup}
+              variant="outline"
+              size="sm"
+            >
+              <FolderOpen className="w-4 h-4 mr-1" />
+              Load Group
+            </Button>
+          )}
+          {onSaveGroup && (
+            <Button
+              onClick={onSaveGroup}
+              variant="outline"
+              size="sm"
+              disabled={articles.length === 0}
+            >
+              <Save className="w-4 h-4 mr-1" />
+              Save Group
+            </Button>
+          )}
+          {(onLoadGroup || onSaveGroup) && <div className="border-l mx-2" />}
+          {onAddFeature && (
+            <Button
+              onClick={onAddFeature}
+              disabled={isExtracting}
+              variant="outline"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Feature
+            </Button>
+          )}
+          {onExport && (
+            <Button
+              onClick={onExport}
+              variant="outline"
+              size="sm"
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Export CSV
+            </Button>
+          )}
+          {onClearResults && (
+            <Button
+              onClick={onClearResults}
+              variant="outline"
+              size="sm"
+              disabled={articles.length === 0}
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              Clear Results
+            </Button>
+          )}
         </div>
       </div>
 
@@ -284,14 +298,14 @@ export function WorkbenchTable({
             <col className="w-20" />
             <col className="w-80" />
             <col className="w-32" />
-            {columns.map(() => (
+            {features.map(() => (
               <col key={Math.random()} className="w-32" />
             ))}
           </colgroup>
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
               {/* Fixed Columns */}
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('id')}
               >
@@ -300,7 +314,7 @@ export function WorkbenchTable({
                   {renderSortIcon('id')}
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('title')}
               >
@@ -309,7 +323,7 @@ export function WorkbenchTable({
                   {renderSortIcon('title')}
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('authors')}
               >
@@ -318,7 +332,7 @@ export function WorkbenchTable({
                   {renderSortIcon('authors')}
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('journal')}
               >
@@ -329,7 +343,7 @@ export function WorkbenchTable({
               </th>
               <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                 <div className="flex flex-col gap-2">
-                  <div 
+                  <div
                     className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded"
                     onClick={() => handleSort('year')}
                   >
@@ -353,7 +367,7 @@ export function WorkbenchTable({
                   </div>
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                 onClick={() => handleSort('source')}
               >
@@ -362,7 +376,7 @@ export function WorkbenchTable({
                   {renderSortIcon('source')}
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('abstract')}
               >
@@ -374,37 +388,39 @@ export function WorkbenchTable({
               <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                 Actions
               </th>
-              
-              {/* Custom Columns */}
-              {columns.map(column => (
+
+              {/* Custom Features */}
+              {features.map(feature => (
                 <th
-                  key={column.id}
+                  key={feature.id}
                   className="text-left p-2 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap group"
-                  title={column.description}
+                  title={feature.description}
                 >
                   <div className="flex items-center justify-between gap-1">
-                    <div 
+                    <div
                       className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-1 py-1 rounded flex-1 min-w-0"
-                      onClick={() => handleSort(column.id)}
+                      onClick={() => handleSort(feature.id)}
                     >
-                      <span className="truncate">{column.name}</span>
+                      <span className="truncate">{feature.name}</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 flex-shrink-0">
-                        ({column.type === 'boolean' ? 'Y/N' : 
-                          column.type === 'score' ? 
-                            `${column.options?.min || 1}-${column.options?.max || 10}` : 
+                        ({feature.type === 'boolean' ? 'Y/N' :
+                          feature.type === 'score' ?
+                            `${feature.options?.min || 1}-${feature.options?.max || 10}` :
                             'Text'})
                       </span>
-                      {renderSortIcon(column.id)}
+                      {renderSortIcon(feature.id)}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
-                      onClick={() => onDeleteColumn(column.id)}
-                      title={`Delete ${column.name} column`}
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
+                    {onDeleteFeature && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
+                        onClick={() => onDeleteFeature(feature.id)}
+                        title={`Delete ${feature.name} feature`}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
                   </div>
                 </th>
               ))}
@@ -488,7 +504,7 @@ export function WorkbenchTable({
                     </Button>
                   </div>
                 </td>
-                
+
                 {/* Custom Columns */}
                 {columns.map(column => (
                   <td
@@ -497,8 +513,8 @@ export function WorkbenchTable({
                   >
                     {column.type === 'boolean' ? (
                       <span className={
-                        column.data[article.id] === 'yes' 
-                          ? 'text-green-600 dark:text-green-400 font-medium' 
+                        column.data[article.id] === 'yes'
+                          ? 'text-green-600 dark:text-green-400 font-medium'
                           : 'text-gray-500 dark:text-gray-400'
                       }>
                         {column.data[article.id] || '-'}

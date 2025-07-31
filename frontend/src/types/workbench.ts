@@ -7,178 +7,110 @@
 
 import { CanonicalResearchArticle } from './canonical_types';
 
-// ================== COLUMN METADATA AND DATA STRUCTURES ==================
+// ================== FEATURE METADATA AND DATA STRUCTURES ==================
 
-export interface WorkbenchColumnMetadata {
-  name: string;
-  description: string;
-  type: 'boolean' | 'text' | 'score' | 'number';
-  options?: {
-    min?: number;
-    max?: number;
-    step?: number;
-    choices?: string[];
-  };
-  is_extracted: boolean;
-  extraction_method?: 'ai' | 'manual' | 'computed';
+export interface FeatureDefinition {
+  id: string;              // Stable UUID for feature identification
+  name: string;            // Feature display name
+  description: string;     // Feature description for LLM extraction
+  type: 'boolean' | 'text' | 'score';
+  options?: Record<string, any>;  // Feature options (e.g., min/max for score)
 }
-
-export interface WorkbenchColumn {
-  id: string;
-  name: string;
-  description: string;
-  type: 'boolean' | 'text' | 'score' | 'number';
-  data: Record<string, string>; // articleId -> value
-  options?: {
-    min?: number;
-    max?: number;
-    step?: number;
-    choices?: string[];
-  };
-}
-
-// Note: TabelizerColumnData is internal to backend - frontend uses WorkbenchColumn
 
 // ================== ARTICLE GROUP STRUCTURES ==================
 
-export interface ArticleGroupItem {
-  article: CanonicalResearchArticle;
-  position: number;
-  column_data: Record<string, any>;
-  workbench_summary: {
-    has_notes: boolean;
-    feature_count: number;
-    tags: string[];
-    rating?: number;
-  };
+export interface ArticleGroupDetail {
+  id: string;                              // Unique detail record ID
+  article_id: string;                      // Article ID
+  group_id: string;                        // Group ID
+  article: CanonicalResearchArticle;       // The article data
+  feature_data: Record<string, any>;       // Extracted feature data keyed by feature.id
+  position?: number;                       // Position in the group
+  added_at: string;                        // When article was added to group
 }
 
-export interface ArticleGroupDetail {
-  id: string;
-  name: string;
-  description?: string;
-  article_count: number;
-  columns: WorkbenchColumnMetadata[];
-  search_context?: {
-    query: string;
-    provider: string;
-    parameters: Record<string, any>;
-  };
-  created_at: string;
-  updated_at: string;
-  articles: ArticleGroupItem[];
+export interface ArticleGroupWithDetails {
+  id: string;                              // Group ID
+  name: string;                            // Group name
+  description?: string;                    // Group description
+  article_count: number;                   // Number of articles in group
+  feature_definitions: FeatureDefinition[]; // Feature definitions
+  search_context?: Record<string, any>;    // Search context
+  created_at: string;                      // Creation timestamp
+  updated_at: string;                      // Last update timestamp
+  articles: ArticleGroupDetail[];          // Articles with feature data
 }
 
 export interface ArticleGroup {
-  id: string;
-  user_id: number;
-  name: string;
-  description?: string;
-  search_query?: string;
-  search_provider?: string;
-  search_params?: any;
-  columns: WorkbenchColumnMetadata[];
-  article_count: number;
-  created_at: string;
-  updated_at: string;
+  id: string;                              // Group ID
+  user_id: number;                         // Owner user ID
+  name: string;                            // Group name
+  description?: string;                    // Group description
+  search_query?: string;                   // Search query used
+  search_provider?: string;                // Search provider used
+  search_params?: Record<string, any>;     // Search parameters
+  feature_definitions: FeatureDefinition[]; // Feature definitions
+  article_count: number;                   // Number of articles in group
+  created_at: string;                      // Creation timestamp
+  updated_at: string;                      // Last update timestamp
 }
 
-// ================== ADDITIONAL FRONTEND TYPES ==================
+// ================== FRONTEND-ONLY TYPES ==================
 
-export interface WorkbenchState {
-  articles: CanonicalResearchArticle[];
-  columns: WorkbenchColumn[];
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-}
-
+// Summary info for group listings
 export interface ArticleGroupSummary {
   id: string;
   name: string;
   description?: string;
   article_count: number;
+  feature_count: number;
   created_at: string;
   updated_at: string;
-  preview_articles: ArticlePreview[];
+  search_provider?: string;
 }
 
+// Lightweight article preview for performance
 export interface ArticlePreview {
   id: string;
   title: string;
-  journal?: string;
+  authors: string[];
   publication_year?: number;
+  journal?: string;
+  feature_data?: Record<string, any>;
 }
 
-// ================== INDIVIDUAL ARTICLE RESEARCH TYPES ==================
-
+// Individual article research data (deep dive mode)
 export interface WorkbenchData {
-  article: CanonicalResearchArticle;
-  workbench: {
-    notes: string;
-    features: Record<string, ExtractedFeature>;
-    metadata: WorkbenchMetadata;
-    position: number;
-    created_at: string;
-    updated_at?: string;
-  };
-  group_context: {
-    group_id: string;
-    group_name: string;
-    total_articles: number;
-  };
+  article_id: string;
+  notes: string;
+  extracted_features: Record<string, ExtractedFeature>;
+  metadata: WorkbenchMetadata;
+  last_modified: string;
 }
 
 export interface ExtractedFeature {
-  value: string | number | boolean;
+  name: string;
+  value: any;
   type: 'boolean' | 'text' | 'score' | 'number';
-  extraction_method: 'ai' | 'manual';
-  extraction_prompt?: string;
-  confidence_score?: number;
   extracted_at: string;
-  extracted_by?: string;
-  error?: string;
+  extraction_method: 'ai' | 'manual' | 'computed';
+  confidence?: number;
 }
 
 export interface WorkbenchMetadata {
   tags: string[];
-  rating?: number; // 1-5 stars
-  priority: 'low' | 'medium' | 'high';
-  status: 'unread' | 'reading' | 'read' | 'reviewed' | 'archived';
+  rating?: number;
+  status?: 'unread' | 'read' | 'reviewing' | 'completed';
+  priority?: 'low' | 'medium' | 'high';
   custom_fields?: Record<string, any>;
 }
 
-// ================== ANALYSIS PRESET TYPES ==================
-
+// Analysis preset configurations
 export interface AnalysisPreset {
   id: string;
   name: string;
   description: string;
-  category: string;
-  columns: Record<string, {
-    description: string;
-    type: 'boolean' | 'text' | 'score' | 'number';
-    options?: {
-      min?: number;
-      max?: number;
-      step?: number;
-      choices?: string[];
-    };
-  }>;
-  created_at: string;
-  usage_count: number;
+  features: FeatureDefinition[];
+  is_default?: boolean;
+  created_by?: string;
 }
-
-// ================== LEGACY TYPE ALIASES ==================
-// For backward compatibility during migration
-
-/** @deprecated Use WorkbenchColumn instead */
-export type TabelizerColumn = WorkbenchColumn;
-
-/** @deprecated Use WorkbenchColumnMetadata instead */  
-export type TabelizerColumnData = WorkbenchColumnMetadata;
-
-/** @deprecated Use WorkbenchState instead */
-export type TabelizerState = WorkbenchState;
-
-/** @deprecated Use AnalysisPreset instead */
-export type TabelizerPreset = AnalysisPreset;

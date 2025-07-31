@@ -9,7 +9,7 @@
 
 import { api } from './index';
 import {
-  WorkbenchColumnMetadata,
+  FeatureDefinition,
   ArticleGroup,
   ArticleGroupDetail,
   ArticleGroupSummary,
@@ -20,25 +20,19 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 // ================== REQUEST/RESPONSE TYPES ==================
 
-// Column Definition Types
-export interface ColumnDefinition {
-  name: string;
-  description: string;
-  type: 'boolean' | 'text' | 'score';
-  options?: {
-    min?: number;
-    max?: number;
-    step?: number;
-  };
-}
+// Feature Definition Types (alias for backward compatibility)
+export type ColumnDefinition = FeatureDefinition;
 
-export interface ColumnPreset {
+export interface FeaturePreset {
   id: string;
   name: string;
   description: string;
   category?: string;
-  columns: ColumnDefinition[];
+  features: FeatureDefinition[];
 }
+
+// Legacy alias
+export type ColumnPreset = FeaturePreset;
 
 // New Extract Request/Response
 export interface ExtractRequest {
@@ -47,7 +41,7 @@ export interface ExtractRequest {
     title: string;
     abstract: string;
   }>;
-  columns: ColumnDefinition[];
+  features: FeatureDefinition[];
 }
 
 export interface ExtractResponse {
@@ -65,7 +59,7 @@ export interface CreateArticleGroupRequest {
   name: string;
   description?: string;
   articles?: CanonicalResearchArticle[];
-  columns?: WorkbenchColumnMetadata[];
+  feature_definitions?: FeatureDefinition[];
   search_context?: {
     query: string;
     provider: string;
@@ -76,14 +70,14 @@ export interface CreateArticleGroupRequest {
 export interface UpdateArticleGroupRequest {
   name?: string;
   description?: string;
-  columns?: WorkbenchColumnMetadata[];
+  feature_definitions?: FeatureDefinition[];
 }
 
 export interface SaveToGroupRequest {
   group_name: string;
   group_description?: string;
   articles: CanonicalResearchArticle[];
-  columns: WorkbenchColumnMetadata[];
+  feature_definitions: FeatureDefinition[];
   search_query?: string;
   search_provider?: string;
   search_params?: Record<string, any>;
@@ -91,7 +85,7 @@ export interface SaveToGroupRequest {
 
 export interface AddArticlesRequest {
   articles: CanonicalResearchArticle[];
-  extract_columns?: boolean;
+  extract_features?: boolean;
 }
 
 // Analysis Requests
@@ -180,6 +174,11 @@ export class WorkbenchApi {
     return response.data;
   }
 
+  // Alias for the new context
+  async getGroupDetails(groupId: string): Promise<ArticleGroupDetail> {
+    return this.getGroupDetail(groupId);
+  }
+
   async updateGroup(groupId: string, request: UpdateArticleGroupRequest): Promise<ArticleGroup> {
     const response = await api.put(`/api/workbench/groups/${groupId}`, request);
     return response.data;
@@ -212,6 +211,11 @@ export class WorkbenchApi {
   async extract(request: ExtractRequest): Promise<ExtractResponse> {
     const response = await api.post('/api/workbench/extract', request);
     return response.data;
+  }
+
+  // Alias for the new context
+  async extractFeatures(request: ExtractRequest): Promise<ExtractResponse> {
+    return this.extract(request);
   }
 
   // New method to get column presets
@@ -290,10 +294,10 @@ export class WorkbenchApi {
   /**
    * Export articles and data as CSV
    */
-  exportAsCSV(articles: any[], columns: any[], filename: string = 'workbench-data.csv'): void {
+  exportAsCSV(articles: any[], features: any[], filename: string = 'workbench-data.csv'): void {
     // Create headers
     const headers = ['Title', 'Authors', 'Journal', 'Year', 'URL'];
-    columns.forEach(col => headers.push(col.name));
+    features.forEach(feature => headers.push(feature.name));
 
     // Create rows
     const rows = articles.map(article => {
@@ -306,8 +310,8 @@ export class WorkbenchApi {
       ];
 
       // Add column data
-      columns.forEach(col => {
-        row.push(col.data[article.id] || '');
+      features.forEach(feature => {
+        row.push(feature.data[article.id] || '');
       });
 
       return row;

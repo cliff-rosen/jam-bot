@@ -18,43 +18,54 @@ import { UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
 import { ProviderSelector } from './ProviderSelector';
 
 interface UnifiedSearchControlsProps {
-  searchParams: UnifiedSearchParams;
+  query: string;
+  onQueryChange: (query: string) => void;
   selectedProviders: SearchProvider[];
+  onProvidersChange: (providers: SearchProvider[]) => void;
   searchMode: 'single' | 'multi';
-  isSearching: boolean;
-  onSearchParamsChange: (params: UnifiedSearchParams) => void;
-  onSelectedProvidersChange: (providers: SearchProvider[]) => void;
   onSearchModeChange: (mode: 'single' | 'multi') => void;
   onSearch: () => void;
+  isSearching: boolean;
   onBatchSearch?: () => void;
 }
 
 export function UnifiedSearchControls({
-  searchParams,
+  query,
+  onQueryChange,
   selectedProviders,
+  onProvidersChange,
   searchMode,
-  isSearching,
-  onSearchParamsChange,
-  onSelectedProvidersChange,
   onSearchModeChange,
   onSearch,
+  isSearching,
   onBatchSearch
 }: UnifiedSearchControlsProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProviders, setShowProviders] = useState(true);
+  
+  // Local search parameter state
+  const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState<'relevance' | 'date'>('relevance');
+  const [yearLow, setYearLow] = useState<number | undefined>();
+  const [yearHigh, setYearHigh] = useState<number | undefined>();
+  const [dateType, setDateType] = useState<'completion' | 'publication'>('publication');
+  const [includeCitations, setIncludeCitations] = useState(false);
+  const [includePdfLinks, setIncludePdfLinks] = useState(false);
+  
+  const currentProvider = searchMode === 'single' ? selectedProviders[0] : undefined;
 
-  const canSearch = searchParams.query.trim() && (
-    (searchMode === 'single' && searchParams.provider) ||
+  const canSearch = query.trim() && (
+    (searchMode === 'single' && currentProvider) ||
     (searchMode === 'multi' && selectedProviders.length > 0)
   );
 
   const handleProviderChange = (provider: SearchProvider) => {
-    onSearchParamsChange({ ...searchParams, provider });
+    onProvidersChange([provider]);
   };
 
   const getMaxResults = () => {
     if (searchMode === 'single') {
-      return searchParams.provider === 'pubmed' ? 100 : 20;
+      return currentProvider === 'pubmed' ? 100 : 20;
     }
     return 20; // Conservative limit for batch searches
   };
@@ -62,7 +73,7 @@ export function UnifiedSearchControls({
   const renderProviderSpecificOptions = () => {
     if (searchMode !== 'single') return null;
 
-    const provider = searchParams.provider;
+    const provider = currentProvider;
 
     if (provider === 'pubmed') {
       return (
@@ -73,11 +84,8 @@ export function UnifiedSearchControls({
             </label>
             <select
               className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-              value={searchParams.date_type || 'publication'}
-              onChange={(e) => onSearchParamsChange({
-                ...searchParams,
-                date_type: e.target.value as 'completion' | 'publication'
-              })}
+              value={dateType}
+              onChange={(e) => setDateType(e.target.value as 'completion' | 'publication')}
             >
               <option value="publication">Publication Date</option>
               <option value="completion">Completion Date</option>
@@ -113,9 +121,9 @@ export function UnifiedSearchControls({
                 <CardTitle className="flex items-center text-lg text-gray-900 dark:text-gray-100">
                   <Search className="w-5 h-5 mr-2" />
                   Search Providers
-                  {searchMode === 'single' && searchParams.provider && (
+                  {searchMode === 'single' && currentProvider && (
                     <Badge variant="default" className="ml-2">
-                      {searchParams.provider === 'pubmed' ? 'PubMed' : 'Google Scholar'}
+                      {currentProvider === 'pubmed' ? 'PubMed' : 'Google Scholar'}
                     </Badge>
                   )}
                   {searchMode === 'multi' && selectedProviders.length > 0 && (
@@ -133,10 +141,10 @@ export function UnifiedSearchControls({
           <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <CardContent className="pt-4">
               <ProviderSelector
-                selectedProvider={searchParams.provider}
+                selectedProvider={currentProvider}
                 onProviderChange={handleProviderChange}
                 selectedProviders={selectedProviders}
-                onMultiProviderChange={onSelectedProvidersChange}
+                onMultiProviderChange={onProvidersChange}
                 mode={searchMode}
                 onModeChange={onSearchModeChange}
                 disabled={isSearching}
@@ -156,8 +164,8 @@ export function UnifiedSearchControls({
                 Search Query
               </label>
               <Input
-                value={searchParams.query}
-                onChange={(e) => onSearchParamsChange({ ...searchParams, query: e.target.value })}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
                 placeholder="Enter search terms..."
                 onKeyDown={(e) => e.key === 'Enter' && canSearch && onSearch()}
                 className="dark:bg-gray-800 dark:text-gray-100"
@@ -197,11 +205,8 @@ export function UnifiedSearchControls({
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={searchParams.page_size}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  page_size: parseInt(e.target.value)
-                })}
+                value={pageSize}
+                onChange={(e) => setPageSize(parseInt(e.target.value))}
                 disabled={isSearching}
               >
                 <option value="10">10 per page</option>
@@ -216,11 +221,8 @@ export function UnifiedSearchControls({
               </label>
               <select
                 className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                value={searchParams.sort_by}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  sort_by: e.target.value as 'relevance' | 'date'
-                })}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'relevance' | 'date')}
                 disabled={isSearching}
               >
                 <option value="relevance">Relevance</option>
@@ -235,11 +237,8 @@ export function UnifiedSearchControls({
                 type="number"
                 min="1900"
                 max={new Date().getFullYear()}
-                value={searchParams.year_low || ''}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  year_low: e.target.value ? parseInt(e.target.value) : undefined
-                })}
+                value={yearLow || ''}
+                onChange={(e) => setYearLow(e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="2020"
                 className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
@@ -253,11 +252,8 @@ export function UnifiedSearchControls({
                 type="number"
                 min="1900"
                 max={new Date().getFullYear()}
-                value={searchParams.year_high || ''}
-                onChange={(e) => onSearchParamsChange({
-                  ...searchParams,
-                  year_high: e.target.value ? parseInt(e.target.value) : undefined
-                })}
+                value={yearHigh || ''}
+                onChange={(e) => setYearHigh(e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="2024"
                 className="dark:bg-gray-800 dark:text-gray-100"
                 disabled={isSearching}
@@ -284,11 +280,8 @@ export function UnifiedSearchControls({
                     <input
                       type="checkbox"
                       id="include_citations"
-                      checked={searchParams.include_citations}
-                      onChange={(e) => onSearchParamsChange({
-                        ...searchParams,
-                        include_citations: e.target.checked
-                      })}
+                      checked={includeCitations}
+                      onChange={(e) => setIncludeCitations(e.target.checked)}
                       disabled={isSearching}
                       className="rounded border-gray-300"
                     />
@@ -300,11 +293,8 @@ export function UnifiedSearchControls({
                     <input
                       type="checkbox"
                       id="include_pdf_links"
-                      checked={searchParams.include_pdf_links}
-                      onChange={(e) => onSearchParamsChange({
-                        ...searchParams,
-                        include_pdf_links: e.target.checked
-                      })}
+                      checked={includePdfLinks}
+                      onChange={(e) => setIncludePdfLinks(e.target.checked)}
                       disabled={isSearching}
                       className="rounded border-gray-300"
                     />

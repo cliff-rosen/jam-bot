@@ -3,17 +3,14 @@ import { Loader2, FolderOpen, Cloud, CloudOff, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { Pagination } from '@/components/ui/pagination';
 
-import { articleChatApi } from '@/lib/api/articleChatApi';
 import { useWorkbench } from '@/context/WorkbenchContext';
-
-import { WorkbenchColumn } from '@/types/workbench';
+import { CollectionSource } from '@/types/articleCollection';
 import { SearchProvider } from '@/types/unifiedSearch';
 
 import { UnifiedSearchControls } from './search/UnifiedSearchControls';
 import { WorkbenchTable } from './WorkbenchTable';
-import { AddColumnModal } from './AddColumnModal';
+import { AddFeatureModal } from './AddFeatureModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { LoadGroupModal } from './LoadGroupModal';
@@ -25,388 +22,307 @@ export function WorkbenchPage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
 
+  // Local search state for the search controls
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
+  const [searchMode, setSearchMode] = useState<'single' | 'multi'>('single');
+
   const { toast } = useToast();
 
-  // Initialize search params from workbench context if available
-  useEffect(() => {
-    if (workbench.searchContext) {
-      workbench.updateSearchParams({
-        query: workbench.searchContext.query,
-        provider: workbench.searchContext.provider as SearchProvider
-      });
-    }
-  }, [workbench.searchContext]);
-
   const handleNewSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast({
+        title: 'Search Required',
+        description: 'Please enter a search query',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
-      await workbench.performNewSearch();
+      await workbench.performSearch(searchQuery, {
+        query: searchQuery,
+        filters: {},
+        page: 1,
+        page_size: 20,
+        provider: selectedProviders[0] // Use first selected provider
+      });
+
       toast({
         title: 'Search Complete',
-        description: `Found ${workbench.pagination.totalResults.toLocaleString()} total results, showing page 1 of ${workbench.pagination.totalPages}`,
+        description: `Found ${workbench.currentCollection?.articles.length || 0} articles`,
       });
     } catch (error) {
       console.error('Search failed:', error);
       toast({
         title: 'Search Failed',
-        description: 'Unable to search articles. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    if (workbench.source === 'search' || workbench.source === 'modified') {
-      handleSearchPagination(page);
-    } else if (workbench.source === 'group' && workbench.sourceGroup) {
-      handleLoadGroup(workbench.sourceGroup.id, page);
-    }
-  };
-
-  const handleSearchPagination = async (page: number) => {
-    try {
-      await workbench.performSearchPagination(page);
-      toast({
-        title: 'Page Changed',
-        description: `Showing page ${page} of ${workbench.pagination.totalPages}`,
-      });
-    } catch (error) {
-      console.error('Search pagination failed:', error);
-      toast({
-        title: 'Page Change Failed',
-        description: 'Unable to change page. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDeleteColumn = (columnId: string) => {
-    workbench.removeColumn(columnId);
-
-    toast({
-      title: 'Column Deleted',
-      description: 'Column has been removed from the table.',
-    });
-  };
-
-  const handleDeleteArticle = async (articleId: string) => {
-    workbench.removeArticle(articleId);
-
-    // Handle pagination updates for groups
-    if (workbench.source === 'group' && workbench.sourceGroup) {
-      const newTotalResults = workbench.pagination.totalResults - 1;
-      const newTotalPages = Math.ceil(newTotalResults / workbench.pagination.pageSize);
-      const currentPageArticles = workbench.articles.filter(article => article.id !== articleId);
-
-      // If we deleted the last article on this page and it's not page 1, go to previous page
-      if (currentPageArticles.length === 0 && workbench.pagination.currentPage > 1) {
-        const newPage = workbench.pagination.currentPage - 1;
-        workbench.updatePagination({
-          currentPage: newPage,
-          totalResults: newTotalResults,
-          totalPages: newTotalPages,
-          hasNextPage: newPage < newTotalPages,
-          hasPrevPage: newPage > 1
-        });
-        // Reload the group at the new page
-        handleLoadGroup(workbench.sourceGroup.id, newPage);
-      } else {
-        // Just update pagination state
-        workbench.updatePagination({
-          totalResults: newTotalResults,
-          totalPages: newTotalPages,
-          hasNextPage: workbench.pagination.currentPage < newTotalPages,
-          hasPrevPage: workbench.pagination.currentPage > 1
-        });
-      }
-    }
-
-    toast({
-      title: 'Article Removed',
-      description: workbench.source === 'group' && workbench.hasModifications
-        ? 'Article removed locally. Save to update the group permanently.'
-        : 'Article has been removed.',
-    });
-  };
-
-
-  const handleAddColumns = async (columns: { name: string; description: string; type: 'boolean' | 'text' | 'score'; options?: { min?: number; max?: number; step?: number } }[]) => {
-    setShowAddModal(false);
-
-    try {
-      await workbench.extractColumns(columns);
-      const columnNames = columns.map(col => col.name).join(', ');
-      toast({
-        title: 'Extraction Complete',
-        description: `Added ${columns.length} column${columns.length === 1 ? '' : 's'}: ${columnNames}`,
-      });
-    } catch (error) {
-      console.error('Column extraction failed:', error);
-      toast({
-        title: 'Extraction Failed',
-        description: error instanceof Error ? error.message : 'Unable to extract column data. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      await workbench.exportWorkbenchData();
-      toast({
-        title: 'Export Complete',
-        description: 'CSV file downloaded successfully.',
-      });
-    } catch (error) {
-      console.error('Export failed:', error);
-      toast({
-        title: 'Export Failed',
-        description: 'Unable to export data. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSaveGroup = async (
-    mode: 'new' | 'existing' | 'add',
-    groupId?: string,
-    name?: string,
-    description?: string
-  ) => {
-    try {
-      const response = await workbench.saveWorkbenchGroup(mode, groupId, name, description);
-      toast({
-        title: 'Success',
-        description: response.message
-      });
-    } catch (error) {
-      console.error('Save group failed:', error);
-      toast({
-        title: 'Save Failed',
-        description: 'Unable to save group. Please try again.',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: 'destructive'
       });
-      throw error;
     }
   };
 
-  const handleLoadGroup = async (groupId: string, page = 1) => {
+  const handleLoadGroup = async (groupId: string) => {
     try {
-      await workbench.loadWorkbenchGroup(groupId, page);
+      await workbench.loadGroup(groupId);
+      setShowLoadModal(false);
       toast({
         title: 'Group Loaded',
-        description: `Loaded "${workbench.sourceGroup?.name}" with ${workbench.pagination.totalResults} articles (page ${page} of ${workbench.pagination.totalPages})`
+        description: `Loaded "${workbench.currentCollection?.name}" with ${workbench.currentCollection?.articles.length || 0} articles`,
       });
     } catch (error) {
       console.error('Load group failed:', error);
       toast({
         title: 'Load Failed',
-        description: 'Unable to load group. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to load group',
         variant: 'destructive'
       });
-      throw error;
     }
   };
 
-  const handleResetAll = () => {
-    workbench.clearWorkbench();
-    toast({
-      title: 'Workbench Reset',
-      description: 'All data and search parameters have been cleared.'
-    });
+  const handleSaveGroup = async (name: string, description?: string) => {
+    try {
+      await workbench.saveCollection(name, description);
+      setShowSaveModal(false);
+      toast({
+        title: 'Group Saved',
+        description: `Saved as "${name}"`,
+      });
+    } catch (error) {
+      console.error('Save failed:', error);
+      toast({
+        title: 'Save Failed',
+        description: error instanceof Error ? error.message : 'Failed to save group',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const handleClearResults = () => {
-    workbench.clearResults();
-    toast({
-      title: 'Results Cleared',
-      description: 'Articles and columns cleared. Search parameters preserved.'
-    });
+  const getCollectionBadge = () => {
+    if (!workbench.currentCollection) return null;
+
+    const { source, name, is_saved, is_modified } = workbench.currentCollection;
+
+    switch (source) {
+      case CollectionSource.SEARCH:
+        return (
+          <Badge variant="outline" className="text-sm bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <Cloud className="w-3 h-3 mr-1" />
+            {name}
+          </Badge>
+        );
+
+      case CollectionSource.SAVED_GROUP:
+        return (
+          <Badge variant="outline" className="text-sm bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+            <FolderOpen className="w-3 h-3 mr-1" />
+            {name}
+            {is_modified && <span className="ml-1">*</span>}
+          </Badge>
+        );
+
+      case CollectionSource.MODIFIED:
+        return (
+          <Badge variant="outline" className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+            <CloudOff className="w-3 h-3 mr-1" />
+            {name}
+          </Badge>
+        );
+
+      default:
+        return null;
+    }
   };
+
+  const canSave = workbench.currentCollection &&
+    (workbench.currentCollection.source === CollectionSource.SEARCH ||
+      (workbench.currentCollection.source === CollectionSource.SAVED_GROUP && workbench.currentCollection.is_modified));
+
+  const canSaveChanges = workbench.currentCollection?.source === CollectionSource.SAVED_GROUP &&
+    workbench.currentCollection.is_modified;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="border-b dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Workbench</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Create custom research tables with AI-powered data extraction
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {workbench.sourceGroup && (
-              <Badge variant="outline" className="text-sm">
-                <FolderOpen className="w-3 h-3 mr-1" />
-                {workbench.sourceGroup.name}
-              </Badge>
-            )}
-            {workbench.source !== 'group' && workbench.articles.length > 0 && (
-              <Badge variant="outline" className="text-sm bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-                <CloudOff className="w-3 h-3 mr-1" />
-                Working Data
-                {workbench.hasModifications && <span className="ml-1">*</span>}
-              </Badge>
-            )}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Research Workbench</h1>
+          <p className="text-muted-foreground">
+            Search, analyze, and organize research articles with AI-powered insights
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {getCollectionBadge()}
+
+          <Button
+            onClick={() => setShowLoadModal(true)}
+            variant="outline"
+            size="sm"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Load Group
+          </Button>
+
+          {canSave && (
             <Button
-              onClick={() => setShowLoadModal(true)}
+              onClick={() => setShowSaveModal(true)}
               variant="outline"
               size="sm"
             >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Load Group
+              <Cloud className="w-4 h-4 mr-2" />
+              {workbench.currentCollection?.source === CollectionSource.SEARCH ? 'Save as Group' : 'Save'}
             </Button>
+          )}
+
+          {canSaveChanges && (
             <Button
-              onClick={handleResetAll}
-              variant="outline"
+              onClick={() => workbench.saveCollectionChanges()}
+              variant="default"
               size="sm"
+              disabled={workbench.collectionLoading}
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset All
+              {workbench.collectionLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4 mr-2" />
+              )}
+              Save Changes
             </Button>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Search Section */}
-      <div className="border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+      {/* Search Controls */}
+      <div className="bg-card rounded-lg border p-6">
         <UnifiedSearchControls
-          searchParams={workbench.currentSearchParams}
-          selectedProviders={workbench.selectedProviders}
-          searchMode={workbench.searchMode}
-          isSearching={workbench.isSearching}
-          onSearchParamsChange={workbench.updateSearchParams}
-          onSelectedProvidersChange={workbench.updateSelectedProviders}
-          onSearchModeChange={workbench.updateSearchMode}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          selectedProviders={selectedProviders}
+          onProvidersChange={setSelectedProviders}
+          searchMode={searchMode}
+          onSearchModeChange={setSearchMode}
           onSearch={handleNewSearch}
+          isSearching={workbench.collectionLoading}
         />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        {workbench.articles.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <p className="text-lg mb-2">No articles yet</p>
-              <p className="text-sm">Search for articles above or load a saved group</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-hidden">
-              <WorkbenchTable
-                articles={workbench.articles}
-                columns={workbench.columns}
-                onAddColumn={() => setShowAddModal(true)}
-                onDeleteColumn={handleDeleteColumn}
-                onDeleteArticle={handleDeleteArticle}
-                onExport={handleExport}
-                onClearResults={handleClearResults}
-                isExtracting={workbench.isExtracting}
-                onViewArticle={workbench.setSelectedArticle}
-                onSaveGroup={() => setShowSaveModal(true)}
-                onLoadGroup={() => setShowLoadModal(true)}
-                currentGroup={workbench.sourceGroup}
-                displayDateType="publication"
-              />
-            </div>
-            {workbench.pagination.totalPages > 1 && (
-              <div className="border-t dark:border-gray-700">
-                <div className="p-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {workbench.source === 'search' ? 'Search Results' :
-                    workbench.source === 'modified' ? 'Modified Data' :
-                      `Group: ${workbench.sourceGroup?.name}`}
-                </div>
-                <Pagination
-                  currentPage={workbench.pagination.currentPage}
-                  totalPages={workbench.pagination.totalPages}
-                  onPageChange={handlePageChange}
-                  totalResults={workbench.pagination.totalResults}
-                  pageSize={workbench.pagination.pageSize}
-                  disabled={workbench.isSearching}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Loading Overlay */}
-      {workbench.isExtracting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
-            <span className="text-gray-900 dark:text-gray-100">Extracting column data...</span>
+      {/* Error Display */}
+      {workbench.error && (
+        <div className="bg-destructive/15 border border-destructive/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-destructive">{workbench.error}</p>
+            <Button
+              onClick={workbench.clearError}
+              variant="ghost"
+              size="sm"
+            >
+              Dismiss
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Add Column Modal */}
-      {showAddModal && (
-        <AddColumnModal
-          onAdd={handleAddColumns}
-          onClose={() => setShowAddModal(false)}
-        />
+      {/* Results Section */}
+      {workbench.currentCollection ? (
+        <div className="space-y-4">
+          {/* Collection Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold">
+                {workbench.currentCollection.name}
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                {workbench.currentCollection.articles.length} articles
+              </span>
+              {workbench.currentCollection.feature_definitions.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  • {workbench.currentCollection.feature_definitions.length} features
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowAddModal(true)}
+                variant="outline"
+                size="sm"
+                disabled={workbench.currentCollection.articles.length === 0}
+              >
+                Add Features
+              </Button>
+
+              {workbench.currentCollection.feature_definitions.length > 0 && (
+                <Button
+                  onClick={() => workbench.extractFeatures()}
+                  variant="default"
+                  size="sm"
+                  disabled={workbench.isExtracting}
+                >
+                  {workbench.isExtracting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Extract Features
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <WorkbenchTable articles={workbench.currentCollection.articles} features={workbench.currentCollection.feature_definitions} />
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            Start by searching for articles or loading a saved group
+          </p>
+        </div>
       )}
 
-      {/* Article Workbench Modal */}
+      {/* Loading State */}
+      {workbench.collectionLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <AddFeatureModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={(features) => {
+          workbench.addFeatureDefinitions(features);
+          setShowAddModal(false);
+        }}
+      />
+
+      <SaveGroupModal
+        open={showSaveModal}
+        onOpenChange={setShowSaveModal}
+        onSave={handleSaveGroup}
+        defaultName={workbench.currentCollection?.name}
+      />
+
+      <LoadGroupModal
+        open={showLoadModal}
+        onOpenChange={setShowLoadModal}
+        onLoad={handleLoadGroup}
+      />
+
       {workbench.selectedArticle && (
         <ArticleWorkbenchModal
           article={workbench.selectedArticle}
-          currentGroup={workbench.sourceGroup}
-          onClose={() => workbench.setSelectedArticle(null)}
-          onSendChatMessage={async (message, article, conversationHistory, onChunk, onComplete, onError) => {
-            // Use the streaming article chat API
-            await articleChatApi.sendMessageStream(
-              message,
-              article,
-              conversationHistory as Array<{ role: 'user' | 'assistant'; content: string }>,
-              onChunk,
-              onComplete,
-              onError
-            );
-          }}
-          onFeatureAdded={(feature) => {
-            // When a feature is added from the workbench, add it as a new column
-            const newColumn: WorkbenchColumn = {
-              id: `feature_${Date.now()}`,
-              name: feature.name,
-              description: `Extracted feature: ${feature.name}`,
-              type: feature.type,
-              data: { [workbench.selectedArticle.id]: feature.value },
-              options: feature.type === 'score' ? { min: 1, max: 10 } : undefined
-            };
-            workbench.addColumn(newColumn);
-            toast({
-              title: 'Feature Added',
-              description: `"${feature.name}" has been added as a new column.`,
-            });
-          }}
-          onArticleUpdated={(updatedArticle) => {
-            // This will be handled by the workbench context automatically
-            // since the article objects are references
-          }}
-        />
-      )}
-
-      {/* Save Group Modal */}
-      {showSaveModal && (
-        <SaveGroupModal
-          isOpen={showSaveModal}
-          onClose={() => setShowSaveModal(false)}
-          onSave={handleSaveGroup}
-          articleCount={workbench.articles.length}
-          columnCount={workbench.columns.length}
-        />
-      )}
-
-      {/* Load Group Modal */}
-      {showLoadModal && (
-        <LoadGroupModal
-          isOpen={showLoadModal}
-          onClose={() => setShowLoadModal(false)}
-          onLoad={handleLoadGroup}
-          currentGroupId={workbench.sourceGroup?.id}
+          onClose={() => workbench.selectArticle(null)}
         />
       )}
     </div>

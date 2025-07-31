@@ -9,14 +9,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { workbenchApi, ColumnDefinition, ColumnPreset } from '@/lib/api/workbenchApi';
 import { Plus, X, Settings } from 'lucide-react';
+import { FeatureDefinition } from '@/types/workbench';
 
-interface AddColumnModalProps {
-  onAdd: (columns: ColumnDefinition[]) => void;
+interface AddFeatureModalProps {
+  onAdd: (features: FeatureDefinition[]) => void;
   onClose: () => void;
 }
 
-export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
-  const [columns, setColumns] = useState<ColumnDefinition[]>([{
+export function AddFeatureModal({ onAdd, onClose }: AddFeatureModalProps) {
+  const [features, setFeatures] = useState<FeatureDefinition[]>([{
+    id: '',
     name: '',
     description: '',
     type: 'boolean'
@@ -39,21 +41,21 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validColumns = columns.filter(col => 
-      col.name.trim() && col.description.trim()
+    const validFeatures = features.filter(feature =>
+      feature.name.trim() && feature.description.trim()
     );
-    if (validColumns.length > 0) {
-      onAdd(validColumns);
+    if (validFeatures.length > 0) {
+      onAdd(validFeatures);
     }
   };
 
   const handlePresetSubmit = async () => {
     const preset = presets.find(p => p.id === selectedPreset);
     if (!preset) return;
-    
+
     setLoading(true);
     try {
-      onAdd(preset.columns);
+      onAdd(preset.features);
     } catch (error) {
       console.error('Failed to apply preset:', error);
     } finally {
@@ -62,7 +64,8 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
   };
 
   const addColumn = () => {
-    setColumns([...columns, {
+    setFeatures([...features, {
+      id: '',
       name: '',
       description: '',
       type: 'boolean'
@@ -70,21 +73,21 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
   };
 
   const removeColumn = (index: number) => {
-    if (columns.length > 1) {
-      setColumns(columns.filter((_, i) => i !== index));
+    if (features.length > 1) {
+      setFeatures(features.filter((_, i) => i !== index));
     }
   };
 
   const updateColumn = (index: number, field: keyof ColumnDefinition, value: any) => {
-    const updated = [...columns];
+    const updated = [...features];
     updated[index] = { ...updated[index], [field]: value };
-    setColumns(updated);
+    setFeatures(updated);
   };
 
   const updateColumnOptions = (index: number, options: ColumnDefinition['options']) => {
-    const updated = [...columns];
+    const updated = [...features];
     updated[index] = { ...updated[index], options };
-    setColumns(updated);
+    setFeatures(updated);
   };
 
   return (
@@ -98,7 +101,7 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
             Define custom columns or choose from presets. All columns will be processed together in a single AI extraction.
           </p>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden">
           <Tabs defaultValue="custom" className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
@@ -111,16 +114,16 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                 Preset Collections
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="custom" className="flex-1 mt-4">
               <form onSubmit={handleSubmit} className="h-full flex flex-col">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto pr-2">
-                  {columns.map((column, index) => (
+                  {features.map((feature, index) => (
                     <Card key={index} className="h-fit">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base">Column {index + 1}</CardTitle>
-                          {columns.length > 1 && (
+                          {features.length > 1 && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -138,8 +141,8 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">Column Name</Label>
                           <Input
-                            value={column.name}
-                            onChange={(e) => updateColumn(index, 'name', e.target.value)}
+                            value={feature.name}
+                            onChange={(e) => updateFeature(index, 'name', e.target.value)}
                             placeholder="e.g., Sample Size, Has Side Effects"
                             className="h-9"
                           />
@@ -148,9 +151,9 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                         {/* Column Type */}
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">Data Type</Label>
-                          <RadioGroup 
-                            value={column.type} 
-                            onValueChange={(value) => updateColumn(index, 'type', value as 'boolean' | 'text' | 'score')}
+                          <RadioGroup
+                            value={feature.type}
+                            onValueChange={(value) => updateFeature(index, 'type', value as 'boolean' | 'text' | 'score')}
                             className="grid grid-cols-1 gap-2"
                           >
                             <div className="flex items-center space-x-2">
@@ -183,9 +186,9 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                                 <Label className="text-xs text-gray-600 dark:text-gray-400">Min</Label>
                                 <Input
                                   type="number"
-                                  value={column.options?.min || 1}
-                                  onChange={(e) => updateColumnOptions(index, {
-                                    ...column.options,
+                                  value={feature.options?.min || 1}
+                                  onChange={(e) => updateFeatureOptions(index, {
+                                    ...feature.options,
                                     min: Number(e.target.value)
                                   })}
                                   className="h-8 text-sm"
@@ -195,9 +198,9 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                                 <Label className="text-xs text-gray-600 dark:text-gray-400">Max</Label>
                                 <Input
                                   type="number"
-                                  value={column.options?.max || 10}
-                                  onChange={(e) => updateColumnOptions(index, {
-                                    ...column.options,
+                                  value={feature.options?.max || 10}
+                                  onChange={(e) => updateFeatureOptions(index, {
+                                    ...feature.options,
                                     max: Number(e.target.value)
                                   })}
                                   className="h-8 text-sm"
@@ -208,9 +211,9 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                                 <Input
                                   type="number"
                                   step="0.1"
-                                  value={column.options?.step || 1}
-                                  onChange={(e) => updateColumnOptions(index, {
-                                    ...column.options,
+                                  value={feature.options?.step || 1}
+                                  onChange={(e) => updateFeatureOptions(index, {
+                                    ...feature.options,
                                     step: Number(e.target.value)
                                   })}
                                   className="h-8 text-sm"
@@ -223,19 +226,19 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                         {/* Description/Question */}
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">
-                            {column.type === 'boolean' ? 'Question to Ask' : 
-                             column.type === 'score' ? 'Scoring Instructions' : 
-                             'What to Extract'}
+                            {feature.type === 'boolean' ? 'Question to Ask' :
+                              feature.type === 'score' ? 'Scoring Instructions' :
+                                'What to Extract'}
                           </Label>
                           <Textarea
-                            value={column.description}
-                            onChange={(e) => updateColumn(index, 'description', e.target.value)}
+                            value={feature.description}
+                            onChange={(e) => updateFeature(index, 'description', e.target.value)}
                             placeholder={
-                              column.type === 'boolean'
+                              feature.type === 'boolean'
                                 ? "e.g., Does this study report any adverse events or side effects?"
-                                : column.type === 'score'
-                                ? "e.g., Rate the study quality from 1-10 based on methodology"
-                                : "e.g., What is the primary outcome measure?"
+                                : feature.type === 'score'
+                                  ? "e.g., Rate the study quality from 1-10 based on methodology"
+                                  : "e.g., What is the primary outcome measure?"
                             }
                             rows={3}
                             className="text-sm resize-none"
@@ -244,7 +247,7 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                       </CardContent>
                     </Card>
                   ))}
-                  
+
                   {/* Add Column Card */}
                   <Card className="border-dashed border-2 h-fit">
                     <CardContent className="flex items-center justify-center py-8">
@@ -265,26 +268,25 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={!columns.some(col => col.name.trim() && col.description.trim())}
+                  <Button
+                    type="submit"
+                    disabled={!features.some(feature => feature.name.trim() && feature.description.trim())}
                     className="min-w-[120px]"
                   >
-                    Extract {columns.filter(col => col.name.trim() && col.description.trim()).length} Column{columns.filter(col => col.name.trim() && col.description.trim()).length === 1 ? '' : 's'}
+                    Extract {features.filter(feature => feature.name.trim() && feature.description.trim()).length} Column{features.filter(feature => feature.name.trim() && feature.description.trim()).length === 1 ? '' : 's'}
                   </Button>
                 </DialogFooter>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="preset" className="flex-1 mt-4">
               <div className="h-full flex flex-col">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-1 overflow-y-auto pr-2">
                   {presets.map((preset) => (
-                    <Card 
-                      key={preset.id} 
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedPreset === preset.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
-                      }`}
+                    <Card
+                      key={preset.id}
+                      className={`cursor-pointer transition-all hover:shadow-md ${selectedPreset === preset.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
                       onClick={() => setSelectedPreset(preset.id)}
                     >
                       <CardHeader className="pb-2">
@@ -307,13 +309,13 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                           {preset.description}
                         </p>
-                        {preset.columns && (
+                        {preset.features && (
                           <div>
                             <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              {preset.columns.length} columns:
+                              {preset.features.length} features:
                             </p>
                             <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {preset.columns.map(col => col.name).join(', ')}
+                              {preset.features.map(feature => feature.name).join(', ')}
                             </div>
                           </div>
                         )}
@@ -326,8 +328,8 @@ export function AddColumnModal({ onAdd, onClose }: AddColumnModalProps) {
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button 
-                    onClick={handlePresetSubmit} 
+                  <Button
+                    onClick={handlePresetSubmit}
                     disabled={!selectedPreset || loading}
                     className="min-w-[120px]"
                   >

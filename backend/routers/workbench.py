@@ -309,21 +309,25 @@ async def get_feature_presets(
                     type="boolean"
                 ),
                 FeatureDefinition(
+                    id="feat_doi_relevance",
                     name="doi_relevance", 
                     description="Does this article relate to dry eye, ulcerative colitis, crohn's disease, retinopathy, or retinal disease? Dry eye keywords: dry eye syndrome, keratoconjunctivitis sicca, tear film. IBD keywords: inflammatory bowel disease, IBD, ulcerative colitis, Crohn's disease, colitis. Retinal keywords: retinopathy, retinal disease, diabetic retinopathy, macular degeneration, retinal degeneration", 
                     type="boolean"
                 ),
                 FeatureDefinition(
+                    id="feat_is_systematic",
                     name="is_systematic", 
                     description="Is this a systematic study? Look for: randomized controlled clinical trials (RCTs), clinical trials, epidemiological studies, cohort studies, case-control studies, open label trials, case reports. Systematic reviews and meta-analyses should also be marked as 'yes'. Basic science, in vitro, and animal studies can also be systematic if they follow rigorous methodology", 
                     type="boolean"
                 ),
                 FeatureDefinition(
+                    id="feat_study_type",
                     name="study_type", 
                     description="Type of study: 'human RCT' (randomized controlled clinical trials with humans), 'human non-RCT' (human studies that are not RCTs - observational, cohort, case-control, case series), 'non-human life science' (animal studies, in vitro studies, cell culture, molecular biology), 'non life science' (non-biological research), 'not a study' (reviews non-systematic, editorials, opinions, commentaries, theoretical papers)", 
                     type="text"
                 ),
                 FeatureDefinition(
+                    id="feat_study_outcome",
                     name="study_outcome", 
                     description="Primary outcome focus: 'effectiveness' (testing if treatment/intervention works), 'safety' (testing safety, adverse events, toxicity, side effects), 'diagnostics' (developing or testing diagnostic methods), 'biomarker' (identifying or validating biomarkers non-diagnostic, prognostic markers), 'other' (basic science mechanisms, pathophysiology, epidemiology)", 
                     type="text"
@@ -336,13 +340,13 @@ async def get_feature_presets(
             description="Extract key information from clinical trial papers",
             category="Medical Research",
             features=[
-                FeatureDefinition(name="Study Type", description="What type of study is this? (e.g., RCT, observational, meta-analysis)", type="text"),
-                FeatureDefinition(name="Sample Size", description="What is the total sample size of the study?", type="text"),
-                FeatureDefinition(name="Blinded", description="Is this a blinded study (single-blind, double-blind, or open-label)?", type="text"),
-                FeatureDefinition(name="Primary Outcome", description="What is the primary outcome measure?", type="text"),
-                FeatureDefinition(name="Statistical Significance", description="Was the primary outcome statistically significant?", type="boolean"),
-                FeatureDefinition(name="Adverse Events", description="Were any serious adverse events reported?", type="boolean"),
-                FeatureDefinition(name="Study Quality", description="Rate the overall quality of the study methodology", type="score", options={"min": 1, "max": 10, "step": 1})
+                FeatureDefinition(id="feat_clin_study_type", name="Study Type", description="What type of study is this? (e.g., RCT, observational, meta-analysis)", type="text"),
+                FeatureDefinition(id="feat_clin_sample_size", name="Sample Size", description="What is the total sample size of the study?", type="text"),
+                FeatureDefinition(id="feat_clin_blinded", name="Blinded", description="Is this a blinded study (single-blind, double-blind, or open-label)?", type="text"),
+                FeatureDefinition(id="feat_clin_primary_outcome", name="Primary Outcome", description="What is the primary outcome measure?", type="text"),
+                FeatureDefinition(id="feat_clin_statistical_sig", name="Statistical Significance", description="Was the primary outcome statistically significant?", type="boolean"),
+                FeatureDefinition(id="feat_clin_adverse_events", name="Adverse Events", description="Were any serious adverse events reported?", type="boolean"),
+                FeatureDefinition(id="feat_clin_study_quality", name="Study Quality", description="Rate the overall quality of the study methodology", type="score", options={"min": 1, "max": 10, "step": 1})
             ]
         ),
         FeaturePreset(
@@ -351,11 +355,11 @@ async def get_feature_presets(
             description="Analyze systematic reviews and meta-analyses",
             category="Medical Research",
             features=[
-                FeatureDefinition(name="Search Strategy", description="Is the search strategy clearly described?", type="boolean"),
-                FeatureDefinition(name="Databases Searched", description="Which databases were searched? (list them)", type="text"),
-                FeatureDefinition(name="Studies Included", description="How many studies were included in the final analysis?", type="text"),
-                FeatureDefinition(name="Meta-Analysis", description="Was a meta-analysis conducted?", type="boolean"),
-                FeatureDefinition(name="Evidence Quality", description="Rate the overall quality of evidence presented", type="score", options={"min": 1, "max": 5, "step": 1})
+                FeatureDefinition(id="feat_sys_search_strategy", name="Search Strategy", description="Is the search strategy clearly described?", type="boolean"),
+                FeatureDefinition(id="feat_sys_databases", name="Databases Searched", description="Which databases were searched? (list them)", type="text"),
+                FeatureDefinition(id="feat_sys_studies_included", name="Studies Included", description="How many studies were included in the final analysis?", type="text"),
+                FeatureDefinition(id="feat_sys_meta_analysis", name="Meta-Analysis", description="Was a meta-analysis conducted?", type="boolean"),
+                FeatureDefinition(id="feat_sys_evidence_quality", name="Evidence Quality", description="Rate the overall quality of evidence presented", type="score", options={"min": 1, "max": 5, "step": 1})
             ]
         ),
         FeaturePreset(
@@ -364,11 +368,11 @@ async def get_feature_presets(
             description="Extract drug discovery and development information",
             category="Pharmaceutical",
             features=[
-                FeatureDefinition(name="Drug Name", description="What is the name or identifier of the drug/compound?", type="text"),
-                FeatureDefinition(name="Target", description="What is the molecular target?", type="text"),
-                FeatureDefinition(name="In Vitro", description="Were in vitro studies performed?", type="boolean"),
-                FeatureDefinition(name="In Vivo", description="Were in vivo/animal studies performed?", type="boolean"),
-                FeatureDefinition(name="Development Stage", description="What stage of development? (preclinical, phase I, II, III)", type="text")
+                FeatureDefinition(id="feat_drug_name", name="Drug Name", description="What is the name or identifier of the drug/compound?", type="text"),
+                FeatureDefinition(id="feat_drug_target", name="Target", description="What is the molecular target?", type="text"),
+                FeatureDefinition(id="feat_drug_in_vitro", name="In Vitro", description="Were in vitro studies performed?", type="boolean"),
+                FeatureDefinition(id="feat_drug_in_vivo", name="In Vivo", description="Were in vivo/animal studies performed?", type="boolean"),
+                FeatureDefinition(id="feat_drug_dev_stage", name="Development Stage", description="What stage of development? (preclinical, phase I, II, III)", type="text")
             ]
         ),
         FeaturePreset(
@@ -377,11 +381,11 @@ async def get_feature_presets(
             description="For molecular biology and basic science papers",
             category="Basic Science",
             features=[
-                FeatureDefinition(name="Model System", description="What model system was used? (cell line, organism)", type="text"),
-                FeatureDefinition(name="Key Finding", description="What is the main scientific finding?", type="text"),
-                FeatureDefinition(name="Mechanism", description="Is a molecular mechanism proposed?", type="boolean"),
-                FeatureDefinition(name="Novel", description="Is this finding claimed to be novel?", type="boolean"),
-                FeatureDefinition(name="Innovation Score", description="Rate the innovation/novelty of the research", type="score", options={"min": 1, "max": 10, "step": 1})
+                FeatureDefinition(id="feat_basic_model_system", name="Model System", description="What model system was used? (cell line, organism)", type="text"),
+                FeatureDefinition(id="feat_basic_key_finding", name="Key Finding", description="What is the main scientific finding?", type="text"),
+                FeatureDefinition(id="feat_basic_mechanism", name="Mechanism", description="Is a molecular mechanism proposed?", type="boolean"),
+                FeatureDefinition(id="feat_basic_novel", name="Novel", description="Is this finding claimed to be novel?", type="boolean"),
+                FeatureDefinition(id="feat_basic_innovation_score", name="Innovation Score", description="Rate the innovation/novelty of the research", type="score", options={"min": 1, "max": 10, "step": 1})
             ]
         )
     ]

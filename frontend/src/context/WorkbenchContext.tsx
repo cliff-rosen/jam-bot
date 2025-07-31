@@ -51,7 +51,9 @@ interface WorkbenchActions {
   // Collection Management
   performSearch: (query: string, params: SearchParams) => Promise<void>;
   loadGroup: (groupId: string) => Promise<void>;
+  loadGroupList: () => Promise<any[]>;
   saveCollection: (name: string, description?: string) => Promise<void>;
+  addToExistingGroup: (groupId: string) => Promise<void>;
   saveCollectionChanges: () => Promise<void>;
   deleteCollection: () => Promise<void>;
 
@@ -145,6 +147,17 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, []);
 
+  const loadGroupList = useCallback(async () => {
+    try {
+      const response = await workbenchApi.getGroups(1, 100); // Get first 100 groups
+      return response.groups;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load groups');
+      console.error('Load groups error:', err);
+      return [];
+    }
+  }, []);
+
   const saveCollection = useCallback(async (name: string, description?: string) => {
     if (!currentCollection) return;
 
@@ -184,6 +197,30 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setCollectionLoading(false);
     }
   }, [currentCollection]);
+
+  const addToExistingGroup = useCallback(async (groupId: string) => {
+    if (!currentCollection) return;
+
+    setCollectionLoading(true);
+    setError(null);
+
+    try {
+      const articleData = currentCollection.articles.map(a => a.article);
+
+      await workbenchApi.addArticlesToGroup(groupId, {
+        articles: articleData,
+        extract_features: false // Don't auto-extract when adding to existing group
+      });
+
+      // Load the updated group to reflect the changes
+      await loadGroup(groupId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add to existing group');
+      console.error('Add to group error:', err);
+    } finally {
+      setCollectionLoading(false);
+    }
+  }, [currentCollection, loadGroup]);
 
   const saveCollectionChanges = useCallback(async () => {
     if (!currentCollection || !currentCollection.saved_group_id) return;
@@ -578,7 +615,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // Actions
     performSearch,
     loadGroup,
+    loadGroupList,
     saveCollection,
+    addToExistingGroup,
     saveCollectionChanges,
     deleteCollection,
     addArticles,

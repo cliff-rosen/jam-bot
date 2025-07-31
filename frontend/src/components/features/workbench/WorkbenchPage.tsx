@@ -102,6 +102,38 @@ export function WorkbenchPage() {
     }
   };
 
+  const handleAddToGroup = async (groupId: string) => {
+    try {
+      await workbench.addToExistingGroup(groupId);
+      setShowSaveModal(false);
+      toast({
+        title: 'Added to Group',
+        description: 'Articles added to existing group successfully',
+      });
+    } catch (error) {
+      console.error('Add to group failed:', error);
+      toast({
+        title: 'Add Failed',
+        description: error instanceof Error ? error.message : 'Failed to add to group',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const loadExistingGroups = async () => {
+    try {
+      const response = await workbench.loadGroupList();
+      setExistingGroups(response.map(group => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        articleCount: group.article_count || 0
+      })));
+    } catch (error) {
+      console.error('Failed to load groups:', error);
+    }
+  };
+
   const getCollectionBadge = () => {
     if (!workbench.currentCollection) return null;
 
@@ -330,9 +362,16 @@ export function WorkbenchPage() {
 
       <SaveGroupModal
         open={showSaveModal}
-        onOpenChange={setShowSaveModal}
+        onOpenChange={(open) => {
+          if (open && existingGroups.length === 0) {
+            loadExistingGroups();
+          }
+          setShowSaveModal(open);
+        }}
         onSave={handleSaveGroup}
+        onAddToGroup={handleAddToGroup}
         defaultName={workbench.currentCollection?.name}
+        existingGroups={existingGroups}
       />
 
       <LoadGroupModal

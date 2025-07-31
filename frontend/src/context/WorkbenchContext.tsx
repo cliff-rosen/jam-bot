@@ -368,11 +368,15 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[]) => {
     if (!currentCollection) return;
 
+    console.log('WorkbenchContext addFeatureDefinitionsAndExtract received features:', features);
+
     // Ensure unique IDs
     const newFeatures = features.map(f => ({
       ...f,
       id: f.id || generatePrefixedUUID('feat')
     }));
+
+    console.log('WorkbenchContext processed features:', newFeatures);
 
     // Create updated collection with new features
     const updatedCollection = {
@@ -395,6 +399,11 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         title: a.article.title,
         abstract: a.article.abstract || ''
       }));
+
+      console.log('WorkbenchContext about to call API with:', {
+        articles: articlesData,
+        features: newFeatures
+      });
 
       const extractionResult = await workbenchApi.extractFeatures({
         articles: articlesData,

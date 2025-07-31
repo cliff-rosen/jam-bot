@@ -437,11 +437,15 @@ class ExtractionService:
                 }
                 
                 # Use the single item extraction method
+                # Create a unique schema key based on the column names to avoid cache collisions
+                column_names = sorted([col['name'] for col in columns])
+                schema_key = f"unified_columns_{hash(tuple(column_names))}"
+                
                 extraction_result = await self.perform_extraction(
                     item=source_item,
                     result_schema=result_schema,
                     extraction_instructions=extraction_instructions,
-                    schema_key="unified_columns"
+                    schema_key=schema_key
                 )
                 
                 # Process the results

@@ -103,6 +103,12 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
     if (!selectedTemplateData) return;
 
+    console.log('AddFeatureModal handleSubmit:', {
+      selectedTemplate,
+      selectedTemplateData,
+      customFeatures
+    });
+
     let featuresToAdd: FeatureDefinition[] = [];
 
     if (selectedTemplateData.type === 'custom') {
@@ -110,11 +116,14 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
         feature.name.trim() && feature.description.trim()
       );
       featuresToAdd = validFeatures;
+      console.log('Using custom features:', validFeatures);
     } else {
       featuresToAdd = selectedTemplateData.features || [];
+      console.log('Using preset features:', featuresToAdd);
     }
 
     if (featuresToAdd.length > 0) {
+      console.log('Features being sent to parent:', featuresToAdd);
       // Configuration is done - pass to parent and close modal
       onAdd(featuresToAdd, extractImmediately);
       onOpenChange(false);

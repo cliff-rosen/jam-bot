@@ -15,7 +15,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { ArticleGroup, ArticleGroupWithDetails } from '@/types/workbench';
+import { ArticleGroupSummary, ArticleGroupWithDetails } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -38,8 +38,8 @@ export function AddToGroupModal({
   sourceCollectionName: _sourceCollectionName, // Not used currently
   currentGroupId
 }: AddToGroupModalProps) {
-  const [groups, setGroups] = useState<ArticleGroup[]>([]);
-  const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>([]);
+  const [groups, setGroups] = useState<ArticleGroupSummary[]>([]);
+  const [filteredGroups, setFilteredGroups] = useState<ArticleGroupSummary[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -55,16 +55,16 @@ export function AddToGroupModal({
     setIsLoading(true);
     try {
       const response = await workbenchApi.getGroups(1, 100);
-      const groupsData = response.groups || [];
+      const groupsData: ArticleGroupSummary[] = response.groups || [];
       setGroups(groupsData);
       setFilteredGroups(groupsData);
       
       // Load article IDs for each group to check for duplicates
       const groupArticleMap: Record<string, Set<string>> = {};
       await Promise.all(
-        groupsData.map(async (group) => {
+        groupsData.map(async (group: ArticleGroupSummary) => {
           try {
-            const detail = await workbenchApi.getGroupDetail(group.id) as ArticleGroupWithDetails;
+            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetail(group.id);
             groupArticleMap[group.id] = new Set<string>(
               detail.articles.map(item => item.article.id)
             );
@@ -291,7 +291,7 @@ export function AddToGroupModal({
                           </span>
                           <span className="flex items-center gap-1">
                             <Hash className="w-3 h-3" />
-                            {group.feature_definitions?.length || 0}
+                            {group.feature_count || 0}
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />

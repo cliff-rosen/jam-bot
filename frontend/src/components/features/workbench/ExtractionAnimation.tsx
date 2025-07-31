@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Brain, Zap, Target, CheckCircle } from 'lucide-react';
+import { Brain, Cpu, Database, FileSearch, Sparkles, Activity } from 'lucide-react';
 
 interface ExtractionAnimationProps {
   isVisible: boolean;
@@ -12,10 +12,10 @@ export function ExtractionAnimation({ isVisible, featuresCount, articlesCount }:
   const [progress, setProgress] = useState(0);
 
   const phases = [
-    { icon: Brain, label: 'Analyzing Articles', color: 'text-blue-500' },
-    { icon: Zap, label: 'Extracting Features', color: 'text-purple-500' },
-    { icon: Target, label: 'Processing Data', color: 'text-orange-500' },
-    { icon: CheckCircle, label: 'Finalizing Results', color: 'text-green-500' }
+    { icon: FileSearch, label: 'Analyzing Documents', color: 'text-slate-600 dark:text-slate-400' },
+    { icon: Brain, label: 'Understanding Context', color: 'text-blue-600 dark:text-blue-400' },
+    { icon: Cpu, label: 'Processing Features', color: 'text-indigo-600 dark:text-indigo-400' },
+    { icon: Database, label: 'Structuring Data', color: 'text-slate-600 dark:text-slate-400' }
   ];
 
   useEffect(() => {
@@ -25,18 +25,18 @@ export function ExtractionAnimation({ isVisible, featuresCount, articlesCount }:
       return;
     }
 
-    // Simulate phases
+    // Smooth phase transitions
     const phaseInterval = setInterval(() => {
       setCurrentPhase(prev => (prev + 1) % phases.length);
-    }, 2000);
+    }, 3000);
 
-    // Simulate progress
+    // Smooth progress animation
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) return 0; // Reset for continuous animation
-        return prev + Math.random() * 3;
+        if (prev >= 100) return 100;
+        return prev + 0.5;
       });
-    }, 100);
+    }, 50);
 
     return () => {
       clearInterval(phaseInterval);
@@ -49,87 +49,97 @@ export function ExtractionAnimation({ isVisible, featuresCount, articlesCount }:
   const CurrentIcon = phases[currentPhase].icon;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border p-8 max-w-md w-full mx-4 relative overflow-hidden">
-        {/* Animated Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 opacity-50" />
-        
-        {/* Floating Particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 2}s`
-              }}
-            />
-          ))}
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full mx-4 relative">
+
+        {/* Subtle grid pattern background */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
         </div>
 
-        <div className="relative z-10 text-center">
-          {/* Main Icon with Pulse Animation */}
-          <div className="mb-6 relative">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center relative">
-              <CurrentIcon className="w-10 h-10 text-white" />
-              
-              {/* Pulse Rings */}
-              <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-ping" />
-              <div className="absolute inset-0 rounded-full border-4 border-purple-400/20 animate-ping" style={{ animationDelay: '0.5s' }} />
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="flex items-center justify-center mb-6">
+            <div className="relative">
+              <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-center justify-center">
+                <CurrentIcon className={`w-8 h-8 transition-all duration-500 ${phases[currentPhase].color}`} />
+              </div>
+
+              {/* Subtle pulse effect */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 animate-pulse" />
+
+              {/* Activity indicator */}
+              <div className="absolute -top-1 -right-1">
+                <Activity className="w-4 h-4 text-blue-500 animate-pulse" />
+              </div>
             </div>
           </div>
 
-          {/* Phase Label */}
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-            AI Feature Extraction
-          </h3>
-          
-          <p className={`text-sm font-medium mb-4 transition-colors duration-500 ${phases[currentPhase].color}`}>
-            {phases[currentPhase].label}
-          </p>
+          {/* Title and Phase */}
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              AI Feature Extraction
+            </h3>
+            <p className={`text-sm transition-all duration-500 ${phases[currentPhase].color}`}>
+              {phases[currentPhase].label}
+            </p>
+          </div>
 
-          {/* Stats */}
-          <div className="flex justify-center gap-6 mb-6 text-sm text-gray-600 dark:text-gray-400">
-            <div className="text-center">
-              <div className="font-bold text-lg text-blue-600 dark:text-blue-400">{articlesCount}</div>
-              <div>Articles</div>
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{articlesCount}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Documents</div>
             </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-purple-600 dark:text-purple-400">{featuresCount}</div>
-              <div>Features</div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{featuresCount}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Features</div>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4 overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500 rounded-full transition-all duration-300 ease-out relative"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            >
-              {/* Shimmer Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <span>Progress</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
 
-          {/* Dynamic Message */}
-          <p className="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
-            Processing {articlesCount} articles with advanced AI models...
-          </p>
+          {/* Processing Indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <Sparkles className="w-3 h-3 animate-pulse" />
+            <span>Advanced AI models analyzing content</span>
+          </div>
 
-          {/* Feature Icons Animation */}
-          <div className="flex justify-center mt-4 gap-2">
-            {[...Array(featuresCount)].map((_, i) => (
-              <div
-                key={i}
-                className="w-3 h-3 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full opacity-50 animate-bounce"
-                style={{ 
-                  animationDelay: `${i * 0.1}s`,
-                  animationDuration: '1.5s'
-                }}
-              />
+          {/* Neural Network Visualization */}
+          <div className="mt-6 flex justify-center items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                {[...Array(3)].map((_, j) => (
+                  <div
+                    key={j}
+                    className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full transition-all duration-500"
+                    style={{
+                      opacity: currentPhase === i || currentPhase === (i - 1) % 5 ? 1 : 0.3,
+                      transform: currentPhase === i ? 'scale(1.5)' : 'scale(1)',
+                      backgroundColor: currentPhase === i ? '#3b82f6' : undefined
+                    }}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>

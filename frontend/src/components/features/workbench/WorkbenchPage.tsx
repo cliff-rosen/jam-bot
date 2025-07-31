@@ -369,9 +369,30 @@ export function WorkbenchPage() {
           setShowSaveModal(open);
         }}
         onSave={handleSaveGroup}
+        onUpdateExisting={async () => {
+          try {
+            await workbench.saveCollectionChanges();
+            setShowSaveModal(false);
+            toast({
+              title: 'Group Updated',
+              description: `Updated "${workbench.currentCollection?.name}" successfully`,
+            });
+          } catch (error) {
+            console.error('Update failed:', error);
+            toast({
+              title: 'Update Failed',
+              description: error instanceof Error ? error.message : 'Failed to update group',
+              variant: 'destructive'
+            });
+          }
+        }}
         onAddToGroup={handleAddToGroup}
         defaultName={workbench.currentCollection?.name}
         existingGroups={existingGroups}
+        collectionSource={workbench.currentCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group'}
+        isModified={workbench.currentCollection?.is_modified || false}
+        currentGroupName={workbench.currentCollection?.name}
+        canUpdateExisting={workbench.currentCollection?.source === CollectionSource.SAVED_GROUP && workbench.currentCollection?.saved_group_id != null}
       />
 
       <LoadGroupModal

@@ -12,20 +12,31 @@ interface SaveGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (name: string, description?: string) => void;
+  onUpdateExisting?: () => void;
   onAddToGroup?: (groupId: string) => void;
   defaultName?: string;
   existingGroups?: Array<{ id: string; name: string; description?: string; articleCount: number }>;
+  // Context about current collection
+  collectionSource?: 'search' | 'saved_group' | 'modified';
+  isModified?: boolean;
+  currentGroupName?: string;
+  canUpdateExisting?: boolean;
 }
 
 export function SaveGroupModal({
   open,
   onOpenChange,
   onSave,
+  onUpdateExisting,
   onAddToGroup,
   defaultName,
-  existingGroups = []
+  existingGroups = [],
+  collectionSource = 'search',
+  isModified = false,
+  currentGroupName,
+  canUpdateExisting = false
 }: SaveGroupModalProps) {
-  const [saveMode, setSaveMode] = useState<'new' | 'existing'>('new');
+  const [saveMode, setSaveMode] = useState<'update' | 'new' | 'existing'>('new');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -35,15 +46,24 @@ export function SaveGroupModal({
       if (defaultName) {
         setName(defaultName);
       }
-      // Reset to new group mode by default
-      setSaveMode('new');
+      
+      // Set default save mode based on collection context
+      if (canUpdateExisting && isModified) {
+        setSaveMode('update'); // Primary action for modified existing groups
+      } else {
+        setSaveMode('new'); // Primary action for search results or unmodified groups
+      }
+      
       setSelectedGroupId('');
       setDescription('');
     }
-  }, [open, defaultName]);
+  }, [open, defaultName, canUpdateExisting, isModified]);
 
   const handleSave = () => {
-    if (saveMode === 'new') {
+    if (saveMode === 'update') {
+      if (!onUpdateExisting) return;
+      onUpdateExisting();
+    } else if (saveMode === 'new') {
       if (!name.trim()) return;
       onSave(name.trim(), description.trim() || undefined);
     } else {
@@ -57,7 +77,9 @@ export function SaveGroupModal({
     setSelectedGroupId('');
   };
 
-  const canSave = saveMode === 'new' ? name.trim() : selectedGroupId;
+  const canSave = saveMode === 'update' ? true : 
+                  saveMode === 'new' ? name.trim() : 
+                  selectedGroupId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,15 +99,30 @@ export function SaveGroupModal({
             <Label className="text-sm font-medium text-gray-900 dark:text-gray-100">Save Options</Label>
             <RadioGroup
               value={saveMode}
-              onValueChange={(value) => setSaveMode(value as 'new' | 'existing')}
+              onValueChange={(value) => setSaveMode(value as 'update' | 'new' | 'existing')}
               className="space-y-2"
             >
+              {canUpdateExisting && (
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="update" id="update-group" />
+                  <Label htmlFor="update-group" className="text-sm cursor-pointer text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Save className="w-4 h-4" />
+                    Update "{currentGroupName}" {isModified && <span className="text-orange-600 dark:text-orange-400">*</span>}
+                  </Label>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                    Save changes to the current group
+                  </div>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="new" id="new-group" />
                 <Label htmlFor="new-group" className="text-sm cursor-pointer text-gray-900 dark:text-gray-100 flex items-center gap-2">
                   <FolderPlus className="w-4 h-4" />
                   Create New Group
                 </Label>
+                <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                  {canUpdateExisting ? 'Save as a new group' : 'Save search results as a new group'}
+                </div>
               </div>
               {existingGroups.length > 0 && (
                 <div className="flex items-center space-x-2">
@@ -94,10 +131,32 @@ export function SaveGroupModal({
                     <Plus className="w-4 h-4" />
                     Add to Existing Group
                   </Label>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                    Add articles to another group
+                  </div>
                 </div>
               )}
             </RadioGroup>
           </div>
+
+          {/* Update Existing Group Info */}
+          {saveMode === 'update' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                  Updating "{currentGroupName}"
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  This will save all changes (articles, features, and modifications) back to the current group.
+                </p>
+                {isModified && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    ✓ Changes detected - ready to save
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* New Group Form */}
           {saveMode === 'new' && (
@@ -192,7 +251,9 @@ export function SaveGroupModal({
             className="min-w-[120px]"
           >
             <Save className="w-4 h-4 mr-2" />
-            {saveMode === 'new' ? 'Create Group' : 'Add to Group'}
+            {saveMode === 'update' ? 'Update Group' : 
+             saveMode === 'new' ? 'Create Group' : 
+             'Add to Group'}
           </Button>
         </DialogFooter>
       </DialogContent>

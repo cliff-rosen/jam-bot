@@ -99,14 +99,6 @@ class ArticleGroupDeleteResponse(BaseModel):
 # ================== WORKBENCH ANALYSIS MODELS ==================
 
 # New Unified Extraction Models
-class FeatureDefinition(BaseModel):
-    """Definition of a feature to extract"""
-    id: str  # Stable UUID for feature identification
-    name: str
-    description: str  
-    type: str = "text"  # "boolean", "text", "score"
-    options: Optional[Dict[str, Any]] = None
-
 class ExtractRequest(BaseModel):
     """Unified request to extract multiple features"""
     articles: List[Dict[str, str]]  # [{id, title, abstract}]

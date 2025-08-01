@@ -97,6 +97,7 @@ interface WorkbenchActions {
   saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteGroupById: (groupId: string) => Promise<void>;
+  updateGroupInfo: (groupId: string, name: string, description?: string) => Promise<void>;
   
   // Collection Getters
   getCurrentCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
@@ -478,6 +479,41 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setCollectionLoading(false);
     }
   }, [groupCollection]);
+
+  const updateGroupInfo = useCallback(async (groupId: string, name: string, description?: string) => {
+    setCollectionLoading(true);
+    setError(null);
+
+    try {
+      await workbenchApi.updateGroup(groupId, {
+        name,
+        description
+      });
+
+      // Update the appropriate collection with new name/description
+      const updateCollection = (collection: ArticleCollection | null): ArticleCollection | null => {
+        if (collection && collection.saved_group_id === groupId) {
+          return {
+            ...collection,
+            name,
+            description,
+            is_modified: false, // Reset modified flag after successful update
+            updated_at: new Date().toISOString()
+          };
+        }
+        return collection;
+      };
+
+      setSearchCollection(prevCollection => updateCollection(prevCollection));
+      setGroupCollection(prevCollection => updateCollection(prevCollection));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update group info');
+      console.error('Update group info error:', err);
+      throw err; // Re-throw for caller to handle
+    } finally {
+      setCollectionLoading(false);
+    }
+  }, []);
 
   // ================== COLLECTION MODIFICATION ==================
 
@@ -934,6 +970,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     saveCollectionChanges,
     deleteCollection,
     deleteGroupById,
+    updateGroupInfo,
     getCurrentCollection,
     addArticles,
     removeArticles,

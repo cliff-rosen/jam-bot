@@ -188,6 +188,36 @@ export function WorkbenchPage() {
     }
   };
 
+  const handleUpdateGroupInfo = async (name: string, description?: string) => {
+    const collectionType = activeTab === 'search' ? 'search' : 'group';
+    const currentCollection = collectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
+    
+    if (!currentCollection?.saved_group_id) {
+      throw new Error('No group ID found');
+    }
+
+    try {
+      // Update via workbench API
+      await workbench.updateGroupInfo(currentCollection.saved_group_id, name, description);
+      
+      // Refresh groups data to reflect changes in the list
+      await loadGroupsData(true);
+      
+      toast({
+        title: 'Group Updated',
+        description: 'Group name and description updated successfully',
+      });
+    } catch (error) {
+      console.error('Failed to update group info:', error);
+      toast({
+        title: 'Update Failed',
+        description: error instanceof Error ? error.message : 'Failed to update group',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   // Selection handlers
   const handleToggleArticleSelection = (articleId: string) => {
     setSelectedArticleIds(prev =>
@@ -361,6 +391,7 @@ export function WorkbenchPage() {
                   onSelectNone={handleSelectNone}
                   isExtracting={workbench.isExtracting}
                   isLoading={workbench.collectionLoading}
+                  onUpdateGroupInfo={workbench.searchCollection.source === CollectionSource.SAVED_GROUP ? handleUpdateGroupInfo : undefined}
                 />
 
                 {/* Table */}
@@ -418,6 +449,7 @@ export function WorkbenchPage() {
                   onSelectNone={handleSelectNone}
                   isExtracting={workbench.isExtracting}
                   isLoading={workbench.collectionLoading}
+                  onUpdateGroupInfo={handleUpdateGroupInfo}
                 />
 
                 {/* Table */}

@@ -127,6 +127,8 @@ class ArticleGroupService:
             group.name = request.name
         if request.description is not None:
             group.description = request.description
+        if request.feature_definitions is not None:
+            group.feature_definitions = request.feature_definitions
         
         group.updated_at = datetime.utcnow()
         

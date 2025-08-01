@@ -45,6 +45,7 @@ class UpdateArticleGroupRequest(BaseModel):
     """Request to update article group metadata"""
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="Group name")
     description: Optional[str] = Field(None, description="Group description")
+    feature_definitions: Optional[List[FeatureDefinition]] = Field(None, description="Feature definitions")
 
 class SaveToGroupRequest(BaseModel):
     """Request to save current workbench state to a group"""

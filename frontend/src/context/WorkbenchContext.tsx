@@ -96,7 +96,7 @@ interface WorkbenchActions {
   performSearch: (page?: number) => Promise<void>;
   loadGroup: (groupId: string, page?: number) => Promise<void>;
   loadGroupList: () => Promise<any[]>;
-  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group') => Promise<string>;
+  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
   addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
   saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
@@ -332,7 +332,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, []);
 
-  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search'): Promise<string> => {
+  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search', selectedArticleIds?: string[]): Promise<string> => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) throw new Error('No collection to save');
 
@@ -340,12 +340,20 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
 
     try {
-      const articleData = currentCollection.articles.map(a => a.article);
+      // Use selected articles if provided, otherwise use all articles
+      let articlesToSave;
+      if (selectedArticleIds && selectedArticleIds.length > 0) {
+        articlesToSave = currentCollection.articles
+          .filter(item => selectedArticleIds.includes(item.article.id))
+          .map(item => item.article);
+      } else {
+        articlesToSave = currentCollection.articles.map(a => a.article);
+      }
 
       const savedGroup = await workbenchApi.createGroup({
         name,
         description,
-        articles: articleData,
+        articles: articlesToSave,
         feature_definitions: currentCollection.feature_definitions,
         search_context: {
           query: currentCollection.search_params?.query || '',

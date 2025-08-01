@@ -105,7 +105,9 @@ export function WorkbenchPage() {
   const handleSaveGroup = async (name: string, description?: string) => {
     try {
       const collectionType = activeTab === 'search' ? 'search' : 'group';
-      const savedGroupId = await workbench.saveCollection(name, description, collectionType);
+      // Pass selected articles if any are selected
+      const selectedIds = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
+      const savedGroupId = await workbench.saveCollection(name, description, collectionType, selectedIds);
       setShowSaveModal(false);
       
       // If we saved a search result as a new group

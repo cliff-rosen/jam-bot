@@ -134,6 +134,24 @@ export function WorkbenchPage() {
     }
   };
 
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    try {
+      await workbench.deleteGroupById(groupId);
+      toast({
+        title: 'Group Deleted',
+        description: `Deleted "${groupName}" successfully`,
+      });
+    } catch (error) {
+      console.error('Delete group failed:', error);
+      toast({
+        title: 'Delete Failed',
+        description: error instanceof Error ? error.message : 'Failed to delete group',
+        variant: 'destructive'
+      });
+      throw error; // Re-throw so the GroupsTab can handle it
+    }
+  };
+
   const loadExistingGroups = async () => {
     try {
       const response = await workbench.loadGroupList();
@@ -358,7 +376,7 @@ export function WorkbenchPage() {
         }
         groupsContent={
           <div className="space-y-4">
-            <GroupsTab onLoadGroup={handleLoadGroup} />
+            <GroupsTab onLoadGroup={handleLoadGroup} onDeleteGroup={handleDeleteGroup} />
             
             {/* Results Section - show when we have a group collection */}
             {workbench.groupCollection && (

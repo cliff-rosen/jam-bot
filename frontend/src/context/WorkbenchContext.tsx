@@ -96,6 +96,7 @@ interface WorkbenchActions {
   addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
   saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
+  deleteGroupById: (groupId: string) => Promise<void>;
   
   // Collection Getters
   getCurrentCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
@@ -454,6 +455,29 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setCollectionLoading(false);
     }
   }, [searchCollection, groupCollection]);
+
+  const deleteGroupById = useCallback(async (groupId: string) => {
+    setCollectionLoading(true);
+    setError(null);
+
+    try {
+      await workbenchApi.deleteGroup(groupId);
+      
+      // Clear the group collection if it matches the deleted group
+      if (groupCollection && groupCollection.saved_group_id === groupId) {
+        setGroupCollection(null);
+      }
+      
+      setSelectedArticleIds(new Set());
+      setSelectedArticle(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete group');
+      console.error('Delete group error:', err);
+      throw err; // Re-throw for caller to handle
+    } finally {
+      setCollectionLoading(false);
+    }
+  }, [groupCollection]);
 
   // ================== COLLECTION MODIFICATION ==================
 
@@ -909,6 +933,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     addToExistingGroup,
     saveCollectionChanges,
     deleteCollection,
+    deleteGroupById,
     getCurrentCollection,
     addArticles,
     removeArticles,

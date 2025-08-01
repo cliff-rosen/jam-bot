@@ -22,16 +22,14 @@ import { format } from 'date-fns';
 interface GroupsTabProps {
   onLoadGroup: (groupId: string) => void;
   onDeleteGroup?: (groupId: string, groupName: string) => void;
+  groupsData: ArticleGroup[];
+  groupsLoading: boolean;
+  onLoadGroupsData: (force?: boolean) => Promise<void>;
 }
 
-export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
-  const workbench = useWorkbench();
-  const [groups, setGroups] = useState<ArticleGroup[]>([]);
-  const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>([]);
+export function GroupsTab({ onLoadGroup, onDeleteGroup, groupsData, groupsLoading, onLoadGroupsData }: GroupsTabProps) {
+  const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>(groupsData);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     // Remember the collapsed state in localStorage
@@ -39,38 +37,24 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     return saved ? JSON.parse(saved) : false;
   });
 
-  const loadGroups = async (force = false) => {
-    // Only load if we haven't loaded before or if forced
-    if (!force && hasLoadedOnce) return;
-    
-    setIsLoading(true);
-    setError(null);
-    try {
-      const groupsList = await workbench.loadGroupList();
-      setGroups(groupsList);
-      setFilteredGroups(groupsList);
-      setHasLoadedOnce(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load groups');
-      console.error('Failed to load groups:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load groups when component mounts or tab becomes visible
+  // Load groups when component mounts
   useEffect(() => {
-    loadGroups();
+    onLoadGroupsData();
   }, []);
+  
+  // Update filtered groups when groupsData changes
+  useEffect(() => {
+    setFilteredGroups(groupsData);
+  }, [groupsData]);
 
   // Filter groups based on search term
   useEffect(() => {
-    const filtered = groups.filter(group => 
+    const filtered = groupsData.filter(group => 
       group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredGroups(filtered);
-  }, [groups, searchTerm]);
+  }, [groupsData, searchTerm]);
 
   const handleLoadGroup = async (groupId: string) => {
     setOperationInProgress(groupId);
@@ -88,8 +72,6 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
       setOperationInProgress(groupId);
       try {
         await onDeleteGroup(groupId, groupName);
-        // Refresh the groups list after deletion
-        await loadGroups(true);
       } catch (error) {
         console.error('Failed to delete group:', error);
       } finally {
@@ -104,7 +86,7 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     localStorage.setItem('groupsTabCollapsed', JSON.stringify(collapsed));
   };
 
-  if (isLoading) {
+  if (groupsLoading) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-center py-12">
@@ -117,23 +99,6 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-red-800 dark:text-red-200">
-            {error}
-          </div>
-        </div>
-        <div className="mt-4">
-          <Button onClick={loadGroups} variant="outline" size="sm">
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -145,20 +110,20 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Your Saved Groups</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {groups.length === 0 
+                  {groupsData.length === 0 
                     ? "No saved groups yet"
-                    : `${groups.length} group${groups.length === 1 ? '' : 's'}`
+                    : `${groupsData.length} group${groupsData.length === 1 ? '' : 's'}`
                   }
                 </p>
               </div>
             </div>
             <Button 
-              onClick={(e) => { e.stopPropagation(); loadGroups(true); }} 
+              onClick={(e) => { e.stopPropagation(); onLoadGroupsData(true); }} 
               variant="outline" 
               size="sm"
-              disabled={isLoading}
+              disabled={groupsLoading}
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
+              {groupsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
             </Button>
           </div>
         </CollapsibleTrigger>
@@ -166,7 +131,7 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
         <CollapsibleContent>
           <div className="p-4">
 
-      {groups.length > 0 && (
+      {groupsData.length > 0 && (
         <>
             {/* Search */}
             <div className="relative mb-4">
@@ -243,9 +208,14 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
                         onClick={() => handleDeleteGroup(group.id, group.name)}
                         variant="ghost"
                         size="sm"
-                        className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        disabled={operationInProgress === group.id}
+                        className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {operationInProgress === group.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </Button>
                     )}
                   </div>

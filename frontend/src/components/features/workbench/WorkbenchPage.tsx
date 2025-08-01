@@ -25,6 +25,11 @@ export function WorkbenchPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'search' | 'groups'>('search');
+  
+  // Groups state - persist across tab switches
+  const [groupsData, setGroupsData] = useState<Array<{ id: string; name: string; description?: string; article_count: number; updated_at: string; feature_definitions?: any[] }>>([]);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
+  const [groupsLoading, setGroupsLoading] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -137,6 +142,8 @@ export function WorkbenchPage() {
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
     try {
       await workbench.deleteGroupById(groupId);
+      // Refresh groups data after deletion
+      await loadGroupsData(true);
       toast({
         title: 'Group Deleted',
         description: `Deleted "${groupName}" successfully`,
@@ -163,6 +170,21 @@ export function WorkbenchPage() {
       })));
     } catch (error) {
       console.error('Failed to load groups:', error);
+    }
+  };
+  
+  const loadGroupsData = async (force = false) => {
+    if (!force && groupsLoaded) return;
+    
+    setGroupsLoading(true);
+    try {
+      const response = await workbench.loadGroupList();
+      setGroupsData(response);
+      setGroupsLoaded(true);
+    } catch (error) {
+      console.error('Failed to load groups:', error);
+    } finally {
+      setGroupsLoading(false);
     }
   };
 
@@ -366,7 +388,13 @@ export function WorkbenchPage() {
         }
         groupsContent={
           <div className="space-y-4">
-            <GroupsTab onLoadGroup={handleLoadGroup} onDeleteGroup={handleDeleteGroup} />
+            <GroupsTab 
+              onLoadGroup={handleLoadGroup} 
+              onDeleteGroup={handleDeleteGroup}
+              groupsData={groupsData}
+              groupsLoading={groupsLoading}
+              onLoadGroupsData={loadGroupsData}
+            />
 
             {/* Results Section - show when we have a group collection */}
             {workbench.groupCollection && (

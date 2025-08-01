@@ -79,6 +79,16 @@ class ArticleGroupService:
         self.db.commit()
         self.db.refresh(group)
         
+        # Ensure article count is accurate after refresh
+        actual_count = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group.id
+        ).count()
+        if group.article_count != actual_count:
+            print(f"Article count mismatch for group {group.id}: stored={group.article_count}, actual={actual_count}")
+            group.article_count = actual_count
+            self.db.commit()
+            self.db.refresh(group)
+        
         return self._group_to_summary(group)
     
     def get_group_detail(self, user_id: int, group_id: str, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
@@ -321,11 +331,13 @@ class ArticleGroupService:
             current_position += 1
             articles_added += 1
         
-        # Update article count
-        group.article_count = self.db.query(ArticleGroupDetailModel).filter(
+        # Update article count and timestamp
+        new_count = self.db.query(ArticleGroupDetailModel).filter(
             ArticleGroupDetailModel.article_group_id == group.id
         ).count()
+        group.article_count = new_count
         group.updated_at = datetime.utcnow()
+        print(f"Updated group {group.id} article count to {new_count}")
     
     def _group_to_summary(self, group: ArticleGroupModel) -> dict:
         """Convert ArticleGroupModel to summary format."""

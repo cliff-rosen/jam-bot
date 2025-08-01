@@ -53,7 +53,7 @@ export function WorkbenchPage() {
 
     try {
       await workbench.performSearch(page);
-      
+
       // Don't switch tabs automatically - let users navigate manually
 
       if (page === 1) {
@@ -79,7 +79,7 @@ export function WorkbenchPage() {
   const handleLoadGroup = async (groupId: string, page: number = 1) => {
     try {
       await workbench.loadGroup(groupId, page);
-      
+
       // Don't switch tabs automatically - let users navigate manually
       const totalArticles = workbench.groupPagination?.totalResults || workbench.groupCollection?.article_count || 0;
       if (page === 1) {
@@ -226,7 +226,7 @@ export function WorkbenchPage() {
 
     try {
       // Get articles to add (selected or all visible)
-      const articlesToAdd = selectedArticleIds.length > 0 
+      const articlesToAdd = selectedArticleIds.length > 0
         ? currentCollection.articles.filter(item => selectedArticleIds.includes(item.article.id))
         : currentCollection.articles;
 
@@ -242,7 +242,7 @@ export function WorkbenchPage() {
       if (navigateToGroup) {
         // Navigate to the group and show navigation success message
         await workbench.loadGroup(groupId);
-        
+
         toast({
           title: 'Switched to Group',
           description: `Added ${articlesToAdd.length} articles and switched to the group`,
@@ -292,7 +292,7 @@ export function WorkbenchPage() {
           <div className="space-y-4">
             {/* Search Controls */}
             <SearchTab onNewSearch={handleNewSearch} />
-            
+
             {/* Group Controls - only show for saved groups */}
             {workbench.searchCollection && workbench.searchCollection.source === CollectionSource.SAVED_GROUP && (
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -301,7 +301,7 @@ export function WorkbenchPage() {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <label className="text-sm text-gray-600 dark:text-gray-400">Articles per page:</label>
-                      <select 
+                      <select
                         value={workbench.groupParams.pageSize}
                         onChange={(e) => workbench.updateGroupParams({ pageSize: parseInt(e.target.value) })}
                         className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-1 text-sm rounded-md"
@@ -360,16 +360,6 @@ export function WorkbenchPage() {
                     isLoading={workbench.collectionLoading}
                   />
                 )}
-                {workbench.searchCollection.source === CollectionSource.SAVED_GROUP && workbench.groupPagination && (
-                  <PaginationControls
-                    currentPage={workbench.groupPagination.currentPage}
-                    totalPages={workbench.groupPagination.totalPages}
-                    totalResults={workbench.groupPagination.totalResults}
-                    pageSize={workbench.groupPagination.pageSize}
-                    onPageChange={(page) => handleLoadGroup(workbench.searchCollection.saved_group_id || '', page)}
-                    isLoading={workbench.collectionLoading}
-                  />
-                )}
               </div>
             )}
           </div>
@@ -377,7 +367,7 @@ export function WorkbenchPage() {
         groupsContent={
           <div className="space-y-4">
             <GroupsTab onLoadGroup={handleLoadGroup} onDeleteGroup={handleDeleteGroup} />
-            
+
             {/* Results Section - show when we have a group collection */}
             {workbench.groupCollection && (
               <div className="space-y-4">
@@ -387,7 +377,7 @@ export function WorkbenchPage() {
                   searchPagination={workbench.searchPagination}
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
-                  onLoadGroup={() => {}} // Groups tab doesn't need this
+                  onLoadGroup={() => { }} // Groups tab doesn't need this
                   onAddFeatures={() => setShowAddModal(true)}
                   onExtractFeatures={() => workbench.extractFeatures(undefined, 'group')}
                   onSaveChanges={() => workbench.saveCollectionChanges('group')}
@@ -417,7 +407,7 @@ export function WorkbenchPage() {
                     totalPages={workbench.groupPagination.totalPages}
                     totalResults={workbench.groupPagination.totalResults}
                     pageSize={workbench.groupPagination.pageSize}
-                    onPageChange={(page) => handleLoadGroup(workbench.groupCollection.saved_group_id || '', page)}
+                    onPageChange={(page) => handleLoadGroup(workbench.groupCollection?.saved_group_id || '', page)}
                     isLoading={workbench.collectionLoading}
                   />
                 )}
@@ -509,14 +499,14 @@ export function WorkbenchPage() {
         onOpenChange={setShowAddToGroupModal}
         onAddToGroup={handleAddToGroupAction}
         articlesToAdd={
-          workbench.searchCollection 
-            ? (selectedArticleIds.length > 0 
-                ? workbench.searchCollection.articles
-                    .filter(item => selectedArticleIds.includes(item.article.id))
-                    .map(item => ({ id: item.article.id, title: item.article.title }))
-                : workbench.searchCollection.articles
-                    .map(item => ({ id: item.article.id, title: item.article.title }))
-              )
+          workbench.searchCollection
+            ? (selectedArticleIds.length > 0
+              ? workbench.searchCollection.articles
+                .filter(item => selectedArticleIds.includes(item.article.id))
+                .map(item => ({ id: item.article.id, title: item.article.title }))
+              : workbench.searchCollection.articles
+                .map(item => ({ id: item.article.id, title: item.article.title }))
+            )
             : []
         }
         sourceCollectionName={workbench.searchCollection?.name || ''}

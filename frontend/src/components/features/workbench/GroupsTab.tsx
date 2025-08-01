@@ -31,19 +31,25 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     // Remember the collapsed state in localStorage
     const saved = localStorage.getItem('groupsTabCollapsed');
     return saved ? JSON.parse(saved) : false;
   });
 
-  const loadGroups = async () => {
+  const loadGroups = async (force = false) => {
+    // Only load if we haven't loaded before or if forced
+    if (!force && hasLoadedOnce) return;
+    
     setIsLoading(true);
     setError(null);
     try {
       const groupsList = await workbench.loadGroupList();
       setGroups(groupsList);
       setFilteredGroups(groupsList);
+      setHasLoadedOnce(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load groups');
       console.error('Failed to load groups:', err);
@@ -52,7 +58,7 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     }
   };
 
-  // Load groups when component mounts
+  // Load groups when component mounts or tab becomes visible
   useEffect(() => {
     loadGroups();
   }, []);
@@ -66,20 +72,28 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     setFilteredGroups(filtered);
   }, [groups, searchTerm]);
 
-  const handleLoadGroup = (groupId: string) => {
-    onLoadGroup(groupId);
+  const handleLoadGroup = async (groupId: string) => {
+    setOperationInProgress(groupId);
+    try {
+      await onLoadGroup(groupId);
+    } finally {
+      setOperationInProgress(null);
+    }
   };
 
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
     if (!onDeleteGroup) return;
     
     if (confirm(`Are you sure you want to delete the group "${groupName}"? This action cannot be undone.`)) {
+      setOperationInProgress(groupId);
       try {
         await onDeleteGroup(groupId, groupName);
         // Refresh the groups list after deletion
-        await loadGroups();
+        await loadGroups(true);
       } catch (error) {
         console.error('Failed to delete group:', error);
+      } finally {
+        setOperationInProgress(null);
       }
     }
   };
@@ -138,8 +152,13 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
                 </p>
               </div>
             </div>
-            <Button onClick={(e) => { e.stopPropagation(); loadGroups(); }} variant="outline" size="sm">
-              Refresh
+            <Button 
+              onClick={(e) => { e.stopPropagation(); loadGroups(true); }} 
+              variant="outline" 
+              size="sm"
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
             </Button>
           </div>
         </CollapsibleTrigger>
@@ -180,8 +199,13 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
                       onClick={() => handleLoadGroup(group.id)}
                       variant="outline"
                       size="sm"
+                      disabled={operationInProgress === group.id}
                     >
-                      <FolderOpen className="w-4 h-4 mr-1" />
+                      {operationInProgress === group.id ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <FolderOpen className="w-4 h-4 mr-1" />
+                      )}
                       Load
                     </Button>
 

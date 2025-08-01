@@ -512,10 +512,11 @@ export function WorkbenchPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onAdd={async (features, extractImmediately) => {
+          const collectionType = activeTab === 'search' ? 'search' : 'group';
           if (extractImmediately) {
-            await workbench.addFeatureDefinitionsAndExtract(features);
+            await workbench.addFeatureDefinitionsAndExtract(features, collectionType);
           } else {
-            workbench.addFeatureDefinitions(features);
+            workbench.addFeatureDefinitions(features, collectionType);
           }
         }}
       />

@@ -25,7 +25,7 @@ export function WorkbenchPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'search' | 'groups'>('search');
-  
+
   // Use centralized groups state from context
   const groupsData = workbench.groupsList;
   const groupsLoading = workbench.groupsListLoading;
@@ -56,7 +56,7 @@ export function WorkbenchPage() {
     }
 
     try {
-      await workbench.performSearch(page);
+      await workbench.executeSearch(page);
 
       // Don't switch tabs automatically - let users navigate manually
 
@@ -82,10 +82,10 @@ export function WorkbenchPage() {
 
   const handleLoadGroup = async (groupId: string, page: number = 1) => {
     try {
-      await workbench.loadGroup(groupId, page);
+      await workbench.loadGroupIntoWorkbench(groupId, page);
 
       // Don't switch tabs automatically - let users navigate manually
-      const totalArticles = workbench.groupPagination?.totalResults || workbench.groupCollection?.article_count || 0;
+      const totalArticles = workbench.groupPagination?.totalResults || workbench.groupCollection?.articles.length || 0;
       if (page === 1) {
         toast({
           title: 'Group Loaded',
@@ -107,20 +107,20 @@ export function WorkbenchPage() {
       const collectionType = activeTab === 'search' ? 'search' : 'group';
       // Pass selected articles if any are selected
       const selectedIds = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-      const savedGroupId = await workbench.saveCollection(name, description, collectionType, selectedIds);
+      const savedGroupId = await workbench.createGroupFromCollection(name, description, collectionType, selectedIds);
       setShowSaveModal(false);
-      
+
       // If we saved a search result as a new group
       if (collectionType === 'search') {
-        // Clear the search collection
-        workbench.resetSearchCollection();
-        
+        // Clear the search results
+        workbench.clearSearchResults();
+
         // Load the newly created group
-        await workbench.loadGroup(savedGroupId);
-        
+        await workbench.loadGroupIntoWorkbench(savedGroupId);
+
         // Switch to the groups tab
         setActiveTab('groups');
-        
+
         toast({
           title: 'Group Saved',
           description: `Saved as "${name}" and switched to Groups tab`,
@@ -143,7 +143,7 @@ export function WorkbenchPage() {
 
   const handleAddToGroup = async (groupId: string) => {
     try {
-      await workbench.addToExistingGroup(groupId);
+      await workbench.addArticlesToExistingGroup(groupId);
       setShowSaveModal(false);
       toast({
         title: 'Added to Group',
@@ -161,7 +161,7 @@ export function WorkbenchPage() {
 
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
     try {
-      await workbench.deleteGroupById(groupId);
+      await workbench.deleteGroupPermanently(groupId);
       toast({
         title: 'Group Deleted',
         description: `Deleted "${groupName}" successfully`,
@@ -187,7 +187,7 @@ export function WorkbenchPage() {
       articleCount: group.article_count || 0
     })));
   };
-  
+
   const loadGroupsData = async (force = false) => {
     // Use centralized refresh function
     if (force || workbench.groupsList.length === 0) {
@@ -198,15 +198,15 @@ export function WorkbenchPage() {
   const handleUpdateGroupInfo = async (name: string, description?: string) => {
     const collectionType = activeTab === 'search' ? 'search' : 'group';
     const currentCollection = collectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
-    
+
     if (!currentCollection?.saved_group_id) {
       throw new Error('No group ID found');
     }
 
     try {
       // Update via workbench API (this will automatically refresh the groups list)
-      await workbench.updateGroupInfo(currentCollection.saved_group_id, name, description);
-      
+      await workbench.updateGroupMetadata(currentCollection.saved_group_id, name, description);
+
       toast({
         title: 'Group Updated',
         description: 'Group name and description updated successfully',
@@ -256,7 +256,7 @@ export function WorkbenchPage() {
 
     try {
       const collectionType = activeTab === 'search' ? 'search' : 'group';
-      await workbench.removeArticles(selectedArticleIds, collectionType);
+      await workbench.removeArticlesFromCollection(selectedArticleIds, collectionType);
       setSelectedArticleIds([]);
       toast({
         title: 'Articles Removed',
@@ -290,14 +290,14 @@ export function WorkbenchPage() {
 
       // Always add articles to the group first
       const collectionType = activeTab === 'search' ? 'search' : 'group';
-      await workbench.addToExistingGroup(groupId, articleIds, collectionType);
+      await workbench.addArticlesToExistingGroup(groupId, articleIds, collectionType);
 
       // Clear selection after successful addition
       setSelectedArticleIds([]);
 
       if (navigateToGroup) {
         // Navigate to the group and show navigation success message
-        await workbench.loadGroup(groupId);
+        await workbench.loadGroupIntoWorkbench(groupId);
         // Switch to the Groups tab to show the loaded group
         setActiveTab('groups');
 
@@ -332,7 +332,7 @@ export function WorkbenchPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => workbench.resetWorkbench()}
+            onClick={() => workbench.resetAllWorkbenchState()}
             variant="outline"
             size="sm"
           >
@@ -361,7 +361,7 @@ export function WorkbenchPage() {
                       <label className="text-sm text-gray-600 dark:text-gray-400">Articles per page:</label>
                       <select
                         value={workbench.groupParams.pageSize}
-                        onChange={(e) => workbench.updateGroupParams({ pageSize: parseInt(e.target.value) })}
+                        onChange={(e) => workbench.updateGroupPaginationParams({ pageSize: parseInt(e.target.value) })}
                         className="border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-1 text-sm rounded-md"
                       >
                         <option value={10}>10</option>
@@ -386,8 +386,8 @@ export function WorkbenchPage() {
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => setActiveTab('groups')}
                   onAddFeatures={() => setShowAddModal(true)}
-                  onExtractFeatures={() => workbench.extractFeatures(undefined, 'search')}
-                  onSaveChanges={() => workbench.saveCollectionChanges('search')}
+                  onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'search')}
+                  onSaveChanges={() => workbench.syncCollectionToBackend('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
                   onDeleteSelected={handleDeleteSelected}
@@ -425,8 +425,8 @@ export function WorkbenchPage() {
         }
         groupsContent={
           <div className="space-y-4">
-            <GroupsTab 
-              onLoadGroup={handleLoadGroup} 
+            <GroupsTab
+              onLoadGroup={handleLoadGroup}
               onDeleteGroup={handleDeleteGroup}
               groupsData={groupsData}
               groupsLoading={groupsLoading}
@@ -444,8 +444,8 @@ export function WorkbenchPage() {
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => { }} // Groups tab doesn't need this
                   onAddFeatures={() => setShowAddModal(true)}
-                  onExtractFeatures={() => workbench.extractFeatures(undefined, 'group')}
-                  onSaveChanges={() => workbench.saveCollectionChanges('group')}
+                  onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'group')}
+                  onSaveChanges={() => workbench.syncCollectionToBackend('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
                   onDeleteSelected={handleDeleteSelected}
@@ -516,9 +516,9 @@ export function WorkbenchPage() {
         onAdd={async (features, extractImmediately) => {
           const collectionType = activeTab === 'search' ? 'search' : 'group';
           if (extractImmediately) {
-            await workbench.addFeatureDefinitionsAndExtract(features, collectionType);
+            await workbench.addFeaturesAndExtract(features, collectionType);
           } else {
-            workbench.addFeatureDefinitions(features, collectionType);
+            workbench.addFeatureDefinitionsLocal(features, collectionType);
           }
         }}
       />
@@ -535,7 +535,7 @@ export function WorkbenchPage() {
         onUpdateExisting={async () => {
           try {
             const collectionType = activeTab === 'search' ? 'search' : 'group';
-            await workbench.saveCollectionChanges(collectionType);
+            await workbench.syncCollectionToBackend(collectionType);
             const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
             setShowSaveModal(false);
             toast({

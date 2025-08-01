@@ -61,7 +61,7 @@ export function SearchTab({ onNewSearch }: SearchTabProps) {
               query={workbench.searchQuery}
               onQueryChange={workbench.updateSearchQuery}
               selectedProviders={workbench.selectedProviders}
-              onProvidersChange={workbench.updateSelectedProviders}
+              onProvidersChange={workbench.updateSearchProviders}
               searchMode={workbench.searchMode}
               onSearchModeChange={workbench.updateSearchMode}
               onSearch={handleSearch}

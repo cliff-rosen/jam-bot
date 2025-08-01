@@ -86,53 +86,55 @@ interface WorkbenchState {
 // ================== ACTIONS INTERFACE ==================
 
 interface WorkbenchActions {
-  // Search State Management
+  // Search Operations (affects searchCollection)
   updateSearchQuery: (query: string) => void;
-  updateSelectedProviders: (providers: SearchProvider[]) => void;
+  updateSearchProviders: (providers: SearchProvider[]) => void;
   updateSearchMode: (mode: 'single' | 'multi') => void;
   updateSearchParams: (params: Partial<WorkbenchState['searchParams']>) => void;
+  executeSearch: (page?: number) => Promise<void>;
+  clearSearchResults: () => void;
 
-  // Collection Management
-  performSearch: (page?: number) => Promise<void>;
-  loadGroup: (groupId: string, page?: number) => Promise<void>;
-  loadGroupList: () => Promise<ArticleGroup[]>;
-  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
-  addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
-  saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
-  deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
-  deleteGroupById: (groupId: string) => Promise<void>;
-  updateGroupInfo: (groupId: string, name: string, description?: string) => Promise<void>;
-  
-  // Group management
-  updateGroupParams: (params: Partial<WorkbenchState['groupParams']>) => void;
+  // Group Loading Operations (affects groupCollection)  
+  loadGroupIntoWorkbench: (groupId: string, page?: number) => Promise<void>;
+  updateGroupPaginationParams: (params: Partial<WorkbenchState['groupParams']>) => void;
+
+  // Backend Group Management (affects backend + groupsList)
+  createGroupFromCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
+  addArticlesToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  updateGroupMetadata: (groupId: string, name: string, description?: string) => Promise<void>;
+  deleteGroupPermanently: (groupId: string) => Promise<void>;
+  fetchCachedGroupsList: () => Promise<ArticleGroup[]>;
   refreshGroupsList: () => Promise<ArticleGroup[]>;
 
+  // Collection State Sync (affects current collection + backend)
+  syncCollectionToBackend: (collectionType?: 'search' | 'group') => Promise<void>;
+  deleteCurrentCollection: (collectionType?: 'search' | 'group') => Promise<void>;
+
   // Collection Getters
-  getCurrentCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
+  getActiveCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
 
-  // Collection Modification
-  addArticles: (articles: CanonicalResearchArticle[], collectionType?: 'search' | 'group') => void;
-  removeArticles: (articleIds: string[], collectionType?: 'search' | 'group') => void;
-  updateArticlePosition: (articleId: string, newPosition: number, collectionType?: 'search' | 'group') => void;
+  // Local Collection Modifications (FE state only)
+  addArticlesToCollection: (articles: CanonicalResearchArticle[], collectionType?: 'search' | 'group') => void;
+  removeArticlesFromCollection: (articleIds: string[], collectionType?: 'search' | 'group') => void;
+  reorderArticleInCollection: (articleId: string, newPosition: number, collectionType?: 'search' | 'group') => void;
 
-  // Feature Management
-  addFeatureDefinitions: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => void;
-  addFeatureDefinitionsAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => Promise<void>;
+  // Feature Operations (local state + optional API calls)
+  addFeatureDefinitionsLocal: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => void;
+  addFeaturesAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => Promise<void>;
   removeFeatureDefinition: (featureId: string, collectionType?: 'search' | 'group') => void;
-  extractFeatures: (featureIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
-  updateFeatureValue: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
+  extractFeatureValues: (featureIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  updateFeatureValueLocal: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
 
-  // Selection Management
+  // Selection Management (UI state only)
   selectArticleDetail: (articleDetail: ArticleGroupDetail | null) => void;
   toggleArticleSelection: (articleId: string) => void;
-  selectAllArticles: () => void;
+  selectAllArticlesInView: () => void;
   clearArticleSelection: () => void;
 
   // Utility Actions
-  exportCollection: (format: 'csv' | 'json') => Promise<void>;
+  exportActiveCollection: (format: 'csv' | 'json') => Promise<void>;
   clearError: () => void;
-  resetWorkbench: () => void;
-  resetSearchCollection: () => void;
+  resetAllWorkbenchState: () => void;
 }
 
 // ================== CONTEXT ==================
@@ -187,7 +189,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setSearchQuery(query);
   }, []);
 
-  const updateSelectedProviders = useCallback((providers: SearchProvider[]) => {
+  const updateSearchProviders = useCallback((providers: SearchProvider[]) => {
     setSelectedProviders(providers);
   }, []);
 
@@ -199,13 +201,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setSearchParams(prev => ({ ...prev, ...params }));
   }, []);
 
-  const updateGroupParams = useCallback((params: Partial<WorkbenchState['groupParams']>) => {
+  const updateGroupPaginationParams = useCallback((params: Partial<WorkbenchState['groupParams']>) => {
     setGroupParams(prev => ({ ...prev, ...params }));
   }, []);
 
   // ================== COLLECTION GETTERS ==================
 
-  const getCurrentCollection = useCallback((tab: 'search' | 'groups'): ArticleCollection | null => {
+  const getActiveCollection = useCallback((tab: 'search' | 'groups'): ArticleCollection | null => {
     if (tab === 'search') {
       return searchCollection;
     } else {
@@ -215,7 +217,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== COLLECTION MANAGEMENT ==================
 
-  const performSearch = useCallback(async (page: number = 1) => {
+  const executeSearch = useCallback(async (page: number = 1) => {
     if (!searchQuery.trim()) {
       setError('Please enter a search query');
       return;
@@ -282,7 +284,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchQuery, selectedProviders, searchParams]);
 
-  const loadGroup = useCallback(async (groupId: string, page: number = 1) => {
+  const loadGroupIntoWorkbench = useCallback(async (groupId: string, page: number = 1) => {
     setCollectionLoading(true);
     setError(null);
 
@@ -315,7 +317,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [groupParams.pageSize]);
 
-  const loadGroupList = useCallback(async () => {
+  const fetchCachedGroupsList = useCallback(async () => {
     // Return cached groups list for backward compatibility
     return groupsList;
   }, [groupsList]);
@@ -335,7 +337,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, []);
 
-  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search', selectedArticleIds?: string[]): Promise<string> => {
+  const createGroupFromCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search', selectedArticleIds?: string[]): Promise<string> => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) throw new Error('No collection to save');
 
@@ -397,7 +399,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection, refreshGroupsList]);
 
-  const addToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+  const addArticlesToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -421,7 +423,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       });
 
       // Load the updated group to reflect the changes
-      await loadGroup(groupId);
+      await loadGroupIntoWorkbench(groupId);
 
       // Refresh groups list to reflect updated article count
       await refreshGroupsList();
@@ -431,9 +433,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection, loadGroup, refreshGroupsList]);
+  }, [searchCollection, groupCollection, loadGroupIntoWorkbench, refreshGroupsList]);
 
-  const saveCollectionChanges = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
+  const syncCollectionToBackend = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || !currentCollection.saved_group_id) return;
 
@@ -484,7 +486,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection, refreshGroupsList]);
 
-  const deleteCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
+  const deleteCurrentCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || !currentCollection.saved_group_id) return;
 
@@ -512,7 +514,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const deleteGroupById = useCallback(async (groupId: string) => {
+  const deleteGroupPermanently = useCallback(async (groupId: string) => {
     setCollectionLoading(true);
     setError(null);
 
@@ -538,7 +540,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [groupCollection, refreshGroupsList]);
 
-  const updateGroupInfo = useCallback(async (groupId: string, name: string, description?: string) => {
+  const updateGroupMetadata = useCallback(async (groupId: string, name: string, description?: string) => {
     setCollectionLoading(true);
     setError(null);
 
@@ -578,7 +580,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== COLLECTION MODIFICATION ==================
 
-  const addArticles = useCallback((articles: CanonicalResearchArticle[], collectionType: 'search' | 'group' = 'search') => {
+  const addArticlesToCollection = useCallback((articles: CanonicalResearchArticle[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -606,7 +608,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const removeArticles = useCallback((articleIds: string[], collectionType: 'search' | 'group' = 'search') => {
+  const removeArticlesFromCollection = useCallback((articleIds: string[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -636,7 +638,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     });
   }, [searchCollection, groupCollection]);
 
-  const updateArticlePosition = useCallback((articleId: string, newPosition: number, collectionType: 'search' | 'group' = 'search') => {
+  const reorderArticleInCollection = useCallback((articleId: string, newPosition: number, collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -669,7 +671,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== FEATURE MANAGEMENT ==================
 
-  const addFeatureDefinitions = useCallback((features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
+  const addFeatureDefinitionsLocal = useCallback((features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -699,7 +701,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const addFeatureDefinitionsAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
+  const addFeaturesAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -837,7 +839,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const extractFeatures = useCallback(async (featureIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+  const extractFeatureValues = useCallback(async (featureIds?: string[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || currentCollection.feature_definitions.length === 0) return;
 
@@ -893,7 +895,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const updateFeatureValue = useCallback((articleId: string, featureId: string, value: any, collectionType: 'search' | 'group' = 'search') => {
+  const updateFeatureValueLocal = useCallback((articleId: string, featureId: string, value: any, collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -942,7 +944,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     });
   }, []);
 
-  const selectAllArticles = useCallback(() => {
+  const selectAllArticlesInView = useCallback(() => {
     // This function should be updated to use context from the calling component
     // For now, we'll leave it as is since it's not used much
     const currentCollection = searchCollection || groupCollection;
@@ -958,7 +960,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== UTILITY ACTIONS ==================
 
-  const exportCollection = useCallback(async (format: 'csv' | 'json') => {
+  const exportActiveCollection = useCallback(async (format: 'csv' | 'json') => {
     // TODO: Implement export functionality - would need collectionType parameter
     console.log('Export collection as', format);
   }, []);
@@ -967,7 +969,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
   }, []);
 
-  const resetWorkbench = useCallback(() => {
+  const resetAllWorkbenchState = useCallback(() => {
     // Reset collection state
     setSearchCollection(null);
     setGroupCollection(null);
@@ -997,7 +999,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     });
   }, []);
 
-  const resetSearchCollection = useCallback(() => {
+  const clearSearchResults = useCallback(() => {
     // Only reset search-related state
     setSearchCollection(null);
     setSearchPagination(null);
@@ -1030,37 +1032,53 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     // Actions
     updateSearchQuery,
-    updateSelectedProviders,
+    updateSearchProviders,
     updateSearchMode,
     updateSearchParams,
-    performSearch,
-    loadGroup,
-    loadGroupList,
-    saveCollection,
-    addToExistingGroup,
-    saveCollectionChanges,
-    deleteCollection,
-    deleteGroupById,
-    updateGroupInfo,
-    updateGroupParams,
+    executeSearch,
+    clearSearchResults,
+
+    // Group Loading
+    loadGroupIntoWorkbench,
+    updateGroupPaginationParams,
+
+    // Group Management
+    createGroupFromCollection,
+    addArticlesToExistingGroup,
+    updateGroupMetadata,
+    deleteGroupPermanently,
+    fetchCachedGroupsList,
     refreshGroupsList,
-    getCurrentCollection,
-    addArticles,
-    removeArticles,
-    updateArticlePosition,
-    addFeatureDefinitions,
-    addFeatureDefinitionsAndExtract,
+
+    // Collection Management
+    syncCollectionToBackend,
+    deleteCurrentCollection,
+
+    // Collection Management
+    getActiveCollection,
+
+    // Article Management
+    addArticlesToCollection,
+    removeArticlesFromCollection,
+    reorderArticleInCollection,
+
+    // Feature Management
+    addFeatureDefinitionsLocal,
+    addFeaturesAndExtract,
     removeFeatureDefinition,
-    extractFeatures,
-    updateFeatureValue,
+    extractFeatureValues,
+    updateFeatureValueLocal,
+
+    // Selection Management
     selectArticleDetail,
     toggleArticleSelection,
-    selectAllArticles,
+    selectAllArticlesInView,
     clearArticleSelection,
-    exportCollection,
+
+    // Utility Actions
+    exportActiveCollection,
     clearError,
-    resetWorkbench,
-    resetSearchCollection
+    resetAllWorkbenchState,
   };
 
   return (

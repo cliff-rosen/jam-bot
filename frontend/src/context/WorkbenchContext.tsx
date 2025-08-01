@@ -439,11 +439,21 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     try {
       // Use the elegant unified update API - pass articles to trigger full state synchronization
+      // Important: We need to pass articles with their extracted_features data
+      const articlesWithFeatures = currentCollection.articles.map(item => {
+        // Create a copy of the article and add extracted_features from feature_data
+        const articleWithFeatures = {
+          ...item.article,
+          extracted_features: item.feature_data || {}
+        };
+        return articleWithFeatures;
+      });
+
       await workbenchApi.updateGroup(currentCollection.saved_group_id, {
         name: currentCollection.name,
         description: currentCollection.description,
         feature_definitions: currentCollection.feature_definitions,
-        articles: currentCollection.articles.map(item => item.article),
+        articles: articlesWithFeatures,
         search_query: currentCollection.search_params?.query,
         search_provider: currentCollection.search_params?.provider,
         search_params: currentCollection.search_params?.filters || {}

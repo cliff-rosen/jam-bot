@@ -302,8 +302,13 @@ class ArticleGroupService:
                 
             # Get extracted features for this article
             feature_data = {}
-            if article.id in feature_data_by_article:
-                # Store feature data using feature ID keys (new format)
+            
+            # First check if the article itself has extracted_features (new format)
+            if hasattr(article, 'extracted_features') and article.extracted_features:
+                feature_data = article.extracted_features
+            # Otherwise check legacy format in feature_definitions
+            elif article.id in feature_data_by_article:
+                # Store feature data using feature ID keys
                 for feature_name, value in feature_data_by_article[article.id].items():
                     feature_data[feature_name] = value
             

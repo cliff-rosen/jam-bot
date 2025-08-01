@@ -41,6 +41,7 @@ export function WorkbenchTable({
   const features = collection.feature_definitions;
   const articleDetails = collection.articles;
 
+
   const handleSort = (columnId: string) => {
     if (sortBy === columnId) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -470,6 +471,7 @@ export function WorkbenchTable({
                 {features.map(feature => {
                   const articleDetail = articleDetails.find(d => d.article.id === article.id);
                   const featureValue = articleDetail?.feature_data[feature.id];
+
 
                   return (
                     <td

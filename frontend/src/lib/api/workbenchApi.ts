@@ -73,6 +73,10 @@ export interface UpdateArticleGroupRequest {
   name?: string;
   description?: string;
   feature_definitions?: FeatureDefinition[];
+  articles?: CanonicalResearchArticle[];
+  search_query?: string;
+  search_provider?: string;
+  search_params?: Record<string, any>;
 }
 
 export interface SaveToGroupRequest {

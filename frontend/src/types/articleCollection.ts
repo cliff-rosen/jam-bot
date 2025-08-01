@@ -127,7 +127,7 @@ export function createSearchCollection(
 }
 
 export function createSavedGroupCollection(group: any): ArticleCollection {
-  // Convert feature definitions from backend legacy format to frontend format
+  // Convert feature definitions from backend format to frontend format
   const modernFeatureDefinitions = (group.feature_definitions || []).map((feature: any) => ({
     id: feature.id,
     name: feature.name,
@@ -137,28 +137,16 @@ export function createSavedGroupCollection(group: any): ArticleCollection {
     // Remove the 'data' field as frontend stores this per-article
   }));
 
-  // The articles should already have feature_data embedded from the backend
-  // If not, we may need to reconstruct it from the legacy data fields
-  let articles = group.articles || [];
-  
-  // If articles don't have feature_data but features have data fields, reconstruct
-  if (articles.length > 0 && Object.keys(articles[0].feature_data || {}).length === 0) {
-    articles = articles.map((articleItem: any) => {
-      const feature_data: Record<string, string> = {};
-      
-      // Extract feature data from legacy format
-      (group.feature_definitions || []).forEach((feature: any) => {
-        if (feature.data && feature.data[articleItem.article.id]) {
-          feature_data[feature.id] = feature.data[articleItem.article.id];
-        }
-      });
-      
-      return {
-        ...articleItem,
-        feature_data
-      };
-    });
-  }
+  // Process articles - the backend sends them with feature_data already embedded
+  const articles = (group.articles || []).map((articleItem: any) => ({
+    id: articleItem.id,
+    article_id: articleItem.article_id,
+    group_id: articleItem.group_id,
+    article: articleItem.article,
+    feature_data: articleItem.feature_data || {},
+    position: articleItem.position,
+    added_at: articleItem.added_at
+  }));
 
   return {
     id: group.id,

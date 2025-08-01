@@ -14,7 +14,7 @@ import {
   createSavedGroupCollection,
   SearchParams
 } from '@/types/articleCollection';
-import { FeatureDefinition, ArticleGroupDetail } from '@/types/workbench';
+import { FeatureDefinition, ArticleGroupDetail, ArticleGroup } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { SearchProvider } from '@/types/unifiedSearch';
 
@@ -29,9 +29,9 @@ interface WorkbenchState {
   searchCollection: ArticleCollection | null;   // Search results collection
   groupCollection: ArticleCollection | null;    // Loaded group collection
   collectionLoading: boolean;
-  
+
   // GROUPS LIST STATE
-  groupsList: any[];
+  groupsList: ArticleGroup[];
   groupsListLoading: boolean;
 
   // SEARCH STATE
@@ -47,7 +47,7 @@ interface WorkbenchState {
     includeCitations: boolean;
     includePdfLinks: boolean;
   };
-  
+
   groupParams: {
     pageSize: number;
   };
@@ -59,7 +59,7 @@ interface WorkbenchState {
     totalResults: number;
     pageSize: number;
   } | null;
-  
+
   groupPagination: {
     currentPage: number;
     totalPages: number;
@@ -95,7 +95,7 @@ interface WorkbenchActions {
   // Collection Management
   performSearch: (page?: number) => Promise<void>;
   loadGroup: (groupId: string, page?: number) => Promise<void>;
-  loadGroupList: () => Promise<any[]>;
+  loadGroupList: () => Promise<ArticleGroup[]>;
   saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
   addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
   saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
@@ -103,6 +103,10 @@ interface WorkbenchActions {
   deleteGroupById: (groupId: string) => Promise<void>;
   updateGroupInfo: (groupId: string, name: string, description?: string) => Promise<void>;
   
+  // Group management
+  updateGroupParams: (params: Partial<WorkbenchState['groupParams']>) => void;
+  refreshGroupsList: () => Promise<ArticleGroup[]>;
+
   // Collection Getters
   getCurrentCollection: (tab: 'search' | 'groups') => ArticleCollection | null;
 
@@ -129,7 +133,6 @@ interface WorkbenchActions {
   clearError: () => void;
   resetWorkbench: () => void;
   resetSearchCollection: () => void;
-  refreshGroupsList: () => Promise<void>;
 }
 
 // ================== CONTEXT ==================
@@ -149,9 +152,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const [searchCollection, setSearchCollection] = useState<ArticleCollection | null>(null);
   const [groupCollection, setGroupCollection] = useState<ArticleCollection | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
-  const [groupsList, setGroupsList] = useState<any[]>([]);
+  const [groupsList, setGroupsList] = useState<ArticleGroup[]>([]);
   const [groupsListLoading, setGroupsListLoading] = useState(false);
-  
+
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProviders, setSelectedProviders] = useState<SearchProvider[]>(['pubmed']);
@@ -165,11 +168,11 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     includeCitations: false,
     includePdfLinks: false
   });
-  
+
   const [groupParams, setGroupParams] = useState<WorkbenchState['groupParams']>({
     pageSize: 20
   });
-  
+
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
   const [groupPagination, setGroupPagination] = useState<WorkbenchState['groupPagination']>(null);
   const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
@@ -195,13 +198,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const updateSearchParams = useCallback((params: Partial<WorkbenchState['searchParams']>) => {
     setSearchParams(prev => ({ ...prev, ...params }));
   }, []);
-  
+
   const updateGroupParams = useCallback((params: Partial<WorkbenchState['groupParams']>) => {
     setGroupParams(prev => ({ ...prev, ...params }));
   }, []);
 
   // ================== COLLECTION GETTERS ==================
-  
+
   const getCurrentCollection = useCallback((tab: 'search' | 'groups'): ArticleCollection | null => {
     if (tab === 'search') {
       return searchCollection;
@@ -250,7 +253,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       const collection = createSearchCollection(searchResult.articles, searchParamsForCollection);
       setSearchCollection(collection);
-      
+
       // Update pagination state from metadata
       if (searchResult.metadata) {
         setSearchPagination({
@@ -268,7 +271,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
           pageSize: searchParams.pageSize
         });
       }
-      
+
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
     } catch (err) {
@@ -289,7 +292,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const collection = createSavedGroupCollection(group);
       setGroupCollection(collection);
       setSearchPagination(null); // Clear search pagination
-      
+
       // Set group pagination if available
       if (group.pagination) {
         setGroupPagination({
@@ -301,7 +304,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       } else {
         setGroupPagination(null);
       }
-      
+
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
     } catch (err) {
@@ -373,16 +376,16 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         is_modified: false,
         updated_at: new Date().toISOString()
       };
-      
+
       if (collectionType === 'search') {
         setSearchCollection(updatedCollection);
       } else {
         setGroupCollection(updatedCollection);
       }
-      
+
       // Refresh groups list after successful save
       await refreshGroupsList();
-      
+
       // Return the saved group ID
       return savedGroup.id;
     } catch (err) {
@@ -419,7 +422,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       // Load the updated group to reflect the changes
       await loadGroup(groupId);
-      
+
       // Refresh groups list to reflect updated article count
       await refreshGroupsList();
     } catch (err) {
@@ -464,13 +467,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         is_modified: false,
         updated_at: new Date().toISOString()
       };
-      
+
       if (collectionType === 'search') {
         setSearchCollection(updatedCollection);
       } else {
         setGroupCollection(updatedCollection);
       }
-      
+
       // Refresh groups list to reflect changes
       await refreshGroupsList();
     } catch (err) {
@@ -492,13 +495,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     try {
       await workbenchApi.deleteGroup(currentCollection.saved_group_id);
-      
+
       if (collectionType === 'search') {
         setSearchCollection(null);
       } else {
         setGroupCollection(null);
       }
-      
+
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
     } catch (err) {
@@ -515,15 +518,15 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     try {
       await workbenchApi.deleteGroup(groupId);
-      
+
       // Clear the group collection if it matches the deleted group
       if (groupCollection && groupCollection.saved_group_id === groupId) {
         setGroupCollection(null);
       }
-      
+
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
-      
+
       // Refresh groups list to reflect deletion
       await refreshGroupsList();
     } catch (err) {
@@ -561,7 +564,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       setSearchCollection(prevCollection => updateCollection(prevCollection));
       setGroupCollection(prevCollection => updateCollection(prevCollection));
-      
+
       // Refresh groups list to reflect updated info
       await refreshGroupsList();
     } catch (err) {
@@ -595,7 +598,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -618,7 +621,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -656,7 +659,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -688,7 +691,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -788,7 +791,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         articles: updatedArticles,
         updated_at: new Date().toISOString()
       };
-      
+
       if (collectionType === 'search') {
         setSearchCollection(finalCollection);
       } else {
@@ -826,7 +829,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -875,7 +878,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         is_modified: true,
         updated_at: new Date().toISOString()
       };
-      
+
       if (collectionType === 'search') {
         setSearchCollection(updatedCollection);
       } else {
@@ -913,7 +916,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       is_modified: true,
       updated_at: new Date().toISOString()
     };
-    
+
     if (collectionType === 'search') {
       setSearchCollection(updatedCollection);
     } else {
@@ -971,11 +974,11 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setSearchPagination(null);
     setGroupPagination(null);
     setSelectedArticleIds(new Set());
-    setSelectedArticle(null);
+    setSelectedArticleDetail(null);
     setIsExtracting(false);
     setExtractionProgress(undefined);
     setError(null);
-    
+
     // Reset search state
     setSearchQuery('');
     setSelectedProviders(['pubmed']);
@@ -999,7 +1002,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setSearchCollection(null);
     setSearchPagination(null);
     setSelectedArticleIds(new Set());
-    setSelectedArticle(null);
+    setSelectedArticleDetail(null);
     setError(null);
   }, []);
 
@@ -1030,7 +1033,6 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     updateSelectedProviders,
     updateSearchMode,
     updateSearchParams,
-    updateGroupParams,
     performSearch,
     loadGroup,
     loadGroupList,
@@ -1040,6 +1042,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     deleteCollection,
     deleteGroupById,
     updateGroupInfo,
+    updateGroupParams,
+    refreshGroupsList,
     getCurrentCollection,
     addArticles,
     removeArticles,
@@ -1056,8 +1060,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     exportCollection,
     clearError,
     resetWorkbench,
-    resetSearchCollection,
-    refreshGroupsList
+    resetSearchCollection
   };
 
   return (

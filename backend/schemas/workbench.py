@@ -26,7 +26,6 @@ class FeatureDefinition(BaseModel):
 # Note: Feature data is stored directly in ArticleGroupDetail.feature_data
 # No separate column data structure needed
 
-
 # ================== ARTICLE GROUP STRUCTURES ==================
 
 class ArticleGroupDetail(BaseModel):
@@ -38,7 +37,6 @@ class ArticleGroupDetail(BaseModel):
     feature_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted feature data keyed by feature.id")
     position: Optional[int] = Field(None, description="Position in the group")
     added_at: str = Field(..., description="When article was added to group")
-
 
 
 class PaginationInfo(BaseModel):

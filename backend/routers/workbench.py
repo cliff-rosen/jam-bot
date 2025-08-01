@@ -107,7 +107,6 @@ class FeatureDefinition(BaseModel):
     type: str = "text"  # "boolean", "text", "score"
     options: Optional[Dict[str, Any]] = None
 
-
 class ExtractRequest(BaseModel):
     """Unified request to extract multiple features"""
     articles: List[Dict[str, str]]  # [{id, title, abstract}]
@@ -129,7 +128,6 @@ class FeaturePreset(BaseModel):
 class FeaturePresetsResponse(BaseModel):
     """Response with available feature presets"""
     presets: List[FeaturePreset]
-
 
 class UpdateNotesRequest(BaseModel):
     """Request to update article notes"""
@@ -155,7 +153,6 @@ class BatchExtractFeaturesRequest(BaseModel):
 class BatchUpdateMetadataRequest(BaseModel):
     """Request to update metadata for multiple articles"""
     metadata_updates: Dict[str, Dict[str, Any]]  # article_id -> metadata
-
 
 # ================== GROUP MANAGEMENT ENDPOINTS ==================
 
@@ -447,7 +444,6 @@ async def get_feature_presets(
     return FeaturePresetsResponse(
         presets=presets
     )
-
 
 
 # ================== INDIVIDUAL ARTICLE RESEARCH ENDPOINTS ==================

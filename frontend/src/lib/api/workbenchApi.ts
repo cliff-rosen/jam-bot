@@ -139,7 +139,6 @@ export interface ArticleGroupDeleteResponse {
   deleted_articles_count: number;
 }
 
-
 export interface BatchOperationResponse {
   results: Record<string, any>;
   failures: Record<string, string>;
@@ -149,7 +148,6 @@ export interface BatchOperationResponse {
     failed: number;
   };
 }
-
 
 export class WorkbenchApi {
 

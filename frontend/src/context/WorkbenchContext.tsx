@@ -29,6 +29,10 @@ interface WorkbenchState {
   searchCollection: ArticleCollection | null;   // Search results collection
   groupCollection: ArticleCollection | null;    // Loaded group collection
   collectionLoading: boolean;
+  
+  // GROUPS LIST STATE
+  groupsList: any[];
+  groupsListLoading: boolean;
 
   // SEARCH STATE
   searchQuery: string;
@@ -125,6 +129,7 @@ interface WorkbenchActions {
   clearError: () => void;
   resetWorkbench: () => void;
   resetSearchCollection: () => void;
+  refreshGroupsList: () => Promise<void>;
 }
 
 // ================== CONTEXT ==================
@@ -144,6 +149,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const [searchCollection, setSearchCollection] = useState<ArticleCollection | null>(null);
   const [groupCollection, setGroupCollection] = useState<ArticleCollection | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
+  const [groupsList, setGroupsList] = useState<any[]>([]);
+  const [groupsListLoading, setGroupsListLoading] = useState(false);
   
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -306,13 +313,22 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   }, [groupParams.pageSize]);
 
   const loadGroupList = useCallback(async () => {
+    // Return cached groups list for backward compatibility
+    return groupsList;
+  }, [groupsList]);
+
+  const refreshGroupsList = useCallback(async () => {
+    setGroupsListLoading(true);
     try {
       const response = await workbenchApi.getGroups(1, 100); // Get first 100 groups
+      setGroupsList(response.groups);
       return response.groups;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load groups');
       console.error('Load groups error:', err);
       return [];
+    } finally {
+      setGroupsListLoading(false);
     }
   }, []);
 
@@ -356,6 +372,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setGroupCollection(updatedCollection);
       }
       
+      // Refresh groups list after successful save
+      await refreshGroupsList();
+      
       // Return the saved group ID
       return savedGroup.id;
     } catch (err) {
@@ -365,7 +384,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection]);
+  }, [searchCollection, groupCollection, refreshGroupsList]);
 
   const addToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -392,13 +411,16 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       // Load the updated group to reflect the changes
       await loadGroup(groupId);
+      
+      // Refresh groups list to reflect updated article count
+      await refreshGroupsList();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add to existing group');
       console.error('Add to group error:', err);
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection, loadGroup]);
+  }, [searchCollection, groupCollection, loadGroup, refreshGroupsList]);
 
   const saveCollectionChanges = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -426,13 +448,16 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       } else {
         setGroupCollection(updatedCollection);
       }
+      
+      // Refresh groups list to reflect changes
+      await refreshGroupsList();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
       console.error('Save changes error:', err);
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection]);
+  }, [searchCollection, groupCollection, refreshGroupsList]);
 
   const deleteCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -476,6 +501,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       
       setSelectedArticleIds(new Set());
       setSelectedArticle(null);
+      
+      // Refresh groups list to reflect deletion
+      await refreshGroupsList();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete group');
       console.error('Delete group error:', err);
@@ -483,7 +511,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [groupCollection]);
+  }, [groupCollection, refreshGroupsList]);
 
   const updateGroupInfo = useCallback(async (groupId: string, name: string, description?: string) => {
     setCollectionLoading(true);
@@ -511,6 +539,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       setSearchCollection(prevCollection => updateCollection(prevCollection));
       setGroupCollection(prevCollection => updateCollection(prevCollection));
+      
+      // Refresh groups list to reflect updated info
+      await refreshGroupsList();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update group info');
       console.error('Update group info error:', err);
@@ -518,7 +549,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, []);
+  }, [refreshGroupsList]);
 
   // ================== COLLECTION MODIFICATION ==================
 
@@ -957,6 +988,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     searchCollection,
     groupCollection,
     collectionLoading,
+    groupsList,
+    groupsListLoading,
     searchQuery,
     selectedProviders,
     searchMode,
@@ -1001,7 +1034,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     exportCollection,
     clearError,
     resetWorkbench,
-    resetSearchCollection
+    resetSearchCollection,
+    refreshGroupsList
   };
 
   return (

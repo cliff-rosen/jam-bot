@@ -26,10 +26,9 @@ export function WorkbenchPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<'search' | 'groups'>('search');
   
-  // Groups state - persist across tab switches
-  const [groupsData, setGroupsData] = useState<Array<{ id: string; name: string; description?: string; article_count: number; updated_at: string; feature_definitions?: any[] }>>([]);
-  const [groupsLoaded, setGroupsLoaded] = useState(false);
-  const [groupsLoading, setGroupsLoading] = useState(false);
+  // Use centralized groups state from context
+  const groupsData = workbench.groupsList;
+  const groupsLoading = workbench.groupsListLoading;
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -161,8 +160,6 @@ export function WorkbenchPage() {
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
     try {
       await workbench.deleteGroupById(groupId);
-      // Refresh groups data after deletion
-      await loadGroupsData(true);
       toast({
         title: 'Group Deleted',
         description: `Deleted "${groupName}" successfully`,
@@ -179,31 +176,20 @@ export function WorkbenchPage() {
   };
 
   const loadExistingGroups = async () => {
-    try {
-      const response = await workbench.loadGroupList();
-      setExistingGroups(response.map(group => ({
-        id: group.id,
-        name: group.name,
-        description: group.description,
-        articleCount: group.article_count || 0
-      })));
-    } catch (error) {
-      console.error('Failed to load groups:', error);
-    }
+    // Ensure groups list is loaded, then use it for existing groups
+    await loadGroupsData();
+    setExistingGroups(workbench.groupsList.map(group => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      articleCount: group.article_count || 0
+    })));
   };
   
   const loadGroupsData = async (force = false) => {
-    if (!force && groupsLoaded) return;
-    
-    setGroupsLoading(true);
-    try {
-      const response = await workbench.loadGroupList();
-      setGroupsData(response);
-      setGroupsLoaded(true);
-    } catch (error) {
-      console.error('Failed to load groups:', error);
-    } finally {
-      setGroupsLoading(false);
+    // Use centralized refresh function
+    if (force || workbench.groupsList.length === 0) {
+      await workbench.refreshGroupsList();
     }
   };
 
@@ -216,11 +202,8 @@ export function WorkbenchPage() {
     }
 
     try {
-      // Update via workbench API
+      // Update via workbench API (this will automatically refresh the groups list)
       await workbench.updateGroupInfo(currentCollection.saved_group_id, name, description);
-      
-      // Refresh groups data to reflect changes in the list
-      await loadGroupsData(true);
       
       toast({
         title: 'Group Updated',

@@ -15,12 +15,11 @@ import {
   SearchParams
 } from '@/types/articleCollection';
 import { FeatureDefinition, ArticleGroupDetail, ArticleGroup } from '@/types/workbench';
-import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { SearchProvider } from '@/types/unifiedSearch';
 
 import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { generateUUID, generatePrefixedUUID } from '@/lib/utils/uuid';
+import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 // ================== STATE INTERFACE ==================
 

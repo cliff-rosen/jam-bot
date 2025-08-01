@@ -264,6 +264,8 @@ export function WorkbenchPage() {
       if (navigateToGroup) {
         // Navigate to the group and show navigation success message
         await workbench.loadGroup(groupId);
+        // Switch to the Groups tab to show the loaded group
+        setActiveTab('groups');
 
         toast({
           title: 'Switched to Group',

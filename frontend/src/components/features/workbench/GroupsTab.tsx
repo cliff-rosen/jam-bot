@@ -31,7 +31,11 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Remember the collapsed state in localStorage
+    const saved = localStorage.getItem('groupsTabCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   const loadGroups = async () => {
     setIsLoading(true);
@@ -80,6 +84,12 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
     }
   };
 
+  const handleCollapseChange = (open: boolean) => {
+    const collapsed = !open;
+    setIsCollapsed(collapsed);
+    localStorage.setItem('groupsTabCollapsed', JSON.stringify(collapsed));
+  };
+
   if (isLoading) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -113,7 +123,7 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup }: GroupsTabProps) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-      <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
+      <Collapsible open={!isCollapsed} onOpenChange={handleCollapseChange}>
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">

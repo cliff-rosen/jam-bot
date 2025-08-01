@@ -11,11 +11,8 @@ import { api } from './index';
 import {
   FeatureDefinition,
   ArticleGroup,
-  ArticleGroupDetail,
-  ArticleGroupSummary,
   ArticleGroupWithDetails,
   WorkbenchData,
-  AnalysisPreset
 } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 

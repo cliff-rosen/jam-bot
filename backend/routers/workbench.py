@@ -256,6 +256,39 @@ async def add_articles_to_group(
     return result
 
 
+@router.post("/groups/{group_id}/save", response_model=ArticleGroupSaveResponse)
+async def save_workbench_state(
+    group_id: str,
+    request: SaveToGroupRequest,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """Save complete workbench state (articles + features) to existing group."""
+    group_service = ArticleGroupService(db)
+    result = group_service.save_tabelizer_state(current_user.user_id, group_id, request)
+    
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found or access denied"
+        )
+    
+    return result
+
+
+@router.post("/groups/create-and-save", response_model=ArticleGroupSaveResponse)
+async def create_and_save_group(
+    request: SaveToGroupRequest,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """Create a new group and save workbench state to it."""
+    group_service = ArticleGroupService(db)
+    result = group_service.create_and_save_group(current_user.user_id, request)
+    
+    return result
+
+
 # ================== ANALYSIS ENDPOINTS ==================
 
 # New Unified Extraction Endpoints

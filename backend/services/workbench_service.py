@@ -294,12 +294,14 @@ class ArticleGroupService:
         # Create feature data lookup from legacy format if needed
         feature_data_by_article = {}
         for feature in feature_definitions:
-            if "data" in feature and "name" in feature:
-                # Legacy column format - convert to feature data
-                for article_id, value in feature["data"].items():
-                    if article_id not in feature_data_by_article:
-                        feature_data_by_article[article_id] = {}
-                    feature_data_by_article[article_id][feature["name"]] = value
+            if "data" in feature:
+                # Feature data format - convert to article lookup
+                feature_id = feature.get("id", feature.get("name"))
+                if feature_id:
+                    for article_id, value in feature["data"].items():
+                        if article_id not in feature_data_by_article:
+                            feature_data_by_article[article_id] = {}
+                        feature_data_by_article[article_id][feature_id] = value
         
         # Get current max position for appending
         max_position_result = self.db.query(func.max(ArticleGroupDetailModel.position)).filter(

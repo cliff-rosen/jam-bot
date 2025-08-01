@@ -127,12 +127,45 @@ export function createSearchCollection(
 }
 
 export function createSavedGroupCollection(group: any): ArticleCollection {
+  // Convert feature definitions from backend legacy format to frontend format
+  const modernFeatureDefinitions = (group.feature_definitions || []).map((feature: any) => ({
+    id: feature.id,
+    name: feature.name,
+    description: feature.description,
+    type: feature.type,
+    options: feature.options
+    // Remove the 'data' field as frontend stores this per-article
+  }));
+
+  // The articles should already have feature_data embedded from the backend
+  // If not, we may need to reconstruct it from the legacy data fields
+  let articles = group.articles || [];
+  
+  // If articles don't have feature_data but features have data fields, reconstruct
+  if (articles.length > 0 && Object.keys(articles[0].feature_data || {}).length === 0) {
+    articles = articles.map((articleItem: any) => {
+      const feature_data: Record<string, string> = {};
+      
+      // Extract feature data from legacy format
+      (group.feature_definitions || []).forEach((feature: any) => {
+        if (feature.data && feature.data[articleItem.article.id]) {
+          feature_data[feature.id] = feature.data[articleItem.article.id];
+        }
+      });
+      
+      return {
+        ...articleItem,
+        feature_data
+      };
+    });
+  }
+
   return {
     id: group.id,
     source: CollectionSource.SAVED_GROUP,
     name: group.name,
-    articles: group.articles,
-    feature_definitions: group.feature_definitions || [],
+    articles: articles,
+    feature_definitions: modernFeatureDefinitions,
     saved_group_id: group.id,
     is_saved: true,
     is_modified: false,

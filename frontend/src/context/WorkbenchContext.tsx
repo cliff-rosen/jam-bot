@@ -438,33 +438,12 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
 
     try {
-      // Convert feature definitions to legacy format expected by backend
-      const legacyFeatureDefinitions = currentCollection.feature_definitions.map(feature => {
-        // Create feature data lookup for this feature across all articles
-        const featureData: Record<string, string> = {};
-        currentCollection.articles.forEach(articleItem => {
-          const value = articleItem.feature_data[feature.id];
-          if (value !== undefined && value !== null && value !== '') {
-            featureData[articleItem.article.id] = String(value);
-          }
-        });
-        
-        return {
-          id: feature.id,
-          name: feature.name,
-          description: feature.description,
-          type: feature.type,
-          options: feature.options,
-          data: featureData // Legacy format: article_id -> value mapping
-        };
-      });
-
-      // Use saveWorkbenchState API to save both feature definitions AND extracted feature data
-      await workbenchApi.saveWorkbenchState(currentCollection.saved_group_id, {
-        group_name: currentCollection.name || '',
-        group_description: currentCollection.description,
+      // Use the elegant unified update API - pass articles to trigger full state synchronization
+      await workbenchApi.updateGroup(currentCollection.saved_group_id, {
+        name: currentCollection.name,
+        description: currentCollection.description,
+        feature_definitions: currentCollection.feature_definitions,
         articles: currentCollection.articles.map(item => item.article),
-        feature_definitions: legacyFeatureDefinitions,
         search_query: currentCollection.search_params?.query,
         search_provider: currentCollection.search_params?.provider,
         search_params: currentCollection.search_params?.filters || {}

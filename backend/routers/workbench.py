@@ -42,10 +42,17 @@ class CreateArticleGroupRequest(BaseModel):
     feature_definitions: Optional[List[FeatureDefinition]] = Field(None, description="Feature definitions")
 
 class UpdateArticleGroupRequest(BaseModel):
-    """Request to update article group metadata"""
+    """Request to update article group metadata and optionally sync full workbench state"""
+    # Metadata fields
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="Group name")
     description: Optional[str] = Field(None, description="Group description")
     feature_definitions: Optional[List[FeatureDefinition]] = Field(None, description="Feature definitions")
+    
+    # Full state sync fields (optional - when provided, performs complete workbench state synchronization)
+    articles: Optional[List[CanonicalResearchArticle]] = Field(None, description="Articles with feature data (triggers full sync)")
+    search_query: Optional[str] = Field(None, description="Search query used")
+    search_provider: Optional[str] = Field(None, description="Search provider used")
+    search_params: Optional[Dict[str, Any]] = Field(None, description="Search parameters")
 
 class SaveToGroupRequest(BaseModel):
     """Request to save current workbench state to a group"""
@@ -256,16 +263,27 @@ async def add_articles_to_group(
     return result
 
 
-@router.post("/groups/{group_id}/save", response_model=ArticleGroupSaveResponse)
-async def save_workbench_state(
+@router.post("/groups/{group_id}/sync", response_model=ArticleGroup)
+async def sync_workbench_state(
     group_id: str,
-    request: SaveToGroupRequest,
+    request: UpdateArticleGroupRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
-    """Save complete workbench state (articles + features) to existing group."""
+    """Sync complete workbench state (articles + features) to existing group.
+    
+    This is a convenience endpoint that calls update_group with full state sync.
+    Use this when you want to replace all articles and feature data in one operation.
+    """
+    # Ensure articles are provided for state sync
+    if not request.articles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Articles must be provided for workbench state synchronization"
+        )
+    
     group_service = ArticleGroupService(db)
-    result = group_service.save_tabelizer_state(current_user.user_id, group_id, request)
+    result = group_service.update_group(current_user.user_id, group_id, request)
     
     if not result:
         raise HTTPException(

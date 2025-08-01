@@ -200,10 +200,25 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  // Convenience methods (legacy support)
-  async saveWorkbenchState(groupId: string, request: SaveToGroupRequest): Promise<ArticleGroupSaveResponse> {
-    const response = await api.post(`/api/workbench/groups/${groupId}/save`, request);
+  // Workbench state synchronization
+  async syncWorkbenchState(groupId: string, request: UpdateArticleGroupRequest): Promise<ArticleGroup> {
+    const response = await api.post(`/api/workbench/groups/${groupId}/sync`, request);
     return response.data;
+  }
+
+  // Legacy method for backward compatibility
+  async saveWorkbenchState(groupId: string, request: SaveToGroupRequest): Promise<ArticleGroup> {
+    // Convert SaveToGroupRequest to UpdateArticleGroupRequest format
+    const updateRequest: UpdateArticleGroupRequest = {
+      name: request.group_name,
+      description: request.group_description,
+      articles: request.articles,
+      feature_definitions: request.feature_definitions,
+      search_query: request.search_query,
+      search_provider: request.search_provider,
+      search_params: request.search_params
+    };
+    return this.syncWorkbenchState(groupId, updateRequest);
   }
 
   async createAndSaveGroup(request: SaveToGroupRequest): Promise<ArticleGroupSaveResponse> {

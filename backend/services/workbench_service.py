@@ -111,7 +111,7 @@ class ArticleGroupService:
             raise
     
     def update_group(self, user_id: int, group_id: str, request) -> Optional[Dict[str, Any]]:
-        """Update group metadata."""
+        """Update group metadata and optionally sync articles with feature data."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
                 ArticleGroupModel.id == group_id,
@@ -122,14 +122,31 @@ class ArticleGroupService:
         if not group:
             return None
         
-        # Update fields if provided
-        if request.name is not None:
+        # Update metadata fields if provided
+        if hasattr(request, 'name') and request.name is not None:
             group.name = request.name
-        if request.description is not None:
+        if hasattr(request, 'description') and request.description is not None:
             group.description = request.description
-        if request.feature_definitions is not None:
+        if hasattr(request, 'feature_definitions') and request.feature_definitions is not None:
             # Convert Pydantic models to dictionaries for JSON serialization
             group.feature_definitions = [feature.dict() for feature in request.feature_definitions]
+        
+        # Handle full state synchronization if articles are provided
+        if hasattr(request, 'articles') and request.articles is not None:
+            # This is a full workbench state sync - replace all articles
+            self.db.query(ArticleGroupDetailModel).filter(
+                ArticleGroupDetailModel.article_group_id == group_id
+            ).delete()
+            
+            self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
+            
+            # Update search context if provided
+            if hasattr(request, 'search_query'):
+                group.search_query = request.search_query
+            if hasattr(request, 'search_provider'):
+                group.search_provider = request.search_provider
+            if hasattr(request, 'search_params'):
+                group.search_params = request.search_params or {}
         
         group.updated_at = datetime.utcnow()
         
@@ -203,53 +220,20 @@ class ArticleGroupService:
             "duplicates_skipped": duplicates_skipped
         }
     
-    def save_tabelizer_state(
-        self, 
-        user_id: int, 
-        group_id: str, 
-        request
-    ) -> Optional[Dict[str, Any]]:
-        """Save workbench state (articles + features) to existing group."""
-        group = self.db.query(ArticleGroupModel).filter(
-            and_(
-                ArticleGroupModel.id == group_id,
-                ArticleGroupModel.user_id == user_id
-            )
-        ).first()
-        
-        if not group:
-            return None
-        
-        # Update group with new search context and columns
-        group.search_query = request.search_query
-        group.search_provider = request.search_provider
-        group.search_params = request.search_params or {}
-        group.feature_definitions = request.feature_definitions or []
-        group.updated_at = datetime.utcnow()
-        
-        # Clear existing articles and add new ones
-        self.db.query(ArticleGroupDetailModel).filter(
-            ArticleGroupDetailModel.article_group_id == group_id
-        ).delete()
-        
-        self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
-        
-        self.db.commit()
-        self.db.refresh(group)
-        
-        return {
-            "success": True,
-            "message": f"Saved tabelizer state to group",
-            "group_id": group_id,
-            "articles_saved": group.article_count
-        }
-    
     def create_and_save_group(
         self, 
         user_id: int, 
         request
     ) -> Dict[str, Any]:
         """Create a new group and save tabelizer state to it."""
+        # Convert Pydantic models to dictionaries for JSON serialization
+        feature_definitions = []
+        if request.feature_definitions:
+            feature_definitions = [
+                feature.dict() if hasattr(feature, 'dict') else feature 
+                for feature in request.feature_definitions
+            ]
+        
         group = ArticleGroupModel(
             user_id=user_id,
             name=request.group_name,
@@ -257,7 +241,7 @@ class ArticleGroupService:
             search_query=request.search_query,
             search_provider=request.search_provider,
             search_params=request.search_params or {},
-            feature_definitions=request.feature_definitions or [],
+            feature_definitions=feature_definitions,
             article_count=0
         )
         

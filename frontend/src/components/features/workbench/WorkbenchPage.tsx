@@ -403,7 +403,7 @@ export function WorkbenchPage() {
                   collection={workbench.searchCollection}
                   selectedArticleIds={selectedArticleIds}
                   onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, 'search')}
-                  onViewArticle={(article) => workbench.selectArticle(article)}
+                  onViewArticle={(articleDetail) => workbench.selectArticleDetail(articleDetail)}
                   onToggleArticleSelection={handleToggleArticleSelection}
                   isExtracting={workbench.isExtracting}
                 />
@@ -461,7 +461,7 @@ export function WorkbenchPage() {
                   collection={workbench.groupCollection}
                   selectedArticleIds={selectedArticleIds}
                   onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, 'group')}
-                  onViewArticle={(article) => workbench.selectArticle(article)}
+                  onViewArticle={(articleDetail) => workbench.selectArticleDetail(articleDetail)}
                   onToggleArticleSelection={handleToggleArticleSelection}
                   isExtracting={workbench.isExtracting}
                 />
@@ -580,11 +580,11 @@ export function WorkbenchPage() {
         currentGroupId={workbench.searchCollection?.saved_group_id}
       />
 
-      {workbench.selectedArticle && (
+      {workbench.selectedArticleDetail && (
         <ArticleWorkbenchModal
-          article={workbench.selectedArticle}
-          collection={workbench.searchCollection}
-          onClose={() => workbench.selectArticle(null)}
+          articleDetail={workbench.selectedArticleDetail}
+          collection={activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection}
+          onClose={() => workbench.selectArticleDetail(null)}
         />
       )}
 

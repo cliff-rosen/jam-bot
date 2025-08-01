@@ -69,7 +69,7 @@ interface WorkbenchState {
 
   // UI STATE  
   selectedArticleIds: Set<string>;               // For operations on articles
-  selectedArticle: CanonicalResearchArticle | null;  // For detail view
+  selectedArticleDetail: ArticleGroupDetail | null;  // For detail view
 
   // Feature extraction state
   isExtracting: boolean;
@@ -119,7 +119,7 @@ interface WorkbenchActions {
   updateFeatureValue: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
 
   // Selection Management
-  selectArticle: (article: CanonicalResearchArticle | null) => void;
+  selectArticleDetail: (articleDetail: ArticleGroupDetail | null) => void;
   toggleArticleSelection: (articleId: string) => void;
   selectAllArticles: () => void;
   clearArticleSelection: () => void;
@@ -173,7 +173,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);
   const [groupPagination, setGroupPagination] = useState<WorkbenchState['groupPagination']>(null);
   const [selectedArticleIds, setSelectedArticleIds] = useState<Set<string>>(new Set());
-  const [selectedArticle, setSelectedArticle] = useState<CanonicalResearchArticle | null>(null);
+  const [selectedArticleDetail, setSelectedArticleDetail] = useState<ArticleGroupDetail | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<WorkbenchState['extractionProgress']>();
   const [error, setError] = useState<string | null>(null);
@@ -270,7 +270,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
       
       setSelectedArticleIds(new Set());
-      setSelectedArticle(null);
+      setSelectedArticleDetail(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
       console.error('Search error:', err);
@@ -303,7 +303,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
       
       setSelectedArticleIds(new Set());
-      setSelectedArticle(null);
+      setSelectedArticleDetail(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load group');
       console.error('Load group error:', err);
@@ -500,7 +500,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
       
       setSelectedArticleIds(new Set());
-      setSelectedArticle(null);
+      setSelectedArticleDetail(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete collection');
       console.error('Delete collection error:', err);
@@ -522,7 +522,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
       
       setSelectedArticleIds(new Set());
-      setSelectedArticle(null);
+      setSelectedArticleDetail(null);
       
       // Refresh groups list to reflect deletion
       await refreshGroupsList();
@@ -923,8 +923,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== SELECTION MANAGEMENT ==================
 
-  const selectArticle = useCallback((article: CanonicalResearchArticle | null) => {
-    setSelectedArticle(article);
+  const selectArticleDetail = useCallback((articleDetail: ArticleGroupDetail | null) => {
+    setSelectedArticleDetail(articleDetail);
   }, []);
 
   const toggleArticleSelection = useCallback((articleId: string) => {
@@ -1020,7 +1020,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     searchPagination,
     groupPagination,
     selectedArticleIds,
-    selectedArticle,
+    selectedArticleDetail,
     isExtracting,
     extractionProgress,
     error,
@@ -1049,7 +1049,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     removeFeatureDefinition,
     extractFeatures,
     updateFeatureValue,
-    selectArticle,
+    selectArticleDetail,
     toggleArticleSelection,
     selectAllArticles,
     clearArticleSelection,

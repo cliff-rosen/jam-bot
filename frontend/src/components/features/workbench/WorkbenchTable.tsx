@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ArticleCollection } from '@/types/articleCollection';
+import { ArticleGroupDetail } from '@/types/workbench';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2, RotateCcw } from 'lucide-react';
@@ -12,7 +13,7 @@ interface WorkbenchTableProps {
   onExport?: () => void;
   onClearResults?: () => void;
   isExtracting?: boolean;
-  onViewArticle?: (article: CanonicalResearchArticle) => void;
+  onViewArticle?: (articleDetail: ArticleGroupDetail) => void;
   onSaveGroup?: () => void;
   onLoadGroup?: () => void;
   onToggleArticleSelection: (articleId: string) => void;
@@ -446,7 +447,12 @@ export function WorkbenchTable({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onViewArticle(article)}
+                        onClick={() => {
+                          const articleDetail = articleDetails.find(d => d.article.id === article.id);
+                          if (articleDetail) {
+                            onViewArticle(articleDetail);
+                          }
+                        }}
                         className="h-8 w-8 p-0"
                         title="View full article details"
                       >

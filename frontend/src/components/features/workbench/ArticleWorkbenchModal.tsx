@@ -18,11 +18,11 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatPanel } from './chat/ChatPanel';
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import { ArticleCollection } from '@/types/articleCollection';
-import { FeatureDefinition, AnalysisPreset, WorkbenchData } from '@/types/workbench';
+import { FeatureDefinition, AnalysisPreset, WorkbenchData, ArticleGroupDetail } from '@/types/workbench';
 
 interface ArticleWorkbenchModalProps {
-  article: CanonicalResearchArticle;
-  collection?: ArticleCollection | null;
+  articleDetail: ArticleGroupDetail;
+  collection: ArticleCollection | null;
   onClose: () => void;
   onSendChatMessage?: (
     message: string,
@@ -37,7 +37,7 @@ interface ArticleWorkbenchModalProps {
 
 
 export function ArticleWorkbenchModal({
-  article,
+  articleDetail,
   collection,
   onClose,
   onSendChatMessage,
@@ -46,8 +46,8 @@ export function ArticleWorkbenchModal({
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
 
-  // Get the article detail from the collection to access feature data
-  const articleDetail = collection?.articles.find(a => a.article.id === article.id);
+  // Extract the article from articleDetail for convenience
+  const article = articleDetail.article;
   const featureDefinitions = collection?.feature_definitions || [];
   const featureData = articleDetail?.feature_data || {};
 

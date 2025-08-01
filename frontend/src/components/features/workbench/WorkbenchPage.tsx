@@ -45,7 +45,7 @@ export function WorkbenchPage() {
 
   const { toast } = useToast();
 
-  const handleNewSearch = async (page: number = 1) => {
+  const handleSearch = async (page: number = 1) => {
     if (!workbench.searchQuery.trim()) {
       toast({
         title: 'Search Required',
@@ -349,7 +349,7 @@ export function WorkbenchPage() {
         searchContent={
           <div className="space-y-4">
             {/* Search Controls */}
-            <SearchTab onNewSearch={handleNewSearch} />
+            <SearchTab onNewSearch={handleSearch} />
 
             {/* Group Controls - only show for saved groups */}
             {workbench.searchCollection && workbench.searchCollection.source === CollectionSource.SAVED_GROUP && (
@@ -415,7 +415,7 @@ export function WorkbenchPage() {
                     totalPages={workbench.searchPagination.totalPages}
                     totalResults={workbench.searchPagination.totalResults}
                     pageSize={workbench.searchPagination.pageSize}
-                    onPageChange={(page) => handleNewSearch(page)}
+                    onPageChange={(page) => handleSearch(page)}
                     isLoading={workbench.collectionLoading}
                   />
                 )}

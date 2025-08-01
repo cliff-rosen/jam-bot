@@ -30,7 +30,6 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customFeatures, setCustomFeatures] = useState<FeatureDefinition[]>([]);
   const [presets, setPresets] = useState<FeaturePreset[]>([]);
-  const [loading, setLoading] = useState(false);
   const [extractImmediately, setExtractImmediately] = useState(true);
 
   // Create template list combining presets and custom option
@@ -88,13 +87,13 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
   };
 
   const updateCustomFeature = (index: number, field: keyof FeatureDefinition, value: any) => {
-    setCustomFeatures(prev => prev.map((feature, i) => 
+    setCustomFeatures(prev => prev.map((feature, i) =>
       i === index ? { ...feature, [field]: value } : feature
     ));
   };
 
   const updateCustomFeatureOptions = (index: number, options: any) => {
-    setCustomFeatures(prev => prev.map((feature, i) => 
+    setCustomFeatures(prev => prev.map((feature, i) =>
       i === index ? { ...feature, options } : feature
     ));
   };
@@ -342,11 +341,10 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
               {templates.map((template) => (
                 <div
                   key={template.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    selectedTemplate === template.id
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedTemplate === template.id
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
+                    }`}
                   onClick={() => setSelectedTemplate(template.id)}
                 >
                   <div className="flex items-start gap-2">
@@ -396,11 +394,11 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                 (Recommended)
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
               >
                 Cancel

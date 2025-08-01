@@ -36,6 +36,7 @@ export interface ArticleCollection {
   id: string;                                    // UUID for all collections
   source: CollectionSource;                      // How this collection was created
   name: string;                                  // Display name
+  description?: string;                          // Optional description
   
   // Articles with contextual data
   articles: ArticleGroupDetail[];                // Always wrapped, may have empty features
@@ -152,6 +153,7 @@ export function createSavedGroupCollection(group: any): ArticleCollection {
     id: group.id,
     source: CollectionSource.SAVED_GROUP,
     name: group.name,
+    description: group.description,
     articles: articles,
     feature_definitions: modernFeatureDefinitions,
     saved_group_id: group.id,

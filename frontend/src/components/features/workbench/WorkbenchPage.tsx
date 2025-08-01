@@ -105,12 +105,31 @@ export function WorkbenchPage() {
 
   const handleSaveGroup = async (name: string, description?: string) => {
     try {
-      await workbench.saveCollection(name, description);
+      const collectionType = activeTab === 'search' ? 'search' : 'group';
+      const savedGroupId = await workbench.saveCollection(name, description, collectionType);
       setShowSaveModal(false);
-      toast({
-        title: 'Group Saved',
-        description: `Saved as "${name}"`,
-      });
+      
+      // If we saved a search result as a new group
+      if (collectionType === 'search') {
+        // Clear the search collection
+        workbench.resetSearchCollection();
+        
+        // Load the newly created group
+        await workbench.loadGroup(savedGroupId);
+        
+        // Switch to the groups tab
+        setActiveTab('groups');
+        
+        toast({
+          title: 'Group Saved',
+          description: `Saved as "${name}" and switched to Groups tab`,
+        });
+      } else {
+        toast({
+          title: 'Group Saved',
+          description: `Saved as "${name}"`,
+        });
+      }
     } catch (error) {
       console.error('Save failed:', error);
       toast({

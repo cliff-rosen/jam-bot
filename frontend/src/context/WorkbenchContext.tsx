@@ -92,7 +92,7 @@ interface WorkbenchActions {
   performSearch: (page?: number) => Promise<void>;
   loadGroup: (groupId: string, page?: number) => Promise<void>;
   loadGroupList: () => Promise<any[]>;
-  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group') => Promise<void>;
+  saveCollection: (name: string, description?: string, collectionType?: 'search' | 'group') => Promise<string>;
   addToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
   saveCollectionChanges: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteCollection: (collectionType?: 'search' | 'group') => Promise<void>;
@@ -124,6 +124,7 @@ interface WorkbenchActions {
   exportCollection: (format: 'csv' | 'json') => Promise<void>;
   clearError: () => void;
   resetWorkbench: () => void;
+  resetSearchCollection: () => void;
 }
 
 // ================== CONTEXT ==================
@@ -315,9 +316,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, []);
 
-  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search') => {
+  const saveCollection = useCallback(async (name: string, description?: string, collectionType: 'search' | 'group' = 'search'): Promise<string> => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
-    if (!currentCollection) return;
+    if (!currentCollection) throw new Error('No collection to save');
 
     setCollectionLoading(true);
     setError(null);
@@ -354,9 +355,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       } else {
         setGroupCollection(updatedCollection);
       }
+      
+      // Return the saved group ID
+      return savedGroup.id;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save collection');
       console.error('Save collection error:', err);
+      throw err;
     } finally {
       setCollectionLoading(false);
     }
@@ -936,6 +941,15 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     });
   }, []);
 
+  const resetSearchCollection = useCallback(() => {
+    // Only reset search-related state
+    setSearchCollection(null);
+    setSearchPagination(null);
+    setSelectedArticleIds(new Set());
+    setSelectedArticle(null);
+    setError(null);
+  }, []);
+
   // ================== CONTEXT VALUE ==================
 
   const contextValue: WorkbenchContextType = {
@@ -986,7 +1000,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     clearArticleSelection,
     exportCollection,
     clearError,
-    resetWorkbench
+    resetWorkbench,
+    resetSearchCollection
   };
 
   return (

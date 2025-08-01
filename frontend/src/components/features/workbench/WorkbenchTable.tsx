@@ -219,7 +219,7 @@ export function WorkbenchTable({
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
-            <col className="w-12" />  {/* Checkbox column */}
+            <col className="w-12" />
             <col className="w-20" />
             <col className="w-96" />
             <col className="w-32" />
@@ -227,9 +227,9 @@ export function WorkbenchTable({
             <col className="w-24" />
             <col className="w-20" />
             <col className="w-80" />
-            <col className="w-24" />  {/* Reduced actions column width */}
-            {features.map(() => (
-              <col key={Math.random()} className="w-32" />
+            <col className="w-24" />
+            {features.map((feature) => (
+              <col key={feature.id} className="w-32" />
             ))}
           </colgroup>
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">

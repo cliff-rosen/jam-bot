@@ -41,6 +41,13 @@ class ArticleGroupDetail(BaseModel):
 
 
 
+class PaginationInfo(BaseModel):
+    """Pagination metadata"""
+    current_page: int = Field(..., description="Current page number")
+    total_pages: int = Field(..., description="Total number of pages")
+    total_results: int = Field(..., description="Total number of results")
+    page_size: int = Field(..., description="Number of items per page")
+
 class ArticleGroupWithDetails(BaseModel):
     """Complete article group with embedded articles - full group context"""
     id: str = Field(..., description="Group ID")
@@ -52,6 +59,7 @@ class ArticleGroupWithDetails(BaseModel):
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
     articles: List[ArticleGroupDetail] = Field(..., description="Articles with feature data")
+    pagination: Optional[PaginationInfo] = Field(None, description="Pagination metadata")
 
 
 class ArticleGroup(BaseModel):

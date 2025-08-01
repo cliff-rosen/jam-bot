@@ -56,7 +56,7 @@ export function WorkbenchPage() {
     }
 
     try {
-      await workbench.executeSearch(page);
+      await workbench.fetchSearchCollection(page);
 
       // Don't switch tabs automatically - let users navigate manually
 
@@ -82,7 +82,7 @@ export function WorkbenchPage() {
 
   const handleLoadGroup = async (groupId: string, page: number = 1) => {
     try {
-      await workbench.loadGroupIntoWorkbench(groupId, page);
+      await workbench.fetchGroupCollection(groupId, page);
 
       // Don't switch tabs automatically - let users navigate manually
       const totalArticles = workbench.groupPagination?.totalResults || workbench.groupCollection?.articles.length || 0;
@@ -116,7 +116,7 @@ export function WorkbenchPage() {
         workbench.clearSearchResults();
 
         // Load the newly created group
-        await workbench.loadGroupIntoWorkbench(savedGroupId);
+        await workbench.fetchGroupCollection(savedGroupId);
 
         // Switch to the groups tab
         setActiveTab('groups');
@@ -297,7 +297,7 @@ export function WorkbenchPage() {
 
       if (navigateToGroup) {
         // Navigate to the group and show navigation success message
-        await workbench.loadGroupIntoWorkbench(groupId);
+        await workbench.fetchGroupCollection(groupId);
         // Switch to the Groups tab to show the loaded group
         setActiveTab('groups');
 

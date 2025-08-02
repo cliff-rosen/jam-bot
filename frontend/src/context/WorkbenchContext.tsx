@@ -289,7 +289,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     try {
       const pageSize = groupParams.pageSize; // Use group-specific page size
       const group = await workbenchApi.getGroupDetails(groupId, page, pageSize);
+      
       const collection = createSavedGroupCollection(group);
+      
       setGroupCollection(collection);
       setSearchPagination(null); // Clear search pagination
 
@@ -825,46 +827,61 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const extractFeatureValues = useCallback(async (featureIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+  const extractFeatureValues = useCallback(async (featureIds?: string[], collectionType: 'search' | 'group' = 'search', targetArticleIds?: string[]) => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
-    if (!currentCollection || currentCollection.feature_definitions.length === 0) return;
+    if (!currentCollection) return;
+
+    // RULE 1: Features must exist in collection first
+    const featuresToExtract = featureIds
+      ? currentCollection.feature_definitions.filter(f => featureIds.includes(f.id))
+      : currentCollection.feature_definitions;
+    
+    if (featuresToExtract.length === 0) {
+      console.warn('No features to extract - collection has no feature definitions');
+      return;
+    }
 
     setIsExtracting(true);
     setError(null);
 
     try {
-      const featuresToExtract = featureIds
-        ? currentCollection.feature_definitions.filter(f => featureIds.includes(f.id))
-        : currentCollection.feature_definitions;
+      // RULE 2: Articles can be subset or all
+      const articlesToExtract = targetArticleIds
+        ? currentCollection.articles.filter(a => targetArticleIds.includes(a.article_id))
+        : currentCollection.articles;
 
-      const articlesData = currentCollection.articles.map(a => ({
-        id: a.article_id,
-        title: a.article.title,
-        abstract: a.article.abstract || ''
-      }));
+      console.log(`Extracting ${featuresToExtract.length} features for ${articlesToExtract.length} articles`);
 
       const extractionResult = await workbenchApi.extractFeatures({
-        articles: articlesData,
+        articles: articlesToExtract.map(a => ({
+          id: a.article_id,
+          title: a.article.title,
+          abstract: a.article.abstract || ''
+        })),
         features: featuresToExtract
       });
 
-      console.log('extractFeatureValues API Response:', extractionResult);
-      console.log('Articles data sent:', articlesData);
-      console.log('Features sent:', featuresToExtract);
+      console.log('Extraction API Response:', extractionResult);
 
-      // Update article feature_data with proper feature mapping
+      // RULE 3: Merge results with existing data (overwrite on conflict)
       const updatedArticles = currentCollection.articles.map(article => {
-        const articleFeatures = extractionResult.results[article.article_id] || {};
-        console.log(`extractFeatureValues - Article ${article.article_id} features:`, articleFeatures);
+        // Only update if this article was targeted for extraction
+        const wasTargeted = !targetArticleIds || targetArticleIds.includes(article.article_id);
+        if (!wasTargeted) {
+          return article; // Return unchanged
+        }
 
-        // API should return features with IDs as keys
-        console.log(`extractFeatureValues - Processed features for article ${article.article_id}:`, articleFeatures);
+        // Get extraction results for this article (empty object if no results)
+        const newFeatureData = extractionResult.results[article.article_id] || {};
+        
+        console.log(`Article ${article.article_id}: merging ${Object.keys(newFeatureData).length} new features`);
 
+        // Merge: existing features + new features (new overwrites existing)
         return {
           ...article,
           feature_data: {
-            ...article.feature_data,
-            ...articleFeatures
+            ...article.feature_data,  // Preserve existing features
+            ...newFeatureData         // Add/overwrite with new features
           }
         };
       });

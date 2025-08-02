@@ -37,10 +37,10 @@ export function WorkbenchTable({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [displayDateType, setDisplayDateType] = useState<"completion" | "publication" | "entry" | "revised">(initialDisplayDateType);
 
-  // Extract articles and features from collection
-  const articles = collection.articles.map(item => item.article);
+  // Use ArticleGroupDetail directly instead of extracting articles separately
   const features = collection.feature_definitions;
   const articleDetails = collection.articles;
+
 
 
   const handleSort = (columnId: string) => {
@@ -104,51 +104,49 @@ export function WorkbenchTable({
     return '0000-00-00';
   };
 
-  const sortedArticles = useMemo(() => {
-    if (!sortBy) return articles;
+  const sortedArticleDetails = useMemo(() => {
+    if (!sortBy) return articleDetails;
 
-    return [...articles].sort((a, b) => {
+    return [...articleDetails].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
-      // Handle fixed columns
+      // Handle fixed columns - access via a.article.*
       switch (sortBy) {
         case 'title':
-          aValue = a.title;
-          bValue = b.title;
+          aValue = a.article.title;
+          bValue = b.article.title;
           break;
         case 'authors':
-          aValue = a.authors[0] || '';
-          bValue = b.authors[0] || '';
+          aValue = a.article.authors[0] || '';
+          bValue = b.article.authors[0] || '';
           break;
         case 'journal':
-          aValue = a.journal || '';
-          bValue = b.journal || '';
+          aValue = a.article.journal || '';
+          bValue = b.article.journal || '';
           break;
         case 'year':
           // Use the currently selected date type for sorting
-          aValue = getArticleDate(a, displayDateType);
-          bValue = getArticleDate(b, displayDateType);
+          aValue = getArticleDate(a.article, displayDateType);
+          bValue = getArticleDate(b.article, displayDateType);
           // Convert dates to comparable format for sorting
           aValue = normalizeDateForSorting(aValue);
           bValue = normalizeDateForSorting(bValue);
           break;
         case 'source':
-          aValue = a.source;
-          bValue = b.source;
+          aValue = a.article.source;
+          bValue = b.article.source;
           break;
         case 'abstract':
-          aValue = a.abstract || '';
-          bValue = b.abstract || '';
+          aValue = a.article.abstract || '';
+          bValue = b.article.abstract || '';
           break;
         default:
-          // Handle custom features - get data from article details
+          // Handle custom features - get data directly from feature_data
           const feature = features.find(f => f.id === sortBy);
           if (feature) {
-            const aDetail = articleDetails.find(d => d.article.id === a.id);
-            const bDetail = articleDetails.find(d => d.article.id === b.id);
-            aValue = aDetail?.feature_data[sortBy] || '';
-            bValue = bDetail?.feature_data[sortBy] || '';
+            aValue = a.feature_data[sortBy] || '';
+            bValue = b.feature_data[sortBy] || '';
           }
       }
 
@@ -156,7 +154,7 @@ export function WorkbenchTable({
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [articles, features, sortBy, sortDirection, articleDetails]);
+  }, [articleDetails, features, sortBy, sortDirection, displayDateType]);
 
   const renderSortIcon = (columnId: string) => {
     if (sortBy !== columnId) return null;
@@ -241,20 +239,20 @@ export function WorkbenchTable({
                 <input
                   type="checkbox"
                   className="rounded border-gray-300 dark:border-gray-600"
-                  checked={selectedArticleIds.length > 0 && selectedArticleIds.length === articles.length}
+                  checked={selectedArticleIds.length > 0 && selectedArticleIds.length === articleDetails.length}
                   onChange={(e) => {
                     if (e.target.checked) {
                       // Select all articles on current page
-                      articles.forEach(article => {
-                        if (!selectedArticleIds.includes(article.id)) {
-                          onToggleArticleSelection(article.id);
+                      articleDetails.forEach(articleDetail => {
+                        if (!selectedArticleIds.includes(articleDetail.article.id)) {
+                          onToggleArticleSelection(articleDetail.article.id);
                         }
                       });
                     } else {
                       // Deselect all articles on current page
-                      articles.forEach(article => {
-                        if (selectedArticleIds.includes(article.id)) {
-                          onToggleArticleSelection(article.id);
+                      articleDetails.forEach(articleDetail => {
+                        if (selectedArticleIds.includes(articleDetail.article.id)) {
+                          onToggleArticleSelection(articleDetail.article.id);
                         }
                       });
                     }
@@ -385,11 +383,11 @@ export function WorkbenchTable({
             </tr>
           </thead>
           <tbody>
-            {sortedArticles.map((article, index) => (
+            {sortedArticleDetails.map((articleDetail, index) => (
               <tr
-                key={article.id}
+                key={articleDetail.article.id}
                 className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'} ${
-                  selectedArticleIds.includes(article.id) ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''
+                  selectedArticleIds.includes(articleDetail.article.id) ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''
                 }`}
               >
                 {/* Selection Checkbox */}
@@ -397,36 +395,36 @@ export function WorkbenchTable({
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 dark:border-gray-600"
-                    checked={selectedArticleIds.includes(article.id)}
-                    onChange={() => onToggleArticleSelection(article.id)}
+                    checked={selectedArticleIds.includes(articleDetail.article.id)}
+                    onChange={() => onToggleArticleSelection(articleDetail.article.id)}
                   />
                 </td>
                 
                 {/* Fixed Columns */}
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  <div className="truncate" title={article.id}>
-                    {article.id.replace('pubmed_', '').replace('scholar_', '')}
+                  <div className="truncate" title={articleDetail.article.id}>
+                    {articleDetail.article.id.replace('pubmed_', '').replace('scholar_', '')}
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="truncate" title={article.title}>
-                    {article.title}
+                  <div className="truncate" title={articleDetail.article.title}>
+                    {articleDetail.article.title}
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="truncate" title={formatAuthors(article.authors)}>
-                    {formatAuthors(article.authors)}
+                  <div className="truncate" title={formatAuthors(articleDetail.article.authors)}>
+                    {formatAuthors(articleDetail.article.authors)}
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="truncate" title={article.journal || '-'}>
-                    {article.journal || '-'}
+                  <div className="truncate" title={articleDetail.article.journal || '-'}>
+                    {articleDetail.article.journal || '-'}
                   </div>
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span>{formatDate(getArticleDate(article, displayDateType), displayDateType)}</span>
-                    {article.source === 'pubmed' && (
+                    <span>{formatDate(getArticleDate(articleDetail.article, displayDateType), displayDateType)}</span>
+                    {articleDetail.article.source === 'pubmed' && (
                       <span className="text-xs text-gray-400 dark:text-gray-500 capitalize">
                         {displayDateType}
                       </span>
@@ -434,11 +432,11 @@ export function WorkbenchTable({
                   </div>
                 </td>
                 <td className="p-2 whitespace-nowrap">
-                  {getSourceBadge(article.source)}
+                  {getSourceBadge(articleDetail.article.source)}
                 </td>
                 <td className="p-2 text-sm text-gray-900 dark:text-gray-100">
-                  <div className="truncate" title={article.abstract || 'No abstract available'}>
-                    {truncateAbstract(article.abstract, 100)}
+                  <div className="truncate" title={articleDetail.article.abstract || 'No abstract available'}>
+                    {truncateAbstract(articleDetail.article.abstract, 100)}
                   </div>
                 </td>
                 <td className="p-2 whitespace-nowrap">
@@ -447,23 +445,18 @@ export function WorkbenchTable({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const articleDetail = articleDetails.find(d => d.article.id === article.id);
-                          if (articleDetail) {
-                            onViewArticle(articleDetail);
-                          }
-                        }}
+                        onClick={() => onViewArticle(articleDetail)}
                         className="h-8 w-8 p-0"
                         title="View full article details"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
                     )}
-                    {getArticleUrl(article) && (
+                    {getArticleUrl(articleDetail.article) && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(getArticleUrl(article)!, '_blank')}
+                        onClick={() => window.open(getArticleUrl(articleDetail.article)!, '_blank')}
                         className="h-8 w-8 p-0"
                         title="Open original article"
                       >
@@ -475,9 +468,7 @@ export function WorkbenchTable({
 
                 {/* Custom Features */}
                 {features.map(feature => {
-                  const articleDetail = articleDetails.find(d => d.article.id === article.id);
-                  const featureValue = articleDetail?.feature_data[feature.id];
-
+                  const featureValue = articleDetail.feature_data[feature.id];
 
                   return (
                     <td

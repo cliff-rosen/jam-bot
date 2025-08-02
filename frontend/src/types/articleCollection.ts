@@ -6,7 +6,7 @@
  */
 
 import { CanonicalResearchArticle } from './canonical_types';
-import { FeatureDefinition, ArticleGroupDetail } from './workbench';
+import { FeatureDefinition, ArticleGroupDetail, ArticleGroupWithDetails } from './workbench';
 import { generateUUID } from '@/lib/utils/uuid';
 
 // ================== COLLECTION MODEL ==================
@@ -127,7 +127,7 @@ export function createSearchCollection(
   };
 }
 
-export function createSavedGroupCollection(group: any): ArticleCollection {
+export function createSavedGroupCollection(group: ArticleGroupWithDetails): ArticleCollection {
   // Convert feature definitions from backend format to frontend format
   const modernFeatureDefinitions = (group.feature_definitions || []).map((feature: any) => ({
     id: feature.id,
@@ -135,7 +135,6 @@ export function createSavedGroupCollection(group: any): ArticleCollection {
     description: feature.description,
     type: feature.type,
     options: feature.options
-    // Remove the 'data' field as frontend stores this per-article
   }));
 
   // Process articles - the backend sends them with feature_data already embedded

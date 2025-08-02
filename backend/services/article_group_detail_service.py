@@ -223,22 +223,23 @@ class ArticleGroupDetailService:
                 article_results = {}
                 if extraction_result.extraction:
                     for feature in features:
+                        feat_id = feature['id']
                         feat_name = feature['name']
                         feat_type = feature.get('type', 'text')
                         feat_options = feature.get('options')
                         
                         if feat_name in extraction_result.extraction:
                             raw_value = extraction_result.extraction[feat_name]
-                            article_results[feat_name] = self._clean_value(raw_value, feat_type, feat_options)
+                            article_results[feat_id] = self._clean_value(raw_value, feat_type, feat_options)
                         else:
-                            article_results[feat_name] = self._get_default(feat_type, feat_options)
+                            article_results[feat_id] = self._get_default(feat_type, feat_options)
                 else:
                     # Handle extraction failure - use defaults
                     for feature in features:
-                        feat_name = feature['name']
+                        feat_id = feature['id']
                         feat_type = feature.get('type', 'text')
                         feat_options = feature.get('options')
-                        article_results[feat_name] = self._get_default(feat_type, feat_options)
+                        article_results[feat_id] = self._get_default(feat_type, feat_options)
                 
                 results[article_id] = article_results
                 
@@ -246,10 +247,10 @@ class ArticleGroupDetailService:
                 # On error, use default values
                 article_results = {}
                 for feature in features:
-                    feat_name = feature['name']
+                    feat_id = feature['id']
                     feat_type = feature.get('type', 'text')
                     feat_options = feature.get('options')
-                    article_results[feat_name] = self._get_default(feat_type, feat_options)
+                    article_results[feat_id] = self._get_default(feat_type, feat_options)
                 results[article_id] = article_results
         
         # Optionally persist to database
@@ -311,6 +312,7 @@ class ArticleGroupDetailService:
         
         # Prepare feature definition
         feature_def = [{
+            "id": f"temp_{feature_name}",  # Temporary ID for single extraction
             "name": feature_name,
             "description": extraction_prompt,
             "type": feature_type,
@@ -325,8 +327,9 @@ class ArticleGroupDetailService:
                 persist_to_group=(user_id, group_id)
             )
             
-            # Get the extracted value
-            extracted_value = results.get(article_detail.article_data["id"], {}).get(feature_name, "")
+            # Get the extracted value using temporary ID
+            temp_id = f"temp_{feature_name}"
+            extracted_value = results.get(article_detail.article_data["id"], {}).get(temp_id, "")
             
             return {
                 "feature_name": feature_name,
@@ -386,6 +389,7 @@ class ArticleGroupDetailService:
         
         # Prepare feature definition
         feature_def = [{
+            "id": f"temp_{feature_name}",  # Temporary ID for single extraction
             "name": feature_name,
             "description": extraction_prompt,
             "type": feature_type,

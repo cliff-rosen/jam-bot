@@ -272,6 +272,7 @@ async def extract_unified(
         columns = []
         for feature in request.features:
             columns.append({
+                "id": feature.id,
                 "name": feature.name,
                 "description": feature.description,
                 "type": feature.type,

@@ -12,7 +12,8 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  Play
 } from 'lucide-react';
 
 import { ArticleGroup } from '@/types/workbench';
@@ -179,7 +180,7 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup, groupsData, groupsLoadin
                           {operationInProgress === group.id ? (
                             <MoreHorizontal className="w-4 h-4 animate-pulse" />
                           ) : (
-                            <FolderOpen className="w-4 h-4" />
+                            <Play className="w-4 h-4" />
                           )}
                         </Button>
 

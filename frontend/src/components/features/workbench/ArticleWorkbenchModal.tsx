@@ -567,8 +567,8 @@ export function ArticleWorkbenchModal({
                                           <Badge
                                             variant="outline"
                                             className={`text-xs flex-shrink-0 ${feature.type === 'boolean' ? 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300' :
-                                                feature.type === 'score' ? 'border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-300' :
-                                                  'border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300'
+                                              feature.type === 'score' ? 'border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-300' :
+                                                'border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300'
                                               }`}
                                           >
                                             {feature.type}
@@ -633,7 +633,7 @@ export function ArticleWorkbenchModal({
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Research Metadata</h3>
                           <div className="space-y-2 text-sm">
-                            {workbenchData.metadata.tags.length > 0 && (
+                            {workbenchData.metadata?.tags.length > 0 && (
                               <div>
                                 <span className="text-xs text-gray-600 dark:text-gray-400">Tags:</span>
                                 <div className="flex flex-wrap gap-1 mt-1">
@@ -645,13 +645,13 @@ export function ArticleWorkbenchModal({
                                 </div>
                               </div>
                             )}
-                            {workbenchData.metadata.rating && (
+                            {workbenchData.metadata?.rating && (
                               <div>
                                 <span className="text-xs text-gray-600 dark:text-gray-400">Rating:</span>
                                 <span className="ml-2">{'★'.repeat(workbenchData.metadata.rating)}{'☆'.repeat(5 - workbenchData.metadata.rating)}</span>
                               </div>
                             )}
-                            {workbenchData.metadata.status && (
+                            {workbenchData.metadata?.status && (
                               <div>
                                 <span className="text-xs text-gray-600 dark:text-gray-400">Status:</span>
                                 <Badge variant="outline" className="ml-2 text-xs">{workbenchData.metadata.status}</Badge>

@@ -118,7 +118,7 @@ interface WorkbenchActions {
 
   // Feature Operations (local state + optional API calls)
   addFeatureDefinitionsLocal: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => void;
-  addFeaturesAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => Promise<void>;
+  addFeaturesAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group', targetArticleIds?: string[]) => Promise<void>;
   removeFeatureDefinition: (featureId: string, collectionType?: 'search' | 'group') => void;
   extractFeatureValues: (featureIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
   updateFeatureValueLocal: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
@@ -671,7 +671,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection]);
 
-  const addFeaturesAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search') => {
+  const addFeaturesAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search', targetArticleIds?: string[]) => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
@@ -705,7 +705,12 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
 
     try {
-      const articlesData = updatedCollection.articles.map(a => ({
+      // Filter articles based on selection (if provided)
+      const articlesToExtract = targetArticleIds && targetArticleIds.length > 0
+        ? updatedCollection.articles.filter(a => targetArticleIds.includes(a.article_id))
+        : updatedCollection.articles;
+      
+      const articlesData = articlesToExtract.map(a => ({
         id: a.article_id,
         title: a.article.title,
         abstract: a.article.abstract || ''
@@ -725,8 +730,14 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       console.log('Articles data sent:', articlesData);
       console.log('Features sent:', newFeatures);
 
-      // Update article feature_data
+      // Update article feature_data - only for articles that were extracted
+      const extractedArticleIds = new Set(articlesData.map(a => a.id));
       const updatedArticles = updatedCollection.articles.map(article => {
+        // Only update articles that were part of the extraction
+        if (!extractedArticleIds.has(article.article_id)) {
+          return article; // Return unchanged
+        }
+        
         const articleFeatures = extractionResult.results[article.article_id] || {};
         console.log(`Article ${article.article_id} features:`, articleFeatures);
 

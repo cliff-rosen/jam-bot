@@ -207,14 +207,17 @@ export function WorkbenchPage() {
    * @param features - Array of feature definitions to add
    * @param extractImmediately - Whether to extract the features immediately after adding
    */
-  const handleAddFeatures = async (features: FeatureDefinition[], extractImmediately?: boolean) => {
+  const handleAddFeatures = async (features: FeatureDefinition[], extractImmediately?: boolean, selectedArticleIds?: string[]) => {
     const collectionType = activeTab === 'search' ? 'search' : 'group';
+    const targetArticles = selectedArticleIds && selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
+
     try {
       if (extractImmediately) {
-        await workbench.addFeaturesAndExtract(features, collectionType);
+        await workbench.addFeaturesAndExtract(features, collectionType, targetArticles);
+        const scope = targetArticles ? `${targetArticles.length} selected` : 'all';
         toast({
           title: 'Features Added & Extracted',
-          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} and extracted values`,
+          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} and extracted values for ${scope} articles`,
         });
       } else {
         workbench.addFeatureDefinitionsLocal(features, collectionType);
@@ -569,7 +572,7 @@ export function WorkbenchPage() {
       <AddFeatureModal
         open={showAddModal}
         onOpenChange={setShowAddModal}
-        onAdd={handleAddFeatures}
+        onAdd={(features, extractImmediately) => handleAddFeatures(features, extractImmediately, selectedArticleIds)}
       />
 
       <SaveGroupModal

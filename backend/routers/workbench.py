@@ -252,37 +252,6 @@ async def add_articles_to_group(
     return result
 
 
-@router.post("/groups/{group_id}/sync", response_model=ArticleGroup)
-async def sync_workbench_state(
-    group_id: str,
-    request: UpdateArticleGroupRequest,
-    current_user: User = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """Sync complete workbench state (articles + features) to existing group.
-    
-    This is a convenience endpoint that calls update_group with full state sync.
-    Use this when you want to replace all articles and feature data in one operation.
-    """
-    # Ensure articles are provided for state sync
-    if not request.articles:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Articles must be provided for workbench state synchronization"
-        )
-    
-    group_service = ArticleGroupService(db)
-    result = group_service.update_group(current_user.user_id, group_id, request)
-    
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Group not found or access denied"
-        )
-    
-    return result
-
-
 @router.post("/groups/create-and-save", response_model=ArticleGroupSaveResponse)
 async def create_and_save_group(
     request: SaveToGroupRequest,

@@ -30,7 +30,7 @@ interface ArticleWorkbenchModalProps {
   onSendChatMessage?: (
     message: string,
     article: CanonicalResearchArticle,
-    conversationHistory: Array<{ role: string; content: string }>,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: string) => void

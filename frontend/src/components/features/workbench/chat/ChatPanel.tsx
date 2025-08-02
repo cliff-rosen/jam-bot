@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { CanonicalResearchArticle } from '@/types/unifiedSearch';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatMessage as ChatMessageType } from './types';
@@ -8,9 +8,9 @@ import { ChatMessage as ChatMessageType } from './types';
 interface ChatPanelProps {
   article: CanonicalResearchArticle;
   onSendMessage?: (
-    message: string, 
-    article: CanonicalResearchArticle, 
-    conversationHistory: Array<{role: string; content: string}>,
+    message: string,
+    article: CanonicalResearchArticle,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: string) => void
@@ -70,15 +70,15 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
             role: msg.role as 'user' | 'assistant',
             content: msg.content
           }));
-        
+
         await onSendMessage(
-          messageContent, 
-          article, 
+          messageContent,
+          article,
           conversationHistory,
           // onChunk - append to the assistant message
           (chunk: string) => {
-            setMessages(prev => prev.map(msg => 
-              msg.id === assistantMessageId 
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMessageId
                 ? { ...msg, content: msg.content + chunk }
                 : msg
             ));
@@ -89,8 +89,8 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
           },
           // onError
           (error: string) => {
-            setMessages(prev => prev.map(msg => 
-              msg.id === assistantMessageId 
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMessageId
                 ? { ...msg, content: `I apologize, but I encountered an error: ${error}. Please try again.` }
                 : msg
             ));
@@ -101,9 +101,9 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
         // Fallback simulation for development
         await new Promise(resolve => setTimeout(resolve, 1000));
         const fallbackResponse = `I understand you're asking about "${messageContent}". Based on the article "${article.title}", I can help analyze specific aspects. Could you be more specific about what you'd like to know about this research?`;
-        
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId 
+
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessageId
             ? { ...msg, content: fallbackResponse }
             : msg
         ));
@@ -111,8 +111,8 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMessageId 
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
           ? { ...msg, content: 'I apologize, but I encountered an error while processing your message. Please try again.' }
           : msg
       ));
@@ -145,8 +145,8 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
               <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
               </div>
             </div>

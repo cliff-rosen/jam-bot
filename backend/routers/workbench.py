@@ -22,8 +22,8 @@ from schemas.canonical_types import CanonicalResearchArticle
 
 from services.auth_service import validate_token
 from services.extraction_service import ExtractionService, get_extraction_service
-from services.workbench_service import ArticleGroupService
-from services.article_workbench_service import ArticleWorkbenchService
+from services.article_group_service import ArticleGroupService
+from services.article_group_detail_service import ArticleGroupDetailService
 
 router = APIRouter(prefix="/workbench", tags=["workbench"])
 
@@ -260,7 +260,7 @@ async def create_and_save_group(
 ):
     """Create a new group and save workbench state to it."""
     group_service = ArticleGroupService(db)
-    result = group_service.create_and_save_group(current_user.user_id, request)
+    result = group_service.create_group(current_user.user_id, request, return_success_format=True)
     
     return result
 
@@ -417,8 +417,8 @@ async def get_article_workbench_data(
     db: Session = Depends(get_db)
 ):
     """Get complete workbench data for an article in a group."""
-    workbench_service = ArticleWorkbenchService(db)
-    result = workbench_service.get_workbench_data(current_user.user_id, group_id, article_id)
+    detail_service = ArticleGroupDetailService(db)
+    result = detail_service.get_workbench_data(current_user.user_id, group_id, article_id)
     
     if not result:
         raise HTTPException(
@@ -438,8 +438,8 @@ async def update_article_notes(
     db: Session = Depends(get_db)
 ):
     """Update research notes for an article."""
-    workbench_service = ArticleWorkbenchService(db)
-    result = workbench_service.update_notes(current_user.user_id, group_id, article_id, request.notes)
+    detail_service = ArticleGroupDetailService(db)
+    result = detail_service.update_notes(current_user.user_id, group_id, article_id, request.notes)
     
     if not result:
         raise HTTPException(
@@ -459,8 +459,8 @@ async def update_article_metadata(
     db: Session = Depends(get_db)
 ):
     """Update workbench metadata for an article."""
-    workbench_service = ArticleWorkbenchService(db)
-    result = workbench_service.update_metadata(current_user.user_id, group_id, article_id, request.metadata)
+    detail_service = ArticleGroupDetailService(db)
+    result = detail_service.update_metadata(current_user.user_id, group_id, article_id, request.metadata)
     
     if not result:
         raise HTTPException(
@@ -481,9 +481,9 @@ async def extract_article_feature(
     db: Session = Depends(get_db)
 ):
     """Extract a single feature from an article using AI."""
-    workbench_service = ArticleWorkbenchService(db, extraction_service)
+    detail_service = ArticleGroupDetailService(db, extraction_service)
     
-    result = await workbench_service.extract_feature(
+    result = await detail_service.extract_feature(
         current_user.user_id, 
         group_id, 
         article_id,
@@ -510,8 +510,8 @@ async def delete_article_feature(
     db: Session = Depends(get_db)
 ):
     """Delete a specific feature from an article."""
-    workbench_service = ArticleWorkbenchService(db)
-    result = workbench_service.delete_feature(current_user.user_id, group_id, article_id, feature_name)
+    detail_service = ArticleGroupDetailService(db)
+    result = detail_service.delete_feature(current_user.user_id, group_id, article_id, feature_name)
     
     if not result:
         raise HTTPException(
@@ -533,9 +533,9 @@ async def batch_extract_features(
     db: Session = Depends(get_db)
 ):
     """Extract a feature across multiple articles in a group."""
-    workbench_service = ArticleWorkbenchService(db, extraction_service)
+    detail_service = ArticleGroupDetailService(db, extraction_service)
     
-    result = await workbench_service.batch_extract_features(
+    result = await detail_service.batch_extract_features(
         current_user.user_id,
         group_id,
         request.article_ids,
@@ -561,9 +561,9 @@ async def batch_update_metadata(
     db: Session = Depends(get_db)
 ):
     """Update metadata for multiple articles in a group."""
-    workbench_service = ArticleWorkbenchService(db)
+    detail_service = ArticleGroupDetailService(db)
     
-    result = workbench_service.batch_update_metadata(
+    result = detail_service.batch_update_metadata(
         current_user.user_id,
         group_id,
         request.metadata_updates

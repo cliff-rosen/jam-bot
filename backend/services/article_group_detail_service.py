@@ -1,7 +1,8 @@
 """
-Article Workbench Service
+Article Group Detail Service
 
-Handles all database operations for individual article research (workbench functionality).
+Handles all database operations for individual article details within groups.
+Manages notes, metadata, and feature extraction for specific article-group relationships.
 No database logic should exist in routers - it all goes here.
 """
 
@@ -14,8 +15,8 @@ from models import ArticleGroup, ArticleGroupDetail, User
 from services.extraction_service import ExtractionService
 
 
-class ArticleWorkbenchService:
-    """Service for managing individual article research and workbench data."""
+class ArticleGroupDetailService:
+    """Service for managing individual article details within groups."""
     
     def __init__(self, db: Session, extraction_service: ExtractionService = None):
         self.db = db

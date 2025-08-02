@@ -56,16 +56,28 @@ class ArticleGroupService:
             "total_pages": (total + limit - 1) // limit
         }
     
-    def create_group(self, user_id: int, request) -> Dict[str, Any]:
+    def create_group(self, user_id: int, request, return_success_format: bool = False) -> Dict[str, Any]:
         """Create a new article group."""
+        # Handle both request formats for backward compatibility
+        name = getattr(request, 'name', None) or getattr(request, 'group_name', '')
+        description = getattr(request, 'description', None) or getattr(request, 'group_description', None)
+        
+        # Convert Pydantic models to dictionaries for JSON serialization if needed
+        feature_definitions = []
+        if request.feature_definitions:
+            feature_definitions = [
+                feature.dict() if hasattr(feature, 'dict') else feature 
+                for feature in request.feature_definitions
+            ]
+        
         group = ArticleGroupModel(
             user_id=user_id,
-            name=request.name,
-            description=request.description,
+            name=name,
+            description=description,
             search_query=request.search_query,
             search_provider=request.search_provider,
             search_params=request.search_params or {},
-            feature_definitions=request.feature_definitions or [],
+            feature_definitions=feature_definitions,
             article_count=0
         )
         
@@ -89,7 +101,15 @@ class ArticleGroupService:
             self.db.commit()
             self.db.refresh(group)
         
-        return self._group_to_summary(group)
+        if return_success_format:
+            return {
+                "success": True,
+                "message": f"Created group '{group.name}' with {group.article_count} articles",
+                "group_id": group.id,
+                "articles_saved": group.article_count
+            }
+        else:
+            return self._group_to_summary(group)
     
     def get_group_detail(self, user_id: int, group_id: str, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific group with pagination."""
@@ -220,45 +240,6 @@ class ArticleGroupService:
             "duplicates_skipped": duplicates_skipped
         }
     
-    def create_and_save_group(
-        self, 
-        user_id: int, 
-        request
-    ) -> Dict[str, Any]:
-        """Create a new group and save tabelizer state to it."""
-        # Convert Pydantic models to dictionaries for JSON serialization
-        feature_definitions = []
-        if request.feature_definitions:
-            feature_definitions = [
-                feature.dict() if hasattr(feature, 'dict') else feature 
-                for feature in request.feature_definitions
-            ]
-        
-        group = ArticleGroupModel(
-            user_id=user_id,
-            name=request.group_name,
-            description=request.group_description,
-            search_query=request.search_query,
-            search_provider=request.search_provider,
-            search_params=request.search_params or {},
-            feature_definitions=feature_definitions,
-            article_count=0
-        )
-        
-        self.db.add(group)
-        self.db.flush()  # Get the ID
-        
-        self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
-        
-        self.db.commit()
-        self.db.refresh(group)
-        
-        return {
-            "success": True,
-            "message": f"Created group '{group.name}' with {group.article_count} articles",
-            "group_id": group.id,
-            "articles_saved": group.article_count
-        }
     
     def _add_articles_to_group(
         self, 

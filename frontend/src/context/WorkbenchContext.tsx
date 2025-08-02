@@ -862,14 +862,37 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         features: featuresToExtract
       });
 
-      // Update article feature_data
+      console.log('extractFeatureValues API Response:', extractionResult);
+      console.log('Articles data sent:', articlesData);
+      console.log('Features sent:', featuresToExtract);
+
+      // Update article feature_data with proper feature mapping
       const updatedArticles = currentCollection.articles.map(article => {
         const articleFeatures = extractionResult.results[article.article_id] || {};
+        console.log(`extractFeatureValues - Article ${article.article_id} features:`, articleFeatures);
+
+        // Handle both feature ID and feature name keys
+        const processedFeatures: Record<string, string> = {};
+
+        // First, try direct mapping (if API uses feature IDs)
+        Object.keys(articleFeatures).forEach(key => {
+          processedFeatures[key] = articleFeatures[key];
+        });
+
+        // Also try mapping feature names to IDs (if API uses feature names)
+        featuresToExtract.forEach(feature => {
+          if (articleFeatures[feature.name]) {
+            processedFeatures[feature.id] = articleFeatures[feature.name];
+          }
+        });
+
+        console.log(`extractFeatureValues - Processed features for article ${article.article_id}:`, processedFeatures);
+
         return {
           ...article,
           feature_data: {
             ...article.feature_data,
-            ...articleFeatures
+            ...processedFeatures
           }
         };
       });

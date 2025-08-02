@@ -16,6 +16,8 @@ interface AddFeatureModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (features: FeatureDefinition[], extractImmediately?: boolean) => void;
+  existingFeatures?: FeatureDefinition[]; // For extract mode
+  mode?: 'add' | 'extract'; // Mode: add new features or extract existing ones
 }
 
 type FeatureTemplate = {
@@ -26,11 +28,12 @@ type FeatureTemplate = {
   features?: FeatureDefinition[];
 };
 
-export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalProps) {
+export function AddFeatureModal({ open, onOpenChange, onAdd, existingFeatures = [], mode = 'add' }: AddFeatureModalProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customFeatures, setCustomFeatures] = useState<FeatureDefinition[]>([]);
   const [presets, setPresets] = useState<FeaturePreset[]>([]);
   const [extractImmediately, setExtractImmediately] = useState(true);
+  const [selectedExistingFeatures, setSelectedExistingFeatures] = useState<string[]>([]);
 
   // Create template list combining presets and custom option
   const templates: FeatureTemplate[] = [
@@ -60,16 +63,24 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     };
     if (open) {
       loadPresets();
-      // Reset state when modal opens
-      setSelectedTemplate('custom');
-      setCustomFeatures([{
-        id: generatePrefixedUUID('feat'),
-        name: '',
-        description: '',
-        type: 'boolean'
-      }]);
+      
+      if (mode === 'extract') {
+        // Extract mode: Initialize with existing features selected
+        setSelectedExistingFeatures(existingFeatures.map(f => f.id));
+        setExtractImmediately(true); // Force extraction mode
+      } else {
+        // Add mode: Reset state when modal opens
+        setSelectedTemplate('custom');
+        setCustomFeatures([{
+          id: generatePrefixedUUID('feat'),
+          name: '',
+          description: '',
+          type: 'boolean'
+        }]);
+        setSelectedExistingFeatures([]);
+      }
     }
-  }, [open]);
+  }, [open, mode, existingFeatures]);
 
   const addCustomFeature = () => {
     setCustomFeatures([...customFeatures, {
@@ -99,37 +110,50 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
   };
 
   const handleSubmit = () => {
-    const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
-    if (!selectedTemplateData) return;
-
-    console.log('AddFeatureModal handleSubmit:', {
-      selectedTemplate,
-      selectedTemplateData,
-      customFeatures
-    });
-
     let featuresToAdd: FeatureDefinition[] = [];
 
-    if (selectedTemplateData.type === 'custom') {
-      const validFeatures = customFeatures.filter(feature =>
-        feature.name.trim() && feature.description.trim()
-      );
-      featuresToAdd = validFeatures;
-      console.log('Using custom features:', validFeatures);
+    if (mode === 'extract') {
+      // Extract mode: return selected existing features
+      featuresToAdd = existingFeatures.filter(f => selectedExistingFeatures.includes(f.id));
+      console.log('Extract mode - selected features:', featuresToAdd);
     } else {
-      featuresToAdd = selectedTemplateData.features || [];
-      console.log('Using preset features:', featuresToAdd);
+      // Add mode: return new features from template/custom
+      const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+      if (!selectedTemplateData) return;
+
+      console.log('AddFeatureModal handleSubmit:', {
+        selectedTemplate,
+        selectedTemplateData,
+        customFeatures
+      });
+
+      if (selectedTemplateData.type === 'custom') {
+        const validFeatures = customFeatures.filter(feature =>
+          feature.name.trim() && feature.description.trim()
+        );
+        featuresToAdd = validFeatures;
+        console.log('Using custom features:', validFeatures);
+      } else {
+        featuresToAdd = selectedTemplateData.features || [];
+        console.log('Using preset features:', featuresToAdd);
+      }
     }
 
     if (featuresToAdd.length > 0) {
       console.log('Features being sent to parent:', featuresToAdd);
       // Configuration is done - pass to parent and close modal
-      onAdd(featuresToAdd, extractImmediately);
+      // In extract mode, we always extract (true). In add mode, respect the checkbox.
+      const shouldExtract = mode === 'extract' ? true : extractImmediately;
+      onAdd(featuresToAdd, shouldExtract);
       onOpenChange(false);
     }
   };
 
   const canSubmit = () => {
+    if (mode === 'extract') {
+      return selectedExistingFeatures.length > 0;
+    }
+
     const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
     if (!selectedTemplateData) return false;
 
@@ -138,6 +162,23 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
     } else {
       return selectedTemplateData.features && selectedTemplateData.features.length > 0;
     }
+  };
+
+  // Helper functions for extract mode
+  const toggleExistingFeature = (featureId: string) => {
+    setSelectedExistingFeatures(prev => 
+      prev.includes(featureId) 
+        ? prev.filter(id => id !== featureId)
+        : [...prev, featureId]
+    );
+  };
+
+  const selectAllExisting = () => {
+    setSelectedExistingFeatures(existingFeatures.map(f => f.id));
+  };
+
+  const selectNoneExisting = () => {
+    setSelectedExistingFeatures([]);
   };
 
   const renderFeatureDetails = (feature: FeatureDefinition, index: number) => (
@@ -326,16 +367,86 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
       <DialogContent className="max-w-6xl w-[95vw] h-[85vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Add Features to Extract Data
+            {mode === 'extract' ? 'Extract Features' : 'Add Features to Extract Data'}
           </DialogTitle>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Choose from presets or create custom features to extract data from your articles.
+            {mode === 'extract' 
+              ? 'Select which features to extract for the selected articles.'
+              : 'Choose from presets or create custom features to extract data from your articles.'
+            }
           </p>
         </DialogHeader>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel - Template List */}
-          <div className="w-80 border-r bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
+          {mode === 'extract' ? (
+            /* Extract Mode - Feature Selection */
+            <div className="flex-1 p-6 overflow-y-auto">
+              {existingFeatures.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No features are defined in this collection.
+                </div>
+              ) : (
+                <>
+                  {/* Selection controls */}
+                  <div className="flex gap-2 mb-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllExisting}
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectNoneExisting}
+                    >
+                      Select None
+                    </Button>
+                  </div>
+
+                  {/* Feature list */}
+                  <div className="space-y-3">
+                    {existingFeatures.map(feature => (
+                      <div
+                        key={feature.id}
+                        className="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      >
+                        <Checkbox
+                          id={feature.id}
+                          checked={selectedExistingFeatures.includes(feature.id)}
+                          onCheckedChange={() => toggleExistingFeature(feature.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <label
+                            htmlFor={feature.id}
+                            className="block font-medium text-gray-900 dark:text-gray-100 cursor-pointer"
+                          >
+                            {feature.name}
+                          </label>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {feature.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                              {feature.type === 'boolean' ? 'Yes/No' :
+                               feature.type === 'score' ? 
+                                 `Score ${feature.options?.min || 1}-${feature.options?.max || 10}` :
+                                 'Text'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            /* Add Mode - Template Selection and Configuration */
+            <>
+              {/* Left Panel - Template List */}
+              <div className="w-80 border-r bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Available Options</h3>
             <div className="space-y-2">
               {templates.map((template) => (
@@ -376,24 +487,32 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
           <div className="flex-1 p-6 overflow-y-auto">
             {renderRightPanel()}
           </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-gray-50 dark:bg-gray-900">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="extract-immediately"
-                checked={extractImmediately}
-                onCheckedChange={(checked) => setExtractImmediately(!!checked)}
-              />
-              <Label htmlFor="extract-immediately" className="text-sm font-medium cursor-pointer text-foreground">
-                Extract features immediately after adding
-              </Label>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                (Recommended)
-              </span>
-            </div>
+            {mode === 'extract' ? (
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedExistingFeatures.length} of {existingFeatures.length} features selected
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="extract-immediately"
+                  checked={extractImmediately}
+                  onCheckedChange={(checked) => setExtractImmediately(!!checked)}
+                />
+                <Label htmlFor="extract-immediately" className="text-sm font-medium cursor-pointer text-foreground">
+                  Extract features immediately after adding
+                </Label>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  (Recommended)
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Button
@@ -408,7 +527,7 @@ export function AddFeatureModal({ open, onOpenChange, onAdd }: AddFeatureModalPr
                 disabled={!canSubmit()}
                 className="min-w-[140px]"
               >
-                {extractImmediately ? 'Extract Features' : 'Add Features'}
+                {mode === 'extract' ? 'Extract Features' : (extractImmediately ? 'Extract Features' : 'Add Features')}
               </Button>
             </div>
           </div>

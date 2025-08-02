@@ -14,11 +14,14 @@ import {
   FileText, Zap, FolderOpen, Settings, Star, Tag, Plus,
   Save, Edit3, Trash2, Clock, Brain, Award, ChevronDown, ChevronRight, Hash
 } from 'lucide-react';
-import { CanonicalResearchArticle } from '@/types/canonical_types';
-import { ChatPanel } from './chat/ChatPanel';
+
 import { workbenchApi } from '@/lib/api/workbenchApi';
+
 import { ArticleCollection } from '@/types/articleCollection';
 import { FeatureDefinition, AnalysisPreset, WorkbenchData, ArticleGroupDetail } from '@/types/workbench';
+
+import { CanonicalResearchArticle } from '@/types/canonical_types';
+import { ChatPanel } from './chat/ChatPanel';
 
 interface ArticleWorkbenchModalProps {
   articleDetail: ArticleGroupDetail;

@@ -8,6 +8,8 @@ import { useWorkbench } from '@/context/WorkbenchContext';
 
 import { CollectionSource } from '@/types/articleCollection';
 import { FeatureDefinition } from '@/types/workbench';
+import { articleChatApi } from '@/lib/api/articleChatApi';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 import { TabbedWorkbenchInterface } from './TabbedWorkbenchInterface';
 import { SearchTab } from './SearchTab';
@@ -34,6 +36,8 @@ export function WorkbenchPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  const [addModalMode, setAddModalMode] = useState<'add' | 'extract'>('add');
+  const [addModalCollectionType, setAddModalCollectionType] = useState<'search' | 'group'>('search');
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
   // Selection state
@@ -179,6 +183,15 @@ export function WorkbenchPage() {
   };
 
   /**
+   * Handle opening modal for feature extraction  
+   */
+  const handleExtractFeatures = (collectionType: 'search' | 'group') => {
+    setAddModalMode('extract');
+    setAddModalCollectionType(collectionType);
+    setShowAddModal(true);
+  };
+
+  /**
    * Handle updating an existing group with current collection changes
    * This saves all modifications (articles, features, metadata) back to the group
    */
@@ -208,11 +221,20 @@ export function WorkbenchPage() {
    * @param extractImmediately - Whether to extract the features immediately after adding
    */
   const handleAddFeatures = async (features: FeatureDefinition[], extractImmediately?: boolean, selectedArticleIds?: string[]) => {
-    const collectionType = activeTab === 'search' ? 'search' : 'group';
+    const collectionType = addModalCollectionType; // Use the stored collection type
     const targetArticles = selectedArticleIds && selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
 
     try {
-      if (extractImmediately) {
+      if (addModalMode === 'extract') {
+        // Extract mode: features are existing ones to extract
+        await workbench.extractFeatureValues(features.map(f => f.id), collectionType, targetArticles);
+        const scope = targetArticles ? `${targetArticles.length} selected` : 'all';
+        toast({
+          title: 'Features Extracted',
+          description: `Extracted ${features.length} feature${features.length > 1 ? 's' : ''} for ${scope} articles`,
+        });
+      } else if (extractImmediately) {
+        // Add mode with immediate extraction
         await workbench.addFeaturesAndExtract(features, collectionType, targetArticles);
         const scope = targetArticles ? `${targetArticles.length} selected` : 'all';
         toast({
@@ -220,6 +242,7 @@ export function WorkbenchPage() {
           description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} and extracted values for ${scope} articles`,
         });
       } else {
+        // Add mode without extraction
         workbench.addFeatureDefinitionsLocal(features, collectionType);
         toast({
           title: 'Features Added',
@@ -227,13 +250,34 @@ export function WorkbenchPage() {
         });
       }
     } catch (error) {
-      console.error('Add features failed:', error);
+      console.error('Feature operation failed:', error);
       toast({
-        title: 'Failed to Add Features',
+        title: addModalMode === 'extract' ? 'Failed to Extract Features' : 'Failed to Add Features',
         description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive'
       });
     }
+  };
+
+  /**
+   * Handle chat messages for article discussions
+   */
+  const handleSendChatMessage = async (
+    message: string,
+    article: CanonicalResearchArticle,
+    conversationHistory: Array<{role: string; content: string}>,
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ) => {
+    await articleChatApi.sendMessageStream(
+      message,
+      article,
+      conversationHistory,
+      onChunk,
+      onComplete,
+      onError
+    );
   };
 
   const loadExistingGroups = async () => {
@@ -454,8 +498,12 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => setActiveTab('groups')}
-                  onAddFeatures={() => setShowAddModal(true)}
-                  onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'search')}
+                  onAddFeatures={() => {
+                    setAddModalMode('add');
+                    setAddModalCollectionType('search');
+                    setShowAddModal(true);
+                  }}
+                  onExtractFeatures={() => handleExtractFeatures('search')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
@@ -522,8 +570,12 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => { }} // Groups tab doesn't need this
-                  onAddFeatures={() => setShowAddModal(true)}
-                  onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'group')}
+                  onAddFeatures={() => {
+                    setAddModalMode('add');
+                    setAddModalCollectionType('group');
+                    setShowAddModal(true);
+                  }}
+                  onExtractFeatures={() => handleExtractFeatures('group')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
@@ -584,6 +636,8 @@ export function WorkbenchPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onAdd={(features, extractImmediately) => handleAddFeatures(features, extractImmediately, selectedArticleIds)}
+        mode={addModalMode}
+        existingFeatures={addModalCollectionType === 'search' ? workbench.searchCollection?.feature_definitions || [] : workbench.groupCollection?.feature_definitions || []}
       />
 
       <SaveGroupModal
@@ -629,6 +683,7 @@ export function WorkbenchPage() {
           articleDetail={workbench.selectedArticleDetail}
           collection={activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection}
           onClose={() => workbench.selectArticleDetail(null)}
+          onSendChatMessage={handleSendChatMessage}
         />
       )}
 

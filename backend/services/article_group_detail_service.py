@@ -431,9 +431,9 @@ class ArticleGroupDetailService:
         ).first()
 
 
-def get_article_workbench_service(
+def get_article_group_detail_service(
     db: Session = None, 
     extraction_service: ExtractionService = None
-) -> ArticleWorkbenchService:
-    """Dependency injection for ArticleWorkbenchService."""
-    return ArticleWorkbenchService(db, extraction_service)
+) -> ArticleGroupDetailService:
+    """Dependency injection for ArticleGroupDetailService."""
+    return ArticleGroupDetailService(db, extraction_service)

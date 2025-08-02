@@ -41,7 +41,7 @@ class ArticleGroupDetailService:
             "article": article_detail.article_data,
             "workbench": {
                 "notes": article_detail.notes or "",
-                "features": article_detail.extracted_features or {},
+                "features": article_detail.feature_data or {},
                 "metadata": article_detail.article_metadata or {},
                 "position": article_detail.position,
                 "created_at": article_detail.created_at.isoformat(),
@@ -120,17 +120,17 @@ class ArticleGroupDetailService:
             return None
         
         # Merge with existing features
-        current_features = article_detail.extracted_features or {}
+        current_features = article_detail.feature_data or {}
         current_features.update(features_update)
         
-        article_detail.extracted_features = current_features
+        article_detail.feature_data = current_features
         article_detail.updated_at = datetime.utcnow()
         
         self.db.commit()
         self.db.refresh(article_detail)
         
         return {
-            "features": article_detail.extracted_features,
+            "features": article_detail.feature_data,
             "updated_at": article_detail.updated_at.isoformat()
         }
     
@@ -273,10 +273,10 @@ class ArticleGroupDetailService:
             return None
         
         # Remove feature if it exists
-        current_features = article_detail.extracted_features or {}
+        current_features = article_detail.feature_data or {}
         if feature_name in current_features:
             del current_features[feature_name]
-            article_detail.extracted_features = current_features
+            article_detail.feature_data = current_features
             article_detail.updated_at = datetime.utcnow()
             
             self.db.commit()

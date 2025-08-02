@@ -106,7 +106,7 @@ interface WorkbenchActions {
   refreshGroupsList: () => Promise<ArticleGroup[]>;
 
   // Collection State Sync (affects current collection + backend)
-  syncCollectionToBackend: (collectionType?: 'search' | 'group') => Promise<void>;
+  updateGroupFromCollection: (collectionType?: 'search' | 'group') => Promise<void>;
   deleteCurrentCollection: (collectionType?: 'search' | 'group') => Promise<void>;
 
   // Collection Getters
@@ -433,7 +433,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection, fetchGroupCollection, refreshGroupsList]);
 
-  const syncCollectionToBackend = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
+  const updateGroupFromCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection || !currentCollection.saved_group_id) return;
 
@@ -1021,7 +1021,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     refreshGroupsList,
 
     // Collection Management
-    syncCollectionToBackend,
+    updateGroupFromCollection,
     deleteCurrentCollection,
 
     // Collection Management

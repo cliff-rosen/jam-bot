@@ -185,7 +185,7 @@ export function WorkbenchPage() {
   const handleUpdateExistingGroup = async () => {
     try {
       const collectionType = activeTab === 'search' ? 'search' : 'group';
-      await workbench.syncCollectionToBackend(collectionType);
+      await workbench.updateGroupFromCollection(collectionType);
       const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
       setShowSaveModal(false);
       toast({
@@ -443,7 +443,7 @@ export function WorkbenchPage() {
                   onLoadGroup={() => setActiveTab('groups')}
                   onAddFeatures={() => setShowAddModal(true)}
                   onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'search')}
-                  onSaveChanges={() => workbench.syncCollectionToBackend('search')}
+                  onSaveChanges={() => workbench.updateGroupFromCollection('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
                   onDeleteSelected={handleDeleteSelected}
@@ -501,7 +501,7 @@ export function WorkbenchPage() {
                   onLoadGroup={() => { }} // Groups tab doesn't need this
                   onAddFeatures={() => setShowAddModal(true)}
                   onExtractFeatures={() => workbench.extractFeatureValues(undefined, 'group')}
-                  onSaveChanges={() => workbench.syncCollectionToBackend('group')}
+                  onSaveChanges={() => workbench.updateGroupFromCollection('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
                   onDeleteSelected={handleDeleteSelected}

@@ -202,10 +202,6 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  async createAndSaveGroup(request: SaveToGroupRequest): Promise<ArticleGroupSaveResponse> {
-    const response = await api.post('/api/workbench/groups/create-and-save', request);
-    return response.data;
-  }
 
   // ================== ANALYSIS OPERATIONS ==================
 

@@ -252,18 +252,6 @@ async def add_articles_to_group(
     return result
 
 
-@router.post("/groups/create-and-save", response_model=ArticleGroupSaveResponse)
-async def create_and_save_group(
-    request: SaveToGroupRequest,
-    current_user: User = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """Create a new group and save workbench state to it."""
-    group_service = ArticleGroupService(db)
-    result = group_service.create_group(current_user.user_id, request, return_success_format=True)
-    
-    return result
-
 
 # ================== ANALYSIS ENDPOINTS ==================
 

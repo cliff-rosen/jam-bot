@@ -120,7 +120,7 @@ interface WorkbenchActions {
   addFeatureDefinitionsLocal: (features: FeatureDefinition[], collectionType?: 'search' | 'group') => void;
   addFeaturesAndExtract: (features: FeatureDefinition[], collectionType?: 'search' | 'group', targetArticleIds?: string[]) => Promise<void>;
   removeFeatureDefinition: (featureId: string, collectionType?: 'search' | 'group') => void;
-  extractFeatureValues: (featureIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  extractFeatureValues: (featureIds?: string[], collectionType?: 'search' | 'group', targetArticleIds?: string[]) => Promise<void>;
   updateFeatureValueLocal: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
 
   // Selection Management (UI state only)

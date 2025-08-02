@@ -254,11 +254,11 @@ export function WorkbenchPage() {
     // For now, we'll need to update the entire feature_definitions array
     const collection = manageFeaturesCollectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
     if (!collection) return;
-    
-    const updatedFeatures = collection.feature_definitions.map(f => 
+
+    const updatedFeatures = collection.feature_definitions.map(f =>
       f.id === featureId ? { ...f, ...updates } : f
     );
-    
+
     // This needs a new context method to update features
     workbench.addFeatureDefinitionsLocal(updatedFeatures, manageFeaturesCollectionType);
   };
@@ -268,7 +268,7 @@ export function WorkbenchPage() {
    */
   const handleManageFeaturesAdd = (features: FeatureDefinition[], extractImmediately: boolean) => {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-    
+
     if (extractImmediately) {
       workbench.addFeaturesAndExtract(features, manageFeaturesCollectionType, targetArticles);
     } else {
@@ -279,9 +279,9 @@ export function WorkbenchPage() {
   /**
    * Handle extracting selected features from the Manage Features modal
    */
-  const handleManageFeaturesExtract = (featureIds: string[]) => {
+  const handleManageFeaturesExtract = async (featureIds: string[]) => {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-    workbench.extractFeatureValues(featureIds, manageFeaturesCollectionType, targetArticles);
+    await workbench.extractFeatureValues(featureIds, manageFeaturesCollectionType, targetArticles);
     setShowManageFeaturesModal(false);
   };
 
@@ -688,7 +688,7 @@ export function WorkbenchPage() {
         open={showManageFeaturesModal}
         onOpenChange={setShowManageFeaturesModal}
         currentFeatures={
-          manageFeaturesCollectionType === 'search' 
+          manageFeaturesCollectionType === 'search'
             ? workbench.searchCollection?.feature_definitions || []
             : workbench.groupCollection?.feature_definitions || []
         }

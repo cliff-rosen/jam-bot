@@ -651,15 +651,29 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       id: f.id || generatePrefixedUUID('feat')
     }));
 
-    // Filter out any features that already exist (prevent duplicates)
-    const existingIds = new Set(currentCollection.feature_definitions.map(f => f.id));
-    const uniqueNewFeatures = newFeatures.filter(f => !existingIds.has(f.id));
+    // Handle existing features by updating them, and add truly new ones
+    const existingFeatureMap = new Map(currentCollection.feature_definitions.map(f => [f.id, f]));
+    const updatedFeatures = [...currentCollection.feature_definitions];
+    let featuresChanged = false;
 
-    if (uniqueNewFeatures.length === 0) return; // No new features to add
+    newFeatures.forEach(newFeature => {
+      const existingIndex = updatedFeatures.findIndex(f => f.id === newFeature.id);
+      if (existingIndex >= 0) {
+        // Update existing feature
+        updatedFeatures[existingIndex] = newFeature;
+        featuresChanged = true;
+      } else {
+        // Add new feature
+        updatedFeatures.push(newFeature);
+        featuresChanged = true;
+      }
+    });
+
+    if (!featuresChanged) return; // No changes to apply
 
     const updatedCollection = {
       ...currentCollection,
-      feature_definitions: [...currentCollection.feature_definitions, ...uniqueNewFeatures],
+      feature_definitions: updatedFeatures,
       is_modified: true,
       updated_at: new Date().toISOString()
     };
@@ -685,10 +699,27 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     console.log('WorkbenchContext processed features:', newFeatures);
 
-    // Create updated collection with new features
+    // Handle existing features by updating them, and add truly new ones
+    const updatedFeatures = [...currentCollection.feature_definitions];
+    let featuresChanged = false;
+
+    newFeatures.forEach(newFeature => {
+      const existingIndex = updatedFeatures.findIndex(f => f.id === newFeature.id);
+      if (existingIndex >= 0) {
+        // Update existing feature
+        updatedFeatures[existingIndex] = newFeature;
+        featuresChanged = true;
+      } else {
+        // Add new feature
+        updatedFeatures.push(newFeature);
+        featuresChanged = true;
+      }
+    });
+
+    // Create updated collection with features
     const updatedCollection = {
       ...currentCollection,
-      feature_definitions: [...currentCollection.feature_definitions, ...newFeatures],
+      feature_definitions: updatedFeatures,
       is_modified: true,
       updated_at: new Date().toISOString()
     };

@@ -16,6 +16,7 @@ import { SearchTab } from './SearchTab';
 import { GroupsTab } from './GroupsTab';
 import { WorkbenchTable } from './WorkbenchTable';
 import { AddFeatureModal } from './AddFeatureModal';
+import { ManageCollectionFeaturesModal } from './ManageCollectionFeaturesModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
 import { AddToGroupModal } from './AddToGroupModal';
@@ -34,10 +35,12 @@ export function WorkbenchPage() {
   const groupsLoading = workbench.groupsListLoading;
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showManageFeaturesModal, setShowManageFeaturesModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'add' | 'extract'>('add');
   const [addModalCollectionType, setAddModalCollectionType] = useState<'search' | 'group'>('search');
+  const [manageFeaturesCollectionType, setManageFeaturesCollectionType] = useState<'search' | 'group'>('search');
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
   // Selection state
@@ -183,39 +186,6 @@ export function WorkbenchPage() {
   };
 
   /**
-   * Handle opening modal for feature extraction  
-   */
-  const handleExtractFeatures = (collectionType: 'search' | 'group') => {
-    setAddModalMode('extract');
-    setAddModalCollectionType(collectionType);
-    setShowAddModal(true);
-  };
-
-  /**
-   * Handle updating an existing group with current collection changes
-   * This saves all modifications (articles, features, metadata) back to the group
-   */
-  const handleUpdateExistingGroup = async () => {
-    try {
-      const collectionType = activeTab === 'search' ? 'search' : 'group';
-      await workbench.updateGroupFromCollection(collectionType);
-      const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
-      setShowSaveModal(false);
-      toast({
-        title: 'Group Updated',
-        description: `Updated "${currentCollection?.name}" successfully`,
-      });
-    } catch (error) {
-      console.error('Update failed:', error);
-      toast({
-        title: 'Update Failed',
-        description: error instanceof Error ? error.message : 'Failed to update group',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  /**
    * Handle creating a new feature definition and optionally extracting it
    * @param features - Array of feature definitions to add
    * @param extractImmediately - Whether to extract the features immediately after adding
@@ -254,6 +224,87 @@ export function WorkbenchPage() {
       toast({
         title: addModalMode === 'extract' ? 'Failed to Extract Features' : 'Failed to Add Features',
         description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  /**
+   * Handle opening modal for feature extraction  
+   */
+  const handleExtractFeatures = (collectionType: 'search' | 'group') => {
+    setAddModalMode('extract');
+    setAddModalCollectionType(collectionType);
+    setShowAddModal(true);
+  };
+
+  /**
+   * Handle opening the new manage features modal
+   */
+  const handleOpenManageFeatures = (collectionType: 'search' | 'group') => {
+    setManageFeaturesCollectionType(collectionType);
+    setShowManageFeaturesModal(true);
+  };
+
+  /**
+   * Handle updating a feature definition
+   */
+  const handleUpdateFeature = (featureId: string, updates: Partial<FeatureDefinition>) => {
+    // TODO: Implement feature update in WorkbenchContext
+    console.log('Update feature:', featureId, updates);
+    // For now, we'll need to update the entire feature_definitions array
+    const collection = manageFeaturesCollectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
+    if (!collection) return;
+    
+    const updatedFeatures = collection.feature_definitions.map(f => 
+      f.id === featureId ? { ...f, ...updates } : f
+    );
+    
+    // This needs a new context method to update features
+    workbench.addFeatureDefinitionsLocal(updatedFeatures, manageFeaturesCollectionType);
+  };
+
+  /**
+   * Handle adding features from the manage modal
+   */
+  const handleManageModalAddFeatures = (features: FeatureDefinition[], extractImmediately: boolean) => {
+    const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
+    
+    if (extractImmediately) {
+      workbench.addFeaturesAndExtract(features, manageFeaturesCollectionType, targetArticles);
+    } else {
+      workbench.addFeatureDefinitionsLocal(features, manageFeaturesCollectionType);
+    }
+  };
+
+  /**
+   * Handle extracting features from the manage modal
+   */
+  const handleManageModalExtractFeatures = (featureIds: string[]) => {
+    const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
+    workbench.extractFeatureValues(featureIds, manageFeaturesCollectionType, targetArticles);
+    setShowManageFeaturesModal(false);
+  };
+
+  /**
+   * Handle updating an existing group with current collection changes
+   * This saves all modifications (articles, features, metadata) back to the group
+   */
+  const handleUpdateExistingGroup = async () => {
+    try {
+      const collectionType = activeTab === 'search' ? 'search' : 'group';
+      await workbench.updateGroupFromCollection(collectionType);
+      const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
+      setShowSaveModal(false);
+      toast({
+        title: 'Group Updated',
+        description: `Updated "${currentCollection?.name}" successfully`,
+      });
+    } catch (error) {
+      console.error('Update failed:', error);
+      toast({
+        title: 'Update Failed',
+        description: error instanceof Error ? error.message : 'Failed to update group',
         variant: 'destructive'
       });
     }
@@ -498,11 +549,7 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => setActiveTab('groups')}
-                  onAddFeatures={() => {
-                    setAddModalMode('add');
-                    setAddModalCollectionType('search');
-                    setShowAddModal(true);
-                  }}
+                  onAddFeatures={() => handleOpenManageFeatures('search')}
                   onExtractFeatures={() => handleExtractFeatures('search')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
@@ -570,11 +617,7 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => { }} // Groups tab doesn't need this
-                  onAddFeatures={() => {
-                    setAddModalMode('add');
-                    setAddModalCollectionType('group');
-                    setShowAddModal(true);
-                  }}
+                  onAddFeatures={() => handleOpenManageFeatures('group')}
                   onExtractFeatures={() => handleExtractFeatures('group')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
@@ -632,12 +675,34 @@ export function WorkbenchPage() {
 
 
       {/* Modals */}
+      {/* Old modal for Extract mode */}
       <AddFeatureModal
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onAdd={(features, extractImmediately) => handleAddFeatures(features, extractImmediately, selectedArticleIds)}
         mode={addModalMode}
         existingFeatures={addModalCollectionType === 'search' ? workbench.searchCollection?.feature_definitions || [] : workbench.groupCollection?.feature_definitions || []}
+      />
+
+      {/* New modal for Manage Features (Add mode) */}
+      <ManageCollectionFeaturesModal
+        open={showManageFeaturesModal}
+        onOpenChange={setShowManageFeaturesModal}
+        currentFeatures={
+          manageFeaturesCollectionType === 'search' 
+            ? workbench.searchCollection?.feature_definitions || []
+            : workbench.groupCollection?.feature_definitions || []
+        }
+        selectedArticleCount={selectedArticleIds.length}
+        totalArticleCount={
+          manageFeaturesCollectionType === 'search'
+            ? workbench.searchCollection?.articles.length || 0
+            : workbench.groupCollection?.articles.length || 0
+        }
+        onUpdateFeature={handleUpdateFeature}
+        onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, manageFeaturesCollectionType)}
+        onAddFeatures={handleManageModalAddFeatures}
+        onExtractFeatures={handleManageModalExtractFeatures}
       />
 
       <SaveGroupModal

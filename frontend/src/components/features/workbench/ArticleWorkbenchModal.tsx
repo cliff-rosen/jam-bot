@@ -11,8 +11,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ExternalLink, Calendar, Users, BookOpen, MessageCircle, X,
-  FileText, Zap, FolderOpen, Settings, Star, Tag, Plus,
-  Save, Edit3, Trash2, Clock, Brain, Award, ChevronDown, ChevronRight, Hash
+  FileText, Zap, Tag, Plus,
+  Save, Edit3, Trash2, Brain, ChevronDown, ChevronRight, Hash
 } from 'lucide-react';
 
 import { workbenchApi } from '@/lib/api/workbenchApi';

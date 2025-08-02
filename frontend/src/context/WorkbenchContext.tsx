@@ -760,28 +760,14 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         const articleFeatures = extractionResult.results[article.article_id] || {};
         console.log(`Article ${article.article_id} features:`, articleFeatures);
 
-        // Handle both feature ID and feature name keys
-        const processedFeatures: Record<string, string> = {};
-
-        // First, try direct mapping (if API uses feature IDs)
-        Object.keys(articleFeatures).forEach(key => {
-          processedFeatures[key] = articleFeatures[key];
-        });
-
-        // Also try mapping feature names to IDs (if API uses feature names)
-        newFeatures.forEach(feature => {
-          if (articleFeatures[feature.name]) {
-            processedFeatures[feature.id] = articleFeatures[feature.name];
-          }
-        });
-
-        console.log(`Processed features for article ${article.article_id}:`, processedFeatures);
+        // API should return features with IDs as keys
+        console.log(`Processed features for article ${article.article_id}:`, articleFeatures);
 
         return {
           ...article,
           feature_data: {
             ...article.feature_data,
-            ...processedFeatures
+            ...articleFeatures
           }
         };
       });
@@ -871,28 +857,14 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         const articleFeatures = extractionResult.results[article.article_id] || {};
         console.log(`extractFeatureValues - Article ${article.article_id} features:`, articleFeatures);
 
-        // Handle both feature ID and feature name keys
-        const processedFeatures: Record<string, string> = {};
-
-        // First, try direct mapping (if API uses feature IDs)
-        Object.keys(articleFeatures).forEach(key => {
-          processedFeatures[key] = articleFeatures[key];
-        });
-
-        // Also try mapping feature names to IDs (if API uses feature names)
-        featuresToExtract.forEach(feature => {
-          if (articleFeatures[feature.name]) {
-            processedFeatures[feature.id] = articleFeatures[feature.name];
-          }
-        });
-
-        console.log(`extractFeatureValues - Processed features for article ${article.article_id}:`, processedFeatures);
+        // API should return features with IDs as keys
+        console.log(`extractFeatureValues - Processed features for article ${article.article_id}:`, articleFeatures);
 
         return {
           ...article,
           feature_data: {
             ...article.feature_data,
-            ...processedFeatures
+            ...articleFeatures
           }
         };
       });

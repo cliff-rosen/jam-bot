@@ -222,15 +222,6 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  // Legacy alias
-  async getColumnPresets(): Promise<ColumnPresetsResponse> {
-    const response = await this.getFeaturePresets();
-    return {
-      ...response,
-      categories: [] // Categories not currently supported
-    };
-  }
-
 
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 

@@ -238,8 +238,7 @@ class ArticleGroupService:
             "group_id": group_id,
             "articles_saved": articles_added,
             "duplicates_skipped": duplicates_skipped
-        }
-    
+        }   
     
     def _add_articles_to_group(
         self, 

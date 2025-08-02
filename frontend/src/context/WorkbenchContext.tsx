@@ -641,8 +641,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== FEATURE MANAGEMENT ==================
 
-  const updateCollectionWithFeatures = useCallback((
-    features: FeatureDefinition[], 
+  const _updateCollectionWithFeatures = useCallback((
+    features: FeatureDefinition[],
     collectionType: 'search' | 'group' = 'search',
     currentCollection: ArticleCollection
   ): ArticleCollection => {
@@ -683,8 +683,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
     if (!currentCollection) return;
 
-    const updatedCollection = updateCollectionWithFeatures(features, collectionType, currentCollection);
-    
+    const updatedCollection = _updateCollectionWithFeatures(features, collectionType, currentCollection);
+
     // Only update state if there were changes
     if (updatedCollection !== currentCollection) {
       if (collectionType === 'search') {
@@ -693,7 +693,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setGroupCollection(updatedCollection);
       }
     }
-  }, [searchCollection, groupCollection, updateCollectionWithFeatures]);
+  }, [searchCollection, groupCollection, _updateCollectionWithFeatures]);
 
   const addFeaturesAndExtract = useCallback(async (features: FeatureDefinition[], collectionType: 'search' | 'group' = 'search', targetArticleIds?: string[]) => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -702,7 +702,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     console.log('WorkbenchContext addFeatureDefinitionsAndExtract received features:', features);
 
     // Use the shared helper to update the collection with features
-    const updatedCollection = updateCollectionWithFeatures(features, collectionType, currentCollection);
+    const updatedCollection = _updateCollectionWithFeatures(features, collectionType, currentCollection);
 
     // Get the processed features with IDs for extraction
     const newFeatures = features.map(f => ({
@@ -728,7 +728,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const articlesToExtract = targetArticleIds && targetArticleIds.length > 0
         ? updatedCollection.articles.filter(a => targetArticleIds.includes(a.article_id))
         : updatedCollection.articles;
-      
+
       const articlesData = articlesToExtract.map(a => ({
         id: a.article_id,
         title: a.article.title,
@@ -756,7 +756,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         if (!extractedArticleIds.has(article.article_id)) {
           return article; // Return unchanged
         }
-        
+
         const articleFeatures = extractionResult.results[article.article_id] || {};
         console.log(`Article ${article.article_id} features:`, articleFeatures);
 
@@ -806,7 +806,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setIsExtracting(false);
       setExtractionProgress(undefined);
     }
-  }, [searchCollection, groupCollection, updateCollectionWithFeatures]);
+  }, [searchCollection, groupCollection, _updateCollectionWithFeatures]);
 
   const removeFeatureDefinition = useCallback((featureId: string, collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;

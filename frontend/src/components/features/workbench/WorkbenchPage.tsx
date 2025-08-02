@@ -436,7 +436,17 @@ export function WorkbenchPage() {
 
             {/* Results Section - show when we have a search collection */}
             {workbench.searchCollection && (
-              <div className="space-y-4">
+              <div className="relative space-y-4">
+                {/* Loading Overlay for Search Results */}
+                {workbench.collectionLoading && (
+                  <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                    <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm">Loading...</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Collection Header with Branding and Actions */}
                 <CollectionHeader
                   collection={workbench.searchCollection}
@@ -494,7 +504,17 @@ export function WorkbenchPage() {
 
             {/* Results Section - show when we have a group collection */}
             {workbench.groupCollection && (
-              <div className="space-y-4">
+              <div className="relative space-y-4">
+                {/* Loading Overlay for Group Results */}
+                {workbench.collectionLoading && (
+                  <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                    <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm">Loading...</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Collection Header with Branding and Actions */}
                 <CollectionHeader
                   collection={workbench.groupCollection}
@@ -558,15 +578,6 @@ export function WorkbenchPage() {
         </div>
       )}
 
-      {/* Loading State */}
-      {workbench.collectionLoading && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-foreground">
-            <Loader2 className="w-6 h-6 animate-spin text-foreground" />
-            <span>Loading...</span>
-          </div>
-        </div>
-      )}
 
       {/* Modals */}
       <AddFeatureModal
@@ -593,7 +604,6 @@ export function WorkbenchPage() {
         currentGroupName={workbench.searchCollection?.name}
         canUpdateExisting={workbench.searchCollection?.source === CollectionSource.SAVED_GROUP && workbench.searchCollection?.saved_group_id != null}
       />
-
 
       <AddToGroupModal
         open={showAddToGroupModal}

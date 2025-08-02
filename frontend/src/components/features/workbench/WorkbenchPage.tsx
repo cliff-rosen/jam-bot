@@ -625,8 +625,8 @@ export function WorkbenchPage() {
       {/* Extraction Animation Overlay */}
       <ExtractionAnimation
         isVisible={workbench.isExtracting}
-        featuresCount={workbench.searchCollection?.feature_definitions.length || 0}
-        articlesCount={workbench.searchCollection?.articles.length || 0}
+        featuresCount={activeTab === 'search' ? workbench.searchCollection?.feature_definitions.length || 0 : workbench.groupCollection?.feature_definitions.length || 0}
+        articlesCount={selectedArticleIds.length > 0 ? selectedArticleIds.length : activeTab === 'search' ? workbench.searchCollection?.articles.length || 0 : workbench.groupCollection?.articles.length || 0}
       />
     </div>
   );

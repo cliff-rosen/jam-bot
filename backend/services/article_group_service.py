@@ -131,7 +131,7 @@ class ArticleGroupService:
             raise
     
     def update_group(self, user_id: int, group_id: str, request) -> Optional[Dict[str, Any]]:
-        """Update group metadata and optionally sync articles with feature data."""
+        """Update a group's metadata and/or articles."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
                 ArticleGroupModel.id == group_id,
@@ -158,6 +158,9 @@ class ArticleGroupService:
                 ArticleGroupDetailModel.article_group_id == group_id
             ).delete()
             
+            # Flush the delete operation to ensure it's executed
+            self.db.flush()
+            
             self._add_articles_to_group(group, request.articles, request.feature_definitions or [])
             
             # Update search context if provided
@@ -172,6 +175,17 @@ class ArticleGroupService:
         
         self.db.commit()
         self.db.refresh(group)
+        
+        # Double-check article count after commit
+        actual_count = self.db.query(ArticleGroupDetailModel).filter(
+            ArticleGroupDetailModel.article_group_id == group_id
+        ).count()
+        
+        if group.article_count != actual_count:
+            print(f"Article count mismatch after update for group {group_id}: stored={group.article_count}, actual={actual_count}")
+            group.article_count = actual_count
+            self.db.commit()
+            self.db.refresh(group)
         
         return self._group_to_summary(group)
     
@@ -306,6 +320,9 @@ class ArticleGroupService:
             articles_added += 1
         
         # Update article count and timestamp
+        # Flush to ensure all articles are saved before counting
+        self.db.flush()
+        
         new_count = self.db.query(ArticleGroupDetailModel).filter(
             ArticleGroupDetailModel.article_group_id == group.id
         ).count()

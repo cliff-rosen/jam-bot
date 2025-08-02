@@ -260,10 +260,14 @@ async def add_articles_to_group(
 async def extract_unified(
     request: ExtractRequest,
     current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service)
+    extraction_service: ExtractionService = Depends(get_extraction_service),
+    db: Session = Depends(get_db)
 ):
     """Unified endpoint to extract multiple columns from articles in a single LLM call."""
     try:
+        # Use ArticleGroupDetailService since it understands article structure
+        detail_service = ArticleGroupDetailService(db, extraction_service)
+        
         # Convert features to unified extraction format
         columns = []
         for feature in request.features:
@@ -274,7 +278,7 @@ async def extract_unified(
                 "options": feature.options or {}
             })
         
-        results = await extraction_service.extract_unified_columns(
+        results = await detail_service.extract_unified_columns(
             request.articles, 
             columns
         )

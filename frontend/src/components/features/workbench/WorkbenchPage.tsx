@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useWorkbench } from '@/context/WorkbenchContext';
 
 import { CollectionSource } from '@/types/articleCollection';
+import { FeatureDefinition } from '@/types/workbench';
 
 import { TabbedWorkbenchInterface } from './TabbedWorkbenchInterface';
 import { SearchTab } from './SearchTab';
@@ -174,6 +175,61 @@ export function WorkbenchPage() {
         variant: 'destructive'
       });
       throw error; // Re-throw so the GroupsTab can handle it
+    }
+  };
+
+  /**
+   * Handle updating an existing group with current collection changes
+   * This saves all modifications (articles, features, metadata) back to the group
+   */
+  const handleUpdateExistingGroup = async () => {
+    try {
+      const collectionType = activeTab === 'search' ? 'search' : 'group';
+      await workbench.syncCollectionToBackend(collectionType);
+      const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
+      setShowSaveModal(false);
+      toast({
+        title: 'Group Updated',
+        description: `Updated "${currentCollection?.name}" successfully`,
+      });
+    } catch (error) {
+      console.error('Update failed:', error);
+      toast({
+        title: 'Update Failed',
+        description: error instanceof Error ? error.message : 'Failed to update group',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  /**
+   * Handle creating a new feature definition and optionally extracting it
+   * @param features - Array of feature definitions to add
+   * @param extractImmediately - Whether to extract the features immediately after adding
+   */
+  const handleAddFeatures = async (features: FeatureDefinition[], extractImmediately?: boolean) => {
+    const collectionType = activeTab === 'search' ? 'search' : 'group';
+    try {
+      if (extractImmediately) {
+        await workbench.addFeaturesAndExtract(features, collectionType);
+        toast({
+          title: 'Features Added & Extracted',
+          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} and extracted values`,
+        });
+      } else {
+        workbench.addFeatureDefinitionsLocal(features, collectionType);
+        toast({
+          title: 'Features Added',
+          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} to the collection`,
+        });
+      }
+    } catch (error) {
+      console.error('Add features failed:', error);
+      toast({
+        title: 'Failed to Add Features',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -513,14 +569,7 @@ export function WorkbenchPage() {
       <AddFeatureModal
         open={showAddModal}
         onOpenChange={setShowAddModal}
-        onAdd={async (features, extractImmediately) => {
-          const collectionType = activeTab === 'search' ? 'search' : 'group';
-          if (extractImmediately) {
-            await workbench.addFeaturesAndExtract(features, collectionType);
-          } else {
-            workbench.addFeatureDefinitionsLocal(features, collectionType);
-          }
-        }}
+        onAdd={handleAddFeatures}
       />
 
       <SaveGroupModal
@@ -532,25 +581,7 @@ export function WorkbenchPage() {
           setShowSaveModal(open);
         }}
         onSave={handleSaveGroup}
-        onUpdateExisting={async () => {
-          try {
-            const collectionType = activeTab === 'search' ? 'search' : 'group';
-            await workbench.syncCollectionToBackend(collectionType);
-            const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
-            setShowSaveModal(false);
-            toast({
-              title: 'Group Updated',
-              description: `Updated "${currentCollection?.name}" successfully`,
-            });
-          } catch (error) {
-            console.error('Update failed:', error);
-            toast({
-              title: 'Update Failed',
-              description: error instanceof Error ? error.message : 'Failed to update group',
-              variant: 'destructive'
-            });
-          }
-        }}
+        onUpdateExisting={handleUpdateExistingGroup}
         onAddToGroup={handleAddToGroup}
         defaultName={workbench.searchCollection?.name}
         existingGroups={existingGroups}

@@ -451,14 +451,14 @@ class ArticleGroupDetailService:
             article_id = detail.article_data["id"]
             if article_id in extraction_results:
                 # Update extracted features
-                current_features = detail.extracted_features or {}
+                current_features = detail.feature_data or {}
                 for feature_name, value in extraction_results[article_id].items():
                     current_features[feature_name] = {
                         "value": value,
                         "extraction_method": "ai",
                         "extracted_at": datetime.utcnow().isoformat()
                     }
-                detail.extracted_features = current_features
+                detail.feature_data = current_features
                 detail.updated_at = datetime.utcnow()
         
         self.db.commit()

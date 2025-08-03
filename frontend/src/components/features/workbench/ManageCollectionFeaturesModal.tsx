@@ -385,7 +385,27 @@ export function ManageCollectionFeaturesModal({
 
                   {selectedPreset && (
                     <div>
-                      <Label>Available Features</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Available Features</Label>
+                        {getAvailablePresetFeatures().length > 0 && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedPresetFeatures(getAvailablePresetFeatures().map(f => f.id))}
+                            >
+                              Select All
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedPresetFeatures([])}
+                            >
+                              Select None
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                       <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
                         {getAvailablePresetFeatures().length === 0 ? (
                           <p className="text-sm text-gray-500 dark:text-gray-400 italic">

@@ -34,10 +34,10 @@ export function WorkbenchPage() {
   const groupsData = workbench.groupsList;
   const groupsLoading = workbench.groupsListLoading;
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showManageFeaturesModal, setShowManageFeaturesModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showManageFeaturesModal, setShowManageFeaturesModal] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'add' | 'extract'>('add');
   const [addModalCollectionType, setAddModalCollectionType] = useState<'search' | 'group'>('search');
   const [manageFeaturesCollectionType, setManageFeaturesCollectionType] = useState<'search' | 'group'>('search');

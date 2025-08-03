@@ -39,17 +39,20 @@ export function ArticleWorkbenchModal({
   const article = articleDetail.article;
   const collectionType = collection?.source === 'search' ? 'search' : 'group';
 
-  // Get current feature data from workbench context (reactive to updates)
-  const getCurrentFeatureData = () => {
-    if (!collection) return {};
+  // Get current data from workbench context (reactive to updates)
+  const getCurrentArticleData = () => {
+    if (!collection) return { featureData: {}, notes: '' };
 
     const currentArticle = collection.articles.find(
       item => item.article_id === articleDetail.article_id
     );
-    return currentArticle?.feature_data || {};
+    return {
+      featureData: currentArticle?.feature_data || {},
+      notes: currentArticle?.notes || ''
+    };
   };
 
-  const featureData = getCurrentFeatureData();
+  const { featureData, notes: currentNotes } = getCurrentArticleData();
 
   const getArticleUrl = () => {
     if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
@@ -154,8 +157,8 @@ export function ArticleWorkbenchModal({
                     <NotesTab
                       groupId={collection.saved_group_id}
                       articleId={article.id}
-                      articleDetail={articleDetail}
-                      initialNotes={articleDetail.notes || ''}
+                      articleDetail={{ ...articleDetail, notes: currentNotes }}
+                      initialNotes={currentNotes}
                     />
                   ) : (
                     <div className="text-center py-8">

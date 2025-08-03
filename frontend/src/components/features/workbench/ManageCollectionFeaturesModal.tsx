@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { workbenchApi, FeaturePreset } from '@/lib/api/workbenchApi';
-import { Plus, Edit2, Trash2, Check, X, ChevronDown, ChevronUp, Settings, Loader2, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Settings, RotateCcw } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
@@ -40,7 +39,7 @@ export function ManageCollectionFeaturesModal({
   // State for editing existing features
   const [editingFeature, setEditingFeature] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<Partial<FeatureDefinition>>({});
-  
+
   // State for adding new features
   const [addMode, setAddMode] = useState<AddMode>('none');
   const [presets, setPresets] = useState<FeaturePreset[]>([]);
@@ -52,7 +51,7 @@ export function ManageCollectionFeaturesModal({
     description: '',
     type: 'text'
   });
-  
+
   // State for extraction
   const [selectedForExtraction, setSelectedForExtraction] = useState<string[]>([]);
   const [extractOnAdd, setExtractOnAdd] = useState(true);
@@ -89,10 +88,10 @@ export function ManageCollectionFeaturesModal({
   // Get features from selected preset that aren't already in collection
   const getAvailablePresetFeatures = (): FeatureDefinition[] => {
     if (!selectedPreset) return [];
-    
+
     const preset = presets.find(p => p.id === selectedPreset);
     if (!preset) return [];
-    
+
     const existingNames = new Set(currentFeatures.map(f => f.name.toLowerCase()));
     return preset.features.filter(f => !existingNames.has(f.name.toLowerCase()));
   };
@@ -138,11 +137,11 @@ export function ManageCollectionFeaturesModal({
   const handleAddPresetFeatures = () => {
     const preset = presets.find(p => p.id === selectedPreset);
     if (!preset) return;
-    
-    const featuresToAdd = preset.features.filter(f => 
+
+    const featuresToAdd = preset.features.filter(f =>
       selectedPresetFeatures.includes(f.id)
     );
-    
+
     if (featuresToAdd.length > 0) {
       onAddFeatures(featuresToAdd, extractOnAdd);
       setSelectedPresetFeatures([]);
@@ -191,9 +190,46 @@ export function ManageCollectionFeaturesModal({
             Feature Management
           </DialogTitle>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Manage features, select which to extract, and target articles • Scope: {renderScope()}
+            Manage features, select which to extract, and target articles
           </p>
         </DialogHeader>
+
+        {/* Selection Context Banner */}
+        <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${selectedArticleCount && selectedArticleCount > 0 ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  Target Scope:
+                </span>
+              </div>
+              <div className="text-gray-700 dark:text-gray-300">
+                {selectedArticleCount && selectedArticleCount > 0 ? (
+                  <span>
+                    <strong className="text-orange-600 dark:text-orange-400">{selectedArticleCount} selected articles</strong>
+                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                      (out of {totalArticleCount} total)
+                    </span>
+                  </span>
+                ) : (
+                  <span>
+                    <strong className="text-blue-600 dark:text-blue-400">All {totalArticleCount} articles</strong>
+                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                      (entire collection)
+                    </span>
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {selectedArticleCount && selectedArticleCount > 0 
+                ? 'Operations will only affect selected articles' 
+                : 'Operations will affect the entire collection'
+              }
+            </div>
+          </div>
+        </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           {/* Current Features Section */}
@@ -239,7 +275,7 @@ export function ManageCollectionFeaturesModal({
                             <Input
                               id={`edit-name-${feature.id}`}
                               value={editedValues.name || ''}
-                              onChange={(e) => setEditedValues({...editedValues, name: e.target.value})}
+                              onChange={(e) => setEditedValues({ ...editedValues, name: e.target.value })}
                               className="mt-1"
                             />
                           </div>
@@ -248,7 +284,7 @@ export function ManageCollectionFeaturesModal({
                             <select
                               id={`edit-type-${feature.id}`}
                               value={editedValues.type || 'text'}
-                              onChange={(e) => setEditedValues({...editedValues, type: e.target.value as 'text' | 'boolean' | 'score'})}
+                              onChange={(e) => setEditedValues({ ...editedValues, type: e.target.value as 'text' | 'boolean' | 'score' })}
                               className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700"
                             >
                               <option value="text">Text</option>
@@ -262,7 +298,7 @@ export function ManageCollectionFeaturesModal({
                           <Textarea
                             id={`edit-desc-${feature.id}`}
                             value={editedValues.description || ''}
-                            onChange={(e) => setEditedValues({...editedValues, description: e.target.value})}
+                            onChange={(e) => setEditedValues({ ...editedValues, description: e.target.value })}
                             className="mt-1"
                             rows={2}
                           />
@@ -292,7 +328,7 @@ export function ManageCollectionFeaturesModal({
                             </h4>
                             <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
                               {feature.type === 'boolean' ? 'Yes/No' :
-                               feature.type === 'score' ? 'Score' : 'Text'}
+                                feature.type === 'score' ? 'Score' : 'Text'}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -482,7 +518,7 @@ export function ManageCollectionFeaturesModal({
                       <Input
                         id="custom-name"
                         value={customFeature.name}
-                        onChange={(e) => setCustomFeature({...customFeature, name: e.target.value})}
+                        onChange={(e) => setCustomFeature({ ...customFeature, name: e.target.value })}
                         placeholder="e.g., Sample Size"
                         className="mt-1"
                       />
@@ -492,7 +528,7 @@ export function ManageCollectionFeaturesModal({
                       <select
                         id="custom-type"
                         value={customFeature.type}
-                        onChange={(e) => setCustomFeature({...customFeature, type: e.target.value as 'text' | 'boolean' | 'score'})}
+                        onChange={(e) => setCustomFeature({ ...customFeature, type: e.target.value as 'text' | 'boolean' | 'score' })}
                         className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700"
                       >
                         <option value="text">Text</option>
@@ -507,7 +543,7 @@ export function ManageCollectionFeaturesModal({
                     <Textarea
                       id="custom-desc"
                       value={customFeature.description}
-                      onChange={(e) => setCustomFeature({...customFeature, description: e.target.value})}
+                      onChange={(e) => setCustomFeature({ ...customFeature, description: e.target.value })}
                       placeholder="Describe what the LLM should extract..."
                       className="mt-1"
                       rows={3}

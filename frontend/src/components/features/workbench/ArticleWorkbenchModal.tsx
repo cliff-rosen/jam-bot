@@ -38,8 +38,19 @@ export function ArticleWorkbenchModal({
   
   // Extract the article from articleDetail for convenience
   const article = articleDetail.article;
-  const featureData = articleDetail?.feature_data || {};
   const collectionType = collection?.source === 'search' ? 'search' : 'group';
+  
+  // Get current feature data from workbench context (reactive to updates)
+  const getCurrentFeatureData = () => {
+    if (!collection) return {};
+    
+    const currentArticle = collection.articles.find(
+      item => item.article_id === articleDetail.article_id
+    );
+    return currentArticle?.feature_data || {};
+  };
+  
+  const featureData = getCurrentFeatureData();
 
   const getArticleUrl = () => {
     if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
@@ -135,6 +146,7 @@ export function ArticleWorkbenchModal({
                     article={article}
                     featureData={featureData}
                     collectionName={collection?.name}
+                    collectionFeatures={collection?.feature_definitions || []}
                   />
                 </TabsContent>
 

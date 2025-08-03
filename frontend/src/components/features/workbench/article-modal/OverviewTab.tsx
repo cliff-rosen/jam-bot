@@ -10,9 +10,10 @@ interface OverviewTabProps {
   article: CanonicalResearchArticle;
   featureData: Record<string, any>;
   collectionName?: string;
+  collectionFeatures?: Array<{ id: string; name: string; description: string; type: string }>;
 }
 
-export function OverviewTab({ article, featureData, collectionName }: OverviewTabProps) {
+export function OverviewTab({ article, featureData, collectionName, collectionFeatures }: OverviewTabProps) {
   const getPubMedId = () => {
     if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
       return article.id.replace('pubmed_', '');
@@ -161,18 +162,43 @@ export function OverviewTab({ article, featureData, collectionName }: OverviewTa
           {/* Extracted Features */}
           {Object.keys(featureData).length > 0 && (
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3">Extracted Features</h3>
-              <div className="space-y-2">
-                {Object.entries(featureData).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-start">
-                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
-                    </span>
-                    <span className="text-sm text-blue-900 dark:text-blue-100 ml-2 text-right">
-                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                    </span>
-                  </div>
-                ))}
+              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3">
+                Extracted Features ({Object.keys(featureData).length})
+              </h3>
+              <div className="space-y-3">
+                {Object.entries(featureData).map(([featureId, value]) => {
+                  // Find the feature definition to get the display name
+                  const feature = collectionFeatures?.find(f => f.id === featureId);
+                  const displayName = feature?.name || featureId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  const displayValue = typeof value === 'object' && value?.value ? value.value : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+                  
+                  return (
+                    <div key={featureId} className="bg-white dark:bg-blue-800/20 rounded-md p-3 border border-blue-200 dark:border-blue-700">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            {displayName}
+                          </div>
+                          {feature?.description && (
+                            <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 opacity-75">
+                              {feature.description}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-sm text-blue-900 dark:text-blue-100 font-medium text-right max-w-[60%]">
+                          {displayValue || <span className="italic text-blue-600 dark:text-blue-400">No value</span>}
+                        </div>
+                      </div>
+                      {feature?.type && feature.type !== 'text' && (
+                        <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                          <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                            {feature.type}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

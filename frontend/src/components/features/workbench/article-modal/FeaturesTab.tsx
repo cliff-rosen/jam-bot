@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Brain, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Brain, ChevronDown, ChevronRight, Settings, Package } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
+import { FeaturePreset } from '@/lib/api/workbenchApi';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 import { useWorkbench } from '@/context/WorkbenchContext';
+import { workbenchApi } from '@/lib/api/workbenchApi';
 
 interface FeaturesTabProps {
   articleId: string;
@@ -38,6 +42,83 @@ export function FeaturesTab({
 
   // State for extracting existing features
   const [selectedFeaturesToExtract, setSelectedFeaturesToExtract] = useState<string[]>([]);
+  
+  // State for presets
+  const [presets, setPresets] = useState<FeaturePreset[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [selectedPresetFeatures, setSelectedPresetFeatures] = useState<string[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [addFeatureTab, setAddFeatureTab] = useState<'custom' | 'preset'>('custom');
+
+  // Load presets on mount
+  useEffect(() => {
+    loadPresets();
+  }, []);
+
+  const loadPresets = async () => {
+    setPresetsLoading(true);
+    try {
+      const response = await workbenchApi.getFeaturePresets();
+      setPresets(response.presets || []);
+    } catch (error) {
+      console.error('Failed to load presets:', error);
+      toast({
+        title: 'Failed to load presets',
+        description: 'Could not load feature presets',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresetsLoading(false);
+    }
+  };
+
+  const handleAddPresetsAndExtract = async () => {
+    if (!selectedPreset || selectedPresetFeatures.length === 0) {
+      toast({
+        title: 'No Features Selected',
+        description: 'Please select features from the preset to add.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const preset = presets.find(p => p.id === selectedPreset);
+    if (!preset) return;
+
+    setIsExtracting(true);
+    try {
+      // Get the selected features from the preset
+      const featuresFromPreset = preset.features.filter(f => 
+        selectedPresetFeatures.includes(f.id)
+      );
+
+      // Add the features and extract them for this article
+      await workbench.addFeaturesAndExtract(
+        featuresFromPreset,
+        collectionType,
+        [articleId]
+      );
+
+      // Reset preset selection
+      setSelectedPreset('');
+      setSelectedPresetFeatures([]);
+      setShowAddFeature(false);
+
+      toast({
+        title: 'Features Added',
+        description: `Added and extracted ${featuresFromPreset.length} features from preset.`,
+      });
+    } catch (error) {
+      console.error('Error adding preset features:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add and extract preset features',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const handleAddAndExtractFeature = async () => {
     if (!newFeatureName.trim() || !newFeatureDescription.trim()) {
@@ -244,7 +325,18 @@ export function FeaturesTab({
         </Button>
 
         {showAddFeature && (
-          <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="mt-4">
+            <Tabs value={addFeatureTab} onValueChange={(v) => setAddFeatureTab(v as 'custom' | 'preset')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="custom">Custom Feature</TabsTrigger>
+                <TabsTrigger value="preset" className="gap-1">
+                  <Package className="w-4 h-4" />
+                  From Preset
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="custom">
+                <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
             <div>
               <Label htmlFor="feature-name">Feature Name</Label>
               <Input
@@ -330,27 +422,185 @@ export function FeaturesTab({
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddFeature(false);
-                  setNewFeatureName('');
-                  setNewFeatureDescription('');
-                }}
-                disabled={isExtracting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddAndExtractFeature}
-                disabled={!newFeatureName.trim() || !newFeatureDescription.trim() || isExtracting}
-                className="flex-1 gap-2"
-              >
-                <Brain className="w-4 h-4" />
-                {isExtracting ? 'Extracting...' : 'Add & Extract Feature'}
-              </Button>
-            </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddFeature(false);
+                        setNewFeatureName('');
+                        setNewFeatureDescription('');
+                      }}
+                      disabled={isExtracting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAddAndExtractFeature}
+                      disabled={!newFeatureName.trim() || !newFeatureDescription.trim() || isExtracting}
+                      className="flex-1 gap-2"
+                    >
+                      <Brain className="w-4 h-4" />
+                      {isExtracting ? 'Extracting...' : 'Add & Extract Feature'}
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="preset">
+                <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                  {presetsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="text-gray-500 dark:text-gray-400">Loading presets...</div>
+                    </div>
+                  ) : presets.length === 0 ? (
+                    <div className="text-center py-4">
+                      <Package className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                      <div className="text-gray-500 dark:text-gray-400">No presets available</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label htmlFor="preset-select">Select Preset</Label>
+                        <select
+                          id="preset-select"
+                          value={selectedPreset}
+                          onChange={(e) => {
+                            setSelectedPreset(e.target.value);
+                            setSelectedPresetFeatures([]);
+                          }}
+                          className="w-full mt-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="">Choose a preset...</option>
+                          {presets.map(preset => (
+                            <option key={preset.id} value={preset.id}>
+                              {preset.name} ({preset.features.length} features)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedPreset && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label>Features to Add</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const preset = presets.find(p => p.id === selectedPreset);
+                                  if (preset) {
+                                    // Filter out features that already exist in collection
+                                    const newFeatureIds = preset.features
+                                      .filter(f => !collectionFeatures.some(cf => cf.name === f.name))
+                                      .map(f => f.id);
+                                    setSelectedPresetFeatures(newFeatureIds);
+                                  }
+                                }}
+                              >
+                                Select All New
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedPresetFeatures([])}
+                              >
+                                Select None
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {presets.find(p => p.id === selectedPreset)?.features.map(feature => {
+                              const alreadyExists = collectionFeatures.some(cf => cf.name === feature.name);
+                              const alreadyExtracted = existingFeatures.hasOwnProperty(feature.id);
+                              
+                              return (
+                                <div
+                                  key={feature.id}
+                                  className={`p-3 rounded-lg border ${
+                                    alreadyExists
+                                      ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
+                                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                  }`}
+                                >
+                                  <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedPresetFeatures.includes(feature.id)}
+                                      onChange={() => {
+                                        if (alreadyExists) return;
+                                        setSelectedPresetFeatures(prev =>
+                                          prev.includes(feature.id)
+                                            ? prev.filter(id => id !== feature.id)
+                                            : [...prev, feature.id]
+                                        );
+                                      }}
+                                      disabled={alreadyExists}
+                                      className="mt-1 rounded border-gray-300 dark:border-gray-600"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                                          {feature.name}
+                                        </div>
+                                        {alreadyExists && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            Already in collection
+                                          </Badge>
+                                        )}
+                                        {alreadyExtracted && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Extracted
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                        {feature.description}
+                                      </div>
+                                      {feature.type !== 'text' && (
+                                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                          Type: {feature.type}
+                                          {feature.type === 'score' && feature.options && (
+                                            <span> ({feature.options.min}-{feature.options.max})</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddFeature(false);
+                            setSelectedPreset('');
+                            setSelectedPresetFeatures([]);
+                          }}
+                          disabled={isExtracting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleAddPresetsAndExtract}
+                          disabled={!selectedPreset || selectedPresetFeatures.length === 0 || isExtracting}
+                          className="flex-1 gap-2"
+                        >
+                          <Brain className="w-4 h-4" />
+                          {isExtracting ? 'Extracting...' : `Add & Extract ${selectedPresetFeatures.length} Features`}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </div>

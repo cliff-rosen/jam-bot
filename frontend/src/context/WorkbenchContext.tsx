@@ -125,6 +125,9 @@ interface WorkbenchActions {
   extractFeatureValues: (featureIds?: string[], collectionType?: 'search' | 'group', targetArticleIds?: string[]) => Promise<void>;
   updateFeatureValueLocal: (articleId: string, featureId: string, value: any, collectionType?: 'search' | 'group') => void;
 
+  // Article Data Operations (local state + backend sync)
+  updateArticleNotes: (articleId: string, notes: string, collectionType?: 'search' | 'group') => Promise<void>;
+
   // Selection Management (UI state only)
   selectArticleDetail: (articleDetail: ArticleGroupDetail | null) => void;
   toggleArticleSelection: (articleId: string) => void;
@@ -1192,6 +1195,51 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
   }, []);
 
+  const updateArticleNotes = useCallback(async (
+    articleId: string, 
+    notes: string, 
+    collectionType: 'search' | 'group' = 'group'
+  ) => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
+    if (!currentCollection || !currentCollection.saved_group_id) {
+      throw new Error('Cannot update notes: collection not saved');
+    }
+
+    try {
+      // Update backend first
+      await workbenchApi.updateNotes(currentCollection.saved_group_id, articleId, notes);
+
+      // Update local collection state
+      const updateArticleNotes = (articles: ArticleGroupDetail[]) => 
+        articles.map(article => 
+          article.article.id === articleId 
+            ? { ...article, notes } 
+            : article
+        );
+
+      const updatedCollection = {
+        ...currentCollection,
+        articles: updateArticleNotes(currentCollection.articles),
+        is_modified: true,
+        updated_at: new Date().toISOString()
+      };
+
+      if (collectionType === 'search') {
+        setSearchCollection(updatedCollection);
+      } else {
+        setGroupCollection(updatedCollection);
+        
+        // Also update fullGroupArticles if they exist
+        if (fullGroupArticles) {
+          setFullGroupArticles(updateArticleNotes(fullGroupArticles));
+        }
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update notes');
+      throw error;
+    }
+  }, [searchCollection, groupCollection, fullGroupArticles]);
+
   // ================== CONTEXT VALUE ==================
 
   const contextValue: WorkbenchContextType = {
@@ -1253,6 +1301,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     removeFeatureDefinition,
     extractFeatureValues,
     updateFeatureValueLocal,
+
+    // Article Data Management
+    updateArticleNotes,
 
     // Selection Management
     selectArticleDetail,

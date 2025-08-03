@@ -1,78 +1,69 @@
-# Feature Management Scenarios
+# Unified Feature Management
 
-## Complete Scenario Matrix
+## Overview
 
-| Button | Modal Mode | Extract Immediately | Target Articles | Action | API Call |
-|--------|------------|-------------------|-----------------|---------|----------|
-| **Add Features** | `add` | ❌ No | All | Add definitions only | `addFeatureDefinitionsLocal()` |
-| **Add Features** | `add` | ❌ No | Selected | Add definitions only | `addFeatureDefinitionsLocal()` |
-| **Add Features** | `add` | ✅ Yes | All | Add + Extract | `addFeaturesAndExtract(features, type, undefined)` |
-| **Add Features** | `add` | ✅ Yes | Selected | Add + Extract | `addFeaturesAndExtract(features, type, selectedIds)` |
-| **Extract Features** | `extract` | N/A (always) | All | Extract existing | `extractFeatureValues(featureIds, type, undefined)` |
-| **Extract Features** | `extract` | N/A (always) | Selected | Extract existing | `extractFeatureValues(featureIds, type, selectedIds)` |
+The feature management system has been unified into a single modal (`ManageCollectionFeaturesModal`) that handles all three core functions:
 
-## UI Flow
+1. **Managing collection features** (add, edit, delete)
+2. **Selecting which features to extract** 
+3. **Targeting which articles** (selected vs all)
 
-### Scenario 1: Add Features (Deferred)
-1. User clicks "Add Features" button
-2. Modal opens in `mode='add'`
-3. User selects/creates features
-4. User **unchecks** "Extract features immediately"
-5. Submit → `addFeatureDefinitionsLocal()`
-6. Features added to collection, no extraction
+## User Interface
 
-### Scenario 2: Add Features + Extract Now
-1. User clicks "Add Features" button
-2. Modal opens in `mode='add'`
-3. User selects/creates features
-4. User **keeps checked** "Extract features immediately" (default)
-5. Submit → `addFeaturesAndExtract()`
-6. Features added AND extracted for target articles
+### Single Entry Point
+- **Button**: "Manage Features" (replaces separate "Add Features" and "Extract Features" buttons)
+- **Icon**: Settings icon for clear visual identification
+- **Modal**: `ManageCollectionFeaturesModal` - comprehensive feature management interface
 
-### Scenario 3: Extract Existing Features
-1. User clicks "Extract Features" button
-2. Modal opens in `mode='extract'`
-3. Shows existing features with checkboxes
-4. User selects which features to extract
-5. Submit → `extractFeatureValues()`
-6. Selected features extracted for target articles
+## Complete Workflow Matrix
+
+| User Action | Modal Section | Extract Option | Target Articles | Result |
+|-------------|---------------|----------------|-----------------|---------|
+| Add from preset | Add New Features → Preset | ✅ Extract immediately | Selected/All | Add + Extract |
+| Add from preset | Add New Features → Preset | ❌ Extract immediately | N/A | Add only |
+| Add custom | Add New Features → Custom | ✅ Extract immediately | Selected/All | Add + Extract |
+| Add custom | Add New Features → Custom | ❌ Extract immediately | N/A | Add only |
+| Edit existing | Current Features → Edit | N/A | N/A | Update definition |
+| Delete existing | Current Features → Delete | N/A | N/A | Remove from collection |
+| Extract existing | Current Features → Select + Extract | Always extracts | Selected/All | Extract values |
 
 ## Article Targeting
 
-All three scenarios respect the current article selection:
-- If `selectedArticleIds.length > 0`: Operation targets only selected articles
-- If `selectedArticleIds.length === 0`: Operation targets all articles in collection
+**Automatic Scope Detection:**
+- If articles are selected: Operations target only selected articles
+- If no selection: Operations target all articles in collection
+- Scope clearly displayed in modal header
 
-## Current Implementation Status
+## API Calls
 
-✅ **Scenario 1**: Add without extraction
-- Modal shows "Extract immediately" checkbox
-- When unchecked, calls `addFeatureDefinitionsLocal()`
-- Works for all/selected articles
+### Handler Functions
+- `handleOpenFeatureModal()` - Opens the unified modal
+- `handleUpdateFeature()` - Updates existing feature definitions
+- `handleFeatureAdd()` - Adds new features with optional extraction
+- `handleFeatureExtract()` - Extracts selected existing features
 
-✅ **Scenario 2**: Add with extraction  
-- Modal shows "Extract immediately" checkbox (checked by default)
-- When checked, calls `addFeaturesAndExtract()`
-- Works for all/selected articles
+### Context API Methods
+- `addFeatureDefinitionsLocal()` - Add feature definitions only
+- `addFeaturesAndExtract()` - Add features and extract values
+- `extractFeatureValues()` - Extract values for existing features
+- `removeFeatureDefinition()` - Delete feature from collection
 
-✅ **Scenario 3**: Extract existing
-- Modal shows feature selection list
-- No "Extract immediately" checkbox (always extracts)
-- Calls `extractFeatureValues()` with selected feature IDs
-- Works for all/selected articles
+## Code Architecture
 
-## Code Locations
+### Components
+- **Main Modal**: `ManageCollectionFeaturesModal.tsx`
+  - Unified interface for all feature operations
+  - Three main sections: Current Features, Add New Features, Extraction Controls
+  - Supports editing, deletion, adding (preset/custom), and extraction
 
-- **Modal Component**: `AddFeatureModal.tsx`
-  - Handles both `add` and `extract` modes
-  - Shows appropriate UI based on mode
-  - Passes selection to parent
+### Page Integration
+- **Entry Point**: `WorkbenchPage.tsx::handleOpenFeatureModal()`
+- **Collection Header**: Single "Manage Features" button
+- **State Management**: Simplified to `showFeatureModal` and `featureModalCollectionType`
 
-- **Page Handler**: `WorkbenchPage.tsx::handleAddFeatures()`
-  - Routes to correct API based on mode and extractImmediately flag
-  - Handles article targeting via selectedArticleIds
-
-- **Context API**: `WorkbenchContext.tsx`
-  - `addFeatureDefinitionsLocal()`: Add only
-  - `addFeaturesAndExtract()`: Add + extract
-  - `extractFeatureValues()`: Extract only
+### Key Benefits
+1. **Simplified UX**: Single button instead of multiple confusing options
+2. **Comprehensive**: All feature operations in one place
+3. **Flexible**: Supports any combination of management and extraction
+4. **Clear Targeting**: Automatic article scope detection and display
+5. **Consistent**: Unified naming and interaction patterns

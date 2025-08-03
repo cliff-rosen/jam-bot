@@ -10,7 +10,7 @@ Creates a new group from the current collection (search results or modified grou
 - If selected articles exist, only saves those articles
 - Shows success toast on completion
 
-### `handleUpdateExistingGroup()`
+### `handleSaveGroupChanges()`
 Updates an existing group with all current modifications.
 - Syncs the current collection state back to the backend
 - Preserves all changes: articles, features, and metadata
@@ -33,18 +33,38 @@ Adds articles from current collection to an existing group.
 - Used in SaveGroupModal when choosing "Add to existing"
 - Does not navigate away from current view
 
-## Feature Management Handlers
+## Unified Feature Management Handlers
 
-### `handleAddFeatures(features: FeatureDefinition[], extractImmediately?: boolean)`
-Adds new feature definitions to the current collection.
+### `handleOpenFeatureModal(collectionType: 'search' | 'group')`
+Opens the unified feature management modal.
+- Sets collection type (search or group)
+- Single entry point for all feature operations
+- Replaces separate "Add Features" and "Extract Features" buttons
+
+### `handleUpdateFeature(featureId: string, updates: Partial<FeatureDefinition>)`
+Updates an existing feature definition in the collection.
+- Modifies feature properties (name, description, type, options)
+- Updates the entire feature_definitions array
+- Used in the feature editing interface
+
+### `handleFeatureAdd(features: FeatureDefinition[], extractImmediately: boolean)`
+Adds new features to the collection with optional immediate extraction.
 - If `extractImmediately` is true, also extracts values using AI
-- Shows appropriate success/error toasts
-- Used by AddFeatureModal
+- Respects current article selection for targeting
+- Used by the "Add New Features" section
+
+### `handleFeatureExtract(featureIds: string[])`
+Extracts values for selected existing features.
+- Always extracts (no optional behavior)
+- Respects current article selection for targeting
+- Closes modal after successful extraction
+- Used by the "Extract Selected" button
 
 ### Feature Operations (via workbench context)
-- `workbench.extractFeatureValues()` - Extracts feature values using AI
+- `workbench.addFeatureDefinitionsLocal()` - Adds feature definitions only
+- `workbench.addFeaturesAndExtract()` - Adds features and extracts values
+- `workbench.extractFeatureValues()` - Extracts values for existing features
 - `workbench.removeFeatureDefinition()` - Removes a feature definition
-- `workbench.updateFeatureValueLocal()` - Updates a single feature value
 
 ## Article Management Handlers
 
@@ -97,13 +117,22 @@ Refreshes the groups list data.
 - Can force refresh even if data exists
 - Used by GroupsTab component
 
+## Chat Handlers
+
+### `handleSendChatMessage(...)`
+Handles article chat message streaming.
+- Streams responses using the article chat API
+- Manages conversation history
+- Provides chunk-based updates and completion callbacks
+
 ## Modal State Management
 
 The component manages several modals:
 
-1. **AddFeatureModal** (`showAddModal`)
-   - For adding new feature definitions
-   - Can optionally extract immediately
+1. **ManageCollectionFeaturesModal** (`showFeatureModal`)
+   - Unified feature management interface
+   - Handles adding, editing, deleting, and extracting features
+   - Single modal for all feature operations
 
 2. **SaveGroupModal** (`showSaveModal`)
    - For saving collections as new groups
@@ -115,7 +144,7 @@ The component manages several modals:
    - Includes navigation options
 
 4. **ArticleWorkbenchModal** (via `workbench.selectedArticleDetail`)
-   - For viewing article details
+   - For viewing article details and chat
    - Managed through context state
 
 ## Error Handling
@@ -132,5 +161,14 @@ These handlers interact with:
 - `workbench` context for core operations
 - `activeTab` for determining current collection
 - `selectedArticleIds` for bulk operations
-- Various modal state variables
-- Toast notifications for user feedback 
+- `showFeatureModal` and `featureModalCollectionType` for feature management
+- Various other modal state variables
+- Toast notifications for user feedback
+
+## Handler Naming Convention
+
+The unified system follows consistent naming patterns:
+- **Modal Openers**: `handleOpen[X]Modal` (e.g., `handleOpenFeatureModal`)
+- **Submission Handlers**: `handle[X]Submit` or descriptive action names
+- **Feature Operations**: `handleFeature[Action]` (e.g., `handleFeatureAdd`, `handleFeatureExtract`)
+- **Group Operations**: `handle[Action]Group` (e.g., `handleSaveGroup`)

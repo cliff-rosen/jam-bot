@@ -196,6 +196,15 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
             >
               Business Impact
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction("Explain abstract in this format:\n- Background / Rationale: Why this study was done.\n- Objective: What the study aimed to find out.\n- Methods: How it was done (what kind of study, what measurements).\n- Results: What was found (often with numbers or statistics).\n- Conclusion / Interpretation: What it means, and how it matters.")}
+              className="text-xs h-7"
+              disabled={isLoading}
+            >
+              Explain Abstract
+            </Button>
           </div>
         </div>
       </div>

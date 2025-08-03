@@ -391,9 +391,15 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       if (selectedArticleIds && selectedArticleIds.length > 0) {
         articlesToSave = currentCollection.articles
           .filter(item => selectedArticleIds.includes(item.article.id))
-          .map(item => item.article);
+          .map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
       } else {
-        articlesToSave = currentCollection.articles.map(a => a.article);
+        articlesToSave = currentCollection.articles.map(item => ({
+          ...item.article,
+          extracted_features: item.feature_data || {}
+        }));
       }
 
       const savedGroup = await workbenchApi.createGroup({
@@ -453,9 +459,15 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       if (articleIds && articleIds.length > 0) {
         articlesToAdd = currentCollection.articles
           .filter(item => articleIds.includes(item.article.id))
-          .map(item => item.article);
+          .map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
       } else {
-        articlesToAdd = currentCollection.articles.map(a => a.article);
+        articlesToAdd = currentCollection.articles.map(item => ({
+          ...item.article,
+          extracted_features: item.feature_data || {}
+        }));
       }
 
       await workbenchApi.addArticlesToGroup(groupId, {
@@ -490,12 +502,21 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         ? fullGroupArticles 
         : currentCollection.articles;
         
+      console.log('DEBUG: Current collection feature definitions:', 
+        currentCollection.feature_definitions.map(f => ({ id: f.id, name: f.name }))
+      );
+      
       const articlesWithFeatures = articlesToSave.map(item => {
+        console.log(`DEBUG: Article ${item.article.id} feature_data:`, item.feature_data);
+        
         // Create a copy of the article and add extracted_features from feature_data
         const articleWithFeatures = {
           ...item.article,
           extracted_features: item.feature_data || {}
         };
+        
+        console.log(`DEBUG: Article ${item.article.id} extracted_features being sent:`, articleWithFeatures.extracted_features);
+        
         return articleWithFeatures;
       });
 
@@ -863,6 +884,26 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setSearchCollection(finalCollection);
       } else {
         setGroupCollection(finalCollection);
+        
+        // For groups, also update fullGroupArticles if they exist
+        if (fullGroupArticles) {
+          const updatedFullArticles = fullGroupArticles.map(article => {
+            if (!extractedArticleIds.has(article.article_id)) {
+              return article; // Return unchanged
+            }
+
+            const articleFeatures = extractionResult.results[article.article_id] || {};
+            return {
+              ...article,
+              feature_data: {
+                ...article.feature_data,
+                ...articleFeatures
+              }
+            };
+          });
+          
+          setFullGroupArticles(updatedFullArticles);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Feature extraction failed');
@@ -901,6 +942,17 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setSearchCollection(updatedCollection);
     } else {
       setGroupCollection(updatedCollection);
+      
+      // For groups, also update fullGroupArticles if they exist
+      if (fullGroupArticles) {
+        const updatedFullArticles = fullGroupArticles.map(article => {
+          const newFeatureData = { ...article.feature_data };
+          delete newFeatureData[featureId];
+          return { ...article, feature_data: newFeatureData };
+        });
+        
+        setFullGroupArticles(updatedFullArticles);
+      }
     }
   }, [searchCollection, groupCollection]);
 
@@ -974,6 +1026,31 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setSearchCollection(updatedCollection);
       } else {
         setGroupCollection(updatedCollection);
+        
+        // For groups, also update fullGroupArticles if they exist
+        if (fullGroupArticles) {
+          const targetedArticleIds = new Set(targetArticleIds || currentCollection.articles.map(a => a.article_id));
+          const updatedFullArticles = fullGroupArticles.map(article => {
+            // Only update if this article was targeted for extraction
+            if (!targetedArticleIds.has(article.article_id)) {
+              return article; // Return unchanged
+            }
+
+            // Get extraction results for this article (empty object if no results)
+            const newFeatureData = extractionResult.results[article.article_id] || {};
+            
+            // Merge: existing features + new features (new overwrites existing)
+            return {
+              ...article,
+              feature_data: {
+                ...article.feature_data,  // Preserve existing features
+                ...newFeatureData         // Add/overwrite with new features
+              }
+            };
+          });
+          
+          setFullGroupArticles(updatedFullArticles);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Feature extraction failed');
@@ -1012,6 +1089,24 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setSearchCollection(updatedCollection);
     } else {
       setGroupCollection(updatedCollection);
+      
+      // For groups, also update fullGroupArticles if they exist
+      if (fullGroupArticles) {
+        const updatedFullArticles = fullGroupArticles.map(article => {
+          if (article.article_id === articleId) {
+            return {
+              ...article,
+              feature_data: {
+                ...article.feature_data,
+                [featureId]: value
+              }
+            };
+          }
+          return article;
+        });
+        
+        setFullGroupArticles(updatedFullArticles);
+      }
     }
   }, [searchCollection, groupCollection]);
 

@@ -7,7 +7,7 @@
  */
 
 import { makeStreamRequest } from './streamUtils';
-import { CanonicalResearchArticle } from '@/types/unifiedSearch';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 export interface ArticleChatRequest {
   message: string;
@@ -51,12 +51,12 @@ export function parseArticleChatStreamLine(line: string): ArticleChatStreamRespo
 
   try {
     const data = JSON.parse(jsonStr);
-    
+
     // Validate the expected format
     if (data.type && data.data && typeof data.type === 'string') {
       return data as ArticleChatStreamResponse;
     }
-    
+
     return null;
   } catch (e) {
     console.warn('Failed to parse article chat stream line:', line, e);
@@ -129,7 +129,7 @@ class ArticleChatApi {
   ): Promise<void> {
     try {
       const stream = this.streamMessage(message, article, conversationHistory);
-      
+
       for await (const response of stream) {
         switch (response.type) {
           case 'metadata':
@@ -164,7 +164,7 @@ class ArticleChatApi {
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       let fullResponse = '';
-      
+
       this.sendMessageStream(
         message,
         article,

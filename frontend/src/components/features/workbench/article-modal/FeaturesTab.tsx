@@ -42,13 +42,18 @@ export function FeaturesTab({
 
   // State for extracting existing features
   const [selectedFeaturesToExtract, setSelectedFeaturesToExtract] = useState<string[]>([]);
-  
+
   // State for presets
   const [presets, setPresets] = useState<FeaturePreset[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedPresetFeatures, setSelectedPresetFeatures] = useState<string[]>([]);
   const [presetsLoading, setPresetsLoading] = useState(false);
   const [addFeatureTab, setAddFeatureTab] = useState<'custom' | 'preset'>('custom');
+
+  // Get features that haven't been extracted yet for this article
+  const unextractedFeatures = collectionFeatures.filter(
+    feature => !existingFeatures.hasOwnProperty(feature.id)
+  );
 
   // Load presets on mount
   useEffect(() => {
@@ -88,7 +93,7 @@ export function FeaturesTab({
     setIsExtracting(true);
     try {
       // Get the selected features from the preset
-      const featuresFromPreset = preset.features.filter(f => 
+      const featuresFromPreset = preset.features.filter(f =>
         selectedPresetFeatures.includes(f.id)
       );
 
@@ -216,11 +221,6 @@ export function FeaturesTab({
     );
   };
 
-  // Get features that haven't been extracted yet for this article
-  const unextractedFeatures = collectionFeatures.filter(
-    feature => !existingFeatures.hasOwnProperty(feature.id)
-  );
-
   return (
     <div className="space-y-6">
       {/* Current Features */}
@@ -337,90 +337,90 @@ export function FeaturesTab({
 
               <TabsContent value="custom">
                 <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div>
-              <Label htmlFor="feature-name">Feature Name</Label>
-              <Input
-                id="feature-name"
-                value={newFeatureName}
-                onChange={(e) => setNewFeatureName(e.target.value)}
-                placeholder="e.g., Sample Size"
-                className="mt-1"
-              />
-            </div>
+                  <div>
+                    <Label htmlFor="feature-name">Feature Name</Label>
+                    <Input
+                      id="feature-name"
+                      value={newFeatureName}
+                      onChange={(e) => setNewFeatureName(e.target.value)}
+                      placeholder="e.g., Sample Size"
+                      className="mt-1"
+                    />
+                  </div>
 
-            <div>
-              <Label htmlFor="feature-type">Feature Type</Label>
-              <RadioGroup
-                value={newFeatureType}
-                onValueChange={(value: 'text' | 'boolean' | 'score') => setNewFeatureType(value)}
-                className="mt-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="text" id="type-text" />
-                  <Label htmlFor="type-text">Text</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="boolean" id="type-boolean" />
-                  <Label htmlFor="type-boolean">Yes/No</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="score" id="type-score" />
-                  <Label htmlFor="type-score">Score</Label>
-                </div>
-              </RadioGroup>
-            </div>
+                  <div>
+                    <Label htmlFor="feature-type">Feature Type</Label>
+                    <RadioGroup
+                      value={newFeatureType}
+                      onValueChange={(value) => setNewFeatureType(value as 'text' | 'boolean' | 'score')}
+                      className="mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="text" id="type-text" />
+                        <Label htmlFor="type-text">Text</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="boolean" id="type-boolean" />
+                        <Label htmlFor="type-boolean">Yes/No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="score" id="type-score" />
+                        <Label htmlFor="type-score">Score</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
 
-            {newFeatureType === 'score' && (
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="score-min">Min</Label>
-                  <Input
-                    id="score-min"
-                    type="number"
-                    value={scoreMin}
-                    onChange={(e) => setScoreMin(parseInt(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="score-max">Max</Label>
-                  <Input
-                    id="score-max"
-                    type="number"
-                    value={scoreMax}
-                    onChange={(e) => setScoreMax(parseInt(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="score-step">Step</Label>
-                  <Input
-                    id="score-step"
-                    type="number"
-                    value={scoreStep}
-                    onChange={(e) => setScoreStep(parseInt(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            )}
+                  {newFeatureType === 'score' && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label htmlFor="score-min">Min</Label>
+                        <Input
+                          id="score-min"
+                          type="number"
+                          value={scoreMin}
+                          onChange={(e) => setScoreMin(parseInt(e.target.value))}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="score-max">Max</Label>
+                        <Input
+                          id="score-max"
+                          type="number"
+                          value={scoreMax}
+                          onChange={(e) => setScoreMax(parseInt(e.target.value))}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="score-step">Step</Label>
+                        <Input
+                          id="score-step"
+                          type="number"
+                          value={scoreStep}
+                          onChange={(e) => setScoreStep(parseInt(e.target.value))}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-            <div>
-              <Label htmlFor="feature-description">
-                Extraction Prompt
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                  (Describe what the AI should look for)
-                </span>
-              </Label>
-              <Textarea
-                id="feature-description"
-                value={newFeatureDescription}
-                onChange={(e) => setNewFeatureDescription(e.target.value)}
-                placeholder="e.g., Extract the sample size from the methods section. Look for phrases like 'n=' or 'participants' or 'subjects'."
-                className="mt-1"
-                rows={4}
-              />
-            </div>
+                  <div>
+                    <Label htmlFor="feature-description">
+                      Extraction Prompt
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                        (Describe what the AI should look for)
+                      </span>
+                    </Label>
+                    <Textarea
+                      id="feature-description"
+                      value={newFeatureDescription}
+                      onChange={(e) => setNewFeatureDescription(e.target.value)}
+                      placeholder="e.g., Extract the sample size from the methods section. Look for phrases like 'n=' or 'participants' or 'subjects'."
+                      className="mt-1"
+                      rows={4}
+                    />
+                  </div>
 
                   <div className="flex gap-2">
                     <Button
@@ -509,20 +509,19 @@ export function FeaturesTab({
                               </Button>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             {presets.find(p => p.id === selectedPreset)?.features.map(feature => {
                               const alreadyExists = collectionFeatures.some(cf => cf.name === feature.name);
                               const alreadyExtracted = existingFeatures.hasOwnProperty(feature.id);
-                              
+
                               return (
                                 <div
                                   key={feature.id}
-                                  className={`p-3 rounded-lg border ${
-                                    alreadyExists
-                                      ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
-                                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                                  }`}
+                                  className={`p-3 rounded-lg border ${alreadyExists
+                                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-50'
+                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                    }`}
                                 >
                                   <label className="flex items-start gap-3 cursor-pointer">
                                     <input

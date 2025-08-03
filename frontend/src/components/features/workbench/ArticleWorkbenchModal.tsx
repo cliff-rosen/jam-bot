@@ -117,7 +117,7 @@ export function ArticleWorkbenchModal({
         {/* Main Content - Split Layout */}
         <div className="flex h-[calc(95vh-80px)]">
           {/* Left Side - Chat Panel */}
-          <div className="w-96 border-r dark:border-gray-700">
+          <div className="w-96 lg:w-[500px] xl:w-[600px] 2xl:w-[700px] border-r dark:border-gray-700">
             <ChatPanel
               article={article}
               onSendMessage={onSendChatMessage}

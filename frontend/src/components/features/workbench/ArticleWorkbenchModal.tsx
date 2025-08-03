@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useWorkbench } from '@/context/WorkbenchContext';
 import { X, ExternalLink, Brain, FileText, Edit3, Plus } from 'lucide-react';
 
 import { ArticleCollection } from '@/types/articleCollection';
@@ -156,6 +155,7 @@ export function ArticleWorkbenchModal({
                       groupId={collection.saved_group_id}
                       articleId={article.id}
                       articleDetail={articleDetail}
+                      initialNotes={articleDetail.notes || ''}
                     />
                   ) : (
                     <div className="text-center py-8">

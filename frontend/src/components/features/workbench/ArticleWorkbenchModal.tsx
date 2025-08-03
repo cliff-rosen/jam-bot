@@ -33,23 +33,23 @@ export function ArticleWorkbenchModal({
   onClose,
   onSendChatMessage
 }: ArticleWorkbenchModalProps) {
-  const workbench = useWorkbench();
+
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   // Extract the article from articleDetail for convenience
   const article = articleDetail.article;
   const collectionType = collection?.source === 'search' ? 'search' : 'group';
-  
+
   // Get current feature data from workbench context (reactive to updates)
   const getCurrentFeatureData = () => {
     if (!collection) return {};
-    
+
     const currentArticle = collection.articles.find(
       item => item.article_id === articleDetail.article_id
     );
     return currentArticle?.feature_data || {};
   };
-  
+
   const featureData = getCurrentFeatureData();
 
   const getArticleUrl = () => {

@@ -4,6 +4,8 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatMessage as ChatMessageType } from './types';
+import { useWorkbench } from '@/context/WorkbenchContext';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ChatPanelProps {
   article: CanonicalResearchArticle;
@@ -28,6 +30,8 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { updateArticleNotes, groupCollection } = useWorkbench();
+  const { toast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,6 +128,49 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
     handleSendMessage(question);
   };
 
+  const handleAddToNotes = async (content: string) => {
+    if (!groupCollection?.saved_group_id) {
+      toast({
+        title: 'Cannot Add to Notes',
+        description: 'This collection must be saved first to add notes.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Get current notes for this article
+      const currentArticle = groupCollection.articles.find(
+        item => item.article.id === article.id
+      );
+      const currentNotes = currentArticle?.notes || '';
+
+      // Create delimiter and timestamp
+      const timestamp = new Date().toLocaleString();
+      const delimiter = '\n\n--- Chat Response Added ---\n';
+      const timestampLine = `Added on ${timestamp}:\n\n`;
+      
+      // Append new content
+      const newNotes = currentNotes 
+        ? currentNotes + delimiter + timestampLine + content
+        : timestampLine + content;
+
+      await updateArticleNotes(article.id, newNotes, 'group');
+
+      toast({
+        title: 'Added to Notes',
+        description: 'Chat response has been added to your article notes.',
+      });
+    } catch (error) {
+      console.error('Error adding to notes:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add response to notes.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Chat Header */}
@@ -138,7 +185,7 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-4">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage key={message.id} message={message} onAddToNotes={handleAddToNotes} />
           ))}
           {isLoading && (
             <div className="flex justify-start">

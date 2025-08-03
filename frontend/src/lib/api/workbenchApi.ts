@@ -12,7 +12,6 @@ import {
   FeatureDefinition,
   ArticleGroup,
   ArticleGroupWithDetails,
-  WorkbenchData,
 } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 
@@ -225,9 +224,24 @@ export class WorkbenchApi {
 
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 
-  async getArticleWorkbenchData(groupId: string, articleId: string): Promise<WorkbenchData> {
+  async getArticleGroupDetail(groupId: string, articleId: string): Promise<{
+    article: CanonicalResearchArticle;
+    notes: string;
+    feature_data: Record<string, any>;
+    metadata: Record<string, any>;
+    position?: number;
+    group_id: string;
+    group_name: string;
+    created_at: string;
+    updated_at?: string;
+  }> {
     const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}`);
     return response.data;
+  }
+
+  // Alias for backward compatibility - DEPRECATED
+  async getArticleWorkbenchData(groupId: string, articleId: string): Promise<any> {
+    return this.getArticleGroupDetail(groupId, articleId);
   }
 
   async updateNotes(groupId: string, articleId: string, notes: string): Promise<{ notes: string; updated_at: string }> {

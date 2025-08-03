@@ -13,6 +13,8 @@ from datetime import datetime
 
 from models import ArticleGroup, ArticleGroupDetail, User
 from services.extraction_service import ExtractionService
+from schemas.workbench import ArticleDetailResponse
+from schemas.canonical_types import CanonicalResearchArticle
 
 
 class ArticleGroupDetailService:
@@ -22,13 +24,13 @@ class ArticleGroupDetailService:
         self.db = db
         self.extraction_service = extraction_service
     
-    def get_workbench_data(
+    def get_group_detail(
         self, 
         user_id: int, 
         group_id: str, 
         article_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """Get complete workbench data for an article in a group."""
+    ) -> Optional[ArticleDetailResponse]:
+        """Get complete article detail data for an article in a group."""
         article_detail = self._get_article_detail(user_id, group_id, article_id)
         
         if not article_detail:
@@ -37,22 +39,17 @@ class ArticleGroupDetailService:
         # Get group info for context
         group = self.db.query(ArticleGroup).filter(ArticleGroup.id == group_id).first()
         
-        return {
-            "article": article_detail.article_data,
-            "workbench": {
-                "notes": article_detail.notes or "",
-                "features": article_detail.feature_data or {},
-                "metadata": article_detail.article_metadata or {},
-                "position": article_detail.position,
-                "created_at": article_detail.created_at.isoformat(),
-                "updated_at": article_detail.updated_at.isoformat() if article_detail.updated_at else None
-            },
-            "group_context": {
-                "group_id": group_id,
-                "group_name": group.name if group else "Unknown",
-                "total_articles": group.article_count if group else 0
-            }
-        }
+        return ArticleDetailResponse(
+            article=CanonicalResearchArticle(**article_detail.article_data),
+            notes=article_detail.notes or "",
+            feature_data=article_detail.feature_data or {},
+            metadata=article_detail.article_metadata or {},
+            position=article_detail.position,
+            group_id=group_id,
+            group_name=group.name if group else "Unknown",
+            created_at=article_detail.created_at.isoformat(),
+            updated_at=article_detail.updated_at.isoformat() if article_detail.updated_at else None
+        )
     
     def update_notes(
         self, 

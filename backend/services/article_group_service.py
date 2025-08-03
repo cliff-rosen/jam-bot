@@ -14,7 +14,10 @@ from models import ArticleGroup as ArticleGroupModel, User
 from models import ArticleGroupDetail as ArticleGroupDetailModel
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.workbench import (
-    ArticleGroupDetail
+    ArticleGroupDetail,
+    ArticleGroup,
+    ArticleGroupWithDetails,
+    FeatureDefinition
 )
 
 
@@ -111,7 +114,7 @@ class ArticleGroupService:
         else:
             return self._group_to_summary(group)
     
-    def get_group_detail(self, user_id: int, group_id: str, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
+    def get_group_details(self, user_id: int, group_id: str, page: int = 1, page_size: int = 20) -> Optional[ArticleGroupWithDetails]:
         """Get detailed information about a specific group with pagination."""
         group = self.db.query(ArticleGroupModel).filter(
             and_(
@@ -125,9 +128,9 @@ class ArticleGroupService:
         
         try:
             detail_data = self._group_to_detail_paginated(group, page, page_size)
-            return detail_data
+            return ArticleGroupWithDetails(**detail_data)
         except Exception as e:
-            print(f"Error in get_group_detail: {e}")
+            print(f"Error in get_group_details: {e}")
             raise
     
     def update_group(self, user_id: int, group_id: str, request) -> Optional[Dict[str, Any]]:
@@ -370,7 +373,8 @@ class ArticleGroupService:
                     article_id=detail.article_data.get('id', ''),
                     group_id=detail.article_group_id,
                     article=CanonicalResearchArticle(**detail.article_data),
-                    feature_data=detail.feature_data,
+                    feature_data=detail.feature_data or {},
+                    notes=detail.notes or '',
                     position=detail.position,
                     added_at=detail.created_at.isoformat()
                 )
@@ -442,7 +446,8 @@ class ArticleGroupService:
                     article_id=detail.article_data.get('id', ''),
                     group_id=detail.article_group_id,
                     article=CanonicalResearchArticle(**detail.article_data),
-                    feature_data=detail.feature_data,
+                    feature_data=detail.feature_data or {},
+                    notes=detail.notes or '',
                     position=detail.position,
                     added_at=detail.created_at.isoformat()
                 )

@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session
 from models import User
 from database import get_db
 from schemas.workbench import (
-    ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails, FeatureDefinition
+    ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails, FeatureDefinition,
+    ArticleDetailResponse
 )
 from schemas.canonical_types import CanonicalResearchArticle
 
@@ -173,7 +174,7 @@ async def create_group(
 
 
 @router.get("/groups/{group_id}", response_model=ArticleGroupDetailResponse)
-async def get_group_detail(
+async def get_group_details(
     group_id: str,
     page: int = 1,
     page_size: int = 20,
@@ -182,7 +183,7 @@ async def get_group_detail(
 ):
     """Get detailed information about a specific group with pagination."""
     group_service = ArticleGroupService(db)
-    result = group_service.get_group_detail(current_user.user_id, group_id, page, page_size)
+    result = group_service.get_group_details(current_user.user_id, group_id, page, page_size)
     
     if not result:
         raise HTTPException(
@@ -402,16 +403,16 @@ async def get_feature_presets(
 
 # ================== INDIVIDUAL ARTICLE RESEARCH ENDPOINTS ==================
 
-@router.get("/groups/{group_id}/articles/{article_id}")
-async def get_article_workbench_data(
+@router.get("/groups/{group_id}/articles/{article_id}", response_model=ArticleDetailResponse)
+async def get_article_group_detail(
     group_id: str,
     article_id: str,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
-    """Get complete workbench data for an article in a group."""
+    """Get complete article detail data for an article in a group."""
     detail_service = ArticleGroupDetailService(db)
-    result = detail_service.get_workbench_data(current_user.user_id, group_id, article_id)
+    result = detail_service.get_group_detail(current_user.user_id, group_id, article_id)
     
     if not result:
         raise HTTPException(

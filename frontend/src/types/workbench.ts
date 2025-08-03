@@ -25,6 +25,7 @@ export interface ArticleGroupDetail {
   group_id: string;                        // Group ID
   article: CanonicalResearchArticle;       // The article data
   feature_data: Record<string, any>;       // Extracted feature data keyed by feature.id
+  notes?: string;                          // Article-specific notes
   position?: number;                       // Position in the group
   added_at: string;                        // When article was added to group
 }
@@ -85,14 +86,8 @@ export interface ArticlePreview {
   feature_data?: Record<string, any>;
 }
 
-// Individual article research data (deep dive mode)
-export interface WorkbenchData {
-  article_id: string;
-  notes: string;
-  extracted_features: Record<string, ExtractedFeature>;
-  metadata: WorkbenchMetadata;
-  last_modified: string;
-}
+// Individual article research data (deep dive mode) - DEPRECATED
+// Use ArticleGroupDetail instead for consistent data structure
 
 export interface ExtractedFeature {
   name: string;

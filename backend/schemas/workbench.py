@@ -35,6 +35,7 @@ class ArticleGroupDetail(BaseModel):
     group_id: str = Field(..., description="Group ID")
     article: CanonicalResearchArticle = Field(..., description="The article data")
     feature_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted feature data keyed by feature.id")
+    notes: Optional[str] = Field('', description="Article-specific notes")
     position: Optional[int] = Field(None, description="Position in the group")
     added_at: str = Field(..., description="When article was added to group")
 
@@ -75,12 +76,24 @@ class ArticleGroup(BaseModel):
     updated_at: str = Field(..., description="Last update timestamp")
 
 
+# ================== ARTICLE DETAIL RESPONSE ==================
+
+class ArticleDetailResponse(BaseModel):
+    """Response for getting a single article's full details within a group"""
+    article: CanonicalResearchArticle = Field(..., description="The article data")
+    notes: str = Field('', description="Article-specific notes")
+    feature_data: Dict[str, Any] = Field(default_factory=dict, description="Extracted feature data")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Article metadata")
+    position: Optional[int] = Field(None, description="Position in the group")
+    group_id: str = Field(..., description="Group this article belongs to")
+    group_name: str = Field(..., description="Name of the group")
+    created_at: str = Field(..., description="When article was added to group")
+    updated_at: Optional[str] = Field(None, description="Last update timestamp")
+
 # ================== ADDITIONAL BACKEND TYPES ==================
 # Note: These types exist only in the frontend:
 # - WorkbenchState (frontend UI state)
 # - ArticleGroupSummary (frontend display type)
 # - ArticlePreview (frontend display type)
-# - WorkbenchData (individual article research)
 # - ExtractedFeature (individual article features)
-# - WorkbenchMetadata (individual article metadata)
 # - AnalysisPreset (analysis presets)

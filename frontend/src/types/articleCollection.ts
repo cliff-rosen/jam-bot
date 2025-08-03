@@ -137,13 +137,14 @@ export function createSavedGroupCollection(group: ArticleGroupWithDetails): Arti
     options: feature.options
   }));
 
-  // Process articles - the backend sends them with feature_data already embedded
+  // Process articles - the backend sends them with feature_data and notes already embedded
   const articles = (group.articles || []).map((articleItem: any) => ({
     id: articleItem.id,
     article_id: articleItem.article_id,
     group_id: articleItem.group_id,
     article: articleItem.article,
     feature_data: articleItem.feature_data || {},
+    notes: articleItem.notes,
     position: articleItem.position,
     added_at: articleItem.added_at
   }));

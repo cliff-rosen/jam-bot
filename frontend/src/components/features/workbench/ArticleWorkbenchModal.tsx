@@ -155,7 +155,7 @@ export function ArticleWorkbenchModal({
                     <NotesTab
                       groupId={collection.saved_group_id}
                       articleId={article.id}
-                      initialNotes=""
+                      articleDetail={articleDetail}
                     />
                   ) : (
                     <div className="text-center py-8">

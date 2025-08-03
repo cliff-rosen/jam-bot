@@ -188,10 +188,10 @@ export function ManageCollectionFeaturesModal({
       <DialogContent className="max-w-5xl w-[90vw] h-[85vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="text-xl font-semibold">
-            Manage Collection Features
+            Feature Management
           </DialogTitle>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Scope: {renderScope()}
+            Manage features, select which to extract, and target articles • Scope: {renderScope()}
           </p>
         </DialogHeader>
 

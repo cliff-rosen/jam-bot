@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FolderOpen, Cloud, RotateCcw, Search, Folder, Edit2, Check, X } from 'lucide-react';
+import { Loader2, FolderOpen, Cloud, RotateCcw, Search, Folder, Edit2, Check, X, Settings } from 'lucide-react';
 import { ArticleCollection, CollectionSource } from '@/types/articleCollection';
 
 interface CollectionHeaderProps {
@@ -22,8 +22,7 @@ interface CollectionHeaderProps {
   } | null;
   selectedArticleIds: string[];
   onLoadGroup: () => void;
-  onAddFeatures: () => void;
-  onExtractFeatures: () => void;
+  onManageFeatures: () => void;
   onSaveChanges: () => void;
   onSaveAsGroup: () => void;
   onAddToGroup: () => void;
@@ -41,8 +40,7 @@ export function CollectionHeader({
   groupPagination,
   selectedArticleIds,
   onLoadGroup,
-  onAddFeatures,
-  onExtractFeatures,
+  onManageFeatures,
   onSaveChanges,
   onSaveAsGroup,
   onAddToGroup,
@@ -334,11 +332,11 @@ export function CollectionHeader({
             {/* Features */}
             <div className="flex items-center gap-2">
               <Button
-                onClick={onAddFeatures}
+                onClick={onManageFeatures}
                 variant="outline"
                 size="sm"
               >
-                Add Features to Selected
+                Manage Features for Selected
               </Button>
             </div>
 
@@ -423,35 +421,23 @@ export function CollectionHeader({
             {/* Features */}
             <div className="flex items-center gap-2">
               <Button
-                onClick={onAddFeatures}
-                variant="outline"
+                onClick={onManageFeatures}
+                variant="default"
                 size="sm"
-                disabled={collection.articles.length === 0}
+                disabled={collection.articles.length === 0 || isExtracting}
               >
-                Add Features
+                {isExtracting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Manage Features
+                  </>
+                )}
               </Button>
-
-              {/* Extract Features - only when features defined */}
-              {collection.feature_definitions.length > 0 && (
-                <Button
-                  onClick={onExtractFeatures}
-                  variant="default"
-                  size="sm"
-                  disabled={isExtracting}
-                >
-                  {isExtracting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
-                      Extracting...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Extract Features
-                    </>
-                  )}
-                </Button>
-              )}
             </div>
 
             {/* Separator */}

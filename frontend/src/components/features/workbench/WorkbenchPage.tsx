@@ -15,7 +15,6 @@ import { TabbedWorkbenchInterface } from './TabbedWorkbenchInterface';
 import { SearchTab } from './SearchTab';
 import { GroupsTab } from './GroupsTab';
 import { WorkbenchTable } from './WorkbenchTable';
-import { AddFeatureModal } from './AddFeatureModal';
 import { ManageCollectionFeaturesModal } from './ManageCollectionFeaturesModal';
 import { ArticleWorkbenchModal } from './ArticleWorkbenchModal';
 import { SaveGroupModal } from './SaveGroupModal';
@@ -36,11 +35,8 @@ export function WorkbenchPage() {
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showManageFeaturesModal, setShowManageFeaturesModal] = useState(false);
-  const [addModalMode, setAddModalMode] = useState<'add' | 'extract'>('add');
-  const [addModalCollectionType, setAddModalCollectionType] = useState<'search' | 'group'>('search');
-  const [manageFeaturesCollectionType, setManageFeaturesCollectionType] = useState<'search' | 'group'>('search');
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
+  const [featureModalCollectionType, setFeatureModalCollectionType] = useState<'search' | 'group'>('search');
   const [existingGroups, setExistingGroups] = useState<Array<{ id: string; name: string; description?: string; articleCount: number }>>([]);
 
   // Selection state
@@ -186,63 +182,11 @@ export function WorkbenchPage() {
   };
 
   /**
-   * Handle submission from the Extract Features modal (AddFeatureModal in extract mode)
-   * Despite the old modal name, this handles extraction of existing features
+   * Handle opening the unified Feature modal
    */
-  const handleExtractModalSubmit = async (features: FeatureDefinition[], extractImmediately?: boolean, selectedArticleIds?: string[]) => {
-    const collectionType = addModalCollectionType; // Use the stored collection type
-    const targetArticles = selectedArticleIds && selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-
-    try {
-      if (addModalMode === 'extract') {
-        // Extract mode: features are existing ones to extract
-        await workbench.extractFeatureValues(features.map(f => f.id), collectionType, targetArticles);
-        const scope = targetArticles ? `${targetArticles.length} selected` : 'all';
-        toast({
-          title: 'Features Extracted',
-          description: `Extracted ${features.length} feature${features.length > 1 ? 's' : ''} for ${scope} articles`,
-        });
-      } else if (extractImmediately) {
-        // Add mode with immediate extraction
-        await workbench.addFeaturesAndExtract(features, collectionType, targetArticles);
-        const scope = targetArticles ? `${targetArticles.length} selected` : 'all';
-        toast({
-          title: 'Features Added & Extracted',
-          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} and extracted values for ${scope} articles`,
-        });
-      } else {
-        // Add mode without extraction
-        workbench.addFeatureDefinitionsLocal(features, collectionType);
-        toast({
-          title: 'Features Added',
-          description: `Added ${features.length} feature${features.length > 1 ? 's' : ''} to the collection`,
-        });
-      }
-    } catch (error) {
-      console.error('Feature operation failed:', error);
-      toast({
-        title: addModalMode === 'extract' ? 'Failed to Extract Features' : 'Failed to Add Features',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  /**
-   * Handle opening the Extract Features modal (AddFeatureModal in extract mode)
-   */
-  const handleOpenExtractModal = (collectionType: 'search' | 'group') => {
-    setAddModalMode('extract');
-    setAddModalCollectionType(collectionType);
-    setShowAddModal(true);
-  };
-
-  /**
-   * Handle opening the Manage Features modal for comprehensive feature management
-   */
-  const handleOpenManageFeaturesModal = (collectionType: 'search' | 'group') => {
-    setManageFeaturesCollectionType(collectionType);
-    setShowManageFeaturesModal(true);
+  const handleOpenFeatureModal = (collectionType: 'search' | 'group') => {
+    setFeatureModalCollectionType(collectionType);
+    setShowFeatureModal(true);
   };
 
   /**
@@ -252,7 +196,7 @@ export function WorkbenchPage() {
     // TODO: Implement feature update in WorkbenchContext
     console.log('Update feature:', featureId, updates);
     // For now, we'll need to update the entire feature_definitions array
-    const collection = manageFeaturesCollectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
+    const collection = featureModalCollectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
     if (!collection) return;
 
     const updatedFeatures = collection.feature_definitions.map(f =>
@@ -260,29 +204,29 @@ export function WorkbenchPage() {
     );
 
     // This needs a new context method to update features
-    workbench.addFeatureDefinitionsLocal(updatedFeatures, manageFeaturesCollectionType);
+    workbench.addFeatureDefinitionsLocal(updatedFeatures, featureModalCollectionType);
   };
 
   /**
-   * Handle adding features from the Manage Features modal
+   * Handle adding features from the Feature modal
    */
-  const handleManageFeaturesAdd = (features: FeatureDefinition[], extractImmediately: boolean) => {
+  const handleFeatureAdd = (features: FeatureDefinition[], extractImmediately: boolean) => {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
 
     if (extractImmediately) {
-      workbench.addFeaturesAndExtract(features, manageFeaturesCollectionType, targetArticles);
+      workbench.addFeaturesAndExtract(features, featureModalCollectionType, targetArticles);
     } else {
-      workbench.addFeatureDefinitionsLocal(features, manageFeaturesCollectionType);
+      workbench.addFeatureDefinitionsLocal(features, featureModalCollectionType);
     }
   };
 
   /**
-   * Handle extracting selected features from the Manage Features modal
+   * Handle extracting selected features from the Feature modal
    */
-  const handleManageFeaturesExtract = async (featureIds: string[]) => {
+  const handleFeatureExtract = async (featureIds: string[]) => {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-    await workbench.extractFeatureValues(featureIds, manageFeaturesCollectionType, targetArticles);
-    setShowManageFeaturesModal(false);
+    await workbench.extractFeatureValues(featureIds, featureModalCollectionType, targetArticles);
+    setShowFeatureModal(false);
   };
 
   /**
@@ -548,8 +492,7 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => setActiveTab('groups')}
-                  onAddFeatures={() => handleOpenManageFeaturesModal('search')}
-                  onExtractFeatures={() => handleOpenExtractModal('search')}
+                  onManageFeatures={() => handleOpenFeatureModal('search')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
@@ -616,8 +559,7 @@ export function WorkbenchPage() {
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
                   onLoadGroup={() => { }} // Groups tab doesn't need this
-                  onAddFeatures={() => handleOpenManageFeaturesModal('group')}
-                  onExtractFeatures={() => handleOpenExtractModal('group')}
+                  onManageFeatures={() => handleOpenFeatureModal('group')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
                   onAddToGroup={handleAddSelectedToGroup}
@@ -674,34 +616,25 @@ export function WorkbenchPage() {
 
 
       {/* Modals */}
-      {/* Old modal for Extract mode */}
-      <AddFeatureModal
-        open={showAddModal}
-        onOpenChange={setShowAddModal}
-        onAdd={(features, extractImmediately) => handleExtractModalSubmit(features, extractImmediately, selectedArticleIds)}
-        mode={addModalMode}
-        existingFeatures={addModalCollectionType === 'search' ? workbench.searchCollection?.feature_definitions || [] : workbench.groupCollection?.feature_definitions || []}
-      />
-
-      {/* New modal for Manage Features (Add mode) */}
+      {/* Unified Feature Management Modal */}
       <ManageCollectionFeaturesModal
-        open={showManageFeaturesModal}
-        onOpenChange={setShowManageFeaturesModal}
+        open={showFeatureModal}
+        onOpenChange={setShowFeatureModal}
         currentFeatures={
-          manageFeaturesCollectionType === 'search'
+          featureModalCollectionType === 'search'
             ? workbench.searchCollection?.feature_definitions || []
             : workbench.groupCollection?.feature_definitions || []
         }
         selectedArticleCount={selectedArticleIds.length}
         totalArticleCount={
-          manageFeaturesCollectionType === 'search'
+          featureModalCollectionType === 'search'
             ? workbench.searchCollection?.articles.length || 0
             : workbench.groupCollection?.articles.length || 0
         }
         onUpdateFeature={handleUpdateFeature}
-        onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, manageFeaturesCollectionType)}
-        onAddFeatures={handleManageFeaturesAdd}
-        onExtractFeatures={handleManageFeaturesExtract}
+        onDeleteFeature={(featureId) => workbench.removeFeatureDefinition(featureId, featureModalCollectionType)}
+        onAddFeatures={handleFeatureAdd}
+        onExtractFeatures={handleFeatureExtract}
       />
 
       <SaveGroupModal

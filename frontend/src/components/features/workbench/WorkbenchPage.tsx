@@ -417,7 +417,12 @@ export function WorkbenchPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className={`px-4 py-6 space-y-6 ${
+      (workbench.searchCollection?.feature_definitions.length || 0) > 0 || 
+      (workbench.groupCollection?.feature_definitions.length || 0) > 0
+        ? 'min-w-full' 
+        : 'container mx-auto'
+    }`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

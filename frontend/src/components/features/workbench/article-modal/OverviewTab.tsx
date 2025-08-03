@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   ExternalLink, Calendar, Users, BookOpen, Hash, 
-  FileText, Tag, MessageCircle 
+  FileText, Tag, MessageCircle, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 
@@ -14,6 +15,19 @@ interface OverviewTabProps {
 }
 
 export function OverviewTab({ article, featureData, collectionName, collectionFeatures }: OverviewTabProps) {
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
+
+  const toggleFeatureExpansion = (featureId: string) => {
+    setExpandedFeatures(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+      }
+      return newSet;
+    });
+  };
   const getPubMedId = () => {
     if (article.source === 'pubmed' && article.id.includes('pubmed_')) {
       return article.id.replace('pubmed_', '');
@@ -171,31 +185,50 @@ export function OverviewTab({ article, featureData, collectionName, collectionFe
                   const feature = collectionFeatures?.find(f => f.id === featureId);
                   const displayName = feature?.name || featureId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                   const displayValue = typeof value === 'object' && value?.value ? value.value : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+                  const isExpanded = expandedFeatures.has(featureId);
                   
                   return (
-                    <div key={featureId} className="bg-white dark:bg-blue-800/20 rounded-md p-3 border border-blue-200 dark:border-blue-700">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                            {displayName}
+                    <div key={featureId} className="bg-white dark:bg-blue-800/20 rounded-md border border-blue-200 dark:border-blue-700">
+                      <div className="p-3">
+                        {/* Compact single line display */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
+                              {displayName}
+                            </span>
+                            {feature?.type && feature.type !== 'text' && (
+                              <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 flex-shrink-0">
+                                {feature.type}
+                              </Badge>
+                            )}
+                            {feature?.description && (
+                              <button
+                                onClick={() => toggleFeatureExpansion(featureId)}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors flex-shrink-0"
+                                title={isExpanded ? "Hide details" : "Show details"}
+                              >
+                                {isExpanded ? 
+                                  <ChevronDown className="w-4 h-4" /> : 
+                                  <ChevronRight className="w-4 h-4" />
+                                }
+                              </button>
+                            )}
                           </div>
-                          {feature?.description && (
-                            <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 opacity-75">
+                          <div className="text-sm text-blue-900 dark:text-blue-100 font-medium text-right max-w-[40%] truncate">
+                            {displayValue || <span className="italic text-blue-600 dark:text-blue-400">No value</span>}
+                          </div>
+                        </div>
+                        
+                        {/* Expandable description */}
+                        {feature?.description && isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                            <div className="text-xs text-blue-700 dark:text-blue-300 opacity-75 leading-relaxed">
+                              <span className="font-medium">Extraction Prompt:</span><br />
                               {feature.description}
                             </div>
-                          )}
-                        </div>
-                        <div className="text-sm text-blue-900 dark:text-blue-100 font-medium text-right max-w-[60%]">
-                          {displayValue || <span className="italic text-blue-600 dark:text-blue-400">No value</span>}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                      {feature?.type && feature.type !== 'text' && (
-                        <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                          <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                            {feature.type}
-                          </Badge>
-                        </div>
-                      )}
                     </div>
                   );
                 })}

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Brain, ChevronDown, ChevronRight, Settings, Package } from 'lucide-react';
+import { Plus, Trash2, Brain, ChevronDown, ChevronRight, Settings, Package, Info } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { FeaturePreset } from '@/lib/api/workbenchApi';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
@@ -49,6 +49,21 @@ export function FeaturesTab({
   const [selectedPresetFeatures, setSelectedPresetFeatures] = useState<string[]>([]);
   const [presetsLoading, setPresetsLoading] = useState(false);
   const [addFeatureTab, setAddFeatureTab] = useState<'custom' | 'preset'>('custom');
+  
+  // State for expanding feature descriptions
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
+
+  const toggleFeatureExpansion = (featureId: string) => {
+    setExpandedFeatures(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(featureId)) {
+        newSet.delete(featureId);
+      } else {
+        newSet.add(featureId);
+      }
+      return newSet;
+    });
+  };
 
   // Get features that haven't been extracted yet for this article
   const unextractedFeatures = collectionFeatures.filter(
@@ -234,26 +249,46 @@ export function FeaturesTab({
             {Object.entries(existingFeatures).map(([featureId, value]) => {
               const feature = collectionFeatures.find(f => f.id === featureId);
               if (!feature) return null;
+              
+              const isExpanded = expandedFeatures.has(featureId);
+              const displayValue = typeof value === 'object' && value.value ? value.value : String(value);
 
               return (
-                <div key={featureId} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                        {feature.name}
-                      </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                        {feature.description}
-                      </p>
-                      <div className="mt-2">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Value:
+                <div key={featureId} className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="p-3">
+                    {/* Compact single line display */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {feature.name}
                         </span>
-                        <span className="text-sm text-gray-900 dark:text-gray-100 ml-2">
-                          {typeof value === 'object' && value.value ? value.value : String(value)}
-                        </span>
+                        {feature.type !== 'text' && (
+                          <Badge variant="outline" className="text-xs flex-shrink-0">
+                            {feature.type}
+                          </Badge>
+                        )}
+                        <button
+                          onClick={() => toggleFeatureExpansion(featureId)}
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors flex-shrink-0"
+                          title={isExpanded ? "Hide details" : "Show details"}
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-900 dark:text-gray-100 font-medium text-right max-w-[40%] truncate">
+                        {displayValue || <span className="italic text-gray-500">No value</span>}
                       </div>
                     </div>
+                    
+                    {/* Expandable description */}
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                          <span className="font-medium">Extraction Prompt:</span><br />
+                          {feature.description}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -274,29 +309,59 @@ export function FeaturesTab({
           </h3>
 
           <div className="space-y-2 mb-4">
-            {unextractedFeatures.map(feature => (
-              <div
-                key={feature.id}
-                className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700"
-              >
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedFeaturesToExtract.includes(feature.id)}
-                    onChange={() => toggleFeatureSelection(feature.id)}
-                    className="mt-1 rounded border-gray-300 dark:border-gray-600"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {feature.name}
-                    </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      {feature.description}
-                    </div>
+            {unextractedFeatures.map(feature => {
+              const isExpanded = expandedFeatures.has(feature.id);
+              
+              return (
+                <div
+                  key={feature.id}
+                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="p-3">
+                    {/* Compact single line display */}
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFeaturesToExtract.includes(feature.id)}
+                        onChange={() => toggleFeatureSelection(feature.id)}
+                        className="rounded border-gray-300 dark:border-gray-600 flex-shrink-0"
+                      />
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {feature.name}
+                        </span>
+                        {feature.type !== 'text' && (
+                          <Badge variant="outline" className="text-xs flex-shrink-0">
+                            {feature.type}
+                          </Badge>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleFeatureExpansion(feature.id);
+                          }}
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors flex-shrink-0"
+                          title={isExpanded ? "Hide details" : "Show details"}
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </label>
+                    
+                    {/* Expandable description */}
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 ml-8">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                          <span className="font-medium">Extraction Prompt:</span><br />
+                          {feature.description}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </label>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
 
           <Button

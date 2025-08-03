@@ -25,7 +25,7 @@ export function NotesTab({ groupId, articleId, initialNotes = '', articleDetail 
     const loadNotes = async () => {
       try {
         setIsLoading(true);
-        
+
         // First try to get notes from articleDetail prop (should come from group data)
         if (articleDetail?.notes !== undefined) {
           setNotes(articleDetail.notes);
@@ -33,10 +33,10 @@ export function NotesTab({ groupId, articleId, initialNotes = '', articleDetail 
           setIsLoading(false);
           return;
         }
-        
+
         // Fallback: try to load from individual article API
         try {
-          const groupDetailData = await workbenchApi.getArticleGroupDetail(groupId, articleId);
+          const groupDetailData = await workbenchApi.getGroupDetail(groupId, articleId);
           const existingNotes = groupDetailData.notes || '';
           setNotes(existingNotes);
           setOriginalNotes(existingNotes);
@@ -69,10 +69,10 @@ export function NotesTab({ groupId, articleId, initialNotes = '', articleDetail 
       await workbenchApi.updateNotes(groupId, articleId, notes);
       setOriginalNotes(notes); // Update the original notes after successful save
       setIsEditing(false);
-      
+
       // TODO: Update the workbench context with the new notes so they persist in the modal
       // This would require adding a method like workbench.updateArticleNotes(articleId, notes)
-      
+
       toast({
         title: 'Notes Saved',
         description: 'Your notes have been saved successfully.',

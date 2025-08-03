@@ -64,7 +64,7 @@ export function AddToGroupModal({
       await Promise.all(
         groupsData.map(async (group: ArticleGroup) => {
           try {
-            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetail(group.id, 1, 1000); // Get all articles for duplicate checking
+            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetails(group.id, 1, 1000); // Get all articles for duplicate checking
             groupArticleMap[group.id] = new Set<string>(
               detail.articles.map(item => item.article.id)
             );
@@ -197,8 +197,8 @@ export function AddToGroupModal({
                 <div
                   key={article.id}
                   className={`text-xs truncate flex items-center gap-2 ${isDuplicate
-                      ? 'text-amber-700 dark:text-amber-300'
-                      : 'text-blue-700 dark:text-blue-300'
+                    ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-blue-700 dark:text-blue-300'
                     }`}
                 >
                   <span>•</span>
@@ -266,8 +266,8 @@ export function AddToGroupModal({
                   <div
                     key={group.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedGroupId === group.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                     onClick={() => setSelectedGroupId(group.id)}
                   >

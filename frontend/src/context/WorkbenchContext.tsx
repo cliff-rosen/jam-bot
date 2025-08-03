@@ -26,7 +26,8 @@ import { generatePrefixedUUID } from '@/lib/utils/uuid';
 interface WorkbenchState {
   // DUAL COLLECTION STATE
   searchCollection: ArticleCollection | null;   // Search results collection
-  groupCollection: ArticleCollection | null;    // Loaded group collection
+  groupCollection: ArticleCollection | null;    // Loaded group collection (paginated view)
+  fullGroupArticles: ArticleGroupDetail[] | null; // All articles in the group for client-side pagination
   collectionLoading: boolean;
 
   // GROUPS LIST STATE
@@ -96,6 +97,7 @@ interface WorkbenchActions {
   // Group Loading Operations (affects groupCollection)  
   fetchGroupCollection: (groupId: string, page?: number) => Promise<void>;
   updateGroupPaginationParams: (params: Partial<WorkbenchState['groupParams']>) => void;
+  setGroupPage: (page: number) => void;
 
   // Backend Group Management (affects backend + groupsList)
   createGroupFromCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
@@ -151,6 +153,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   // State
   const [searchCollection, setSearchCollection] = useState<ArticleCollection | null>(null);
   const [groupCollection, setGroupCollection] = useState<ArticleCollection | null>(null);
+  const [fullGroupArticles, setFullGroupArticles] = useState<ArticleGroupDetail[] | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(false);
   const [groupsList, setGroupsList] = useState<ArticleGroup[]>([]);
   const [groupsListLoading, setGroupsListLoading] = useState(false);
@@ -287,25 +290,38 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setError(null);
 
     try {
-      const pageSize = groupParams.pageSize; // Use group-specific page size
-      const group = await workbenchApi.getGroupDetails(groupId, page, pageSize);
+      // Load ALL articles for client-side pagination
+      // Use a very large page size to get everything in one request
+      const group = await workbenchApi.getGroupDetails(groupId, 1, 10000);
       
-      const collection = createSavedGroupCollection(group);
+      const fullCollection = createSavedGroupCollection(group);
       
-      setGroupCollection(collection);
+      // Store the full articles list
+      setFullGroupArticles(fullCollection.articles);
+      
+      // Create paginated view
+      const pageSize = groupParams.pageSize;
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedArticles = fullCollection.articles.slice(startIndex, endIndex);
+      
+      // Create paginated collection
+      const paginatedCollection: ArticleCollection = {
+        ...fullCollection,
+        articles: paginatedArticles
+      };
+      
+      setGroupCollection(paginatedCollection);
       setSearchPagination(null); // Clear search pagination
 
-      // Set group pagination if available
-      if (group.pagination) {
-        setGroupPagination({
-          currentPage: group.pagination.current_page,
-          totalPages: group.pagination.total_pages,
-          totalResults: group.pagination.total_results,
-          pageSize: group.pagination.page_size
-        });
-      } else {
-        setGroupPagination(null);
-      }
+      // Set client-side pagination based on full dataset
+      const totalArticles = fullCollection.articles.length;
+      setGroupPagination({
+        currentPage: page,
+        totalPages: Math.ceil(totalArticles / pageSize),
+        totalResults: totalArticles,
+        pageSize: pageSize
+      });
 
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
@@ -316,6 +332,31 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setCollectionLoading(false);
     }
   }, [groupParams.pageSize]);
+
+  const setGroupPage = useCallback((page: number) => {
+    if (!fullGroupArticles || !groupCollection) return;
+    
+    const pageSize = groupParams.pageSize;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedArticles = fullGroupArticles.slice(startIndex, endIndex);
+    
+    // Create new paginated collection
+    const paginatedCollection: ArticleCollection = {
+      ...groupCollection,
+      articles: paginatedArticles
+    };
+    
+    setGroupCollection(paginatedCollection);
+    
+    // Update pagination state
+    setGroupPagination({
+      currentPage: page,
+      totalPages: Math.ceil(fullGroupArticles.length / pageSize),
+      totalResults: fullGroupArticles.length,
+      pageSize: pageSize
+    });
+  }, [fullGroupArticles, groupCollection, groupParams.pageSize]);
 
   const fetchCachedGroupsList = useCallback(async () => {
     // Return cached groups list for backward compatibility
@@ -444,8 +485,12 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     try {
       // Use the elegant unified update API - pass articles to trigger full state synchronization
-      // Important: We need to pass articles with their extracted_features data
-      const articlesWithFeatures = currentCollection.articles.map(item => {
+      // Important: Use ALL articles, not just the current page
+      const articlesToSave = collectionType === 'group' && fullGroupArticles 
+        ? fullGroupArticles 
+        : currentCollection.articles;
+        
+      const articlesWithFeatures = articlesToSave.map(item => {
         // Create a copy of the article and add extracted_features from feature_data
         const articleWithFeatures = {
           ...item.article,
@@ -585,21 +630,53 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     if (!currentCollection) return;
 
     const idSet = new Set(articleIds);
-    const filteredArticles = currentCollection.articles.filter(
-      a => !idSet.has(a.article_id)
-    );
-
-    const updatedCollection = {
-      ...currentCollection,
-      articles: filteredArticles,
-      is_modified: true,
-      updated_at: new Date().toISOString()
-    };
-
+    
     if (collectionType === 'search') {
+      const filteredArticles = currentCollection.articles.filter(
+        a => !idSet.has(a.article_id)
+      );
+
+      const updatedCollection = {
+        ...currentCollection,
+        articles: filteredArticles,
+        is_modified: true,
+        updated_at: new Date().toISOString()
+      };
+
       setSearchCollection(updatedCollection);
     } else {
+      // For groups, update both fullGroupArticles and the paginated view
+      if (!fullGroupArticles) return;
+      
+      const filteredFullArticles = fullGroupArticles.filter(
+        a => !idSet.has(a.article.id)
+      );
+      
+      setFullGroupArticles(filteredFullArticles);
+      
+      // Update paginated view based on current page
+      const currentPage = groupPagination?.currentPage || 1;
+      const pageSize = groupParams.pageSize;
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedArticles = filteredFullArticles.slice(startIndex, endIndex);
+      
+      const updatedCollection = {
+        ...currentCollection,
+        articles: paginatedArticles,
+        is_modified: true,
+        updated_at: new Date().toISOString()
+      };
+
       setGroupCollection(updatedCollection);
+      
+      // Update pagination
+      setGroupPagination({
+        currentPage: currentPage,
+        totalPages: Math.ceil(filteredFullArticles.length / pageSize),
+        totalResults: filteredFullArticles.length,
+        pageSize: pageSize
+      });
     }
 
     // Clear selection if needed
@@ -608,7 +685,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       articleIds.forEach(id => newSet.delete(id));
       return newSet;
     });
-  }, [searchCollection, groupCollection]);
+  }, [searchCollection, groupCollection, fullGroupArticles, groupPagination, groupParams.pageSize]);
 
   const reorderArticleInCollection = useCallback((articleId: string, newPosition: number, collectionType: 'search' | 'group' = 'search') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -962,7 +1039,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     const currentCollection = searchCollection || groupCollection;
     if (!currentCollection) return;
 
-    const allIds = new Set(currentCollection.articles.map(a => a.article_id));
+    const allIds = new Set(currentCollection.articles.map(a => a.article.id));
     setSelectedArticleIds(allIds);
   }, [searchCollection, groupCollection]);
 
@@ -1026,6 +1103,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // State
     searchCollection,
     groupCollection,
+    fullGroupArticles,
     collectionLoading,
     groupsList,
     groupsListLoading,
@@ -1053,6 +1131,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     // Group Loading
     fetchGroupCollection,
     updateGroupPaginationParams,
+    setGroupPage,
 
     // Group Management
     createGroupFromCollection,

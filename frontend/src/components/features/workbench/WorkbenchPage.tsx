@@ -588,7 +588,7 @@ export function WorkbenchPage() {
                     totalPages={workbench.groupPagination.totalPages}
                     totalResults={workbench.groupPagination.totalResults}
                     pageSize={workbench.groupPagination.pageSize}
-                    onPageChange={(page) => handleLoadGroup(workbench.groupCollection?.saved_group_id || '', page)}
+                    onPageChange={(page) => workbench.setGroupPage(page)}
                     isLoading={workbench.collectionLoading}
                   />
                 )}

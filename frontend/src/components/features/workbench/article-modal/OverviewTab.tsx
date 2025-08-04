@@ -175,36 +175,60 @@ export function OverviewTab({ article, featureData, collectionName, collectionFe
         <div className="space-y-4">
           {/* Extracted Features */}
           {Object.keys(featureData).length > 0 && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3">
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Extracted Features ({Object.keys(featureData).length})
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {Object.entries(featureData).map(([featureId, value]) => {
                   // Find the feature definition to get the display name
                   const feature = collectionFeatures?.find(f => f.id === featureId);
                   const displayName = feature?.name || featureId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                  const displayValue = typeof value === 'object' && value?.value ? value.value : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+                  const rawValue = typeof value === 'object' && value?.value ? value.value : (typeof value === 'object' ? JSON.stringify(value) : String(value));
                   const isExpanded = expandedFeatures.has(featureId);
                   
+                  // Handle boolean values specially
+                  const isBoolean = feature?.type === 'boolean';
+                  const isTrueValue = isBoolean && (rawValue === 'true' || rawValue === true || rawValue === 'yes' || rawValue === 'Yes');
+                  const isFalseValue = isBoolean && (rawValue === 'false' || rawValue === false || rawValue === 'no' || rawValue === 'No');
+                  
+                  let displayValue;
+                  let valueClassName = "text-sm font-medium";
+                  
+                  if (isBoolean) {
+                    if (isTrueValue) {
+                      displayValue = "✓ Yes";
+                      valueClassName += " text-green-700 dark:text-green-400 font-semibold";
+                    } else if (isFalseValue) {
+                      displayValue = "✗ No";
+                      valueClassName += " text-gray-600 dark:text-gray-400";
+                    } else {
+                      displayValue = rawValue || "No value";
+                      valueClassName += " text-gray-500 dark:text-gray-500 italic";
+                    }
+                  } else {
+                    displayValue = rawValue || "No value";
+                    valueClassName += rawValue ? " text-gray-900 dark:text-gray-100" : " text-gray-500 dark:text-gray-500 italic";
+                  }
+                  
                   return (
-                    <div key={featureId} className="bg-white dark:bg-blue-800/20 rounded-md border border-blue-200 dark:border-blue-700">
+                    <div key={featureId} className="bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600">
                       <div className="p-3">
                         {/* Compact single line display */}
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                               {displayName}
                             </span>
-                            {feature?.type && feature.type !== 'text' && (
-                              <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 flex-shrink-0">
+                            {feature?.type && (
+                              <Badge variant="outline" className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex-shrink-0">
                                 {feature.type}
                               </Badge>
                             )}
                             {feature?.description && (
                               <button
                                 onClick={() => toggleFeatureExpansion(featureId)}
-                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors flex-shrink-0"
+                                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors flex-shrink-0"
                                 title={isExpanded ? "Hide details" : "Show details"}
                               >
                                 {isExpanded ? 
@@ -214,15 +238,15 @@ export function OverviewTab({ article, featureData, collectionName, collectionFe
                               </button>
                             )}
                           </div>
-                          <div className="text-sm text-blue-900 dark:text-blue-100 font-medium text-right max-w-[40%] truncate">
-                            {displayValue || <span className="italic text-blue-600 dark:text-blue-400">No value</span>}
+                          <div className={`${valueClassName} text-right max-w-[40%] truncate`}>
+                            {displayValue}
                           </div>
                         </div>
                         
                         {/* Expandable description */}
                         {feature?.description && isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-                            <div className="text-xs text-blue-700 dark:text-blue-300 opacity-75 leading-relaxed">
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <div className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                               <span className="font-medium">Extraction Prompt:</span><br />
                               {feature.description}
                             </div>

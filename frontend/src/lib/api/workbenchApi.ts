@@ -65,6 +65,22 @@ export interface QuickActionsResponse {
   actions: QuickAction[];
 }
 
+// Company Profile Types
+export interface CompanyProfile {
+  id: string;
+  user_id: number;
+  company_name: string;
+  company_description?: string;
+  business_focus: string;
+  research_interests?: string;
+  therapeutic_areas?: string;
+  key_compounds?: string;
+  pathways_of_interest?: string;
+  competitive_landscape?: string;
+  research_agent_role: string;
+  analysis_focus?: string;
+}
+
 // Legacy alias
 export interface ColumnPresetsResponse extends FeaturePresetsResponse {
   categories?: string[];
@@ -296,6 +312,20 @@ export class WorkbenchApi {
   async duplicateQuickAction(id: string, name?: string): Promise<QuickAction> {
     const params = name ? `?name=${encodeURIComponent(name)}` : '';
     const response = await api.post(`/api/workbench/quick-actions/${id}/duplicate${params}`);
+    return response.data;
+  }
+
+  // ================== COMPANY PROFILE ==================
+
+  // Get company profile
+  async getCompanyProfile(): Promise<CompanyProfile> {
+    const response = await api.get('/api/workbench/company-profile');
+    return response.data;
+  }
+
+  // Update company profile
+  async updateCompanyProfile(profile: Partial<Omit<CompanyProfile, 'id' | 'user_id'>>): Promise<CompanyProfile> {
+    const response = await api.put('/api/workbench/company-profile', profile);
     return response.data;
   }
 

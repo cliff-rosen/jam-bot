@@ -3,14 +3,16 @@ import { useAuth } from '@/context/AuthContext';
 import { EmailAgentOAuthButton } from '@/components/features/auth';
 import { FeaturePresetManagementModal } from '@/components/features/workbench';
 import { QuickActionManagementModal } from '@/components/features/workbench/QuickActionManagementModal';
+import { CompanyProfileManagementModal } from '@/components/features/profile/CompanyProfileManagementModal';
 import { Button } from '@/components/ui/button';
 import { EnvelopeIcon } from '@heroicons/react/24/outline';
-import { Settings, Sliders, MessageCircle } from 'lucide-react';
+import { Settings, Sliders, MessageCircle, Building2 } from 'lucide-react';
 
 export default function Profile() {
     const { user, isAuthenticated } = useAuth();
     const [presetManagementOpen, setPresetManagementOpen] = useState(false);
     const [quickActionManagementOpen, setQuickActionManagementOpen] = useState(false);
+    const [companyProfileManagementOpen, setCompanyProfileManagementOpen] = useState(false);
 
     if (!isAuthenticated) {
         return null;
@@ -39,6 +41,25 @@ export default function Profile() {
                         </div>
                     </div>
                     <EmailAgentOAuthButton />
+                </div>
+
+                {/* Company Profile Management */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Building2 className="h-5 w-5 text-gray-400" />
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Company Profile</h3>
+                            <p className="text-sm text-gray-500">Customize your company context for AI analysis</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        onClick={() => setCompanyProfileManagementOpen(true)}
+                        className="flex items-center gap-2"
+                    >
+                        <Settings className="h-4 w-4" />
+                        Manage Profile
+                    </Button>
                 </div>
 
                 {/* Feature Presets Management */}
@@ -90,6 +111,12 @@ export default function Profile() {
             <QuickActionManagementModal
                 open={quickActionManagementOpen}
                 onOpenChange={setQuickActionManagementOpen}
+            />
+
+            {/* Company Profile Management Modal */}
+            <CompanyProfileManagementModal
+                open={companyProfileManagementOpen}
+                onOpenChange={setCompanyProfileManagementOpen}
             />
         </div>
     );

@@ -104,6 +104,7 @@ class User(Base):
 
     hops = relationship("Hop", cascade="all, delete-orphan")
     article_groups = relationship("ArticleGroup", back_populates="user", cascade="all, delete-orphan")
+    company_profile = relationship("UserCompanyProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -726,4 +727,115 @@ class ChatQuickAction(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+class UserCompanyProfile(Base):
+    """User's company/organization context for personalized AI responses"""
+    __tablename__ = 'user_company_profiles'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, unique=True)
+    
+    # Company Information
+    company_name = Column(String(255), nullable=False, default='Your Company')
+    company_description = Column(Text)
+    
+    # Business Focus
+    business_focus = Column(Text, nullable=False, default='developing innovative solutions')
+    research_interests = Column(Text)  # JSON array of research areas
+    therapeutic_areas = Column(Text)   # JSON array of therapeutic focus areas
+    
+    # Research Context
+    key_compounds = Column(Text)       # JSON array of key compounds/drugs
+    pathways_of_interest = Column(Text) # JSON array of biological pathways
+    competitive_landscape = Column(Text) # Information about competitors
+    
+    # AI Instruction Context
+    research_agent_role = Column(Text, nullable=False, default='research agent')
+    analysis_focus = Column(Text)      # What to focus on when analyzing articles
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship('User', back_populates='company_profile')
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': str(self.id),
+            'user_id': self.user_id,
+            'company_name': self.company_name,
+            'company_description': self.company_description,
+            'business_focus': self.business_focus,
+            'research_interests': self.research_interests,
+            'therapeutic_areas': self.therapeutic_areas,
+            'key_compounds': self.key_compounds,
+            'pathways_of_interest': self.pathways_of_interest,
+            'competitive_landscape': self.competitive_landscape,
+            'research_agent_role': self.research_agent_role,
+            'analysis_focus': self.analysis_focus,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    def generate_company_context(self) -> str:
+        """Generate dynamic company context for AI system instructions"""
+        context_parts = [
+            f"You are a {self.research_agent_role} for {self.company_name}, a company that is focused on {self.business_focus}."
+        ]
+        
+        if self.company_description:
+            context_parts.append(self.company_description)
+        
+        context_parts.append(
+            "Your primary purpose is to alert company personnel to new scientific and medical literature "
+            "that highlights risks and opportunities relevant to their business."
+        )
+        
+        if self.research_interests:
+            context_parts.append(f"The literature searches are focused on topics such as {self.research_interests}.")
+        
+        if self.therapeutic_areas:
+            context_parts.append(f"{self.company_name} is highly interested in {self.therapeutic_areas}.")
+        
+        if self.key_compounds:
+            context_parts.append(f"Key compounds of interest include {self.key_compounds}.")
+        
+        if self.pathways_of_interest:
+            context_parts.append(f"Important biological pathways include {self.pathways_of_interest}.")
+        
+        context_parts.append(
+            f"Overall, this research analysis plays an important role in keeping the {self.company_name} team "
+            "up-to-date on the latest scientific and medical research, enabling them to make informed decisions "
+            "about their research and development programs."
+        )
+        
+        return " ".join(context_parts)
+    
+    def generate_analysis_instructions(self) -> str:
+        """Generate dynamic analysis instructions for AI"""
+        instructions = [
+            f"1. Analyze this article through the lens of {self.company_name}'s business interests and research focus",
+            f"2. Identify potential risks, opportunities, or competitive intelligence relevant to {self.company_name}"
+        ]
+        
+        if self.pathways_of_interest:
+            instructions.append(f"3. Highlight connections to {self.pathways_of_interest} when relevant")
+        
+        if self.therapeutic_areas:
+            instructions.append(f"4. Assess relevance to {self.company_name}'s therapeutic areas ({self.therapeutic_areas})")
+        
+        instructions.extend([
+            f"5. Provide strategic insights about how this research might impact {self.company_name}'s programs",
+            "6. Answer questions about the methodology, findings, and implications",
+            "7. Explain complex concepts in accessible language for company personnel"
+        ])
+        
+        if self.analysis_focus:
+            instructions.append(f"8. {self.analysis_focus}")
+        
+        return "\n".join(instructions)
+        
 

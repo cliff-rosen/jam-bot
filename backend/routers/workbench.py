@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
 
-from models import User
+from models import User, UserCompanyProfile
 from database import get_db
 from schemas.workbench import (
     ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails, FeatureDefinition,
@@ -166,6 +166,35 @@ class UpdateQuickActionRequest(BaseModel):
     prompt: Optional[str] = None
     description: Optional[str] = None
     position: Optional[int] = None
+
+# Company Profile Models
+class CompanyProfileResponse(BaseModel):
+    """Company profile response"""
+    id: str
+    user_id: int
+    company_name: str
+    company_description: Optional[str] = None
+    business_focus: str
+    research_interests: Optional[str] = None
+    therapeutic_areas: Optional[str] = None
+    key_compounds: Optional[str] = None
+    pathways_of_interest: Optional[str] = None
+    competitive_landscape: Optional[str] = None
+    research_agent_role: str
+    analysis_focus: Optional[str] = None
+
+class UpdateCompanyProfileRequest(BaseModel):
+    """Request to update company profile"""
+    company_name: Optional[str] = None
+    company_description: Optional[str] = None
+    business_focus: Optional[str] = None
+    research_interests: Optional[str] = None
+    therapeutic_areas: Optional[str] = None
+    key_compounds: Optional[str] = None
+    pathways_of_interest: Optional[str] = None
+    competitive_landscape: Optional[str] = None
+    research_agent_role: Optional[str] = None
+    analysis_focus: Optional[str] = None
 
 class UpdateNotesRequest(BaseModel):
     """Request to update article notes"""
@@ -676,6 +705,80 @@ async def duplicate_quick_action(
         scope=action_dict['scope'],
         user_id=action_dict['user_id'],
         position=action_dict['position']
+    )
+
+
+# ================== COMPANY PROFILE ENDPOINTS ==================
+
+@router.get("/company-profile", response_model=CompanyProfileResponse)
+async def get_company_profile(
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """Get user's company profile."""
+    profile = db.query(UserCompanyProfile).filter(
+        UserCompanyProfile.user_id == current_user.user_id
+    ).first()
+    
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company profile not found"
+        )
+    
+    return CompanyProfileResponse(
+        id=str(profile.id),
+        user_id=profile.user_id,
+        company_name=profile.company_name,
+        company_description=profile.company_description,
+        business_focus=profile.business_focus,
+        research_interests=profile.research_interests,
+        therapeutic_areas=profile.therapeutic_areas,
+        key_compounds=profile.key_compounds,
+        pathways_of_interest=profile.pathways_of_interest,
+        competitive_landscape=profile.competitive_landscape,
+        research_agent_role=profile.research_agent_role,
+        analysis_focus=profile.analysis_focus
+    )
+
+
+@router.put("/company-profile", response_model=CompanyProfileResponse)
+async def update_company_profile(
+    request: UpdateCompanyProfileRequest,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """Update user's company profile."""
+    profile = db.query(UserCompanyProfile).filter(
+        UserCompanyProfile.user_id == current_user.user_id
+    ).first()
+    
+    if not profile:
+        # Create new profile if it doesn't exist
+        profile = UserCompanyProfile(user_id=current_user.user_id)
+        db.add(profile)
+    
+    # Update fields if provided
+    update_data = request.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(profile, field, value)
+    
+    db.commit()
+    db.refresh(profile)
+    
+    return CompanyProfileResponse(
+        id=str(profile.id),
+        user_id=profile.user_id,
+        company_name=profile.company_name,
+        company_description=profile.company_description,
+        business_focus=profile.business_focus,
+        research_interests=profile.research_interests,
+        therapeutic_areas=profile.therapeutic_areas,
+        key_compounds=profile.key_compounds,
+        pathways_of_interest=profile.pathways_of_interest,
+        competitive_landscape=profile.competitive_landscape,
+        research_agent_role=profile.research_agent_role,
+        analysis_focus=profile.analysis_focus
     )
 
 

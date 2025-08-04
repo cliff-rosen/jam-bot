@@ -203,7 +203,7 @@ export function FeaturePresetManagementModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[90vw] h-[85vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col p-0">
+      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <DialogTitle className="text-xl font-semibold flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -323,6 +323,7 @@ export function FeaturePresetManagementModal({
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
+                                {/* No delete button for system presets */}
                               </div>
                             </div>
                           </Card>
@@ -389,7 +390,7 @@ export function FeaturePresetManagementModal({
                 </div>
 
                 {/* Feature list */}
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                <div className="space-y-2">
                   {presetForm.features.map((feature, index) => (
                     <Card key={feature.id} className="p-3 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
                       {editingFeatureIndex === index ? (

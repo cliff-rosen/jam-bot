@@ -120,14 +120,21 @@ class FeaturePresetService:
         category: Optional[str] = None,
         features: Optional[List[FeatureDefinition]] = None
     ) -> Optional[Dict[str, Any]]:
-        """Update a user's preset"""
+        """Update a preset (user's own or system preset - any user can edit system presets)"""
         
-        # Get preset and verify ownership
+        # Get preset and verify access (user owns it OR it's a global preset)
         preset = self.db.query(FeaturePresetGroup).filter(
             and_(
                 FeaturePresetGroup.id == preset_id,
-                FeaturePresetGroup.scope == 'user',
-                FeaturePresetGroup.scope_id == user_id
+                or_(
+                    # User owns this preset
+                    and_(
+                        FeaturePresetGroup.scope == 'user',
+                        FeaturePresetGroup.scope_id == user_id
+                    ),
+                    # Or it's a global preset (any user can edit)
+                    FeaturePresetGroup.scope == 'global'
+                )
             )
         ).first()
         
@@ -169,7 +176,7 @@ class FeaturePresetService:
         return preset.to_dict()
     
     def delete_preset(self, preset_id: str, user_id: int) -> bool:
-        """Delete a user's preset"""
+        """Delete a user's preset (system presets cannot be deleted)"""
         
         # Verify ownership
         preset = self.db.query(FeaturePresetGroup).filter(

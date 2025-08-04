@@ -123,6 +123,20 @@ class FeaturePresetsResponse(BaseModel):
     """Response with available feature presets"""
     presets: List[FeaturePreset]
 
+class CreateFeaturePresetRequest(BaseModel):
+    """Request to create a new feature preset"""
+    name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    features: List[FeatureDefinition]
+
+class UpdateFeaturePresetRequest(BaseModel):
+    """Request to update a feature preset"""
+    name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    features: List[FeatureDefinition]
+
 class UpdateNotesRequest(BaseModel):
     """Request to update article notes"""
     notes: str
@@ -337,7 +351,7 @@ async def get_feature_presets(
 
 @router.post("/feature-presets", response_model=FeaturePreset)
 async def create_feature_preset(
-    request: FeaturePreset,
+    request: CreateFeaturePresetRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
@@ -377,7 +391,7 @@ async def create_feature_preset(
 @router.put("/feature-presets/{preset_id}", response_model=FeaturePreset)
 async def update_feature_preset(
     preset_id: str,
-    request: FeaturePreset,
+    request: UpdateFeaturePresetRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):

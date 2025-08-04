@@ -50,6 +50,21 @@ export interface FeaturePresetsResponse {
   presets: FeaturePreset[];
 }
 
+// Quick Action Types
+export interface QuickAction {
+  id: string;
+  name: string;
+  prompt: string;
+  description?: string;
+  scope: 'global' | 'user';
+  user_id?: number;
+  position: number;
+}
+
+export interface QuickActionsResponse {
+  actions: QuickAction[];
+}
+
 // Legacy alias
 export interface ColumnPresetsResponse extends FeaturePresetsResponse {
   categories?: string[];
@@ -241,6 +256,48 @@ export class WorkbenchApi {
     return response.data;
   }
 
+  // ================== QUICK ACTIONS ==================
+
+  // Get quick actions
+  async getQuickActions(): Promise<QuickActionsResponse> {
+    const response = await api.get('/api/workbench/quick-actions');
+    return response.data;
+  }
+
+  // Create a new quick action
+  async createQuickAction(action: {
+    name: string;
+    prompt: string;
+    description?: string;
+    position?: number;
+  }): Promise<QuickAction> {
+    const response = await api.post('/api/workbench/quick-actions', action);
+    return response.data;
+  }
+
+  // Update an existing quick action
+  async updateQuickAction(id: string, action: {
+    name?: string;
+    prompt?: string;
+    description?: string;
+    position?: number;
+  }): Promise<QuickAction> {
+    const response = await api.put(`/api/workbench/quick-actions/${id}`, action);
+    return response.data;
+  }
+
+  // Delete a quick action
+  async deleteQuickAction(id: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete(`/api/workbench/quick-actions/${id}`);
+    return response.data;
+  }
+
+  // Duplicate a quick action
+  async duplicateQuickAction(id: string, name?: string): Promise<QuickAction> {
+    const params = name ? `?name=${encodeURIComponent(name)}` : '';
+    const response = await api.post(`/api/workbench/quick-actions/${id}/duplicate${params}`);
+    return response.data;
+  }
 
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 

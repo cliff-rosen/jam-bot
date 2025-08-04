@@ -139,8 +139,8 @@ class UpdateFeaturePresetRequest(BaseModel):
     features: List[FeatureDefinition]
 
 # Chat Quick Action Models
-class ChatQuickAction(BaseModel):
-    """Single chat quick action"""
+class QuickActionResponse(BaseModel):
+    """Single chat quick action response"""
     id: str
     name: str
     prompt: str
@@ -151,7 +151,7 @@ class ChatQuickAction(BaseModel):
 
 class QuickActionsResponse(BaseModel):
     """Response with available quick actions"""
-    actions: List[ChatQuickAction]
+    actions: List[QuickActionResponse]
 
 class CreateQuickActionRequest(BaseModel):
     """Request to create a new quick action"""
@@ -542,9 +542,9 @@ async def get_quick_actions(
     # Get all actions available to this user (global + their own)
     action_dicts = action_service.get_available_actions(user_id=current_user.user_id)
     
-    # Convert to ChatQuickAction response format
+    # Convert to QuickActionResponse format
     actions = [
-        ChatQuickAction(
+        QuickActionResponse(
             id=action_dict['id'],
             name=action_dict['name'],
             prompt=action_dict['prompt'],
@@ -559,7 +559,7 @@ async def get_quick_actions(
     return QuickActionsResponse(actions=actions)
 
 
-@router.post("/quick-actions", response_model=ChatQuickAction)
+@router.post("/quick-actions", response_model=QuickActionResponse)
 async def create_quick_action(
     request: CreateQuickActionRequest,
     current_user: User = Depends(validate_token),
@@ -577,7 +577,7 @@ async def create_quick_action(
         position=request.position
     )
     
-    return ChatQuickAction(
+    return QuickActionResponse(
         id=action_dict['id'],
         name=action_dict['name'],
         prompt=action_dict['prompt'],
@@ -588,7 +588,7 @@ async def create_quick_action(
     )
 
 
-@router.put("/quick-actions/{action_id}", response_model=ChatQuickAction)
+@router.put("/quick-actions/{action_id}", response_model=QuickActionResponse)
 async def update_quick_action(
     action_id: str,
     request: UpdateQuickActionRequest,
@@ -614,7 +614,7 @@ async def update_quick_action(
             detail="Quick action not found or access denied"
         )
     
-    return ChatQuickAction(
+    return QuickActionResponse(
         id=action_dict['id'],
         name=action_dict['name'],
         prompt=action_dict['prompt'],
@@ -645,7 +645,7 @@ async def delete_quick_action(
     return {"success": True, "message": "Quick action deleted successfully"}
 
 
-@router.post("/quick-actions/{action_id}/duplicate", response_model=ChatQuickAction)
+@router.post("/quick-actions/{action_id}/duplicate", response_model=QuickActionResponse)
 async def duplicate_quick_action(
     action_id: str,
     name: Optional[str] = None,
@@ -668,7 +668,7 @@ async def duplicate_quick_action(
             detail="Quick action not found or access denied"
         )
     
-    return ChatQuickAction(
+    return QuickActionResponse(
         id=action_dict['id'],
         name=action_dict['name'],
         prompt=action_dict['prompt'],

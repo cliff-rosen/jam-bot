@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { EmailAgentOAuthButton } from '@/components/features/auth';
 import { FeaturePresetManagementModal } from '@/components/features/workbench';
+import { QuickActionManagementModal } from '@/components/features/workbench/QuickActionManagementModal';
 import { Button } from '@/components/ui/button';
 import { EnvelopeIcon } from '@heroicons/react/24/outline';
-import { Settings, Sliders } from 'lucide-react';
+import { Settings, Sliders, MessageCircle } from 'lucide-react';
 
 export default function Profile() {
     const { user, isAuthenticated } = useAuth();
     const [presetManagementOpen, setPresetManagementOpen] = useState(false);
+    const [quickActionManagementOpen, setQuickActionManagementOpen] = useState(false);
 
     if (!isAuthenticated) {
         return null;
@@ -57,12 +59,37 @@ export default function Profile() {
                         Manage Presets
                     </Button>
                 </div>
+
+                {/* Quick Actions Management */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <MessageCircle className="h-5 w-5 text-gray-400" />
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Chat Quick Actions</h3>
+                            <p className="text-sm text-gray-500">Create and manage your custom chat quick action buttons</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        onClick={() => setQuickActionManagementOpen(true)}
+                        className="flex items-center gap-2"
+                    >
+                        <Settings className="h-4 w-4" />
+                        Manage Actions
+                    </Button>
+                </div>
             </div>
 
             {/* Feature Preset Management Modal */}
             <FeaturePresetManagementModal
                 open={presetManagementOpen}
                 onOpenChange={setPresetManagementOpen}
+            />
+
+            {/* Quick Action Management Modal */}
+            <QuickActionManagementModal
+                open={quickActionManagementOpen}
+                onOpenChange={setQuickActionManagementOpen}
             />
         </div>
     );

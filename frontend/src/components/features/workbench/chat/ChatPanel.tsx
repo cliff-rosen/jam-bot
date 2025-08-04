@@ -6,6 +6,7 @@ import { ChatInput } from './ChatInput';
 import { ChatMessage as ChatMessageType } from './types';
 import { useWorkbench } from '@/context/WorkbenchContext';
 import { useToast } from '@/components/ui/use-toast';
+import { useQuickActions } from '@/lib/hooks/useQuickActions';
 
 interface ChatPanelProps {
   article: CanonicalResearchArticle;
@@ -32,6 +33,7 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { updateArticleNotes, groupCollection } = useWorkbench();
   const { toast } = useToast();
+  const { actions: quickActions, loading: quickActionsLoading } = useQuickActions();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,53 +208,25 @@ export function ChatPanel({ article, onSendMessage }: ChatPanelProps) {
       <div className="p-4 border-t dark:border-gray-700">
         <div className="mb-3">
           <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Questions</h4>
-          <div className="flex flex-wrap gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickAction("How is this research relevant to Palatin's interests and business focus?")}
-              className="text-xs h-7"
-              disabled={isLoading}
-            >
-              Palatin Relevance
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickAction("Can you explain this article in simple, layman's terms that anyone can understand?")}
-              className="text-xs h-7"
-              disabled={isLoading}
-            >
-              Simple Explanation
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickAction("What are the key findings?")}
-              className="text-xs h-7"
-              disabled={isLoading}
-            >
-              Key Findings
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickAction("What competitive threats or opportunities does this present?")}
-              className="text-xs h-7"
-              disabled={isLoading}
-            >
-              Business Impact
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickAction("Explain abstract in this format:\n- Background / Rationale: Why this study was done.\n- Objective: What the study aimed to find out.\n- Methods: How it was done (what kind of study, what measurements).\n- Results: What was found (often with numbers or statistics).\n- Conclusion / Interpretation: What it means, and how it matters.")}
-              className="text-xs h-7"
-              disabled={isLoading}
-            >
-              Explain Abstract
-            </Button>
-          </div>
+          {quickActionsLoading ? (
+            <div className="text-xs text-gray-500 dark:text-gray-400">Loading quick actions...</div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {quickActions.map((action) => (
+                <Button
+                  key={action.id}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickAction(action.prompt)}
+                  className="text-xs h-7"
+                  disabled={isLoading}
+                  title={action.description}
+                >
+                  {action.name}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

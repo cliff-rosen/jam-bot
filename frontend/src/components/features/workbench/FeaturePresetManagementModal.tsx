@@ -204,49 +204,53 @@ export function FeaturePresetManagementModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-5xl w-[90vw] h-[85vh] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 flex flex-col p-0">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
             <Settings className="h-5 w-5" />
             Manage Feature Presets
           </DialogTitle>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Create and manage your custom feature extraction presets
+          </p>
         </DialogHeader>
 
-        {editMode === 'none' ? (
-          // List view
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                Create and manage your custom feature presets
-              </p>
-              <Button onClick={startCreatePreset} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Create Preset
-              </Button>
-            </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          {editMode === 'none' ? (
+            // List view
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Manage your personal feature presets and duplicate system presets
+                </div>
+                <Button onClick={startCreatePreset} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Preset
+                </Button>
+              </div>
 
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading presets...</div>
-            ) : error ? (
-              <div className="text-center py-8 text-destructive">Error: {error}</div>
-            ) : (
+              {loading ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading presets...</div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-600 dark:text-red-400">Error: {error}</div>
+              ) : (
               <div className="space-y-6">
                 {/* User's custom presets */}
                 {userPresets.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-medium mb-3 text-foreground">Your Presets</h3>
+                    <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">Your Presets</h3>
                     <div className="grid gap-3">
                       {userPresets.map((preset) => (
-                        <Card key={preset.id} className="p-4">
+                        <Card key={preset.id} className="p-4 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <h4 className="font-medium text-foreground">{preset.name}</h4>
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">{preset.name}</h4>
                               {preset.description && (
-                                <p className="text-sm text-muted-foreground mt-1">
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                                   {preset.description}
                                 </p>
                               )}
-                              <p className="text-xs text-muted-foreground mt-2">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                 {preset.features.length} features
                                 {preset.category && ` • ${preset.category}`}
                               </p>
@@ -289,19 +293,19 @@ export function FeaturePresetManagementModal({
 
                   return (
                     <div key={category}>
-                      <h3 className="text-lg font-medium mb-3 text-foreground">{category} (System)</h3>
+                      <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">{category} (System)</h3>
                       <div className="grid gap-3">
                         {categoryPresets.map((preset) => (
-                          <Card key={preset.id} className="p-4 bg-muted/30">
+                          <Card key={preset.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <h4 className="font-medium text-foreground">{preset.name}</h4>
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100">{preset.name}</h4>
                                 {preset.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                                     {preset.description}
                                   </p>
                                 )}
-                                <p className="text-xs text-muted-foreground mt-2">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                   {preset.features.length} features • System preset
                                 </p>
                               </div>
@@ -329,7 +333,7 @@ export function FeaturePresetManagementModal({
           // Create/Edit form
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 {editMode === 'create' ? 'Create New Preset' : 'Edit Preset'}
               </h3>
               <Button variant="ghost" onClick={resetForm}>
@@ -373,7 +377,7 @@ export function FeaturePresetManagementModal({
             {/* Features section */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium">Features ({presetForm.features.length})</h4>
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">Features ({presetForm.features.length})</h4>
                 <Button onClick={startAddFeature} size="sm" className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   Add Feature
@@ -381,9 +385,9 @@ export function FeaturePresetManagementModal({
               </div>
 
               {/* Feature list */}
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                 {presetForm.features.map((feature, index) => (
-                  <Card key={feature.id} className="p-3">
+                  <Card key={feature.id} className="p-3 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
                     {editingFeatureIndex === index ? (
                       // Edit form for this feature
                       <div className="space-y-3">
@@ -438,12 +442,12 @@ export function FeaturePresetManagementModal({
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{feature.name}</span>
-                            <span className="text-xs px-2 py-1 bg-muted rounded">
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded">
                               {feature.type}
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                             {feature.description}
                           </p>
                         </div>
@@ -470,7 +474,7 @@ export function FeaturePresetManagementModal({
 
                 {/* Add new feature form */}
                 {editingFeatureIndex === -1 && (
-                  <Card className="p-3 border-dashed">
+                  <Card className="p-3 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -524,7 +528,7 @@ export function FeaturePresetManagementModal({
             </div>
 
             {/* Save/Cancel buttons */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button variant="ghost" onClick={resetForm}>
                 Cancel
               </Button>
@@ -535,8 +539,8 @@ export function FeaturePresetManagementModal({
                 {editMode === 'create' ? 'Create Preset' : 'Save Changes'}
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

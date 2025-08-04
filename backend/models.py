@@ -675,3 +675,55 @@ class FeaturePresetFeature(Base):
             'options': self.feature_options or {}
         }
 
+
+class ChatQuickAction(Base):
+    """Quick actions for article chat functionality"""
+    __tablename__ = 'chat_quick_actions'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(255), nullable=False)  # Display name (e.g., "Palatin Relevance")
+    prompt = Column(Text, nullable=False)  # The actual question/prompt to send
+    description = Column(Text)  # Optional description for management UI
+    
+    # Scope management (global vs user-specific)
+    scope = Column(String(20), nullable=False, default='user')  # 'global' or 'user'
+    user_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=True)
+    
+    # Ordering for display
+    position = Column(Integer, default=0)
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship('User', foreign_keys=[user_id])
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "(scope = 'global' AND user_id IS NULL) OR (scope = 'user' AND user_id IS NOT NULL)",
+            name='check_chat_scope_consistency'
+        ),
+        CheckConstraint(
+            "scope IN ('global', 'user')",
+            name='check_chat_valid_scope'
+        ),
+        Index('idx_chat_actions_scope', 'scope', 'user_id'),
+        Index('idx_chat_actions_position', 'scope', 'position'),
+    )
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': str(self.id),
+            'name': self.name,
+            'prompt': self.prompt,
+            'description': self.description,
+            'scope': self.scope,
+            'user_id': self.user_id,
+            'position': self.position,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+

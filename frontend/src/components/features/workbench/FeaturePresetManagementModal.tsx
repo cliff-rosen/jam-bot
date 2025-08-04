@@ -389,7 +389,7 @@ export function FeaturePresetManagementModal({
                 </div>
 
                 {/* Feature list */}
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
                   {presetForm.features.map((feature, index) => (
                     <Card key={feature.id} className="p-3 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
                       {editingFeatureIndex === index ? (

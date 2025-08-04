@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit2, Trash2, Check, X, Copy, Settings, FolderPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Copy, Settings } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { useFeaturePresets, FeaturePreset } from '@/lib/hooks/useFeaturePresets';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
@@ -192,15 +192,14 @@ export function FeaturePresetManagementModal({
     });
   };
 
-  // Group presets by category
-  const presetsByCategory = presets.reduce((acc, preset) => {
-    const category = preset.category || 'Uncategorized';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(preset);
-    return acc;
-  }, {} as Record<string, FeaturePreset[]>);
-
-  const userPresets = presets.filter(p => p.category !== 'Core Analysis' && p.category !== 'Medical Research' && p.category !== 'Pharmaceutical' && p.category !== 'Basic Science');
+  // Organize presets: all presets are now editable
+  const userCreatedPresets = presets.filter(p => 
+    !['Core Analysis', 'Medical Research', 'Pharmaceutical', 'Basic Science'].includes(p.category || '')
+  );
+  
+  const systemPresets = presets.filter(p => 
+    ['Core Analysis', 'Medical Research', 'Pharmaceutical', 'Basic Science'].includes(p.category || '')
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,21 +210,21 @@ export function FeaturePresetManagementModal({
             Manage Feature Presets
           </DialogTitle>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Create and manage your custom feature extraction presets
+            Create, edit, and manage your feature extraction presets
           </p>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6">
           {editMode === 'none' ? (
             // List view
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Manage your personal feature presets and duplicate system presets
+                  All presets are editable. System presets can be modified by any user.
                 </div>
                 <Button onClick={startCreatePreset} className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
-                  Create Preset
+                  Create New Preset
                 </Button>
               </div>
 
@@ -234,68 +233,66 @@ export function FeaturePresetManagementModal({
               ) : error ? (
                 <div className="text-center py-8 text-red-600 dark:text-red-400">Error: {error}</div>
               ) : (
-              <div className="space-y-6">
-                {/* User's custom presets */}
-                {userPresets.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">Your Presets</h3>
-                    <div className="grid gap-3">
-                      {userPresets.map((preset) => (
-                        <Card key={preset.id} className="p-4 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 dark:text-gray-100">{preset.name}</h4>
-                              {preset.description && (
-                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                  {preset.description}
-                                </p>
-                              )}
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                {preset.features.length} features
-                                {preset.category && ` • ${preset.category}`}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDuplicatePreset(preset)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditPreset(preset)}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeletePreset(preset)}
-                                disabled={preset.category === 'Core Analysis'} // Protect global presets
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Global presets (read-only, but can duplicate) */}
-                {Object.entries(presetsByCategory).map(([category, categoryPresets]) => {
-                  const isGlobalCategory = ['Core Analysis', 'Medical Research', 'Pharmaceutical', 'Basic Science'].includes(category);
-                  if (!isGlobalCategory) return null;
-
-                  return (
-                    <div key={category}>
-                      <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">{category} (System)</h3>
+                <div className="space-y-6">
+                  {/* User created presets */}
+                  {userCreatedPresets.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">Your Custom Presets</h3>
                       <div className="grid gap-3">
-                        {categoryPresets.map((preset) => (
+                        {userCreatedPresets.map((preset) => (
+                          <Card key={preset.id} className="p-4 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100">{preset.name}</h4>
+                                {preset.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                    {preset.description}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                  {preset.features.length} features
+                                  {preset.category && ` • ${preset.category}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDuplicatePreset(preset)}
+                                  title="Duplicate preset"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditPreset(preset)}
+                                  title="Edit preset"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeletePreset(preset)}
+                                  title="Delete preset"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* System presets - now editable */}
+                  {systemPresets.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-gray-100">System Presets (Editable)</h3>
+                      <div className="grid gap-3">
+                        {systemPresets.map((preset) => (
                           <Card key={preset.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
@@ -306,7 +303,7 @@ export function FeaturePresetManagementModal({
                                   </p>
                                 )}
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                  {preset.features.length} features • System preset
+                                  {preset.features.length} features • {preset.category}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
@@ -314,9 +311,17 @@ export function FeaturePresetManagementModal({
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDuplicatePreset(preset)}
-                                  title="Create a copy you can edit"
+                                  title="Duplicate preset"
                                 >
                                   <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditPreset(preset)}
+                                  title="Edit system preset"
+                                >
+                                  <Edit2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
@@ -324,72 +329,156 @@ export function FeaturePresetManagementModal({
                         ))}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          // Create/Edit form
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {editMode === 'create' ? 'Create New Preset' : 'Edit Preset'}
-              </h3>
-              <Button variant="ghost" onClick={resetForm}>
-                <X className="h-4 w-4" />
-              </Button>
+                  )}
+                </div>
+              )}
             </div>
-
-            {/* Preset metadata form */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="preset-name">Name *</Label>
-                <Input
-                  id="preset-name"
-                  value={presetForm.name}
-                  onChange={(e) => setPresetForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter preset name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="preset-category">Category</Label>
-                <Input
-                  id="preset-category"
-                  value={presetForm.category}
-                  onChange={(e) => setPresetForm(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="e.g., Medical Research"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="preset-description">Description</Label>
-              <Textarea
-                id="preset-description"
-                value={presetForm.description}
-                onChange={(e) => setPresetForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe what this preset is used for"
-                className="h-20"
-              />
-            </div>
-
-            {/* Features section */}
-            <div className="space-y-3">
+          ) : (
+            // Create/Edit form
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">Features ({presetForm.features.length})</h4>
-                <Button onClick={startAddFeature} size="sm" className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Feature
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                  {editMode === 'create' ? 'Create New Preset' : 'Edit Preset'}
+                </h3>
+                <Button variant="ghost" onClick={resetForm}>
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
 
-              {/* Feature list */}
-              <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                {presetForm.features.map((feature, index) => (
-                  <Card key={feature.id} className="p-3 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
-                    {editingFeatureIndex === index ? (
-                      // Edit form for this feature
+              {/* Preset metadata form */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="preset-name">Name *</Label>
+                  <Input
+                    id="preset-name"
+                    value={presetForm.name}
+                    onChange={(e) => setPresetForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter preset name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="preset-category">Category</Label>
+                  <Input
+                    id="preset-category"
+                    value={presetForm.category}
+                    onChange={(e) => setPresetForm(prev => ({ ...prev, category: e.target.value }))}
+                    placeholder="e.g., Medical Research"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="preset-description">Description</Label>
+                <Textarea
+                  id="preset-description"
+                  value={presetForm.description}
+                  onChange={(e) => setPresetForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe what this preset is used for"
+                  className="h-20"
+                />
+              </div>
+
+              {/* Features section */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Features ({presetForm.features.length})</h4>
+                  <Button onClick={startAddFeature} size="sm" className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Feature
+                  </Button>
+                </div>
+
+                {/* Feature list */}
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {presetForm.features.map((feature, index) => (
+                    <Card key={feature.id} className="p-3 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                      {editingFeatureIndex === index ? (
+                        // Edit form for this feature
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label>Name *</Label>
+                              <Input
+                                value={featureForm.name}
+                                onChange={(e) => setFeatureForm(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="Feature name"
+                              />
+                            </div>
+                            <div>
+                              <Label>Type</Label>
+                              <Select
+                                value={featureForm.type}
+                                onValueChange={(value: 'boolean' | 'text' | 'score') =>
+                                  setFeatureForm(prev => ({ ...prev, type: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="boolean">Boolean</SelectItem>
+                                  <SelectItem value="text">Text</SelectItem>
+                                  <SelectItem value="score">Score</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div>
+                            <Label>Description *</Label>
+                            <Textarea
+                              value={featureForm.description}
+                              onChange={(e) => setFeatureForm(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="Describe what to extract"
+                              className="h-20"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button onClick={handleSaveFeature} size="sm">
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={cancelFeatureEdit} variant="ghost" size="sm">
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        // Display view
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                              <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded">
+                                {feature.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                              {feature.description}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditFeature(index)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteFeature(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+
+                  {/* Add new feature form */}
+                  {editingFeatureIndex === -1 && (
+                    <Card className="p-3 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
@@ -437,107 +526,23 @@ export function FeaturePresetManagementModal({
                           </Button>
                         </div>
                       </div>
-                    ) : (
-                      // Display view
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
-                            <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded">
-                              {feature.type}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            {feature.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEditFeature(index)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteFeature(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-
-                {/* Add new feature form */}
-                {editingFeatureIndex === -1 && (
-                  <Card className="p-3 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label>Name *</Label>
-                          <Input
-                            value={featureForm.name}
-                            onChange={(e) => setFeatureForm(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Feature name"
-                          />
-                        </div>
-                        <div>
-                          <Label>Type</Label>
-                          <Select
-                            value={featureForm.type}
-                            onValueChange={(value: 'boolean' | 'text' | 'score') =>
-                              setFeatureForm(prev => ({ ...prev, type: value }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="boolean">Boolean</SelectItem>
-                              <SelectItem value="text">Text</SelectItem>
-                              <SelectItem value="score">Score</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div>
-                        <Label>Description *</Label>
-                        <Textarea
-                          value={featureForm.description}
-                          onChange={(e) => setFeatureForm(prev => ({ ...prev, description: e.target.value }))}
-                          placeholder="Describe what to extract"
-                          className="h-20"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button onClick={handleSaveFeature} size="sm">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={cancelFeatureEdit} variant="ghost" size="sm">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                )}
+                    </Card>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Save/Cancel buttons */}
-            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="ghost" onClick={resetForm}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSavePreset}
-                disabled={!presetForm.name.trim() || presetForm.features.length === 0}
-              >
-                {editMode === 'create' ? 'Create Preset' : 'Save Changes'}
-              </Button>
+              {/* Save/Cancel buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="ghost" onClick={resetForm}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSavePreset}
+                  disabled={!presetForm.name.trim() || presetForm.features.length === 0}
+                >
+                  {editMode === 'create' ? 'Create Preset' : 'Save Changes'}
+                </Button>
+              </div>
             </div>
           )}
         </div>

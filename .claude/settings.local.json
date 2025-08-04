@@ -15,7 +15,8 @@
       "Bash(npm run typecheck:*)",
       "Bash(npx typescript:*)",
       "Bash(grep:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

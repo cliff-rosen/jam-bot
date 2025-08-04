@@ -577,3 +577,101 @@ class ArticleGroupDetail(Base):
         Index('idx_article_group_detail_position', 'article_group_id', 'position'),
     )
 
+
+# ================== FEATURE PRESET MODELS ==================
+
+class FeaturePresetGroup(Base):
+    """Feature preset group - a collection of features that can be applied together"""
+    __tablename__ = 'feature_preset_groups'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(String(100))
+    
+    # Scope fields
+    scope = Column(String(20), nullable=False)  # 'global' or 'user'
+    scope_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    features = relationship('FeaturePresetFeature', back_populates='preset_group', cascade='all, delete-orphan')
+    user = relationship('User', foreign_keys=[scope_id])
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "(scope = 'global' AND scope_id IS NULL) OR (scope = 'user' AND scope_id IS NOT NULL)",
+            name='check_scope_consistency'
+        ),
+        CheckConstraint(
+            "scope IN ('global', 'user')",
+            name='check_valid_scope'
+        ),
+        Index('idx_preset_groups_scope', 'scope', 'scope_id'),
+    )
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': str(self.id),
+            'name': self.name,
+            'description': self.description,
+            'category': self.category,
+            'scope': self.scope,
+            'scope_id': self.scope_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'features': [f.to_dict() for f in sorted(self.features, key=lambda x: x.position)]
+        }
+
+
+class FeaturePresetFeature(Base):
+    """Individual feature within a preset group"""
+    __tablename__ = 'feature_preset_features'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    preset_group_id = Column(String(36), ForeignKey('feature_preset_groups.id', ondelete='CASCADE'), nullable=False)
+    
+    # Feature definition
+    feature_id = Column(String(255), nullable=False)  # Unique identifier for the feature
+    feature_name = Column(String(255), nullable=False)
+    feature_description = Column(Text, nullable=False)
+    feature_type = Column(String(20), nullable=False)  # 'boolean', 'text', 'score'
+    feature_options = Column(JSON)  # Additional options like min/max for scores
+    
+    # Ordering
+    position = Column(Integer, default=0)
+    
+    # Relationships
+    preset_group = relationship('FeaturePresetGroup', back_populates='features')
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint('preset_group_id', 'feature_id', name='unique_feature_per_preset'),
+        Index('idx_preset_features_group', 'preset_group_id', 'position'),
+    )
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.feature_id,
+            'name': self.feature_name,
+            'description': self.feature_description,
+            'type': self.feature_type,
+            'options': self.feature_options or {}
+        }
+    
+    def to_feature_definition(self):
+        """Convert to FeatureDefinition format used in workbench"""
+        return {
+            'id': self.feature_id,
+            'name': self.feature_name,
+            'description': self.feature_description,
+            'type': self.feature_type,
+            'options': self.feature_options or {}
+        }
+

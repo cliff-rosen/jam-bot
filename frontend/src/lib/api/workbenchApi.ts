@@ -216,6 +216,31 @@ export class WorkbenchApi {
     return response.data;
   }
 
+  // Create a new feature preset
+  async createFeaturePreset(preset: Omit<FeaturePreset, 'id'>): Promise<FeaturePreset> {
+    const response = await api.post('/api/workbench/feature-presets', preset);
+    return response.data;
+  }
+
+  // Update an existing feature preset
+  async updateFeaturePreset(id: string, preset: Omit<FeaturePreset, 'id'>): Promise<FeaturePreset> {
+    const response = await api.put(`/api/workbench/feature-presets/${id}`, preset);
+    return response.data;
+  }
+
+  // Delete a feature preset
+  async deleteFeaturePreset(id: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete(`/api/workbench/feature-presets/${id}`);
+    return response.data;
+  }
+
+  // Duplicate a feature preset
+  async duplicateFeaturePreset(id: string, name?: string): Promise<FeaturePreset> {
+    const params = name ? `?name=${encodeURIComponent(name)}` : '';
+    const response = await api.post(`/api/workbench/feature-presets/${id}/duplicate${params}`);
+    return response.data;
+  }
+
 
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Building2, Save, RotateCcw, X } from 'lucide-react';
+
 import { workbenchApi, CompanyProfile } from '@/lib/api/workbenchApi';
 
 interface CompanyProfileManagementModalProps {
@@ -87,7 +88,7 @@ export function CompanyProfileManagementModal({
       const updatedProfile = await workbenchApi.updateCompanyProfile(formData);
       setProfile(updatedProfile);
       setHasChanges(false);
-      
+
       toast({
         title: 'Profile Updated',
         description: 'Your company profile has been updated successfully.',
@@ -154,7 +155,7 @@ export function CompanyProfileManagementModal({
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
                   Company Information
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="company_name">Company Name *</Label>
@@ -165,7 +166,7 @@ export function CompanyProfileManagementModal({
                       placeholder="Your Company Name"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="research_agent_role">Research Agent Role</Label>
                     <Input
@@ -205,7 +206,7 @@ export function CompanyProfileManagementModal({
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
                   Research Context
                 </h3>
-                
+
                 <div>
                   <Label htmlFor="research_interests">Research Interests</Label>
                   <Textarea
@@ -269,7 +270,7 @@ export function CompanyProfileManagementModal({
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
                   AI Analysis Focus
                 </h3>
-                
+
                 <div>
                   <Label htmlFor="analysis_focus">Additional Analysis Instructions</Label>
                   <Textarea
@@ -295,7 +296,7 @@ export function CompanyProfileManagementModal({
             <X className="h-4 w-4" />
             Close
           </Button>
-          
+
           <div className="flex gap-2">
             <Button
               variant="outline"

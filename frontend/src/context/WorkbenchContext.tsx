@@ -678,9 +678,22 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       
       setFullGroupArticles(filteredFullArticles);
       
-      // Update paginated view based on current page
-      const currentPage = groupPagination?.currentPage || 1;
+      // Calculate pagination after deletion
       const pageSize = groupParams.pageSize;
+      const totalPages = Math.ceil(filteredFullArticles.length / pageSize);
+      let currentPage = groupPagination?.currentPage || 1;
+      
+      // If current page is now beyond the total pages, go to the last valid page
+      if (currentPage > totalPages && totalPages > 0) {
+        currentPage = totalPages;
+      }
+      
+      // If there are no articles left, reset to page 1
+      if (filteredFullArticles.length === 0) {
+        currentPage = 1;
+      }
+      
+      // Calculate the articles for the current page
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedArticles = filteredFullArticles.slice(startIndex, endIndex);
@@ -694,10 +707,10 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       setGroupCollection(updatedCollection);
       
-      // Update pagination
+      // Update pagination with the corrected current page
       setGroupPagination({
         currentPage: currentPage,
-        totalPages: Math.ceil(filteredFullArticles.length / pageSize),
+        totalPages: Math.max(totalPages, 1), // Ensure at least 1 page even if empty
         totalResults: filteredFullArticles.length,
         pageSize: pageSize
       });

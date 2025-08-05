@@ -373,9 +373,9 @@ export function WorkbenchPage() {
     setShowAddToGroupModal(true);
   };
 
-  const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean) => {
+  const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean): Promise<{ articlesAdded: number; duplicatesSkipped: number }> => {
     const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
-    if (!currentCollection) return;
+    if (!currentCollection) throw new Error('No collection available');
 
     try {
       // Get articles to add (selected or all visible)
@@ -387,7 +387,7 @@ export function WorkbenchPage() {
 
       // Always add articles to the group first
       const collectionType = activeTab === 'search' ? 'search' : 'group';
-      await workbench.addArticlesToExistingGroup(groupId, articleIds, collectionType);
+      const result = await workbench.addArticlesToExistingGroup(groupId, articleIds, collectionType);
 
       // Clear selection after successful addition
       setSelectedArticleIds([]);
@@ -400,15 +400,17 @@ export function WorkbenchPage() {
 
         toast({
           title: 'Switched to Group',
-          description: `Added ${articlesToAdd.length} articles and switched to the group`,
+          description: `Added ${result.articlesAdded} new articles and switched to the group${result.duplicatesSkipped > 0 ? ` (${result.duplicatesSkipped} duplicates skipped)` : ''}`,
         });
       } else {
         // Stay here and show add success message
         toast({
           title: 'Added to Group',
-          description: `Added ${articlesToAdd.length} articles to the group`,
+          description: `Added ${result.articlesAdded} new articles to the group${result.duplicatesSkipped > 0 ? ` (${result.duplicatesSkipped} duplicates skipped)` : ''}`,
         });
       }
+      
+      return result;
 
     } catch (error) {
       console.error('Add to group failed:', error);

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Loader2,
@@ -15,14 +14,14 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { ArticleGroup, ArticleGroupWithDetails } from '@/types/workbench';
+import { ArticleGroup } from '@/types/workbench';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 
 interface AddToGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddToGroup: (groupId: string, navigateToGroup: boolean) => Promise<void>;
+  onAddToGroup: (groupId: string, navigateToGroup: boolean) => Promise<{ articlesAdded: number; duplicatesSkipped: number }>;
   articlesToAdd: Array<{ id: string; title: string }>;
   sourceCollectionName: string;
   currentGroupId?: string; // Hide this group from the list
@@ -46,11 +45,19 @@ export function AddToGroupModal({
   const [modalStep, setModalStep] = useState<ModalStep>('select-group');
   const [targetGroupName, setTargetGroupName] = useState('');
   const [rememberChoice, setRememberChoice] = useState(false);
-  const [duplicateInfo, setDuplicateInfo] = useState<{ total: number; duplicates: string[] } | null>(null);
-  const [groupArticles, setGroupArticles] = useState<Record<string, Set<string>>>({});
+  const [addResult, setAddResult] = useState<{ articlesAdded: number; duplicatesSkipped: number } | null>(null);
   const { toast } = useToast();
 
-  // Define loadGroups before using it in useEffect
+  // Load groups when modal opens
+  useEffect(() => {
+    if (open && modalStep === 'select-group') {
+      loadGroups();
+      setSelectedGroupId('');
+      setSearchTerm('');
+      setAddResult(null);
+    }
+  }, [open, modalStep]);
+
   const loadGroups = async () => {
     setIsLoading(true);
     try {
@@ -58,23 +65,6 @@ export function AddToGroupModal({
       const groupsData: ArticleGroup[] = response.groups || [];
       setGroups(groupsData);
       setFilteredGroups(groupsData);
-
-      // Load article IDs for each group to check for duplicates
-      const groupArticleMap: Record<string, Set<string>> = {};
-      await Promise.all(
-        groupsData.map(async (group: ArticleGroup) => {
-          try {
-            const detail: ArticleGroupWithDetails = await workbenchApi.getGroupDetails(group.id, 1, 1000); // Get all articles for duplicate checking
-            groupArticleMap[group.id] = new Set<string>(
-              detail.articles.map(item => item.article.id)
-            );
-          } catch (error) {
-            console.error(`Failed to load details for group ${group.id}:`, error);
-            groupArticleMap[group.id] = new Set<string>();
-          }
-        })
-      );
-      setGroupArticles(groupArticleMap);
     } catch (error) {
       console.error('Failed to load groups:', error);
       toast({
@@ -86,16 +76,6 @@ export function AddToGroupModal({
       setIsLoading(false);
     }
   };
-
-  // Load groups when modal opens
-  useEffect(() => {
-    if (open && modalStep === 'select-group') {
-      loadGroups();
-      setSelectedGroupId('');
-      setSearchTerm('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, modalStep]);
 
   // Filter groups based on search and exclude current group
   useEffect(() => {
@@ -118,22 +98,12 @@ export function AddToGroupModal({
     const selectedGroup = groups.find(g => g.id === selectedGroupId);
     if (!selectedGroup) return;
 
-    // Calculate duplicates
-    const targetArticleIds = groupArticles[selectedGroupId] || new Set();
-    const duplicateIds = articlesToAdd
-      .filter(article => targetArticleIds.has(article.id))
-      .map(article => article.id);
-
-    setDuplicateInfo({
-      total: articlesToAdd.length,
-      duplicates: duplicateIds
-    });
-
     setTargetGroupName(selectedGroup.name);
     setModalStep('adding');
 
     try {
-      await onAddToGroup(selectedGroupId, false); // Don't navigate yet
+      const result = await onAddToGroup(selectedGroupId, false); // Don't navigate yet
+      setAddResult(result);
       setModalStep('navigation-choice'); // Show navigation choice after success
     } catch (error) {
       // Error is handled by the parent component
@@ -184,55 +154,27 @@ export function AddToGroupModal({
       </DialogHeader>
 
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
-        {/* Article Preview with Duplicate Detection */}
+        {/* Article Preview */}
         <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
             Articles to add ({articlesToAdd.length}):
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto">
-            {articlesToAdd.slice(0, 5).map((article) => {
-              const isDuplicate = selectedGroupId &&
-                (groupArticles[selectedGroupId]?.has(article.id) || false);
-              return (
-                <div
-                  key={article.id}
-                  className={`text-xs truncate flex items-center gap-2 ${isDuplicate
-                    ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-blue-700 dark:text-blue-300'
-                    }`}
-                >
-                  <span>•</span>
-                  <span className="flex-1 truncate">{article.title}</span>
-                  {isDuplicate && (
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                      Duplicate
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
+            {articlesToAdd.slice(0, 5).map((article) => (
+              <div
+                key={article.id}
+                className="text-xs truncate flex items-center gap-2 text-blue-700 dark:text-blue-300"
+              >
+                <span>•</span>
+                <span className="flex-1 truncate">{article.title}</span>
+              </div>
+            ))}
             {articlesToAdd.length > 5 && (
               <div className="text-xs text-blue-600 dark:text-blue-400 italic">
                 ... and {articlesToAdd.length - 5} more
               </div>
             )}
           </div>
-          {selectedGroupId && groupArticles[selectedGroupId] && (() => {
-            const duplicateCount = articlesToAdd.filter(
-              article => groupArticles[selectedGroupId].has(article.id)
-            ).length;
-            if (duplicateCount > 0) {
-              return (
-                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{duplicateCount} duplicate{duplicateCount > 1 ? 's' : ''} will be skipped</span>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })()}
         </div>
 
         {/* Search */}
@@ -335,13 +277,13 @@ export function AddToGroupModal({
           Successfully Added
         </DialogTitle>
         <DialogDescription className="text-muted-foreground">
-          {duplicateInfo && duplicateInfo.duplicates.length > 0 ? (
+          {addResult && (
             <>
-              Added {duplicateInfo.total - duplicateInfo.duplicates.length} new {duplicateInfo.total - duplicateInfo.duplicates.length === 1 ? 'article' : 'articles'} to "{targetGroupName}"
-              <span className="text-amber-600 dark:text-amber-400"> ({duplicateInfo.duplicates.length} duplicate{duplicateInfo.duplicates.length > 1 ? 's' : ''} skipped)</span>
+              Added {addResult.articlesAdded} new {addResult.articlesAdded === 1 ? 'article' : 'articles'} to "{targetGroupName}"
+              {addResult.duplicatesSkipped > 0 && (
+                <span className="text-amber-600 dark:text-amber-400"> ({addResult.duplicatesSkipped} duplicate{addResult.duplicatesSkipped > 1 ? 's' : ''} skipped)</span>
+              )}
             </>
-          ) : (
-            <>Added {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to "{targetGroupName}"</>
           )}
         </DialogDescription>
       </DialogHeader>
@@ -401,16 +343,9 @@ export function AddToGroupModal({
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 dark:text-blue-400" />
           <div className="space-y-1">
             <p className="font-medium text-gray-900 dark:text-white">
-              Adding {duplicateInfo && duplicateInfo.duplicates.length > 0
-                ? `${articlesToAdd.length - duplicateInfo.duplicates.length} new articles`
-                : `${articlesToAdd.length} articles`} to
+              Adding {articlesToAdd.length} articles to
             </p>
             <p className="text-sm text-muted-foreground">"{targetGroupName}"</p>
-            {duplicateInfo && duplicateInfo.duplicates.length > 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Skipping {duplicateInfo.duplicates.length} duplicate{duplicateInfo.duplicates.length > 1 ? 's' : ''}
-              </p>
-            )}
           </div>
         </div>
       </div>

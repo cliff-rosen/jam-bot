@@ -449,9 +449,9 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [searchCollection, groupCollection, refreshGroupsList]);
 
-  const addArticlesToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search') => {
+  const addArticlesToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search'): Promise<{ articlesAdded: number; duplicatesSkipped: number }> => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
-    if (!currentCollection) return;
+    if (!currentCollection) throw new Error('No collection available');
 
     setCollectionLoading(true);
     setError(null);
@@ -473,7 +473,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         }));
       }
 
-      await workbenchApi.addArticlesToGroup(groupId, {
+      const response = await workbenchApi.addArticlesToGroup(groupId, {
         articles: articlesToAdd,
         extract_features: false // Don't auto-extract when adding to existing group
       });
@@ -483,9 +483,16 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       // Refresh groups list to reflect updated article count
       await refreshGroupsList();
+      
+      // Return the counts from the API response
+      return {
+        articlesAdded: response.articles_saved || 0,
+        duplicatesSkipped: (response as any).duplicates_skipped || 0
+      };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add to existing group');
       console.error('Add to group error:', err);
+      throw err;
     } finally {
       setCollectionLoading(false);
     }

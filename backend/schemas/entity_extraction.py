@@ -1,0 +1,101 @@
+"""
+Schemas for entity relationship extraction from research articles
+"""
+
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import BaseModel, Field
+from enum import Enum
+
+
+class EntityType(str, Enum):
+    """Types of entities that can be extracted"""
+    MEDICAL_CONDITION = "medical_condition"
+    BIOLOGICAL_FACTOR = "biological_factor"
+    INTERVENTION = "intervention"
+    PATIENT_CHARACTERISTIC = "patient_characteristic"
+    PSYCHOLOGICAL_FACTOR = "psychological_factor"
+    OUTCOME = "outcome"
+    GENE = "gene"
+    PROTEIN = "protein"
+    PATHWAY = "pathway"
+    DRUG = "drug"
+    OTHER = "other"
+
+
+class RelationshipType(str, Enum):
+    """Types of relationships between entities"""
+    CAUSAL = "causal"  # A causes B
+    THERAPEUTIC = "therapeutic"  # Treatment X improves condition Y
+    ASSOCIATIVE = "associative"  # A correlates with B
+    TEMPORAL = "temporal"  # A occurs before/after B
+    INHIBITORY = "inhibitory"  # A inhibits/blocks B
+    REGULATORY = "regulatory"  # A regulates B
+    INTERACTIVE = "interactive"  # A and B interact
+    PARADOXICAL = "paradoxical"  # Contradictory relationship
+
+
+class PatternComplexity(str, Enum):
+    """Classification of pattern complexity"""
+    SIMPLE = "SIMPLE"
+    COMPLEX = "COMPLEX"
+
+
+class Entity(BaseModel):
+    """Represents an entity extracted from the article"""
+    id: str = Field(..., description="Unique identifier for the entity")
+    name: str = Field(..., description="Name of the entity")
+    type: EntityType = Field(..., description="Type classification of the entity")
+    description: Optional[str] = Field(None, description="Brief description of the entity")
+    mentions: List[str] = Field(default_factory=list, description="Text snippets where entity is mentioned")
+
+
+class Relationship(BaseModel):
+    """Represents a relationship between entities"""
+    source_entity_id: str = Field(..., description="ID of the source entity")
+    target_entity_id: str = Field(..., description="ID of the target entity")
+    type: RelationshipType = Field(..., description="Type of relationship")
+    description: str = Field(..., description="Description of the relationship")
+    evidence: Optional[str] = Field(None, description="Text evidence supporting this relationship")
+    strength: Optional[Literal["strong", "moderate", "weak"]] = Field(None, description="Strength of the relationship")
+
+
+class EntityRelationshipAnalysis(BaseModel):
+    """Complete entity relationship analysis result"""
+    pattern_complexity: PatternComplexity = Field(..., description="Overall pattern complexity")
+    entities: List[Entity] = Field(..., description="All entities identified")
+    relationships: List[Relationship] = Field(..., description="All relationships identified")
+    complexity_justification: Optional[str] = Field(None, description="Explanation of complexity classification")
+    clinical_significance: Optional[str] = Field(None, description="Clinical importance of the findings")
+    key_findings: List[str] = Field(default_factory=list, description="Key findings from the analysis")
+    
+    # Computed properties
+    entity_count: Optional[int] = Field(None, description="Total number of entities")
+    relationship_count: Optional[int] = Field(None, description="Total number of relationships")
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Auto-compute counts if not provided
+        if self.entity_count is None:
+            self.entity_count = len(self.entities)
+        if self.relationship_count is None:
+            self.relationship_count = len(self.relationships)
+
+
+class EntityExtractionRequest(BaseModel):
+    """Request for entity relationship extraction"""
+    article_id: str = Field(..., description="ID of the article to analyze")
+    title: str = Field(..., description="Title of the article")
+    abstract: str = Field(..., description="Abstract text to analyze")
+    full_text: Optional[str] = Field(None, description="Full text if available")
+    
+    # Options
+    include_gene_data: bool = Field(True, description="Include gene/protein entities")
+    include_drug_data: bool = Field(True, description="Include drug/intervention entities")
+    focus_areas: Optional[List[str]] = Field(None, description="Specific areas to focus on")
+
+
+class EntityExtractionResponse(BaseModel):
+    """Response from entity relationship extraction"""
+    article_id: str
+    analysis: EntityRelationshipAnalysis
+    extraction_metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata about the extraction")

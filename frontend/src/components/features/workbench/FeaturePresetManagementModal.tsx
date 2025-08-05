@@ -10,6 +10,7 @@ import { Plus, Edit2, Trash2, Check, X, Copy, Settings } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { useFeaturePresets, FeaturePreset } from '@/lib/hooks/useFeaturePresets';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
+import { useToast } from '@/components/ui/use-toast';
 
 interface FeaturePresetManagementModalProps {
   open: boolean;
@@ -32,6 +33,8 @@ export function FeaturePresetManagementModal({
     duplicatePreset,
     refreshPresets
   } = useFeaturePresets();
+  
+  const { toast } = useToast();
 
   // UI state
   const [editMode, setEditMode] = useState<EditMode>('none');
@@ -101,40 +104,126 @@ export function FeaturePresetManagementModal({
   };
 
   const handleSavePreset = async () => {
-    if (!presetForm.name.trim()) return;
+    if (!presetForm.name.trim()) {
+      toast({
+        title: 'Name Required',
+        description: 'Please enter a name for the preset',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (presetForm.features.length === 0) {
+      toast({
+        title: 'Features Required',
+        description: 'Please add at least one feature to the preset',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     try {
+      console.log('Saving preset:', presetForm);
+      
       if (editMode === 'create') {
-        await createPreset({
+        // Ensure all features have proper structure
+        const featuresWithDefaults = presetForm.features.map(f => ({
+          id: f.id,
+          name: f.name,
+          description: f.description,
+          type: f.type,
+          options: f.options || null
+        }));
+        
+        const result = await createPreset({
           name: presetForm.name,
-          description: presetForm.description,
-          category: presetForm.category,
-          features: presetForm.features
+          description: presetForm.description || '',
+          category: presetForm.category || '',
+          features: featuresWithDefaults
         });
+        console.log('Create result:', result);
+        
+        if (result) {
+          toast({
+            title: 'Preset Created',
+            description: `Successfully created preset "${presetForm.name}"`,
+          });
+          resetForm();
+        }
       } else if (editMode === 'edit' && editingPreset) {
-        await updatePreset(editingPreset.id, {
+        // Ensure all features have proper structure
+        const featuresWithDefaults = presetForm.features.map(f => ({
+          id: f.id,
+          name: f.name,
+          description: f.description,
+          type: f.type,
+          options: f.options || null
+        }));
+        
+        const result = await updatePreset(editingPreset.id, {
           name: presetForm.name,
-          description: presetForm.description,
-          category: presetForm.category,
-          features: presetForm.features
+          description: presetForm.description || '',
+          category: presetForm.category || '',
+          features: featuresWithDefaults
         });
+        console.log('Update result:', result);
+        
+        if (result) {
+          toast({
+            title: 'Preset Updated',
+            description: `Successfully updated preset "${presetForm.name}"`,
+          });
+          resetForm();
+        }
       }
-      resetForm();
     } catch (error) {
       console.error('Failed to save preset:', error);
+      toast({
+        title: 'Save Failed',
+        description: error instanceof Error ? error.message : 'Failed to save preset',
+        variant: 'destructive'
+      });
     }
   };
 
   const handleDeletePreset = async (preset: FeaturePreset) => {
     if (window.confirm(`Delete preset "${preset.name}"?`)) {
-      await deletePreset(preset.id);
+      try {
+        const success = await deletePreset(preset.id);
+        if (success) {
+          toast({
+            title: 'Preset Deleted',
+            description: `Successfully deleted preset "${preset.name}"`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Delete Failed',
+          description: error instanceof Error ? error.message : 'Failed to delete preset',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
   const handleDuplicatePreset = async (preset: FeaturePreset) => {
     const newName = window.prompt('New preset name:', `Copy of ${preset.name}`);
     if (newName && newName.trim()) {
-      await duplicatePreset(preset.id, newName);
+      try {
+        const duplicated = await duplicatePreset(preset.id, newName);
+        if (duplicated) {
+          toast({
+            title: 'Preset Duplicated',
+            description: `Successfully created "${newName}" from "${preset.name}"`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Duplicate Failed',
+          description: error instanceof Error ? error.message : 'Failed to duplicate preset',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -155,13 +244,24 @@ export function FeaturePresetManagementModal({
   };
 
   const handleSaveFeature = () => {
-    if (!featureForm.name.trim() || !featureForm.description.trim()) return;
+    if (!featureForm.name.trim() || !featureForm.description.trim()) {
+      toast({
+        title: 'Feature Incomplete',
+        description: 'Please provide both name and description for the feature',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     const updatedFeatures = [...presetForm.features];
     
     if (editingFeatureIndex === -1) {
-      // Adding new feature
-      updatedFeatures.push(featureForm);
+      // Adding new feature - ensure it has an ID
+      const newFeature = {
+        ...featureForm,
+        id: featureForm.id || generatePrefixedUUID('feat')
+      };
+      updatedFeatures.push(newFeature);
     } else if (editingFeatureIndex !== null) {
       // Editing existing feature
       updatedFeatures[editingFeatureIndex] = featureForm;
@@ -539,7 +639,7 @@ export function FeaturePresetManagementModal({
                 </Button>
                 <Button
                   onClick={handleSavePreset}
-                  disabled={!presetForm.name.trim() || presetForm.features.length === 0}
+                  disabled={!presetForm.name.trim()}
                 >
                   {editMode === 'create' ? 'Create Preset' : 'Save Changes'}
                 </Button>

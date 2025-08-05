@@ -20,6 +20,7 @@ from schemas.workbench import (
     ArticleDetailResponse
 )
 from schemas.canonical_types import CanonicalResearchArticle
+from schemas.entity_extraction import EntityExtractionRequest, EntityExtractionResponse
 
 from services.auth_service import validate_token
 from services.extraction_service import ExtractionService, get_extraction_service
@@ -951,5 +952,24 @@ async def batch_update_metadata(
         )
     
     return result
+
+
+# ================== ENTITY EXTRACTION ==================
+
+@router.post("/extract-entities", response_model=EntityExtractionResponse)
+async def extract_entity_relationships(
+    request: EntityExtractionRequest,
+    current_user: User = Depends(validate_token),
+    extraction_service: ExtractionService = Depends(get_extraction_service)
+):
+    """Extract entity relationships from an article using AI analysis."""
+    try:
+        result = await extraction_service.extract_entity_relationships(request)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Entity extraction failed: {str(e)}"
+        )
 
 

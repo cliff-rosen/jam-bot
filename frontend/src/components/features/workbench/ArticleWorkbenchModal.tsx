@@ -3,14 +3,14 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, ExternalLink, Brain, FileText, Edit3, Plus } from 'lucide-react';
+import { X, ExternalLink, Brain, FileText, Edit3, Plus, Network } from 'lucide-react';
 
 import { ArticleCollection } from '@/types/articleCollection';
 import { ArticleGroupDetail } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 import { ChatPanel } from './chat/ChatPanel';
-import { OverviewTab, NotesTab, FeaturesTab } from './article-modal';
+import { OverviewTab, NotesTab, FeaturesTab, EntityBrowserTab } from './article-modal';
 
 interface ArticleWorkbenchModalProps {
   articleDetail: ArticleGroupDetail;
@@ -127,7 +127,7 @@ export function ArticleWorkbenchModal({
           {/* Right Side - Workbench Tabs */}
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-3 m-4 mb-0">
+              <TabsList className="grid w-full grid-cols-4 m-4 mb-0">
                 <TabsTrigger value="overview" className="gap-1">
                   <FileText className="w-4 h-4" />
                   Overview
@@ -139,6 +139,10 @@ export function ArticleWorkbenchModal({
                 <TabsTrigger value="features" className="gap-1">
                   <Plus className="w-4 h-4" />
                   Features
+                </TabsTrigger>
+                <TabsTrigger value="entities" className="gap-1">
+                  <Network className="w-4 h-4" />
+                  Entities
                 </TabsTrigger>
               </TabsList>
 
@@ -188,6 +192,13 @@ export function ArticleWorkbenchModal({
                       </p>
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="entities" className="mt-0">
+                  <EntityBrowserTab
+                    article={article}
+                    groupId={collection?.saved_group_id}
+                  />
                 </TabsContent>
               </div>
             </Tabs>

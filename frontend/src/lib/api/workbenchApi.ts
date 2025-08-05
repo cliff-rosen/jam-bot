@@ -14,6 +14,7 @@ import {
   ArticleGroupWithDetails,
 } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
+import { EntityExtractionRequest, EntityExtractionResponse } from '@/types/entity-extraction';
 
 // ================== REQUEST/RESPONSE TYPES ==================
 
@@ -326,6 +327,14 @@ export class WorkbenchApi {
   // Update company profile
   async updateCompanyProfile(profile: Partial<Omit<CompanyProfile, 'id' | 'user_id'>>): Promise<CompanyProfile> {
     const response = await api.put('/api/workbench/company-profile', profile);
+    return response.data;
+  }
+
+  // ================== ENTITY EXTRACTION ==================
+
+  // Extract entity relationships from article
+  async extractEntityRelationships(request: EntityExtractionRequest): Promise<EntityExtractionResponse> {
+    const response = await api.post('/api/workbench/extract-entities', request);
     return response.data;
   }
 

@@ -60,19 +60,17 @@ export function WorkbenchPage() {
     }
 
     try {
-      await workbench.fetchSearchCollection(page);
+      const searchResult = await workbench.fetchSearchCollection(page);
 
       // Don't switch tabs automatically - let users navigate manually
 
-      if (page === 1) {
-        // Use a small delay to ensure pagination is updated, or use current collection count
-        setTimeout(() => {
-          const totalResults = workbench.searchPagination?.totalResults || workbench.searchCollection?.articles.length || 0;
-          toast({
-            title: 'Search Complete',
-            description: `Found ${totalResults} articles`,
-          });
-        }, 100);
+      if (page === 1 && searchResult) {
+        // Use the direct result from the API instead of relying on state timing
+        const totalResults = searchResult.metadata?.total_results || searchResult.articles.length || 0;
+        toast({
+          title: 'Search Complete',
+          description: `Found ${totalResults} articles`,
+        });
       }
     } catch (error) {
       console.error('Search failed:', error);

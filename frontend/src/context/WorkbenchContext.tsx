@@ -87,7 +87,7 @@ interface WorkbenchState {
 
 interface WorkbenchActions {
   // Search Operations (affects searchCollection)
-  fetchSearchCollection: (page?: number) => Promise<void>;
+  fetchSearchCollection: (page?: number) => Promise<import('@/lib/api/unifiedSearchApi').UnifiedSearchResponse | undefined>;
   updateSearchQuery: (query: string) => void;
   updateSearchProviders: (providers: SearchProvider[]) => void;
   updateSearchMode: (mode: 'single' | 'multi') => void;
@@ -280,9 +280,13 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
+      
+      // Return the search result for the caller to use
+      return searchResult;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
       console.error('Search error:', err);
+      throw err;
     } finally {
       setCollectionLoading(false);
     }

@@ -101,7 +101,7 @@ interface WorkbenchActions {
 
   // Backend Group Management (affects backend + groupsList)
   createGroupFromCollection: (name: string, description?: string, collectionType?: 'search' | 'group', selectedArticleIds?: string[]) => Promise<string>;
-  addArticlesToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<void>;
+  addArticlesToExistingGroup: (groupId: string, articleIds?: string[], collectionType?: 'search' | 'group') => Promise<{ articlesAdded: number; duplicatesSkipped: number }>;
   updateGroupMetadata: (groupId: string, name: string, description?: string) => Promise<void>;
   deleteGroupPermanently: (groupId: string) => Promise<void>;
   fetchCachedGroupsList: () => Promise<ArticleGroup[]>;

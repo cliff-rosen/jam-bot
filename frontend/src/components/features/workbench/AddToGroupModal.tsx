@@ -50,6 +50,7 @@ export function AddToGroupModal({
 
   // Load groups when modal opens
   useEffect(() => {
+    console.log('AddToGroupModal useEffect', open, modalStep);
     if (open && modalStep === 'select-group') {
       loadGroups();
       setSelectedGroupId('');

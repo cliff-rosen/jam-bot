@@ -409,7 +409,7 @@ export function WorkbenchPage() {
           description: `Added ${result.articlesAdded} new articles to the group${result.duplicatesSkipped > 0 ? ` (${result.duplicatesSkipped} duplicates skipped)` : ''}`,
         });
       }
-      
+
       return result;
 
     } catch (error) {
@@ -419,12 +419,11 @@ export function WorkbenchPage() {
   };
 
   return (
-    <div className={`px-4 py-6 space-y-6 ${
-      (workbench.searchCollection?.feature_definitions.length || 0) > 0 || 
-      (workbench.groupCollection?.feature_definitions.length || 0) > 0
-        ? 'min-w-full' 
+    <div className={`px-4 py-6 space-y-6 ${(workbench.searchCollection?.feature_definitions.length || 0) > 0 ||
+        (workbench.groupCollection?.feature_definitions.length || 0) > 0
+        ? 'min-w-full'
         : 'container mx-auto'
-    }`}>
+      }`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

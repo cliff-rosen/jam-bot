@@ -21,18 +21,18 @@ import { format } from 'date-fns';
 interface AddToGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddToGroup: (groupId: string, navigateToGroup: boolean) => Promise<{ articlesAdded: number; duplicatesSkipped: number }>;
+  onConfirm: (groupId: string, navigateToGroup: boolean) => Promise<void>;
   articlesToAdd: Array<{ id: string; title: string }>;
   sourceCollectionName: string;
   currentGroupId?: string; // Hide this group from the list
 }
 
-type ModalStep = 'select-group' | 'navigation-choice' | 'adding';
+type ModalStep = 'select-group' | 'navigation-choice' | 'adding' | 'success';
 
 export function AddToGroupModal({
   open,
   onOpenChange,
-  onAddToGroup,
+  onConfirm,
   articlesToAdd,
   sourceCollectionName: _sourceCollectionName, // Not used currently
   currentGroupId
@@ -50,7 +50,6 @@ export function AddToGroupModal({
 
   // Load groups when modal opens
   useEffect(() => {
-    console.log('AddToGroupModal useEffect', open, modalStep);
     if (open && modalStep === 'select-group') {
       loadGroups();
       setSelectedGroupId('');
@@ -58,6 +57,14 @@ export function AddToGroupModal({
       setAddResult(null);
     }
   }, [open, modalStep]);
+
+  // Check for stored preference
+  useEffect(() => {
+    const storedPreference = localStorage.getItem('addToGroupNavigationChoice');
+    if (storedPreference && modalStep === 'select-group') {
+      setRememberChoice(true);
+    }
+  }, [modalStep]);
 
   const loadGroups = async () => {
     setIsLoading(true);
@@ -93,55 +100,55 @@ export function AddToGroupModal({
     setFilteredGroups(filtered);
   }, [groups, searchTerm, currentGroupId]);
 
-  const handleSelectGroup = async () => {
+  const handleSelectGroup = () => {
     if (!selectedGroupId) return;
 
     const selectedGroup = groups.find(g => g.id === selectedGroupId);
     if (!selectedGroup) return;
 
     setTargetGroupName(selectedGroup.name);
-    setModalStep('adding');
-
-    try {
-      const result = await onAddToGroup(selectedGroupId, false); // Don't navigate yet
-      setAddResult(result);
-      setModalStep('navigation-choice'); // Show navigation choice after success
-    } catch (error) {
-      // Error is handled by the parent component
-      setModalStep('select-group'); // Go back to group selection
+    
+    // Check if user has a stored preference
+    const storedPreference = localStorage.getItem('addToGroupNavigationChoice');
+    if (storedPreference) {
+      // User has a preference, execute it directly
+      handleExecuteAdd(storedPreference === 'navigate');
+    } else {
+      // No preference, show choice dialog
+      setModalStep('navigation-choice');
     }
   };
 
-  const handleNavigationChoice = async (navigateToGroup: boolean) => {
+  const handleNavigationChoice = (navigateToGroup: boolean) => {
+    // Store user preference if they checked the box
+    if (rememberChoice) {
+      localStorage.setItem('addToGroupNavigationChoice', navigateToGroup ? 'navigate' : 'stay');
+    }
+    
+    handleExecuteAdd(navigateToGroup);
+  };
+
+  const handleExecuteAdd = async (navigateToGroup: boolean) => {
+    if (!selectedGroupId) return;
+    
     setModalStep('adding');
-
+    
     try {
-      // If navigating, trigger the navigation
-      if (navigateToGroup) {
-        await onAddToGroup(selectedGroupId, true);
-      }
-
-      // Store user preference if they checked the box
-      if (rememberChoice) {
-        localStorage.setItem('addToGroupNavigationChoice', navigateToGroup ? 'navigate' : 'stay');
-      }
-
-      setModalStep('select-group');
+      await onConfirm(selectedGroupId, navigateToGroup);
+      // Success is handled by parent, just close the modal
       onOpenChange(false);
+      setModalStep('select-group');
     } catch (error) {
-      console.error('Navigation failed:', error);
-      toast({
-        title: 'Navigation Failed',
-        description: error instanceof Error ? error.message : 'Failed to navigate to group',
-        variant: 'destructive'
-      });
-      setModalStep('navigation-choice');
+      // Error is handled by parent, reset to selection
+      setModalStep('select-group');
     }
   };
 
   const handleClose = () => {
     if (modalStep !== 'adding') {
       onOpenChange(false);
+      // Reset modal state when closing
+      setModalStep('select-group');
     }
   };
 
@@ -274,28 +281,15 @@ export function AddToGroupModal({
     <div className="flex flex-col h-full">
       <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-          <CheckCircle className="w-5 h-5 text-green-500" />
-          Successfully Added
+          <FolderOpen className="w-5 h-5 text-blue-500" />
+          Add to "{targetGroupName}"?
         </DialogTitle>
         <DialogDescription className="text-muted-foreground">
-          {addResult && (
-            <>
-              Added {addResult.articlesAdded} new {addResult.articlesAdded === 1 ? 'article' : 'articles'} to "{targetGroupName}"
-              {addResult.duplicatesSkipped > 0 && (
-                <span className="text-amber-600 dark:text-amber-400"> ({addResult.duplicatesSkipped} duplicate{addResult.duplicatesSkipped > 1 ? 's' : ''} skipped)</span>
-              )}
-            </>
-          )}
+          What would you like to do after adding {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'}?
         </DialogDescription>
       </DialogHeader>
 
       <div className="flex-1 flex flex-col justify-center space-y-6 py-8">
-        <div className="text-center">
-          <p className="text-lg mb-6 text-gray-900 dark:text-gray-100">
-            What would you like to do next?
-          </p>
-        </div>
-
         <div className="flex gap-4">
           <Button
             onClick={() => handleNavigationChoice(false)}

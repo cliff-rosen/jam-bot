@@ -373,7 +373,7 @@ export function WorkbenchPage() {
     setShowAddToGroupModal(true);
   };
 
-  const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean): Promise<{ articlesAdded: number; duplicatesSkipped: number }> => {
+  const handleAddToGroupAction = async (groupId: string, navigateToGroup: boolean): Promise<void> => {
     const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
     if (!currentCollection) throw new Error('No collection available');
 
@@ -410,10 +410,13 @@ export function WorkbenchPage() {
         });
       }
 
-      return result;
-
     } catch (error) {
       console.error('Add to group failed:', error);
+      toast({
+        title: 'Failed to Add Articles',
+        description: error instanceof Error ? error.message : 'Failed to add articles to group',
+        variant: 'destructive'
+      });
       throw error; // Re-throw so modal can handle the error
     }
   };
@@ -665,7 +668,7 @@ export function WorkbenchPage() {
       <AddToGroupModal
         open={showAddToGroupModal}
         onOpenChange={setShowAddToGroupModal}
-        onAddToGroup={handleAddToGroupAction}
+        onConfirm={handleAddToGroupAction}
         articlesToAdd={
           workbench.searchCollection
             ? (selectedArticleIds.length > 0

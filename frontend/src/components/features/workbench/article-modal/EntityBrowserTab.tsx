@@ -26,6 +26,7 @@ import {
   EntityType, 
   RelationshipType 
 } from '@/types/entity-extraction';
+import { EntityKnowledgeGraph } from './EntityKnowledgeGraph';
 
 interface EntityBrowserTabProps {
   article: CanonicalResearchArticle;
@@ -229,12 +230,17 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
           </Card>
 
           {/* Tabs for different views */}
-          <Tabs defaultValue="entities" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="graph" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="graph">Graph View</TabsTrigger>
               <TabsTrigger value="entities">Entities</TabsTrigger>
               <TabsTrigger value="relationships">Relationships</TabsTrigger>
               <TabsTrigger value="insights">Insights</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="graph" className="mt-4">
+              <EntityKnowledgeGraph analysis={analysis} />
+            </TabsContent>
 
             <TabsContent value="entities" className="space-y-3">
               <div className="grid gap-3">

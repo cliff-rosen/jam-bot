@@ -509,6 +509,8 @@ export function WorkbenchPage() {
                   isExtracting={workbench.isExtracting}
                   isLoading={workbench.collectionLoading}
                   onUpdateGroupInfo={workbench.searchCollection.source === CollectionSource.SAVED_GROUP ? handleUpdateGroupInfo : undefined}
+                  onExport={(format) => workbench.exportActiveCollection(format, 'search')}
+                  onCopyToClipboard={(format) => workbench.copyCollectionToClipboard(format, 'search')}
                 />
 
                 {/* Table */}
@@ -576,6 +578,8 @@ export function WorkbenchPage() {
                   isExtracting={workbench.isExtracting}
                   isLoading={workbench.collectionLoading}
                   onUpdateGroupInfo={handleUpdateGroupInfo}
+                  onExport={(format) => workbench.exportActiveCollection(format, 'group')}
+                  onCopyToClipboard={(format) => workbench.copyCollectionToClipboard(format, 'group')}
                 />
 
                 {/* Table */}

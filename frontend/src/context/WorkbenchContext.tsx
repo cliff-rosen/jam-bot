@@ -137,7 +137,8 @@ interface WorkbenchActions {
   clearArticleSelection: () => void;
 
   // Utility Actions
-  exportActiveCollection: (format: 'csv' | 'json') => Promise<void>;
+  exportActiveCollection: (format: 'csv' | 'json', collectionType?: 'search' | 'group') => Promise<void>;
+  copyCollectionToClipboard: (format: 'csv' | 'json' | 'text', collectionType?: 'search' | 'group') => Promise<void>;
   clearError: () => void;
   resetAllWorkbenchState: () => void;
 }
@@ -1179,10 +1180,212 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   // ================== UTILITY ACTIONS ==================
 
-  const exportActiveCollection = useCallback(async (format: 'csv' | 'json') => {
-    // TODO: Implement export functionality - would need collectionType parameter
-    console.log('Export collection as', format);
-  }, []);
+  const exportActiveCollection = useCallback(async (format: 'csv' | 'json', collectionType?: 'search' | 'group') => {
+    try {
+      const collection = getActiveCollection(collectionType || (searchCollection ? 'search' : 'group'));
+      if (!collection || !collection.articles.length) {
+        setError('No articles to export');
+        return;
+      }
+
+      // For groups, use all articles (not just current page)
+      const articlesToExport = collectionType === 'group' && fullGroupArticles 
+        ? fullGroupArticles 
+        : collection.articles;
+
+      if (articlesToExport.length === 0) {
+        setError('No articles to export');
+        return;
+      }
+
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const collectionName = collection.name.replace(/[^a-zA-Z0-9\-_]/g, '_');
+      
+      if (format === 'csv') {
+        // Prepare features data in the format expected by exportAsCSV
+        const featuresForCSV = collection.feature_definitions.map(feature => ({
+          name: feature.name,
+          data: Object.fromEntries(
+            articlesToExport.map(article => [
+              article.article.id,
+              article.feature_data[feature.id] || ''
+            ])
+          )
+        }));
+
+        const filename = `${collectionName}_${timestamp}.csv`;
+        workbenchApi.exportAsCSV(articlesToExport.map(a => a.article), featuresForCSV, filename);
+      } else if (format === 'json') {
+        const exportData = {
+          collection: {
+            name: collection.name,
+            description: collection.description,
+            source: collection.source,
+            exported_at: new Date().toISOString(),
+            total_articles: articlesToExport.length
+          },
+          articles: articlesToExport.map(detail => ({
+            article: detail.article,
+            feature_data: detail.feature_data,
+            notes: detail.notes,
+            position: detail.position
+          })),
+          feature_definitions: collection.feature_definitions
+        };
+
+        const jsonContent = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${collectionName}_${timestamp}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    }
+  }, [searchCollection, groupCollection, fullGroupArticles, getActiveCollection]);
+
+  const copyCollectionToClipboard = useCallback(async (format: 'csv' | 'json' | 'text', collectionType?: 'search' | 'group') => {
+    try {
+      const collection = getActiveCollection(collectionType || (searchCollection ? 'search' : 'group'));
+      if (!collection || !collection.articles.length) {
+        setError('No articles to copy');
+        return;
+      }
+
+      // For groups, use all articles (not just current page)
+      const articlesToCopy = collectionType === 'group' && fullGroupArticles 
+        ? fullGroupArticles 
+        : collection.articles;
+
+      if (articlesToCopy.length === 0) {
+        setError('No articles to copy');
+        return;
+      }
+
+      let content = '';
+
+      if (format === 'text') {
+        // Text format with all data including features
+        content = articlesToCopy.map((detail, index) => {
+          const article = detail.article;
+          let articleText = `${index + 1}. ${article.title}\n` +
+                           `   ID: ${article.id}\n` +
+                           `   Authors: ${article.authors?.join(', ') || 'N/A'}\n` +
+                           `   Journal: ${article.journal || 'N/A'} (${article.publication_year || article.year || 'N/A'})\n` +
+                           `   Abstract: ${article.abstract || 'No abstract available'}\n` +
+                           `   URL: ${article.url || 'N/A'}\n`;
+          
+          // Add feature data if available
+          if (collection.feature_definitions.length > 0) {
+            articleText += `   Features:\n`;
+            collection.feature_definitions.forEach(feature => {
+              const value = detail.feature_data[feature.id] || 'N/A';
+              articleText += `     ${feature.name}: ${value}\n`;
+            });
+          }
+          
+          return articleText;
+        }).join('\n' + '-'.repeat(80) + '\n\n');
+        
+        content = `Collection: ${collection.name}\n` +
+                 `Articles: ${articlesToCopy.length}\n` +
+                 `Exported: ${new Date().toLocaleString()}\n\n` +
+                 '='.repeat(80) + '\n\n' + content;
+      } else if (format === 'csv') {
+        // Generate CSV content
+        const headers = ['ID', 'Title', 'Authors', 'Journal', 'Year', 'URL'];
+        collection.feature_definitions.forEach(feature => headers.push(feature.name));
+
+        const rows = articlesToCopy.map(detail => {
+          const article = detail.article;
+          const row = [
+            article.id || '',
+            article.title || '',
+            (article.authors || []).join('; '),
+            article.journal || '',
+            article.publication_year || article.year || '',
+            article.url || ''
+          ];
+
+          // Add feature data
+          collection.feature_definitions.forEach(feature => {
+            row.push(detail.feature_data[feature.id] || '');
+          });
+
+          return row;
+        });
+
+        content = [headers, ...rows]
+          .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+          .join('\n');
+      } else if (format === 'json') {
+        // Same as export but as string
+        const exportData = {
+          collection: {
+            name: collection.name,
+            description: collection.description,
+            source: collection.source,
+            exported_at: new Date().toISOString(),
+            total_articles: articlesToCopy.length
+          },
+          articles: articlesToCopy.map(detail => ({
+            article: detail.article,
+            feature_data: detail.feature_data,
+            notes: detail.notes,
+            position: detail.position
+          })),
+          feature_definitions: collection.feature_definitions
+        };
+        content = JSON.stringify(exportData, null, 2);
+      }
+
+      // Try modern Clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(content);
+          
+          // Optional: Verify the content was written (may fail due to permissions)
+          try {
+            const clipboardContent = await navigator.clipboard.readText();
+            if (clipboardContent !== content) {
+              console.warn('Clipboard verification failed, but write operation appeared successful');
+            }
+          } catch (readError) {
+            // Reading clipboard might fail due to permissions, but writing may have succeeded
+            console.warn('Cannot verify clipboard content due to permissions, assuming success');
+          }
+        } catch (writeError) {
+          console.error('Modern clipboard API failed:', writeError);
+          throw writeError;
+        }
+      } else {
+        // Fallback to older method
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          const successful = document.execCommand('copy');
+          if (!successful) {
+            throw new Error('Fallback clipboard method failed');
+          }
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      setError(err instanceof Error ? err.message : 'Copy to clipboard failed');
+      throw err; // Re-throw to let the ExportMenu handle the error
+    }
+  }, [searchCollection, groupCollection, fullGroupArticles, getActiveCollection]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -1209,6 +1412,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       sortBy: 'relevance',
       yearLow: undefined,
       yearHigh: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
       dateType: 'publication',
       includeCitations: false,
       includePdfLinks: false
@@ -1345,6 +1550,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
     // Utility Actions
     exportActiveCollection,
+    copyCollectionToClipboard,
     clearError,
     resetAllWorkbenchState,
   };

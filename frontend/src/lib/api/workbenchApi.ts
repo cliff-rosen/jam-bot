@@ -421,12 +421,13 @@ export class WorkbenchApi {
    */
   exportAsCSV(articles: any[], features: any[], filename: string = 'workbench-data.csv'): void {
     // Create headers
-    const headers = ['Title', 'Authors', 'Journal', 'Year', 'URL'];
+    const headers = ['ID', 'Title', 'Authors', 'Journal', 'Year', 'URL'];
     features.forEach(feature => headers.push(feature.name));
 
     // Create rows
     const rows = articles.map(article => {
       const row = [
+        article.id || '',
         article.title || '',
         (article.authors || []).join('; '),
         article.journal || '',

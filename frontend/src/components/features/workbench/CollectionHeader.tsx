@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, FolderOpen, Cloud, RotateCcw, Search, Folder, Edit2, Check, X, Settings } from 'lucide-react';
 import { ArticleCollection, CollectionSource } from '@/types/articleCollection';
+import { ExportMenu } from './ExportMenu';
 
 interface CollectionHeaderProps {
   collection: ArticleCollection;
@@ -32,6 +33,8 @@ interface CollectionHeaderProps {
   isExtracting: boolean;
   isLoading: boolean;
   onUpdateGroupInfo?: (name: string, description?: string) => Promise<void>;
+  onExport?: (format: 'csv' | 'json') => Promise<void>;
+  onCopyToClipboard?: (format: 'csv' | 'json' | 'text') => Promise<void>;
 }
 
 export function CollectionHeader({
@@ -49,7 +52,9 @@ export function CollectionHeader({
   onSelectNone,
   isExtracting,
   isLoading,
-  onUpdateGroupInfo
+  onUpdateGroupInfo,
+  onExport,
+  onCopyToClipboard
 }: CollectionHeaderProps) {
   const isSearchResult = collection.source === CollectionSource.SEARCH;
   const isModified = collection.is_modified;
@@ -438,6 +443,20 @@ export function CollectionHeader({
                   </>
                 )}
               </Button>
+
+              {/* Export Menu */}
+              {onExport && onCopyToClipboard && (
+                <ExportMenu
+                  onExport={onExport}
+                  onCopyToClipboard={onCopyToClipboard}
+                  articleCount={
+                    isSearchResult 
+                      ? searchPagination?.totalResults || collection.articles.length
+                      : groupPagination?.totalResults || collection.articles.length
+                  }
+                  disabled={collection.articles.length === 0}
+                />
+              )}
             </div>
 
             {/* Separator */}

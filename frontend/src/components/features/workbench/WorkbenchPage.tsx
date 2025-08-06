@@ -659,12 +659,32 @@ export function WorkbenchPage() {
         onSave={handleSaveGroup}
         onUpdateExisting={handleSaveGroupChanges}
         onAddToGroup={handleAddToGroup}
-        defaultName={workbench.searchCollection?.name}
+        defaultName={
+          activeTab === 'search' 
+            ? workbench.searchCollection?.name 
+            : workbench.groupCollection?.name
+        }
         existingGroups={existingGroups}
-        collectionSource={workbench.searchCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group'}
-        isModified={workbench.searchCollection?.is_modified || false}
-        currentGroupName={workbench.searchCollection?.name}
-        canUpdateExisting={workbench.searchCollection?.source === CollectionSource.SAVED_GROUP && workbench.searchCollection?.saved_group_id != null}
+        collectionSource={
+          activeTab === 'search'
+            ? (workbench.searchCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group')
+            : (workbench.groupCollection?.source === CollectionSource.SEARCH ? 'search' : 'saved_group')
+        }
+        isModified={
+          activeTab === 'search' 
+            ? (workbench.searchCollection?.is_modified || false)
+            : (workbench.groupCollection?.is_modified || false)
+        }
+        currentGroupName={
+          activeTab === 'search' 
+            ? workbench.searchCollection?.name 
+            : workbench.groupCollection?.name
+        }
+        canUpdateExisting={
+          activeTab === 'search'
+            ? (workbench.searchCollection?.source === CollectionSource.SAVED_GROUP && workbench.searchCollection?.saved_group_id != null)
+            : (workbench.groupCollection?.source === CollectionSource.SAVED_GROUP && workbench.groupCollection?.saved_group_id != null)
+        }
       />
 
       <AddToGroupModal
@@ -672,18 +692,28 @@ export function WorkbenchPage() {
         onOpenChange={setShowAddToGroupModal}
         onConfirm={handleAddToGroupAction}
         articlesToAdd={
-          workbench.searchCollection
-            ? (selectedArticleIds.length > 0
-              ? workbench.searchCollection.articles
+          (() => {
+            const currentCollection = activeTab === 'search' ? workbench.searchCollection : workbench.groupCollection;
+            if (!currentCollection) return [];
+            
+            return selectedArticleIds.length > 0
+              ? currentCollection.articles
                 .filter(item => selectedArticleIds.includes(item.article.id))
                 .map(item => ({ id: item.article.id, title: item.article.title }))
-              : workbench.searchCollection.articles
-                .map(item => ({ id: item.article.id, title: item.article.title }))
-            )
-            : []
+              : currentCollection.articles
+                .map(item => ({ id: item.article.id, title: item.article.title }));
+          })()
         }
-        sourceCollectionName={workbench.searchCollection?.name || ''}
-        currentGroupId={workbench.searchCollection?.saved_group_id}
+        sourceCollectionName={
+          activeTab === 'search' 
+            ? workbench.searchCollection?.name || '' 
+            : workbench.groupCollection?.name || ''
+        }
+        currentGroupId={
+          activeTab === 'search' 
+            ? workbench.searchCollection?.saved_group_id 
+            : workbench.groupCollection?.saved_group_id
+        }
       />
 
       {workbench.selectedArticleDetail && (

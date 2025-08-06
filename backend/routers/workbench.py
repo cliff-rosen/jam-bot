@@ -956,16 +956,66 @@ async def batch_update_metadata(
 
 # ================== ENTITY EXTRACTION ==================
 
+class ExtractEntitiesRequest(EntityExtractionRequest):
+    """Extended request that includes optional group context for caching"""
+    group_id: Optional[str] = Field(None, description="Group ID for caching results")
+    force_refresh: bool = Field(False, description="Force refresh even if cached")
+
+
 @router.post("/extract-entities", response_model=EntityExtractionResponse)
 async def extract_entity_relationships(
-    request: EntityExtractionRequest,
+    request: ExtractEntitiesRequest,
     current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service)
+    extraction_service: ExtractionService = Depends(get_extraction_service),
+    db: Session = Depends(get_db)
 ):
-    """Extract entity relationships from an article using AI analysis."""
+    """Extract entity relationships from an article using AI analysis with caching."""
+    detail_service = ArticleGroupDetailService(db, extraction_service)
+    
+    # Check for cached results first (if this is a group context)
+    if request.group_id and not request.force_refresh:
+        cached_analysis = detail_service.get_cached_entity_analysis(
+            current_user.user_id,
+            request.group_id,
+            request.article_id
+        )
+        
+        if cached_analysis:
+            return EntityExtractionResponse(
+                article_id=request.article_id,
+                analysis=cached_analysis,
+                extraction_metadata={
+                    "cached": True,
+                    "extraction_timestamp": cached_analysis.get("extracted_at"),
+                    "include_gene_data": request.include_gene_data,
+                    "include_drug_data": request.include_drug_data,
+                    "focus_areas": request.focus_areas
+                }
+            )
+    
     try:
+        # Perform fresh extraction
         result = await extraction_service.extract_entity_relationships(request)
+        
+        # Cache results if this is a group context
+        if request.group_id:
+            # Convert analysis to dict for storage
+            analysis_dict = result.analysis.model_dump() if hasattr(result.analysis, 'model_dump') else result.analysis.dict()
+            
+            save_result = detail_service.save_entity_analysis(
+                current_user.user_id,
+                request.group_id,
+                request.article_id,
+                analysis_dict
+            )
+            
+            # Add caching metadata to response
+            if save_result:
+                result.extraction_metadata = result.extraction_metadata or {}
+                result.extraction_metadata["cached_at"] = save_result["extracted_at"]
+        
         return result
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

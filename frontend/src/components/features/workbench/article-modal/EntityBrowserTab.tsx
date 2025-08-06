@@ -37,7 +37,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const extractEntities = async () => {
+  const extractEntities = async (forceRefresh = false) => {
     if (!article.abstract && !article.full_text) {
       toast({
         title: 'No Content Available',
@@ -57,13 +57,17 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
         full_text: article.full_text || null,
         include_gene_data: true,
         include_drug_data: true,
-        focus_areas: ['medical conditions', 'treatments', 'outcomes']
+        focus_areas: ['medical conditions', 'treatments', 'outcomes'],
+        group_id: groupId, // Pass group_id for caching
+        force_refresh: forceRefresh
       });
 
       setAnalysis(response.analysis);
+      
+      const isCached = response.extraction_metadata?.cached;
       toast({
-        title: 'Entity Extraction Complete',
-        description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships`
+        title: isCached ? 'Entities Loaded (Cached)' : 'Entity Extraction Complete',
+        description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships${isCached ? ' (from cache)' : ''}`
       });
     } catch (err) {
       console.error('Entity extraction failed:', err);
@@ -152,7 +156,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
           </p>
         </div>
         <Button
-          onClick={extractEntities}
+          onClick={() => extractEntities(true)}
           disabled={loading}
           variant="outline"
           size="sm"

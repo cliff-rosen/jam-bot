@@ -65,6 +65,8 @@ export interface EntityExtractionRequest {
   include_gene_data?: boolean;
   include_drug_data?: boolean;
   focus_areas?: string[];
+  group_id?: string; // For caching in group context
+  force_refresh?: boolean; // Force refresh even if cached
 }
 
 export interface EntityExtractionResponse {

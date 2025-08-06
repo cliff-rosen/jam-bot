@@ -596,6 +596,61 @@ class ArticleGroupDetailService:
         else:  # text
             return ""
 
+    def save_entity_analysis(
+        self, 
+        user_id: int, 
+        group_id: str, 
+        article_id: str, 
+        analysis: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Save entity relationship analysis to article metadata."""
+        article_detail = self._get_article_detail(user_id, group_id, article_id)
+        
+        if not article_detail:
+            return None
+        
+        # Get current metadata
+        current_metadata = article_detail.article_metadata or {}
+        
+        # Add entity analysis with timestamp
+        current_metadata['entity_analysis'] = {
+            'data': analysis,
+            'extracted_at': datetime.utcnow().isoformat(),
+            'version': '1.0'
+        }
+        
+        # Save updated metadata
+        article_detail.article_metadata = current_metadata
+        article_detail.updated_at = datetime.utcnow()
+        
+        try:
+            self.db.commit()
+            return {
+                "success": True,
+                "extracted_at": current_metadata['entity_analysis']['extracted_at']
+            }
+        except Exception as e:
+            self.db.rollback()
+            return None
+
+    def get_cached_entity_analysis(
+        self, 
+        user_id: int, 
+        group_id: str, 
+        article_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve cached entity relationship analysis from article metadata."""
+        article_detail = self._get_article_detail(user_id, group_id, article_id)
+        
+        if not article_detail or not article_detail.article_metadata:
+            return None
+        
+        entity_analysis = article_detail.article_metadata.get('entity_analysis')
+        if entity_analysis and 'data' in entity_analysis:
+            return entity_analysis['data']
+        
+        return None
+
 
 def get_article_group_detail_service(
     db: Session = None, 

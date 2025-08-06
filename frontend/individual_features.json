@@ -1,0 +1,74 @@
+[
+  {
+    "id": "feat_genetically_modified_mice",
+    "name": "Genetically Modified Mice Used",
+    "description": "Does this study use genetically engineered or knockout mice? Look for mentions of genetic modifications, knockout mice, transgenic mice, or specific gene targeting. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_genes_modified", 
+    "name": "Specific Genes Modified",
+    "description": "What specific genes were modified or knocked out in this study? Look for tumor suppressor genes like Bap1, Nf2, Tp53, Cdkn2a, Ink4a, Arf, or any other genetic modifications mentioned. List all genes mentioned or 'None specified' if not detailed.",
+    "type": "text"
+  },
+  {
+    "id": "feat_mesothelioma_target",
+    "name": "Mesothelioma Target Disease", 
+    "description": "Is malignant mesothelioma (MM) the primary target disease or measurable endpoint in this study? Look for explicit mentions of mesothelioma as the disease being studied. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_asbestos_exposure",
+    "name": "Asbestos Exposure Used",
+    "description": "Does this study involve asbestos exposure to induce disease? Look for any mention of asbestos fibers, asbestos treatment, or asbestos-related exposure. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_mineral_type",
+    "name": "Specific Mineral Type",
+    "description": "What specific type of asbestos or mineral fibers were used? Look for mentions of crocidolite, chrysotile, amosite, tremolite, or other specific mineral types. State the exact type mentioned or 'Not specified' if unclear.",
+    "type": "text"
+  },
+  {
+    "id": "feat_intraperitoneal_injection",
+    "name": "Intraperitoneal Injection Route",
+    "description": "Was intraperitoneal injection used as the route of asbestos exposure? Look for terms like 'intraperitoneal injection', 'IP injection', 'intraperitoneal administration', or similar routes. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_tumor_incidence_measured",
+    "name": "Tumor Incidence Measured",
+    "description": "Does this study measure and report tumor incidence or tumor development rates? Look for quantitative measurements of how many animals developed tumors. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_percent_mm_reported",
+    "name": "Percentage MM Development",
+    "description": "What percentage or fraction of mice developed mesothelioma? Look for specific numbers like '80% of mice', '15/20 animals', or similar quantitative results. Provide the exact figure mentioned or 'Not reported' if not specified.",
+    "type": "text"
+  },
+  {
+    "id": "feat_fiber_dosage_schedule",
+    "name": "Fiber Dosage and Schedule",
+    "description": "What was the fiber dosage and exposure schedule used? Look for information about dose amounts (e.g., mg, μg), exposure frequency, and timing. Include all dosage details mentioned or 'Not specified' if unclear.",
+    "type": "text"
+  },
+  {
+    "id": "feat_control_vs_experimental",
+    "name": "Control vs Experimental Groups",
+    "description": "Does this study include proper control groups compared to experimental groups (e.g., wild-type vs knockout, exposed vs unexposed)? Look for comparative study design elements. Answer with Yes/No.",
+    "type": "boolean"
+  },
+  {
+    "id": "feat_study_design_quality",
+    "name": "Study Design Quality",
+    "description": "Assess the overall study design quality. Consider: sample size mentioned, statistical analysis, controls used, methodology clarity. Summarize key strengths or limitations in 1-2 sentences.",
+    "type": "text"
+  },
+  {
+    "id": "feat_key_findings",
+    "name": "Key Mesothelioma Findings",
+    "description": "What are the main findings related to mesothelioma development, genetic interactions, or treatment outcomes? Summarize the most important results in 2-3 sentences focusing on mesothelioma-specific outcomes.",
+    "type": "text"
+  }
+]

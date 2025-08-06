@@ -124,13 +124,15 @@ export function ManageCollectionFeaturesModal({
   const handleAddCustomFeature = () => {
     if (customFeature.name.trim() && customFeature.description.trim()) {
       onAddFeatures([customFeature], extractOnAdd);
+      // Keep the form open and reset for next feature
       setCustomFeature({
         id: generatePrefixedUUID('feat'),
         name: '',
         description: '',
         type: 'text'
       });
-      setAddMode('none');
+      // Don't close the form - let user continue adding or manually close
+      // setAddMode('none'); // REMOVED - keeps form open
     }
   };
 
@@ -378,7 +380,16 @@ export function ManageCollectionFeaturesModal({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setAddMode('custom')}
+                  onClick={() => {
+                    setAddMode('custom');
+                    // Reset custom feature form with new ID
+                    setCustomFeature({
+                      id: generatePrefixedUUID('feat'),
+                      name: '',
+                      description: '',
+                      type: 'text'
+                    });
+                  }}
                   className="flex-1"
                 >
                   <Plus className="w-4 h-4 mr-2" />

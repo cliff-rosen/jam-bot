@@ -43,6 +43,8 @@ interface WorkbenchState {
     sortBy: 'relevance' | 'date';
     yearLow?: number;
     yearHigh?: number;
+    dateFrom?: string;
+    dateTo?: string;
     dateType: 'completion' | 'publication' | 'entry' | 'revised';
     includeCitations: boolean;
     includePdfLinks: boolean;
@@ -170,6 +172,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     sortBy: 'relevance',
     yearLow: undefined,
     yearHigh: undefined,
+    dateFrom: undefined,
+    dateTo: undefined,
     dateType: 'publication',
     includeCitations: false,
     includePdfLinks: false
@@ -238,6 +242,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         sort_by: searchParams.sortBy,
         year_low: searchParams.yearLow,
         year_high: searchParams.yearHigh,
+        date_from: searchParams.dateFrom,
+        date_to: searchParams.dateTo,
         date_type: searchParams.dateType,
         include_citations: searchParams.includeCitations,
         include_pdf_links: searchParams.includePdfLinks
@@ -252,6 +258,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         sort_by: searchParams.sortBy,
         year_low: searchParams.yearLow,
         year_high: searchParams.yearHigh,
+        date_from: searchParams.dateFrom,
+        date_to: searchParams.dateTo,
         date_type: searchParams.dateType,
         include_citations: searchParams.includeCitations,
         include_pdf_links: searchParams.includePdfLinks

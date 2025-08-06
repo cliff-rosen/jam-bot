@@ -26,6 +26,8 @@ export interface SearchParams {
   sort_by?: 'relevance' | 'date';
   year_low?: number;
   year_high?: number;
+  date_from?: string;
+  date_to?: string;
   date_type?: 'completion' | 'publication' | 'entry' | 'revised';
   include_citations?: boolean;
   include_pdf_links?: boolean;

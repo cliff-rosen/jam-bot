@@ -36,6 +36,10 @@ interface UnifiedSearchControlsProps {
   onYearLowChange?: (yearLow: number | undefined) => void;
   yearHigh?: number;
   onYearHighChange?: (yearHigh: number | undefined) => void;
+  dateFrom?: string;
+  onDateFromChange?: (dateFrom: string | undefined) => void;
+  dateTo?: string;
+  onDateToChange?: (dateTo: string | undefined) => void;
   dateType?: 'completion' | 'publication' | 'entry' | 'revised';
   onDateTypeChange?: (dateType: 'completion' | 'publication' | 'entry' | 'revised') => void;
   includeCitations?: boolean;
@@ -62,6 +66,10 @@ export function UnifiedSearchControls({
   onYearLowChange,
   yearHigh,
   onYearHighChange,
+  dateFrom,
+  onDateFromChange,
+  dateTo,
+  onDateToChange,
   dateType = 'publication',
   onDateTypeChange,
   includeCitations = false,
@@ -97,7 +105,7 @@ export function UnifiedSearchControls({
 
     if (provider === 'pubmed') {
       return (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
               Date Type for Filtering
@@ -249,36 +257,76 @@ export function UnifiedSearchControls({
                 <option value="date">Date</option>
               </select>
             </div>
-            <div className="w-28">
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                From Year
-              </label>
-              <Input
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                value={yearLow || ''}
-                onChange={(e) => onYearLowChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="2020"
-                className="dark:bg-gray-800 dark:text-gray-100"
-                disabled={isSearching}
-              />
-            </div>
-            <div className="w-28">
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                To Year
-              </label>
-              <Input
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                value={yearHigh || ''}
-                onChange={(e) => onYearHighChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="2024"
-                className="dark:bg-gray-800 dark:text-gray-100"
-                disabled={isSearching}
-              />
-            </div>
+            {/* Date filtering - unified approach */}
+            {currentProvider === 'pubmed' && searchMode === 'single' ? (
+              <>
+                <div className="w-40">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    From Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={dateFrom || ''}
+                    onChange={(e) => {
+                      onDateFromChange?.(e.target.value || undefined);
+                      // Clear year fields when using date fields
+                      if (e.target.value && yearLow) onYearLowChange?.(undefined);
+                    }}
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+                <div className="w-40">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    To Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={dateTo || ''}
+                    onChange={(e) => {
+                      onDateToChange?.(e.target.value || undefined);
+                      // Clear year fields when using date fields
+                      if (e.target.value && yearHigh) onYearHighChange?.(undefined);
+                    }}
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-28">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    From Year
+                  </label>
+                  <Input
+                    type="number"
+                    min="1900"
+                    max={new Date().getFullYear()}
+                    value={yearLow || ''}
+                    onChange={(e) => onYearLowChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder="2020"
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+                <div className="w-28">
+                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                    To Year
+                  </label>
+                  <Input
+                    type="number"
+                    min="1900"
+                    max={new Date().getFullYear()}
+                    value={yearHigh || ''}
+                    onChange={(e) => onYearHighChange?.(e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder="2024"
+                    className="dark:bg-gray-800 dark:text-gray-100"
+                    disabled={isSearching}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Advanced options toggle */}

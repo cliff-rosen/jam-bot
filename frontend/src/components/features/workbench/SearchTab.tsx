@@ -74,6 +74,10 @@ export function SearchTab({ onNewSearch }: SearchTabProps) {
               onYearLowChange={(yearLow) => workbench.updateSearchParams({ yearLow })}
               yearHigh={workbench.searchParams.yearHigh}
               onYearHighChange={(yearHigh) => workbench.updateSearchParams({ yearHigh })}
+              dateFrom={workbench.searchParams.dateFrom}
+              onDateFromChange={(dateFrom) => workbench.updateSearchParams({ dateFrom })}
+              dateTo={workbench.searchParams.dateTo}
+              onDateToChange={(dateTo) => workbench.updateSearchParams({ dateTo })}
               dateType={workbench.searchParams.dateType}
               onDateTypeChange={(dateType) => workbench.updateSearchParams({ dateType })}
               includeCitations={workbench.searchParams.includeCitations}

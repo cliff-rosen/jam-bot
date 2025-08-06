@@ -74,9 +74,13 @@ class PubMedAdapter(SearchProvider):
             start_date = None
             end_date = None
             if params.date_from or params.date_to:
-                start_date = params.date_from
-                end_date = params.date_to
+                # Convert YYYY-MM-DD to YYYY/MM/DD for PubMed API
+                if params.date_from:
+                    start_date = params.date_from.replace('-', '/')
+                if params.date_to:
+                    end_date = params.date_to.replace('-', '/')
             elif params.year_low or params.year_high:
+                # Convert years to full dates
                 start_date = f"{params.year_low or 1900}/01/01"
                 end_date = f"{params.year_high or datetime.now().year}/12/31"
             

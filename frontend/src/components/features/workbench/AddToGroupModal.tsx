@@ -25,6 +25,7 @@ interface AddToGroupModalProps {
   articlesToAdd: Array<{ id: string; title: string }>;
   sourceCollectionName: string;
   currentGroupId?: string; // Hide this group from the list
+  totalArticleCount?: number; // Total count for when adding entire collection
 }
 
 type ModalStep = 'select-group' | 'navigation-choice' | 'adding' | 'success';
@@ -35,7 +36,8 @@ export function AddToGroupModal({
   onConfirm,
   articlesToAdd,
   sourceCollectionName: _sourceCollectionName, // Not used currently
-  currentGroupId
+  currentGroupId,
+  totalArticleCount
 }: AddToGroupModalProps) {
   const [groups, setGroups] = useState<ArticleGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<ArticleGroup[]>([]);
@@ -157,7 +159,7 @@ export function AddToGroupModal({
       <DialogHeader className="flex-shrink-0 pb-4">
         <DialogTitle className="text-gray-900 dark:text-gray-100">Add to Existing Group</DialogTitle>
         <DialogDescription className="text-gray-600 dark:text-gray-400">
-          Adding {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'} to an existing group
+          Adding {totalArticleCount || articlesToAdd.length} {(totalArticleCount || articlesToAdd.length) === 1 ? 'article' : 'articles'} to an existing group
         </DialogDescription>
       </DialogHeader>
 
@@ -165,7 +167,7 @@ export function AddToGroupModal({
         {/* Article Preview */}
         <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-            Articles to add ({articlesToAdd.length}):
+            Articles to add ({totalArticleCount || articlesToAdd.length}):
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto">
             {articlesToAdd.slice(0, 5).map((article) => (
@@ -177,9 +179,9 @@ export function AddToGroupModal({
                 <span className="flex-1 truncate">{article.title}</span>
               </div>
             ))}
-            {articlesToAdd.length > 5 && (
+            {(totalArticleCount || articlesToAdd.length) > 5 && (
               <div className="text-xs text-blue-600 dark:text-blue-400 italic">
-                ... and {articlesToAdd.length - 5} more
+                ... and {(totalArticleCount || articlesToAdd.length) - 5} more
               </div>
             )}
           </div>
@@ -285,7 +287,7 @@ export function AddToGroupModal({
           Add to "{targetGroupName}"?
         </DialogTitle>
         <DialogDescription className="text-muted-foreground">
-          What would you like to do after adding {articlesToAdd.length} {articlesToAdd.length === 1 ? 'article' : 'articles'}?
+          What would you like to do after adding {totalArticleCount || articlesToAdd.length} {(totalArticleCount || articlesToAdd.length) === 1 ? 'article' : 'articles'}?
         </DialogDescription>
       </DialogHeader>
 
@@ -338,7 +340,7 @@ export function AddToGroupModal({
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 dark:text-blue-400" />
           <div className="space-y-1">
             <p className="font-medium text-gray-900 dark:text-white">
-              Adding {articlesToAdd.length} articles to
+              Adding {totalArticleCount || articlesToAdd.length} articles to
             </p>
             <p className="text-sm text-muted-foreground">"{targetGroupName}"</p>
           </div>

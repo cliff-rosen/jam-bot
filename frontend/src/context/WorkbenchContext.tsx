@@ -490,10 +490,19 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
             extracted_features: item.feature_data || {}
           }));
       } else {
-        articlesToAdd = currentCollection.articles.map(item => ({
-          ...item.article,
-          extracted_features: item.feature_data || {}
-        }));
+        // For groups, use all articles (fullGroupArticles) not just current page
+        if (collectionType === 'group' && fullGroupArticles && fullGroupArticles.length > 0) {
+          articlesToAdd = fullGroupArticles.map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
+        } else {
+          // For search collections or when fullGroupArticles is not available, use current page
+          articlesToAdd = currentCollection.articles.map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
+        }
       }
 
       const response = await workbenchApi.addArticlesToGroup(groupId, {
@@ -519,7 +528,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection, fetchGroupCollection, refreshGroupsList]);
+  }, [searchCollection, groupCollection, fullGroupArticles, fetchGroupCollection, refreshGroupsList]);
 
   const updateGroupFromCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
@@ -534,10 +543,6 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       const articlesToSave = collectionType === 'group' && fullGroupArticles 
         ? fullGroupArticles 
         : currentCollection.articles;
-        
-      console.log('DEBUG: Current collection feature definitions:', 
-        currentCollection.feature_definitions.map(f => ({ id: f.id, name: f.name }))
-      );
       
       const articlesWithFeatures = articlesToSave.map(item => {
         console.log(`DEBUG: Article ${item.article.id} feature_data:`, item.feature_data);
@@ -583,7 +588,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection, refreshGroupsList]);
+  }, [searchCollection, groupCollection, fullGroupArticles, refreshGroupsList]);
 
   const deleteCurrentCollection = useCallback(async (collectionType: 'search' | 'group' = 'group') => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;

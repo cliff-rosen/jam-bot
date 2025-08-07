@@ -191,9 +191,6 @@ export function WorkbenchPage() {
    * Handle updating a feature definition
    */
   const handleUpdateFeature = (featureId: string, updates: Partial<FeatureDefinition>) => {
-    // TODO: Implement feature update in WorkbenchContext
-    console.log('Update feature:', featureId, updates);
-    // For now, we'll need to update the entire feature_definitions array
     const collection = featureModalCollectionType === 'search' ? workbench.searchCollection : workbench.groupCollection;
     if (!collection) return;
 
@@ -201,7 +198,6 @@ export function WorkbenchPage() {
       f.id === featureId ? { ...f, ...updates } : f
     );
 
-    // This needs a new context method to update features
     workbench.addFeatureDefinitionsLocal(updatedFeatures, featureModalCollectionType);
   };
 
@@ -212,6 +208,8 @@ export function WorkbenchPage() {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
 
     if (extractImmediately) {
+      // Close the modal when extraction starts so the animation is visible
+      setShowFeatureModal(false);
       workbench.addFeaturesAndExtract(features, featureModalCollectionType, targetArticles);
     } else {
       workbench.addFeatureDefinitionsLocal(features, featureModalCollectionType);
@@ -226,6 +224,7 @@ export function WorkbenchPage() {
     await workbench.extractFeatureValues(featureIds, featureModalCollectionType, targetArticles);
     setShowFeatureModal(false);
   };
+
 
   /**
    * Handle saving current collection changes back to the existing group
@@ -381,7 +380,9 @@ export function WorkbenchPage() {
         ? currentCollection.articles.filter(item => selectedArticleIds.includes(item.article.id))
         : currentCollection.articles;
 
-      const articleIds = articlesToAdd.map(item => item.article.id);
+      const articleIds = selectedArticleIds.length > 0 
+        ? articlesToAdd.map(item => item.article.id)
+        : undefined; // Don't pass articleIds when no selection, let the function handle getting all articles
 
       // Always add articles to the group first
       const collectionType = activeTab === 'search' ? 'search' : 'group';
@@ -719,6 +720,11 @@ export function WorkbenchPage() {
           activeTab === 'search' 
             ? workbench.searchCollection?.saved_group_id 
             : workbench.groupCollection?.saved_group_id
+        }
+        totalArticleCount={
+          selectedArticleIds.length === 0 && activeTab === 'groups' && workbench.groupPagination
+            ? workbench.groupPagination.totalResults
+            : undefined
         }
       />
 

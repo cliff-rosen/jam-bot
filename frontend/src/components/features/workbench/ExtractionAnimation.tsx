@@ -49,7 +49,7 @@ export function ExtractionAnimation({ isVisible, featuresCount, articlesCount }:
   const CurrentIcon = phases[currentPhase].icon;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full mx-4 relative">
 
         {/* Subtle grid pattern background */}

@@ -19,6 +19,9 @@ class EntityType(str, Enum):
     PROTEIN = "protein"
     PATHWAY = "pathway"
     DRUG = "drug"
+    ENVIRONMENTAL_FACTOR = "environmental_factor"
+    ANIMAL_MODEL = "animal_model"
+    EXPOSURE = "exposure"
     OTHER = "other"
 
 
@@ -32,6 +35,8 @@ class RelationshipType(str, Enum):
     REGULATORY = "regulatory"  # A regulates B
     INTERACTIVE = "interactive"  # A and B interact
     PARADOXICAL = "paradoxical"  # Contradictory relationship
+    CORRELATIVE = "correlative"  # Statistical correlation
+    PREDICTIVE = "predictive"  # Predictive relationship
 
 
 class PatternComplexity(str, Enum):
@@ -47,6 +52,8 @@ class Entity(BaseModel):
     type: EntityType = Field(..., description="Type classification of the entity")
     description: Optional[str] = Field(None, description="Brief description of the entity")
     mentions: List[str] = Field(default_factory=list, description="Text snippets where entity is mentioned")
+    relevance_score: Optional[float] = Field(None, description="Relevance score for focus entities (0-1)")
+    connection_to_focus: Optional[str] = Field(None, description="How this entity connects to focus entities")
 
 
 class Relationship(BaseModel):
@@ -57,6 +64,7 @@ class Relationship(BaseModel):
     description: str = Field(..., description="Description of the relationship")
     evidence: Optional[str] = Field(None, description="Text evidence supporting this relationship")
     strength: Optional[Literal["strong", "moderate", "weak"]] = Field(None, description="Strength of the relationship")
+    involves_focus_entity: Optional[bool] = Field(None, description="Whether this relationship involves a focus entity")
 
 
 class EntityRelationshipAnalysis(BaseModel):

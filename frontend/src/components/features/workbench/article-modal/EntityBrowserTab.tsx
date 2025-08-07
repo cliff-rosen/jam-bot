@@ -51,24 +51,26 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
     setLoading(true);
 
     try {
-      const response = await workbenchApi.extractEntityRelationships({
+      // Use focused entity extraction with hardcoded entities
+      const focusEntities = [
+        'genetically modified mice',
+        'asbestos exposure', 
+        'mesothelioma'
+      ];
+      
+      const response = await workbenchApi.extractFocusedEntityRelationships({
         article_id: article.id,
         title: article.title,
         abstract: article.abstract || '',
-        full_text: article.full_text || null,
-        include_gene_data: true,
-        include_drug_data: true,
-        focus_areas: ['medical conditions', 'treatments', 'outcomes'],
-        group_id: groupId, // Pass group_id for caching
-        force_refresh: forceRefresh
+        full_text: article.full_text || '',
+        focus_entities: focusEntities
       });
 
       setAnalysis(response.analysis);
       
-      const isCached = response.extraction_metadata?.cached;
       toast({
-        title: isCached ? 'Entities Loaded (Cached)' : 'Entity Extraction Complete',
-        description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships${isCached ? ' (from cache)' : ''}`
+        title: 'Focused Entity Extraction Complete',
+        description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships focusing on: ${focusEntities.join(', ')}`
       });
     } catch (err) {
       console.error('Entity extraction failed:', err);
@@ -151,9 +153,9 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       {/* Header with extract button */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Entity Browser</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Focused Entity Analysis</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            AI-powered entity relationship extraction from research content
+            AI-powered analysis focusing on: genetically modified mice, asbestos exposure, mesothelioma
           </p>
         </div>
         <Button
@@ -166,12 +168,12 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Extracting...
+              Analyzing...
             </>
           ) : (
             <>
               <RefreshCw className="w-4 h-4" />
-              Re-extract
+              {analysis ? 'Regenerate' : 'Generate'}
             </>
           )}
         </Button>

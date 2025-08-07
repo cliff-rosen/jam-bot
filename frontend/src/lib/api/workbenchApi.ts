@@ -338,6 +338,18 @@ export class WorkbenchApi {
     return response.data;
   }
 
+  // Extract focused entity relationships from article
+  async extractFocusedEntityRelationships(request: {
+    article_id: string;
+    title: string;
+    abstract: string;
+    full_text: string;
+    focus_entities: string[];
+  }): Promise<EntityExtractionResponse> {
+    const response = await api.post('/api/extraction/extract-focused-entity-relationships', request);
+    return response.data;
+  }
+
   // ================== INDIVIDUAL ARTICLE RESEARCH ==================
 
   async getGroupDetail(groupId: string, articleId: string): Promise<{

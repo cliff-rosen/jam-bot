@@ -595,8 +595,27 @@ class ExtractionService:
         if extraction_result.error:
             raise ValueError(f"Focused entity extraction failed: {extraction_result.error}")
         
-        # Convert to EntityRelationshipAnalysis (extending it with focus entity data)
-        analysis = EntityRelationshipAnalysis(**extraction_result.extraction)
+        # Transform focused extraction result to standard EntityRelationshipAnalysis format
+        extraction_data = extraction_result.extraction.copy()
+        
+        # Combine focus_entities and related_entities into entities list
+        all_entities = []
+        if "focus_entities" in extraction_data:
+            all_entities.extend(extraction_data["focus_entities"])
+        if "related_entities" in extraction_data:
+            all_entities.extend(extraction_data["related_entities"])
+        
+        # Create standard EntityRelationshipAnalysis format
+        analysis_data = {
+            "pattern_complexity": extraction_data.get("pattern_complexity", "SIMPLE"),
+            "entities": all_entities,
+            "relationships": extraction_data.get("relationships", []),
+            "complexity_justification": extraction_data.get("complexity_justification"),
+            "clinical_significance": extraction_data.get("clinical_significance"), 
+            "key_findings": extraction_data.get("key_findings", [])
+        }
+        
+        analysis = EntityRelationshipAnalysis(**analysis_data)
         
         return EntityExtractionResponse(
             article_id=article_id,

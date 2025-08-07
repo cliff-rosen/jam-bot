@@ -794,7 +794,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const _updateCollectionWithFeatures = useCallback((
     features: FeatureDefinition[],
-    collectionType: 'search' | 'group' = 'search',
+    _collectionType: 'search' | 'group' = 'search',
     currentCollection: ArticleCollection
   ): ArticleCollection => {
     // Ensure unique IDs
@@ -1197,7 +1197,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const exportActiveCollection = useCallback(async (format: 'csv' | 'json', collectionType?: 'search' | 'group') => {
     try {
-      const collection = getActiveCollection(collectionType || (searchCollection ? 'search' : 'group'));
+      const collection = getActiveCollection(collectionType === 'group' ? 'groups' : (collectionType || (searchCollection ? 'search' : 'groups')));
       if (!collection || !collection.articles.length) {
         setError('No articles to export');
         return;
@@ -1263,7 +1263,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const copyCollectionToClipboard = useCallback(async (format: 'csv' | 'json' | 'text', collectionType?: 'search' | 'group') => {
     try {
-      const collection = getActiveCollection(collectionType || (searchCollection ? 'search' : 'group'));
+      const collection = getActiveCollection(collectionType === 'group' ? 'groups' : (collectionType || (searchCollection ? 'search' : 'groups')));
       if (!collection || !collection.articles.length) {
         setError('No articles to copy');
         return;
@@ -1288,7 +1288,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
           let articleText = `${index + 1}. ${article.title}\n` +
                            `   ID: ${article.id}\n` +
                            `   Authors: ${article.authors?.join(', ') || 'N/A'}\n` +
-                           `   Journal: ${article.journal || 'N/A'} (${article.publication_year || article.year || 'N/A'})\n` +
+                           `   Journal: ${article.journal || 'N/A'} (${article.publication_year || 'N/A'})\n` +
                            `   Abstract: ${article.abstract || 'No abstract available'}\n` +
                            `   URL: ${article.url || 'N/A'}\n`;
           
@@ -1320,7 +1320,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
             article.title || '',
             (article.authors || []).join('; '),
             article.journal || '',
-            article.publication_year || article.year || '',
+            article.publication_year || '',
             article.url || ''
           ];
 

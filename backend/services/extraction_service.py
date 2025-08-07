@@ -417,6 +417,268 @@ class ExtractionService:
             }
         )
     
+    async def extract_focused_entity_relationships(
+        self, 
+        article_id: str,
+        title: str,
+        abstract: str,
+        full_text: str,
+        focus_entities: List[str]
+    ) -> EntityExtractionResponse:
+        """
+        Extract entity relationships focusing on specific entities of interest.
+        Constructs a graph showing relationships between the specified entities in the text.
+        
+        Args:
+            article_id: Unique identifier for the article
+            title: Article title
+            abstract: Article abstract
+            full_text: Full article text
+            focus_entities: List of specific entities to focus on (e.g., ["genetically engineered mice", "asbestos exposure", "mesothelioma"])
+            
+        Returns:
+            EntityExtractionResponse with focused entity relationship analysis
+        """
+        # Prepare the article data for extraction
+        article_data = {
+            "id": article_id,
+            "title": title,
+            "abstract": abstract,
+            "full_text": full_text
+        }
+        
+        # Build focused extraction instructions
+        extraction_instructions = self._build_focused_entity_extraction_instructions(focus_entities)
+        
+        # Define the result schema for focused entity relationship analysis
+        result_schema = {
+            "type": "object",
+            "properties": {
+                "pattern_complexity": {
+                    "type": "string",
+                    "enum": ["SIMPLE", "COMPLEX"],
+                    "description": "Overall pattern complexity classification"
+                },
+                "focus_entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": ["medical_condition", "biological_factor", "intervention", 
+                                        "patient_characteristic", "psychological_factor", "outcome",
+                                        "gene", "protein", "pathway", "drug", "environmental_factor",
+                                        "animal_model", "exposure", "other"]
+                            },
+                            "description": {"type": "string"},
+                            "mentions": {
+                                "type": "array",
+                                "items": {"type": "string"}
+                            },
+                            "relevance_score": {
+                                "type": "number",
+                                "description": "How relevant this entity is to the focus entities (0-1)"
+                            }
+                        },
+                        "required": ["id", "name", "type", "relevance_score"]
+                    }
+                },
+                "related_entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": ["medical_condition", "biological_factor", "intervention", 
+                                        "patient_characteristic", "psychological_factor", "outcome",
+                                        "gene", "protein", "pathway", "drug", "environmental_factor",
+                                        "animal_model", "exposure", "other"]
+                            },
+                            "description": {"type": "string"},
+                            "connection_to_focus": {"type": "string"}
+                        },
+                        "required": ["id", "name", "type"]
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source_entity_id": {"type": "string"},
+                            "target_entity_id": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": ["causal", "therapeutic", "associative", "temporal",
+                                        "inhibitory", "regulatory", "interactive", "paradoxical", 
+                                        "correlative", "predictive"]
+                            },
+                            "description": {"type": "string"},
+                            "evidence": {"type": "string"},
+                            "strength": {
+                                "type": "string",
+                                "enum": ["strong", "moderate", "weak"]
+                            },
+                            "involves_focus_entity": {
+                                "type": "boolean",
+                                "description": "Whether this relationship directly involves at least one focus entity"
+                            }
+                        },
+                        "required": ["source_entity_id", "target_entity_id", "type", "description", "involves_focus_entity"]
+                    }
+                },
+                "focus_entity_network": {
+                    "type": "object",
+                    "properties": {
+                        "central_nodes": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Entity IDs that are central to the focus entity network"
+                        },
+                        "key_pathways": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "pathway": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    },
+                                    "description": {"type": "string"}
+                                },
+                                "required": ["pathway", "description"]
+                            }
+                        },
+                        "network_density": {
+                            "type": "string",
+                            "enum": ["sparse", "moderate", "dense"],
+                            "description": "How interconnected the focus entities are"
+                        }
+                    }
+                },
+                "complexity_justification": {"type": "string"},
+                "clinical_significance": {"type": "string"},
+                "key_findings": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                },
+                "focus_entity_insights": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "focus_entity": {"type": "string"},
+                            "key_insight": {"type": "string"},
+                            "supporting_evidence": {"type": "string"}
+                        },
+                        "required": ["focus_entity", "key_insight"]
+                    }
+                }
+            },
+            "required": ["pattern_complexity", "focus_entities", "relationships", "focus_entity_network"]
+        }
+        
+        # Perform the extraction
+        extraction_result = await self.perform_extraction(
+            item=article_data,
+            result_schema=result_schema,
+            extraction_instructions=extraction_instructions,
+            schema_key=f"focused_entity_relationships_{hash(tuple(sorted(focus_entities)))}"
+        )
+        
+        if extraction_result.error:
+            raise ValueError(f"Focused entity extraction failed: {extraction_result.error}")
+        
+        # Convert to EntityRelationshipAnalysis (extending it with focus entity data)
+        analysis = EntityRelationshipAnalysis(**extraction_result.extraction)
+        
+        return EntityExtractionResponse(
+            article_id=article_id,
+            analysis=analysis,
+            extraction_metadata={
+                "extraction_timestamp": extraction_result.extraction_timestamp,
+                "confidence_score": extraction_result.confidence_score,
+                "focus_entities": focus_entities,
+                "extraction_type": "focused_entity_relationships"
+            }
+        )
+    
+    def _build_focused_entity_extraction_instructions(self, focus_entities: List[str]) -> str:
+        """Build extraction instructions for focused entity relationship analysis"""
+        
+        focus_entities_str = ", ".join(f'"{entity}"' for entity in focus_entities)
+        
+        instructions = f"""
+# Instructions for Focused Entity Relationship Analysis
+
+## Objective:
+Analyze the research article to identify relationships specifically focused on these key entities: {focus_entities_str}
+
+## Primary Task:
+1. **Identify Focus Entities**: Find mentions of the specified focus entities in the text
+2. **Map Entity Network**: Build a relationship graph centered around these focus entities
+3. **Discover Connections**: Identify how these focus entities relate to each other and to other relevant entities
+
+## Step-by-Step Process:
+
+### 1. Extract Focus Entities
+For each of the specified focus entities ({focus_entities_str}):
+- Search for direct mentions and synonyms in the text
+- Classify the entity type (medical_condition, biological_factor, environmental_factor, etc.)
+- Document all text passages where the entity is mentioned
+- Assign a relevance score (0-1) based on how prominently it's discussed
+
+### 2. Identify Related Entities
+Find other entities that:
+- Are directly connected to any focus entity
+- Are mentioned in the same context as focus entities
+- Play a role in mechanisms involving focus entities
+- Are outcomes or consequences of focus entities
+
+### 3. Map Focus-Centered Relationships
+Prioritize relationships that:
+- **Direct Focus-Focus**: Connect one focus entity to another
+- **Focus-Related**: Connect a focus entity to a related entity
+- **Supporting**: Help explain the context around focus entities
+
+For each relationship, specify:
+- Type (causal, associative, therapeutic, etc.)
+- Strength of evidence (strong/moderate/weak)
+- Whether it involves at least one focus entity
+- Supporting textual evidence
+
+### 4. Analyze Network Structure
+Determine:
+- **Central Nodes**: Which entities (focus or related) are most connected
+- **Key Pathways**: Important chains of relationships involving focus entities
+- **Network Density**: How interconnected the focus entities are with each other and related entities
+
+### 5. Generate Focus-Specific Insights
+For each focus entity, provide:
+- Key insight about its role in the research
+- How it connects to other focus entities
+- Clinical or research significance
+- Supporting evidence from the text
+
+## Analysis Requirements:
+- Prioritize information directly related to the specified focus entities
+- Map the relationship network with focus entities as central nodes
+- Provide insights specific to how the focus entities interact and relate
+- Classify complexity based on the interconnectedness of focus entities
+- Highlight key findings that involve the focus entities
+
+## Output Focus:
+The analysis should primarily reveal how {focus_entities_str} relate to each other and to the broader research context, creating a focused relationship graph that answers questions about these specific entities.
+"""
+        
+        return instructions
+
     def _build_entity_extraction_instructions(self, request: EntityExtractionRequest) -> str:
         """Build extraction instructions for entity relationship analysis"""
         

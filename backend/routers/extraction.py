@@ -17,6 +17,7 @@ from models import User
 
 from services.auth_service import validate_token
 from services.extraction_service import get_extraction_service
+from schemas.entity_extraction import EntityExtractionRequest, EntityExtractionResponse
 
 
 router = APIRouter(
@@ -60,6 +61,16 @@ class SingleExtractionResponse(BaseModel):
 class ResearchFeaturesRequest(BaseModel):
     """Request model for research feature extraction from academic articles."""
     articles: List[Dict[str, Any]] = Field(..., description="List of academic articles to analyze")
+
+
+class FocusedEntityExtractionRequest(BaseModel):
+    """Request model for focused entity relationship extraction."""
+    article_id: str = Field(..., description="Unique identifier for the article")
+    title: str = Field(..., description="Article title")
+    abstract: str = Field(..., description="Article abstract")
+    full_text: str = Field(..., description="Full article text")
+    focus_entities: List[str] = Field(..., description="List of specific entities to focus on", 
+                                     example=["genetically engineered mice", "asbestos exposure", "mesothelioma"])
 
 
 @router.post("/extract-multiple", response_model=ExtractionResponse)
@@ -383,3 +394,55 @@ async def test_extraction_service(
             "status": "error",
             "message": f"Extraction service test failed: {str(e)}"
         }
+
+
+@router.post("/extract-focused-entity-relationships")
+async def extract_focused_entity_relationships(
+    request: FocusedEntityExtractionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(validate_token)
+):
+    """
+    Extract entity relationships focusing on specific entities of interest.
+    
+    This endpoint analyzes a research article to identify and construct a relationship
+    graph centered around the specified focus entities (e.g., "genetically engineered mice", 
+    "asbestos exposure", "mesothelioma").
+    
+    Args:
+        request: Article data and list of focus entities
+        db: Database session
+        current_user: Authenticated user
+        
+    Returns:
+        EntityExtractionResponse with focused entity relationship analysis
+        
+    Raises:
+        HTTPException: If extraction fails or parameters are invalid
+    """
+    try:
+        logger.info(f"Starting focused entity extraction for article {request.article_id}")
+        logger.info(f"Focus entities: {request.focus_entities}")
+        
+        # Get the extraction service
+        extraction_service = get_extraction_service()
+        
+        # Perform focused entity relationship extraction
+        response = await extraction_service.extract_focused_entity_relationships(
+            article_id=request.article_id,
+            title=request.title,
+            abstract=request.abstract,
+            full_text=request.full_text,
+            focus_entities=request.focus_entities
+        )
+        
+        logger.info(f"Focused entity extraction completed successfully for article {request.article_id}")
+        
+        return response
+        
+    except ValueError as ve:
+        logger.error(f"Validation error in focused entity extraction: {str(ve)}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in focused entity extraction: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Focused entity extraction failed: {str(e)}")

@@ -181,7 +181,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
   });
 
   const [groupParams, setGroupParams] = useState<WorkbenchState['groupParams']>({
-    pageSize: 20
+    pageSize: 50
   });
 
   const [searchPagination, setSearchPagination] = useState<WorkbenchState['searchPagination']>(null);

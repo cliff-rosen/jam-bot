@@ -42,18 +42,27 @@ export function GroupsTab({ onLoadGroup, onDeleteGroup, groupsData, groupsLoadin
     onLoadGroupsData();
   }, []);
 
-  // Update filtered groups when groupsData changes
+  // Update and sort filtered groups when groupsData changes
   useEffect(() => {
-    setFilteredGroups(groupsData);
+    const sorted = [...groupsData].sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+    setFilteredGroups(sorted);
   }, [groupsData]);
 
-  // Filter groups based on search term
+  // Filter and sort groups based on search term
   useEffect(() => {
     const filtered = groupsData.filter(group =>
       group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-    setFilteredGroups(filtered);
+    
+    // Sort alphabetically by name (case insensitive)
+    const sorted = filtered.sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+    
+    setFilteredGroups(sorted);
   }, [groupsData, searchTerm]);
 
   const handleLoadGroup = async (groupId: string) => {

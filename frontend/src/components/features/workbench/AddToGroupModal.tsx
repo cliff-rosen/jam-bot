@@ -87,7 +87,7 @@ export function AddToGroupModal({
     }
   };
 
-  // Filter groups based on search and exclude current group
+  // Filter and sort groups based on search and exclude current group
   useEffect(() => {
     const filtered = groups.filter(group => {
       // Exclude the current group from the list
@@ -99,7 +99,13 @@ export function AddToGroupModal({
       return group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (group.description && group.description.toLowerCase().includes(searchTerm.toLowerCase()));
     });
-    setFilteredGroups(filtered);
+    
+    // Sort alphabetically by name (case insensitive)
+    const sorted = filtered.sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+    
+    setFilteredGroups(sorted);
   }, [groups, searchTerm, currentGroupId]);
 
   const handleSelectGroup = () => {
@@ -199,7 +205,7 @@ export function AddToGroupModal({
         </div>
 
         {/* Groups List - Scrollable */}
-        <div className="flex-1 min-h-0 border rounded-lg">
+        <div className="flex-1 min-h-0 max-h-[400px] border rounded-lg">
           <div className="h-full overflow-y-auto p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">

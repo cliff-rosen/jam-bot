@@ -221,8 +221,9 @@ export function WorkbenchPage() {
    */
   const handleFeatureExtract = async (featureIds: string[]) => {
     const targetArticles = selectedArticleIds.length > 0 ? selectedArticleIds : undefined;
-    await workbench.extractFeatureValues(featureIds, featureModalCollectionType, targetArticles);
+    // Close modal before starting extraction so animation is visible
     setShowFeatureModal(false);
+    await workbench.extractFeatureValues(featureIds, featureModalCollectionType, targetArticles);
   };
 
 
@@ -274,12 +275,19 @@ export function WorkbenchPage() {
   const loadExistingGroups = async () => {
     // Ensure groups list is loaded, then use it for existing groups
     await loadGroupsData();
-    setExistingGroups(workbench.groupsList.map(group => ({
+    const mappedGroups = workbench.groupsList.map(group => ({
       id: group.id,
       name: group.name,
       description: group.description,
       articleCount: group.article_count || 0
-    })));
+    }));
+    
+    // Sort alphabetically by name (case insensitive)
+    const sortedGroups = mappedGroups.sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+    
+    setExistingGroups(sortedGroups);
   };
 
   const loadGroupsData = async (force = false) => {

@@ -405,6 +405,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       // Use selected articles if provided, otherwise use all articles
       let articlesToSave;
       if (selectedArticleIds && selectedArticleIds.length > 0) {
+        // For selected articles, filter from the current collection's articles
         articlesToSave = currentCollection.articles
           .filter(item => selectedArticleIds.includes(item.article.id))
           .map(item => ({
@@ -412,10 +413,19 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
             extracted_features: item.feature_data || {}
           }));
       } else {
-        articlesToSave = currentCollection.articles.map(item => ({
-          ...item.article,
-          extracted_features: item.feature_data || {}
-        }));
+        // For groups, use all articles (fullGroupArticles) not just current page
+        if (collectionType === 'group' && fullGroupArticles && fullGroupArticles.length > 0) {
+          articlesToSave = fullGroupArticles.map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
+        } else {
+          // For search collections or when fullGroupArticles is not available, use current page
+          articlesToSave = currentCollection.articles.map(item => ({
+            ...item.article,
+            extracted_features: item.feature_data || {}
+          }));
+        }
       }
 
       const savedGroup = await workbenchApi.createGroup({
@@ -460,7 +470,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } finally {
       setCollectionLoading(false);
     }
-  }, [searchCollection, groupCollection, refreshGroupsList]);
+  }, [searchCollection, groupCollection, fullGroupArticles, refreshGroupsList]);
 
   const addArticlesToExistingGroup = useCallback(async (groupId: string, articleIds?: string[], collectionType: 'search' | 'group' = 'search'): Promise<{ articlesAdded: number; duplicatesSkipped: number }> => {
     const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;

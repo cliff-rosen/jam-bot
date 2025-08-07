@@ -114,14 +114,14 @@ export function WorkbenchPage() {
 
       // If we saved a search result as a new group
       if (collectionType === 'search') {
-        // Clear the search results
-        workbench.clearSearchResults();
-
         // Load the newly created group
         await workbench.fetchGroupCollection(savedGroupId);
-
-        // Switch to the groups tab
+        
+        // Switch to the groups tab first
         setActiveTab('groups');
+
+        // Clear the search results after switching tabs
+        workbench.clearSearchResults();
 
         toast({
           title: 'Group Saved',

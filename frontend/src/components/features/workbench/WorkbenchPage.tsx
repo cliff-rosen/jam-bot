@@ -685,6 +685,12 @@ export function WorkbenchPage() {
             ? (workbench.searchCollection?.source === CollectionSource.SAVED_GROUP && workbench.searchCollection?.saved_group_id != null)
             : (workbench.groupCollection?.source === CollectionSource.SAVED_GROUP && workbench.groupCollection?.saved_group_id != null)
         }
+        selectedArticleCount={selectedArticleIds.length}
+        totalArticleCount={
+          activeTab === 'search'
+            ? workbench.searchCollection?.articles.length || 0
+            : workbench.groupCollection?.articles.length || 0
+        }
       />
 
       <AddToGroupModal

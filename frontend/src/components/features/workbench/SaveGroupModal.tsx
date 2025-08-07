@@ -21,6 +21,9 @@ interface SaveGroupModalProps {
   isModified?: boolean;
   currentGroupName?: string;
   canUpdateExisting?: boolean;
+  // Selection context
+  selectedArticleCount?: number;
+  totalArticleCount?: number;
 }
 
 export function SaveGroupModal({
@@ -34,7 +37,9 @@ export function SaveGroupModal({
   collectionSource = 'search',
   isModified = false,
   currentGroupName,
-  canUpdateExisting = false
+  canUpdateExisting = false,
+  selectedArticleCount = 0,
+  totalArticleCount = 0
 }: SaveGroupModalProps) {
   const [saveMode, setSaveMode] = useState<'update' | 'new' | 'existing'>('new');
   const [name, setName] = useState('');
@@ -89,7 +94,15 @@ export function SaveGroupModal({
             Save Article Collection
           </DialogTitle>
           <DialogDescription className="text-gray-600 dark:text-gray-400">
-            Choose how to save your current collection of articles and features.
+            {selectedArticleCount > 0 ? (
+              <>
+                Save <strong>{selectedArticleCount} selected articles</strong> {selectedArticleCount < totalArticleCount && <>out of {totalArticleCount} total</>} and their features.
+              </>
+            ) : (
+              <>
+                Save your current collection of <strong>{totalArticleCount} articles</strong> and features.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         
@@ -121,7 +134,12 @@ export function SaveGroupModal({
                   Create New Group
                 </Label>
                 <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-                  {canUpdateExisting ? 'Save as a new group' : 'Save search results as a new group'}
+                  {selectedArticleCount > 0 
+                    ? `Save ${selectedArticleCount} selected articles as a new group`
+                    : canUpdateExisting 
+                      ? 'Save as a new group' 
+                      : 'Save search results as a new group'
+                  }
                 </div>
               </div>
               {existingGroups.length > 0 && (

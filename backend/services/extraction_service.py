@@ -789,16 +789,6 @@ Provide:
         return base_instructions
 
 
-# Singleton instance
-_extraction_service = None
-
-def get_extraction_service() -> ExtractionService:
-    """Get the singleton extraction service instance"""
-    global _extraction_service
-    if _extraction_service is None:
-        _extraction_service = ExtractionService()
-    return _extraction_service
-
     async def extract_article_archetype(self, article_id: str, title: str, abstract: str, full_text: Optional[str] = None) -> Dict[str, Any]:
         """
         Stage 1: Extract a natural-language study archetype from the article text.
@@ -977,3 +967,14 @@ Output fields:
 Output must strictly conform to the provided JSON schema.
 """
         )
+
+
+# Singleton instance
+_extraction_service = None
+
+def get_extraction_service() -> ExtractionService:
+    """Get the singleton extraction service instance"""
+    global _extraction_service
+    if _extraction_service is None:
+        _extraction_service = ExtractionService()
+    return _extraction_service

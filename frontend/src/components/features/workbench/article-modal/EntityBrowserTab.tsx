@@ -34,6 +34,7 @@ interface EntityBrowserTabProps {
 export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTabProps) {
   const [analysis, setAnalysis] = useState<EntityRelationshipAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [archetype, setArchetype] = useState<{ archetype: string; study_type?: string } | null>(null);
   const { toast } = useToast();
 
   const extractEntities = async (_forceRefresh = false) => {
@@ -55,6 +56,8 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
         title: article.title,
         abstract: article.abstract || ''
       });
+
+      setArchetype({ archetype: archRes.archetype, study_type: archRes.study_type });
 
       // Stage 2: convert archetype to ER graph
       const graphRes = await workbenchApi.archetypeToErGraph({
@@ -204,6 +207,23 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
       {/* Results */}
       {analysis && !loading && (
         <div className="space-y-6">
+          {/* Detected Archetype */}
+          {archetype?.archetype && (
+            <Card className="p-4 bg-white dark:bg-gray-800">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Detected Archetype</div>
+                  <p className="text-sm text-gray-800 dark:text-gray-100">
+                    {archetype.archetype}
+                  </p>
+                </div>
+                {archetype.study_type && (
+                  <Badge variant="secondary" className="self-start">{archetype.study_type}</Badge>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* Summary */}
           <Card className="p-4 bg-gray-50 dark:bg-gray-700/50">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">

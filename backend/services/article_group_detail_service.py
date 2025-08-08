@@ -663,8 +663,6 @@ class ArticleGroupDetailService:
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
         
-        print(f"DEBUG: Saving entity analysis with {len(serialized_analysis.get('entities', []))} entities and {len(serialized_analysis.get('relationships', []))} relationships")
-        print("DEBUG: Analysis data type check - serialized successfully:", type(serialized_analysis).__name__)
         
         try:
             self.db.commit()
@@ -673,13 +671,6 @@ class ArticleGroupDetailService:
             ad_check = self._get_article_detail(user_id, group_id, article_id)
             saved_analysis = ad_check.article_metadata.get('entity_analysis', {}).get('data', {}) if ad_check.article_metadata else {}
             
-            print("--------------------------------")
-            print(f"DEBUG: After save - found {len(saved_analysis.get('entities', []))} entities and {len(saved_analysis.get('relationships', []))} relationships")
-            
-            if saved_analysis:
-                print("SUCCESS: Entity analysis saved to article metadata")
-            else:
-                print("WARNING: Entity analysis data appears to be missing after save")
             return {
                 "success": True,
                 "extracted_at": current_metadata['entity_analysis']['extracted_at']

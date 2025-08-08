@@ -21,8 +21,6 @@ import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import {
   EntityRelationshipAnalysis,
-  Entity,
-  Relationship,
   EntityType,
   RelationshipType
 } from '@/types/entity-extraction';
@@ -33,12 +31,12 @@ interface EntityBrowserTabProps {
   groupId?: string;
 }
 
-export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
+export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTabProps) {
   const [analysis, setAnalysis] = useState<EntityRelationshipAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const extractEntities = async (forceRefresh = false) => {
+  const extractEntities = async (_forceRefresh = false) => {
     if (!article.abstract) {
       toast({
         title: 'No Content Available',
@@ -51,26 +49,24 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
     setLoading(true);
 
     try {
-      // Use focused entity extraction with hardcoded entities
-      const focusEntities = [
-        'genetically modified mice',
-        'asbestos exposure',
-        'mesothelioma'
-      ];
-
-      const response = await workbenchApi.extractFocusedEntityRelationships({
+      // Stage 1: extract study archetype (plain NL)
+      const archRes = await workbenchApi.extractArticleArchtype({
         article_id: article.id,
         title: article.title,
-        abstract: article.abstract || '',
-        full_text: article.full_text || '',
-        focus_entities: focusEntities
+        abstract: article.abstract || ''
       });
 
-      setAnalysis(response.analysis);
+      // Stage 2: convert archetype to ER graph
+      const graphRes = await workbenchApi.archetypeToErGraph({
+        article_id: article.id,
+        archetype: archRes.archetype
+      });
+
+      setAnalysis(graphRes.analysis);
 
       toast({
-        title: 'Focused Entity Extraction Complete',
-        description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships focusing on: ${focusEntities.join(', ')}`
+        title: 'Entity Graph Generated',
+        description: `Archetype detected and converted to graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.`
       });
     } catch (err) {
       console.error('Entity extraction failed:', err);
@@ -103,9 +99,12 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       protein: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
       pathway: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
       drug: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+      environmental_factor: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+      animal_model: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
+      exposure: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
       other: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-    };
-    return colors[type] || colors.other;
+    } as const;
+    return colors[type] ?? colors.other;
   };
 
   const getRelationshipTypeIcon = (type: RelationshipType) => {
@@ -117,9 +116,11 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       inhibitory: <AlertCircle className="w-3 h-3" />,
       regulatory: <Database className="w-3 h-3" />,
       interactive: <Network className="w-3 h-3" />,
-      paradoxical: <AlertCircle className="w-3 h-3" />
-    };
-    return icons[type] || <Circle className="w-3 h-3" />;
+      paradoxical: <AlertCircle className="w-3 h-3" />,
+      correlative: <Network className="w-3 h-3" />,
+      predictive: <Network className="w-3 h-3" />
+    } as const;
+    return icons[type] ?? <Circle className="w-3 h-3" />;
   };
 
   const getRelationshipColor = (type: RelationshipType): string => {
@@ -131,12 +132,14 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       inhibitory: 'border-purple-300 bg-purple-50 dark:border-purple-600 dark:bg-purple-900/20',
       regulatory: 'border-cyan-300 bg-cyan-50 dark:border-cyan-600 dark:bg-cyan-900/20',
       interactive: 'border-indigo-300 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-900/20',
-      paradoxical: 'border-orange-300 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/20'
-    };
-    return colors[type] || 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/20';
+      paradoxical: 'border-orange-300 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/20',
+      correlative: 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/20',
+      predictive: 'border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20'
+    } as const;
+    return colors[type] ?? 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/20';
   };
 
-  if (!article.abstract && !article.full_text) {
+  if (!article.abstract) {
     return (
       <div className="text-center py-8">
         <Network className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
@@ -153,9 +156,9 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       {/* Header with extract button */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Focused Entity Analysis</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Study Archetype Analysis</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            AI-powered analysis focusing on: genetically modified mice, asbestos exposure, mesothelioma
+            AI-powered two-stage: detect study archetype, then generate an entity-relationship graph
           </p>
         </div>
         <Button

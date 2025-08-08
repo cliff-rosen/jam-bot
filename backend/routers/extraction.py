@@ -396,53 +396,68 @@ async def test_extraction_service(
         }
 
 
-@router.post("/extract-focused-entity-relationships")
-async def extract_focused_entity_relationships(
-    request: FocusedEntityExtractionRequest,
+# ================== ARCHETYPE-DRIVEN EXTRACTION ==================
+
+from pydantic import BaseModel, Field
+from services.extraction_service import get_extraction_service
+
+
+class ArticleArchetypeRequest(BaseModel):
+    article_id: str
+    title: str
+    abstract: str
+    full_text: str | None = Field(default=None)
+
+
+class ArticleArchetypeResponse(BaseModel):
+    article_id: str
+    archetype: str
+    study_type: str | None = None
+
+
+class ArchetypeToGraphRequest(BaseModel):
+    article_id: str
+    archetype: str
+
+
+@router.post("/extract-article-archtype", response_model=ArticleArchetypeResponse)
+async def extract_article_archtype(
+    request: ArticleArchetypeRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
-    """
-    Extract entity relationships focusing on specific entities of interest.
-    
-    This endpoint analyzes a research article to identify and construct a relationship
-    graph centered around the specified focus entities (e.g., "genetically engineered mice", 
-    "asbestos exposure", "mesothelioma").
-    
-    Args:
-        request: Article data and list of focus entities
-        db: Database session
-        current_user: Authenticated user
-        
-    Returns:
-        EntityExtractionResponse with focused entity relationship analysis
-        
-    Raises:
-        HTTPException: If extraction fails or parameters are invalid
-    """
+    """Stage 1: Extract a plain natural-language study archetype from an article."""
     try:
-        logger.info(f"Starting focused entity extraction for article {request.article_id}")
-        logger.info(f"Focus entities: {request.focus_entities}")
-        
-        # Get the extraction service
-        extraction_service = get_extraction_service()
-        
-        # Perform focused entity relationship extraction
-        response = await extraction_service.extract_focused_entity_relationships(
+        svc = get_extraction_service()
+        result = await svc.extract_article_archetype(
             article_id=request.article_id,
             title=request.title,
             abstract=request.abstract,
             full_text=request.full_text,
-            focus_entities=request.focus_entities
         )
-        
-        logger.info(f"Focused entity extraction completed successfully for article {request.article_id}")
-        
-        return response
-        
-    except ValueError as ve:
-        logger.error(f"Validation error in focused entity extraction: {str(ve)}")
-        raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
+        return ArticleArchetypeResponse(
+            article_id=request.article_id,
+            archetype=result.get("archetype", ""),
+            study_type=result.get("study_type")
+        )
     except Exception as e:
-        logger.error(f"Unexpected error in focused entity extraction: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Focused entity extraction failed: {str(e)}")
+        logger.error(f"Archetype extraction failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Archetype extraction failed: {str(e)}")
+
+
+@router.post("/archetype-to-er-graph", response_model=EntityExtractionResponse)
+async def archetype_to_er_graph(
+    request: ArchetypeToGraphRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(validate_token)
+):
+    """Stage 2: Convert an archetype sentence into an entity-relationship graph."""
+    try:
+        svc = get_extraction_service()
+        return await svc.extract_er_graph_from_archetype(
+            article_id=request.article_id,
+            archetype_text=request.archetype,
+        )
+    except Exception as e:
+        logger.error(f"ER graph generation from archetype failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"ER graph generation failed: {str(e)}")

@@ -338,15 +338,20 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  // Extract focused entity relationships from article
-  async extractFocusedEntityRelationships(request: {
+  // Stage 1: Extract study archetype in natural language
+  async extractArticleArchtype(request: {
     article_id: string;
     title: string;
     abstract: string;
-    full_text: string;
-    focus_entities: string[];
-  }): Promise<EntityExtractionResponse> {
-    const response = await api.post('/api/extraction/extract-focused-entity-relationships', request);
+    full_text?: string | null;
+  }): Promise<{ article_id: string; archetype: string; study_type?: string }> {
+    const response = await api.post('/api/extraction/extract-article-archtype', request);
+    return response.data;
+  }
+
+  // Stage 2: Convert archetype to ER graph
+  async archetypeToErGraph(request: { article_id: string; archetype: string }): Promise<EntityExtractionResponse> {
+    const response = await api.post('/api/extraction/archetype-to-er-graph', request);
     return response.data;
   }
 

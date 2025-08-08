@@ -2,7 +2,7 @@
  * Types for entity relationship extraction
  */
 
-export type EntityType = 
+export type EntityType =
   | 'medical_condition'
   | 'biological_factor'
   | 'intervention'
@@ -18,7 +18,7 @@ export type EntityType =
   | 'exposure'
   | 'other';
 
-export type RelationshipType = 
+export type RelationshipType =
   | 'causal'
   | 'therapeutic'
   | 'associative'
@@ -119,4 +119,10 @@ export interface EntityExtractionResponse {
     include_drug_data?: boolean;
     focus_areas?: string[];
   };
+}
+
+export interface ArticleArchetypeResponse {
+  article_id: string;
+  archetype: string;
+  study_type?: string;
 }

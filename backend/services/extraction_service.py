@@ -798,3 +798,182 @@ def get_extraction_service() -> ExtractionService:
     if _extraction_service is None:
         _extraction_service = ExtractionService()
     return _extraction_service
+
+    async def extract_article_archetype(self, article_id: str, title: str, abstract: str, full_text: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Stage 1: Extract a natural-language study archetype from the article text.
+        Returns a dict with at least {'archetype': str, 'study_type': Optional[str]}.
+        """
+        article_data = {
+            "id": article_id,
+            "title": title,
+            "abstract": abstract,
+            "full_text": full_text or ""
+        }
+
+        # Minimal result schema expecting plain NL archetype (plus optional classification)
+        result_schema = {
+            "type": "object",
+            "properties": {
+                "archetype": {"type": "string", "description": "Plain NL archetype of the study"},
+                "study_type": {
+                    "type": "string",
+                    "description": "High-level study category (e.g., Intervention, Observational, Diagnostic, Prognostic, Cross-sectional, Systematic Review/Meta-analysis)"
+                }
+            },
+            "required": ["archetype"]
+        }
+
+        instructions = self._build_archetype_instructions()
+        prompt_caller = self._get_prompt_caller("article_archetype", result_schema)
+        extraction = await prompt_caller.invoke_extraction(
+            source_item=article_data,
+            extraction_instructions=instructions
+        )
+        return extraction
+
+    async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str) -> EntityExtractionResponse:
+        """
+        Stage 2: Given a natural-language archetype, generate an entity-relationship graph.
+        Returns standard EntityExtractionResponse.
+        """
+        # Build a synthetic source item that contains only the archetype
+        source_item = {
+            "article_id": article_id,
+            "archetype": archetype_text
+        }
+
+        # Reuse standard ER analysis schema
+        result_schema = {
+            "type": "object",
+            "properties": {
+                "pattern_complexity": {"type": "string", "enum": ["SIMPLE", "COMPLEX"]},
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "medical_condition", "biological_factor", "intervention",
+                                    "patient_characteristic", "psychological_factor", "outcome",
+                                    "gene", "protein", "pathway", "drug", "environmental_factor",
+                                    "animal_model", "exposure", "other"
+                                ]
+                            },
+                            "description": {"type": "string"},
+                            "mentions": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["id", "name", "type"]
+                    }
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source_entity_id": {"type": "string"},
+                            "target_entity_id": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "causal", "therapeutic", "associative", "temporal",
+                                    "inhibitory", "regulatory", "interactive", "paradoxical",
+                                    "correlative", "predictive"
+                                ]
+                            },
+                            "description": {"type": "string"},
+                            "evidence": {"type": "string"},
+                            "strength": {"type": "string", "enum": ["strong", "moderate", "weak"]}
+                        },
+                        "required": ["source_entity_id", "target_entity_id", "type", "description"]
+                    }
+                },
+                "complexity_justification": {"type": "string"},
+                "clinical_significance": {"type": "string"},
+                "key_findings": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["pattern_complexity", "entities", "relationships"]
+        }
+
+        instructions = self._build_er_from_archetype_instructions()
+        extraction_result = await self.perform_extraction(
+            item=source_item,
+            result_schema=result_schema,
+            extraction_instructions=instructions,
+            schema_key="er_graph_from_archetype"
+        )
+
+        if extraction_result.error:
+            raise ValueError(f"ER graph from archetype failed: {extraction_result.error}")
+
+        analysis = EntityRelationshipAnalysis(**extraction_result.extraction)
+        return EntityExtractionResponse(
+            article_id=article_id,
+            analysis=analysis,
+            extraction_metadata={
+                "extraction_timestamp": extraction_result.extraction_timestamp,
+                "confidence_score": extraction_result.confidence_score,
+                "extraction_type": "archetype_to_er_graph"
+            }
+        )
+
+    def _build_archetype_instructions(self) -> str:
+        """Build instructions for generating a plain-language study archetype from article text."""
+        return (
+            """
+# Task: Produce a plain-language study archetype that best matches the article.
+
+Use a compact, natural sentence or two that instantiates a canonical archetype template. Do not include boilerplate beyond the archetype itself.
+
+Canonical archetype families and examples:
+
+Intervention Studies:
+- Population P was treated for condition C with intervention I to study outcome O
+- Intervention I was compared to control C in population P to measure outcome O
+- Population P received intervention I versus comparator C to assess efficacy for outcome O
+
+Observational Studies:
+- Population P with exposure E was observed for outcome O compared to unexposed controls
+- Population P was followed over time T to identify factors F associated with outcome O
+- Cases with condition C were compared to controls without C to identify risk factors F
+
+Diagnostic/Screening Studies:
+- Test T was evaluated in population P to diagnose condition C compared to reference standard R
+- Screening method S was assessed in population P to detect condition C
+
+Prognostic Studies:
+- Population P with condition C was followed to identify predictors F of outcome O
+- Patients with disease D were monitored over time T to determine factors F affecting prognosis P
+
+Cross-sectional Studies:
+- Population P was surveyed to measure prevalence of condition C and associations with factors F
+- Sample S was assessed at timepoint T to examine relationship between exposure E and outcome O
+
+Systematic Reviews/Meta-analyses:
+- Studies examining intervention I for condition C were systematically reviewed to assess outcome O
+- Data from N studies of treatment T versus control C were pooled to evaluate effect on outcome O
+
+Output fields:
+- archetype: the instantiated natural-language archetype succinctly describing the study
+- study_type: one of {Intervention, Observational, Diagnostic/Screening, Prognostic, Cross-sectional, Systematic Review/Meta-analysis}
+"""
+        )
+
+    def _build_er_from_archetype_instructions(self) -> str:
+        """Build instructions for converting an archetype sentence into an ER graph."""
+        return (
+            """
+# Task: Convert the given study archetype into an entity-relationship graph.
+
+- Extract entities (Population, Condition, Intervention, Comparator/Control, Exposure, Outcome, Test, Time, Factors, etc.) and map them to the standard entity types.
+- Generate relationships consistent with the archetype semantics (e.g., intervention therapeutic-> outcome, exposure associative/causal-> outcome, comparator interactive/regulatory relationships as appropriate).
+- Use concise names, fill descriptions from the archetype context, and create stable IDs (entity_1, entity_2, ...).
+- Classify pattern_complexity as SIMPLE unless multiple interacting factors imply COMPLEX.
+
+Output must strictly conform to the provided JSON schema.
+"""
+        )

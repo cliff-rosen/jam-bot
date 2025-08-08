@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from datetime import datetime
+import json
 
 from models import ArticleGroup, ArticleGroupDetail, User
 from services.extraction_service import ExtractionService
@@ -19,6 +20,42 @@ from schemas.canonical_types import CanonicalResearchArticle
 
 class ArticleGroupDetailService:
     """Service for managing individual article details within groups."""
+    
+    def _serialize_analysis_data(self, analysis: Any) -> Dict[str, Any]:
+        """
+        Serialize entity analysis data to ensure it's JSON-compatible.
+        Handles Pydantic models and enums properly.
+        """
+        if hasattr(analysis, 'model_dump'):
+            # It's a Pydantic model, use model_dump
+            return analysis.model_dump()
+        elif hasattr(analysis, 'dict'):
+            # Older Pydantic version, use dict()
+            return analysis.dict()
+        elif isinstance(analysis, dict):
+            # Already a dict, but may contain enums or other non-serializable objects
+            serialized = {}
+            for key, value in analysis.items():
+                if hasattr(value, 'value'):  # It's an enum
+                    serialized[key] = value.value
+                elif isinstance(value, list):
+                    serialized[key] = [
+                        self._serialize_analysis_data(item) if isinstance(item, (dict, object)) and not isinstance(item, (str, int, float, bool, type(None)))
+                        else item.value if hasattr(item, 'value') else item
+                        for item in value
+                    ]
+                elif isinstance(value, dict):
+                    serialized[key] = self._serialize_analysis_data(value)
+                else:
+                    serialized[key] = value.value if hasattr(value, 'value') else value
+            return serialized
+        else:
+            # Try JSON serialization as a fallback
+            try:
+                return json.loads(json.dumps(analysis, default=str))
+            except Exception:
+                # Last resort - convert to string representation
+                return str(analysis)
     
     def __init__(self, db: Session, extraction_service: ExtractionService = None):
         self.db = db
@@ -612,9 +649,12 @@ class ArticleGroupDetailService:
         # Get current metadata
         current_metadata = article_detail.article_metadata or {}
         
+        # Serialize the analysis data to ensure JSON compatibility
+        serialized_analysis = self._serialize_analysis_data(analysis)
+        
         # Add entity analysis with timestamp
         current_metadata['entity_analysis'] = {
-            'data': analysis,
+            'data': serialized_analysis,
             'extracted_at': datetime.utcnow().isoformat(),
             'version': '1.0'
         }
@@ -622,16 +662,24 @@ class ArticleGroupDetailService:
         # Save updated metadata
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
-        print("DEBUG: Article detail metadata before save:", article_detail.article_metadata)
+        
+        print(f"DEBUG: Saving entity analysis with {len(serialized_analysis.get('entities', []))} entities and {len(serialized_analysis.get('relationships', []))} relationships")
+        print("DEBUG: Analysis data type check - serialized successfully:", type(serialized_analysis).__name__)
+        
         try:
             self.db.commit()
 
+            # Verify the save worked
             ad_check = self._get_article_detail(user_id, group_id, article_id)
-
+            saved_analysis = ad_check.article_metadata.get('entity_analysis', {}).get('data', {}) if ad_check.article_metadata else {}
+            
             print("--------------------------------")
-            print("DEBUG: Article detail metadata after save:", ad_check.article_metadata)
-
-            print("SUCCESS: Entity analysis saved to article metadata")
+            print(f"DEBUG: After save - found {len(saved_analysis.get('entities', []))} entities and {len(saved_analysis.get('relationships', []))} relationships")
+            
+            if saved_analysis:
+                print("SUCCESS: Entity analysis saved to article metadata")
+            else:
+                print("WARNING: Entity analysis data appears to be missing after save")
             return {
                 "success": True,
                 "extracted_at": current_metadata['entity_analysis']['extracted_at']

@@ -62,7 +62,8 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
       // Stage 2: convert archetype to ER graph
       const graphRes = await workbenchApi.archetypeToErGraph({
         article_id: article.id,
-        archetype: archRes.archetype
+        archetype: archRes.archetype,
+        study_type: archRes.study_type
       });
 
       setAnalysis(graphRes.analysis);

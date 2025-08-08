@@ -822,7 +822,7 @@ Provide:
         )
         return extraction
 
-    async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str) -> EntityExtractionResponse:
+    async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str, study_type: Optional[str] = None) -> EntityExtractionResponse:
         """
         Stage 2: Given a natural-language archetype, generate an entity-relationship graph.
         Returns standard EntityExtractionResponse.
@@ -830,7 +830,8 @@ Provide:
         # Build a synthetic source item that contains only the archetype
         source_item = {
             "article_id": article_id,
-            "archetype": archetype_text
+            "archetype": archetype_text,
+            "study_type": study_type
         }
 
         # Reuse standard ER analysis schema
@@ -845,6 +846,7 @@ Provide:
                         "properties": {
                             "id": {"type": "string"},
                             "name": {"type": "string"},
+                            "role": {"type": "string", "description": "Archetype role (population, condition, intervention, comparator, exposure, outcome, test, time, factor)"},
                             "type": {
                                 "type": "string",
                                 "enum": [
@@ -889,7 +891,7 @@ Provide:
             "required": ["pattern_complexity", "entities", "relationships"]
         }
 
-        instructions = self._build_er_from_archetype_instructions()
+        instructions = self._build_er_from_archetype_instructions(study_type)
         extraction_result = await self.perform_extraction(
             item=source_item,
             result_schema=result_schema,
@@ -953,16 +955,62 @@ Output fields:
 """
         )
 
-    def _build_er_from_archetype_instructions(self) -> str:
-        """Build instructions for converting an archetype sentence into an ER graph."""
+    def _build_er_from_archetype_instructions(self, study_type: Optional[str]) -> str:
+        """Build instructions for converting an archetype sentence into an ER graph with role mapping and study-type rules."""
+        study_rules = ""
+        if study_type:
+            st = study_type.lower()
+            if "intervention" in st:
+                study_rules = (
+                    "- Create entities with roles: population, condition, intervention, comparator (if present), outcome.\n"
+                    "- Required edges: intervention therapeutic -> outcome. If comparator present, add interactive/regulatory edges comparing intervention vs comparator.\n"
+                )
+            elif "observational" in st:
+                study_rules = (
+                    "- Create entities with roles: population, exposure, outcome, factors (as needed).\n"
+                    "- Primary edges: exposure associative/causal -> outcome; factors associative/predictive -> outcome.\n"
+                )
+            elif "diagnostic" in st or "screening" in st:
+                study_rules = (
+                    "- Create entities with roles: population, test, condition, reference_standard (if present), outcome (diagnostic accuracy).\n"
+                    "- Edges: test predictive -> condition; reference_standard regulatory -> test (as benchmark).\n"
+                )
+            elif "prognostic" in st:
+                study_rules = (
+                    "- Roles: population, condition, factors, outcome, time.\n"
+                    "- Edges: factors predictive -> outcome; condition associative -> outcome; time temporal -> outcome.\n"
+                )
+            elif "cross" in st:
+                study_rules = (
+                    "- Roles: population, exposure, factors, outcome (prevalence or association).\n"
+                    "- Edges: exposure associative -> outcome; factors associative -> outcome.\n"
+                )
+            elif "systematic" in st or "meta" in st:
+                study_rules = (
+                    "- Roles: intervention, comparator, condition, outcome; optionally number_of_studies.\n"
+                    "- Edges: intervention therapeutic -> outcome; comparator interactive -> outcome; include summary relationships describing pooled effects.\n"
+                )
+
         return (
-            """
+            f"""
 # Task: Convert the given study archetype into an entity-relationship graph.
 
-- Extract entities (Population, Condition, Intervention, Comparator/Control, Exposure, Outcome, Test, Time, Factors, etc.) and map them to the standard entity types.
-- Generate relationships consistent with the archetype semantics (e.g., intervention therapeutic-> outcome, exposure associative/causal-> outcome, comparator interactive/regulatory relationships as appropriate).
-- Use concise names, fill descriptions from the archetype context, and create stable IDs (entity_1, entity_2, ...).
-- Classify pattern_complexity as SIMPLE unless multiple interacting factors imply COMPLEX.
+Input:
+- archetype: A natural-language study archetype sentence.
+- study_type: {study_type or 'unknown'}
+
+Steps:
+1) Identify entities and assign an archetype role to each entity using this set: population, condition, intervention, comparator, exposure, outcome, test, time, factor. If a role is not applicable, omit it. If multiple, create multiple entities with the same role.
+2) Map each entity to a standard type (medical_condition, biological_factor, intervention, patient_characteristic, psychological_factor, outcome, gene, protein, pathway, drug, environmental_factor, animal_model, exposure, other).
+3) Create relationships consistent with the archetype semantics. Prefer these rules by study type:\n{study_rules}
+4) Use stable IDs like entity_population, entity_condition, entity_intervention, etc. If multiple of the same role, suffix with numbers (e.g., entity_factor_1).
+5) Provide a brief description for entities and relationships, and include evidence snippets when available from the archetype. If evidence is not present, omit.
+6) Classify pattern_complexity as SIMPLE unless the archetype implies multiple interacting factors (then COMPLEX).
+
+Validation:
+- Do not invent entities that contradict the archetype.
+- If a role is implied but unnamed, create a concise placeholder name (e.g., "Comparator Control").
+- Ensure edge directions follow semantics (e.g., intervention -> outcome).
 
 Output must strictly conform to the provided JSON schema.
 """

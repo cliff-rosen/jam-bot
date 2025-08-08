@@ -350,7 +350,7 @@ export class WorkbenchApi {
   }
 
   // Stage 2: Convert archetype to ER graph
-  async archetypeToErGraph(request: { article_id: string; archetype: string }): Promise<EntityExtractionResponse> {
+  async archetypeToErGraph(request: { article_id: string; archetype: string; study_type?: string }): Promise<EntityExtractionResponse> {
     const response = await api.post('/api/extraction/archetype-to-er-graph', request);
     return response.data;
   }

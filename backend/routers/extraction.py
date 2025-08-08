@@ -418,6 +418,7 @@ class ArticleArchetypeResponse(BaseModel):
 class ArchetypeToGraphRequest(BaseModel):
     article_id: str
     archetype: str
+    study_type: str | None = None
 
 
 @router.post("/extract-article-archtype", response_model=ArticleArchetypeResponse)
@@ -457,6 +458,7 @@ async def archetype_to_er_graph(
         return await svc.extract_er_graph_from_archetype(
             article_id=request.article_id,
             archetype_text=request.archetype,
+            study_type=request.study_type,
         )
     except Exception as e:
         logger.error(f"ER graph generation from archetype failed: {e}", exc_info=True)

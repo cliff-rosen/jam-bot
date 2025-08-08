@@ -38,6 +38,7 @@ export interface Entity {
   id: string;
   name: string;
   type: EntityType;
+  role?: string;
   description?: string;
   mentions?: string[];
 }

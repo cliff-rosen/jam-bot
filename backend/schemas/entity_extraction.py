@@ -50,6 +50,7 @@ class Entity(BaseModel):
     id: str = Field(..., description="Unique identifier for the entity")
     name: str = Field(..., description="Name of the entity")
     type: EntityType = Field(..., description="Type classification of the entity")
+    role: Optional[str] = Field(None, description="Archetype role (e.g., population, condition, intervention, comparator, exposure, outcome, test, time, factor)")
     description: Optional[str] = Field(None, description="Brief description of the entity")
     mentions: List[str] = Field(default_factory=list, description="Text snippets where entity is mentioned")
     relevance_score: Optional[float] = Field(None, description="Relevance score for focus entities (0-1)")

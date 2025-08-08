@@ -350,6 +350,18 @@ export class WorkbenchApi {
     return response.data;
   }
 
+  // Get saved ER analysis for an article in a group
+  async getSavedEntityAnalysis(groupId: string, articleId: string): Promise<{ analysis: any | null }> {
+    const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}/entity-analysis`);
+    return response.data;
+  }
+
+  // Generate and save ER graph from an archetype for an article in a group
+  async generateAndSaveErGraph(groupId: string, articleId: string, payload: { archetype: string; study_type?: string }): Promise<EntityExtractionResponse> {
+    const response = await api.post(`/api/workbench/groups/${groupId}/articles/${articleId}/er-graph`, payload);
+    return response.data;
+  }
+
   // Stage 1: Extract study archetype in natural language
   async extractArticleArchtype(request: {
     article_id: string;

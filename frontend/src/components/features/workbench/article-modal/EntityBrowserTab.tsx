@@ -47,13 +47,21 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
     }
     setLoading(true);
     try {
-      // Try load saved archetype if group context is available
+      // Try load saved archetype and saved analysis if group context is available
       if (_groupId) {
-        const saved = await workbenchApi.getArticleArchetype(_groupId, article.id);
-        if (saved?.text) {
-          setArchetypeText(saved.text);
-          setStudyType(saved.study_type || '');
-          setSavedAt(saved.updated_at || null);
+        const [savedArch, savedAnalysis] = await Promise.all([
+          workbenchApi.getArticleArchetype(_groupId, article.id),
+          workbenchApi.getSavedEntityAnalysis(_groupId, article.id)
+        ]);
+        if (savedArch?.text) {
+          setArchetypeText(savedArch.text);
+          setStudyType(savedArch.study_type || '');
+          setSavedAt(savedArch.updated_at || null);
+        }
+        if (savedAnalysis?.analysis) {
+          setAnalysis(savedAnalysis.analysis as EntityRelationshipAnalysis);
+        }
+        if (savedArch?.text) {
           setLoading(false);
           return;
         }
@@ -106,11 +114,9 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
     }
     setLoading(true);
     try {
-      const graphRes = await workbenchApi.archetypeToErGraph({
-        article_id: article.id,
-        archetype: archetypeText,
-        study_type: studyType || undefined
-      });
+      const graphRes = _groupId
+        ? await workbenchApi.generateAndSaveErGraph(_groupId, article.id, { archetype: archetypeText, study_type: studyType || undefined })
+        : await workbenchApi.archetypeToErGraph({ article_id: article.id, archetype: archetypeText, study_type: studyType || undefined });
       setAnalysis(graphRes.analysis);
       toast({ title: 'Graph Generated', description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` });
     } catch (err) {

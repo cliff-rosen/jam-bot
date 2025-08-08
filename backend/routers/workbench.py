@@ -1062,4 +1062,46 @@ async def put_article_archetype(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to save archetype")
     return saved
 
+@router.get("/groups/{group_id}/articles/{article_id}/entity-analysis")
+async def get_entity_analysis(
+    group_id: str,
+    article_id: str,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    service = ArticleGroupDetailService(db)
+    data = service.get_cached_entity_analysis(current_user.user_id, group_id, article_id)
+    return {"analysis": data} if data else {"analysis": None}
+
+
+@router.post("/groups/{group_id}/articles/{article_id}/er-graph", response_model=EntityExtractionResponse)
+async def generate_er_graph_from_archetype(
+    group_id: str,
+    article_id: str,
+    payload: ArchetypePayload,
+    current_user: User = Depends(validate_token),
+    extraction_service: ExtractionService = Depends(get_extraction_service),
+    db: Session = Depends(get_db)
+):
+    """Generate ER graph from an archetype and persist it to article metadata."""
+    try:
+        detail_service = ArticleGroupDetailService(db, extraction_service)
+        result = await extraction_service.extract_er_graph_from_archetype(
+            article_id=article_id,
+            archetype_text=payload.archetype,
+            study_type=payload.study_type
+        )
+
+        # Save analysis to metadata
+        analysis_dict = result.analysis.model_dump() if hasattr(result.analysis, 'model_dump') else result.analysis.dict()
+        detail_service.save_entity_analysis(
+            current_user.user_id,
+            group_id,
+            article_id,
+            analysis_dict
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate ER graph: {str(e)}")
+
 

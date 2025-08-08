@@ -381,28 +381,6 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  // DEPRECATED: Use unified extraction API instead (extractFeatures)
-  // async extractFeature(
-  //   groupId: string,
-  //   articleId: string,
-  //   featureName: string,
-  //   featureType: string,
-  //   extractionPrompt: string
-  // ): Promise<{ feature_name: string; feature_data: any; updated_at: string }> {
-  //   const response = await api.post(`/api/workbench/groups/${groupId}/articles/${articleId}/extract-feature`, {
-  //     feature_name: featureName,
-  //     feature_type: featureType,
-  //     extraction_prompt: extractionPrompt
-  //   });
-  //   return response.data;
-  // }
-
-  // DEPRECATED: Features are now managed through the unified system
-  // async deleteFeature(groupId: string, articleId: string, featureName: string): Promise<{ message: string }> {
-  //   const response = await api.delete(`/api/workbench/groups/${groupId}/articles/${articleId}/features/${featureName}`);
-  //   return response.data;
-  // }
-
   // ================== BATCH OPERATIONS ==================
 
   async batchExtractFeatures(groupId: string, request: BatchExtractFeaturesRequest): Promise<BatchOperationResponse> {

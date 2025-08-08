@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Network, 
-  Circle, 
-  ArrowRight, 
-  Zap, 
-  AlertCircle, 
+import {
+  Network,
+  Circle,
+  ArrowRight,
+  Zap,
+  AlertCircle,
   Brain,
   Database,
   Loader2,
@@ -19,12 +19,12 @@ import {
 
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import { 
-  EntityRelationshipAnalysis, 
-  Entity, 
-  Relationship, 
-  EntityType, 
-  RelationshipType 
+import {
+  EntityRelationshipAnalysis,
+  Entity,
+  Relationship,
+  EntityType,
+  RelationshipType
 } from '@/types/entity-extraction';
 import { EntityKnowledgeGraph } from './EntityKnowledgeGraph';
 
@@ -39,7 +39,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
   const { toast } = useToast();
 
   const extractEntities = async (forceRefresh = false) => {
-    if (!article.abstract && !article.full_text) {
+    if (!article.abstract) {
       toast({
         title: 'No Content Available',
         description: 'Entity extraction requires article abstract or full text.',
@@ -54,10 +54,10 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       // Use focused entity extraction with hardcoded entities
       const focusEntities = [
         'genetically modified mice',
-        'asbestos exposure', 
+        'asbestos exposure',
         'mesothelioma'
       ];
-      
+
       const response = await workbenchApi.extractFocusedEntityRelationships({
         article_id: article.id,
         title: article.title,
@@ -67,7 +67,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
       });
 
       setAnalysis(response.analysis);
-      
+
       toast({
         title: 'Focused Entity Extraction Complete',
         description: `Found ${response.analysis.entities.length} entities and ${response.analysis.relationships.length} relationships focusing on: ${focusEntities.join(', ')}`
@@ -86,7 +86,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
   useEffect(() => {
     // Auto-extract on load if we have content
-    if (article.abstract || article.full_text) {
+    if (article.abstract) {
       extractEntities();
     }
   }, [article.id]);
@@ -290,7 +290,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                 {analysis.relationships.map((relationship, idx) => {
                   const sourceEntity = analysis.entities.find(e => e.id === relationship.source_entity_id);
                   const targetEntity = analysis.entities.find(e => e.id === relationship.target_entity_id);
-                  
+
                   return (
                     <Card key={idx} className={`p-4 border-l-4 ${getRelationshipColor(relationship.type)}`}>
                       <div className="space-y-3">
@@ -300,7 +300,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                             {relationship.type}
                           </Badge>
                           {relationship.strength && (
-                            <Badge 
+                            <Badge
                               variant={relationship.strength === 'strong' ? 'default' : 'secondary'}
                               className="text-xs"
                             >
@@ -308,7 +308,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2 text-sm">
                           <span className="font-medium text-gray-900 dark:text-gray-100">
                             {sourceEntity?.name || relationship.source_entity_id}
@@ -318,11 +318,11 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                             {targetEntity?.name || relationship.target_entity_id}
                           </span>
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                           {relationship.description}
                         </p>
-                        
+
                         {relationship.evidence && (
                           <div className="text-xs bg-gray-100 dark:bg-gray-600 p-2 rounded">
                             <strong>Evidence:</strong> {relationship.evidence}
@@ -346,7 +346,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                   </p>
                 </Card>
               )}
-              
+
               {analysis.clinical_significance && (
                 <Card className="p-4">
                   <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
@@ -357,7 +357,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                   </p>
                 </Card>
               )}
-              
+
               {analysis.key_findings && analysis.key_findings.length > 0 && (
                 <Card className="p-4">
                   <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">

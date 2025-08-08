@@ -1023,3 +1023,43 @@ async def extract_entity_relationships(
         )
 
 
+# ================== ARCHETYPE PERSISTENCE (GROUP CONTEXT) ==================
+
+class ArchetypePayload(BaseModel):
+    archetype: str = Field(..., description="Archetype text")
+    study_type: Optional[str] = Field(None, description="Optional study type classification")
+
+
+@router.get("/groups/{group_id}/articles/{article_id}/archetype")
+async def get_article_archetype(
+    group_id: str,
+    article_id: str,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    service = ArticleGroupDetailService(db)
+    saved = service.get_saved_archetype(current_user.user_id, group_id, article_id)
+    return saved or {"text": None, "study_type": None, "updated_at": None}
+
+
+@router.put("/groups/{group_id}/articles/{article_id}/archetype")
+async def put_article_archetype(
+    group_id: str,
+    article_id: str,
+    payload: ArchetypePayload,
+    current_user: User = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    service = ArticleGroupDetailService(db)
+    saved = service.save_archetype(
+        current_user.user_id,
+        group_id,
+        article_id,
+        archetype_text=payload.archetype,
+        study_type=payload.study_type
+    )
+    if not saved:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to save archetype")
+    return saved
+
+

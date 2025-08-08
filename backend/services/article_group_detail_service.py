@@ -651,6 +651,50 @@ class ArticleGroupDetailService:
         
         return None
 
+    def get_saved_archetype(
+        self,
+        user_id: int,
+        group_id: str,
+        article_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve saved archetype from article metadata."""
+        article_detail = self._get_article_detail(user_id, group_id, article_id)
+        if not article_detail or not article_detail.article_metadata:
+            return None
+        archetype = article_detail.article_metadata.get('archetype')
+        if archetype and archetype.get('text'):
+            return archetype
+        return None
+
+    def save_archetype(
+        self,
+        user_id: int,
+        group_id: str,
+        article_id: str,
+        archetype_text: str,
+        study_type: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Save archetype text (and optional study type) to article metadata."""
+        article_detail = self._get_article_detail(user_id, group_id, article_id)
+        if not article_detail:
+            return None
+        current_metadata = article_detail.article_metadata or {}
+        saved = {
+            'text': archetype_text,
+            'study_type': study_type,
+            'updated_at': datetime.utcnow().isoformat(),
+            'version': '1.0'
+        }
+        current_metadata['archetype'] = saved
+        article_detail.article_metadata = current_metadata
+        article_detail.updated_at = datetime.utcnow()
+        try:
+            self.db.commit()
+            return saved
+        except Exception:
+            self.db.rollback()
+            return None
+
 
 def get_article_group_detail_service(
     db: Session = None, 

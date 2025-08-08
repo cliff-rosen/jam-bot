@@ -788,7 +788,6 @@ Provide:
         
         return base_instructions
 
-
     async def extract_article_archetype(self, article_id: str, title: str, abstract: str, full_text: Optional[str] = None) -> Dict[str, Any]:
         """
         Stage 1: Extract a natural-language study archetype from the article text.

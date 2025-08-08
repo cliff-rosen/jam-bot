@@ -34,61 +34,95 @@ interface EntityBrowserTabProps {
 export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTabProps) {
   const [analysis, setAnalysis] = useState<EntityRelationshipAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
-  const [archetype, setArchetype] = useState<{ archetype: string; study_type?: string } | null>(null);
+  const [archetypeText, setArchetypeText] = useState<string>('');
+  const [studyType, setStudyType] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const extractEntities = async (_forceRefresh = false) => {
+  const loadOrGenerateArchetype = async () => {
     if (!article.abstract) {
-      toast({
-        title: 'No Content Available',
-        description: 'Entity extraction requires article abstract or full text.',
-        variant: 'destructive'
-      });
+      toast({ title: 'No Content Available', description: 'Entity extraction requires article abstract or full text.', variant: 'destructive' });
       return;
     }
-
     setLoading(true);
-
     try {
-      // Stage 1: extract study archetype (plain NL)
+      // Try load saved archetype if group context is available
+      if (_groupId) {
+        const saved = await workbenchApi.getArticleArchetype(_groupId, article.id);
+        if (saved?.text) {
+          setArchetypeText(saved.text);
+          setStudyType(saved.study_type || '');
+          setSavedAt(saved.updated_at || null);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Otherwise auto-generate stage 1 and show to user
       const archRes = await workbenchApi.extractArticleArchtype({
         article_id: article.id,
         title: article.title,
         abstract: article.abstract || ''
       });
+      setArchetypeText(archRes.archetype || '');
+      setStudyType(archRes.study_type || '');
+      setSavedAt(null);
+      toast({ title: 'Archetype Generated', description: 'Review and edit if needed, then generate the graph.' });
+    } catch (err) {
+      console.error('Archetype load/generate failed:', err);
+      toast({ title: 'Archetype Error', description: err instanceof Error ? err.message : 'Failed to get archetype', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      setArchetype({ archetype: archRes.archetype, study_type: archRes.study_type });
+  const saveArchetype = async () => {
+    if (!_groupId) {
+      toast({ title: 'Cannot Save', description: 'Saving archetype requires a group context.', variant: 'destructive' });
+      return;
+    }
+    if (!archetypeText.trim()) {
+      toast({ title: 'Archetype Required', description: 'Enter an archetype before saving.', variant: 'destructive' });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const saved = await workbenchApi.saveArticleArchetype(_groupId, article.id, { archetype: archetypeText, study_type: studyType || undefined });
+      setSavedAt(saved.updated_at || null);
+      toast({ title: 'Saved', description: 'Archetype saved.' });
+    } catch (err) {
+      console.error('Save archetype failed:', err);
+      toast({ title: 'Save Failed', description: err instanceof Error ? err.message : 'Failed to save archetype', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-      // Stage 2: convert archetype to ER graph
+  const generateGraph = async () => {
+    if (!archetypeText.trim()) {
+      toast({ title: 'Archetype Required', description: 'Enter or generate an archetype first.', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    try {
       const graphRes = await workbenchApi.archetypeToErGraph({
         article_id: article.id,
-        archetype: archRes.archetype,
-        study_type: archRes.study_type
+        archetype: archetypeText,
+        study_type: studyType || undefined
       });
-
       setAnalysis(graphRes.analysis);
-
-      toast({
-        title: 'Entity Graph Generated',
-        description: `Archetype detected and converted to graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.`
-      });
+      toast({ title: 'Graph Generated', description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` });
     } catch (err) {
-      console.error('Entity extraction failed:', err);
-      toast({
-        title: 'Extraction Failed',
-        description: err instanceof Error ? err.message : 'Failed to extract entities',
-        variant: 'destructive'
-      });
+      console.error('Graph generation failed:', err);
+      toast({ title: 'Graph Error', description: err instanceof Error ? err.message : 'Failed to generate graph', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Auto-extract on load if we have content
-    if (article.abstract) {
-      extractEntities();
-    }
+    loadOrGenerateArchetype();
   }, [article.id]);
 
   const getEntityTypeColor = (type: EntityType): string => {
@@ -157,33 +191,26 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
 
   return (
     <div className="space-y-4">
-      {/* Header with extract button */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Study Archetype Analysis</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            AI-powered two-stage: detect study archetype, then generate an entity-relationship graph
+            1) Edit or accept the archetype 2) Generate the entity-relationship graph
           </p>
         </div>
-        <Button
-          onClick={() => extractEntities(true)}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="gap-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="w-4 h-4" />
-              {analysis ? 'Regenerate' : 'Generate'}
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={loadOrGenerateArchetype} disabled={loading} variant="outline" size="sm" className="gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Auto-generate Archetype
+          </Button>
+          <Button onClick={saveArchetype} disabled={isSaving || !archetypeText.trim() || !_groupId} size="sm">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Archetype'}
+          </Button>
+          <Button onClick={generateGraph} disabled={loading || !archetypeText.trim()} variant="secondary" size="sm">
+            Generate Graph
+          </Button>
+        </div>
       </div>
 
       {/* Loading state */}
@@ -204,23 +231,43 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
         </div>
       )}
 
+      {/* Archetype editor */}
+      <Card className="p-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Archetype</div>
+            {savedAt && <div className="text-xs text-gray-500 dark:text-gray-400">Saved {new Date(savedAt).toLocaleString()}</div>}
+          </div>
+          <textarea
+            className="w-full min-h-[80px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
+            placeholder="Enter or generate the study archetype..."
+            value={archetypeText}
+            onChange={(e) => setArchetypeText(e.target.value)}
+          />
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-gray-600 dark:text-gray-400">Study Type</div>
+            <input
+              className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
+              placeholder="Optional (e.g., Intervention, Observational, Diagnostic)"
+              value={studyType}
+              onChange={(e) => setStudyType(e.target.value)}
+            />
+          </div>
+        </div>
+      </Card>
 
       {/* Results */}
       {analysis && !loading && (
         <div className="space-y-6">
-          {/* Detected Archetype */}
-          {archetype?.archetype && (
+          {/* Current Archetype Summary */}
+          {archetypeText && (
             <Card className="p-4 bg-white dark:bg-gray-800">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Detected Archetype</div>
-                  <p className="text-sm text-gray-800 dark:text-gray-100">
-                    {archetype.archetype}
-                  </p>
+                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Current Archetype</div>
+                  <p className="text-sm text-gray-800 dark:text-gray-100">{archetypeText}</p>
                 </div>
-                {archetype.study_type && (
-                  <Badge variant="secondary" className="self-start">{archetype.study_type}</Badge>
-                )}
+                {studyType && <Badge variant="secondary" className="self-start">{studyType}</Badge>}
               </div>
             </Card>
           )}

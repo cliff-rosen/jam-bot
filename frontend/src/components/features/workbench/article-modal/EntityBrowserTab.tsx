@@ -61,7 +61,7 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
         if (savedAnalysis?.analysis) {
           setAnalysis(savedAnalysis.analysis as EntityRelationshipAnalysis);
         }
-        if (savedArch?.text) {
+        if (savedArch?.text || savedAnalysis?.analysis) {
           setLoading(false);
           return;
         }
@@ -214,7 +214,7 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Archetype'}
           </Button>
           <Button onClick={generateGraph} disabled={loading || !archetypeText.trim()} variant="secondary" size="sm">
-            Generate Graph
+            {analysis ? 'Regenerate Graph' : 'Generate Graph'}
           </Button>
         </div>
       </div>

@@ -622,15 +622,23 @@ class ArticleGroupDetailService:
         # Save updated metadata
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
-        
+        print("DEBUG: Article detail metadata before save:", article_detail.article_metadata)
         try:
             self.db.commit()
+
+            ad_check = self._get_article_detail(user_id, group_id, article_id)
+
+            print("--------------------------------")
+            print("DEBUG: Article detail metadata after save:", ad_check.article_metadata)
+
+            print("SUCCESS: Entity analysis saved to article metadata")
             return {
                 "success": True,
                 "extracted_at": current_metadata['entity_analysis']['extracted_at']
             }
         except Exception as e:
             self.db.rollback()
+            print("ERROR: Entity analysis not saved to article metadata")
             return None
 
     def get_cached_entity_analysis(

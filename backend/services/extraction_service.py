@@ -901,7 +901,24 @@ Provide:
         if extraction_result.error:
             raise ValueError(f"ER graph from archetype failed: {extraction_result.error}")
 
-        analysis = EntityRelationshipAnalysis(**extraction_result.extraction)
+        # Sanitize entity types: map unknown types to 'other' to satisfy enum validation
+        allowed_entity_types = {
+            "medical_condition", "biological_factor", "intervention",
+            "patient_characteristic", "psychological_factor", "outcome",
+            "gene", "protein", "pathway", "drug", "environmental_factor",
+            "animal_model", "exposure", "other"
+        }
+        cleaned = extraction_result.extraction.copy()
+        try:
+            for entity in cleaned.get("entities", []) or []:
+                etype = (entity.get("type") or "").strip()
+                if etype not in allowed_entity_types:
+                    entity["type"] = "other"
+        except Exception:
+            # If anything unexpected, fall back to raw
+            pass
+
+        analysis = EntityRelationshipAnalysis(**cleaned)
         return EntityExtractionResponse(
             article_id=article_id,
             analysis=analysis,

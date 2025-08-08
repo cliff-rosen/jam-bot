@@ -1094,12 +1094,17 @@ async def generate_er_graph_from_archetype(
 
         # Save analysis to metadata
         analysis_dict = result.analysis.model_dump() if hasattr(result.analysis, 'model_dump') else result.analysis.dict()
-        detail_service.save_entity_analysis(
+        save_result = detail_service.save_entity_analysis(
             current_user.user_id,
             group_id,
             article_id,
             analysis_dict
         )
+        if not save_result:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist generated ER graph")
+        # Annotate response with saved timestamp
+        result.extraction_metadata = result.extraction_metadata or {}
+        result.extraction_metadata["cached_at"] = save_result.get("extracted_at")
         return result
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate ER graph: {str(e)}")

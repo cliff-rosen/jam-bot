@@ -17,7 +17,12 @@ from models import User
 
 from services.auth_service import validate_token
 from services.extraction_service import get_extraction_service
-from schemas.entity_extraction import EntityExtractionRequest, EntityExtractionResponse
+from schemas.entity_extraction import (
+    EntityExtractionRequest, 
+    EntityExtractionResponse,
+    ArticleArchetypeRequest,
+    ArticleArchetypeResponse
+)
 
 
 router = APIRouter(
@@ -402,19 +407,6 @@ from pydantic import BaseModel, Field
 from services.extraction_service import get_extraction_service
 
 
-class ArticleArchetypeRequest(BaseModel):
-    article_id: str
-    title: str
-    abstract: str
-    full_text: str | None = Field(default=None)
-
-
-class ArticleArchetypeResponse(BaseModel):
-    article_id: str
-    archetype: str
-    study_type: str | None = None
-
-
 class ArchetypeToGraphRequest(BaseModel):
     article_id: str
     archetype: str
@@ -430,7 +422,7 @@ async def extract_article_archtype(
     """Stage 1: Extract a plain natural-language study archetype from an article."""
     try:
         svc = get_extraction_service()
-        result = await svc.extract_article_archetype(
+        archetype = await svc.extract_article_archetype(
             article_id=request.article_id,
             title=request.title,
             abstract=request.abstract,
@@ -438,8 +430,8 @@ async def extract_article_archtype(
         )
         return ArticleArchetypeResponse(
             article_id=request.article_id,
-            archetype=result.get("archetype", ""),
-            study_type=result.get("study_type")
+            archetype=archetype.archetype,
+            study_type=archetype.study_type
         )
     except Exception as e:
         logger.error(f"Archetype extraction failed: {e}", exc_info=True)

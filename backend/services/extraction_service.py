@@ -10,11 +10,18 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 import json
-
-from agents.prompts.base_prompt_caller import BasePromptCaller
 from pydantic import BaseModel, Field
 from typing import Union
-from schemas.entity_extraction import EntityRelationshipAnalysis, EntityExtractionRequest, EntityExtractionResponse
+
+from agents.prompts.base_prompt_caller import BasePromptCaller
+
+from schemas.entity_extraction import (
+    EntityRelationshipAnalysis, 
+    EntityExtractionRequest, 
+    EntityExtractionResponse,
+    ArticleArchetype,
+    StudyType
+)
 
 
 class ExtractionResult(BaseModel):
@@ -788,10 +795,10 @@ Provide:
         
         return base_instructions
 
-    async def extract_article_archetype(self, article_id: str, title: str, abstract: str, full_text: Optional[str] = None) -> Dict[str, Any]:
+    async def extract_article_archetype(self, article_id: str, title: str, abstract: str, full_text: Optional[str] = None) -> ArticleArchetype:
         """
         Stage 1: Extract a natural-language study archetype from the article text.
-        Returns a dict with at least {'archetype': str, 'study_type': Optional[str]}.
+        Returns an ArticleArchetype object with archetype text and optional study type.
         """
         article_data = {
             "id": article_id,
@@ -819,7 +826,12 @@ Provide:
             source_item=article_data,
             extraction_instructions=instructions
         )
-        return extraction
+        
+        # Convert extraction dict to ArticleArchetype model
+        return ArticleArchetype(
+            archetype=extraction.get("archetype", ""),
+            study_type=extraction.get("study_type")
+        )
 
     async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str, study_type: Optional[str] = None) -> EntityExtractionResponse:
         """

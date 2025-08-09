@@ -108,3 +108,37 @@ class EntityExtractionResponse(BaseModel):
     article_id: str
     analysis: EntityRelationshipAnalysis
     extraction_metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata about the extraction")
+
+
+class StudyType(str, Enum):
+    """Valid study types for archetype classification"""
+    INTERVENTION = "Intervention"
+    OBSERVATIONAL = "Observational"
+    DIAGNOSTIC_SCREENING = "Diagnostic/Screening"
+    PROGNOSTIC = "Prognostic"
+    CROSS_SECTIONAL = "Cross-sectional"
+    SYSTEMATIC_REVIEW_META_ANALYSIS = "Systematic Review/Meta-analysis"
+
+
+class ArticleArchetype(BaseModel):
+    """Result of archetype extraction from article"""
+    archetype: str = Field(..., description="Natural language archetype sentence capturing study structure")
+    study_type: Optional[StudyType] = Field(None, description="High-level study category")
+    
+    class Config:
+        use_enum_values = True  # Serialize enums as their values
+
+
+class ArticleArchetypeRequest(BaseModel):
+    """Request for archetype extraction"""
+    article_id: str = Field(..., description="Unique article identifier")
+    title: str = Field(..., description="Article title")
+    abstract: str = Field(..., description="Article abstract")
+    full_text: Optional[str] = Field(None, description="Full text if available")
+
+
+class ArticleArchetypeResponse(BaseModel):
+    """Response from archetype extraction"""
+    article_id: str = Field(..., description="Article identifier")
+    archetype: str = Field(..., description="Extracted archetype sentence")
+    study_type: Optional[StudyType] = Field(None, description="Study type classification")

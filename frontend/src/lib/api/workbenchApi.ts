@@ -357,7 +357,7 @@ export class WorkbenchApi {
   }
 
   // Generate and save ER graph from an archetype for an article in a group
-  async generateAndSaveErGraph(groupId: string, articleId: string, payload: { archetype: string; study_type?: string }): Promise<EntityExtractionResponse> {
+  async generateAndSaveErGraph(groupId: string, articleId: string, payload: { archetype: string; study_type?: string; pattern_id?: string }): Promise<EntityExtractionResponse> {
     const response = await api.post(`/api/workbench/groups/${groupId}/articles/${articleId}/er-graph`, payload);
     return response.data;
   }
@@ -374,7 +374,7 @@ export class WorkbenchApi {
   }
 
   // Stage 2: Convert archetype to ER graph
-  async archetypeToErGraph(request: { article_id: string; archetype: string; study_type?: string }): Promise<EntityExtractionResponse> {
+  async archetypeToErGraph(request: { article_id: string; archetype: string; study_type?: string; pattern_id?: string }): Promise<EntityExtractionResponse> {
     const response = await api.post('/api/extraction/archetype-to-er-graph', request);
     return response.data;
   }

@@ -411,6 +411,7 @@ class ArchetypeToGraphRequest(BaseModel):
     article_id: str
     archetype: str
     study_type: str | None = None
+    pattern_id: str | None = None
 
 
 @router.post("/extract-article-archtype", response_model=ArticleArchetypeResponse)

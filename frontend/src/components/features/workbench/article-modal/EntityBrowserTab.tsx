@@ -122,8 +122,17 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
     setLoading(true);
     try {
       const graphRes = _groupId
-        ? await workbenchApi.generateAndSaveErGraph(_groupId, article.id, { archetype: archetypeText, study_type: studyType || undefined })
-        : await workbenchApi.archetypeToErGraph({ article_id: article.id, archetype: archetypeText, study_type: studyType || undefined });
+        ? await workbenchApi.generateAndSaveErGraph(_groupId, article.id, { 
+            archetype: archetypeText, 
+            study_type: studyType || undefined,
+            pattern_id: patternId || undefined
+          })
+        : await workbenchApi.archetypeToErGraph({ 
+            article_id: article.id, 
+            archetype: archetypeText, 
+            study_type: studyType || undefined,
+            pattern_id: patternId || undefined
+          });
       setAnalysis(graphRes.analysis);
       toast({ title: 'Graph Generated', description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` });
     } catch (err) {

@@ -8,6 +8,7 @@ No database logic should exist in routers - it all goes here.
 
 from typing import Dict, Any, Optional, List, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import and_, func
 from datetime import datetime
 import json
@@ -131,6 +132,9 @@ class ArticleGroupDetailService:
         
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
+        
+        # Mark the object as dirty to ensure SQLAlchemy saves it
+        flag_modified(article_detail, 'article_metadata')
         
         self.db.commit()
         self.db.refresh(article_detail)
@@ -663,6 +667,8 @@ class ArticleGroupDetailService:
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
         
+        # Mark the object as dirty to ensure SQLAlchemy saves it
+        flag_modified(article_detail, 'article_metadata')
         
         try:
             self.db.commit()
@@ -697,7 +703,6 @@ class ArticleGroupDetailService:
             return entity_analysis['data']
         
         return None
-
 
     def get_canonical_study_representation(
         self,
@@ -766,11 +771,23 @@ class ArticleGroupDetailService:
                 'version': '2.0'
             }
         
+        # Force SQLAlchemy to detect the change by reassigning
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
         
+        # Mark the object as dirty to ensure SQLAlchemy saves it
+        flag_modified(article_detail, 'article_metadata')
+        
+        print(f"DEBUG: Full metadata being saved: {json.dumps(current_metadata, indent=2)}")
+        
         try:
             self.db.commit()
+            self.db.refresh(article_detail)
+            
+            # Verify what was actually saved
+            saved_metadata = article_detail.article_metadata
+            print(f"DEBUG: Metadata after save: {json.dumps(saved_metadata, indent=2) if saved_metadata else 'None'}")
+            
             return {
                 'success': True,
                 'last_updated': timestamp

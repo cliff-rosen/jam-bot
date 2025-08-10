@@ -1059,6 +1059,8 @@ async def save_canonical_study_representation(
     db: Session = Depends(get_db)
 ):
     """Save the complete canonical study representation (archetype + ER graph)."""
+    print(f"DEBUG: Received canonical study request with pattern_id: {request.pattern_id}")
+    
     service = ArticleGroupDetailService(db)
     result = service.save_canonical_study_representation(
         current_user.user_id,

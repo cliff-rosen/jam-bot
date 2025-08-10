@@ -716,6 +716,8 @@ class ArticleGroupDetailService:
         archetype_data = metadata.get('archetype', {})
         entity_data = metadata.get('entity_analysis', {})
         
+        print(f"DEBUG: Retrieved archetype data: {archetype_data}")
+        
         return {
             'archetype_text': archetype_data.get('text'),
             'study_type': archetype_data.get('study_type'),
@@ -751,6 +753,8 @@ class ArticleGroupDetailService:
             'updated_at': timestamp,
             'version': '2.0'
         }
+        
+        print(f"DEBUG: Saving archetype with pattern_id: {pattern_id}")
         
         # Save entity analysis if provided
         if entity_analysis is not None:

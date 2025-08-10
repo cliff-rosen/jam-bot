@@ -14,9 +14,6 @@ import {
 
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { workbenchApi } from '@/lib/api/workbenchApi';
-import {
-  EntityRelationshipAnalysis
-} from '@/types/entity-extraction';
 import { CanonicalStudyRepresentation } from '@/types/canonical-study';
 import { EntityKnowledgeGraph } from './EntityKnowledgeGraph';
 
@@ -27,7 +24,7 @@ interface EntityBrowserTabProps {
 
 export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
   const [canonicalStudy, setCanonicalStudy] = useState<CanonicalStudyRepresentation>({});
-  
+
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -41,10 +38,14 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
   const loadCanonicalStudy = async () => {
     if (!groupId) return;
-    
+
     setLoading(true);
     try {
       const data = await workbenchApi.getCanonicalStudy(groupId, article.id);
+      // Check if this is old data without pattern_id
+      if (data && data.archetype_text && !data.pattern_id && data.version !== '2.0') {
+        console.log('Old archetype data detected without pattern_id, may need regeneration');
+      }
       setCanonicalStudy(data);
     } catch (err) {
       console.error('Failed to load canonical study:', err);
@@ -55,14 +56,14 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
   const generateArchetype = async () => {
     if (!article.abstract) {
-      toast({ 
-        title: 'No Content Available', 
-        description: 'Archetype generation requires article abstract or full text.', 
-        variant: 'destructive' 
+      toast({
+        title: 'No Content Available',
+        description: 'Archetype generation requires article abstract or full text.',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     setLoading(true);
     try {
       const archRes = await workbenchApi.extractArticleArchtype({
@@ -72,23 +73,25 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
         full_text: (article as any).full_text || undefined
       });
       
+      console.log('Archetype extraction result:', archRes);
+
       setCanonicalStudy(prev => ({
         ...prev,
         archetype_text: archRes.archetype,
         study_type: archRes.study_type,
         pattern_id: archRes.pattern_id
       }));
-      
-      toast({ 
-        title: 'Archetype Generated', 
-        description: 'Review and optionally generate the entity graph.' 
+
+      toast({
+        title: 'Archetype Generated',
+        description: 'Review and optionally generate the entity graph.'
       });
     } catch (err) {
       console.error('Archetype generation failed:', err);
-      toast({ 
-        title: 'Generation Failed', 
-        description: err instanceof Error ? err.message : 'Failed to generate archetype', 
-        variant: 'destructive' 
+      toast({
+        title: 'Generation Failed',
+        description: err instanceof Error ? err.message : 'Failed to generate archetype',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -97,14 +100,14 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
   const generateGraph = async () => {
     if (!canonicalStudy.archetype_text?.trim()) {
-      toast({ 
-        title: 'Archetype Required', 
-        description: 'Generate or enter an archetype first.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Archetype Required',
+        description: 'Generate or enter an archetype first.',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     setLoading(true);
     try {
       const graphRes = await workbenchApi.archetypeToErGraph({
@@ -113,22 +116,22 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
         study_type: canonicalStudy.study_type || undefined,
         pattern_id: canonicalStudy.pattern_id || undefined
       });
-      
+
       setCanonicalStudy(prev => ({
         ...prev,
         entity_analysis: graphRes.analysis
       }));
-      
-      toast({ 
-        title: 'Graph Generated', 
-        description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` 
+
+      toast({
+        title: 'Graph Generated',
+        description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.`
       });
     } catch (err) {
       console.error('Graph generation failed:', err);
-      toast({ 
-        title: 'Graph Error', 
-        description: err instanceof Error ? err.message : 'Failed to generate graph', 
-        variant: 'destructive' 
+      toast({
+        title: 'Graph Error',
+        description: err instanceof Error ? err.message : 'Failed to generate graph',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -137,19 +140,26 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
   const saveCanonicalStudy = async () => {
     if (!groupId || !canonicalStudy.archetype_text?.trim()) {
-      toast({ 
-        title: 'Cannot Save', 
-        description: 'Archetype text is required.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Cannot Save',
+        description: 'Archetype text is required.',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     setIsSaving(true);
     try {
+      console.log('Saving canonical study with data:', {
+        archetype_text: canonicalStudy.archetype_text,
+        study_type: canonicalStudy.study_type,
+        pattern_id: canonicalStudy.pattern_id,
+        has_entity_analysis: !!canonicalStudy.entity_analysis
+      });
+      
       const result = await workbenchApi.saveCanonicalStudy(
-        groupId, 
-        article.id, 
+        groupId,
+        article.id,
         {
           archetype_text: canonicalStudy.archetype_text!,
           study_type: canonicalStudy.study_type || undefined,
@@ -157,22 +167,22 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
           entity_analysis: canonicalStudy.entity_analysis || undefined
         }
       );
-      
+
       setCanonicalStudy(prev => ({
         ...prev,
         last_updated: result.last_updated
       }));
-      
-      toast({ 
-        title: 'Saved Successfully', 
-        description: 'Canonical study representation saved.' 
+
+      toast({
+        title: 'Saved Successfully',
+        description: 'Canonical study representation saved.'
       });
     } catch (err) {
       console.error('Save failed:', err);
-      toast({ 
-        title: 'Save Failed', 
-        description: err instanceof Error ? err.message : 'Failed to save', 
-        variant: 'destructive' 
+      toast({
+        title: 'Save Failed',
+        description: err instanceof Error ? err.message : 'Failed to save',
+        variant: 'destructive'
       });
     } finally {
       setIsSaving(false);
@@ -206,19 +216,19 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={generateArchetype} 
-            disabled={loading} 
-            variant="outline" 
+          <Button
+            onClick={generateArchetype}
+            disabled={loading}
+            variant="outline"
             size="sm"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Generate Archetype
           </Button>
           {groupId && (
-            <Button 
-              onClick={saveCanonicalStudy} 
-              disabled={isSaving || !canonicalStudy.archetype_text?.trim()} 
+            <Button
+              onClick={saveCanonicalStudy}
+              disabled={isSaving || !canonicalStudy.archetype_text?.trim()}
               size="sm"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -242,14 +252,14 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
               </div>
             )}
           </div>
-          
+
           <textarea
             className="w-full min-h-[80px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
             placeholder="Generate or enter the study archetype..."
             value={canonicalStudy.archetype_text || ''}
             onChange={(e) => setCanonicalStudy(prev => ({ ...prev, archetype_text: e.target.value }))}
           />
-          
+
           <div className="flex items-center gap-4">
             {canonicalStudy.study_type && (
               <Badge variant="secondary">{canonicalStudy.study_type}</Badge>
@@ -305,11 +315,11 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
               <TabsTrigger value="graph">Knowledge Graph</TabsTrigger>
               <TabsTrigger value="list">Entity List</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="graph">
               <EntityKnowledgeGraph analysis={canonicalStudy.entity_analysis} />
             </TabsContent>
-            
+
             <TabsContent value="list" className="space-y-4">
               {/* Entity type breakdown */}
               <div className="grid grid-cols-2 gap-4">
@@ -329,7 +339,7 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
                   </Card>
                 ))}
               </div>
-              
+
               {/* Clinical significance if available */}
               {canonicalStudy.entity_analysis.clinical_significance && (
                 <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">

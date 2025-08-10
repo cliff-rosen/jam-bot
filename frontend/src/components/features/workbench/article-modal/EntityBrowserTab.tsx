@@ -57,6 +57,7 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
         if (savedArch?.text) {
           setArchetypeText(savedArch.text);
           setStudyType(savedArch.study_type || '');
+          setPatternId(savedArch.pattern_id || '');
           setSavedAt(savedArch.updated_at || null);
         }
         if (savedAnalysis?.analysis) {
@@ -98,7 +99,11 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
     }
     setIsSaving(true);
     try {
-      const saved = await workbenchApi.saveArticleArchetype(_groupId, article.id, { archetype: archetypeText, study_type: studyType || undefined });
+      const saved = await workbenchApi.saveArticleArchetype(_groupId, article.id, { 
+        archetype: archetypeText, 
+        study_type: studyType || undefined,
+        pattern_id: patternId || undefined
+      });
       setSavedAt(saved.updated_at || null);
       toast({ title: 'Saved', description: 'Archetype saved.' });
     } catch (err) {

@@ -719,7 +719,8 @@ class ArticleGroupDetailService:
         group_id: str,
         article_id: str,
         archetype_text: str,
-        study_type: Optional[str] = None
+        study_type: Optional[str] = None,
+        pattern_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """Save archetype text (and optional study type) to article metadata."""
         article_detail = self._get_article_detail(user_id, group_id, article_id)
@@ -729,6 +730,7 @@ class ArticleGroupDetailService:
         saved = {
             'text': archetype_text,
             'study_type': study_type,
+            'pattern_id': pattern_id,
             'updated_at': datetime.utcnow().isoformat(),
             'version': '1.0'
         }

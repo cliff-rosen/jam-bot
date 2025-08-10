@@ -1028,6 +1028,7 @@ async def extract_entity_relationships(
 class ArchetypePayload(BaseModel):
     archetype: str = Field(..., description="Archetype text")
     study_type: Optional[str] = Field(None, description="Optional study type classification")
+    pattern_id: Optional[str] = Field(None, description="Pattern ID used for the archetype")
 
 
 @router.get("/groups/{group_id}/articles/{article_id}/archetype")
@@ -1039,7 +1040,7 @@ async def get_article_archetype(
 ):
     service = ArticleGroupDetailService(db)
     saved = service.get_saved_archetype(current_user.user_id, group_id, article_id)
-    return saved or {"text": None, "study_type": None, "updated_at": None}
+    return saved or {"text": None, "study_type": None, "pattern_id": None, "updated_at": None}
 
 
 @router.put("/groups/{group_id}/articles/{article_id}/archetype")
@@ -1056,7 +1057,8 @@ async def put_article_archetype(
         group_id,
         article_id,
         archetype_text=payload.archetype,
-        study_type=payload.study_type
+        study_type=payload.study_type,
+        pattern_id=payload.pattern_id
     )
     if not saved:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to save archetype")

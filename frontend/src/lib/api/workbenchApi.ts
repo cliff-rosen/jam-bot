@@ -339,13 +339,13 @@ export class WorkbenchApi {
   }
 
   // Get saved archetype for an article in a group
-  async getArticleArchetype(groupId: string, articleId: string): Promise<{ text: string | null; study_type?: string | null; updated_at?: string | null }> {
+  async getArticleArchetype(groupId: string, articleId: string): Promise<{ text: string | null; study_type?: string | null; pattern_id?: string | null; updated_at?: string | null }> {
     const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}/archetype`);
     return response.data;
   }
 
   // Save archetype for an article in a group
-  async saveArticleArchetype(groupId: string, articleId: string, payload: { archetype: string; study_type?: string }): Promise<{ text: string; study_type?: string; updated_at: string }> {
+  async saveArticleArchetype(groupId: string, articleId: string, payload: { archetype: string; study_type?: string; pattern_id?: string }): Promise<{ text: string; study_type?: string; pattern_id?: string; updated_at: string }> {
     const response = await api.put(`/api/workbench/groups/${groupId}/articles/${articleId}/archetype`, payload);
     return response.data;
   }

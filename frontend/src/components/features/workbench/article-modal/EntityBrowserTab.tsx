@@ -42,10 +42,6 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
     setLoading(true);
     try {
       const data = await workbenchApi.getCanonicalStudy(groupId, article.id);
-      // Check if this is old data without pattern_id
-      if (data && data.archetype_text && !data.pattern_id && data.version !== '2.0') {
-        console.log('Old archetype data detected without pattern_id, may need regeneration');
-      }
       setCanonicalStudy(data);
     } catch (err) {
       console.error('Failed to load canonical study:', err);
@@ -72,8 +68,6 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
         abstract: article.abstract || '',
         full_text: (article as any).full_text || undefined
       });
-      
-      console.log('Archetype extraction result:', archRes);
 
       setCanonicalStudy(prev => ({
         ...prev,
@@ -150,13 +144,6 @@ export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
 
     setIsSaving(true);
     try {
-      console.log('Saving canonical study with data:', {
-        archetype_text: canonicalStudy.archetype_text,
-        study_type: canonicalStudy.study_type,
-        pattern_id: canonicalStudy.pattern_id,
-        has_entity_analysis: !!canonicalStudy.entity_analysis
-      });
-      
       const result = await workbenchApi.saveCanonicalStudy(
         groupId,
         article.id,

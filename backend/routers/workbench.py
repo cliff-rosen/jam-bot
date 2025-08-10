@@ -371,6 +371,7 @@ async def extract_unified(
             detail=f"Feature extraction failed: {str(e)}"
         )
 
+
 @router.get("/feature-presets", response_model=FeaturePresetsResponse)
 async def get_feature_presets(
     current_user: User = Depends(validate_token),
@@ -794,7 +795,7 @@ async def get_article_group_detail(
 ):
     """Get complete article detail data for an article in a group."""
     detail_service = ArticleGroupDetailService(db)
-    result = detail_service.get_group_detail(current_user.user_id, group_id, article_id)
+    result = detail_service.get_article_detail(current_user.user_id, group_id, article_id)
     
     if not result:
         raise HTTPException(
@@ -815,15 +816,15 @@ async def update_article_notes(
 ):
     """Update research notes for an article."""
     detail_service = ArticleGroupDetailService(db)
-    result = detail_service.update_notes(current_user.user_id, group_id, article_id, request.notes)
+    success = detail_service.update_notes(current_user.user_id, group_id, article_id, request.notes)
     
-    if not result:
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Article not found in group or access denied"
         )
     
-    return result
+    return {"success": True, "message": "Notes updated"}
 
 
 @router.put("/groups/{group_id}/articles/{article_id}/metadata")
@@ -836,97 +837,23 @@ async def update_article_metadata(
 ):
     """Update workbench metadata for an article."""
     detail_service = ArticleGroupDetailService(db)
-    result = detail_service.update_metadata(current_user.user_id, group_id, article_id, request.metadata)
+    success = detail_service.update_metadata(current_user.user_id, group_id, article_id, request.metadata)
     
-    if not result:
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Article not found in group or access denied"
         )
     
-    return result
+    return {"success": True, "message": "Metadata updated"}
 
 
-@router.post("/groups/{group_id}/articles/{article_id}/extract-feature")
-async def extract_article_feature(
-    group_id: str,
-    article_id: str,
-    request: ExtractFeatureRequest,
-    current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service),
-    db: Session = Depends(get_db)
-):
-    """Extract a single feature from an article using AI."""
-    detail_service = ArticleGroupDetailService(db, extraction_service)
-    
-    result = await detail_service.extract_single_feature(
-        current_user.user_id, 
-        group_id, 
-        article_id,
-        request.feature_name,
-        request.feature_type,
-        request.extraction_prompt
-    )
-    
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Article not found in group or access denied"
-        )
-    
-    return result
-
-
-@router.delete("/groups/{group_id}/articles/{article_id}/features/{feature_name}")
-async def delete_article_feature(
-    group_id: str,
-    article_id: str,
-    feature_name: str,
-    current_user: User = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """Delete a specific feature from an article."""
-    detail_service = ArticleGroupDetailService(db)
-    result = detail_service.delete_feature(current_user.user_id, group_id, article_id, feature_name)
-    
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Article not found in group or access denied"
-        )
-    
-    return result
+# Single feature extraction removed - use batch extraction instead
 
 
 # ================== BATCH OPERATIONS ==================
 
-@router.post("/groups/{group_id}/batch/extract-features")
-async def batch_extract_features(
-    group_id: str,
-    request: BatchExtractFeaturesRequest,
-    current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service),
-    db: Session = Depends(get_db)
-):
-    """Extract a feature across multiple articles in a group."""
-    detail_service = ArticleGroupDetailService(db, extraction_service)
-    
-    result = await detail_service.extract_feature_for_multiple_articles(
-        current_user.user_id,
-        group_id,
-        request.article_ids,
-        request.feature_name,
-        request.feature_type,
-        request.extraction_prompt
-    )
-    
-    if "error" in result:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result["error"]
-        )
-    
-    return result
+# Batch feature extraction removed - use unified extract endpoint instead
 
 
 @router.put("/groups/{group_id}/batch/metadata")
@@ -939,19 +866,30 @@ async def batch_update_metadata(
     """Update metadata for multiple articles in a group."""
     detail_service = ArticleGroupDetailService(db)
     
-    result = detail_service.batch_update_metadata(
+    results = detail_service.batch_update_metadata(
         current_user.user_id,
         group_id,
         request.metadata_updates
     )
     
-    if "error" in result:
+    if not results:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result["error"]
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found or access denied"
         )
     
-    return result
+    # Count successes and failures
+    successful = sum(1 for v in results.values() if v)
+    failed = len(results) - successful
+    
+    return {
+        "results": results,
+        "summary": {
+            "total_requested": len(request.metadata_updates),
+            "successful": successful,
+            "failed": failed
+        }
+    }
 
 
 # ================== ENTITY EXTRACTION ==================
@@ -964,56 +902,15 @@ class ExtractEntitiesRequest(EntityExtractionRequest):
 
 @router.post("/extract-entities", response_model=EntityExtractionResponse)
 async def extract_entity_relationships(
-    request: ExtractEntitiesRequest,
+    request: EntityExtractionRequest,
     current_user: User = Depends(validate_token),
     extraction_service: ExtractionService = Depends(get_extraction_service),
     db: Session = Depends(get_db)
 ):
-    """Extract entity relationships from an article using AI analysis with caching."""
-    detail_service = ArticleGroupDetailService(db, extraction_service)
-    
-    # Check for cached results first (if this is a group context)
-    if request.group_id and not request.force_refresh:
-        cached_analysis = detail_service.get_cached_entity_analysis(
-            current_user.user_id,
-            request.group_id,
-            request.article_id
-        )
-        
-        if cached_analysis:
-            return EntityExtractionResponse(
-                article_id=request.article_id,
-                analysis=cached_analysis,
-                extraction_metadata={
-                    "cached": True,
-                    "extraction_timestamp": cached_analysis.get("extracted_at"),
-                    "include_gene_data": request.include_gene_data,
-                    "include_drug_data": request.include_drug_data,
-                    "focus_areas": request.focus_areas
-                }
-            )
-    
+    """Extract entity relationships from an article using AI analysis."""
     try:
-        # Perform fresh extraction
+        # Perform extraction
         result = await extraction_service.extract_entity_relationships(request)
-        
-        # Cache results if this is a group context
-        if request.group_id:
-            # Convert analysis to dict for storage
-            analysis_dict = result.analysis.model_dump() if hasattr(result.analysis, 'model_dump') else result.analysis.dict()
-            
-            save_result = detail_service.save_entity_analysis(
-                current_user.user_id,
-                request.group_id,
-                request.article_id,
-                analysis_dict
-            )
-            
-            # Add caching metadata to response
-            if save_result:
-                result.extraction_metadata = result.extraction_metadata or {}
-                result.extraction_metadata["cached_at"] = save_result["extracted_at"]
-        
         return result
         
     except Exception as e:
@@ -1021,8 +918,6 @@ async def extract_entity_relationships(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Entity extraction failed: {str(e)}"
         )
-
-
 
 
 # ================== CANONICAL STUDY REPRESENTATION (UNIFIED API) ==================
@@ -1038,7 +933,7 @@ async def get_canonical_study_representation(
 ):
     """Get the complete canonical study representation (archetype + ER graph)."""
     service = ArticleGroupDetailService(db)
-    representation = service.get_canonical_study_representation(
+    representation = service.get_canonical_study(
         current_user.user_id, 
         group_id, 
         article_id
@@ -1059,10 +954,8 @@ async def save_canonical_study_representation(
     db: Session = Depends(get_db)
 ):
     """Save the complete canonical study representation (archetype + ER graph)."""
-    print(f"DEBUG: Received canonical study request with pattern_id: {request.pattern_id}")
-    
     service = ArticleGroupDetailService(db)
-    result = service.save_canonical_study_representation(
+    success = service.save_canonical_study(
         current_user.user_id,
         group_id,
         article_id,
@@ -1072,12 +965,12 @@ async def save_canonical_study_representation(
         entity_analysis=request.entity_analysis
     )
     
-    if not result:
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save canonical study representation"
         )
     
-    return {"success": True, "last_updated": result['last_updated']}
+    return {"success": True, "last_updated": datetime.utcnow().isoformat()}
 
 

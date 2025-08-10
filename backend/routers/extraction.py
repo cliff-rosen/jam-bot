@@ -431,7 +431,8 @@ async def extract_article_archtype(
         return ArticleArchetypeResponse(
             article_id=request.article_id,
             archetype=archetype.archetype,
-            study_type=archetype.study_type
+            study_type=archetype.study_type,
+            pattern_id=archetype.pattern_id
         )
     except Exception as e:
         logger.error(f"Archetype extraction failed: {e}", exc_info=True)

@@ -823,7 +823,8 @@ Provide:
         # Convert extraction dict to ArticleArchetype model
         return ArticleArchetype(
             archetype=extraction.get("archetype", ""),
-            study_type=extraction.get("study_type")
+            study_type=extraction.get("study_type"),
+            pattern_id=extraction.get("pattern_id", "")
         )
 
     async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str, study_type: Optional[str] = None) -> EntityExtractionResponse:

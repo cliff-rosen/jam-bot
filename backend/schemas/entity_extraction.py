@@ -124,6 +124,7 @@ class ArticleArchetype(BaseModel):
     """Result of archetype extraction from article"""
     archetype: str = Field(..., description="Natural language archetype sentence capturing study structure")
     study_type: Optional[StudyType] = Field(None, description="High-level study category")
+    pattern_id: str = Field(..., description="ID of the specific archetype pattern used (e.g., '1a', '2b')")
     
     class Config:
         use_enum_values = True  # Serialize enums as their values
@@ -142,3 +143,4 @@ class ArticleArchetypeResponse(BaseModel):
     article_id: str = Field(..., description="Article identifier")
     archetype: str = Field(..., description="Extracted archetype sentence")
     study_type: Optional[StudyType] = Field(None, description="Study type classification")
+    pattern_id: str = Field(..., description="ID of the specific archetype pattern used")

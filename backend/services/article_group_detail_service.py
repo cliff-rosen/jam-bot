@@ -698,50 +698,82 @@ class ArticleGroupDetailService:
         
         return None
 
-    def get_saved_archetype(
+
+    def get_canonical_study_representation(
         self,
         user_id: int,
         group_id: str,
         article_id: str
     ) -> Optional[Dict[str, Any]]:
-        """Retrieve saved archetype from article metadata."""
+        """Get unified canonical study representation (archetype + ER graph)."""
         article_detail = self._get_article_detail(user_id, group_id, article_id)
         if not article_detail or not article_detail.article_metadata:
             return None
-        archetype = article_detail.article_metadata.get('archetype')
-        if archetype and archetype.get('text'):
-            return archetype
-        return None
-
-    def save_archetype(
+        
+        metadata = article_detail.article_metadata
+        
+        # Combine archetype and entity analysis data
+        archetype_data = metadata.get('archetype', {})
+        entity_data = metadata.get('entity_analysis', {})
+        
+        return {
+            'archetype_text': archetype_data.get('text'),
+            'study_type': archetype_data.get('study_type'),
+            'pattern_id': archetype_data.get('pattern_id'),
+            'entity_analysis': entity_data.get('data'),
+            'last_updated': archetype_data.get('updated_at') or entity_data.get('extracted_at'),
+            'version': archetype_data.get('version', '1.0')
+        }
+    
+    def save_canonical_study_representation(
         self,
         user_id: int,
         group_id: str,
         article_id: str,
         archetype_text: str,
         study_type: Optional[str] = None,
-        pattern_id: Optional[str] = None
+        pattern_id: Optional[str] = None,
+        entity_analysis: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
-        """Save archetype text (and optional study type) to article metadata."""
+        """Save unified canonical study representation (archetype + ER graph)."""
         article_detail = self._get_article_detail(user_id, group_id, article_id)
         if not article_detail:
             return None
+            
         current_metadata = article_detail.article_metadata or {}
-        saved = {
+        timestamp = datetime.utcnow().isoformat()
+        
+        # Save archetype data
+        current_metadata['archetype'] = {
             'text': archetype_text,
             'study_type': study_type,
             'pattern_id': pattern_id,
-            'updated_at': datetime.utcnow().isoformat(),
-            'version': '1.0'
+            'updated_at': timestamp,
+            'version': '2.0'
         }
-        current_metadata['archetype'] = saved
+        
+        # Save entity analysis if provided
+        if entity_analysis is not None:
+            # Serialize the analysis data
+            serialized_analysis = self._serialize_analysis_data(entity_analysis)
+            current_metadata['entity_analysis'] = {
+                'data': serialized_analysis,
+                'extracted_at': timestamp,
+                'version': '2.0'
+            }
+        
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()
+        
         try:
             self.db.commit()
-            return saved
-        except Exception:
+            return {
+                'success': True,
+                'last_updated': timestamp
+            }
+        except Exception as e:
             self.db.rollback()
+            print(f"ERROR: Failed to save canonical study representation: {e}")
             return None
 
 

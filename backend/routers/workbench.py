@@ -1023,92 +1023,59 @@ async def extract_entity_relationships(
         )
 
 
-# ================== ARCHETYPE PERSISTENCE (GROUP CONTEXT) ==================
-
-class ArchetypePayload(BaseModel):
-    archetype: str = Field(..., description="Archetype text")
-    study_type: Optional[str] = Field(None, description="Optional study type classification")
-    pattern_id: Optional[str] = Field(None, description="Pattern ID used for the archetype")
 
 
-@router.get("/groups/{group_id}/articles/{article_id}/archetype")
-async def get_article_archetype(
+# ================== CANONICAL STUDY REPRESENTATION (UNIFIED API) ==================
+
+from schemas.canonical_study import CanonicalStudyRequest, CanonicalStudyResponse
+
+@router.get("/groups/{group_id}/articles/{article_id}/canonical-study", response_model=CanonicalStudyResponse)
+async def get_canonical_study_representation(
     group_id: str,
     article_id: str,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
+    """Get the complete canonical study representation (archetype + ER graph)."""
     service = ArticleGroupDetailService(db)
-    saved = service.get_saved_archetype(current_user.user_id, group_id, article_id)
-    return saved or {"text": None, "study_type": None, "pattern_id": None, "updated_at": None}
+    representation = service.get_canonical_study_representation(
+        current_user.user_id, 
+        group_id, 
+        article_id
+    )
+    
+    if not representation:
+        return CanonicalStudyResponse()
+    
+    return CanonicalStudyResponse(**representation)
 
 
-@router.put("/groups/{group_id}/articles/{article_id}/archetype")
-async def put_article_archetype(
+@router.put("/groups/{group_id}/articles/{article_id}/canonical-study")
+async def save_canonical_study_representation(
     group_id: str,
     article_id: str,
-    payload: ArchetypePayload,
+    request: CanonicalStudyRequest,
     current_user: User = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
+    """Save the complete canonical study representation (archetype + ER graph)."""
     service = ArticleGroupDetailService(db)
-    saved = service.save_archetype(
+    result = service.save_canonical_study_representation(
         current_user.user_id,
         group_id,
         article_id,
-        archetype_text=payload.archetype,
-        study_type=payload.study_type,
-        pattern_id=payload.pattern_id
+        archetype_text=request.archetype_text,
+        study_type=request.study_type,
+        pattern_id=request.pattern_id,
+        entity_analysis=request.entity_analysis
     )
-    if not saved:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to save archetype")
-    return saved
-
-@router.get("/groups/{group_id}/articles/{article_id}/entity-analysis")
-async def get_entity_analysis(
-    group_id: str,
-    article_id: str,
-    current_user: User = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    service = ArticleGroupDetailService(db)
-    data = service.get_cached_entity_analysis(current_user.user_id, group_id, article_id)
-    return {"analysis": data} if data else {"analysis": None}
-
-
-@router.post("/groups/{group_id}/articles/{article_id}/er-graph", response_model=EntityExtractionResponse)
-async def generate_er_graph_from_archetype(
-    group_id: str,
-    article_id: str,
-    payload: ArchetypePayload,
-    current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service),
-    db: Session = Depends(get_db)
-):
-    """Generate ER graph from an archetype and persist it to article metadata."""
-    try:
-        detail_service = ArticleGroupDetailService(db, extraction_service)
-        result = await extraction_service.extract_er_graph_from_archetype(
-            article_id=article_id,
-            archetype_text=payload.archetype,
-            study_type=payload.study_type
+    
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save canonical study representation"
         )
-
-        # Save analysis to metadata
-        analysis_dict = result.analysis.model_dump() if hasattr(result.analysis, 'model_dump') else result.analysis.dict()
-        save_result = detail_service.save_entity_analysis(
-            current_user.user_id,
-            group_id,
-            article_id,
-            analysis_dict
-        )
-        if not save_result:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist generated ER graph")
-        # Annotate response with saved timestamp
-        result.extraction_metadata = result.extraction_metadata or {}
-        result.extraction_metadata["cached_at"] = save_result.get("extracted_at")
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate ER graph: {str(e)}")
+    
+    return {"success": True, "last_updated": result['last_updated']}
 
 

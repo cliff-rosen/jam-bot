@@ -15,6 +15,11 @@ import {
 } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { EntityExtractionRequest, EntityExtractionResponse } from '@/types/entity-extraction';
+import { 
+  CanonicalStudyRepresentation, 
+  SaveCanonicalStudyRequest, 
+  SaveCanonicalStudyResponse 
+} from '@/types/canonical-study';
 
 // ================== REQUEST/RESPONSE TYPES ==================
 
@@ -338,27 +343,21 @@ export class WorkbenchApi {
     return response.data;
   }
 
-  // Get saved archetype for an article in a group
-  async getArticleArchetype(groupId: string, articleId: string): Promise<{ text: string | null; study_type?: string | null; pattern_id?: string | null; updated_at?: string | null }> {
-    const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}/archetype`);
+  // ================== UNIFIED CANONICAL STUDY API ==================
+
+  // Get complete canonical study representation (archetype + ER graph)
+  async getCanonicalStudy(groupId: string, articleId: string): Promise<CanonicalStudyRepresentation> {
+    const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}/canonical-study`);
     return response.data;
   }
 
-  // Save archetype for an article in a group
-  async saveArticleArchetype(groupId: string, articleId: string, payload: { archetype: string; study_type?: string; pattern_id?: string }): Promise<{ text: string; study_type?: string; pattern_id?: string; updated_at: string }> {
-    const response = await api.put(`/api/workbench/groups/${groupId}/articles/${articleId}/archetype`, payload);
-    return response.data;
-  }
-
-  // Get saved ER analysis for an article in a group
-  async getSavedEntityAnalysis(groupId: string, articleId: string): Promise<{ analysis: any | null }> {
-    const response = await api.get(`/api/workbench/groups/${groupId}/articles/${articleId}/entity-analysis`);
-    return response.data;
-  }
-
-  // Generate and save ER graph from an archetype for an article in a group
-  async generateAndSaveErGraph(groupId: string, articleId: string, payload: { archetype: string; study_type?: string; pattern_id?: string }): Promise<EntityExtractionResponse> {
-    const response = await api.post(`/api/workbench/groups/${groupId}/articles/${articleId}/er-graph`, payload);
+  // Save complete canonical study representation (archetype + ER graph)
+  async saveCanonicalStudy(
+    groupId: string,
+    articleId: string,
+    data: SaveCanonicalStudyRequest
+  ): Promise<SaveCanonicalStudyResponse> {
+    const response = await api.put(`/api/workbench/groups/${groupId}/articles/${articleId}/canonical-study`, data);
     return response.data;
   }
 

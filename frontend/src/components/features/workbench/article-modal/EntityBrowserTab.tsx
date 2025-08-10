@@ -6,24 +6,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Network,
-  Circle,
-  ArrowRight,
-  Zap,
   AlertCircle,
-  Brain,
-  Database,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Save
 } from 'lucide-react';
 
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 import { workbenchApi } from '@/lib/api/workbenchApi';
 import {
-  EntityRelationshipAnalysis,
-  EntityType,
-  RelationshipType
+  EntityRelationshipAnalysis
 } from '@/types/entity-extraction';
+import { CanonicalStudyRepresentation } from '@/types/canonical-study';
 import { EntityKnowledgeGraph } from './EntityKnowledgeGraph';
 
 interface EntityBrowserTabProps {
@@ -31,182 +25,172 @@ interface EntityBrowserTabProps {
   groupId?: string;
 }
 
-export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTabProps) {
-  const [analysis, setAnalysis] = useState<EntityRelationshipAnalysis | null>(null);
+export function EntityBrowserTab({ article, groupId }: EntityBrowserTabProps) {
+  const [canonicalStudy, setCanonicalStudy] = useState<CanonicalStudyRepresentation>({});
+  
   const [loading, setLoading] = useState(false);
-  const [archetypeText, setArchetypeText] = useState<string>('');
-  const [studyType, setStudyType] = useState<string>('');
-  const [patternId, setPatternId] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const loadOrGenerateArchetype = async () => {
-    if (!article.abstract) {
-      toast({ title: 'No Content Available', description: 'Entity extraction requires article abstract or full text.', variant: 'destructive' });
-      return;
+  // Load canonical study representation on mount
+  useEffect(() => {
+    if (groupId) {
+      loadCanonicalStudy();
     }
+  }, [groupId, article.id]);
+
+  const loadCanonicalStudy = async () => {
+    if (!groupId) return;
+    
     setLoading(true);
     try {
-      // Try load saved archetype and saved analysis if group context is available
-      if (_groupId) {
-        const [savedArch, savedAnalysis] = await Promise.all([
-          workbenchApi.getArticleArchetype(_groupId, article.id),
-          workbenchApi.getSavedEntityAnalysis(_groupId, article.id)
-        ]);
-        if (savedArch?.text) {
-          setArchetypeText(savedArch.text);
-          setStudyType(savedArch.study_type || '');
-          setPatternId(savedArch.pattern_id || '');
-          setSavedAt(savedArch.updated_at || null);
-        }
-        if (savedAnalysis?.analysis) {
-          setAnalysis(savedAnalysis.analysis as EntityRelationshipAnalysis);
-        }
-        if (savedArch?.text || savedAnalysis?.analysis) {
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Otherwise auto-generate stage 1 and show to user
-      const archRes = await workbenchApi.extractArticleArchtype({
-        article_id: article.id,
-        title: article.title,
-        abstract: article.abstract || ''
-      });
-      setArchetypeText(archRes.archetype || '');
-      setStudyType(archRes.study_type || '');
-      setPatternId(archRes.pattern_id || '');
-      setSavedAt(null);
-      toast({ title: 'Archetype Generated', description: 'Review and edit if needed, then generate the graph.' });
+      const data = await workbenchApi.getCanonicalStudy(groupId, article.id);
+      setCanonicalStudy(data);
     } catch (err) {
-      console.error('Archetype load/generate failed:', err);
-      toast({ title: 'Archetype Error', description: err instanceof Error ? err.message : 'Failed to get archetype', variant: 'destructive' });
+      console.error('Failed to load canonical study:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveArchetype = async () => {
-    if (!_groupId) {
-      toast({ title: 'Cannot Save', description: 'Saving archetype requires a group context.', variant: 'destructive' });
+  const generateArchetype = async () => {
+    if (!article.abstract) {
+      toast({ 
+        title: 'No Content Available', 
+        description: 'Archetype generation requires article abstract or full text.', 
+        variant: 'destructive' 
+      });
       return;
     }
-    if (!archetypeText.trim()) {
-      toast({ title: 'Archetype Required', description: 'Enter an archetype before saving.', variant: 'destructive' });
+    
+    setLoading(true);
+    try {
+      const archRes = await workbenchApi.extractArticleArchtype({
+        article_id: article.id,
+        title: article.title,
+        abstract: article.abstract || '',
+        full_text: (article as any).full_text || undefined
+      });
+      
+      setCanonicalStudy(prev => ({
+        ...prev,
+        archetype_text: archRes.archetype,
+        study_type: archRes.study_type,
+        pattern_id: archRes.pattern_id
+      }));
+      
+      toast({ 
+        title: 'Archetype Generated', 
+        description: 'Review and optionally generate the entity graph.' 
+      });
+    } catch (err) {
+      console.error('Archetype generation failed:', err);
+      toast({ 
+        title: 'Generation Failed', 
+        description: err instanceof Error ? err.message : 'Failed to generate archetype', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateGraph = async () => {
+    if (!canonicalStudy.archetype_text?.trim()) {
+      toast({ 
+        title: 'Archetype Required', 
+        description: 'Generate or enter an archetype first.', 
+        variant: 'destructive' 
+      });
       return;
     }
+    
+    setLoading(true);
+    try {
+      const graphRes = await workbenchApi.archetypeToErGraph({
+        article_id: article.id,
+        archetype: canonicalStudy.archetype_text,
+        study_type: canonicalStudy.study_type || undefined,
+        pattern_id: canonicalStudy.pattern_id || undefined
+      });
+      
+      setCanonicalStudy(prev => ({
+        ...prev,
+        entity_analysis: graphRes.analysis
+      }));
+      
+      toast({ 
+        title: 'Graph Generated', 
+        description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` 
+      });
+    } catch (err) {
+      console.error('Graph generation failed:', err);
+      toast({ 
+        title: 'Graph Error', 
+        description: err instanceof Error ? err.message : 'Failed to generate graph', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveCanonicalStudy = async () => {
+    if (!groupId || !canonicalStudy.archetype_text?.trim()) {
+      toast({ 
+        title: 'Cannot Save', 
+        description: 'Archetype text is required.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
     setIsSaving(true);
     try {
-      const saved = await workbenchApi.saveArticleArchetype(_groupId, article.id, { 
-        archetype: archetypeText, 
-        study_type: studyType || undefined,
-        pattern_id: patternId || undefined
+      const result = await workbenchApi.saveCanonicalStudy(
+        groupId, 
+        article.id, 
+        {
+          archetype_text: canonicalStudy.archetype_text!,
+          study_type: canonicalStudy.study_type || undefined,
+          pattern_id: canonicalStudy.pattern_id || undefined,
+          entity_analysis: canonicalStudy.entity_analysis || undefined
+        }
+      );
+      
+      setCanonicalStudy(prev => ({
+        ...prev,
+        last_updated: result.last_updated
+      }));
+      
+      toast({ 
+        title: 'Saved Successfully', 
+        description: 'Canonical study representation saved.' 
       });
-      setSavedAt(saved.updated_at || null);
-      toast({ title: 'Saved', description: 'Archetype saved.' });
     } catch (err) {
-      console.error('Save archetype failed:', err);
-      toast({ title: 'Save Failed', description: err instanceof Error ? err.message : 'Failed to save archetype', variant: 'destructive' });
+      console.error('Save failed:', err);
+      toast({ 
+        title: 'Save Failed', 
+        description: err instanceof Error ? err.message : 'Failed to save', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const generateGraph = async () => {
-    if (!archetypeText.trim()) {
-      toast({ title: 'Archetype Required', description: 'Enter or generate an archetype first.', variant: 'destructive' });
-      return;
-    }
-    setLoading(true);
-    try {
-      const graphRes = _groupId
-        ? await workbenchApi.generateAndSaveErGraph(_groupId, article.id, { 
-            archetype: archetypeText, 
-            study_type: studyType || undefined,
-            pattern_id: patternId || undefined
-          })
-        : await workbenchApi.archetypeToErGraph({ 
-            article_id: article.id, 
-            archetype: archetypeText, 
-            study_type: studyType || undefined,
-            pattern_id: patternId || undefined
-          });
-      setAnalysis(graphRes.analysis);
-      toast({ title: 'Graph Generated', description: `Built graph with ${graphRes.analysis.entities.length} entities and ${graphRes.analysis.relationships.length} relationships.` });
-    } catch (err) {
-      console.error('Graph generation failed:', err);
-      toast({ title: 'Graph Error', description: err instanceof Error ? err.message : 'Failed to generate graph', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadOrGenerateArchetype();
-  }, [article.id]);
-
-  const getEntityTypeColor = (type: EntityType): string => {
-    const colors = {
-      medical_condition: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      biological_factor: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      intervention: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      patient_characteristic: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      psychological_factor: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      outcome: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-      gene: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
-      protein: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-      pathway: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-      drug: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-      environmental_factor: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
-      animal_model: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
-      exposure: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
-      other: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-    } as const;
-    return colors[type] ?? colors.other;
-  };
-
-  const getRelationshipTypeIcon = (type: RelationshipType) => {
-    const icons = {
-      causal: <Zap className="w-3 h-3" />,
-      therapeutic: <Brain className="w-3 h-3" />,
-      associative: <Network className="w-3 h-3" />,
-      temporal: <ArrowRight className="w-3 h-3" />,
-      inhibitory: <AlertCircle className="w-3 h-3" />,
-      regulatory: <Database className="w-3 h-3" />,
-      interactive: <Network className="w-3 h-3" />,
-      paradoxical: <AlertCircle className="w-3 h-3" />,
-      correlative: <Network className="w-3 h-3" />,
-      predictive: <Network className="w-3 h-3" />
-    } as const;
-    return icons[type] ?? <Circle className="w-3 h-3" />;
-  };
-
-  const getRelationshipColor = (type: RelationshipType): string => {
-    const colors = {
-      causal: 'border-red-300 bg-red-50 dark:border-red-600 dark:bg-red-900/20',
-      therapeutic: 'border-green-300 bg-green-50 dark:border-green-600 dark:bg-green-900/20',
-      associative: 'border-blue-300 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20',
-      temporal: 'border-yellow-300 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/20',
-      inhibitory: 'border-purple-300 bg-purple-50 dark:border-purple-600 dark:bg-purple-900/20',
-      regulatory: 'border-cyan-300 bg-cyan-50 dark:border-cyan-600 dark:bg-cyan-900/20',
-      interactive: 'border-indigo-300 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-900/20',
-      paradoxical: 'border-orange-300 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/20',
-      correlative: 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/20',
-      predictive: 'border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20'
-    } as const;
-    return colors[type] ?? 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/20';
-  };
-
-  if (!article.abstract) {
+  // Loading skeleton
+  if (loading && !canonicalStudy.archetype_text) {
     return (
-      <div className="text-center py-8">
-        <Network className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Content Available</h3>
-        <p className="text-gray-500 dark:text-gray-400">
-          Entity extraction requires article abstract or full text.
-        </p>
+      <div className="space-y-4">
+        <Card className="p-4">
+          <Skeleton className="h-6 w-48 mb-2" />
+          <Skeleton className="h-20 w-full" />
+        </Card>
+        <Card className="p-4">
+          <Skeleton className="h-6 w-32 mb-2" />
+          <Skeleton className="h-64 w-full" />
+        </Card>
       </div>
     );
   }
@@ -214,279 +198,152 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Study Archetype Analysis</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Canonical Study Analysis</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            1) Edit or accept the archetype 2) Generate the entity-relationship graph
+            Structured representation of study design and entity relationships
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={loadOrGenerateArchetype} disabled={loading} variant="outline" size="sm" className="gap-2">
+          <Button 
+            onClick={generateArchetype} 
+            disabled={loading} 
+            variant="outline" 
+            size="sm"
+          >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Auto-generate Archetype
+            Generate Archetype
           </Button>
-          <Button onClick={saveArchetype} disabled={isSaving || !archetypeText.trim() || !_groupId} size="sm">
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Archetype'}
-          </Button>
-          <Button onClick={generateGraph} disabled={loading || !archetypeText.trim()} variant="secondary" size="sm">
-            {analysis ? 'Regenerate Graph' : 'Generate Graph'}
-          </Button>
+          {groupId && (
+            <Button 
+              onClick={saveCanonicalStudy} 
+              disabled={isSaving || !canonicalStudy.archetype_text?.trim()} 
+              size="sm"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save All
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Loading state */}
-      {loading && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Analyzing entities and relationships...
-          </div>
-          <div className="grid gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="p-4">
-                <Skeleton className="h-4 w-3/4 mb-2" />
-                <Skeleton className="h-3 w-1/2" />
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Archetype editor */}
+      {/* Archetype Section */}
       <Card className="p-4">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Archetype</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Structured sentence capturing study design</div>
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Study Archetype</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Natural language study structure</div>
             </div>
-            {savedAt && <div className="text-xs text-gray-500 dark:text-gray-400">Saved {new Date(savedAt).toLocaleString()}</div>}
+            {canonicalStudy.last_updated && (
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Saved {new Date(canonicalStudy.last_updated).toLocaleString()}
+              </div>
+            )}
           </div>
+          
           <textarea
             className="w-full min-h-[80px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
-            placeholder="Enter or generate the study archetype..."
-            value={archetypeText}
-            onChange={(e) => setArchetypeText(e.target.value)}
+            placeholder="Generate or enter the study archetype..."
+            value={canonicalStudy.archetype_text || ''}
+            onChange={(e) => setCanonicalStudy(prev => ({ ...prev, archetype_text: e.target.value }))}
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0">Study Type</div>
-              <input
-                className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
-                placeholder="e.g., Intervention, Observational"
-                value={studyType}
-                onChange={(e) => setStudyType(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0" title="Unique identifier for the archetype pattern template used">Pattern ID</div>
-              <input
-                className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-mono"
-                placeholder="e.g., 1a, 2b, 3a"
-                value={patternId}
-                onChange={(e) => setPatternId(e.target.value)}
-                title="Pattern ID identifies which specific archetype template was used (e.g., 1a=Intervention type A, 2b=Observational type B)"
-              />
-            </div>
+          
+          <div className="flex items-center gap-4">
+            {canonicalStudy.study_type && (
+              <Badge variant="secondary">{canonicalStudy.study_type}</Badge>
+            )}
+            {canonicalStudy.pattern_id && (
+              <Badge variant="outline" className="font-mono">
+                Pattern {canonicalStudy.pattern_id}
+              </Badge>
+            )}
+            <Button
+              onClick={generateGraph}
+              disabled={loading || !canonicalStudy.archetype_text?.trim()}
+              variant="secondary"
+              size="sm"
+              className="ml-auto"
+            >
+              {canonicalStudy.entity_analysis ? 'Regenerate' : 'Generate'} Entity Graph
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* Results */}
-      {analysis && !loading && (
-        <div className="space-y-6">
-          {/* Current Archetype Summary */}
-          {archetypeText && (
-            <Card className="p-4 bg-white dark:bg-gray-800">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Current Archetype</div>
-                  <p className="text-sm text-gray-800 dark:text-gray-100 mb-2">{archetypeText}</p>
-                  {patternId && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Pattern:</span>
-                      <Badge variant="outline" className="text-xs font-mono">{patternId}</Badge>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 self-start">
-                  {studyType && <Badge variant="secondary">{studyType}</Badge>}
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Summary */}
+      {/* Entity Analysis Section */}
+      {canonicalStudy.entity_analysis && (
+        <div className="space-y-4">
+          {/* Summary Card */}
           <Card className="p-4 bg-gray-50 dark:bg-gray-700/50">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {analysis.entity_count || analysis.entities.length}
+                  {canonicalStudy.entity_analysis.entities.length}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Entities</div>
               </div>
-              <div>
+              <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {analysis.relationship_count || analysis.relationships.length}
+                  {canonicalStudy.entity_analysis.relationships.length}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Relationships</div>
               </div>
-              <div>
-                <Badge variant={analysis.pattern_complexity === 'COMPLEX' ? 'destructive' : 'default'}>
-                  {analysis.pattern_complexity}
-                </Badge>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Complexity</div>
-              </div>
-              <div>
+              <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {new Set(analysis.entities.map(e => e.type)).size}
+                  {canonicalStudy.entity_analysis.pattern_complexity}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Entity Types</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Complexity</div>
               </div>
             </div>
           </Card>
 
-          {/* Tabs for different views */}
+          {/* Visualization Tabs */}
           <Tabs defaultValue="graph" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="graph">Graph View</TabsTrigger>
-              <TabsTrigger value="entities">Entities</TabsTrigger>
-              <TabsTrigger value="relationships">Relationships</TabsTrigger>
-              <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="graph">Knowledge Graph</TabsTrigger>
+              <TabsTrigger value="list">Entity List</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="graph" className="mt-4">
-              <EntityKnowledgeGraph analysis={analysis} />
+            
+            <TabsContent value="graph">
+              <EntityKnowledgeGraph analysis={canonicalStudy.entity_analysis} />
             </TabsContent>
-
-            <TabsContent value="entities" className="space-y-3">
-              <div className="grid gap-3">
-                {analysis.entities.map((entity) => (
-                  <Card key={entity.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                            {entity.name}
-                          </h4>
-                          <Badge className={getEntityTypeColor(entity.type)}>
-                            {entity.type.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        {entity.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                            {entity.description}
-                          </p>
-                        )}
-                        {entity.mentions && entity.mentions.length > 0 && (
-                          <div className="space-y-1">
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Mentions:</div>
-                            {entity.mentions.slice(0, 2).map((mention, idx) => (
-                              <div key={idx} className="text-xs bg-gray-100 dark:bg-gray-600 p-2 rounded">
-                                "{mention}"
-                              </div>
-                            ))}
-                            {entity.mentions.length > 2 && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                +{entity.mentions.length - 2} more mentions
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+            
+            <TabsContent value="list" className="space-y-4">
+              {/* Entity type breakdown */}
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(
+                  canonicalStudy.entity_analysis.entities.reduce((acc, entity) => {
+                    acc[entity.type] = (acc[entity.type] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)
+                ).map(([type, count]) => (
+                  <Card key={type} className="p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium capitalize">
+                        {type.replace(/_/g, ' ')}
+                      </span>
+                      <Badge variant="secondary">{count}</Badge>
                     </div>
                   </Card>
                 ))}
               </div>
-            </TabsContent>
-
-            <TabsContent value="relationships" className="space-y-3">
-              <div className="grid gap-3">
-                {analysis.relationships.map((relationship, idx) => {
-                  const sourceEntity = analysis.entities.find(e => e.id === relationship.source_entity_id);
-                  const targetEntity = analysis.entities.find(e => e.id === relationship.target_entity_id);
-
-                  return (
-                    <Card key={idx} className={`p-4 border-l-4 ${getRelationshipColor(relationship.type)}`}>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          {getRelationshipTypeIcon(relationship.type)}
-                          <Badge variant="outline" className="text-xs">
-                            {relationship.type}
-                          </Badge>
-                          {relationship.strength && (
-                            <Badge
-                              variant={relationship.strength === 'strong' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {relationship.strength}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {sourceEntity?.name || relationship.source_entity_id}
-                          </span>
-                          <ArrowRight className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {targetEntity?.name || relationship.target_entity_id}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {relationship.description}
-                        </p>
-
-                        {relationship.evidence && (
-                          <div className="text-xs bg-gray-100 dark:bg-gray-600 p-2 rounded">
-                            <strong>Evidence:</strong> {relationship.evidence}
-                          </div>
-                        )}
+              
+              {/* Clinical significance if available */}
+              {canonicalStudy.entity_analysis.clinical_significance && (
+                <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    <div>
+                      <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Clinical Significance
                       </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="insights" className="space-y-4">
-              {analysis.complexity_justification && (
-                <Card className="p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Complexity Analysis
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {analysis.complexity_justification}
-                  </p>
-                </Card>
-              )}
-
-              {analysis.clinical_significance && (
-                <Card className="p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Clinical Significance
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {analysis.clinical_significance}
-                  </p>
-                </Card>
-              )}
-
-              {analysis.key_findings && analysis.key_findings.length > 0 && (
-                <Card className="p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Key Findings
-                  </h4>
-                  <ul className="space-y-2">
-                    {analysis.key_findings.map((finding, idx) => (
-                      <li key={idx} className="text-sm text-gray-600 dark:text-gray-300 flex items-start gap-2">
-                        <Circle className="w-2 h-2 mt-2 flex-shrink-0" />
-                        {finding}
-                      </li>
-                    ))}
-                  </ul>
+                      <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                        {canonicalStudy.entity_analysis.clinical_significance}
+                      </p>
+                    </div>
+                  </div>
                 </Card>
               )}
             </TabsContent>

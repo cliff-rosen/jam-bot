@@ -15,7 +15,6 @@ interface WorkbenchTableProps {
   isExtracting?: boolean;
   onViewArticle?: (articleDetail: ArticleGroupDetail) => void;
   onSaveGroup?: () => void;
-  onLoadGroup?: () => void;
   onToggleArticleSelection: (articleId: string) => void;
   displayDateType?: "completion" | "publication" | "entry" | "revised";
 }
@@ -29,7 +28,6 @@ export function WorkbenchTable({
   isExtracting = false,
   onViewArticle,
   onSaveGroup,
-  onLoadGroup,
   onToggleArticleSelection,
   displayDateType: initialDisplayDateType = 'publication',
 }: WorkbenchTableProps) {

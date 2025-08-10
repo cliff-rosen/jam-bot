@@ -507,7 +507,6 @@ export function WorkbenchPage() {
                   searchPagination={workbench.searchPagination}
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
-                  onLoadGroup={() => setActiveTab('groups')}
                   onManageFeatures={() => handleOpenFeatureModal('search')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('search')}
                   onSaveAsGroup={() => setShowSaveModal(true)}
@@ -576,7 +575,6 @@ export function WorkbenchPage() {
                   searchPagination={workbench.searchPagination}
                   groupPagination={workbench.groupPagination}
                   selectedArticleIds={selectedArticleIds}
-                  onLoadGroup={() => { }} // Groups tab doesn't need this
                   onManageFeatures={() => handleOpenFeatureModal('group')}
                   onSaveChanges={() => workbench.updateGroupFromCollection('group')}
                   onSaveAsGroup={() => setShowSaveModal(true)}

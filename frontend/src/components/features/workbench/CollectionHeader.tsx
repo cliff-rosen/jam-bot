@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FolderOpen, Cloud, RotateCcw, Search, Folder, Edit2, Check, X, Settings } from 'lucide-react';
+import { Loader2, Cloud, Search, Folder, Edit2, Check, X, Settings } from 'lucide-react';
 import { ArticleCollection, CollectionSource } from '@/types/articleCollection';
 import { ExportMenu } from './ExportMenu';
 
@@ -22,7 +22,6 @@ interface CollectionHeaderProps {
     pageSize: number;
   } | null;
   selectedArticleIds: string[];
-  onLoadGroup: () => void;
   onManageFeatures: () => void;
   onSaveChanges: () => void;
   onSaveAsGroup: () => void;
@@ -42,7 +41,6 @@ export function CollectionHeader({
   searchPagination,
   groupPagination,
   selectedArticleIds,
-  onLoadGroup,
   onManageFeatures,
   onSaveChanges,
   onSaveAsGroup,
@@ -376,15 +374,6 @@ export function CollectionHeader({
           <>
             {/* Group Management */}
             <div className="flex items-center gap-2">
-              <Button
-                onClick={onLoadGroup}
-                variant="outline"
-                size="sm"
-              >
-                <FolderOpen className="w-4 h-4 mr-2" />
-                Load Group
-              </Button>
-
               {/* Save Changes - only for modified saved groups */}
               {collection.source === CollectionSource.SAVED_GROUP && isModified && (
                 <Button

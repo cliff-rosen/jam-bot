@@ -945,7 +945,7 @@ Provide:
         """Build instructions for generating a plain-language study archetype from article text."""
         return (
             """
-# Task: Produce a plain-language study archetype that best matches the article.
+Given the article text, produce a plain-language study archetype that best matches the article.
 
 Use a compact, natural sentence or two that instantiates a canonical archetype template. Do not include boilerplate beyond the archetype itself.
 

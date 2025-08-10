@@ -6,43 +6,39 @@ from typing import Dict, Any
 from schemas.entity_extraction import StudyType
 
 
-# Base instruction template with placeholder for study types
+# Base instruction template with placeholder for study types  
 _BASE_INSTRUCTION_TEMPLATE = """
-Given the article text, produce a plain-language study archetype that best matches the article.
+## archetype
+Generate a single natural-language sentence that captures the study's core structure by instantiating one of the canonical patterns below. Use specific terms from the article (actual population, condition, intervention, etc.) rather than placeholders.
 
-Use a compact, natural sentence or two that instantiates a canonical archetype template. Do not include boilerplate beyond the archetype itself.
-
-Canonical archetype families and examples:
-
-Intervention Studies:
+**Intervention Studies:**
 - Population P was treated for condition C with intervention I to study outcome O
-- Intervention I was compared to control C in population P to measure outcome O
+- Intervention I was compared to control C in population P to measure outcome O  
 - Population P received intervention I versus comparator C to assess efficacy for outcome O
 
-Observational Studies:
+**Observational Studies:**
 - Population P with exposure E was observed for outcome O compared to unexposed controls
 - Population P was followed over time T to identify factors F associated with outcome O
 - Cases with condition C were compared to controls without C to identify risk factors F
 
-Diagnostic/Screening Studies:
+**Diagnostic/Screening Studies:**
 - Test T was evaluated in population P to diagnose condition C compared to reference standard R
 - Screening method S was assessed in population P to detect condition C
 
-Prognostic Studies:
+**Prognostic Studies:**
 - Population P with condition C was followed to identify predictors F of outcome O
 - Patients with disease D were monitored over time T to determine factors F affecting prognosis P
 
-Cross-sectional Studies:
+**Cross-sectional Studies:**
 - Population P was surveyed to measure prevalence of condition C and associations with factors F
 - Sample S was assessed at timepoint T to examine relationship between exposure E and outcome O
 
-Systematic Reviews/Meta-analyses:
+**Systematic Reviews/Meta-analyses:**
 - Studies examining intervention I for condition C were systematically reviewed to assess outcome O
 - Data from N studies of treatment T versus control C were pooled to evaluate effect on outcome O
 
-Output fields:
-- archetype: the instantiated natural-language archetype succinctly describing the study
-- study_type: one of {{{study_type_options}}}
+## study_type
+Classify the study design as one of: {{{study_type_options}}}
 """
 
 

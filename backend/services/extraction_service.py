@@ -800,6 +800,8 @@ Provide:
         Stage 1: Extract a natural-language study archetype from the article text.
         Returns an ArticleArchetype object with archetype text and optional study type.
         """
+        from schemas.archetype_config import get_archetype_schema, get_archetype_instructions, get_archetype_schema_key
+        
         article_data = {
             "id": article_id,
             "title": title,
@@ -807,21 +809,12 @@ Provide:
             "full_text": full_text or ""
         }
 
-        # Minimal result schema expecting plain NL archetype (plus optional classification)
-        result_schema = {
-            "type": "object",
-            "properties": {
-                "archetype": {"type": "string", "description": "Plain NL archetype of the study"},
-                "study_type": {
-                    "type": "string",
-                    "description": "High-level study category (e.g., Intervention, Observational, Diagnostic, Prognostic, Cross-sectional, Systematic Review/Meta-analysis)"
-                }
-            },
-            "required": ["archetype"]
-        }
-
-        instructions = self._build_archetype_instructions()
-        prompt_caller = self._get_prompt_caller("article_archetype", result_schema)
+        # Use centralized archetype configuration to ensure schema and instructions are aligned
+        result_schema = get_archetype_schema()
+        instructions = get_archetype_instructions()
+        schema_key = get_archetype_schema_key()
+        
+        prompt_caller = self._get_prompt_caller(schema_key, result_schema)
         extraction = await prompt_caller.invoke_extraction(
             source_item=article_data,
             extraction_instructions=instructions
@@ -941,47 +934,6 @@ Provide:
             }
         )
 
-    def _build_archetype_instructions(self) -> str:
-        """Build instructions for generating a plain-language study archetype from article text."""
-        return (
-            """
-Given the article text, produce a plain-language study archetype that best matches the article.
-
-Use a compact, natural sentence or two that instantiates a canonical archetype template. Do not include boilerplate beyond the archetype itself.
-
-Canonical archetype families and examples:
-
-Intervention Studies:
-- Population P was treated for condition C with intervention I to study outcome O
-- Intervention I was compared to control C in population P to measure outcome O
-- Population P received intervention I versus comparator C to assess efficacy for outcome O
-
-Observational Studies:
-- Population P with exposure E was observed for outcome O compared to unexposed controls
-- Population P was followed over time T to identify factors F associated with outcome O
-- Cases with condition C were compared to controls without C to identify risk factors F
-
-Diagnostic/Screening Studies:
-- Test T was evaluated in population P to diagnose condition C compared to reference standard R
-- Screening method S was assessed in population P to detect condition C
-
-Prognostic Studies:
-- Population P with condition C was followed to identify predictors F of outcome O
-- Patients with disease D were monitored over time T to determine factors F affecting prognosis P
-
-Cross-sectional Studies:
-- Population P was surveyed to measure prevalence of condition C and associations with factors F
-- Sample S was assessed at timepoint T to examine relationship between exposure E and outcome O
-
-Systematic Reviews/Meta-analyses:
-- Studies examining intervention I for condition C were systematically reviewed to assess outcome O
-- Data from N studies of treatment T versus control C were pooled to evaluate effect on outcome O
-
-Output fields:
-- archetype: the instantiated natural-language archetype succinctly describing the study
-- study_type: one of {Intervention, Observational, Diagnostic/Screening, Prognostic, Cross-sectional, Systematic Review/Meta-analysis}
-"""
-        )
 
     def _build_er_from_archetype_instructions(self, study_type: Optional[str]) -> str:
         """Build instructions for converting an archetype sentence into an ER graph with role mapping and study-type rules."""

@@ -36,6 +36,7 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
   const [loading, setLoading] = useState(false);
   const [archetypeText, setArchetypeText] = useState<string>('');
   const [studyType, setStudyType] = useState<string>('');
+  const [patternId, setPatternId] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const { toast } = useToast();
@@ -75,6 +76,7 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
       });
       setArchetypeText(archRes.archetype || '');
       setStudyType(archRes.study_type || '');
+      setPatternId(archRes.pattern_id || '');
       setSavedAt(null);
       toast({ title: 'Archetype Generated', description: 'Review and edit if needed, then generate the graph.' });
     } catch (err) {
@@ -241,7 +243,10 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
       <Card className="p-4">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Archetype</div>
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Archetype</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Structured sentence capturing study design</div>
+            </div>
             {savedAt && <div className="text-xs text-gray-500 dark:text-gray-400">Saved {new Date(savedAt).toLocaleString()}</div>}
           </div>
           <textarea
@@ -250,14 +255,26 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
             value={archetypeText}
             onChange={(e) => setArchetypeText(e.target.value)}
           />
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-gray-600 dark:text-gray-400">Study Type</div>
-            <input
-              className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
-              placeholder="Optional (e.g., Intervention, Observational, Diagnostic)"
-              value={studyType}
-              onChange={(e) => setStudyType(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0">Study Type</div>
+              <input
+                className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
+                placeholder="e.g., Intervention, Observational"
+                value={studyType}
+                onChange={(e) => setStudyType(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0" title="Unique identifier for the archetype pattern template used">Pattern ID</div>
+              <input
+                className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-mono"
+                placeholder="e.g., 1a, 2b, 3a"
+                value={patternId}
+                onChange={(e) => setPatternId(e.target.value)}
+                title="Pattern ID identifies which specific archetype template was used (e.g., 1a=Intervention type A, 2b=Observational type B)"
+              />
+            </div>
           </div>
         </div>
       </Card>
@@ -271,9 +288,17 @@ export function EntityBrowserTab({ article, groupId: _groupId }: EntityBrowserTa
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Current Archetype</div>
-                  <p className="text-sm text-gray-800 dark:text-gray-100">{archetypeText}</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-100 mb-2">{archetypeText}</p>
+                  {patternId && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Pattern:</span>
+                      <Badge variant="outline" className="text-xs font-mono">{patternId}</Badge>
+                    </div>
+                  )}
                 </div>
-                {studyType && <Badge variant="secondary" className="self-start">{studyType}</Badge>}
+                <div className="flex flex-col gap-2 self-start">
+                  {studyType && <Badge variant="secondary">{studyType}</Badge>}
+                </div>
               </div>
             </Card>
           )}

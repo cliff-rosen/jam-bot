@@ -368,7 +368,7 @@ export class WorkbenchApi {
     title: string;
     abstract: string;
     full_text?: string | null;
-  }): Promise<{ article_id: string; archetype: string; study_type?: string }> {
+  }): Promise<{ article_id: string; archetype: string; study_type?: string; pattern_id: string }> {
     const response = await api.post('/api/extraction/extract-article-archtype', request);
     return response.data;
   }

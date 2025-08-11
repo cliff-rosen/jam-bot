@@ -972,6 +972,7 @@ async def save_canonical_study_representation(
             detail="Failed to save canonical study representation"
         )
     
+    from datetime import datetime
     return {"success": True, "last_updated": datetime.utcnow().isoformat()}
 
 

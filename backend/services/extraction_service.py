@@ -832,7 +832,7 @@ Provide:
         Stage 2: Generate entity-relationship graph from archetype using pattern-based approach.
         Simple and reliable - maps directly from archetype pattern to graph structure.
         """
-        from schemas.pattern_graph_config import get_pattern_graph_template, get_extraction_instructions, GraphRole, ConnectionType
+        from schemas.pattern_graph_config import get_pattern_graph_template, get_extraction_instructions, GraphRole, ConnectionType, PATTERN_GRAPHS
         
         if not pattern_id:
             # Fallback to simple extraction if no pattern
@@ -842,6 +842,7 @@ Provide:
         template = get_pattern_graph_template(pattern_id)
         if not template:
             # Pattern not found, use simple extraction
+            print(f"WARNING: Pattern ID '{pattern_id}' not found in PATTERN_GRAPHS")
             return await self._extract_simple_graph_from_text(article_id, archetype_text)
         
         # Build schema for pattern-based extraction

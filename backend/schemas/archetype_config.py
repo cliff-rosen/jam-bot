@@ -18,12 +18,24 @@ ARCHETYPE_PATTERNS = [
                 "template": "Population P was treated for condition C with intervention I to study outcome O"
             },
             {
+                "id": "1a-mech",
+                "template": "Population P was administered intervention I to study physiological outcome O"
+            },
+            {
                 "id": "1b", 
                 "template": "Intervention I was compared to control C in population P to measure outcome O"
             },
             {
+                "id": "1b-mech",
+                "template": "Intervention I was compared to control C in healthy population P to measure physiological response O"
+            },
+            {
                 "id": "1c",
                 "template": "Population P received intervention I versus comparator C to assess efficacy for outcome O"
+            },
+            {
+                "id": "1c-mech",
+                "template": "Population P received intervention I versus control C to assess mechanistic outcome O"
             }
         ]
     },
@@ -140,6 +152,10 @@ def _get_study_type_options() -> str:
 _BASE_INSTRUCTION_TEMPLATE = """
 ## archetype
 Generate a single natural-language sentence that captures the study's core structure by instantiating one of the canonical patterns below. Use specific terms from the article (actual population, condition, intervention, etc.) rather than placeholders.
+
+For intervention studies, choose between:
+- Clinical patterns (1a, 1b, 1c): Studies treating pathological conditions or diseases
+- Mechanistic patterns (1a-mech, 1b-mech, 1c-mech): Studies investigating normal physiological processes in healthy subjects or exploring mechanisms
 
 {pattern_instructions}
 

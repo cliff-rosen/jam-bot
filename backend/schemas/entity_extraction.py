@@ -22,6 +22,9 @@ class EntityType(str, Enum):
     ENVIRONMENTAL_FACTOR = "environmental_factor"
     ANIMAL_MODEL = "animal_model"
     EXPOSURE = "exposure"
+    PHYSIOLOGICAL_PARAMETER = "physiological_parameter"  # For mechanistic outcomes like heart rate, blood pressure, etc.
+    ADMINISTRATION_ROUTE = "administration_route"  # IV, oral, ICV, etc.
+    HEALTHY_POPULATION = "healthy_population"  # Explicitly for mechanistic studies
     OTHER = "other"
 
 
@@ -37,6 +40,8 @@ class RelationshipType(str, Enum):
     PARADOXICAL = "paradoxical"  # Contradictory relationship
     CORRELATIVE = "correlative"  # Statistical correlation
     PREDICTIVE = "predictive"  # Predictive relationship
+    DOSE_RESPONSE = "dose_response"  # Dose-dependent relationship
+    MECHANISTIC = "mechanistic"  # Explains underlying mechanism
 
 
 class PatternComplexity(str, Enum):

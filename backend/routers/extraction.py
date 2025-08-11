@@ -453,6 +453,7 @@ async def archetype_to_er_graph(
             article_id=request.article_id,
             archetype_text=request.archetype,
             study_type=request.study_type,
+            pattern_id=request.pattern_id
         )
     except Exception as e:
         logger.error(f"ER graph generation from archetype failed: {e}", exc_info=True)

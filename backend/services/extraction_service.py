@@ -827,86 +827,170 @@ Provide:
             pattern_id=extraction.get("pattern_id", "")
         )
 
-    async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str, study_type: Optional[str] = None) -> EntityExtractionResponse:
+    async def extract_er_graph_from_archetype(self, article_id: str, archetype_text: str, study_type: Optional[str] = None, pattern_id: Optional[str] = None) -> EntityExtractionResponse:
         """
-        Stage 2: Given a natural-language archetype, generate an entity-relationship graph.
-        Returns standard EntityExtractionResponse.
+        Stage 2: Generate entity-relationship graph from archetype using pattern-based approach.
+        Simple and reliable - maps directly from archetype pattern to graph structure.
         """
-        # Build a synthetic source item that contains only the archetype
-        source_item = {
-            "article_id": article_id,
-            "archetype": archetype_text,
-            "study_type": study_type
-        }
-
-        # Reuse standard ER analysis schema
+        from schemas.pattern_graph_config import get_pattern_graph_template, get_extraction_instructions, GraphRole, ConnectionType
+        
+        if not pattern_id:
+            # Fallback to simple extraction if no pattern
+            return await self._extract_simple_graph_from_text(article_id, archetype_text)
+        
+        # Get the pattern template
+        template = get_pattern_graph_template(pattern_id)
+        if not template:
+            # Pattern not found, use simple extraction
+            return await self._extract_simple_graph_from_text(article_id, archetype_text)
+        
+        # Build schema for pattern-based extraction
         result_schema = {
-            "type": "object",
+            "type": "object", 
             "properties": {
-                "pattern_complexity": {"type": "string", "enum": ["SIMPLE", "COMPLEX"]},
                 "entities": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "name": {"type": "string"},
-                            "role": {"type": "string", "description": "Archetype role (population, condition, intervention, comparator, exposure, outcome, test, time, factor)"},
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "medical_condition", "biological_factor", "intervention",
-                                    "patient_characteristic", "psychological_factor", "outcome",
-                                    "gene", "protein", "pathway", "drug", "environmental_factor",
-                                    "animal_model", "exposure", "other"
-                                ]
+                    "type": "object",
+                    "properties": {
+                        role_def["role"].value: {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": f"Specific {role_def['extract_from']} from the archetype"},
+                                "description": {"type": "string", "description": "What this entity represents in the study"}
                             },
-                            "description": {"type": "string"},
-                            "mentions": {"type": "array", "items": {"type": "string"}}
-                        },
-                        "required": ["id", "name", "type"]
+                            "required": ["name", "description"]
+                        }
+                        for role_def in template["entities"]
                     }
-                },
-                "relationships": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "source_entity_id": {"type": "string"},
-                            "target_entity_id": {"type": "string"},
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "causal", "therapeutic", "associative", "temporal",
-                                    "inhibitory", "regulatory", "interactive", "paradoxical",
-                                    "correlative", "predictive"
-                                ]
-                            },
-                            "description": {"type": "string"},
-                            "evidence": {"type": "string"},
-                            "strength": {"type": "string", "enum": ["strong", "moderate", "weak"]}
-                        },
-                        "required": ["source_entity_id", "target_entity_id", "type", "description"]
-                    }
-                },
-                "complexity_justification": {"type": "string"},
-                "clinical_significance": {"type": "string"},
-                "key_findings": {"type": "array", "items": {"type": "string"}}
+                }
             },
-            "required": ["pattern_complexity", "entities", "relationships"]
+            "required": ["entities"]
         }
-
-        instructions = self._build_er_from_archetype_instructions(study_type)
+        
+        # Get extraction instructions
+        instructions = get_extraction_instructions(pattern_id)
+        
+        # Perform extraction
         extraction_result = await self.perform_extraction(
-            item=source_item,
+            item={"archetype": archetype_text, "pattern_id": pattern_id},
             result_schema=result_schema,
             extraction_instructions=instructions,
-            schema_key="er_graph_from_archetype"
+            schema_key=f"pattern_graph_{pattern_id}"
         )
 
         if extraction_result.error:
             raise ValueError(f"ER graph from archetype failed: {extraction_result.error}")
+        
+        if not extraction_result.extraction:
+            raise ValueError("No extraction results returned")
+        
+        # Build entities and relationships from pattern
+        entities = []
+        entity_id_map = {}  # role -> entity_id
+        
+        # Create entities from extracted data
+        for role_def in template["entities"]:
+            role = role_def["role"].value
+            if role in extraction_result.extraction.get("entities", {}):
+                entity_data = extraction_result.extraction["entities"][role]
+                entity_id = f"{role}_{len(entities)}"
+                
+                entities.append({
+                    "id": entity_id,
+                    "name": entity_data["name"],
+                    "type": self._map_role_to_entity_type(role_def["role"]),
+                    "description": entity_data.get("description", ""),
+                    "role": role
+                })
+                entity_id_map[role_def["role"]] = entity_id
+        
+        # Create relationships from pattern template
+        relationships = []
+        for source_role, connection_type, target_role in template["connections"]:
+            if source_role in entity_id_map and target_role in entity_id_map:
+                relationships.append({
+                    "source_entity_id": entity_id_map[source_role],
+                    "target_entity_id": entity_id_map[target_role],
+                    "type": self._map_connection_to_relationship_type(connection_type),
+                    "description": f"{source_role.value} {connection_type.value} {target_role.value}",
+                    "evidence": "Pattern-based relationship",
+                    "strength": "strong"  # Pattern relationships are definitive
+                })
+        
+        # Build response
+        from schemas.entity_extraction import EntityRelationshipAnalysis
+        analysis = EntityRelationshipAnalysis(
+            pattern_complexity="SIMPLE",  # Pattern-based is always simple
+            entities=entities,
+            relationships=relationships,
+            complexity_justification=f"Generated from pattern {pattern_id}",
+            clinical_significance=f"Study follows {pattern_id} pattern structure",
+            key_findings=[f"Pattern {pattern_id}: {len(entities)} entities, {len(relationships)} relationships"]
+        )
+        
+        return EntityExtractionResponse(
+            article_id=article_id,
+            analysis=analysis,
+            extraction_metadata={
+                "method": "pattern_based",
+                "pattern_id": pattern_id,
+                "entities_extracted": len(entities),
+                "relationships_generated": len(relationships)
+            }
+        )
+    
+    def _map_role_to_entity_type(self, role) -> str:
+        """Map graph role to entity type enum."""
+        from schemas.pattern_graph_config import GraphRole
+        
+        role_to_type = {
+            GraphRole.POPULATION: "patient_characteristic",
+            GraphRole.CONDITION: "medical_condition", 
+            GraphRole.INTERVENTION: "intervention",
+            GraphRole.CONTROL: "intervention",
+            GraphRole.OUTCOME: "outcome",
+            GraphRole.EXPOSURE: "exposure",
+            GraphRole.TEST: "intervention",
+            GraphRole.TIME: "other",
+            GraphRole.FACTOR: "biological_factor"
+        }
+        return role_to_type.get(role, "other")
+    
+    def _map_connection_to_relationship_type(self, connection_type) -> str:
+        """Map connection type to relationship type enum."""
+        from schemas.pattern_graph_config import ConnectionType
+        
+        connection_to_type = {
+            ConnectionType.RECEIVES: "therapeutic",
+            ConnectionType.TREATS: "therapeutic", 
+            ConnectionType.MEASURES: "associative",
+            ConnectionType.COMPARES_TO: "associative",
+            ConnectionType.HAS_CONDITION: "associative",
+            ConnectionType.PRODUCES: "causal",
+            ConnectionType.EXPOSES_TO: "causal"
+        }
+        return connection_to_type.get(connection_type, "associative")
+    
+    async def _extract_simple_graph_from_text(self, article_id: str, text: str) -> EntityExtractionResponse:
+        """Fallback simple extraction when no pattern is available."""
+        # Simple fallback - just extract basic entities from text
+        from schemas.entity_extraction import EntityRelationshipAnalysis
+        
+        analysis = EntityRelationshipAnalysis(
+            pattern_complexity="SIMPLE",
+            entities=[],
+            relationships=[],
+            complexity_justification="Fallback extraction - no pattern available",
+            clinical_significance="Unable to determine without pattern",
+            key_findings=["Pattern-based extraction not available"]
+        )
+        
+        return EntityExtractionResponse(
+            article_id=article_id,
+            analysis=analysis,
+            extraction_metadata={"method": "fallback", "reason": "no_pattern"}
+        )
 
+        # Legacy code below this point - can be removed
         # Sanitize entity types: map unknown types to 'other' to satisfy enum validation
         allowed_entity_types = {
             "medical_condition", "biological_factor", "intervention",

@@ -39,7 +39,7 @@ PATTERN_GRAPHS = {
     "1a": {
         "entities": [
             {"role": GraphRole.POPULATION, "extract_from": "Population P"},
-            {"role": GraphRole.CONDITION, "extract_from": "condition C"}, 
+            {"role": GraphRole.CONDITION,  "extract_from": "condition C"}, 
             {"role": GraphRole.INTERVENTION, "extract_from": "intervention I"},
             {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
         ],
@@ -110,7 +110,159 @@ PATTERN_GRAPHS = {
         ]
     },
     
-    # Add more patterns as needed...
+    # More intervention patterns
+    "1c": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.INTERVENTION, "extract_from": "intervention I"},
+            {"role": GraphRole.CONTROL, "extract_from": "comparator C"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.RECEIVES, GraphRole.INTERVENTION),
+            (GraphRole.INTERVENTION, ConnectionType.COMPARES_TO, GraphRole.CONTROL),
+            (GraphRole.INTERVENTION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    "1c-mech": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.INTERVENTION, "extract_from": "intervention I"},
+            {"role": GraphRole.CONTROL, "extract_from": "control C"},
+            {"role": GraphRole.OUTCOME, "extract_from": "mechanistic outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.RECEIVES, GraphRole.INTERVENTION),
+            (GraphRole.INTERVENTION, ConnectionType.COMPARES_TO, GraphRole.CONTROL),
+            (GraphRole.INTERVENTION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    # More observational patterns
+    "2b": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.TIME, "extract_from": "time T"},
+            {"role": GraphRole.FACTOR, "extract_from": "factors F"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.EXPOSES_TO, GraphRole.FACTOR),
+            (GraphRole.FACTOR, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    "2c": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Cases with condition C"},
+            {"role": GraphRole.CONTROL, "extract_from": "controls without C"},
+            {"role": GraphRole.FACTOR, "extract_from": "risk factors F"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.COMPARES_TO, GraphRole.CONTROL),
+            (GraphRole.POPULATION, ConnectionType.EXPOSES_TO, GraphRole.FACTOR)
+        ]
+    },
+    
+    # Diagnostic/Screening patterns
+    "3a": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.CONDITION, "extract_from": "condition C"},
+            {"role": GraphRole.TEST, "extract_from": "test T"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.HAS_CONDITION, GraphRole.CONDITION),
+            (GraphRole.TEST, ConnectionType.MEASURES, GraphRole.CONDITION)
+        ]
+    },
+    
+    "3b": {
+        "entities": [
+            {"role": GraphRole.TEST, "extract_from": "Test T"},
+            {"role": GraphRole.POPULATION, "extract_from": "population P"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.RECEIVES, GraphRole.TEST),
+            (GraphRole.TEST, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    # Prognostic patterns
+    "4a": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P with condition C"},
+            {"role": GraphRole.FACTOR, "extract_from": "factor F"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"},
+            {"role": GraphRole.TIME, "extract_from": "time T"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.EXPOSES_TO, GraphRole.FACTOR),
+            (GraphRole.FACTOR, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    "4b": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.CONDITION, "extract_from": "condition C"},
+            {"role": GraphRole.OUTCOME, "extract_from": "progression to outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.HAS_CONDITION, GraphRole.CONDITION),
+            (GraphRole.CONDITION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    # Cross-sectional patterns
+    "5a": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.FACTOR, "extract_from": "exposure E"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.EXPOSES_TO, GraphRole.FACTOR),
+            (GraphRole.FACTOR, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    "5b": {
+        "entities": [
+            {"role": GraphRole.POPULATION, "extract_from": "Population P"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.POPULATION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    # Systematic Review/Meta-analysis patterns
+    "6a": {
+        "entities": [
+            {"role": GraphRole.INTERVENTION, "extract_from": "intervention I"},
+            {"role": GraphRole.CONDITION, "extract_from": "condition C"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.INTERVENTION, ConnectionType.TREATS, GraphRole.CONDITION),
+            (GraphRole.INTERVENTION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    },
+    
+    "6b": {
+        "entities": [
+            {"role": GraphRole.INTERVENTION, "extract_from": "treatment T"},
+            {"role": GraphRole.CONTROL, "extract_from": "control C"},
+            {"role": GraphRole.OUTCOME, "extract_from": "outcome O"}
+        ],
+        "connections": [
+            (GraphRole.INTERVENTION, ConnectionType.COMPARES_TO, GraphRole.CONTROL),
+            (GraphRole.INTERVENTION, ConnectionType.PRODUCES, GraphRole.OUTCOME)
+        ]
+    }
 }
 
 

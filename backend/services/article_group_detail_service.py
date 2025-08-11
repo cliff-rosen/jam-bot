@@ -129,12 +129,22 @@ class ArticleGroupDetailService:
         user_id: int,
         group_id: str,
         article_id: str,
-        archetype_text: str,
+        archetype_text: Optional[str] = None,
         study_type: Optional[str] = None,
         pattern_id: Optional[str] = None,
-        entity_analysis: Optional[Dict[str, Any]] = None
+        entity_analysis: Optional[Dict[str, Any]] = None,
+        update_entity_analysis: Optional[bool] = None
     ) -> bool:
-        """Save unified canonical study representation (archetype + ER graph)."""
+        """
+        Save canonical study representation - supports partial updates.
+        
+        Args:
+            archetype_text: If provided, updates archetype data
+            study_type: Study type (only used if archetype_text provided)
+            pattern_id: Pattern ID (only used if archetype_text provided)
+            entity_analysis: If provided, updates entity analysis
+            update_entity_analysis: If True, updates entity_analysis even if None (to clear it)
+        """
         article_detail = self._get_article_detail_record(user_id, group_id, article_id)
         if not article_detail:
             return False
@@ -142,24 +152,29 @@ class ArticleGroupDetailService:
         current_metadata = article_detail.article_metadata or {}
         timestamp = datetime.utcnow().isoformat()
         
-        # Save archetype data
-        current_metadata['archetype'] = {
-            'text': archetype_text,
-            'study_type': study_type,
-            'pattern_id': pattern_id,
-            'updated_at': timestamp,
-            'version': '2.0'
-        }
-        
-        # Save entity analysis if provided
-        if entity_analysis is not None:
-            # Serialize the analysis data
-            serialized_analysis = self._serialize_data(entity_analysis)
-            current_metadata['entity_analysis'] = {
-                'data': serialized_analysis,
-                'extracted_at': timestamp,
+        # Only update archetype data if archetype_text is provided
+        if archetype_text is not None:
+            current_metadata['archetype'] = {
+                'text': archetype_text,
+                'study_type': study_type,
+                'pattern_id': pattern_id,
+                'updated_at': timestamp,
                 'version': '2.0'
             }
+        
+        # Update entity analysis if provided or explicitly requested to update
+        if entity_analysis is not None or update_entity_analysis:
+            if entity_analysis is not None:
+                # Serialize the analysis data
+                serialized_analysis = self._serialize_data(entity_analysis)
+                current_metadata['entity_analysis'] = {
+                    'data': serialized_analysis,
+                    'extracted_at': timestamp,
+                    'version': '2.0'
+                }
+            elif update_entity_analysis:
+                # Clear entity analysis if explicitly requested
+                current_metadata.pop('entity_analysis', None)
         
         article_detail.article_metadata = current_metadata
         article_detail.updated_at = datetime.utcnow()

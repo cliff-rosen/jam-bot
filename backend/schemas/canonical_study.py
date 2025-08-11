@@ -25,11 +25,12 @@ class CanonicalStudyRepresentation(BaseModel):
 
 
 class CanonicalStudyRequest(BaseModel):
-    """Request to save canonical study representation."""
-    archetype_text: str = Field(..., description="Natural language archetype sentence")
+    """Request to save canonical study representation - supports partial updates."""
+    archetype_text: Optional[str] = Field(None, description="Natural language archetype sentence (if provided, updates archetype)")
     study_type: Optional[str] = Field(None, description="Study type classification") 
     pattern_id: Optional[str] = Field(None, description="Pattern ID used")
-    entity_analysis: Optional[Dict[str, Any]] = Field(None, description="Entity-relationship analysis data")
+    entity_analysis: Optional[Dict[str, Any]] = Field(None, description="Entity-relationship analysis data (if provided, updates entity analysis)")
+    update_entity_analysis: Optional[bool] = Field(None, description="If True, updates entity_analysis even if None (to clear it)")
 
 
 class CanonicalStudyResponse(BaseModel):

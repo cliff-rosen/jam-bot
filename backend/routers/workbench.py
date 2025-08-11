@@ -962,7 +962,8 @@ async def save_canonical_study_representation(
         archetype_text=request.archetype_text,
         study_type=request.study_type,
         pattern_id=request.pattern_id,
-        entity_analysis=request.entity_analysis
+        entity_analysis=request.entity_analysis,
+        update_entity_analysis=request.update_entity_analysis
     )
     
     if not success:

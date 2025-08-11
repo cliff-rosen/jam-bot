@@ -31,13 +31,14 @@ export interface CanonicalStudyRepresentation {
 }
 
 /**
- * Request payload for saving canonical study representation
+ * Request payload for saving canonical study representation - supports partial updates
  */
 export interface SaveCanonicalStudyRequest {
-  archetype_text: string;
+  archetype_text?: string;  // If provided, updates archetype
   study_type?: string;
   pattern_id?: string;
-  entity_analysis?: EntityRelationshipAnalysis;
+  entity_analysis?: EntityRelationshipAnalysis;  // If provided, updates entity analysis
+  update_entity_analysis?: boolean;  // If true, updates entity_analysis even if null (to clear it)
 }
 
 /**

@@ -63,41 +63,6 @@ export interface EntityRelationshipAnalysis {
   relationship_count?: number;
 }
 
-export interface FocusEntity extends Entity {
-  relevance_score: number;
-}
-
-export interface RelatedEntity extends Entity {
-  connection_to_focus?: string;
-}
-
-export interface FocusedRelationship extends Relationship {
-  involves_focus_entity: boolean;
-}
-
-export interface FocusedEntityRelationshipAnalysis {
-  pattern_complexity: PatternComplexity;
-  focus_entities: FocusEntity[];
-  related_entities?: RelatedEntity[];
-  relationships: FocusedRelationship[];
-  focus_entity_network?: {
-    central_nodes?: string[];
-    key_pathways?: Array<{
-      pathway: string[];
-      description: string;
-    }>;
-    network_density?: 'sparse' | 'moderate' | 'dense';
-  };
-  complexity_justification?: string;
-  clinical_significance?: string;
-  key_findings?: string[];
-  focus_entity_insights?: Array<{
-    focus_entity: string;
-    key_insight: string;
-    supporting_evidence?: string;
-  }>;
-}
-
 export interface EntityExtractionResponse {
   article_id: string;
   analysis: EntityRelationshipAnalysis;

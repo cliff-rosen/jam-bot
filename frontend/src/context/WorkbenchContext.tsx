@@ -289,7 +289,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       setSelectedArticleIds(new Set());
       setSelectedArticleDetail(null);
-      
+
       // Return the search result for the caller to use
       return searchResult;
     } catch (err) {
@@ -309,24 +309,24 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       // Load ALL articles for client-side pagination
       // Use a very large page size to get everything in one request
       const group = await workbenchApi.getGroupDetails(groupId, 1, 10000);
-      
+
       const fullCollection = createSavedGroupCollection(group);
-      
+
       // Store the full articles list
       setFullGroupArticles(fullCollection.articles);
-      
+
       // Create paginated view
       const pageSize = groupParams.pageSize;
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedArticles = fullCollection.articles.slice(startIndex, endIndex);
-      
+
       // Create paginated collection
       const paginatedCollection: ArticleCollection = {
         ...fullCollection,
         articles: paginatedArticles
       };
-      
+
       setGroupCollection(paginatedCollection);
       setSearchPagination(null); // Clear search pagination
 
@@ -351,20 +351,20 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
   const setGroupPage = useCallback((page: number) => {
     if (!fullGroupArticles || !groupCollection) return;
-    
+
     const pageSize = groupParams.pageSize;
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const paginatedArticles = fullGroupArticles.slice(startIndex, endIndex);
-    
+
     // Create new paginated collection
     const paginatedCollection: ArticleCollection = {
       ...groupCollection,
       articles: paginatedArticles
     };
-    
+
     setGroupCollection(paginatedCollection);
-    
+
     // Update pagination state
     setGroupPagination({
       currentPage: page,
@@ -515,7 +515,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       // Refresh groups list to reflect updated article count
       await refreshGroupsList();
-      
+
       // Return the counts from the API response
       return {
         articlesAdded: response.articles_saved || 0,
@@ -540,21 +540,21 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     try {
       // Use the elegant unified update API - pass articles to trigger full state synchronization
       // Important: Use ALL articles, not just the current page
-      const articlesToSave = collectionType === 'group' && fullGroupArticles 
-        ? fullGroupArticles 
+      const articlesToSave = collectionType === 'group' && fullGroupArticles
+        ? fullGroupArticles
         : currentCollection.articles;
-      
+
       const articlesWithFeatures = articlesToSave.map(item => {
         console.log(`DEBUG: Article ${item.article.id} feature_data:`, item.feature_data);
-        
+
         // Create a copy of the article and add extracted_features from feature_data
         const articleWithFeatures = {
           ...item.article,
           extracted_features: item.feature_data || {}
         };
-        
+
         console.log(`DEBUG: Article ${item.article.id} extracted_features being sent:`, articleWithFeatures.extracted_features);
-        
+
         return articleWithFeatures;
       });
 
@@ -682,6 +682,52 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     }
   }, [refreshGroupsList]);
 
+  const updateArticleNotes = useCallback(async (
+    articleId: string,
+    notes: string,
+    collectionType: 'search' | 'group' = 'group'
+  ) => {
+    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
+    if (!currentCollection || !currentCollection.saved_group_id) {
+      throw new Error('Cannot update notes: collection not saved');
+    }
+
+    try {
+      // Update backend first
+      await workbenchApi.updateNotes(currentCollection.saved_group_id, articleId, notes);
+
+      // Update local collection state
+      const updateArticleNotes = (articles: ArticleGroupDetail[]) =>
+        articles.map(article =>
+          article.article.id === articleId
+            ? { ...article, notes }
+            : article
+        );
+
+      const updatedCollection = {
+        ...currentCollection,
+        articles: updateArticleNotes(currentCollection.articles),
+        is_modified: true,
+        updated_at: new Date().toISOString()
+      };
+
+      if (collectionType === 'search') {
+        setSearchCollection(updatedCollection);
+      } else {
+        setGroupCollection(updatedCollection);
+
+        // Also update fullGroupArticles if they exist
+        if (fullGroupArticles) {
+          setFullGroupArticles(updateArticleNotes(fullGroupArticles));
+        }
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update notes');
+      throw error;
+    }
+  }, [searchCollection, groupCollection, fullGroupArticles]);
+
+
   // ================== COLLECTION MODIFICATION ==================
 
   const removeArticlesFromCollection = useCallback((articleIds: string[], collectionType: 'search' | 'group' = 'search') => {
@@ -689,7 +735,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     if (!currentCollection) return;
 
     const idSet = new Set(articleIds);
-    
+
     if (collectionType === 'search') {
       const filteredArticles = currentCollection.articles.filter(
         a => !idSet.has(a.article_id)
@@ -706,33 +752,33 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     } else {
       // For groups, update both fullGroupArticles and the paginated view
       if (!fullGroupArticles) return;
-      
+
       const filteredFullArticles = fullGroupArticles.filter(
         a => !idSet.has(a.article.id)
       );
-      
+
       setFullGroupArticles(filteredFullArticles);
-      
+
       // Calculate pagination after deletion
       const pageSize = groupParams.pageSize;
       const totalPages = Math.ceil(filteredFullArticles.length / pageSize);
       let currentPage = groupPagination?.currentPage || 1;
-      
+
       // If current page is now beyond the total pages, go to the last valid page
       if (currentPage > totalPages && totalPages > 0) {
         currentPage = totalPages;
       }
-      
+
       // If there are no articles left, reset to page 1
       if (filteredFullArticles.length === 0) {
         currentPage = 1;
       }
-      
+
       // Calculate the articles for the current page
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedArticles = filteredFullArticles.slice(startIndex, endIndex);
-      
+
       const updatedCollection = {
         ...currentCollection,
         articles: paginatedArticles,
@@ -741,7 +787,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       };
 
       setGroupCollection(updatedCollection);
-      
+
       // Update pagination with the corrected current page
       setGroupPagination({
         currentPage: currentPage,
@@ -935,7 +981,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setSearchCollection(finalCollection);
       } else {
         setGroupCollection(finalCollection);
-        
+
         // For groups, also update fullGroupArticles if they exist
         if (fullGroupArticles) {
           const updatedFullArticles = fullGroupArticles.map(article => {
@@ -952,7 +998,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
               }
             };
           });
-          
+
           setFullGroupArticles(updatedFullArticles);
         }
       }
@@ -993,7 +1039,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setSearchCollection(updatedCollection);
     } else {
       setGroupCollection(updatedCollection);
-      
+
       // For groups, also update fullGroupArticles if they exist
       if (fullGroupArticles) {
         const updatedFullArticles = fullGroupArticles.map(article => {
@@ -1001,7 +1047,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
           delete newFeatureData[featureId];
           return { ...article, feature_data: newFeatureData };
         });
-        
+
         setFullGroupArticles(updatedFullArticles);
       }
     }
@@ -1015,7 +1061,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     const featuresToExtract = featureIds
       ? currentCollection.feature_definitions.filter(f => featureIds.includes(f.id))
       : currentCollection.feature_definitions;
-    
+
     if (featuresToExtract.length === 0) {
       console.warn('No features to extract - collection has no feature definitions');
       return;
@@ -1053,7 +1099,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
         // Get extraction results for this article (empty object if no results)
         const newFeatureData = extractionResult.results[article.article_id] || {};
-        
+
         console.log(`Article ${article.article_id}: merging ${Object.keys(newFeatureData).length} new features`);
 
         // Merge: existing features + new features (new overwrites existing)
@@ -1077,7 +1123,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         setSearchCollection(updatedCollection);
       } else {
         setGroupCollection(updatedCollection);
-        
+
         // For groups, also update fullGroupArticles if they exist
         if (fullGroupArticles) {
           const targetedArticleIds = new Set(targetArticleIds || currentCollection.articles.map(a => a.article_id));
@@ -1089,7 +1135,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
             // Get extraction results for this article (empty object if no results)
             const newFeatureData = extractionResult.results[article.article_id] || {};
-            
+
             // Merge: existing features + new features (new overwrites existing)
             return {
               ...article,
@@ -1099,7 +1145,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
               }
             };
           });
-          
+
           setFullGroupArticles(updatedFullArticles);
         }
       }
@@ -1140,7 +1186,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       setSearchCollection(updatedCollection);
     } else {
       setGroupCollection(updatedCollection);
-      
+
       // For groups, also update fullGroupArticles if they exist
       if (fullGroupArticles) {
         const updatedFullArticles = fullGroupArticles.map(article => {
@@ -1155,7 +1201,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
           }
           return article;
         });
-        
+
         setFullGroupArticles(updatedFullArticles);
       }
     }
@@ -1204,8 +1250,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
 
       // For groups, use all articles (not just current page)
-      const articlesToExport = collectionType === 'group' && fullGroupArticles 
-        ? fullGroupArticles 
+      const articlesToExport = collectionType === 'group' && fullGroupArticles
+        ? fullGroupArticles
         : collection.articles;
 
       if (articlesToExport.length === 0) {
@@ -1215,7 +1261,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
 
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const collectionName = collection.name.replace(/[^a-zA-Z0-9\-_]/g, '_');
-      
+
       if (format === 'csv') {
         // Prepare features data in the format expected by exportAsCSV
         const featuresForCSV = collection.feature_definitions.map(feature => ({
@@ -1270,8 +1316,8 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       }
 
       // For groups, use all articles (not just current page)
-      const articlesToCopy = collectionType === 'group' && fullGroupArticles 
-        ? fullGroupArticles 
+      const articlesToCopy = collectionType === 'group' && fullGroupArticles
+        ? fullGroupArticles
         : collection.articles;
 
       if (articlesToCopy.length === 0) {
@@ -1286,12 +1332,12 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         content = articlesToCopy.map((detail, index) => {
           const article = detail.article;
           let articleText = `${index + 1}. ${article.title}\n` +
-                           `   ID: ${article.id}\n` +
-                           `   Authors: ${article.authors?.join(', ') || 'N/A'}\n` +
-                           `   Journal: ${article.journal || 'N/A'} (${article.publication_year || 'N/A'})\n` +
-                           `   Abstract: ${article.abstract || 'No abstract available'}\n` +
-                           `   URL: ${article.url || 'N/A'}\n`;
-          
+            `   ID: ${article.id}\n` +
+            `   Authors: ${article.authors?.join(', ') || 'N/A'}\n` +
+            `   Journal: ${article.journal || 'N/A'} (${article.publication_year || 'N/A'})\n` +
+            `   Abstract: ${article.abstract || 'No abstract available'}\n` +
+            `   URL: ${article.url || 'N/A'}\n`;
+
           // Add feature data if available
           if (collection.feature_definitions.length > 0) {
             articleText += `   Features:\n`;
@@ -1300,14 +1346,14 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
               articleText += `     ${feature.name}: ${value}\n`;
             });
           }
-          
+
           return articleText;
         }).join('\n' + '-'.repeat(80) + '\n\n');
-        
+
         content = `Collection: ${collection.name}\n` +
-                 `Articles: ${articlesToCopy.length}\n` +
-                 `Exported: ${new Date().toLocaleString()}\n\n` +
-                 '='.repeat(80) + '\n\n' + content;
+          `Articles: ${articlesToCopy.length}\n` +
+          `Exported: ${new Date().toLocaleString()}\n\n` +
+          '='.repeat(80) + '\n\n' + content;
       } else if (format === 'csv') {
         // Generate CSV content
         const headers = ['ID', 'Title', 'Authors', 'Journal', 'Year', 'URL'];
@@ -1360,7 +1406,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         try {
           await navigator.clipboard.writeText(content);
-          
+
           // Optional: Verify the content was written (may fail due to permissions)
           try {
             const clipboardContent = await navigator.clipboard.readText();
@@ -1385,7 +1431,7 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        
+
         try {
           const successful = document.execCommand('copy');
           if (!successful) {
@@ -1446,51 +1492,6 @@ export function WorkbenchProvider({ children }: WorkbenchProviderProps) {
     setSelectedArticleDetail(null);
     setError(null);
   }, []);
-
-  const updateArticleNotes = useCallback(async (
-    articleId: string, 
-    notes: string, 
-    collectionType: 'search' | 'group' = 'group'
-  ) => {
-    const currentCollection = collectionType === 'search' ? searchCollection : groupCollection;
-    if (!currentCollection || !currentCollection.saved_group_id) {
-      throw new Error('Cannot update notes: collection not saved');
-    }
-
-    try {
-      // Update backend first
-      await workbenchApi.updateNotes(currentCollection.saved_group_id, articleId, notes);
-
-      // Update local collection state
-      const updateArticleNotes = (articles: ArticleGroupDetail[]) => 
-        articles.map(article => 
-          article.article.id === articleId 
-            ? { ...article, notes } 
-            : article
-        );
-
-      const updatedCollection = {
-        ...currentCollection,
-        articles: updateArticleNotes(currentCollection.articles),
-        is_modified: true,
-        updated_at: new Date().toISOString()
-      };
-
-      if (collectionType === 'search') {
-        setSearchCollection(updatedCollection);
-      } else {
-        setGroupCollection(updatedCollection);
-        
-        // Also update fullGroupArticles if they exist
-        if (fullGroupArticles) {
-          setFullGroupArticles(updateArticleNotes(fullGroupArticles));
-        }
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to update notes');
-      throw error;
-    }
-  }, [searchCollection, groupCollection, fullGroupArticles]);
 
   // ================== CONTEXT VALUE ==================
 

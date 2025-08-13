@@ -87,10 +87,6 @@ export interface CompanyProfile {
   analysis_focus?: string;
 }
 
-// Legacy alias
-export interface ColumnPresetsResponse extends FeaturePresetsResponse {
-  categories?: string[];
-}
 
 // Article Group Management Requests
 export interface CreateArticleGroupRequest {

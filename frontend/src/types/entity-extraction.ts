@@ -126,4 +126,5 @@ export interface ArticleArchetypeResponse {
   article_id: string;
   archetype: string;
   study_type?: string;
+  pattern_id?: string;
 }

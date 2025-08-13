@@ -20,7 +20,6 @@ from schemas.workbench import (
     ArticleDetailResponse
 )
 from schemas.canonical_types import CanonicalResearchArticle
-from schemas.entity_extraction import EntityExtractionRequest, EntityExtractionResponse
 
 from services.auth_service import validate_token
 from services.extraction_service import ExtractionService, get_extraction_service
@@ -890,34 +889,6 @@ async def batch_update_metadata(
             "failed": failed
         }
     }
-
-
-# ================== ENTITY EXTRACTION ==================
-
-class ExtractEntitiesRequest(EntityExtractionRequest):
-    """Extended request that includes optional group context for caching"""
-    group_id: Optional[str] = Field(None, description="Group ID for caching results")
-    force_refresh: bool = Field(False, description="Force refresh even if cached")
-
-
-@router.post("/extract-entities", response_model=EntityExtractionResponse)
-async def extract_entity_relationships(
-    request: EntityExtractionRequest,
-    current_user: User = Depends(validate_token),
-    extraction_service: ExtractionService = Depends(get_extraction_service),
-    db: Session = Depends(get_db)
-):
-    """Extract entity relationships from an article using AI analysis."""
-    try:
-        # Perform extraction
-        result = await extraction_service.extract_entity_relationships(request)
-        return result
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Entity extraction failed: {str(e)}"
-        )
 
 
 # ================== CANONICAL STUDY REPRESENTATION (UNIFIED API) ==================

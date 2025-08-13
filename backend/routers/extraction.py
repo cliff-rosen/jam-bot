@@ -18,7 +18,6 @@ from models import User
 from services.auth_service import validate_token
 from services.extraction_service import get_extraction_service
 from schemas.entity_extraction import (
-    EntityExtractionRequest, 
     EntityExtractionResponse,
     ArticleArchetypeRequest,
     ArticleArchetypeResponse
@@ -66,16 +65,6 @@ class SingleExtractionResponse(BaseModel):
 class ResearchFeaturesRequest(BaseModel):
     """Request model for research feature extraction from academic articles."""
     articles: List[Dict[str, Any]] = Field(..., description="List of academic articles to analyze")
-
-
-class FocusedEntityExtractionRequest(BaseModel):
-    """Request model for focused entity relationship extraction."""
-    article_id: str = Field(..., description="Unique identifier for the article")
-    title: str = Field(..., description="Article title")
-    abstract: str = Field(..., description="Article abstract")
-    full_text: str = Field(..., description="Full article text")
-    focus_entities: List[str] = Field(..., description="List of specific entities to focus on", 
-                                     example=["genetically engineered mice", "asbestos exposure", "mesothelioma"])
 
 
 @router.post("/extract-multiple", response_model=ExtractionResponse)

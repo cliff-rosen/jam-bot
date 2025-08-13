@@ -14,11 +14,11 @@ import {
   ArticleGroupWithDetails,
 } from '@/types/workbench';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
-import { EntityExtractionRequest, EntityExtractionResponse } from '@/types/entity-extraction';
-import { 
-  CanonicalStudyRepresentation, 
-  SaveCanonicalStudyRequest, 
-  SaveCanonicalStudyResponse 
+import { EntityExtractionRequest, EntityExtractionResponse, ArticleArchetypeResponse } from '@/types/entity-extraction';
+import {
+  CanonicalStudyRepresentation,
+  SaveCanonicalStudyRequest,
+  SaveCanonicalStudyResponse
 } from '@/types/canonical-study';
 
 // ================== REQUEST/RESPONSE TYPES ==================
@@ -233,7 +233,6 @@ export class WorkbenchApi {
     return response.data;
   }
 
-
   // ================== ANALYSIS OPERATIONS ==================
 
   // New unified extract method
@@ -367,7 +366,7 @@ export class WorkbenchApi {
     title: string;
     abstract: string;
     full_text?: string | null;
-  }): Promise<{ article_id: string; archetype: string; study_type?: string; pattern_id: string }> {
+  }): Promise<ArticleArchetypeResponse> {
     const response = await api.post('/api/extraction/extract-article-archtype', request);
     return response.data;
   }

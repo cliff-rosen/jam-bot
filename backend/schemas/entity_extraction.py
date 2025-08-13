@@ -95,19 +95,6 @@ class EntityRelationshipAnalysis(BaseModel):
             self.relationship_count = len(self.relationships)
 
 
-class EntityExtractionRequest(BaseModel):
-    """Request for entity relationship extraction"""
-    article_id: str = Field(..., description="ID of the article to analyze")
-    title: str = Field(..., description="Title of the article")
-    abstract: str = Field(..., description="Abstract text to analyze")
-    full_text: Optional[str] = Field(None, description="Full text if available")
-    
-    # Options
-    include_gene_data: bool = Field(True, description="Include gene/protein entities")
-    include_drug_data: bool = Field(True, description="Include drug/intervention entities")
-    focus_areas: Optional[List[str]] = Field(None, description="Specific areas to focus on")
-
-
 class EntityExtractionResponse(BaseModel):
     """Response from entity relationship extraction"""
     article_id: str

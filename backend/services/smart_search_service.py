@@ -300,9 +300,7 @@ Your task: Determine if the provided article should be included in the search re
 
 Evaluation Criteria:
 1. Does the article address the core topic of the research question?
-2. Are the key terms present and used in a relevant context (not just mentioned in passing)?
-3. Would this article provide meaningful information for answering the research question?
-4. Is the article's focus aligned with the intent of the query?
+2. Are the entieis that the key terms tried to target present and used in a relevant context (not just mentioned in passing)?
 
 For {strictness} strictness:
 {"- Accept if 2 or more criteria are met" if strictness == "low" else ""}

@@ -82,7 +82,7 @@ Respond in JSON format with the refined question in the "refined_question" field
             logger.info(f"LLM result type: {type(result)}")
             logger.info(f"LLM result: {result}")
             
-            # Extract refined_query from the Pydantic model instance
+            # Extract refined_question from the Pydantic model instance
             if hasattr(result, 'refined_question'):
                 refined_question = result.refined_question
                 logger.info(f"Successfully extracted refined_question: {refined_question}")
@@ -92,12 +92,12 @@ Respond in JSON format with the refined question in the "refined_question" field
                 if hasattr(result, 'model_dump'):
                     response_data = result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
-                    refined_query = response_data.get('refined_query', query)
+                    refined_question = response_data.get('refined_question', question)
                 else:
-                    refined_query = query  # Final fallback
+                    refined_question = question  # Final fallback
                 
-            logger.info(f"Final refined query: {refined_query[:100]}...")
-            return refined_query
+            logger.info(f"Final refined question: {refined_question[:100]}...")
+            return refined_question
             
         except Exception as e:
             logger.error(f"Failed to refine query: {e}")

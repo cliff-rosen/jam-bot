@@ -20,6 +20,7 @@ from schemas.smart_search import (
 from services.google_scholar_service import GoogleScholarService
 from services.pubmed_service import search_pubmed
 from agents.prompts.base_prompt_caller import BasePromptCaller
+from schemas.chat import ChatMessage, MessageRole
 
 logger = logging.getLogger(__name__)
 
@@ -63,25 +64,43 @@ Please provide a more specific and searchable version of this question."""
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
-            system_message=system_prompt
+            system_message=system_prompt,
+            messages_placeholder=False
         )
         
         try:
             # Get LLM response
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat", 
+                role=MessageRole.USER,
+                content=user_prompt,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
             result = await prompt_caller.invoke(
-                messages=[{"role": "user", "content": user_prompt}]
+                messages=[user_message]
             )
             
-            # Extract refined_query from the response object
-            if hasattr(result, 'model_dump'):
-                response_data = result.model_dump()
-                refined_query = response_data.get('refined_query', query)
-            elif isinstance(result, dict):
-                refined_query = result.get('refined_query', query)
+            # DEBUG: Log what we actually got back
+            logger.info(f"LLM result type: {type(result)}")
+            logger.info(f"LLM result: {result}")
+            
+            # Extract refined_query from the Pydantic model instance
+            if hasattr(result, 'refined_query'):
+                refined_query = result.refined_query
+                logger.info(f"Successfully extracted refined_query: {refined_query}")
             else:
-                refined_query = query  # Fallback to original
+                logger.error(f"Result does not have 'refined_query' attribute. Type: {type(result)}, value: {result}")
+                # Try model_dump as fallback
+                if hasattr(result, 'model_dump'):
+                    response_data = result.model_dump()
+                    logger.info(f"model_dump fallback: {response_data}")
+                    refined_query = response_data.get('refined_query', query)
+                else:
+                    refined_query = query  # Final fallback
                 
-            logger.info(f"Refined query: {refined_query[:100]}...")
+            logger.info(f"Final refined query: {refined_query[:100]}...")
             return refined_query
             
         except Exception as e:
@@ -128,7 +147,8 @@ Generate an effective boolean search query for academic databases."""
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
-            system_message=system_prompt
+            system_message=system_prompt,
+            messages_placeholder=False
         )
         
         try:
@@ -137,15 +157,19 @@ Generate an effective boolean search query for academic databases."""
                 messages=[{"role": "user", "content": user_prompt}]
             )
             
-            # Extract search query from result object
-            search_query = ""
-            if hasattr(result, 'model_dump'):
-                response_data = result.model_dump()
-                search_query = response_data.get('search_query', refined_query)
-            elif isinstance(result, dict):
-                search_query = result.get('search_query', refined_query)
+            # Extract search_query from the Pydantic model instance
+            if hasattr(result, 'search_query'):
+                search_query = result.search_query
+                logger.info(f"Successfully extracted search_query: {search_query}")
             else:
-                search_query = refined_query
+                logger.error(f"Result does not have 'search_query' attribute. Type: {type(result)}, value: {result}")
+                # Try model_dump as fallback
+                if hasattr(result, 'model_dump'):
+                    response_data = result.model_dump()
+                    logger.info(f"model_dump fallback: {response_data}")
+                    search_query = response_data.get('search_query', refined_query)
+                else:
+                    search_query = refined_query  # Final fallback
             
             logger.info(f"Generated search query: {search_query}")
             return search_query

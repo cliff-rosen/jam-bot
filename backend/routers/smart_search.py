@@ -31,7 +31,7 @@ router = APIRouter(
 
 
 @router.post("/refine", response_model=SmartSearchRefinementResponse)
-async def refine_search_query(
+async def refine_research_question(
     request: SmartSearchRequest,
     current_user = Depends(validate_token)
 ) -> SmartSearchRefinementResponse:

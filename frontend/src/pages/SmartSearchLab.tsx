@@ -27,6 +27,9 @@ export default function SmartSearchLab() {
   // Step management
   const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'discriminator' | 'filtering' | 'results'>('query');
 
+  // Session tracking
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   // Step 1: Question input
   const [question, setQuestion] = useState('');
   const [questionLoading, setQuestionLoading] = useState(false);
@@ -76,9 +79,13 @@ export default function SmartSearchLab() {
 
     setQuestionLoading(true);
     try {
-      const response = await smartSearchApi.refineQuestion({ question: question });
+      const response = await smartSearchApi.refineQuestion({ 
+        question: question,
+        session_id: sessionId || undefined
+      });
       setRefinement(response);
       setEditedQuestion(response.refined_question);
+      setSessionId(response.session_id);
       setStep('refinement');
 
       toast({
@@ -110,7 +117,8 @@ export default function SmartSearchLab() {
     setSearchQueryLoading(true);
     try {
       const response = await smartSearchApi.generateSearchQuery({ 
-        refined_question: editedQuestion 
+        refined_question: editedQuestion,
+        session_id: sessionId!
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
@@ -148,7 +156,8 @@ export default function SmartSearchLab() {
     try {
       const results = await smartSearchApi.executeSearch({
         search_query: editedSearchQuery,
-        max_results: 50
+        max_results: 50,
+        session_id: sessionId!
       });
 
       if (results.articles.length === 0) {
@@ -310,7 +319,8 @@ export default function SmartSearchLab() {
       const moreResults = await smartSearchApi.executeSearch({
         search_query: editedSearchQuery,
         max_results: 50,
-        offset: searchResults.articles.length
+        offset: searchResults.articles.length,
+        session_id: sessionId!
       });
 
       // Combine results
@@ -346,6 +356,7 @@ export default function SmartSearchLab() {
 
   const handleReset = () => {
     setStep('query');
+    setSessionId(null);
     setQuestion('');
     setRefinement(null);
     setEditedQuestion('');

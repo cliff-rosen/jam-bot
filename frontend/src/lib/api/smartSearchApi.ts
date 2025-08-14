@@ -17,16 +17,19 @@ import type {
 export interface SmartSearchRequest {
   question: string;
   max_results?: number;
+  session_id?: string;
 }
 
 export interface SearchQueryRequest {
   refined_question: string;
+  session_id: string;
 }
 
 export interface ArticleSearchRequest {
   search_query: string;
   max_results?: number;
   offset?: number;
+  session_id: string;
 }
 
 export interface SemanticFilterRequest {

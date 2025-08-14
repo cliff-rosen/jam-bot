@@ -837,5 +837,79 @@ class UserCompanyProfile(Base):
             instructions.append(f"8. {self.analysis_focus}")
         
         return "\n".join(instructions)
-        
 
+
+class SmartSearchSession(Base):
+    """
+    Model for tracking smart search sessions with complete history
+    """
+    __tablename__ = "smart_search_sessions"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    
+    # User tracking
+    user_id = Column(String(255), nullable=False, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'), server_default=text('CURRENT_TIMESTAMP'))
+    
+    # Step 1: Initial Question
+    original_question = Column(Text, nullable=False)
+    
+    # Step 2: Refined Question
+    refined_question = Column(Text)
+    submitted_refined_question = Column(Text)  # What user actually submitted (may be edited)
+    
+    # Step 3: Search Query Generation
+    generated_search_query = Column(Text)
+    submitted_search_query = Column(Text)  # What user actually submitted (may be edited)
+    
+    # Step 4: Search Execution
+    search_metadata = Column(JSON)  # Stores pagination info, sources searched, etc.
+    
+    # Step 5: Article Curation
+    articles_retrieved_count = Column(Integer, default=0)
+    articles_selected_count = Column(Integer, default=0)  # How many user selected for filtering
+    
+    # Step 6: Discriminator Generation
+    generated_discriminator = Column(Text)
+    submitted_discriminator = Column(Text)  # What user actually submitted (may be edited)
+    filter_strictness = Column(String(20))  # low, medium, high
+    
+    # Step 7: Filtering Results
+    filtering_metadata = Column(JSON)
+    
+    # Session Status
+    status = Column(String(50), default="in_progress")  # in_progress, completed, abandoned
+    last_step_completed = Column(String(100))  # Track where user stopped
+    
+    # Additional Metrics
+    session_duration_seconds = Column(Integer)  # Total time from start to completion
+    total_api_calls = Column(Integer, default=0)  # Track API usage
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "original_question": self.original_question,
+            "refined_question": self.refined_question,
+            "submitted_refined_question": self.submitted_refined_question,
+            "generated_search_query": self.generated_search_query,
+            "submitted_search_query": self.submitted_search_query,
+            "search_metadata": self.search_metadata,
+            "articles_retrieved_count": self.articles_retrieved_count,
+            "articles_selected_count": self.articles_selected_count,
+            "generated_discriminator": self.generated_discriminator,
+            "submitted_discriminator": self.submitted_discriminator,
+            "filter_strictness": self.filter_strictness,
+            "filtering_metadata": self.filtering_metadata,
+            "status": self.status,
+            "last_step_completed": self.last_step_completed,
+            "session_duration_seconds": self.session_duration_seconds,
+            "total_api_calls": self.total_api_calls
+        }

@@ -5,11 +5,13 @@
 export interface SmartSearchRefinement {
   original_question: string;
   refined_question: string;
+  session_id: string;
 }
 
 export interface SearchQueryGeneration {
   refined_question: string;
   search_query: string;
+  session_id: string;
 }
 
 export interface SearchArticle {

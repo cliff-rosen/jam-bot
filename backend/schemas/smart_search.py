@@ -12,23 +12,27 @@ class SmartSearchRequest(BaseModel):
     """Initial search request from user"""
     question: str = Field(..., description="User's research question")
     max_results: int = Field(50, description="Maximum results to return")
+    session_id: Optional[str] = Field(None, description="Optional session ID to continue existing session")
 
 
 class SmartSearchRefinementResponse(BaseModel):
     """Response from question refinement step (Step 2)"""
     original_question: str = Field(..., description="Original user question")
     refined_question: str = Field(..., description="Refined, more specific question")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SearchQueryRequest(BaseModel):
     """Request to generate search query from refined question (Step 3)"""
     refined_question: str = Field(..., description="Refined question to convert to search terms")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SearchQueryResponse(BaseModel):
     """Response from search query generation (Step 3)"""
     refined_question: str = Field(..., description="The refined question used")
     search_query: str = Field(..., description="Boolean search query for databases")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class ArticleSearchRequest(BaseModel):
@@ -36,6 +40,7 @@ class ArticleSearchRequest(BaseModel):
     search_query: str = Field(..., description="Boolean search query")
     max_results: int = Field(50, description="Maximum results per source")
     offset: int = Field(0, description="Number of results to skip (for pagination)")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SearchPaginationInfo(BaseModel):

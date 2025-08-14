@@ -49,10 +49,6 @@ Guidelines:
 
 Respond in JSON format with the refined question in the "refined_query" field."""
 
-        user_prompt = f"""Original research question: {query}
-
-Please provide a more specific and searchable version of this question."""
-
         # Object schema with refined_query field for BasePromptCaller
         response_schema = {
             "type": "object",
@@ -64,17 +60,16 @@ Please provide a more specific and searchable version of this question."""
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
-            system_message=system_prompt,
-            messages_placeholder=False
+            system_message=system_prompt
         )
         
         try:
-            # Get LLM response
+            # Get LLM response  
             user_message = ChatMessage(
                 id="temp_id",
                 chat_id="temp_chat", 
                 role=MessageRole.USER,
-                content=user_prompt,
+                content=f"Original research question: {query}\n\nPlease provide a more specific and searchable version of this question.",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -147,14 +142,21 @@ Generate an effective boolean search query for academic databases."""
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
-            system_message=system_prompt,
-            messages_placeholder=False
+            system_message=system_prompt
         )
         
         try:
             # Get LLM response
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat", 
+                role=MessageRole.USER,
+                content=f"Research question: {refined_query}\n\nGenerate an effective boolean search query for academic databases.",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
             result = await prompt_caller.invoke(
-                messages=[{"role": "user", "content": user_prompt}]
+                messages=[user_message]
             )
             
             # Extract search_query from the Pydantic model instance
@@ -419,8 +421,16 @@ Respond in JSON format:
         
         try:
             # Get LLM evaluation
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat", 
+                role=MessageRole.USER,
+                content=eval_prompt,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
             result = await prompt_caller.invoke(
-                messages=[{"role": "user", "content": eval_prompt}]
+                messages=[user_message]
             )
             
             # Convert to response model

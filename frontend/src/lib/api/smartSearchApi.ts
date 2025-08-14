@@ -15,12 +15,12 @@ import type {
 } from '@/types/smart-search';
 
 export interface SmartSearchRequest {
-  query: string;
+  question: string;
   max_results?: number;
 }
 
 export interface SearchQueryRequest {
-  refined_query: string;
+  refined_question: string;
 }
 
 export interface ArticleSearchRequest {
@@ -30,20 +30,20 @@ export interface ArticleSearchRequest {
 
 export interface SemanticFilterRequest {
   articles: any[];
-  refined_query: string;
+  refined_question: string;
   search_query: string;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
 }
 
 export interface DiscriminatorGenerationRequest {
-  refined_query: string;
+  refined_question: string;
   search_query: string;
   strictness: 'low' | 'medium' | 'high';
 }
 
 export interface DiscriminatorGenerationResponse {
-  refined_query: string;
+  refined_question: string;
   search_query: string;
   strictness: string;
   discriminator_prompt: string;
@@ -59,7 +59,7 @@ class SmartSearchApi {
   }
 
   /**
-   * Step 3: Generate boolean search query from refined query
+   * Step 3: Generate boolean search query from refined question
    */
   async generateSearchQuery(request: SearchQueryRequest): Promise<SearchQueryGeneration> {
     const response = await api.post('/api/lab/smart-search/generate-query', request);

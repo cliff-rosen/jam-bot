@@ -27,13 +27,13 @@ export default function SmartSearchLab() {
   // Step management
   const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'discriminator' | 'filtering' | 'results'>('query');
 
-  // Step 1: Query input
-  const [query, setQuery] = useState('');
-  const [queryLoading, setQueryLoading] = useState(false);
+  // Step 1: Question input
+  const [question, setQuestion] = useState('');
+  const [questionLoading, setQuestionLoading] = useState(false);
 
   // Step 2: Refinement
   const [refinement, setRefinement] = useState<SmartSearchRefinement | null>(null);
-  const [editedQuery, setEditedQuery] = useState('');
+  const [editedQuestion, setEditedQuestion] = useState('');
   
   // Step 3: Search Query Generation
   const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
@@ -63,9 +63,9 @@ export default function SmartSearchLab() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [filteringProgress]);
 
-  // Step 1: Submit query for refinement
-  const handleRefineQuery = async () => {
-    if (!query.trim()) {
+  // Step 1: Submit question for refinement
+  const handleRefineQuestion = async () => {
+    if (!question.trim()) {
       toast({
         title: 'Error',
         description: 'Please enter a research question',
@@ -74,16 +74,16 @@ export default function SmartSearchLab() {
       return;
     }
 
-    setQueryLoading(true);
+    setQuestionLoading(true);
     try {
-      const response = await smartSearchApi.refineQuestion({ query });
+      const response = await smartSearchApi.refineQuestion({ question });
       setRefinement(response);
-      setEditedQuery(response.refined_query);
+      setEditedQuestion(response.refined_question);
       setStep('refinement');
 
       toast({
-        title: 'Query Refined',
-        description: 'Review and edit the refined query'
+        title: 'Question Refined',
+        description: 'Review and edit the refined question'
       });
     } catch (error) {
       toast({
@@ -92,16 +92,16 @@ export default function SmartSearchLab() {
         variant: 'destructive'
       });
     } finally {
-      setQueryLoading(false);
+      setQuestionLoading(false);
     }
   };
 
-  // Step 2: Generate search query from refined query
+  // Step 2: Generate search query from refined question
   const handleGenerateSearchQuery = async () => {
-    if (!editedQuery.trim()) {
+    if (!editedQuestion.trim()) {
       toast({
         title: 'Error',
-        description: 'Please provide a refined query',
+        description: 'Please provide a refined question',
         variant: 'destructive'
       });
       return;
@@ -110,7 +110,7 @@ export default function SmartSearchLab() {
     setSearchQueryLoading(true);
     try {
       const response = await smartSearchApi.generateSearchQuery({ 
-        refined_query: editedQuery 
+        refined_question: editedQuestion 
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
@@ -208,7 +208,7 @@ export default function SmartSearchLab() {
       await smartSearchApi.filterArticlesStreaming(
         {
           articles: selectedArticleList,
-          refined_query: editedQuery,
+          refined_question: editedQuestion,
           search_query: editedSearchQuery,
           strictness,
           discriminator_prompt: editedDiscriminator
@@ -276,7 +276,7 @@ export default function SmartSearchLab() {
     setDiscriminatorLoading(true);
     try {
       const response = await smartSearchApi.generateDiscriminator({
-        refined_query: editedQuery,
+        refined_question: editedQuestion,
         search_query: editedSearchQuery,
         strictness: strictness
       });
@@ -303,9 +303,9 @@ export default function SmartSearchLab() {
   // Reset to start
   const handleReset = () => {
     setStep('query');
-    setQuery('');
+    setQuestion('');
     setRefinement(null);
-    setEditedQuery('');
+    setEditedQuestion('');
     setSearchQueryGeneration(null);
     setEditedSearchQuery('');
     setSearchResults(null);
@@ -378,18 +378,18 @@ export default function SmartSearchLab() {
           {/* Step Components */}
           {step === 'query' && (
             <QueryInputStep
-              query={query}
-              setQuery={setQuery}
-              onSubmit={handleRefineQuery}
-              loading={queryLoading}
+              question={question}
+              setQuestion={setQuestion}
+              onSubmit={handleRefineQuestion}
+              loading={questionLoading}
             />
           )}
 
           {step === 'refinement' && refinement && (
             <RefinementStep
               refinement={refinement}
-              editedQuery={editedQuery}
-              setEditedQuery={setEditedQuery}
+              editedQuestion={editedQuestion}
+              setEditedQuestion={setEditedQuestion}
               onSubmit={handleGenerateSearchQuery}
               loading={searchQueryLoading}
             />
@@ -420,7 +420,7 @@ export default function SmartSearchLab() {
 
           {step === 'discriminator' && discriminatorData && (
             <DiscriminatorStep
-              editedQuery={editedQuery}
+              editedQuestion={editedQuestion}
               editedSearchQuery={editedSearchQuery}
               editedDiscriminator={editedDiscriminator}
               setEditedDiscriminator={setEditedDiscriminator}

@@ -6,16 +6,16 @@ import type { SmartSearchRefinement } from '@/types/smart-search';
 
 interface RefinementStepProps {
   refinement: SmartSearchRefinement;
-  editedQuery: string;
-  setEditedQuery: (query: string) => void;
+  editedQuestion: string;
+  setEditedQuestion: (question: string) => void;
   onSubmit: () => void;
   loading: boolean;
 }
 
 export function RefinementStep({ 
   refinement, 
-  editedQuery, 
-  setEditedQuery, 
+  editedQuestion, 
+  setEditedQuestion, 
   onSubmit, 
   loading 
 }: RefinementStepProps) {
@@ -28,7 +28,7 @@ export function RefinementStep({
       <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
         <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Step Completed:</h3>
         <p className="text-sm text-blue-800 dark:text-blue-200">
-          ✓ Original query refined for clarity and specificity
+          ✓ Original question refined for clarity and specificity
         </p>
       </div>
 
@@ -36,19 +36,19 @@ export function RefinementStep({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Original Query
+              Original Question
             </label>
             <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm text-gray-900 dark:text-gray-100">
-              {refinement.original_query}
+              {refinement.original_question}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Refined Query (Step 2 Output)
+              Refined Question (Step 2 Output)
             </label>
             <Textarea
-              value={editedQuery}
-              onChange={(e) => setEditedQuery(e.target.value)}
+              value={editedQuestion}
+              onChange={(e) => setEditedQuestion(e.target.value)}
               rows={3}
               className="dark:bg-gray-700 dark:text-gray-100 text-sm"
             />
@@ -57,7 +57,7 @@ export function RefinementStep({
 
         <Button
           onClick={onSubmit}
-          disabled={loading || !editedQuery.trim()}
+          disabled={loading || !editedQuestion.trim()}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           {loading ? (

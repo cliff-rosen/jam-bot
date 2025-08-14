@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 
 interface DiscriminatorStepProps {
-  editedQuery: string;
+  editedQuestion: string;
   editedSearchQuery: string;
   editedDiscriminator: string;
   setEditedDiscriminator: (discriminator: string) => void;
@@ -15,7 +15,7 @@ interface DiscriminatorStepProps {
 }
 
 export function DiscriminatorStep({
-  editedQuery,
+  editedQuestion,
   editedSearchQuery,
   editedDiscriminator,
   setEditedDiscriminator,
@@ -47,7 +47,7 @@ export function DiscriminatorStep({
               Research Question
             </label>
             <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border">
-              {editedQuery}
+              {editedQuestion}
             </div>
           </div>
           <div>

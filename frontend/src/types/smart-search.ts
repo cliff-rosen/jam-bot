@@ -3,12 +3,12 @@
  */
 
 export interface SmartSearchRefinement {
-  original_query: string;
-  refined_query: string;
+  original_question: string;
+  refined_question: string;
 }
 
 export interface SearchQueryGeneration {
-  refined_query: string;
+  refined_question: string;
   search_query: string;
 }
 

@@ -4,13 +4,13 @@ import { Card } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 
 interface QueryInputStepProps {
-  query: string;
-  setQuery: (query: string) => void;
+  question: string;
+  setQuestion: (question: string) => void;
   onSubmit: () => void;
   loading: boolean;
 }
 
-export function QueryInputStep({ query, setQuery, onSubmit, loading }: QueryInputStepProps) {
+export function QueryInputStep({ question, setQuestion, onSubmit, loading }: QueryInputStepProps) {
   return (
     <Card className="p-6 dark:bg-gray-800">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -18,15 +18,15 @@ export function QueryInputStep({ query, setQuery, onSubmit, loading }: QueryInpu
       </h2>
       <div className="space-y-4">
         <Textarea
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g., What are the effects of CRISPR gene editing on cancer treatment outcomes?"
           rows={4}
           className="dark:bg-gray-700 dark:text-gray-100"
         />
         <Button
           onClick={onSubmit}
-          disabled={loading || !query.trim()}
+          disabled={loading || !question.trim()}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           {loading ? (

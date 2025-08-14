@@ -5,8 +5,11 @@
 export interface SmartSearchRefinement {
   original_query: string;
   refined_query: string;
-  keywords: string[];
-  search_strategy: string;
+}
+
+export interface SearchQueryGeneration {
+  refined_query: string;
+  search_query: string;
 }
 
 export interface SearchArticle {

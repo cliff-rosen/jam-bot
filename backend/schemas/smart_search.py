@@ -15,16 +15,25 @@ class SmartSearchRequest(BaseModel):
 
 
 class SmartSearchRefinementResponse(BaseModel):
-    """Response from query refinement step"""
+    """Response from query refinement step (Step 2)"""
     original_query: str = Field(..., description="Original user query")
     refined_query: str = Field(..., description="Refined, more specific query")
-    keywords: List[str] = Field(..., description="Search keywords extracted")
-    search_strategy: str = Field(..., description="Brief explanation of search approach")
 
 
-class KeywordSearchRequest(BaseModel):
-    """Request to search with keywords"""
-    keywords: List[str] = Field(..., description="Keywords to search")
+class SearchQueryRequest(BaseModel):
+    """Request to generate search query from refined query (Step 3)"""
+    refined_query: str = Field(..., description="Refined query to convert to search terms")
+
+
+class SearchQueryResponse(BaseModel):
+    """Response from search query generation (Step 3)"""
+    refined_query: str = Field(..., description="The refined query used")
+    search_query: str = Field(..., description="Boolean search query for databases")
+
+
+class ArticleSearchRequest(BaseModel):
+    """Request to search with boolean query"""
+    search_query: str = Field(..., description="Boolean search query")
     max_results: int = Field(50, description="Maximum results per source")
 
 
@@ -52,7 +61,7 @@ class SemanticFilterRequest(BaseModel):
     """Request to filter articles semantically"""
     articles: List[SearchArticle]
     refined_query: str
-    keywords: List[str]
+    search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
 
 

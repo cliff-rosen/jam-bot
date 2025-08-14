@@ -89,39 +89,41 @@ Please provide a more specific and searchable version of this question."""
             # Fallback: return original query
             return query
     
-    async def generate_keywords(self, refined_query: str) -> List[str]:
+    async def generate_search_query(self, refined_query: str) -> str:
         """
-        Step 3: Generate search keywords from the REFINED query using LLM
+        Step 3: Generate boolean search query from the REFINED query using LLM
         """
-        logger.info(f"Step 3 - Generating keywords from refined query...")
+        logger.info(f"Step 3 - Generating boolean search query from refined query...")
         
-        # Create prompt for keyword generation
-        system_prompt = """You are a keyword extraction expert for academic research. Your task is to extract effective search keywords from a research question.
+        # Create prompt for search query generation
+        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into an effective boolean search query.
 
 Guidelines:
-- Extract 5-10 keywords or key phrases
-- Include both specific terms and broader concepts
+- Use AND, OR, NOT operators appropriately
+- Use parentheses to group related terms
 - Include relevant medical/scientific terminology
-- Include variations and synonyms when helpful
+- Include variations and synonyms with OR
+- Use quotes for exact phrases when appropriate
+- Structure for maximum recall while maintaining precision
 
-Respond in JSON format with a "keywords" array containing the search terms."""
+Example formats:
+- (cancer OR carcinoma) AND (treatment OR therapy) AND CRISPR
+- "gene editing" AND (outcomes OR results) AND (clinical OR trials)
+- (diabetes OR "diabetes mellitus") AND (insulin OR medication) NOT "type 1"
+
+Respond in JSON format with a "search_query" field containing the boolean search string."""
 
         user_prompt = f"""Research question: {refined_query}
 
-Extract the most effective search keywords from this question."""
+Generate an effective boolean search query for academic databases."""
 
-        # Schema for keyword array - wrapped in object for BasePromptCaller
+        # Schema for search query
         response_schema = {
             "type": "object",
             "properties": {
-                "keywords": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "minItems": 5,
-                    "maxItems": 10
-                }
+                "search_query": {"type": "string"}
             },
-            "required": ["keywords"]
+            "required": ["search_query"]
         }
         
         prompt_caller = BasePromptCaller(
@@ -135,58 +137,33 @@ Extract the most effective search keywords from this question."""
                 messages=[{"role": "user", "content": user_prompt}]
             )
             
-            # Extract keywords from result object
-            keywords = []
+            # Extract search query from result object
+            search_query = ""
             if hasattr(result, 'model_dump'):
                 response_data = result.model_dump()
-                keywords = response_data.get('keywords', [])
+                search_query = response_data.get('search_query', refined_query)
             elif isinstance(result, dict):
-                keywords = result.get('keywords', [])
+                search_query = result.get('search_query', refined_query)
+            else:
+                search_query = refined_query
             
-            # Ensure we have a list
-            if not isinstance(keywords, list):
-                keywords = []
-            
-            logger.info(f"Generated {len(keywords)} keywords: {keywords}")
-            return keywords
+            logger.info(f"Generated search query: {search_query}")
+            return search_query
             
         except Exception as e:
-            logger.error(f"Failed to generate keywords: {e}")
-            # Fallback: simple extraction from refined query
-            return refined_query.split()[:8]
+            logger.error(f"Failed to generate search query: {e}")
+            # Fallback: use refined query as-is
+            return refined_query
     
-    async def refine_and_generate_keywords(self, query: str) -> SmartSearchRefinementResponse:
-        """
-        Combined method that calls both refinement and keyword generation
-        This is what the router will call
-        """
-        # Step 2: Refine the query
-        refined_query = await self.refine_search_query(query)
-        
-        # Step 3: Generate keywords from the REFINED query
-        keywords = await self.generate_keywords(refined_query)
-        
-        # Create a simple search strategy description
-        search_strategy = f"Search for articles using keywords extracted from the refined query, focusing on {len(keywords)} key terms."
-        
-        return SmartSearchRefinementResponse(
-            original_query=query,
-            refined_query=refined_query,
-            keywords=keywords,
-            search_strategy=search_strategy
-        )
     
-    async def search_articles(self, keywords: List[str], max_results: int = 50) -> SearchResultsResponse:
+    async def search_articles(self, search_query: str, max_results: int = 50) -> SearchResultsResponse:
         """
-        Search for articles using keywords across multiple sources
+        Search for articles using search query across multiple sources
         """
-        logger.info(f"Searching with keywords: {keywords}")
+        logger.info(f"Searching with query: {search_query}")
         
         all_articles = []
         sources_searched = []
-        
-        # Create search query from keywords
-        search_query = " ".join(keywords)
         
         # Search PubMed
         try:
@@ -258,7 +235,7 @@ Extract the most effective search keywords from this question."""
     async def generate_semantic_discriminator(
         self, 
         refined_query: str, 
-        keywords: List[str],
+        search_query: str,
         strictness: str = "medium"
     ) -> str:
         """
@@ -277,7 +254,7 @@ Extract the most effective search keywords from this question."""
 
 Research Question: {refined_query}
 
-Key Search Terms Used: {', '.join(keywords)}
+Search Query Used: {search_query}
 
 Evaluation Strictness: {strictness.upper()}
 {strictness_instructions.get(strictness, strictness_instructions["medium"])}
@@ -308,7 +285,7 @@ You must respond in this exact JSON format:
         self,
         articles: List[SearchArticle],
         refined_query: str,
-        keywords: List[str],
+        search_query: str,
         strictness: str = "medium"
     ) -> AsyncGenerator[str, None]:
         """
@@ -318,7 +295,7 @@ You must respond in this exact JSON format:
         
         # Generate discriminator prompt
         discriminator = await self.generate_semantic_discriminator(
-            refined_query, keywords, strictness
+            refined_query, search_query, strictness
         )
         
         # Initialize counters

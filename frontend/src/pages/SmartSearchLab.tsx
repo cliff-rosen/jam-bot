@@ -8,49 +8,52 @@ import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
 import type {
   SmartSearchRefinement,
+  SearchQueryGeneration,
   SearchResults,
   FilteredArticle,
   FilteringProgress,
   StreamMessage
 } from '@/types/smart-search';
-import { 
-  Search, 
-  ChevronRight, 
-  Check, 
-  X, 
+import {
+  Search,
+  ChevronRight,
+  Check,
+  X,
   ExternalLink,
   RefreshCw
 } from 'lucide-react';
 
 export default function SmartSearchLab() {
   // Step management
-  const [step, setStep] = useState<'query' | 'refinement' | 'searching' | 'filtering' | 'results'>('query');
-  
+  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'filtering' | 'results'>('query');
+
   // Step 1: Query input
   const [query, setQuery] = useState('');
   const [queryLoading, setQueryLoading] = useState(false);
-  
+
   // Step 2: Refinement
   const [refinement, setRefinement] = useState<SmartSearchRefinement | null>(null);
   const [editedQuery, setEditedQuery] = useState('');
-  const [editedKeywords, setEditedKeywords] = useState<string[]>([]);
-  const [newKeyword, setNewKeyword] = useState('');
   
+  // Step 3: Search Query Generation
+  const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
+  const [editedSearchQuery, setEditedSearchQuery] = useState('');
+  const [searchQueryLoading, setSearchQueryLoading] = useState(false);
+
   // Step 3: Search and filtering
   const [searchLoading, setSearchLoading] = useState(false);
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
-  const [filteringLoading, setFilteringLoading] = useState(false);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
-  
+
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Auto-scroll for messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [filteringProgress]);
-  
+
   // Step 1: Submit query for refinement
   const handleRefineQuery = async () => {
     if (!query.trim()) {
@@ -61,7 +64,7 @@ export default function SmartSearchLab() {
       });
       return;
     }
-    
+
     setQueryLoading(true);
     try {
       const response = await smartSearchApi.refineQuery({ query });
@@ -69,7 +72,7 @@ export default function SmartSearchLab() {
       setEditedQuery(response.refined_query);
       setEditedKeywords([...response.keywords]);
       setStep('refinement');
-      
+
       toast({
         title: 'Query Refined',
         description: 'Review the refined query and keywords'
@@ -84,7 +87,7 @@ export default function SmartSearchLab() {
       setQueryLoading(false);
     }
   };
-  
+
   // Step 2: Execute search
   const handleExecuteSearch = async () => {
     if (editedKeywords.length === 0) {
@@ -95,16 +98,16 @@ export default function SmartSearchLab() {
       });
       return;
     }
-    
+
     setSearchLoading(true);
     setStep('searching');
-    
+
     try {
       const results = await smartSearchApi.executeSearch({
         keywords: editedKeywords,
         max_results: 50
       });
-      
+
       if (results.articles.length === 0) {
         toast({
           title: 'No Results',
@@ -131,7 +134,7 @@ export default function SmartSearchLab() {
       setSearchLoading(false);
     }
   };
-  
+
   // Step 3: Start filtering
   const handleStartFiltering = async (results: SearchResults) => {
     setStep('filtering');
@@ -143,7 +146,7 @@ export default function SmartSearchLab() {
       accepted: 0,
       rejected: 0
     });
-    
+
     try {
       await smartSearchApi.filterArticlesStreaming(
         {
@@ -190,7 +193,7 @@ export default function SmartSearchLab() {
       });
     }
   };
-  
+
   // Add/remove keywords
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !editedKeywords.includes(newKeyword.trim())) {
@@ -198,12 +201,11 @@ export default function SmartSearchLab() {
       setNewKeyword('');
     }
   };
-  
+
   const handleRemoveKeyword = (keyword: string) => {
     setEditedKeywords(editedKeywords.filter(k => k !== keyword));
   };
-  
-  
+
   // Reset to start
   const handleReset = () => {
     setStep('query');
@@ -214,11 +216,11 @@ export default function SmartSearchLab() {
     setFilteredArticles([]);
     setFilteringProgress(null);
   };
-  
+
   // Get accepted articles
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
-  
+
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -243,7 +245,7 @@ export default function SmartSearchLab() {
             </Button>
           )}
         </div>
-        
+
         {/* Progress Steps - Updated to show the actual flow */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Enter Query</Badge>
@@ -267,10 +269,10 @@ export default function SmartSearchLab() {
           <Badge variant={step === 'results' ? 'default' : 'outline'}>6. Results</Badge>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto space-y-6">
-          
+
           {/* Step 1: Query Input */}
           {step === 'query' && (
             <Card className="p-6 dark:bg-gray-800">
@@ -305,14 +307,14 @@ export default function SmartSearchLab() {
               </div>
             </Card>
           )}
-          
+
           {/* Step 2: Refinement Review */}
           {step === 'refinement' && refinement && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 Review Refinement & Keywords
               </h2>
-              
+
               {/* Show the flow */}
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Processing Steps Completed:</h3>
@@ -321,7 +323,7 @@ export default function SmartSearchLab() {
                   <li>✓ Keywords extracted from the refined query</li>
                 </ol>
               </div>
-              
+
               <div className="space-y-4">
                 {/* Original vs Refined Query */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -345,7 +347,7 @@ export default function SmartSearchLab() {
                     />
                   </div>
                 </div>
-                
+
                 {/* Keywords */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -386,7 +388,7 @@ export default function SmartSearchLab() {
                     </Button>
                   </div>
                 </div>
-                
+
                 {/* Strictness Setting */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -410,7 +412,7 @@ export default function SmartSearchLab() {
                     {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
                   </p>
                 </div>
-                
+
                 <Button
                   onClick={handleExecuteSearch}
                   disabled={editedKeywords.length === 0}
@@ -422,7 +424,7 @@ export default function SmartSearchLab() {
               </div>
             </Card>
           )}
-          
+
           {/* Step 3: Searching */}
           {step === 'searching' && (
             <Card className="p-6 dark:bg-gray-800">
@@ -437,14 +439,14 @@ export default function SmartSearchLab() {
               </div>
             </Card>
           )}
-          
+
           {/* Step 4: Filtering */}
           {step === 'filtering' && filteringProgress && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 Applying Semantic Filter
               </h2>
-              
+
               {/* Progress Bar */}
               <div className="mb-6">
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -458,7 +460,7 @@ export default function SmartSearchLab() {
                   />
                 </div>
               </div>
-              
+
               {/* Statistics */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -480,7 +482,7 @@ export default function SmartSearchLab() {
                   <div className="text-sm text-gray-600 dark:text-gray-400">Remaining</div>
                 </div>
               </div>
-              
+
               {/* Current Article */}
               {filteringProgress.current_article && (
                 <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
@@ -490,11 +492,11 @@ export default function SmartSearchLab() {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </Card>
           )}
-          
+
           {/* Step 5: Results */}
           {step === 'results' && (
             <>
@@ -503,7 +505,7 @@ export default function SmartSearchLab() {
                 <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                   Filtering Complete
                 </h2>
-                
+
                 <div className="grid grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -525,7 +527,7 @@ export default function SmartSearchLab() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {acceptedArticles.length > 0 
+                      {acceptedArticles.length > 0
                         ? Math.round((acceptedArticles.reduce((sum, a) => sum + a.confidence, 0) / acceptedArticles.length) * 100)
                         : 0}%
                     </div>
@@ -533,7 +535,7 @@ export default function SmartSearchLab() {
                   </div>
                 </div>
               </Card>
-              
+
               {/* Accepted Articles */}
               {acceptedArticles.length > 0 && (
                 <Card className="p-6 dark:bg-gray-800">
@@ -547,92 +549,91 @@ export default function SmartSearchLab() {
                         key={idx}
                         className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-gray-900 dark:text-gray-100 flex-1">
-                              {item.article.title}
-                            </h4>
-                            <Badge variant="secondary" className="ml-2">
-                              {Math.round(item.confidence * 100)}%
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100 flex-1">
+                            {item.article.title}
+                          </h4>
+                          <Badge variant="secondary" className="ml-2">
+                            {Math.round(item.confidence * 100)}%
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          {item.article.authors.slice(0, 3).join(', ')}
+                          {item.article.authors.length > 3 && ' et al.'}
+                          {item.article.year && ` (${item.article.year})`}
+                        </p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">
+                          {item.article.abstract}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                            {item.reasoning}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {item.article.source}
                             </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {item.article.authors.slice(0, 3).join(', ')}
-                            {item.article.authors.length > 3 && ' et al.'}
-                            {item.article.year && ` (${item.article.year})`}
-                          </p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">
-                            {item.article.abstract}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                              {item.reasoning}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {item.article.source}
-                              </Badge>
-                              {item.article.url && (
-                                <a
-                                  href={item.article.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-700"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </a>
-                              )}
-                            </div>
+                            {item.article.url && (
+                              <a
+                                href={item.article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
                     ))}
-                  </div>
+                </div>
                 </Card>
               )}
-              
-              {/* Rejected Articles (Collapsed by default) */}
-              {rejectedArticles.length > 0 && (
-                <details className="group">
-                  <summary className="cursor-pointer">
-                    <Card className="p-6 dark:bg-gray-800">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
-                        <X className="w-5 h-5 text-red-600 mr-2" />
-                        Rejected Articles ({rejectedArticles.length})
-                        <span className="ml-2 text-sm font-normal text-gray-500">
-                          (Click to expand)
-                        </span>
-                      </h3>
-                    </Card>
-                  </summary>
-                  <Card className="p-6 dark:bg-gray-800 mt-2">
-                    <div className="space-y-3">
-                      {rejectedArticles.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg opacity-60"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                              {item.article.title}
-                            </h4>
-                            <Badge variant="outline" className="ml-2 text-red-600">
-                              {Math.round(item.confidence * 100)}%
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                            Reason: {item.reasoning}
-                          </p>
-                        </div>
-                      ))}
+
+          {/* Rejected Articles (Collapsed by default) */}
+          {rejectedArticles.length > 0 && (
+            <details className="group">
+              <summary className="cursor-pointer">
+                <Card className="p-6 dark:bg-gray-800">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                    <X className="w-5 h-5 text-red-600 mr-2" />
+                    Rejected Articles ({rejectedArticles.length})
+                    <span className="ml-2 text-sm font-normal text-gray-500">
+                      (Click to expand)
+                    </span>
+                  </h3>
+                </Card>
+              </summary>
+              <Card className="p-6 dark:bg-gray-800 mt-2">
+                <div className="space-y-3">
+                  {rejectedArticles.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg opacity-60"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-gray-700 dark:text-gray-300 flex-1">
+                          {item.article.title}
+                        </h4>
+                        <Badge variant="outline" className="ml-2 text-red-600">
+                          {Math.round(item.confidence * 100)}%
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        Reason: {item.reasoning}
+                      </p>
                     </div>
-                  </Card>
-                </details>
-              )}
-            </>
+                  ))}
+                </div>
+              </Card>
+            </details>
           )}
-          
-        </div>
+        </>
+          )}
+
       </div>
     </div>
+    </div >
   );
 }

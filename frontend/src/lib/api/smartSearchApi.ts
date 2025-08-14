@@ -8,6 +8,7 @@ import { api } from './index';
 import { makeStreamRequest } from './streamUtils';
 import type {
   SmartSearchRefinement,
+  SearchQueryGeneration,
   SearchResults,
   FilteredArticle,
   StreamMessage
@@ -18,21 +19,25 @@ export interface SmartSearchRequest {
   max_results?: number;
 }
 
-export interface KeywordSearchRequest {
-  keywords: string[];
+export interface SearchQueryRequest {
+  refined_query: string;
+}
+
+export interface ArticleSearchRequest {
+  search_query: string;
   max_results?: number;
 }
 
 export interface SemanticFilterRequest {
   articles: any[];
   refined_query: string;
-  keywords: string[];
+  search_query: string;
   strictness?: 'low' | 'medium' | 'high';
 }
 
 class SmartSearchApi {
   /**
-   * Refine a search query and extract keywords
+   * Step 2: Refine a search query
    */
   async refineQuery(request: SmartSearchRequest): Promise<SmartSearchRefinement> {
     const response = await api.post('/api/lab/smart-search/refine', request);
@@ -40,9 +45,17 @@ class SmartSearchApi {
   }
 
   /**
-   * Execute search with keywords
+   * Step 3: Generate boolean search query from refined query
    */
-  async executeSearch(request: KeywordSearchRequest): Promise<SearchResults> {
+  async generateSearchQuery(request: SearchQueryRequest): Promise<SearchQueryGeneration> {
+    const response = await api.post('/api/lab/smart-search/generate-query', request);
+    return response.data;
+  }
+
+  /**
+   * Step 4: Execute search with boolean query
+   */
+  async executeSearch(request: ArticleSearchRequest): Promise<SearchResults> {
     const response = await api.post('/api/lab/smart-search/execute', request);
     return response.data;
   }

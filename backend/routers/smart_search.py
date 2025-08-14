@@ -12,7 +12,9 @@ from fastapi.responses import StreamingResponse
 from schemas.smart_search import (
     SmartSearchRequest,
     SmartSearchRefinementResponse,
-    KeywordSearchRequest,
+    SearchQueryRequest,
+    SearchQueryResponse,
+    ArticleSearchRequest,
     SearchResultsResponse,
     SemanticFilterRequest
 )
@@ -34,13 +36,18 @@ async def refine_search_query(
     current_user = Depends(validate_token)
 ) -> SmartSearchRefinementResponse:
     """
-    Refine a search query and extract keywords
+    Step 2: Refine user's research question
     """
     try:
         logger.info(f"User {current_user.user_id} refining search query: {request.query[:100]}...")
         
         service = SmartSearchService()
-        response = await service.refine_and_generate_keywords(request.query)
+        refined_query = await service.refine_search_query(request.query)
+        
+        response = SmartSearchRefinementResponse(
+            original_query=request.query,
+            refined_query=refined_query
+        )
         
         logger.info(f"Query refinement completed for user {current_user.user_id}")
         return response
@@ -50,20 +57,47 @@ async def refine_search_query(
         raise HTTPException(status_code=500, detail=f"Query refinement failed: {str(e)}")
 
 
+@router.post("/generate-query", response_model=SearchQueryResponse)
+async def generate_search_query(
+    request: SearchQueryRequest,
+    current_user = Depends(validate_token)
+) -> SearchQueryResponse:
+    """
+    Step 3: Generate boolean search query from refined question
+    """
+    try:
+        logger.info(f"User {current_user.user_id} generating search query from: {request.refined_query[:100]}...")
+        
+        service = SmartSearchService()
+        search_query = await service.generate_search_query(request.refined_query)
+        
+        response = SearchQueryResponse(
+            refined_query=request.refined_query,
+            search_query=search_query
+        )
+        
+        logger.info(f"Search query generation completed for user {current_user.user_id}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Search query generation failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Search query generation failed: {str(e)}")
+
+
 @router.post("/execute", response_model=SearchResultsResponse)
 async def execute_search(
-    request: KeywordSearchRequest,
+    request: ArticleSearchRequest,
     current_user = Depends(validate_token)
 ) -> SearchResultsResponse:
     """
-    Execute search with keywords
+    Step 4: Execute search with boolean query
     """
     try:
-        logger.info(f"User {current_user.user_id} executing search with {len(request.keywords)} keywords")
+        logger.info(f"User {current_user.user_id} executing search with query: {request.search_query[:100]}...")
         
         service = SmartSearchService()
         response = await service.search_articles(
-            keywords=request.keywords,
+            search_query=request.search_query,
             max_results=request.max_results
         )
         
@@ -93,7 +127,7 @@ async def filter_articles_stream(
                 async for message in service.filter_articles_streaming(
                     articles=request.articles,
                     refined_query=request.refined_query,
-                    keywords=request.keywords,
+                    search_query=request.search_query,
                     strictness=request.strictness
                 ):
                     yield message

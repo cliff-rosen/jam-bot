@@ -30,39 +30,35 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
         
-    async def refine_search_query(self, query: str) -> SmartSearchRefinementResponse:
+    async def refine_search_query(self, query: str) -> str:
         """
-        Refine user query and extract search keywords using LLM
+        Step 2: Refine/improve the user's research question using LLM
         """
-        logger.info(f"Refining query: {query[:100]}...")
+        logger.info(f"Step 2 - Refining query: {query[:100]}...")
         
-        # Create prompt for query refinement
-        system_prompt = """You are a research query refinement expert. Your task is to:
-1. Make research queries more specific and searchable
-2. Extract effective search keywords
-3. Suggest a search strategy
+        # Create prompt for query refinement ONLY
+        system_prompt = """You are a research query refinement expert. Your task is to take a user's research question and make it more specific, clear, and searchable.
 
-Respond in JSON format with these fields:
-- refined_query: A more specific, searchable version of the query
-- keywords: Array of 5-10 search keywords/phrases
-- search_strategy: Brief explanation of the search approach (1-2 sentences)"""
+Guidelines:
+- Make the question more specific and focused
+- Clarify any ambiguous terms
+- Add relevant context if needed
+- Keep it as a natural question or statement
+- Do NOT generate keywords yet (that's a separate step)
 
-        user_prompt = f"""Original research query: {query}
+Respond with ONLY the refined question, nothing else."""
 
-Please refine this query to be more specific and generate search keywords."""
+        user_prompt = f"""Original research question: {query}
 
-        # Create prompt caller for structured response
+Please provide a more specific and searchable version of this question."""
+
+        # Object schema with refined_query field for BasePromptCaller
         response_schema = {
             "type": "object",
             "properties": {
-                "refined_query": {"type": "string"},
-                "keywords": {
-                    "type": "array",
-                    "items": {"type": "string"}
-                },
-                "search_strategy": {"type": "string"}
+                "refined_query": {"type": "string"}
             },
-            "required": ["refined_query", "keywords", "search_strategy"]
+            "required": ["refined_query"]
         }
         
         prompt_caller = BasePromptCaller(
@@ -76,25 +72,109 @@ Please refine this query to be more specific and generate search keywords."""
                 messages=[{"role": "user", "content": user_prompt}]
             )
             
-            # Convert to response model
-            response_data = result.model_dump() if hasattr(result, 'model_dump') else dict(result)
-            
-            return SmartSearchRefinementResponse(
-                original_query=query,
-                refined_query=response_data.get("refined_query", query),
-                keywords=response_data.get("keywords", []),
-                search_strategy=response_data.get("search_strategy", "Standard keyword search")
-            )
+            # Extract refined_query from the response object
+            if hasattr(result, 'model_dump'):
+                response_data = result.model_dump()
+                refined_query = response_data.get('refined_query', query)
+            elif isinstance(result, dict):
+                refined_query = result.get('refined_query', query)
+            else:
+                refined_query = query  # Fallback to original
+                
+            logger.info(f"Refined query: {refined_query[:100]}...")
+            return refined_query
             
         except Exception as e:
             logger.error(f"Failed to refine query: {e}")
-            # Fallback response
-            return SmartSearchRefinementResponse(
-                original_query=query,
-                refined_query=query,
-                keywords=query.split()[:5],  # Simple keyword extraction
-                search_strategy="Fallback: Using original query terms"
+            # Fallback: return original query
+            return query
+    
+    async def generate_keywords(self, refined_query: str) -> List[str]:
+        """
+        Step 3: Generate search keywords from the REFINED query using LLM
+        """
+        logger.info(f"Step 3 - Generating keywords from refined query...")
+        
+        # Create prompt for keyword generation
+        system_prompt = """You are a keyword extraction expert for academic research. Your task is to extract effective search keywords from a research question.
+
+Guidelines:
+- Extract 5-10 keywords or key phrases
+- Include both specific terms and broader concepts
+- Include relevant medical/scientific terminology
+- Include variations and synonyms when helpful
+
+Respond in JSON format with a "keywords" array containing the search terms."""
+
+        user_prompt = f"""Research question: {refined_query}
+
+Extract the most effective search keywords from this question."""
+
+        # Schema for keyword array - wrapped in object for BasePromptCaller
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "keywords": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 5,
+                    "maxItems": 10
+                }
+            },
+            "required": ["keywords"]
+        }
+        
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message=system_prompt
+        )
+        
+        try:
+            # Get LLM response
+            result = await prompt_caller.invoke(
+                messages=[{"role": "user", "content": user_prompt}]
             )
+            
+            # Extract keywords from result object
+            keywords = []
+            if hasattr(result, 'model_dump'):
+                response_data = result.model_dump()
+                keywords = response_data.get('keywords', [])
+            elif isinstance(result, dict):
+                keywords = result.get('keywords', [])
+            
+            # Ensure we have a list
+            if not isinstance(keywords, list):
+                keywords = []
+            
+            logger.info(f"Generated {len(keywords)} keywords: {keywords}")
+            return keywords
+            
+        except Exception as e:
+            logger.error(f"Failed to generate keywords: {e}")
+            # Fallback: simple extraction from refined query
+            return refined_query.split()[:8]
+    
+    async def refine_and_generate_keywords(self, query: str) -> SmartSearchRefinementResponse:
+        """
+        Combined method that calls both refinement and keyword generation
+        This is what the router will call
+        """
+        # Step 2: Refine the query
+        refined_query = await self.refine_search_query(query)
+        
+        # Step 3: Generate keywords from the REFINED query
+        keywords = await self.generate_keywords(refined_query)
+        
+        # Create a simple search strategy description
+        search_strategy = f"Search for articles using keywords extracted from the refined query, focusing on {len(keywords)} key terms."
+        
+        return SmartSearchRefinementResponse(
+            original_query=query,
+            refined_query=refined_query,
+            keywords=keywords,
+            search_strategy=search_strategy
+        )
     
     async def search_articles(self, keywords: List[str], max_results: int = 50) -> SearchResultsResponse:
         """
@@ -182,9 +262,10 @@ Please refine this query to be more specific and generate search keywords."""
         strictness: str = "medium"
     ) -> str:
         """
-        Generate a semantic discriminator prompt for filtering articles
+        Step 5: Generate a semantic discriminator prompt for filtering articles
+        This creates the evaluation criteria that will be used to filter each article
         """
-        logger.info(f"Generating discriminator with strictness: {strictness}")
+        logger.info(f"Step 5 - Generating semantic discriminator with strictness: {strictness}")
         
         strictness_instructions = {
             "low": "Be inclusive - accept articles that are somewhat related to the research question.",
@@ -192,23 +273,34 @@ Please refine this query to be more specific and generate search keywords."""
             "high": "Be strict - only accept articles that directly address the research question."
         }
         
-        discriminator_prompt = f"""Research Question: {refined_query}
-Key Terms: {', '.join(keywords)}
+        discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question.
 
-Evaluation Criteria ({strictness}):
+Research Question: {refined_query}
+
+Key Search Terms Used: {', '.join(keywords)}
+
+Evaluation Strictness: {strictness.upper()}
 {strictness_instructions.get(strictness, strictness_instructions["medium"])}
 
-For the following article, determine if it matches the research question.
-Consider:
-1. Does the article address the core research topic?
-2. Are the key terms present and used in relevant context?
-3. Would this article provide useful information for answering the research question?
+Your task: For each article provided, determine if it should be included in the search results.
 
-Respond with:
-- Decision: "Yes" or "No"
-- Confidence: 0.0 to 1.0
-- Reasoning: Brief explanation (1-2 sentences)
-"""
+Evaluation Criteria:
+1. Does the article address the core topic of the research question?
+2. Are the key terms present and used in a relevant context (not just mentioned in passing)?
+3. Would this article provide meaningful information for answering the research question?
+4. Is the article's focus aligned with the intent of the query?
+
+For {strictness} strictness:
+{"- Accept if 2 or more criteria are met" if strictness == "low" else ""}
+{"- Accept if 3 or more criteria are met" if strictness == "medium" else ""}
+{"- Accept only if ALL 4 criteria are met" if strictness == "high" else ""}
+
+You must respond in this exact JSON format:
+{{
+    "decision": "Yes" or "No",
+    "confidence": 0.0 to 1.0,
+    "reasoning": "1-2 sentence explanation of your decision"
+}}"""
         
         return discriminator_prompt
     

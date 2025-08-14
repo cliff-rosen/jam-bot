@@ -5,10 +5,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
-import { workbenchApi } from '@/lib/api/workbenchApi';
+
 import type {
   SmartSearchRefinement,
-  SearchArticle,
   SearchResults,
   FilteredArticle,
   FilteringProgress,
@@ -16,14 +15,11 @@ import type {
 } from '@/types/smart-search';
 import { 
   Search, 
-  Filter, 
   ChevronRight, 
   Check, 
   X, 
   ExternalLink,
-  Save,
-  RefreshCw,
-  AlertCircle
+  RefreshCw
 } from 'lucide-react';
 
 export default function SmartSearchLab() {
@@ -40,18 +36,12 @@ export default function SmartSearchLab() {
   const [editedKeywords, setEditedKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
   
-  // Step 3: Search results
-  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  // Step 3: Search and filtering
   const [searchLoading, setSearchLoading] = useState(false);
-  
-  // Step 4: Filtering
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [filteringLoading, setFilteringLoading] = useState(false);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
-  
-  // Step 5: Results
-  const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
   
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -114,8 +104,6 @@ export default function SmartSearchLab() {
         keywords: editedKeywords,
         max_results: 50
       });
-      
-      setSearchResults(results);
       
       if (results.articles.length === 0) {
         toast({
@@ -215,38 +203,6 @@ export default function SmartSearchLab() {
     setEditedKeywords(editedKeywords.filter(k => k !== keyword));
   };
   
-  // Toggle article selection
-  const toggleArticleSelection = (articleTitle: string) => {
-    const newSelection = new Set(selectedArticles);
-    if (newSelection.has(articleTitle)) {
-      newSelection.delete(articleTitle);
-    } else {
-      newSelection.add(articleTitle);
-    }
-    setSelectedArticles(newSelection);
-  };
-  
-  // Save selected articles to group
-  const handleSaveToGroup = async () => {
-    const selected = filteredArticles.filter(fa => 
-      fa.passed && selectedArticles.has(fa.article.title)
-    );
-    
-    if (selected.length === 0) {
-      toast({
-        title: 'No Articles Selected',
-        description: 'Please select articles to save',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    // TODO: Implement save to article group
-    toast({
-      title: 'Save Feature Coming Soon',
-      description: `Would save ${selected.length} articles to a group`
-    });
-  };
   
   // Reset to start
   const handleReset = () => {
@@ -255,10 +211,8 @@ export default function SmartSearchLab() {
     setRefinement(null);
     setEditedQuery('');
     setEditedKeywords([]);
-    setSearchResults(null);
     setFilteredArticles([]);
     setFilteringProgress(null);
-    setSelectedArticles(new Set());
   };
   
   // Get accepted articles
@@ -290,23 +244,27 @@ export default function SmartSearchLab() {
           )}
         </div>
         
-        {/* Progress Steps */}
-        <div className="flex items-center gap-2 mt-4">
-          <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Query</Badge>
+        {/* Progress Steps - Updated to show the actual flow */}
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Enter Query</Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge variant={step === 'refinement' ? 'default' : step !== 'query' ? 'secondary' : 'outline'}>
-            2. Refine
+            2. Refine Query
+          </Badge>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <Badge variant={step === 'refinement' ? 'default' : step !== 'query' ? 'secondary' : 'outline'}>
+            3. Generate Keywords
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge variant={step === 'searching' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
-            3. Search
+            4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
-            4. Filter
+            5. Filter (Discriminator)
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'results' ? 'default' : 'outline'}>5. Results</Badge>
+          <Badge variant={step === 'results' ? 'default' : 'outline'}>6. Results</Badge>
         </div>
       </div>
       
@@ -352,33 +310,46 @@ export default function SmartSearchLab() {
           {step === 'refinement' && refinement && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review & Edit Refinement
+                Review Refinement & Keywords
               </h2>
               
-              {/* Search Strategy */}
+              {/* Show the flow */}
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Search Strategy</h3>
-                <p className="text-sm text-blue-800 dark:text-blue-200">{refinement.search_strategy}</p>
+                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Processing Steps Completed:</h3>
+                <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
+                  <li>✓ Original query refined for clarity and specificity</li>
+                  <li>✓ Keywords extracted from the refined query</li>
+                </ol>
               </div>
               
               <div className="space-y-4">
-                {/* Refined Query */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Refined Query
-                  </label>
-                  <Textarea
-                    value={editedQuery}
-                    onChange={(e) => setEditedQuery(e.target.value)}
-                    rows={2}
-                    className="dark:bg-gray-700 dark:text-gray-100"
-                  />
+                {/* Original vs Refined Query */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Original Query
+                    </label>
+                    <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm">
+                      {refinement.original_query}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Refined Query (Step 2 Output)
+                    </label>
+                    <Textarea
+                      value={editedQuery}
+                      onChange={(e) => setEditedQuery(e.target.value)}
+                      rows={3}
+                      className="dark:bg-gray-700 dark:text-gray-100 text-sm"
+                    />
+                  </div>
                 </div>
                 
                 {/* Keywords */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Search Keywords
+                    Search Keywords (Step 3 Output - Generated from Refined Query)
                   </label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {editedKeywords.map((keyword, idx) => (
@@ -529,19 +500,9 @@ export default function SmartSearchLab() {
             <>
               {/* Summary Card */}
               <Card className="p-6 dark:bg-gray-800">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    Filtering Complete
-                  </h2>
-                  <Button
-                    onClick={handleSaveToGroup}
-                    disabled={selectedArticles.size === 0}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Selected ({selectedArticles.size})
-                  </Button>
-                </div>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                  Filtering Complete
+                </h2>
                 
                 <div className="grid grid-cols-4 gap-4">
                   <div className="text-center">
@@ -586,49 +547,40 @@ export default function SmartSearchLab() {
                         key={idx}
                         className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedArticles.has(item.article.title)}
-                            onChange={() => toggleArticleSelection(item.article.title)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className="font-medium text-gray-900 dark:text-gray-100 flex-1">
-                                {item.article.title}
-                              </h4>
-                              <Badge variant="secondary" className="ml-2">
-                                {Math.round(item.confidence * 100)}%
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-gray-900 dark:text-gray-100 flex-1">
+                              {item.article.title}
+                            </h4>
+                            <Badge variant="secondary" className="ml-2">
+                              {Math.round(item.confidence * 100)}%
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            {item.article.authors.slice(0, 3).join(', ')}
+                            {item.article.authors.length > 3 && ' et al.'}
+                            {item.article.year && ` (${item.article.year})`}
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">
+                            {item.article.abstract}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                              {item.reasoning}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {item.article.source}
                               </Badge>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                              {item.article.authors.slice(0, 3).join(', ')}
-                              {item.article.authors.length > 3 && ' et al.'}
-                              {item.article.year && ` (${item.article.year})`}
-                            </p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">
-                              {item.article.abstract}
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                {item.reasoning}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {item.article.source}
-                                </Badge>
-                                {item.article.url && (
-                                  <a
-                                    href={item.article.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-700"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
-                                )}
-                              </div>
+                              {item.article.url && (
+                                <a
+                                  href={item.article.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-700"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
                             </div>
                           </div>
                         </div>

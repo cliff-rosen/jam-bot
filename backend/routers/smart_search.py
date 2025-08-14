@@ -129,12 +129,12 @@ async def generate_semantic_discriminator(
             strictness=request.strictness
         )
         
-        response = {
-            "refined_query": request.refined_query,
-            "search_query": request.search_query,
-            "strictness": request.strictness,
-            "discriminator_prompt": discriminator_prompt
-        }
+        response = DiscriminatorGenerationResponse(
+            refined_query=request.refined_query,
+            search_query=request.search_query,
+            strictness=request.strictness,
+            discriminator_prompt=discriminator_prompt
+        )
         
         logger.info(f"Discriminator generation completed for user {current_user.user_id}")
         return response

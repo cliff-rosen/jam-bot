@@ -321,7 +321,7 @@ export default function SmartSearchLab() {
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between">
@@ -377,7 +377,7 @@ export default function SmartSearchLab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 p-6">
         <div className="max-w-6xl mx-auto space-y-6">
 
           {/* Step 1: Question Input */}
@@ -577,54 +577,39 @@ export default function SmartSearchLab() {
                     </div>
                   </div>
                   
-                  {/* Strictness Setting */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Filter Strictness:</span>
-                    {(['low', 'medium', 'high'] as const).map((level) => (
-                      <Button
-                        key={level}
-                        variant={strictness === level ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setStrictness(level)}
-                      >
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </Button>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Articles List */}
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-1">
                   {searchResults.articles.map((article, index) => (
                     <div
                       key={index}
-                      className={`p-4 border rounded-lg transition-all ${
+                      className={`p-2 border rounded transition-all ${
                         selectedArticles.has(index)
                           ? 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
                           : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={selectedArticles.has(index)}
                           onChange={() => handleToggleArticle(index)}
-                          className="mt-1 h-4 w-4 text-blue-600 rounded"
+                          className="h-4 w-4 text-blue-600 rounded shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-                            {article.title}
-                          </h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {article.authors.slice(0, 3).join(', ')}
-                            {article.authors.length > 3 && ' et al.'}
-                            {article.year && ` (${article.year})`}
-                          </p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                            {article.abstract || 'No abstract available'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                              {article.title}
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                            <span className="truncate">
+                              {article.authors.slice(0, 2).join(', ')}
+                              {article.authors.length > 2 && ' et al.'}
+                              {article.year && ` (${article.year})`}
+                            </span>
+                            <Badge variant="outline" className="text-xs shrink-0">
                               {article.source}
                             </Badge>
                             {article.url && (
@@ -632,7 +617,7 @@ export default function SmartSearchLab() {
                                 href={article.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 text-xs"
+                                className="text-blue-600 hover:text-blue-700 shrink-0"
                               >
                                 <ExternalLink className="w-3 h-3" />
                               </a>
@@ -725,19 +710,28 @@ export default function SmartSearchLab() {
                   </p>
                 </div>
 
-                {/* Strictness Display */}
-                <div className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Strictness Level:
-                  </span>
-                  <Badge variant="secondary" className="capitalize">
-                    {strictness}
-                  </Badge>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                {/* Strictness Setting */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <div className="flex items-center gap-4 mb-3">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Filter Strictness:
+                    </span>
+                    {(['low', 'medium', 'high'] as const).map((level) => (
+                      <Button
+                        key={level}
+                        variant={strictness === level ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setStrictness(level)}
+                      >
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {strictness === 'low' && 'More inclusive - accepts somewhat related articles'}
                     {strictness === 'medium' && 'Balanced - accepts clearly related articles'}
                     {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
-                  </span>
+                  </p>
                 </div>
 
                 <div className="flex justify-between items-center pt-4">
@@ -860,46 +854,42 @@ export default function SmartSearchLab() {
                     <Check className="w-5 h-5 text-green-600 mr-2" />
                     Accepted Articles ({acceptedArticles.length})
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-1">
                     {acceptedArticles.map((item, idx) => (
                       <div
                         key={idx}
-                        className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-medium text-gray-900 dark:text-gray-100 flex-1">
-                            {item.article.title}
-                          </h4>
-                          <Badge variant="secondary" className="ml-2">
-                            {Math.round(item.confidence * 100)}%
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {item.article.authors.slice(0, 3).join(', ')}
-                          {item.article.authors.length > 3 && ' et al.'}
-                          {item.article.year && ` (${item.article.year})`}
-                        </p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">
-                          {item.article.abstract}
-                        </p>
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                            {item.reasoning}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {item.article.source}
-                            </Badge>
-                            {item.article.url && (
-                              <a
-                                href={item.article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                {item.article.title}
+                              </h4>
+                              <Badge variant="secondary" className="text-xs shrink-0">
+                                {Math.round(item.confidence * 100)}%
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                              <span className="truncate">
+                                {item.article.authors.slice(0, 2).join(', ')}
+                                {item.article.authors.length > 2 && ' et al.'}
+                                {item.article.year && ` (${item.article.year})`}
+                              </span>
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                {item.article.source}
+                              </Badge>
+                              {item.article.url && (
+                                <a
+                                  href={item.article.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-700 shrink-0"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

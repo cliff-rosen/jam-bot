@@ -110,20 +110,30 @@ Respond in JSON format with the refined question in the "refined_query" field.""
         logger.info(f"Step 3 - Generating boolean search query from refined query...")
         
         # Create prompt for search query generation
-        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into an effective boolean search query.
+        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into a BROAD, INCLUSIVE boolean search query that prioritizes recall over precision.
 
-Guidelines:
-- Use AND, OR, NOT operators appropriately
-- Use parentheses to group related terms
-- Include relevant medical/scientific terminology
-- Include variations and synonyms with OR
-- Use quotes for exact phrases when appropriate
-- Structure for maximum recall while maintaining precision
+CRITICAL PRINCIPLE: False negatives (missing relevant papers) are much more expensive than false positives (retrieving some irrelevant papers). Cast a wide net.
 
-Example formats:
-- (cancer OR carcinoma) AND (treatment OR therapy) AND CRISPR
-- "gene editing" AND (outcomes OR results) AND (clinical OR trials)
-- (diabetes OR "diabetes mellitus") AND (insulin OR medication) NOT "type 1"
+Guidelines for BROAD search queries:
+- Use OR extensively to include synonyms, variations, and related terms
+- Avoid being overly specific - prefer broader categories over narrow terms
+- Include both formal scientific terms AND common/colloquial variants
+- Use minimal AND operators - only for truly essential concepts
+- Avoid NOT operators unless absolutely necessary (they can exclude relevant papers)
+- Prefer partial matches over exact phrases
+- Include abbreviations, alternative spellings, and related concepts
+- Think "what terms might appear in papers I want to find?" rather than "what is the most precise query?"
+
+Search Strategy:
+1. Identify 2-3 core concepts maximum
+2. For each concept, brainstorm 5-10 synonyms/variants
+3. Connect synonyms with OR, concepts with AND
+4. Keep it simple - complex nested queries often miss papers
+
+Example BROAD queries:
+- (mice OR mouse OR murine OR rodent) AND (asbestos OR chrysotile OR crocidolite OR amphibole) AND (mesothelioma OR pleural OR peritoneal)
+- (CRISPR OR "gene edit" OR "genome edit" OR "genetic modification") AND (cancer OR tumor OR oncology OR malignancy)
+- (diabetes OR diabetic OR glycemic OR "blood sugar") AND (treatment OR therapy OR management OR intervention)
 
 Respond in JSON format with a "search_query" field containing the boolean search string."""
 
@@ -286,7 +296,7 @@ Search Query Used: {search_query}
 Evaluation Strictness: {strictness.upper()}
 {strictness_instructions.get(strictness, strictness_instructions["medium"])}
 
-Your task: For each article provided, determine if it should be included in the search results.
+Your task: Determine if the provided article should be included in the search results.
 
 Evaluation Criteria:
 1. Does the article address the core topic of the research question?

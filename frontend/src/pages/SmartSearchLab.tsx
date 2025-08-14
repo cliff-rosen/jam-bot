@@ -76,7 +76,7 @@ export default function SmartSearchLab() {
 
     setQuestionLoading(true);
     try {
-      const response = await smartSearchApi.refineQuestion({ question });
+      const response = await smartSearchApi.refineQuestion({ question: question });
       setRefinement(response);
       setEditedQuestion(response.refined_question);
       setStep('refinement');

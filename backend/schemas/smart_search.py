@@ -10,24 +10,24 @@ from pydantic import BaseModel, Field
 
 class SmartSearchRequest(BaseModel):
     """Initial search request from user"""
-    query: str = Field(..., description="User's research question")
+    question: str = Field(..., description="User's research question")
     max_results: int = Field(50, description="Maximum results to return")
 
 
 class SmartSearchRefinementResponse(BaseModel):
-    """Response from query refinement step (Step 2)"""
-    original_query: str = Field(..., description="Original user query")
-    refined_query: str = Field(..., description="Refined, more specific query")
+    """Response from question refinement step (Step 2)"""
+    original_question: str = Field(..., description="Original user question")
+    refined_question: str = Field(..., description="Refined, more specific question")
 
 
 class SearchQueryRequest(BaseModel):
-    """Request to generate search query from refined query (Step 3)"""
-    refined_query: str = Field(..., description="Refined query to convert to search terms")
+    """Request to generate search query from refined question (Step 3)"""
+    refined_question: str = Field(..., description="Refined question to convert to search terms")
 
 
 class SearchQueryResponse(BaseModel):
     """Response from search query generation (Step 3)"""
-    refined_query: str = Field(..., description="The refined query used")
+    refined_question: str = Field(..., description="The refined question used")
     search_query: str = Field(..., description="Boolean search query for databases")
 
 
@@ -59,14 +59,14 @@ class SearchResultsResponse(BaseModel):
 
 class DiscriminatorGenerationRequest(BaseModel):
     """Request to generate semantic discriminator prompt"""
-    refined_query: str
+    refined_question: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
 
 
 class DiscriminatorGenerationResponse(BaseModel):
     """Response from discriminator generation"""
-    refined_query: str
+    refined_question: str
     search_query: str
     strictness: str
     discriminator_prompt: str
@@ -75,7 +75,7 @@ class DiscriminatorGenerationResponse(BaseModel):
 class SemanticFilterRequest(BaseModel):
     """Request to filter articles semantically"""
     articles: List[SearchArticle]
-    refined_query: str
+    refined_question: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")

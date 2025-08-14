@@ -41,14 +41,14 @@ async def refine_research_question(
     Step 2: Refine user's research question
     """
     try:
-        logger.info(f"User {current_user.user_id} refining search query: {request.query[:100]}...")
+        logger.info(f"User {current_user.user_id} refining research question: {request.question[:100]}...")
         
         service = SmartSearchService()
-        refined_query = await service.refine_research_question(request.query)
+        refined_question = await service.refine_research_question(request.question)
         
         response = SmartSearchRefinementResponse(
-            original_query=request.query,
-            refined_query=refined_query
+            original_question=request.question,
+            refined_question=refined_question
         )
         
         logger.info(f"Query refinement completed for user {current_user.user_id}")
@@ -68,13 +68,13 @@ async def generate_search_query(
     Step 3: Generate boolean search query from refined question
     """
     try:
-        logger.info(f"User {current_user.user_id} generating search query from: {request.refined_query[:100]}...")
+        logger.info(f"User {current_user.user_id} generating search query from: {request.refined_question[:100]}...")
         
         service = SmartSearchService()
-        search_query = await service.generate_search_query(request.refined_query)
+        search_query = await service.generate_search_query(request.refined_question)
         
         response = SearchQueryResponse(
-            refined_query=request.refined_query,
+            refined_question=request.refined_question,
             search_query=search_query
         )
         
@@ -124,13 +124,13 @@ async def generate_semantic_discriminator(
         
         service = SmartSearchService()
         discriminator_prompt = await service.generate_semantic_discriminator(
-            refined_query=request.refined_query,
+            refined_query=request.refined_question,
             search_query=request.search_query,
             strictness=request.strictness
         )
         
         response = DiscriminatorGenerationResponse(
-            refined_query=request.refined_query,
+            refined_question=request.refined_question,
             search_query=request.search_query,
             strictness=request.strictness,
             discriminator_prompt=discriminator_prompt
@@ -161,7 +161,7 @@ async def filter_articles_stream(
             try:
                 async for message in service.filter_articles_streaming(
                     articles=request.articles,
-                    refined_query=request.refined_query,
+                    refined_query=request.refined_question,
                     search_query=request.search_query,
                     strictness=request.strictness,
                     custom_discriminator=request.discriminator_prompt

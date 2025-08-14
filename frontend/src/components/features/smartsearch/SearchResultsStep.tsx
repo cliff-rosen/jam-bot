@@ -24,12 +24,12 @@ export function SearchResultsStep({
   loading
 }: SearchResultsStepProps) {
   return (
-    <Card className="p-6 dark:bg-gray-800">
+    <Card className="p-6 dark:bg-gray-800 flex flex-col h-[calc(100vh-280px)]">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         Review & Curate Search Results
       </h2>
 
-      <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+      <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex-shrink-0">
         <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Step Completed:</h3>
         <p className="text-sm text-yellow-800 dark:text-yellow-200">
           ✓ Found {searchResults.total_found} articles from {searchResults.sources_searched.join(', ')}
@@ -39,8 +39,8 @@ export function SearchResultsStep({
         </p>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-4 flex-shrink-0">
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {selectedArticles.size} of {searchResults.articles.length} articles selected
@@ -56,7 +56,7 @@ export function SearchResultsStep({
           </div>
         </div>
 
-        <div className="space-y-1 max-h-96 overflow-y-auto">
+        <div className="space-y-1 overflow-y-auto flex-1 pr-2">
           {searchResults.articles.map((article, index) => (
             <div
               key={index}
@@ -105,7 +105,7 @@ export function SearchResultsStep({
           ))}
         </div>
 
-        <div className="flex justify-between items-center pt-4">
+        <div className="flex justify-between items-center pt-4 flex-shrink-0">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Tip: Uncheck articles that are clearly off-topic to save on filtering costs
           </p>

@@ -124,7 +124,7 @@ async def generate_semantic_discriminator(
         
         service = SmartSearchService()
         discriminator_prompt = await service.generate_semantic_discriminator(
-            refined_query=request.refined_question,
+            refined_question=request.refined_question,
             search_query=request.search_query,
             strictness=request.strictness
         )
@@ -161,7 +161,7 @@ async def filter_articles_stream(
             try:
                 async for message in service.filter_articles_streaming(
                     articles=request.articles,
-                    refined_query=request.refined_question,
+                    refined_question=request.refined_question,
                     search_query=request.search_query,
                     strictness=request.strictness,
                     custom_discriminator=request.discriminator_prompt

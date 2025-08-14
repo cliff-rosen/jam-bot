@@ -1,6 +1,6 @@
 import { useTheme } from '../context/ThemeContext';
 import { NavLink, useLocation } from 'react-router-dom';
-import { MoonIcon, SunIcon, ChatBubbleLeftRightIcon, BeakerIcon, UserCircleIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { MoonIcon, SunIcon, ChatBubbleLeftRightIcon, BeakerIcon, UserCircleIcon, TableCellsIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import settings from '../config/settings';
 import { HelpGuide } from '@/components/features/help';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +41,10 @@ export default function TopBar() {
                     <NavLink to="/lab" className={getLinkClass('/lab')}>
                         <BeakerIcon className="h-5 w-5 mr-2" />
                         Lab
+                    </NavLink>
+                    <NavLink to="/smart-search" className={getLinkClass('/smart-search')}>
+                        <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+                        Smart Search
                     </NavLink>
                 </nav>
             </div>

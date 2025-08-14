@@ -31,11 +31,11 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
         
-    async def refine_research_question(self, query: str) -> str:
+    async def refine_research_question(self, question: str) -> str:
         """
         Step 2: Refine/improve the user's research question using LLM
         """
-        logger.info(f"Step 2 - Refining query: {query[:100]}...")
+        logger.info(f"Step 2 - Refining question: {question[:100]}...")
         
         # Create prompt for research question refinement
         system_prompt = """You are a research question refinement expert. Your task is to take a user's research question and make it more specific, clear, and searchable.
@@ -47,15 +47,15 @@ Guidelines:
 - Keep it as a natural question or statement
 - Do NOT generate keywords yet (that's a separate step)
 
-Respond in JSON format with the refined question in the "refined_query" field."""
+Respond in JSON format with the refined question in the "refined_question" field."""
 
         # Object schema with refined_query field for BasePromptCaller
         response_schema = {
             "type": "object",
             "properties": {
-                "refined_query": {"type": "string"}
+                "refined_question": {"type": "string"}
             },
-            "required": ["refined_query"]
+            "required": ["refined_question"]
         }
         
         prompt_caller = BasePromptCaller(
@@ -69,7 +69,7 @@ Respond in JSON format with the refined question in the "refined_query" field.""
                 id="temp_id",
                 chat_id="temp_chat", 
                 role=MessageRole.USER,
-                content=f"Original research question: {query}\n\nPlease provide a more specific and searchable version of this question.",
+                content=f"Original research question: {question}\n\nPlease provide a more specific and searchable version of this question.",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -82,11 +82,11 @@ Respond in JSON format with the refined question in the "refined_query" field.""
             logger.info(f"LLM result: {result}")
             
             # Extract refined_query from the Pydantic model instance
-            if hasattr(result, 'refined_query'):
-                refined_query = result.refined_query
-                logger.info(f"Successfully extracted refined_query: {refined_query}")
+            if hasattr(result, 'refined_question'):
+                refined_question = result.refined_question
+                logger.info(f"Successfully extracted refined_question: {refined_question}")
             else:
-                logger.error(f"Result does not have 'refined_query' attribute. Type: {type(result)}, value: {result}")
+                logger.error(f"Result does not have 'refined_question' attribute. Type: {type(result)}, value: {result}")
                 # Try model_dump as fallback
                 if hasattr(result, 'model_dump'):
                     response_data = result.model_dump()
@@ -101,9 +101,9 @@ Respond in JSON format with the refined question in the "refined_query" field.""
         except Exception as e:
             logger.error(f"Failed to refine query: {e}")
             # Fallback: return original query
-            return query
+            return question
     
-    async def generate_search_query(self, refined_query: str) -> str:
+    async def generate_search_query(self, refined_question: str) -> str:
         """
         Step 3: Generate boolean search query from the REFINED query using LLM
         """
@@ -137,7 +137,7 @@ Example BROAD queries:
 
 Respond in JSON format with a "search_query" field containing the boolean search string."""
 
-        user_prompt = f"""Research question: {refined_query}
+        user_prompt = f"""Research question: {refined_question}
 
 Generate an effective boolean search query for academic databases."""
 
@@ -161,7 +161,7 @@ Generate an effective boolean search query for academic databases."""
                 id="temp_id",
                 chat_id="temp_chat", 
                 role=MessageRole.USER,
-                content=f"Research question: {refined_query}\n\nGenerate an effective boolean search query for academic databases.",
+                content=f"Research question: {refined_question}\n\nGenerate an effective boolean search query for academic databases.",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -179,9 +179,9 @@ Generate an effective boolean search query for academic databases."""
                 if hasattr(result, 'model_dump'):
                     response_data = result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
-                    search_query = response_data.get('search_query', refined_query)
+                    search_query = response_data.get('search_query', refined_question)
                 else:
-                    search_query = refined_query  # Final fallback
+                    search_query = refined_question  # Final fallback
             
             logger.info(f"Generated search query: {search_query}")
             return search_query
@@ -189,7 +189,7 @@ Generate an effective boolean search query for academic databases."""
         except Exception as e:
             logger.error(f"Failed to generate search query: {e}")
             # Fallback: use refined query as-is
-            return refined_query
+            return refined_question
     
     
     async def search_articles(self, search_query: str, max_results: int = 50) -> SearchResultsResponse:
@@ -271,7 +271,7 @@ Generate an effective boolean search query for academic databases."""
     
     async def generate_semantic_discriminator(
         self, 
-        refined_query: str, 
+        refined_question: str, 
         search_query: str,
         strictness: str = "medium"
     ) -> str:
@@ -283,7 +283,7 @@ Generate an effective boolean search query for academic databases."""
         
         discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converting to keywords using LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
 
-Research Question: {refined_query}
+Research Question: {refined_question}
 
 Search Query Used: {search_query}
 
@@ -299,7 +299,7 @@ You must respond in this exact JSON format:
     async def filter_articles_streaming(
         self,
         articles: List[SearchArticle],
-        refined_query: str,
+        refined_question: str,
         search_query: str,
         strictness: str = "medium",
         custom_discriminator: str = None
@@ -315,7 +315,7 @@ You must respond in this exact JSON format:
             logger.info("Using custom discriminator prompt")
         else:
             discriminator = await self.generate_semantic_discriminator(
-                refined_query, search_query, strictness
+                refined_question, search_query, strictness
             )
             logger.info("Generated default discriminator prompt")
         

@@ -913,23 +913,47 @@ export default function SmartSearchLab() {
                 </Card>
               </summary>
               <Card className="p-6 dark:bg-gray-800 mt-2">
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {rejectedArticles.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg opacity-60"
+                      className="p-2 border border-gray-200 dark:border-gray-700 rounded opacity-60"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                          {item.article.title}
-                        </h4>
-                        <Badge variant="outline" className="ml-2 text-red-600">
-                          {Math.round(item.confidence * 100)}%
-                        </Badge>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 truncate">
+                              {item.article.title}
+                            </h4>
+                            <Badge variant="outline" className="text-xs shrink-0 text-red-600">
+                              {Math.round(item.confidence * 100)}%
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                            <span className="truncate">
+                              {item.article.authors.slice(0, 2).join(', ')}
+                              {item.article.authors.length > 2 && ' et al.'}
+                              {item.article.year && ` (${item.article.year})`}
+                            </span>
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              {item.article.source}
+                            </Badge>
+                            {item.article.url && (
+                              <a
+                                href={item.article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 shrink-0"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">
+                            Reason: {item.reasoning}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                        Reason: {item.reasoning}
-                      </p>
                     </div>
                   ))}
                 </div>

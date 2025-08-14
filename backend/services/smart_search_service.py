@@ -281,31 +281,11 @@ Generate an effective boolean search query for academic databases."""
         """
         logger.info(f"Step 5 - Generating semantic discriminator with strictness: {strictness}")
         
-        strictness_instructions = {
-            "low": "Be inclusive - accept articles that are somewhat related to the research question.",
-            "medium": "Be balanced - accept articles that clearly relate to the research question.",
-            "high": "Be strict - only accept articles that directly address the research question."
-        }
-        
-        discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question.
+        discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converting to keywords using LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
 
 Research Question: {refined_query}
 
 Search Query Used: {search_query}
-
-Evaluation Strictness: {strictness.upper()}
-{strictness_instructions.get(strictness, strictness_instructions["medium"])}
-
-Your task: Determine if the provided article should be included in the search results.
-
-Evaluation Criteria:
-1. Does the article address the core topic of the research question?
-2. Are the entieis that the key terms tried to target present and used in a relevant context (not just mentioned in passing)?
-
-For {strictness} strictness:
-{"- Accept if 2 or more criteria are met" if strictness == "low" else ""}
-{"- Accept if 3 or more criteria are met" if strictness == "medium" else ""}
-{"- Accept only if ALL 4 criteria are met" if strictness == "high" else ""}
 
 You must respond in this exact JSON format:
 {{

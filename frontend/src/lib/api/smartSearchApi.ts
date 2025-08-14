@@ -33,6 +33,20 @@ export interface SemanticFilterRequest {
   refined_query: string;
   search_query: string;
   strictness?: 'low' | 'medium' | 'high';
+  discriminator_prompt?: string;
+}
+
+export interface DiscriminatorGenerationRequest {
+  refined_query: string;
+  search_query: string;
+  strictness: 'low' | 'medium' | 'high';
+}
+
+export interface DiscriminatorGenerationResponse {
+  refined_query: string;
+  search_query: string;
+  strictness: string;
+  discriminator_prompt: string;
 }
 
 class SmartSearchApi {
@@ -57,6 +71,14 @@ class SmartSearchApi {
    */
   async executeSearch(request: ArticleSearchRequest): Promise<SearchResults> {
     const response = await api.post('/api/lab/smart-search/execute', request);
+    return response.data;
+  }
+
+  /**
+   * Step 6: Generate semantic discriminator prompt for review
+   */
+  async generateDiscriminator(request: DiscriminatorGenerationRequest): Promise<DiscriminatorGenerationResponse> {
+    const response = await api.post('/api/lab/smart-search/generate-discriminator', request);
     return response.data;
   }
 

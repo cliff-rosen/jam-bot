@@ -205,15 +205,16 @@ Generate an effective boolean search query for academic databases."""
             )
             
             for article in pubmed_articles:
+                # article is now a CanonicalResearchArticle, not the raw Article class
                 all_articles.append(SearchArticle(
                     title=article.title,
                     abstract=article.abstract if article.abstract else "",
                     authors=article.authors if article.authors else [],
-                    year=article.year if article.year else 0,
-                    journal=article.journal if hasattr(article, 'journal') else None,
-                    doi=article.doi if hasattr(article, 'doi') else None,
-                    pmid=article.pmid,
-                    url=f"https://pubmed.ncbi.nlm.nih.gov/{article.pmid}/" if article.pmid else None,
+                    year=article.publication_year if article.publication_year else 0,
+                    journal=article.journal if article.journal else None,
+                    doi=article.doi if article.doi else None,
+                    pmid=article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None,
+                    url=article.url if article.url else None,
                     source="pubmed"
                 ))
             sources_searched.append("pubmed")
@@ -312,17 +313,23 @@ You must respond in this exact JSON format:
         articles: List[SearchArticle],
         refined_query: str,
         search_query: str,
-        strictness: str = "medium"
+        strictness: str = "medium",
+        custom_discriminator: str = None
     ) -> AsyncGenerator[str, None]:
         """
         Filter articles using semantic discriminator with streaming updates
         """
         logger.info(f"Starting filtering of {len(articles)} articles")
         
-        # Generate discriminator prompt
-        discriminator = await self.generate_semantic_discriminator(
-            refined_query, search_query, strictness
-        )
+        # Use custom discriminator if provided, otherwise generate one
+        if custom_discriminator:
+            discriminator = custom_discriminator
+            logger.info("Using custom discriminator prompt")
+        else:
+            discriminator = await self.generate_semantic_discriminator(
+                refined_query, search_query, strictness
+            )
+            logger.info("Generated default discriminator prompt")
         
         # Initialize counters
         total = len(articles)

@@ -25,7 +25,7 @@ import {
 
 export default function SmartSearchLab() {
   // Step management
-  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'filtering' | 'results'>('query');
+  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'discriminator' | 'filtering' | 'results'>('query');
 
   // Step 1: Query input
   const [query, setQuery] = useState('');
@@ -45,7 +45,12 @@ export default function SmartSearchLab() {
   const [selectedArticles, setSelectedArticles] = useState<Set<number>>(new Set());
   const [searchLoading, setSearchLoading] = useState(false);
   
-  // Step 5: Filtering
+  // Step 6: Discriminator generation and editing
+  const [discriminatorData, setDiscriminatorData] = useState<any>(null);
+  const [editedDiscriminator, setEditedDiscriminator] = useState('');
+  const [discriminatorLoading, setDiscriminatorLoading] = useState(false);
+  
+  // Step 7: Filtering
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
@@ -205,7 +210,8 @@ export default function SmartSearchLab() {
           articles: selectedArticleList,
           refined_query: editedQuery,
           search_query: editedSearchQuery,
-          strictness
+          strictness,
+          discriminator_prompt: editedDiscriminator
         },
         // onMessage
         (message: StreamMessage) => {
@@ -263,6 +269,37 @@ export default function SmartSearchLab() {
     setSelectedArticles(newSelected);
   };
 
+  // Generate discriminator for review
+  const handleGenerateDiscriminator = async () => {
+    if (!searchResults) return;
+    
+    setDiscriminatorLoading(true);
+    try {
+      const response = await smartSearchApi.generateDiscriminator({
+        refined_query: editedQuery,
+        search_query: editedSearchQuery,
+        strictness: strictness
+      });
+      
+      setDiscriminatorData(response);
+      setEditedDiscriminator(response.discriminator_prompt);
+      setStep('discriminator');
+      
+      toast({
+        title: 'Discriminator Generated',
+        description: 'Review and edit the semantic evaluation criteria'
+      });
+    } catch (error) {
+      toast({
+        title: 'Discriminator Generation Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setDiscriminatorLoading(false);
+    }
+  };
+
   // Reset to start
   const handleReset = () => {
     setStep('query');
@@ -273,6 +310,8 @@ export default function SmartSearchLab() {
     setEditedSearchQuery('');
     setSearchResults(null);
     setSelectedArticles(new Set());
+    setDiscriminatorData(null);
+    setEditedDiscriminator('');
     setFilteredArticles([]);
     setFilteringProgress(null);
   };
@@ -318,19 +357,23 @@ export default function SmartSearchLab() {
             3. Generate Search Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'searching' ? 'default' : ['search-results', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge variant={step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'search-results' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge variant={step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
             5. Review & Curate
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
-            6. Filter
+          <Badge variant={step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+            6. Filter Criteria
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'results' ? 'default' : 'outline'}>7. Results</Badge>
+          <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
+            7. Filter
+          </Badge>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <Badge variant={step === 'results' ? 'default' : 'outline'}>8. Results</Badge>
         </div>
       </div>
 
@@ -606,19 +649,115 @@ export default function SmartSearchLab() {
                     Tip: Uncheck articles that are clearly off-topic to save on filtering costs
                   </p>
                   <Button
-                    onClick={handleStartFiltering}
-                    disabled={selectedArticles.size === 0}
+                    onClick={handleGenerateDiscriminator}
+                    disabled={selectedArticles.size === 0 || discriminatorLoading}
                     className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
                   >
-                    <Search className="w-4 h-4 mr-2" />
-                    Filter {selectedArticles.size} Articles
+                    {discriminatorLoading ? (
+                      <>
+                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        Generate Filter Criteria
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
             </Card>
           )}
 
-          {/* Step 5: Filtering Progress */}
+          {/* Step 6: Semantic Discriminator Review */}
+          {step === 'discriminator' && discriminatorData && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Review & Edit Semantic Filter Criteria
+              </h2>
+
+              <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Step Completed:</h3>
+                <p className="text-sm text-purple-800 dark:text-purple-200">
+                  ✓ Generated semantic evaluation criteria for {strictness} strictness filtering
+                </p>
+                <p className="text-sm text-purple-800 dark:text-purple-200 mt-1">
+                  Review and edit the criteria below. This prompt will be used to evaluate each article for relevance.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Context Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                      Research Question
+                    </label>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border">
+                      {editedQuery}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                      Search Query
+                    </label>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border font-mono">
+                      {editedSearchQuery}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Discriminator Prompt Editor */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Semantic Evaluation Criteria
+                  </label>
+                  <Textarea
+                    value={editedDiscriminator}
+                    onChange={(e) => setEditedDiscriminator(e.target.value)}
+                    rows={12}
+                    className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
+                    placeholder="Enter evaluation criteria for filtering articles..."
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    This prompt will be used to evaluate each article. Edit it to adjust the filtering criteria.
+                  </p>
+                </div>
+
+                {/* Strictness Display */}
+                <div className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Strictness Level:
+                  </span>
+                  <Badge variant="secondary" className="capitalize">
+                    {strictness}
+                  </Badge>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {strictness === 'low' && 'More inclusive - accepts somewhat related articles'}
+                    {strictness === 'medium' && 'Balanced - accepts clearly related articles'}
+                    {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pt-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Tip: Make criteria more specific to improve filtering precision
+                  </p>
+                  <Button
+                    onClick={handleStartFiltering}
+                    disabled={!editedDiscriminator.trim()}
+                    className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Start Filtering {selectedArticles.size} Articles
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Step 7: Filtering Progress */}
           {step === 'filtering' && filteringProgress && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">

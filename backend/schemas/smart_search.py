@@ -57,12 +57,28 @@ class SearchResultsResponse(BaseModel):
     sources_searched: List[str]
 
 
+class DiscriminatorGenerationRequest(BaseModel):
+    """Request to generate semantic discriminator prompt"""
+    refined_query: str
+    search_query: str
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+
+
+class DiscriminatorGenerationResponse(BaseModel):
+    """Response from discriminator generation"""
+    refined_query: str
+    search_query: str
+    strictness: str
+    discriminator_prompt: str
+
+
 class SemanticFilterRequest(BaseModel):
     """Request to filter articles semantically"""
     articles: List[SearchArticle]
     refined_query: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
 
 
 class FilteredArticle(BaseModel):

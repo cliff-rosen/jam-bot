@@ -16,6 +16,8 @@ from schemas.smart_search import (
     SearchQueryResponse,
     ArticleSearchRequest,
     SearchResultsResponse,
+    DiscriminatorGenerationRequest,
+    DiscriminatorGenerationResponse,
     SemanticFilterRequest
 )
 from services.auth_service import validate_token
@@ -109,6 +111,39 @@ async def execute_search(
         raise HTTPException(status_code=500, detail=f"Search execution failed: {str(e)}")
 
 
+@router.post("/generate-discriminator", response_model=DiscriminatorGenerationResponse)
+async def generate_semantic_discriminator(
+    request: DiscriminatorGenerationRequest,
+    current_user = Depends(validate_token)
+):
+    """
+    Generate semantic discriminator prompt for review
+    """
+    try:
+        logger.info(f"User {current_user.user_id} generating semantic discriminator")
+        
+        service = SmartSearchService()
+        discriminator_prompt = await service.generate_semantic_discriminator(
+            refined_query=request.refined_query,
+            search_query=request.search_query,
+            strictness=request.strictness
+        )
+        
+        response = {
+            "refined_query": request.refined_query,
+            "search_query": request.search_query,
+            "strictness": request.strictness,
+            "discriminator_prompt": discriminator_prompt
+        }
+        
+        logger.info(f"Discriminator generation completed for user {current_user.user_id}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Discriminator generation failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Discriminator generation failed: {str(e)}")
+
+
 @router.post("/filter-stream")
 async def filter_articles_stream(
     request: SemanticFilterRequest,
@@ -128,7 +163,8 @@ async def filter_articles_stream(
                     articles=request.articles,
                     refined_query=request.refined_query,
                     search_query=request.search_query,
-                    strictness=request.strictness
+                    strictness=request.strictness,
+                    custom_discriminator=request.discriminator_prompt
                 ):
                     yield message
             except Exception as e:

@@ -25,7 +25,7 @@ import {
 
 export default function SmartSearchLab() {
   // Step management
-  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'filtering' | 'results'>('query');
+  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'filtering' | 'results'>('query');
 
   // Step 1: Query input
   const [query, setQuery] = useState('');
@@ -40,8 +40,12 @@ export default function SmartSearchLab() {
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
 
-  // Step 4: Search and filtering
+  // Step 4: Search results and curation
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [selectedArticles, setSelectedArticles] = useState<Set<number>>(new Set());
   const [searchLoading, setSearchLoading] = useState(false);
+  
+  // Step 5: Filtering
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');

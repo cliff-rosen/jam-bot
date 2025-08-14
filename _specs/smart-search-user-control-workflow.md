@@ -104,5 +104,11 @@ Output: { discriminator_prompt }
 ### Enhanced Endpoints:
 - `/filter-stream` should support pause/resume functionality
 - All endpoints should support user-edited inputs (not just LLM outputs)
+- `/filter-stream` should accept user-curated article list (after manual deletions)
+
+### Frontend State Management:
+- Track which articles user has manually removed
+- Pass only remaining articles to filtering step
+- Allow bulk selection/deselection for efficient curation
 
 This workflow ensures users maintain complete control and transparency over every decision in the research process, which is essential for academic/research use cases.

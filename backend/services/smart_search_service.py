@@ -201,7 +201,7 @@ Generate an effective boolean search query for academic databases."""
                 None, 
                 search_pubmed,
                 search_query,
-                max_results // 2  # Split results between sources
+                max_results  # Use full max_results since Scholar is disabled
             )
             
             for article in pubmed_articles:
@@ -222,35 +222,35 @@ Generate an effective boolean search query for academic databases."""
         except Exception as e:
             logger.error(f"PubMed search failed: {e}")
         
-        # Search Google Scholar
-        try:
-            logger.info("Searching Google Scholar...")
-            # Google Scholar service is also sync, run in executor
-            loop = asyncio.get_event_loop()
-            scholar_articles, _ = await loop.run_in_executor(
-                None,
-                self.google_scholar_service.search_articles,
-                search_query,
-                max_results // 2
-            )
-            
-            for article in scholar_articles:
-                all_articles.append(SearchArticle(
-                    title=article.title if article.title else "",
-                    abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
-                    authors=article.authors if article.authors else [],
-                    year=article.year if article.year else 0,
-                    journal=article.venue if hasattr(article, 'venue') else None,
-                    doi=None,  # Scholar doesn't always provide DOI
-                    pmid=None,
-                    url=article.link if article.link else None,
-                    source="google_scholar"
-                ))
-            sources_searched.append("google_scholar")
-            logger.info(f"Found {len(scholar_articles)} Google Scholar articles")
-            
-        except Exception as e:
-            logger.error(f"Google Scholar search failed: {e}")
+        # Search Google Scholar - TEMPORARILY DISABLED
+        # try:
+        #     logger.info("Searching Google Scholar...")
+        #     # Google Scholar service is also sync, run in executor
+        #     loop = asyncio.get_event_loop()
+        #     scholar_articles, _ = await loop.run_in_executor(
+        #         None,
+        #         self.google_scholar_service.search_articles,
+        #         search_query,
+        #         max_results // 2
+        #     )
+        #     
+        #     for article in scholar_articles:
+        #         all_articles.append(SearchArticle(
+        #             title=article.title if article.title else "",
+        #             abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
+        #             authors=article.authors if article.authors else [],
+        #             year=article.year if article.year else 0,
+        #             journal=article.venue if hasattr(article, 'venue') else None,
+        #             doi=None,  # Scholar doesn't always provide DOI
+        #             pmid=None,
+        #             url=article.link if article.link else None,
+        #             source="google_scholar"
+        #         ))
+        #     sources_searched.append("google_scholar")
+        #     logger.info(f"Found {len(scholar_articles)} Google Scholar articles")
+        #     
+        # except Exception as e:
+        #     logger.error(f"Google Scholar search failed: {e}")
         
         return SearchResultsResponse(
             articles=all_articles,

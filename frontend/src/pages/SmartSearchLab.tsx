@@ -158,8 +158,10 @@ export default function SmartSearchLab() {
           title: 'Search Complete',
           description: `Found ${results.total_found} articles from ${results.sources_searched.join(', ')}`
         });
-        // Automatically start filtering
-        handleStartFiltering(results);
+        // Go to search results review step
+        setSearchResults(results);
+        setSelectedArticles(new Set(results.articles.map((_, index) => index))); // Select all by default
+        setStep('search-results');
       }
     } catch (error) {
       toast({
@@ -173,12 +175,25 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Step 3: Start filtering
-  const handleStartFiltering = async (results: SearchResults) => {
+  // Step 4: Start filtering with selected articles
+  const handleStartFiltering = async () => {
+    if (!searchResults) return;
+    
+    const selectedArticleList = Array.from(selectedArticles).map(index => searchResults.articles[index]);
+    
+    if (selectedArticleList.length === 0) {
+      toast({
+        title: 'No Articles Selected',
+        description: 'Please select at least one article to filter.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setStep('filtering');
     setFilteredArticles([]);
     setFilteringProgress({
-      total: results.articles.length,
+      total: selectedArticleList.length,
       processed: 0,
       accepted: 0,
       rejected: 0
@@ -187,7 +202,7 @@ export default function SmartSearchLab() {
     try {
       await smartSearchApi.filterArticlesStreaming(
         {
-          articles: results.articles,
+          articles: selectedArticleList,
           refined_query: editedQuery,
           search_query: editedSearchQuery,
           strictness
@@ -228,6 +243,25 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Article selection helpers
+  const handleSelectAll = () => {
+    if (!searchResults) return;
+    setSelectedArticles(new Set(searchResults.articles.map((_, index) => index)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedArticles(new Set());
+  };
+
+  const handleToggleArticle = (index: number) => {
+    const newSelected = new Set(selectedArticles);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedArticles(newSelected);
+  };
 
   // Reset to start
   const handleReset = () => {
@@ -237,6 +271,8 @@ export default function SmartSearchLab() {
     setEditedQuery('');
     setSearchQueryGeneration(null);
     setEditedSearchQuery('');
+    setSearchResults(null);
+    setSelectedArticles(new Set());
     setFilteredArticles([]);
     setFilteringProgress(null);
   };
@@ -274,23 +310,27 @@ export default function SmartSearchLab() {
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Enter Query</Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'refinement' ? 'default' : step !== 'query' ? 'secondary' : 'outline'}>
+          <Badge variant={step === 'refinement' ? 'default' : !['query'].includes(step) ? 'secondary' : 'outline'}>
             2. Refine Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'refinement' ? 'default' : step !== 'query' ? 'secondary' : 'outline'}>
-            3. Generate Keywords
+          <Badge variant={step === 'search-query' ? 'default' : !['query', 'refinement'].includes(step) ? 'secondary' : 'outline'}>
+            3. Generate Search Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'searching' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge variant={step === 'searching' ? 'default' : ['search-results', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
-            5. Filter (Discriminator)
+          <Badge variant={step === 'search-results' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+            5. Review & Curate
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'results' ? 'default' : 'outline'}>6. Results</Badge>
+          <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
+            6. Filter
+          </Badge>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <Badge variant={step === 'results' ? 'default' : 'outline'}>7. Results</Badge>
         </div>
       </div>
 
@@ -424,30 +464,6 @@ export default function SmartSearchLab() {
                   </p>
                 </div>
                 
-                {/* Strictness Setting */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Filter Strictness
-                  </label>
-                  <div className="flex gap-2">
-                    {(['low', 'medium', 'high'] as const).map((level) => (
-                      <Button
-                        key={level}
-                        variant={strictness === level ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setStrictness(level)}
-                      >
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {strictness === 'low' && 'More inclusive - accepts somewhat related articles'}
-                    {strictness === 'medium' && 'Balanced - accepts clearly related articles'}
-                    {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
-                  </p>
-                </div>
-                
                 <Button
                   onClick={handleExecuteSearch}
                   disabled={searchLoading || !editedSearchQuery.trim()}
@@ -469,7 +485,7 @@ export default function SmartSearchLab() {
             </Card>
           )}
 
-          {/* Step 4: Search & Filter Progress */}
+          {/* Step 4: Search Progress */}
           {step === 'searching' && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -480,6 +496,124 @@ export default function SmartSearchLab() {
                 <p className="text-gray-600 dark:text-gray-400">
                   Searching across multiple databases...
                 </p>
+              </div>
+            </Card>
+          )}
+
+          {/* Step 5: Search Results Review & Curation */}
+          {step === 'search-results' && searchResults && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Review & Curate Search Results
+              </h2>
+
+              <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Step Completed:</h3>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ✓ Found {searchResults.total_found} articles from {searchResults.sources_searched.join(', ')}
+                </p>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
+                  Review the articles below and uncheck any that are obviously irrelevant before proceeding to semantic filtering.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Selection Controls */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {selectedArticles.size} of {searchResults.articles.length} articles selected
+                    </span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={handleSelectAll}>
+                        Select All
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleDeselectAll}>
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Strictness Setting */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Filter Strictness:</span>
+                    {(['low', 'medium', 'high'] as const).map((level) => (
+                      <Button
+                        key={level}
+                        variant={strictness === level ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setStrictness(level)}
+                      >
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Articles List */}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {searchResults.articles.map((article, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 border rounded-lg transition-all ${
+                        selectedArticles.has(index)
+                          ? 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedArticles.has(index)}
+                          onChange={() => handleToggleArticle(index)}
+                          className="mt-1 h-4 w-4 text-blue-600 rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                            {article.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            {article.authors.slice(0, 3).join(', ')}
+                            {article.authors.length > 3 && ' et al.'}
+                            {article.year && ` (${article.year})`}
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                            {article.abstract || 'No abstract available'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              {article.source}
+                            </Badge>
+                            {article.url && (
+                              <a
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 text-xs"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center pt-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Tip: Uncheck articles that are clearly off-topic to save on filtering costs
+                  </p>
+                  <Button
+                    onClick={handleStartFiltering}
+                    disabled={selectedArticles.size === 0}
+                    className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Filter {selectedArticles.size} Articles
+                  </Button>
+                </div>
               </div>
             </Card>
           )}

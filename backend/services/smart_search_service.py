@@ -114,14 +114,14 @@ Please refine this query to be more specific and generate search keywords."""
             # Use search_pubmed function from pubmed_service (it's a sync function)
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            pubmed_results = await loop.run_in_executor(
+            pubmed_articles, _ = await loop.run_in_executor(
                 None, 
                 search_pubmed,
                 search_query,
                 max_results // 2  # Split results between sources
             )
             
-            for article in pubmed_results:
+            for article in pubmed_articles:
                 all_articles.append(SearchArticle(
                     title=article.title,
                     abstract=article.abstract if article.abstract else "",
@@ -134,7 +134,7 @@ Please refine this query to be more specific and generate search keywords."""
                     source="pubmed"
                 ))
             sources_searched.append("pubmed")
-            logger.info(f"Found {len(pubmed_results)} PubMed articles")
+            logger.info(f"Found {len(pubmed_articles)} PubMed articles")
             
         except Exception as e:
             logger.error(f"PubMed search failed: {e}")
@@ -153,18 +153,18 @@ Please refine this query to be more specific and generate search keywords."""
             
             for article in scholar_articles:
                 all_articles.append(SearchArticle(
-                    title=article.get("title", ""),
-                    abstract=article.get("snippet", ""),  # Scholar uses 'snippet' for abstract
-                    authors=article.get("authors", "").split(", ") if article.get("authors") else [],
-                    year=article.get("year", 0),
-                    journal=article.get("venue"),
+                    title=article.title if article.title else "",
+                    abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
+                    authors=article.authors if article.authors else [],
+                    year=article.year if article.year else 0,
+                    journal=article.venue if hasattr(article, 'venue') else None,
                     doi=None,  # Scholar doesn't always provide DOI
                     pmid=None,
-                    url=article.get("link"),
+                    url=article.link if article.link else None,
                     source="google_scholar"
                 ))
             sources_searched.append("google_scholar")
-            logger.info(f"Found {len(scholar_results)} Google Scholar articles")
+            logger.info(f"Found {len(scholar_articles)} Google Scholar articles")
             
         except Exception as e:
             logger.error(f"Google Scholar search failed: {e}")

@@ -1,10 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
+import { ChevronRight, RefreshCw } from 'lucide-react';
+
+import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';
+import { RefinementStep } from '@/components/features/smartsearch/RefinementStep';
+import { SearchQueryStep } from '@/components/features/smartsearch/SearchQueryStep';
+import { SearchingStep } from '@/components/features/smartsearch/SearchingStep';
+import { SearchResultsStep } from '@/components/features/smartsearch/SearchResultsStep';
+import { DiscriminatorStep } from '@/components/features/smartsearch/DiscriminatorStep';
+import { FilteringStep } from '@/components/features/smartsearch/FilteringStep';
+import { ResultsStep } from '@/components/features/smartsearch/ResultsStep';
 
 import type {
   SmartSearchRefinement,
@@ -14,14 +22,6 @@ import type {
   FilteringProgress,
   StreamMessage
 } from '@/types/smart-search';
-import {
-  Search,
-  ChevronRight,
-  Check,
-  X,
-  ExternalLink,
-  RefreshCw
-} from 'lucide-react';
 
 export default function SmartSearchLab() {
   // Step management
@@ -316,10 +316,6 @@ export default function SmartSearchLab() {
     setFilteringProgress(null);
   };
 
-  // Get accepted articles
-  const acceptedArticles = filteredArticles.filter(fa => fa.passed);
-  const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
-
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -345,7 +341,7 @@ export default function SmartSearchLab() {
           )}
         </div>
 
-        {/* Progress Steps - Updated to show the actual flow */}
+        {/* Progress Steps */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Enter Query</Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -379,592 +375,74 @@ export default function SmartSearchLab() {
 
       <div className="flex-1 p-6">
         <div className="max-w-6xl mx-auto space-y-6">
-
-          {/* Step 1: Question Input */}
+          {/* Step Components */}
           {step === 'query' && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Enter Your Research Question
-              </h2>
-              <div className="space-y-4">
-                <Textarea
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g., What are the effects of CRISPR gene editing on cancer treatment outcomes?"
-                  rows={4}
-                  className="dark:bg-gray-700 dark:text-gray-100"
-                />
-                <Button
-                  onClick={handleRefineQuery}
-                  disabled={queryLoading || !query.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                >
-                  {queryLoading ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Refining...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Refine & Generate Keywords
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <QueryInputStep
+              query={query}
+              setQuery={setQuery}
+              onSubmit={handleRefineQuery}
+              loading={queryLoading}
+            />
           )}
 
-          {/* Step 2: Question Review */}
           {step === 'refinement' && refinement && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review Refined Question
-              </h2>
-
-              {/* Show the flow */}
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Step Completed:</h3>
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  ✓ Original query refined for clarity and specificity
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Original vs Refined Query */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                      Original Query
-                    </label>
-                    <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm text-gray-900 dark:text-gray-100">
-                      {refinement.original_query}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                      Refined Query (Step 2 Output)
-                    </label>
-                    <Textarea
-                      value={editedQuery}
-                      onChange={(e) => setEditedQuery(e.target.value)}
-                      rows={3}
-                      className="dark:bg-gray-700 dark:text-gray-100 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleGenerateSearchQuery}
-                  disabled={searchQueryLoading || !editedQuery.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                >
-                  {searchQueryLoading ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Generate Search Query
-                    </>
-                  )}
-                </Button>
-
-              </div>
-            </Card>
+            <RefinementStep
+              refinement={refinement}
+              editedQuery={editedQuery}
+              setEditedQuery={setEditedQuery}
+              onSubmit={handleGenerateSearchQuery}
+              loading={searchQueryLoading}
+            />
           )}
-          
-          {/* Step 3: Search Query Review */}
+
           {step === 'search-query' && searchQueryGeneration && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review Search Query
-              </h2>
-              
-              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">Step Completed:</h3>
-                <p className="text-sm text-green-800 dark:text-green-200">
-                  ✓ Boolean search query generated from refined question
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Generated Search Query
-                  </label>
-                  <Textarea
-                    value={editedSearchQuery}
-                    onChange={(e) => setEditedSearchQuery(e.target.value)}
-                    rows={3}
-                    className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
-                    placeholder="(cancer OR carcinoma) AND (treatment OR therapy) AND CRISPR"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Boolean search query with AND, OR, NOT operators and parentheses for grouping
-                  </p>
-                </div>
-                
-                <Button
-                  onClick={handleExecuteSearch}
-                  disabled={searchLoading || !editedSearchQuery.trim()}
-                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                >
-                  {searchLoading ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
-                      Search Articles
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
+            <SearchQueryStep
+              editedSearchQuery={editedSearchQuery}
+              setEditedSearchQuery={setEditedSearchQuery}
+              onSubmit={handleExecuteSearch}
+              loading={searchLoading}
+            />
           )}
 
-          {/* Step 4: Search Progress */}
-          {step === 'searching' && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Searching Articles...
-              </h2>
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">
-                  Searching across multiple databases...
-                </p>
-              </div>
-            </Card>
-          )}
+          {step === 'searching' && <SearchingStep />}
 
-          {/* Step 5: Search Results Review & Curation */}
           {step === 'search-results' && searchResults && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review & Curate Search Results
-              </h2>
-
-              <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Step Completed:</h3>
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ✓ Found {searchResults.total_found} articles from {searchResults.sources_searched.join(', ')}
-                </p>
-                <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
-                  Review the articles below and uncheck any that are obviously irrelevant before proceeding to semantic filtering.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Selection Controls */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {selectedArticles.size} of {searchResults.articles.length} articles selected
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={handleSelectAll}>
-                        Select All
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleDeselectAll}>
-                        Deselect All
-                      </Button>
-                    </div>
-                  </div>
-                  
-                </div>
-
-                {/* Articles List */}
-                <div className="space-y-1">
-                  {searchResults.articles.map((article, index) => (
-                    <div
-                      key={index}
-                      className={`p-2 border rounded transition-all ${
-                        selectedArticles.has(index)
-                          ? 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
-                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedArticles.has(index)}
-                          onChange={() => handleToggleArticle(index)}
-                          className="h-4 w-4 text-blue-600 rounded shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                              {article.title}
-                            </h4>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                            <span className="truncate">
-                              {article.authors.slice(0, 2).join(', ')}
-                              {article.authors.length > 2 && ' et al.'}
-                              {article.year && ` (${article.year})`}
-                            </span>
-                            <Badge variant="outline" className="text-xs shrink-0">
-                              {article.source}
-                            </Badge>
-                            {article.url && (
-                              <a
-                                href={article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 shrink-0"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center pt-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Tip: Uncheck articles that are clearly off-topic to save on filtering costs
-                  </p>
-                  <Button
-                    onClick={handleGenerateDiscriminator}
-                    disabled={selectedArticles.size === 0 || discriminatorLoading}
-                    className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                  >
-                    {discriminatorLoading ? (
-                      <>
-                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-4 h-4 mr-2" />
-                        Generate Filter Criteria
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <SearchResultsStep
+              searchResults={searchResults}
+              selectedArticles={selectedArticles}
+              onToggleArticle={handleToggleArticle}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={handleDeselectAll}
+              onSubmit={handleGenerateDiscriminator}
+              loading={discriminatorLoading}
+            />
           )}
 
-          {/* Step 6: Semantic Discriminator Review */}
           {step === 'discriminator' && discriminatorData && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review & Edit Semantic Filter Criteria
-              </h2>
-
-              <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Step Completed:</h3>
-                <p className="text-sm text-purple-800 dark:text-purple-200">
-                  ✓ Generated semantic evaluation criteria for {strictness} strictness filtering
-                </p>
-                <p className="text-sm text-purple-800 dark:text-purple-200 mt-1">
-                  Review and edit the criteria below. This prompt will be used to evaluate each article for relevance.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Context Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                      Research Question
-                    </label>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border">
-                      {editedQuery}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                      Search Query
-                    </label>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border font-mono">
-                      {editedSearchQuery}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Discriminator Prompt Editor */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Semantic Evaluation Criteria
-                  </label>
-                  <Textarea
-                    value={editedDiscriminator}
-                    onChange={(e) => setEditedDiscriminator(e.target.value)}
-                    rows={12}
-                    className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
-                    placeholder="Enter evaluation criteria for filtering articles..."
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    This prompt will be used to evaluate each article. Edit it to adjust the filtering criteria.
-                  </p>
-                </div>
-
-                {/* Strictness Setting */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <div className="flex items-center gap-4 mb-3">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Filter Strictness:
-                    </span>
-                    {(['low', 'medium', 'high'] as const).map((level) => (
-                      <Button
-                        key={level}
-                        variant={strictness === level ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setStrictness(level)}
-                      >
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {strictness === 'low' && 'More inclusive - accepts somewhat related articles'}
-                    {strictness === 'medium' && 'Balanced - accepts clearly related articles'}
-                    {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center pt-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Tip: Make criteria more specific to improve filtering precision
-                  </p>
-                  <Button
-                    onClick={handleStartFiltering}
-                    disabled={!editedDiscriminator.trim()}
-                    className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
-                  >
-                    <Search className="w-4 h-4 mr-2" />
-                    Start Filtering {selectedArticles.size} Articles
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <DiscriminatorStep
+              editedQuery={editedQuery}
+              editedSearchQuery={editedSearchQuery}
+              editedDiscriminator={editedDiscriminator}
+              setEditedDiscriminator={setEditedDiscriminator}
+              strictness={strictness}
+              setStrictness={setStrictness}
+              selectedArticlesCount={selectedArticles.size}
+              onSubmit={handleStartFiltering}
+            />
           )}
 
-          {/* Step 7: Filtering Progress */}
           {step === 'filtering' && filteringProgress && (
-            <Card className="p-6 dark:bg-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Applying Semantic Filter
-              </h2>
-
-              {/* Progress Bar */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <span>Progress</span>
-                  <span>{filteringProgress.processed} / {filteringProgress.total}</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${(filteringProgress.processed / filteringProgress.total) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Statistics */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {filteringProgress.accepted}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Accepted</div>
-                </div>
-                <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {filteringProgress.rejected}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Rejected</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-                    {filteringProgress.total - filteringProgress.processed}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Remaining</div>
-                </div>
-              </div>
-
-              {/* Current Article */}
-              {filteringProgress.current_article && (
-                <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Currently evaluating:</div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                    {filteringProgress.current_article}
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </Card>
-          )}
-
-          {/* Step 6: Results Display */}
-          {step === 'results' && (
             <>
-              {/* Summary Card */}
-              <Card className="p-6 dark:bg-gray-800">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                  Filtering Complete
-                </h2>
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {filteredArticles.length}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Processed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {acceptedArticles.length}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Accepted</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                      {rejectedArticles.length}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Rejected</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {acceptedArticles.length > 0
-                        ? Math.round((acceptedArticles.reduce((sum, a) => sum + a.confidence, 0) / acceptedArticles.length) * 100)
-                        : 0}%
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Avg Confidence</div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Accepted Articles */}
-              {acceptedArticles.length > 0 && (
-                <Card className="p-6 dark:bg-gray-800">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center">
-                    <Check className="w-5 h-5 text-green-600 mr-2" />
-                    Accepted Articles ({acceptedArticles.length})
-                  </h3>
-                  <div className="space-y-1">
-                    {acceptedArticles.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                                {item.article.title}
-                              </h4>
-                              <Badge variant="secondary" className="text-xs shrink-0">
-                                {Math.round(item.confidence * 100)}%
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                              <span className="truncate">
-                                {item.article.authors.slice(0, 2).join(', ')}
-                                {item.article.authors.length > 2 && ' et al.'}
-                                {item.article.year && ` (${item.article.year})`}
-                              </span>
-                              <Badge variant="outline" className="text-xs shrink-0">
-                                {item.article.source}
-                              </Badge>
-                              {item.article.url && (
-                                <a
-                                  href={item.article.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-700 shrink-0"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                </Card>
-              )}
-
-          {/* Rejected Articles (Collapsed by default) */}
-          {rejectedArticles.length > 0 && (
-            <details className="group">
-              <summary className="cursor-pointer">
-                <Card className="p-6 dark:bg-gray-800">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
-                    <X className="w-5 h-5 text-red-600 mr-2" />
-                    Rejected Articles ({rejectedArticles.length})
-                    <span className="ml-2 text-sm font-normal text-gray-500">
-                      (Click to expand)
-                    </span>
-                  </h3>
-                </Card>
-              </summary>
-              <Card className="p-6 dark:bg-gray-800 mt-2">
-                <div className="space-y-1">
-                  {rejectedArticles.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2 border border-gray-200 dark:border-gray-700 rounded opacity-60"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 truncate">
-                              {item.article.title}
-                            </h4>
-                            <Badge variant="outline" className="text-xs shrink-0 text-red-600">
-                              {Math.round(item.confidence * 100)}%
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                            <span className="truncate">
-                              {item.article.authors.slice(0, 2).join(', ')}
-                              {item.article.authors.length > 2 && ' et al.'}
-                              {item.article.year && ` (${item.article.year})`}
-                            </span>
-                            <Badge variant="outline" className="text-xs shrink-0">
-                              {item.article.source}
-                            </Badge>
-                            {item.article.url && (
-                              <a
-                                href={item.article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 shrink-0"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">
-                            Reason: {item.reasoning}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </details>
-          )}
-        </>
+              <FilteringStep filteringProgress={filteringProgress} />
+              <div ref={messagesEndRef} />
+            </>
           )}
 
+          {step === 'results' && (
+            <ResultsStep filteredArticles={filteredArticles} />
+          )}
+        </div>
       </div>
     </div>
-    </div >
   );
 }

@@ -100,10 +100,11 @@ async def execute_search(
         service = SmartSearchService()
         response = await service.search_articles(
             search_query=request.search_query,
-            max_results=request.max_results
+            max_results=request.max_results,
+            offset=request.offset
         )
         
-        logger.info(f"Search completed for user {current_user.user_id}: {response.total_found} articles found")
+        logger.info(f"Search completed for user {current_user.user_id}: {response.pagination.returned} articles found, {response.pagination.total_available} total available")
         return response
         
     except Exception as e:

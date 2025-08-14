@@ -161,7 +161,7 @@ export default function SmartSearchLab() {
       } else {
         toast({
           title: 'Search Complete',
-          description: `Found ${results.total_found} articles from ${results.sources_searched.join(', ')}`
+          description: `Found ${results.pagination.returned} articles (${results.pagination.total_available} total available) from ${results.sources_searched.join(', ')}`
         });
         // Go to search results review step
         setSearchResults(results);
@@ -301,6 +301,49 @@ export default function SmartSearchLab() {
   };
 
   // Reset to start
+  // Load more search results
+  const handleLoadMoreResults = async () => {
+    if (!searchResults || !editedSearchQuery.trim()) return;
+
+    setSearchLoading(true);
+    try {
+      const moreResults = await smartSearchApi.executeSearch({
+        search_query: editedSearchQuery,
+        max_results: 50,
+        offset: searchResults.articles.length
+      });
+
+      // Combine results
+      const combinedResults = {
+        ...moreResults,
+        articles: [...searchResults.articles, ...moreResults.articles],
+        pagination: {
+          ...moreResults.pagination,
+          returned: searchResults.articles.length + moreResults.articles.length
+        }
+      };
+
+      setSearchResults(combinedResults);
+      
+      // Update selected articles to include new ones by default
+      const newIndices = moreResults.articles.map((_, index) => searchResults.articles.length + index);
+      setSelectedArticles(prev => new Set([...prev, ...newIndices]));
+
+      toast({
+        title: 'More Results Loaded',
+        description: `Loaded ${moreResults.articles.length} more articles`
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to Load More Results',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   const handleReset = () => {
     setStep('query');
     setQuestion('');
@@ -414,7 +457,9 @@ export default function SmartSearchLab() {
               onSelectAll={handleSelectAll}
               onDeselectAll={handleDeselectAll}
               onSubmit={handleGenerateDiscriminator}
+              onLoadMore={handleLoadMoreResults}
               loading={discriminatorLoading}
+              loadingMore={searchLoading}
             />
           )}
 

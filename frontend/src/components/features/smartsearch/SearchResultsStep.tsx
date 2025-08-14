@@ -11,7 +11,9 @@ interface SearchResultsStepProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onSubmit: () => void;
+  onLoadMore: () => void;
   loading: boolean;
+  loadingMore: boolean;
 }
 
 export function SearchResultsStep({
@@ -21,7 +23,9 @@ export function SearchResultsStep({
   onSelectAll,
   onDeselectAll,
   onSubmit,
-  loading
+  onLoadMore,
+  loading,
+  loadingMore
 }: SearchResultsStepProps) {
   return (
     <Card className="p-6 dark:bg-gray-800 flex flex-col h-[calc(100vh-280px)]">
@@ -32,7 +36,7 @@ export function SearchResultsStep({
       <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex-shrink-0">
         <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Step Completed:</h3>
         <p className="text-sm text-yellow-800 dark:text-yellow-200">
-          ✓ Found {searchResults.total_found} articles from {searchResults.sources_searched.join(', ')}
+          ✓ Found {searchResults.pagination.returned} articles (showing {searchResults.pagination.returned} of {searchResults.pagination.total_available} total) from {searchResults.sources_searched.join(', ')}
         </p>
         <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
           Review the articles below and uncheck any that are obviously irrelevant before proceeding to semantic filtering.
@@ -104,6 +108,27 @@ export function SearchResultsStep({
             </div>
           ))}
         </div>
+
+        {/* Load More Button */}
+        {searchResults.pagination.has_more && (
+          <div className="flex justify-center py-4 flex-shrink-0">
+            <Button
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              variant="outline"
+              className="w-full max-w-xs"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  Loading More...
+                </>
+              ) : (
+                `Load More (${searchResults.pagination.total_available - searchResults.pagination.returned} remaining)`
+              )}
+            </Button>
+          </div>
+        )}
 
         <div className="flex justify-between items-center pt-4 flex-shrink-0">
           <p className="text-sm text-gray-500 dark:text-gray-400">

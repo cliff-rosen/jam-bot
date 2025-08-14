@@ -14,6 +14,7 @@ from schemas.smart_search import (
     SmartSearchRefinementResponse,
     SearchArticle,
     SearchResultsResponse,
+    SearchPaginationInfo,
     FilteredArticle,
     FilteringProgress
 )
@@ -192,14 +193,15 @@ Generate an effective boolean search query for academic databases."""
             return refined_question
     
     
-    async def search_articles(self, search_query: str, max_results: int = 50) -> SearchResultsResponse:
+    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0) -> SearchResultsResponse:
         """
         Search for articles using search query across multiple sources
         """
-        logger.info(f"Searching with query: {search_query}")
+        logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}")
         
         all_articles = []
         sources_searched = []
+        total_available = 0
         
         # Search PubMed
         try:
@@ -207,12 +209,16 @@ Generate an effective boolean search query for academic databases."""
             # Use search_pubmed function from pubmed_service (it's a sync function)
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            pubmed_articles, _ = await loop.run_in_executor(
+            pubmed_articles, metadata = await loop.run_in_executor(
                 None, 
                 search_pubmed,
                 search_query,
-                max_results  # Use full max_results since Scholar is disabled
+                max_results,  # Use full max_results since Scholar is disabled
+                offset
             )
+            
+            # Get total count from metadata
+            total_available = metadata.get('total_results', 0)
             
             for article in pubmed_articles:
                 # article is now a CanonicalResearchArticle, not the raw Article class
@@ -263,9 +269,17 @@ Generate an effective boolean search query for academic databases."""
         # except Exception as e:
         #     logger.error(f"Google Scholar search failed: {e}")
         
+        # Create pagination info
+        pagination = SearchPaginationInfo(
+            total_available=total_available,
+            returned=len(all_articles),
+            offset=offset,
+            has_more=offset + len(all_articles) < total_available
+        )
+        
         return SearchResultsResponse(
             articles=all_articles,
-            total_found=len(all_articles),
+            pagination=pagination,
             sources_searched=sources_searched
         )
     

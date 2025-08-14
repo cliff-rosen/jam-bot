@@ -35,6 +35,15 @@ class ArticleSearchRequest(BaseModel):
     """Request to search with boolean query"""
     search_query: str = Field(..., description="Boolean search query")
     max_results: int = Field(50, description="Maximum results per source")
+    offset: int = Field(0, description="Number of results to skip (for pagination)")
+
+
+class SearchPaginationInfo(BaseModel):
+    """Pagination information for search results"""
+    total_available: int = Field(..., description="Total number of results available")
+    returned: int = Field(..., description="Number of results returned in this request")
+    offset: int = Field(..., description="Number of results skipped")
+    has_more: bool = Field(..., description="Whether there are more results available")
 
 
 class SearchArticle(BaseModel):
@@ -53,7 +62,7 @@ class SearchArticle(BaseModel):
 class SearchResultsResponse(BaseModel):
     """Response from article search"""
     articles: List[SearchArticle]
-    total_found: int
+    pagination: SearchPaginationInfo
     sources_searched: List[str]
 
 

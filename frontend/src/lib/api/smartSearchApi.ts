@@ -26,6 +26,7 @@ export interface SearchQueryRequest {
 export interface ArticleSearchRequest {
   search_query: string;
   max_results?: number;
+  offset?: number;
 }
 
 export interface SemanticFilterRequest {

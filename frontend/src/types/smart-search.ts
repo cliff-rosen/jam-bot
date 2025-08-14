@@ -24,9 +24,16 @@ export interface SearchArticle {
   source: string;
 }
 
+export interface SearchPaginationInfo {
+  total_available: number;
+  returned: number;
+  offset: number;
+  has_more: boolean;
+}
+
 export interface SearchResults {
   articles: SearchArticle[];
-  total_found: number;
+  pagination: SearchPaginationInfo;
   sources_searched: string[];
 }
 

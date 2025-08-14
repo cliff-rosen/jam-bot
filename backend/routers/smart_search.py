@@ -42,7 +42,7 @@ async def refine_search_query(
         logger.info(f"User {current_user.user_id} refining search query: {request.query[:100]}...")
         
         service = SmartSearchService()
-        refined_query = await service.refine_search_query(request.query)
+        refined_query = await service.refine_research_question(request.query)
         
         response = SmartSearchRefinementResponse(
             original_query=request.query,

@@ -37,9 +37,9 @@ export interface SemanticFilterRequest {
 
 class SmartSearchApi {
   /**
-   * Step 2: Refine a search query
+   * Step 2: Refine a research question
    */
-  async refineQuery(request: SmartSearchRequest): Promise<SmartSearchRefinement> {
+  async refineQuestion(request: SmartSearchRequest): Promise<SmartSearchRefinement> {
     const response = await api.post('/api/lab/smart-search/refine', request);
     return response.data;
   }

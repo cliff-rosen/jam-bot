@@ -40,7 +40,7 @@ export default function SmartSearchLab() {
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
 
-  // Step 3: Search and filtering
+  // Step 4: Search and filtering
   const [searchLoading, setSearchLoading] = useState(false);
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
@@ -67,15 +67,14 @@ export default function SmartSearchLab() {
 
     setQueryLoading(true);
     try {
-      const response = await smartSearchApi.refineQuery({ query });
+      const response = await smartSearchApi.refineQuestion({ query });
       setRefinement(response);
       setEditedQuery(response.refined_query);
-      setEditedKeywords([...response.keywords]);
       setStep('refinement');
 
       toast({
         title: 'Query Refined',
-        description: 'Review the refined query and keywords'
+        description: 'Review and edit the refined query'
       });
     } catch (error) {
       toast({
@@ -88,12 +87,47 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Step 2: Execute search
-  const handleExecuteSearch = async () => {
-    if (editedKeywords.length === 0) {
+  // Step 2: Generate search query from refined query
+  const handleGenerateSearchQuery = async () => {
+    if (!editedQuery.trim()) {
       toast({
         title: 'Error',
-        description: 'Please add at least one keyword',
+        description: 'Please provide a refined query',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setSearchQueryLoading(true);
+    try {
+      const response = await smartSearchApi.generateSearchQuery({ 
+        refined_query: editedQuery 
+      });
+      setSearchQueryGeneration(response);
+      setEditedSearchQuery(response.search_query);
+      setStep('search-query');
+      
+      toast({
+        title: 'Search Query Generated',
+        description: 'Review and edit the boolean search query'
+      });
+    } catch (error) {
+      toast({
+        title: 'Search Query Generation Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setSearchQueryLoading(false);
+    }
+  };
+
+  // Step 3: Execute search
+  const handleExecuteSearch = async () => {
+    if (!editedSearchQuery.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please provide a search query',
         variant: 'destructive'
       });
       return;
@@ -104,17 +138,17 @@ export default function SmartSearchLab() {
 
     try {
       const results = await smartSearchApi.executeSearch({
-        keywords: editedKeywords,
+        search_query: editedSearchQuery,
         max_results: 50
       });
 
       if (results.articles.length === 0) {
         toast({
           title: 'No Results',
-          description: 'No articles found. Try different keywords.',
+          description: 'No articles found. Try a different search query.',
           variant: 'destructive'
         });
-        setStep('refinement');
+        setStep('search-query');
       } else {
         toast({
           title: 'Search Complete',
@@ -138,7 +172,6 @@ export default function SmartSearchLab() {
   // Step 3: Start filtering
   const handleStartFiltering = async (results: SearchResults) => {
     setStep('filtering');
-    setFilteringLoading(true);
     setFilteredArticles([]);
     setFilteringProgress({
       total: results.articles.length,
@@ -152,7 +185,7 @@ export default function SmartSearchLab() {
         {
           articles: results.articles,
           refined_query: editedQuery,
-          keywords: editedKeywords,
+          search_query: editedSearchQuery,
           strictness
         },
         // onMessage
@@ -167,7 +200,6 @@ export default function SmartSearchLab() {
         },
         // onComplete
         (stats: any) => {
-          setFilteringLoading(false);
           setStep('results');
           toast({
             title: 'Filtering Complete',
@@ -176,7 +208,6 @@ export default function SmartSearchLab() {
         },
         // onError
         (error: string) => {
-          setFilteringLoading(false);
           toast({
             title: 'Filtering Failed',
             description: error,
@@ -185,7 +216,6 @@ export default function SmartSearchLab() {
         }
       );
     } catch (error) {
-      setFilteringLoading(false);
       toast({
         title: 'Failed to Start Filtering',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -194,17 +224,6 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Add/remove keywords
-  const handleAddKeyword = () => {
-    if (newKeyword.trim() && !editedKeywords.includes(newKeyword.trim())) {
-      setEditedKeywords([...editedKeywords, newKeyword.trim()]);
-      setNewKeyword('');
-    }
-  };
-
-  const handleRemoveKeyword = (keyword: string) => {
-    setEditedKeywords(editedKeywords.filter(k => k !== keyword));
-  };
 
   // Reset to start
   const handleReset = () => {
@@ -212,7 +231,8 @@ export default function SmartSearchLab() {
     setQuery('');
     setRefinement(null);
     setEditedQuery('');
-    setEditedKeywords([]);
+    setSearchQueryGeneration(null);
+    setEditedSearchQuery('');
     setFilteredArticles([]);
     setFilteringProgress(null);
   };
@@ -273,7 +293,7 @@ export default function SmartSearchLab() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto space-y-6">
 
-          {/* Step 1: Query Input */}
+          {/* Step 1: Question Input */}
           {step === 'query' && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -308,20 +328,19 @@ export default function SmartSearchLab() {
             </Card>
           )}
 
-          {/* Step 2: Refinement Review */}
+          {/* Step 2: Question Review */}
           {step === 'refinement' && refinement && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Review Refinement & Keywords
+                Review Refined Question
               </h2>
 
               {/* Show the flow */}
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Processing Steps Completed:</h3>
-                <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
-                  <li>✓ Original query refined for clarity and specificity</li>
-                  <li>✓ Keywords extracted from the refined query</li>
-                </ol>
+                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Step Completed:</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  ✓ Original query refined for clarity and specificity
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -331,7 +350,7 @@ export default function SmartSearchLab() {
                     <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                       Original Query
                     </label>
-                    <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm">
+                    <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm text-gray-900 dark:text-gray-100">
                       {refinement.original_query}
                     </div>
                   </div>
@@ -348,47 +367,59 @@ export default function SmartSearchLab() {
                   </div>
                 </div>
 
-                {/* Keywords */}
+                <Button
+                  onClick={handleGenerateSearchQuery}
+                  disabled={searchQueryLoading || !editedQuery.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                >
+                  {searchQueryLoading ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Generate Search Query
+                    </>
+                  )}
+                </Button>
+
+              </div>
+            </Card>
+          )}
+          
+          {/* Step 3: Search Query Review */}
+          {step === 'search-query' && searchQueryGeneration && (
+            <Card className="p-6 dark:bg-gray-800">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Review Search Query
+              </h2>
+              
+              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">Step Completed:</h3>
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  ✓ Boolean search query generated from refined question
+                </p>
+              </div>
+              
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Search Keywords (Step 3 Output - Generated from Refined Query)
+                    Generated Search Query
                   </label>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {editedKeywords.map((keyword, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="secondary"
-                        className="px-3 py-1 flex items-center gap-1"
-                      >
-                        {keyword}
-                        <button
-                          onClick={() => handleRemoveKeyword(keyword)}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newKeyword}
-                      onChange={(e) => setNewKeyword(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddKeyword()}
-                      placeholder="Add keyword..."
-                      className="flex-1 px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={handleAddKeyword}
-                      disabled={!newKeyword.trim()}
-                    >
-                      Add
-                    </Button>
-                  </div>
+                  <Textarea
+                    value={editedSearchQuery}
+                    onChange={(e) => setEditedSearchQuery(e.target.value)}
+                    rows={3}
+                    className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
+                    placeholder="(cancer OR carcinoma) AND (treatment OR therapy) AND CRISPR"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Boolean search query with AND, OR, NOT operators and parentheses for grouping
+                  </p>
                 </div>
-
+                
                 {/* Strictness Setting */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -412,24 +443,33 @@ export default function SmartSearchLab() {
                     {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
                   </p>
                 </div>
-
+                
                 <Button
                   onClick={handleExecuteSearch}
-                  disabled={editedKeywords.length === 0}
+                  disabled={searchLoading || !editedSearchQuery.trim()}
                   className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
                 >
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Articles
+                  {searchLoading ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Search Articles
+                    </>
+                  )}
                 </Button>
               </div>
             </Card>
           )}
 
-          {/* Step 3: Searching */}
+          {/* Step 4: Search & Filter Progress */}
           {step === 'searching' && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Searching...
+                Searching Articles...
               </h2>
               <div className="flex flex-col items-center justify-center py-8">
                 <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
@@ -440,7 +480,7 @@ export default function SmartSearchLab() {
             </Card>
           )}
 
-          {/* Step 4: Filtering */}
+          {/* Step 5: Filtering Progress */}
           {step === 'filtering' && filteringProgress && (
             <Card className="p-6 dark:bg-gray-800">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -497,7 +537,7 @@ export default function SmartSearchLab() {
             </Card>
           )}
 
-          {/* Step 5: Results */}
+          {/* Step 6: Results Display */}
           {step === 'results' && (
             <>
               {/* Summary Card */}

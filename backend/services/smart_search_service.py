@@ -30,14 +30,14 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
         
-    async def refine_search_query(self, query: str) -> str:
+    async def refine_research_question(self, query: str) -> str:
         """
         Step 2: Refine/improve the user's research question using LLM
         """
         logger.info(f"Step 2 - Refining query: {query[:100]}...")
         
-        # Create prompt for query refinement ONLY
-        system_prompt = """You are a research query refinement expert. Your task is to take a user's research question and make it more specific, clear, and searchable.
+        # Create prompt for research question refinement
+        system_prompt = """You are a research question refinement expert. Your task is to take a user's research question and make it more specific, clear, and searchable.
 
 Guidelines:
 - Make the question more specific and focused
@@ -46,7 +46,7 @@ Guidelines:
 - Keep it as a natural question or statement
 - Do NOT generate keywords yet (that's a separate step)
 
-Respond with ONLY the refined question, nothing else."""
+Respond in JSON format with the refined question in the "refined_query" field."""
 
         user_prompt = f"""Original research question: {query}
 

@@ -312,6 +312,12 @@ async def filter_articles_stream(
                                 filtering_stats["accepted"] = stats.get("accepted", 0)
                                 filtering_stats["rejected"] = stats.get("rejected", 0)
                                 
+                                # Extract token usage from completion data
+                                token_usage = stats.get("token_usage", {})
+                                filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
+                                filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
+                                filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
+                                
                                 # Calculate duration and average confidence
                                 duration = datetime.utcnow() - filtering_stats["start_time"]
                                 duration_seconds = int(duration.total_seconds())
@@ -335,7 +341,10 @@ async def filter_articles_stream(
                                         rejected=filtering_stats["rejected"],
                                         average_confidence=avg_confidence,
                                         duration_seconds=duration_seconds,
-                                        submitted_discriminator=filtering_stats["actual_discriminator"]
+                                        submitted_discriminator=filtering_stats["actual_discriminator"],
+                                        prompt_tokens=filtering_stats["prompt_tokens"],
+                                        completion_tokens=filtering_stats["completion_tokens"],
+                                        total_tokens=filtering_stats["total_tokens"]
                                     )
                                 finally:
                                     new_db.close()

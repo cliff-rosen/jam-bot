@@ -225,7 +225,8 @@ class SmartSearchSessionService:
     def update_filtering_step(self, session_id: str, user_id: str,
                              total_filtered: int, accepted: int, rejected: int,
                              average_confidence: float, duration_seconds: int,
-                             submitted_discriminator: str = None) -> SmartSearchSession:
+                             submitted_discriminator: str = None,
+                             prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
         """Update session with filtering results data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -248,6 +249,11 @@ class SmartSearchSessionService:
             # Update submitted_discriminator with actual discriminator used
             if submitted_discriminator:
                 session.submitted_discriminator = submitted_discriminator
+            
+            # Update token usage from filtering
+            session.total_prompt_tokens = (session.total_prompt_tokens or 0) + prompt_tokens
+            session.total_completion_tokens = (session.total_completion_tokens or 0) + completion_tokens
+            session.total_tokens = (session.total_tokens or 0) + total_tokens
             
             # Calculate total session duration
             if session.created_at:

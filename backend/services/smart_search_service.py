@@ -350,6 +350,9 @@ You must respond in this exact JSON format:
         accepted = 0
         rejected = 0
         
+        # Initialize token usage tracking
+        total_filtering_tokens = LLMUsage()
+        
         # Send initial progress
         progress = FilteringProgress(
             total=total,
@@ -367,7 +370,12 @@ You must respond in this exact JSON format:
                 yield f"data: {json.dumps({'type': 'status', 'message': f'Evaluating: {article.title[:100]}...', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
                 
                 # Evaluate article
-                result = await self._evaluate_article(article, discriminator)
+                result, usage = await self._evaluate_article(article, discriminator)
+                
+                # Accumulate token usage
+                total_filtering_tokens.prompt_tokens += usage.prompt_tokens
+                total_filtering_tokens.completion_tokens += usage.completion_tokens
+                total_filtering_tokens.total_tokens += usage.total_tokens
                 
                 # Update counters
                 processed += 1
@@ -397,12 +405,22 @@ You must respond in this exact JSON format:
                 # Send error but continue
                 yield f"data: {json.dumps({'type': 'error', 'message': f'Error filtering article: {str(e)}', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
         
-        # Send completion message
-        yield f"data: {json.dumps({'type': 'complete', 'data': {'total_processed': processed, 'accepted': accepted, 'rejected': rejected}, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
+        # Send completion message with token usage
+        completion_data = {
+            'total_processed': processed, 
+            'accepted': accepted, 
+            'rejected': rejected,
+            'token_usage': {
+                'prompt_tokens': total_filtering_tokens.prompt_tokens,
+                'completion_tokens': total_filtering_tokens.completion_tokens,
+                'total_tokens': total_filtering_tokens.total_tokens
+            }
+        }
+        yield f"data: {json.dumps({'type': 'complete', 'data': completion_data, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
         
         logger.info(f"Filtering complete: {accepted}/{total} articles accepted")
     
-    async def _evaluate_article(self, article: SearchArticle, discriminator: str) -> FilteredArticle:
+    async def _evaluate_article(self, article: SearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
         """
         Evaluate a single article against the discriminator
         """
@@ -450,25 +468,33 @@ Respond in JSON format:
                 updated_at=datetime.utcnow()
             )
             result = await prompt_caller.invoke(
-                messages=[user_message]
+                messages=[user_message],
+                return_usage=True
             )
             
-            # Convert to response model
-            eval_data = result.model_dump() if hasattr(result, 'model_dump') else dict(result)
+            # Extract result and usage from LLMResponse
+            llm_usage = result.usage
+            llm_result = result.result
             
-            return FilteredArticle(
+            # Convert to response model
+            eval_data = llm_result.model_dump() if hasattr(llm_result, 'model_dump') else dict(llm_result)
+            
+            filtered_article = FilteredArticle(
                 article=article,
                 passed=eval_data.get("decision", "No") == "Yes",
                 confidence=eval_data.get("confidence", 0.5),
                 reasoning=eval_data.get("reasoning", "No reasoning provided")
             )
             
+            return filtered_article, llm_usage
+            
         except Exception as e:
             logger.error(f"Failed to evaluate article: {e}")
-            # Default to not passing with low confidence
-            return FilteredArticle(
+            # Default to not passing with low confidence, zero usage
+            filtered_article = FilteredArticle(
                 article=article,
                 passed=False,
                 confidence=0.0,
                 reasoning=f"Evaluation failed: {str(e)}"
             )
+            return filtered_article, LLMUsage()

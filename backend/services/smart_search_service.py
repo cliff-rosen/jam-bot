@@ -117,30 +117,40 @@ Respond in JSON format with the refined question in the "refined_question" field
         logger.info(f"Step 3 - Generating boolean search query from refined query...")
         
         # Create prompt for search query generation
-        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into a BROAD, INCLUSIVE boolean search query that prioritizes recall over precision.
+        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into an EFFECTIVE and BALANCED search query.
 
-CRITICAL PRINCIPLE: False negatives (missing relevant papers) are much more expensive than false positives (retrieving some irrelevant papers). Cast a wide net.
+CORE PRINCIPLES:
+- Target 500-2000 relevant results (not too broad, not too narrow)
+- Use simple, clear keywords that researchers actually use
+- Avoid overly complex boolean logic
+- Focus on the most important 2-3 concepts
 
-Guidelines for BROAD search queries:
-- Use OR extensively to include synonyms, variations, and related terms
-- Avoid being overly specific - prefer broader categories over narrow terms
-- Include both formal scientific terms AND common/colloquial variants
-- Use minimal AND operators - only for truly essential concepts
-- Avoid NOT operators unless absolutely necessary (they can exclude relevant papers)
-- Prefer partial matches over exact phrases
-- Include abbreviations, alternative spellings, and related concepts
-- Think "what terms might appear in papers I want to find?" rather than "what is the most precise query?"
+GUIDELINES:
+1. Identify the 2-3 CORE concepts from the research question
+2. For each concept, use 2-4 of the most common synonyms/variants
+3. Use AND to connect different concepts
+4. Use OR only for true synonyms within the same concept
+5. Prefer individual keywords over exact phrases
+6. Use scientific terminology that appears in abstracts and titles
+7. Avoid overly broad terms (like "treatment" alone) or overly specific terms
 
-Search Strategy:
-1. Identify 2-3 core concepts maximum
-2. For each concept, brainstorm 5-10 synonyms/variants
-3. Connect synonyms with OR, concepts with AND
-4. Keep it simple - complex nested queries often miss papers
+QUERY STRUCTURE:
+- Simple format: (concept1 OR synonym1) AND (concept2 OR synonym2)
+- Maximum 3 AND-connected concept groups
+- 2-4 terms per OR group
+- No nested parentheses
 
-Example BROAD queries:
-- (mice OR mouse OR murine OR rodent) AND (asbestos OR chrysotile OR crocidolite OR amphibole) AND (mesothelioma OR pleural OR peritoneal)
-- (CRISPR OR "gene edit" OR "genome edit" OR "genetic modification") AND (cancer OR tumor OR oncology OR malignancy)
-- (diabetes OR diabetic OR glycemic OR "blood sugar") AND (treatment OR therapy OR management OR intervention)
+GOOD EXAMPLES:
+- (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
+- (CRISPR OR "gene editing") AND (cancer OR tumor) 
+- (obesity OR overweight) AND (children OR pediatric) AND (intervention OR prevention)
+
+BAD EXAMPLES (too complex):
+- (diabetes OR diabetic OR glycemic OR "blood sugar" OR hyperglycemia) AND (neuropathy OR "nerve damage" OR "peripheral nerve" OR polyneuropathy) AND (treatment OR therapy OR management OR intervention OR medication)
+
+BAD EXAMPLES (too simple):
+- diabetes treatment
+- cancer
 
 Respond in JSON format with a "search_query" field containing the boolean search string."""
 

@@ -415,6 +415,8 @@ def get_articles_from_ids(ids: List[str]) -> List[Article]:
             continue  # Continue with next batch instead of silent failure
 
         root = ET.fromstring(xml)
+        
+        #FIX ME: if API returns PPubmeBookArticle (40388552) that wont be converted to Article
         for article_node in root.findall(".//PubmedArticle"):
             articles.append(Article.from_xml(ET.tostring(article_node)))
 

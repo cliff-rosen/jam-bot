@@ -21,6 +21,9 @@
       "Bash(mkdir:*)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\c\\code\\jam-bot"
+    ]
   }
 }

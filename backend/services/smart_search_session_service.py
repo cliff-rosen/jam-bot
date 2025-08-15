@@ -115,7 +115,7 @@ class SmartSearchSessionService:
     
     def update_search_execution_step(self, session_id: str, user_id: str,
                                     total_available: int, returned: int, sources: List[str],
-                                    is_pagination_load: bool = False) -> SmartSearchSession:
+                                    is_pagination_load: bool = False, submitted_search_query: str = None) -> SmartSearchSession:
         """Update session with search execution data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -145,6 +145,10 @@ class SmartSearchSessionService:
             session.search_metadata = search_metadata
             session.articles_retrieved_count = total_retrieved
             session.last_step_completed = "search_execution"
+            
+            # Update submitted_search_query with actual executed query (only on initial search)
+            if not is_pagination_load and submitted_search_query:
+                session.submitted_search_query = submitted_search_query
             
             self.db.commit()
             logger.info(f"Updated search execution step for session {session_id} - {'pagination load' if is_pagination_load else 'initial search'}")
@@ -201,7 +205,8 @@ class SmartSearchSessionService:
     
     def update_filtering_step(self, session_id: str, user_id: str,
                              total_filtered: int, accepted: int, rejected: int,
-                             average_confidence: float, duration_seconds: int) -> SmartSearchSession:
+                             average_confidence: float, duration_seconds: int,
+                             submitted_discriminator: str = None) -> SmartSearchSession:
         """Update session with filtering results data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -220,6 +225,10 @@ class SmartSearchSessionService:
             session.filtering_metadata = filtering_metadata
             session.last_step_completed = "filtering"
             session.status = "completed"
+            
+            # Update submitted_discriminator with actual discriminator used
+            if submitted_discriminator:
+                session.submitted_discriminator = submitted_discriminator
             
             # Calculate total session duration
             if session.created_at:

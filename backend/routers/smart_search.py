@@ -71,7 +71,7 @@ async def refine_research_question(
             session_id=session.id,
             user_id=current_user.user_id,
             refined_question=refined_question,
-            submitted_refined_question=request.question  # User's original input
+            submitted_refined_question=refined_question  # Initially same as generated, user may edit later
         )
         
         response = SmartSearchRefinementResponse(
@@ -117,7 +117,7 @@ async def generate_search_query(
             session_id=session.id,
             user_id=current_user.user_id,
             generated_search_query=search_query,
-            submitted_search_query=request.refined_question  # Will be updated when user submits actual query
+            submitted_search_query=search_query  # Initially same as generated, user may edit later
         )
         
         response = SearchQueryResponse(
@@ -170,7 +170,8 @@ async def execute_search(
             total_available=response.pagination.total_available,
             returned=response.pagination.returned,
             sources=response.sources_searched,
-            is_pagination_load=is_pagination_load
+            is_pagination_load=is_pagination_load,
+            submitted_search_query=request.search_query
         )
         
         logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {response.pagination.returned} articles found, {response.pagination.total_available} total available")
@@ -263,12 +264,23 @@ async def filter_articles_stream(
         
         service = SmartSearchService()
         
+        # Determine which discriminator will be used
+        actual_discriminator = request.discriminator_prompt
+        if not actual_discriminator:
+            # Generate default discriminator if none provided
+            actual_discriminator = await service.generate_semantic_discriminator(
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness
+            )
+        
         # Track filtering stats for session update
         filtering_stats = {
             "total_filtered": 0,
             "accepted": 0,
             "rejected": 0,
-            "start_time": datetime.utcnow()
+            "start_time": datetime.utcnow(),
+            "actual_discriminator": actual_discriminator
         }
         
         async def generate():
@@ -309,7 +321,8 @@ async def filter_articles_stream(
                                     accepted=filtering_stats["accepted"],
                                     rejected=filtering_stats["rejected"],
                                     average_confidence=avg_confidence,
-                                    duration_seconds=duration_seconds
+                                    duration_seconds=duration_seconds,
+                                    submitted_discriminator=filtering_stats["actual_discriminator"]
                                 )
                         except Exception as parse_error:
                             logger.warning(f"Failed to parse filtering message: {parse_error}")

@@ -70,7 +70,7 @@ class SmartSearchSessionService:
         return self.create_session(user_id, original_question)
     
     def update_refinement_step(self, session_id: str, user_id: str, 
-                              refined_question: str, submitted_refined_question: str) -> SmartSearchSession:
+                              refined_question: str, submitted_refined_question: str = None) -> SmartSearchSession:
         """Update session with question refinement data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -78,7 +78,8 @@ class SmartSearchSessionService:
                 raise ValueError(f"Session {session_id} not found")
             
             session.refined_question = refined_question
-            session.submitted_refined_question = submitted_refined_question
+            if submitted_refined_question is not None:
+                session.submitted_refined_question = submitted_refined_question
             session.last_step_completed = "question_refinement"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -92,7 +93,8 @@ class SmartSearchSessionService:
             raise
     
     def update_search_query_step(self, session_id: str, user_id: str,
-                                 generated_search_query: str, submitted_search_query: str) -> SmartSearchSession:
+                                 generated_search_query: str, submitted_search_query: str = None,
+                                 submitted_refined_question: str = None) -> SmartSearchSession:
         """Update session with search query generation data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -100,7 +102,10 @@ class SmartSearchSessionService:
                 raise ValueError(f"Session {session_id} not found")
             
             session.generated_search_query = generated_search_query
-            session.submitted_search_query = submitted_search_query
+            if submitted_search_query is not None:
+                session.submitted_search_query = submitted_search_query
+            if submitted_refined_question is not None:
+                session.submitted_refined_question = submitted_refined_question
             session.last_step_completed = "search_query_generation"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -180,8 +185,8 @@ class SmartSearchSessionService:
             raise
     
     def update_discriminator_step(self, session_id: str, user_id: str,
-                                 generated_discriminator: str, submitted_discriminator: str,
-                                 strictness: str) -> SmartSearchSession:
+                                 generated_discriminator: str, submitted_discriminator: str = None,
+                                 strictness: str = None) -> SmartSearchSession:
         """Update session with discriminator generation data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -189,8 +194,10 @@ class SmartSearchSessionService:
                 raise ValueError(f"Session {session_id} not found")
             
             session.generated_discriminator = generated_discriminator
-            session.submitted_discriminator = submitted_discriminator
-            session.filter_strictness = strictness
+            if submitted_discriminator is not None:
+                session.submitted_discriminator = submitted_discriminator
+            if strictness is not None:
+                session.filter_strictness = strictness
             session.last_step_completed = "discriminator_generation"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             

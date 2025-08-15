@@ -71,7 +71,7 @@ async def refine_research_question(
             session_id=session.id,
             user_id=current_user.user_id,
             refined_question=refined_question,
-            submitted_refined_question=refined_question  # Initially same as generated, user may edit later
+            submitted_refined_question=None  # Will be set when user actually submits in next step
         )
         
         response = SmartSearchRefinementResponse(
@@ -112,12 +112,13 @@ async def generate_search_query(
         service = SmartSearchService()
         search_query = await service.generate_search_query(request.refined_question)
         
-        # Update session
+        # Update session - this is when user actually submits their refined question
         session_service.update_search_query_step(
             session_id=session.id,
             user_id=current_user.user_id,
             generated_search_query=search_query,
-            submitted_search_query=search_query  # Initially same as generated, user may edit later
+            submitted_search_query=None,  # Will be set when user actually executes search
+            submitted_refined_question=request.refined_question  # What user actually submitted
         )
         
         response = SearchQueryResponse(
@@ -215,7 +216,7 @@ async def generate_semantic_discriminator(
             session_id=session.id,
             user_id=current_user.user_id,
             generated_discriminator=discriminator_prompt,
-            submitted_discriminator=discriminator_prompt,  # Will be updated if user edits
+            submitted_discriminator=None,  # Will be set when user actually starts filtering
             strictness=request.strictness
         )
         

@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
-import { ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
 
 import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';
 import { RefinementStep } from '@/components/features/smartsearch/RefinementStep';
@@ -207,7 +209,7 @@ export default function SmartSearchLab() {
       }
       toast({
         title: 'Filtering Complete',
-        description: isFilterAll 
+        description: isFilterAll
           ? `Filtered ${stats.total_processed} articles: ${stats.accepted} accepted, ${stats.rejected} rejected`
           : `${stats.accepted} of ${stats.total_processed} articles passed the filter`
       });
@@ -252,9 +254,9 @@ export default function SmartSearchLab() {
   const executeFilterAllMode = async () => {
     const totalCount = searchResults!.pagination.total_available;
     initializeFilteringState(totalCount);
-    
+
     const handlers = createFilteringHandlers(true);
-    
+
     try {
       await smartSearchApi.filterAllSearchResultsStreaming(
         {
@@ -278,7 +280,7 @@ export default function SmartSearchLab() {
   // Filter selected articles only
   const executeSelectedMode = async () => {
     const selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
-    
+
     if (selectedArticleList.length === 0) {
       toast({
         title: 'No Articles Selected',
@@ -287,11 +289,11 @@ export default function SmartSearchLab() {
       });
       return;
     }
-    
+
     initializeFilteringState(selectedArticleList.length);
-    
+
     const handlers = createFilteringHandlers(false);
-    
+
     try {
       await smartSearchApi.filterArticlesStreaming(
         {
@@ -315,7 +317,7 @@ export default function SmartSearchLab() {
   // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
   const handleStartFiltering = async () => {
     if (!searchResults || !sessionId) return;
-    
+
     if (filterAllMode) {
       await executeFilterAllMode();
     } else {
@@ -673,8 +675,8 @@ export default function SmartSearchLab() {
 
           {step === 'filtering' && filteringProgress && (
             <>
-              <FilteringStep 
-                filteringProgress={filteringProgress} 
+              <FilteringStep
+                filteringProgress={filteringProgress}
                 filteredArticles={filteredArticles}
               />
               <div ref={messagesEndRef} />

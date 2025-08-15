@@ -32,6 +32,8 @@ from schemas.smart_search import (
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
 from services.smart_search_session_service import SmartSearchSessionService
+from typing import List, AsyncGenerator
+from schemas.smart_search import SearchArticle
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,103 @@ router = APIRouter(
     tags=["smart-search"],
     dependencies=[Depends(validate_token)]
 )
+
+
+async def create_filtering_stream(
+    articles: List[SearchArticle],
+    refined_question: str,
+    search_query: str,
+    strictness: str,
+    actual_discriminator: str,
+    session_id: str,
+    user_id: str,
+    db: Session
+) -> AsyncGenerator[str, None]:
+    """
+    Shared filtering stream generator for both filter endpoints
+    """
+    service = SmartSearchService()
+    
+    # Track filtering stats for session update
+    filtering_stats = {
+        "total_filtered": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "start_time": datetime.utcnow(),
+        "actual_discriminator": actual_discriminator
+    }
+    
+    try:
+        # Stream the filtering process
+        async for message in service.filter_articles_streaming(
+            articles=articles,
+            refined_question=refined_question,
+            search_query=search_query,
+            strictness=strictness,
+            custom_discriminator=actual_discriminator
+        ):
+            # Parse and track filtering progress
+            import json
+            if message.startswith("data: "):
+                try:
+                    data = json.loads(message[6:])
+                    if data.get("type") == "complete":
+                        # Update final session stats
+                        stats = data.get("data", {})
+                        filtering_stats["total_filtered"] = stats.get("total_processed", 0)
+                        filtering_stats["accepted"] = stats.get("accepted", 0)
+                        filtering_stats["rejected"] = stats.get("rejected", 0)
+                        
+                        # Extract token usage from completion data
+                        token_usage = stats.get("token_usage", {})
+                        filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
+                        filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
+                        filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
+                        
+                        # Calculate duration and average confidence
+                        duration = datetime.utcnow() - filtering_stats["start_time"]
+                        duration_seconds = int(duration.total_seconds())
+                        
+                        # Update session with final results
+                        avg_confidence = 0.5  # Default fallback
+                        if filtering_stats["accepted"] > 0:
+                            avg_confidence = 0.7  # Placeholder
+                        
+                        # Create new database session for the update
+                        db_gen = get_db()
+                        new_db = next(db_gen)
+                        try:
+                            new_session_service = SmartSearchSessionService(new_db)
+                            new_session_service.update_filtering_step(
+                                session_id=session_id,
+                                user_id=user_id,
+                                total_filtered=filtering_stats["total_filtered"],
+                                accepted=filtering_stats["accepted"],
+                                rejected=filtering_stats["rejected"],
+                                average_confidence=avg_confidence,
+                                duration_seconds=duration_seconds,
+                                submitted_discriminator=filtering_stats["actual_discriminator"],
+                                prompt_tokens=filtering_stats["prompt_tokens"],
+                                completion_tokens=filtering_stats["completion_tokens"],
+                                total_tokens=filtering_stats["total_tokens"]
+                            )
+                        finally:
+                            new_db.close()
+                except Exception as parse_error:
+                    logger.warning(f"Failed to parse filtering message: {parse_error}")
+            
+            yield message
+            
+    except Exception as e:
+        logger.error(f"Filtering error for user {user_id}: {e}", exc_info=True)
+        # Send error message in SSE format
+        import json
+        error_message = {
+            "type": "error",
+            "message": f"Filtering failed: {str(e)}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        yield f"data: {json.dumps(error_message)}\n\n"
 
 
 @router.post("/refine", response_model=SmartSearchRefinementResponse)
@@ -283,87 +382,19 @@ async def filter_articles_stream(
                 strictness=request.strictness
             )
         
-        # Track filtering stats for session update
-        filtering_stats = {
-            "total_filtered": 0,
-            "accepted": 0,
-            "rejected": 0,
-            "start_time": datetime.utcnow(),
-            "actual_discriminator": actual_discriminator
-        }
-        
+        # Use shared filtering stream
         async def generate():
-            try:
-                async for message in service.filter_articles_streaming(
-                    articles=request.articles,
-                    refined_question=request.refined_question,
-                    search_query=request.search_query,
-                    strictness=request.strictness,
-                    custom_discriminator=request.discriminator_prompt
-                ):
-                    # Parse and track filtering progress
-                    import json
-                    if message.startswith("data: "):
-                        try:
-                            data = json.loads(message[6:])
-                            if data.get("type") == "complete":
-                                # Update final session stats
-                                stats = data.get("data", {})
-                                filtering_stats["total_filtered"] = stats.get("total_processed", 0)
-                                filtering_stats["accepted"] = stats.get("accepted", 0)
-                                filtering_stats["rejected"] = stats.get("rejected", 0)
-                                
-                                # Extract token usage from completion data
-                                token_usage = stats.get("token_usage", {})
-                                filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
-                                filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
-                                filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
-                                
-                                # Calculate duration and average confidence
-                                duration = datetime.utcnow() - filtering_stats["start_time"]
-                                duration_seconds = int(duration.total_seconds())
-                                
-                                # Update session with final results
-                                avg_confidence = 0.5  # Default fallback
-                                if filtering_stats["accepted"] > 0:
-                                    # This would need to be calculated from actual filtered articles
-                                    avg_confidence = 0.7  # Placeholder
-                                
-                                # Create new database session for the update
-                                db_gen = get_db()
-                                new_db = next(db_gen)
-                                try:
-                                    new_session_service = SmartSearchSessionService(new_db)
-                                    new_session_service.update_filtering_step(
-                                        session_id=session.id,
-                                        user_id=current_user.user_id,
-                                        total_filtered=filtering_stats["total_filtered"],
-                                        accepted=filtering_stats["accepted"],
-                                        rejected=filtering_stats["rejected"],
-                                        average_confidence=avg_confidence,
-                                        duration_seconds=duration_seconds,
-                                        submitted_discriminator=filtering_stats["actual_discriminator"],
-                                        prompt_tokens=filtering_stats["prompt_tokens"],
-                                        completion_tokens=filtering_stats["completion_tokens"],
-                                        total_tokens=filtering_stats["total_tokens"]
-                                    )
-                                finally:
-                                    new_db.close()
-                        except Exception as parse_error:
-                            logger.warning(f"Failed to parse filtering message: {parse_error}")
-                    
-                    yield message
-                    
-            except Exception as e:
-                logger.error(f"Filtering error for user {current_user.user_id}: {e}", exc_info=True)
-                # Send error message in SSE format
-                import json
-                error_message = {
-                    "type": "error",
-                    "message": f"Filtering failed: {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-                yield f"data: {json.dumps(error_message)}\n\n"
+            async for message in create_filtering_stream(
+                articles=request.articles,
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness,
+                actual_discriminator=actual_discriminator,
+                session_id=session.id,
+                user_id=current_user.user_id,
+                db=db
+            ):
+                yield message
         
         return StreamingResponse(
             generate(),
@@ -442,87 +473,19 @@ async def filter_all_search_results_stream(
                 strictness=request.strictness
             )
         
-        # Track filtering stats for session update
-        filtering_stats = {
-            "total_filtered": 0,
-            "accepted": 0,
-            "rejected": 0,
-            "start_time": datetime.utcnow(),
-            "actual_discriminator": actual_discriminator
-        }
-        
+        # Use shared filtering stream
         async def generate():
-            try:
-                # Stream the filtering process
-                async for message in service.filter_articles_streaming(
-                    articles=search_results.articles,
-                    refined_question=request.refined_question,
-                    search_query=request.search_query,
-                    strictness=request.strictness,
-                    custom_discriminator=actual_discriminator
-                ):
-                    # Parse and track filtering progress
-                    import json
-                    if message.startswith("data: "):
-                        try:
-                            data = json.loads(message[6:])
-                            if data.get("type") == "complete":
-                                # Update final session stats
-                                stats = data.get("data", {})
-                                filtering_stats["total_filtered"] = stats.get("total_processed", 0)
-                                filtering_stats["accepted"] = stats.get("accepted", 0)
-                                filtering_stats["rejected"] = stats.get("rejected", 0)
-                                
-                                # Extract token usage from completion data
-                                token_usage = stats.get("token_usage", {})
-                                filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
-                                filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
-                                filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
-                                
-                                # Calculate duration and average confidence
-                                duration = datetime.utcnow() - filtering_stats["start_time"]
-                                duration_seconds = int(duration.total_seconds())
-                                
-                                # Update session with final results
-                                avg_confidence = 0.5  # Default fallback
-                                if filtering_stats["accepted"] > 0:
-                                    avg_confidence = 0.7  # Placeholder
-                                
-                                # Create new database session for the update
-                                db_gen = get_db()
-                                new_db = next(db_gen)
-                                try:
-                                    new_session_service = SmartSearchSessionService(new_db)
-                                    new_session_service.update_filtering_step(
-                                        session_id=session.id,
-                                        user_id=current_user.user_id,
-                                        total_filtered=filtering_stats["total_filtered"],
-                                        accepted=filtering_stats["accepted"],
-                                        rejected=filtering_stats["rejected"],
-                                        average_confidence=avg_confidence,
-                                        duration_seconds=duration_seconds,
-                                        submitted_discriminator=filtering_stats["actual_discriminator"],
-                                        prompt_tokens=filtering_stats["prompt_tokens"],
-                                        completion_tokens=filtering_stats["completion_tokens"],
-                                        total_tokens=filtering_stats["total_tokens"]
-                                    )
-                                finally:
-                                    new_db.close()
-                        except Exception as parse_error:
-                            logger.warning(f"Failed to parse filtering message: {parse_error}")
-                    
-                    yield message
-                    
-            except Exception as e:
-                logger.error(f"Filtering error for user {current_user.user_id}: {e}", exc_info=True)
-                # Send error message in SSE format
-                import json
-                error_message = {
-                    "type": "error",
-                    "message": f"Filtering failed: {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-                yield f"data: {json.dumps(error_message)}\n\n"
+            async for message in create_filtering_stream(
+                articles=search_results.articles,
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness,
+                actual_discriminator=actual_discriminator,
+                session_id=session.id,
+                user_id=current_user.user_id,
+                db=db
+            ):
+                yield message
         
         return StreamingResponse(
             generate(),

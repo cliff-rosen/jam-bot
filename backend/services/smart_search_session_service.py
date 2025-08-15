@@ -293,3 +293,70 @@ class SmartSearchSessionService:
         except Exception as e:
             logger.error(f"Failed to get sessions for user {user_id}: {e}")
             raise
+
+    def reset_to_step(self, session_id: str, user_id: str, target_step: str) -> Optional[SmartSearchSession]:
+        """Reset session to a specific step, clearing all data forward of that step"""
+        try:
+            session = self.get_session(session_id, user_id)
+            if not session:
+                return None
+            
+            # Define step hierarchy (order matters)
+            step_hierarchy = [
+                "question_input",
+                "question_refinement", 
+                "search_query_generation",
+                "search_execution",
+                "article_selection",
+                "discriminator_generation",
+                "filtering"
+            ]
+            
+            if target_step not in step_hierarchy:
+                raise ValueError(f"Invalid target step: {target_step}")
+            
+            target_index = step_hierarchy.index(target_step)
+            
+            # Clear all data forward of the target step
+            if target_index < step_hierarchy.index("question_refinement"):
+                # Reset to question input - clear everything except original question
+                session.refined_question = None
+                session.submitted_refined_question = None
+                
+            if target_index < step_hierarchy.index("search_query_generation"):
+                # Clear search query data
+                session.generated_search_query = None
+                session.submitted_search_query = None
+                
+            if target_index < step_hierarchy.index("search_execution"):
+                # Clear search execution data
+                session.search_metadata = None
+                session.articles_retrieved_count = 0
+                
+            if target_index < step_hierarchy.index("article_selection"):
+                # Clear article selection data
+                session.articles_selected_count = 0
+                
+            if target_index < step_hierarchy.index("discriminator_generation"):
+                # Clear discriminator data
+                session.generated_discriminator = None
+                session.submitted_discriminator = None
+                session.filter_strictness = None
+                
+            if target_index < step_hierarchy.index("filtering"):
+                # Clear filtering data
+                session.filtering_metadata = None
+            
+            # Update session status and step
+            session.last_step_completed = target_step
+            session.status = "in_progress"  # Reset to in_progress
+            session.session_duration_seconds = None  # Clear duration
+            
+            self.db.commit()
+            logger.info(f"Reset session {session_id} to step {target_step}")
+            return session
+            
+        except Exception as e:
+            logger.error(f"Failed to reset session {session_id} to step {target_step}: {e}")
+            self.db.rollback()
+            raise

@@ -122,3 +122,8 @@ class FilteringCompleteResponse(BaseModel):
     total_accepted: int
     total_rejected: int
     average_confidence: float
+
+
+class SessionResetRequest(BaseModel):
+    """Request to reset session to specific step"""
+    step: str = Field(..., description="Step to reset to: question_input, question_refinement, etc.")

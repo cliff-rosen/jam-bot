@@ -90,6 +90,16 @@ class SmartSearchApi {
   }
 
   /**
+   * Reset session to a specific step
+   */
+  async resetSessionToStep(sessionId: string, step: string): Promise<any> {
+    const response = await api.post(`/api/lab/smart-search/sessions/${sessionId}/reset-to-step`, {
+      step
+    });
+    return response.data;
+  }
+
+  /**
    * Filter articles with semantic discriminator (streaming)
    */
   async filterArticlesStreaming(

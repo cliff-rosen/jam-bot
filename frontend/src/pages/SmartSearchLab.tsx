@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
 
 import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';
 import { RefinementStep } from '@/components/features/smartsearch/RefinementStep';
@@ -356,6 +356,84 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Step navigation functions
+  const getStepAvailability = (targetStep: string): boolean => {
+    // You can only go back to steps that have been completed
+    const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
+    const currentIndex = stepOrder.indexOf(step);
+    const targetIndex = stepOrder.indexOf(targetStep);
+    
+    // Can't go back to current or future steps, and can't go back if no session exists yet
+    return targetIndex < currentIndex && sessionId !== null;
+  };
+
+  const clearStateForward = (targetStep: string) => {
+    // Clear frontend state for all steps forward of the target step
+    const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
+    const targetIndex = stepOrder.indexOf(targetStep);
+    
+    if (targetIndex < stepOrder.indexOf('refinement')) {
+      setRefinement(null);
+      setEditedQuestion('');
+    }
+    if (targetIndex < stepOrder.indexOf('search-query')) {
+      setSearchQueryGeneration(null);
+      setEditedSearchQuery('');
+    }
+    if (targetIndex < stepOrder.indexOf('search-results')) {
+      setSearchResults(null);
+      setSelectedArticles(new Set());
+    }
+    if (targetIndex < stepOrder.indexOf('discriminator')) {
+      setDiscriminatorData(null);
+      setEditedDiscriminator('');
+    }
+    if (targetIndex < stepOrder.indexOf('filtering')) {
+      setFilteredArticles([]);
+      setFilteringProgress(null);
+    }
+  };
+
+  const handleStepBack = async (targetStep: string) => {
+    if (!sessionId || !getStepAvailability(targetStep)) return;
+
+    try {
+      // Map frontend step names to backend step names
+      const stepMapping: Record<string, string> = {
+        'query': 'question_input',
+        'refinement': 'question_refinement',
+        'search-query': 'search_query_generation',
+        'search-results': 'search_execution',
+        'discriminator': 'discriminator_generation',
+        'filtering': 'filtering'
+      };
+
+      const backendStep = stepMapping[targetStep];
+      if (!backendStep) return;
+
+      // Call backend to reset session
+      await smartSearchApi.resetSessionToStep(sessionId, backendStep);
+      
+      // Clear frontend state for steps forward of target
+      clearStateForward(targetStep);
+      
+      // Navigate to target step
+      setStep(targetStep as any);
+      
+      toast({
+        title: 'Stepped Back',
+        description: `Returned to ${targetStep.replace('-', ' ')} step`,
+      });
+
+    } catch (error) {
+      toast({
+        title: 'Failed to Step Back',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleReset = () => {
     setStep('query');
     setSessionId(null);
@@ -399,25 +477,51 @@ export default function SmartSearchLab() {
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <Badge variant={step === 'query' ? 'default' : 'secondary'}>1. Enter Query</Badge>
+          <Badge 
+            variant={step === 'query' ? 'default' : 'secondary'}
+            className={getStepAvailability('query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('query') ? () => handleStepBack('query') : undefined}
+          >
+            1. Enter Query
+          </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'refinement' ? 'default' : !['query'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge 
+            variant={step === 'refinement' ? 'default' : !['query'].includes(step) ? 'secondary' : 'outline'}
+            className={getStepAvailability('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('refinement') ? () => handleStepBack('refinement') : undefined}
+          >
             2. Refine Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'search-query' ? 'default' : !['query', 'refinement'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge 
+            variant={step === 'search-query' ? 'default' : !['query', 'refinement'].includes(step) ? 'secondary' : 'outline'}
+            className={getStepAvailability('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('search-query') ? () => handleStepBack('search-query') : undefined}
+          >
             3. Generate Search Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge 
+            variant={step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
+            className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
+          >
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge 
+            variant={step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
+            className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
+          >
             5. Review & Curate
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}>
+          <Badge 
+            variant={step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
+            className={getStepAvailability('discriminator') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={getStepAvailability('discriminator') ? () => handleStepBack('discriminator') : undefined}
+          >
             6. Filter Criteria
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />

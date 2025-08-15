@@ -24,7 +24,8 @@ from schemas.smart_search import (
     SearchResultsResponse,
     DiscriminatorGenerationRequest,
     DiscriminatorGenerationResponse,
-    SemanticFilterRequest
+    SemanticFilterRequest,
+    SessionResetRequest
 )
 
 from services.auth_service import validate_token
@@ -315,16 +316,23 @@ async def filter_articles_stream(
                                     # This would need to be calculated from actual filtered articles
                                     avg_confidence = 0.7  # Placeholder
                                 
-                                session_service.update_filtering_step(
-                                    session_id=session.id,
-                                    user_id=current_user.user_id,
-                                    total_filtered=filtering_stats["total_filtered"],
-                                    accepted=filtering_stats["accepted"],
-                                    rejected=filtering_stats["rejected"],
-                                    average_confidence=avg_confidence,
-                                    duration_seconds=duration_seconds,
-                                    submitted_discriminator=filtering_stats["actual_discriminator"]
-                                )
+                                # Create new database session for the update
+                                db_gen = get_db()
+                                new_db = next(db_gen)
+                                try:
+                                    new_session_service = SmartSearchSessionService(new_db)
+                                    new_session_service.update_filtering_step(
+                                        session_id=session.id,
+                                        user_id=current_user.user_id,
+                                        total_filtered=filtering_stats["total_filtered"],
+                                        accepted=filtering_stats["accepted"],
+                                        rejected=filtering_stats["rejected"],
+                                        average_confidence=avg_confidence,
+                                        duration_seconds=duration_seconds,
+                                        submitted_discriminator=filtering_stats["actual_discriminator"]
+                                    )
+                                finally:
+                                    new_db.close()
                         except Exception as parse_error:
                             logger.warning(f"Failed to parse filtering message: {parse_error}")
                     
@@ -402,3 +410,32 @@ async def get_search_session(
     except Exception as e:
         logger.error(f"Failed to retrieve session {session_id} for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
+
+
+@router.post("/sessions/{session_id}/reset-to-step")
+async def reset_session_to_step(
+    session_id: str,
+    request: SessionResetRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Reset session to a specific step, clearing all data forward of that step
+    """
+    try:
+        logger.info(f"User {current_user.user_id} resetting session {session_id} to step {request.step}")
+        
+        session_service = SmartSearchSessionService(db)
+        session = session_service.reset_to_step(session_id, current_user.user_id, request.step)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        logger.info(f"Session {session_id} reset to step {request.step} for user {current_user.user_id}")
+        return {"message": f"Session reset to step {request.step}", "session": session.to_dict()}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reset session {session_id} to step {request.step} for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to reset session: {str(e)}")

@@ -26,7 +26,9 @@ from schemas.smart_search import (
     DiscriminatorGenerationResponse,
     SemanticFilterRequest,
     SessionResetRequest,
-    FilterAllSearchResultsRequest
+    FilterAllSearchResultsRequest,
+    UnifiedFilterRequest,
+    ParallelFilterResponse
 )
 
 from services.auth_service import validate_token
@@ -343,6 +345,237 @@ async def generate_semantic_discriminator(
         raise HTTPException(status_code=500, detail=f"Discriminator generation failed: {str(e)}")
 
 
+@router.post("/filter-unified-stream")
+async def filter_unified_stream(
+    request: UnifiedFilterRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Unified filtering endpoint that handles both selected and all filtering modes
+    """
+    try:
+        logger.info(f"User {current_user.user_id} starting unified filtering in {request.filter_mode} mode")
+        
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Initialize smart search service
+        service = SmartSearchService()
+        
+        # Determine articles to filter based on mode
+        if request.filter_mode == "selected":
+            if not request.articles:
+                raise HTTPException(status_code=400, detail="Articles required for selected mode")
+            articles_to_filter = request.articles
+            logger.info(f"Filtering {len(articles_to_filter)} selected articles")
+        elif request.filter_mode == "all":
+            # Execute full search to get all available articles
+            max_results = request.max_results or 500
+            logger.info(f"Executing full search with max_results={max_results}")
+            search_results = await service.search_articles(
+                search_query=request.search_query,
+                max_results=max_results,
+                offset=0
+            )
+            articles_to_filter = search_results.articles
+            logger.info(f"Retrieved {len(articles_to_filter)} articles for filtering")
+            
+            # Update session with search execution (full retrieval)
+            session_service.update_search_execution_step(
+                session_id=session.id,
+                user_id=current_user.user_id,
+                total_available=search_results.pagination.total_available,
+                returned=len(articles_to_filter),
+                sources=search_results.sources_searched,
+                is_pagination_load=False,
+                submitted_search_query=request.search_query
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid filter_mode. Must be 'selected' or 'all'")
+        
+        # Track article selection
+        session_service.update_article_selection_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            selected_count=len(articles_to_filter)
+        )
+        
+        # Determine which discriminator to use
+        actual_discriminator = request.discriminator_prompt
+        if not actual_discriminator:
+            # Generate default discriminator if none provided
+            actual_discriminator = await service.generate_semantic_discriminator(
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness
+            )
+        
+        # Use shared filtering stream
+        async def generate():
+            async for message in create_filtering_stream(
+                articles=articles_to_filter,
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness,
+                actual_discriminator=actual_discriminator,
+                session_id=session.id,
+                user_id=current_user.user_id,
+                db=db
+            ):
+                yield message
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start unified filtering for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start unified filtering: {str(e)}")
+
+
+@router.post("/filter-parallel", response_model=ParallelFilterResponse)
+async def filter_parallel(
+    request: UnifiedFilterRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Parallel filtering endpoint that processes all articles concurrently (non-streaming)
+    Faster for smaller article sets but returns all results at once
+    """
+    try:
+        logger.info(f"User {current_user.user_id} starting parallel filtering in {request.filter_mode} mode")
+        
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Initialize smart search service
+        service = SmartSearchService()
+        
+        # Determine articles to filter based on mode
+        if request.filter_mode == "selected":
+            if not request.articles:
+                raise HTTPException(status_code=400, detail="Articles required for selected mode")
+            articles_to_filter = request.articles
+            logger.info(f"Parallel filtering {len(articles_to_filter)} selected articles")
+        elif request.filter_mode == "all":
+            # Execute full search to get all available articles
+            max_results = request.max_results or 500
+            logger.info(f"Executing full search with max_results={max_results}")
+            search_results = await service.search_articles(
+                search_query=request.search_query,
+                max_results=max_results,
+                offset=0
+            )
+            articles_to_filter = search_results.articles
+            logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
+            
+            # Update session with search execution (full retrieval)
+            session_service.update_search_execution_step(
+                session_id=session.id,
+                user_id=current_user.user_id,
+                total_available=search_results.pagination.total_available,
+                returned=len(articles_to_filter),
+                sources=search_results.sources_searched,
+                is_pagination_load=False,
+                submitted_search_query=request.search_query
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid filter_mode. Must be 'selected' or 'all'")
+        
+        # Track article selection
+        session_service.update_article_selection_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            selected_count=len(articles_to_filter)
+        )
+        
+        # Execute parallel filtering
+        start_time = datetime.utcnow()
+        filtered_articles, token_usage = await service.filter_articles_parallel(
+            articles=articles_to_filter,
+            refined_question=request.refined_question,
+            search_query=request.search_query,
+            strictness=request.strictness,
+            custom_discriminator=request.discriminator_prompt
+        )
+        duration = datetime.utcnow() - start_time
+        
+        # Calculate statistics
+        total_processed = len(filtered_articles)
+        total_accepted = sum(1 for fa in filtered_articles if fa.passed)
+        total_rejected = total_processed - total_accepted
+        
+        # Calculate average confidence (only for accepted articles)
+        accepted_articles = [fa for fa in filtered_articles if fa.passed]
+        average_confidence = (
+            sum(fa.confidence for fa in accepted_articles) / len(accepted_articles)
+            if accepted_articles else 0.0
+        )
+        
+        # Update session with filtering results
+        actual_discriminator = request.discriminator_prompt
+        if not actual_discriminator:
+            # We need to get the discriminator that was used
+            actual_discriminator = await service.generate_semantic_discriminator(
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness
+            )
+        
+        session_service.update_filtering_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            total_filtered=total_processed,
+            accepted=total_accepted,
+            rejected=total_rejected,
+            average_confidence=average_confidence,
+            duration_seconds=int(duration.total_seconds()),
+            submitted_discriminator=actual_discriminator,
+            prompt_tokens=token_usage.prompt_tokens,
+            completion_tokens=token_usage.completion_tokens,
+            total_tokens=token_usage.total_tokens
+        )
+        
+        logger.info(f"Parallel filtering completed for user {current_user.user_id}: {total_accepted}/{total_processed} articles accepted in {duration.total_seconds():.2f}s")
+        
+        return ParallelFilterResponse(
+            filtered_articles=filtered_articles,
+            total_processed=total_processed,
+            total_accepted=total_accepted,
+            total_rejected=total_rejected,
+            average_confidence=average_confidence,
+            duration_seconds=duration.total_seconds(),
+            token_usage={
+                "prompt_tokens": token_usage.prompt_tokens,
+                "completion_tokens": token_usage.completion_tokens,
+                "total_tokens": token_usage.total_tokens
+            },
+            session_id=session.id
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start parallel filtering for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start parallel filtering: {str(e)}")
+
+
 @router.post("/filter-stream")
 async def filter_articles_stream(
     request: SemanticFilterRequest,
@@ -351,6 +584,7 @@ async def filter_articles_stream(
 ):
     """
     Filter articles with semantic discriminator (streaming)
+    DEPRECATED: Use /filter-unified-stream with filter_mode: 'selected' instead
     """
     try:
         logger.info(f"User {current_user.user_id} starting article filtering for {len(request.articles)} articles")
@@ -420,6 +654,7 @@ async def filter_all_search_results_stream(
     """
     Execute a full search and filter all results in one operation (streaming)
     This is used when user wants to filter all available results without downloading them first
+    DEPRECATED: Use /filter-unified-stream with filter_mode: 'all' instead
     """
     try:
         logger.info(f"User {current_user.user_id} starting filter-all for query: {request.search_query[:100]}...")

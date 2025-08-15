@@ -50,6 +50,32 @@ export interface FilterAllSearchResultsRequest {
   session_id: string;
 }
 
+export interface UnifiedFilterRequest {
+  filter_mode: 'selected' | 'all';
+  refined_question: string;
+  search_query: string;
+  strictness?: 'low' | 'medium' | 'high';
+  discriminator_prompt?: string;
+  session_id: string;
+  articles?: any[];  // For selected mode
+  max_results?: number;  // For all mode
+}
+
+export interface ParallelFilterResponse {
+  filtered_articles: FilteredArticle[];
+  total_processed: number;
+  total_accepted: number;
+  total_rejected: number;
+  average_confidence: number;
+  duration_seconds: number;
+  token_usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  session_id: string;
+}
+
 export interface DiscriminatorGenerationRequest {
   refined_question: string;
   search_query: string;
@@ -190,7 +216,35 @@ class SmartSearchApi {
   }
 
   /**
+   * Unified filtering method that handles both selected and all modes (streaming)
+   */
+  async filterUnifiedStreaming(
+    request: UnifiedFilterRequest,
+    onMessage: (message: StreamMessage) => void,
+    onArticle: (article: FilteredArticle) => void,
+    onComplete: (stats: any) => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    return this.handleFilterStreaming('/api/lab/smart-search/filter-unified-stream', request, {
+      onMessage,
+      onArticle,
+      onComplete,
+      onError
+    });
+  }
+
+  /**
+   * Unified parallel filtering method that processes all articles concurrently (non-streaming)
+   * Faster for smaller article sets but returns all results at once
+   */
+  async filterUnifiedParallel(request: UnifiedFilterRequest): Promise<ParallelFilterResponse> {
+    const response = await api.post('/api/lab/smart-search/filter-parallel', request);
+    return response.data;
+  }
+
+  /**
    * Filter all search results without downloading them first (streaming)
+   * @deprecated Use filterUnifiedStreaming with filter_mode: 'all' instead
    */
   async filterAllSearchResultsStreaming(
     request: FilterAllSearchResultsRequest,
@@ -209,6 +263,7 @@ class SmartSearchApi {
 
   /**
    * Filter articles with semantic discriminator (streaming)
+   * @deprecated Use filterUnifiedStreaming with filter_mode: 'selected' instead
    */
   async filterArticlesStreaming(
     request: SemanticFilterRequest,

@@ -487,14 +487,80 @@ Respond in JSON format:
             )
             
             return filtered_article, llm_usage
-            
-        except Exception as e:
-            logger.error(f"Failed to evaluate article: {e}")
-            # Default to not passing with low confidence, zero usage
-            filtered_article = FilteredArticle(
-                article=article,
-                passed=False,
-                confidence=0.0,
-                reasoning=f"Evaluation failed: {str(e)}"
+    
+    async def filter_articles_parallel(
+        self,
+        articles: List[SearchArticle],
+        refined_question: str,
+        search_query: str,
+        strictness: str = "medium",
+        custom_discriminator: str = None
+    ) -> Tuple[List[FilteredArticle], LLMUsage]:
+        """
+        Filter articles in parallel using async concurrency
+        Returns all filtered articles and aggregated token usage
+        """
+        logger.info(f"Starting parallel filtering of {len(articles)} articles")
+        
+        # Generate discriminator if not provided
+        discriminator = custom_discriminator
+        if not discriminator:
+            discriminator = await self.generate_semantic_discriminator(
+                refined_question=refined_question,
+                search_query=search_query,
+                strictness=strictness
             )
-            return filtered_article, LLMUsage()
+        
+        # Create semaphore to limit concurrent LLM calls (avoid rate limits)
+        semaphore = asyncio.Semaphore(10)  # Max 10 concurrent calls
+        
+        async def evaluate_with_semaphore(article: SearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
+            async with semaphore:
+                return await self._evaluate_article(article, discriminator)
+        
+        # Execute all evaluations in parallel
+        logger.info(f"Executing {len(articles)} evaluations in parallel (max 10 concurrent)")
+        start_time = datetime.utcnow()
+        
+        results = await asyncio.gather(
+            *[evaluate_with_semaphore(article) for article in articles],
+            return_exceptions=True
+        )
+        
+        duration = datetime.utcnow() - start_time
+        logger.info(f"Parallel filtering completed in {duration.total_seconds():.2f} seconds")
+        
+        # Process results and aggregate token usage
+        filtered_articles = []
+        total_usage = LLMUsage()
+        failed_count = 0
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to evaluate article {i}: {result}")
+                failed_count += 1
+                # Create a failed/rejected article entry
+                filtered_articles.append(FilteredArticle(
+                    article=articles[i],
+                    passed=False,
+                    confidence=0.0,
+                    reasoning=f"Evaluation failed: {str(result)}"
+                ))
+            else:
+                filtered_article, usage = result
+                filtered_articles.append(filtered_article)
+                
+                # Aggregate token usage
+                total_usage.prompt_tokens += usage.prompt_tokens
+                total_usage.completion_tokens += usage.completion_tokens
+                total_usage.total_tokens += usage.total_tokens
+        
+        if failed_count > 0:
+            logger.warning(f"{failed_count} articles failed evaluation")
+        
+        accepted_count = sum(1 for fa in filtered_articles if fa.passed)
+        rejected_count = len(filtered_articles) - accepted_count
+        
+        logger.info(f"Parallel filtering results: {accepted_count} accepted, {rejected_count} rejected")
+        
+        return filtered_articles, total_usage

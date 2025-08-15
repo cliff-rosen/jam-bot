@@ -250,79 +250,101 @@ export default function SmartSearchLab() {
     });
   };
 
-  // Filter all available search results
-  const executeFilterAllMode = async () => {
-    const totalCount = searchResults!.pagination.total_available;
-    initializeFilteringState(totalCount);
-
-    const handlers = createFilteringHandlers(true);
-
-    try {
-      await smartSearchApi.filterAllSearchResultsStreaming(
-        {
-          search_query: editedSearchQuery,
-          refined_question: editedQuestion,
-          max_results: Math.min(totalCount, 500),
-          strictness,
-          discriminator_prompt: editedDiscriminator,
-          session_id: sessionId!
-        },
-        handlers.onMessage,
-        handlers.onArticle,
-        handlers.onComplete,
-        handlers.onError
-      );
-    } catch (error) {
-      handleFilteringError(error, true);
+  // Unified filtering execution for both modes - chooses between parallel and streaming
+  const executeFiltering = async () => {
+    const isFilterAll = filterAllMode;
+    let articlesToProcess: number;
+    let selectedArticleList: any[] = [];
+    
+    if (isFilterAll) {
+      // Filter all available search results
+      articlesToProcess = Math.min(searchResults!.pagination.total_available, 500);
+    } else {
+      // Filter selected articles only
+      selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
+      
+      if (selectedArticleList.length === 0) {
+        toast({
+          title: 'No Articles Selected',
+          description: 'Please select at least one article to filter.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      articlesToProcess = selectedArticleList.length;
     }
-  };
-
-  // Filter selected articles only
-  const executeSelectedMode = async () => {
-    const selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
-
-    if (selectedArticleList.length === 0) {
-      toast({
-        title: 'No Articles Selected',
-        description: 'Please select at least one article to filter.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    initializeFilteringState(selectedArticleList.length);
-
-    const handlers = createFilteringHandlers(false);
-
+    
+    // Choose between parallel and streaming based on article count
+    const useParallel = articlesToProcess <= 20; // Parallel for 20 or fewer articles
+    
+    initializeFilteringState(articlesToProcess);
+    
+    const request = {
+      filter_mode: isFilterAll ? 'all' as const : 'selected' as const,
+      refined_question: editedQuestion,
+      search_query: editedSearchQuery,
+      strictness,
+      discriminator_prompt: editedDiscriminator,
+      session_id: sessionId!,
+      ...(isFilterAll ? { max_results: articlesToProcess } : { articles: selectedArticleList })
+    };
+    
     try {
-      await smartSearchApi.filterArticlesStreaming(
-        {
-          articles: selectedArticleList,
-          refined_question: editedQuestion,
-          search_query: editedSearchQuery,
-          strictness,
-          discriminator_prompt: editedDiscriminator,
-          session_id: sessionId!
-        },
-        handlers.onMessage,
-        handlers.onArticle,
-        handlers.onComplete,
-        handlers.onError
-      );
+      if (useParallel) {
+        // Use parallel processing for small sets - faster, immediate results
+        console.log(`Using parallel processing for ${articlesToProcess} articles`);
+        
+        const startTime = Date.now();
+        const response = await smartSearchApi.filterUnifiedParallel(request);
+        const duration = Date.now() - startTime;
+        
+        // Set all articles at once
+        setFilteredArticles(response.filtered_articles);
+        
+        // Update progress to show completion
+        setFilteringProgress({
+          total: response.total_processed,
+          processed: response.total_processed,
+          accepted: response.total_accepted,
+          rejected: response.total_rejected
+        });
+        
+        // Complete immediately
+        setStep('results');
+        if (isFilterAll) {
+          setFilterAllMode(false);
+        }
+        
+        toast({
+          title: 'Filtering Complete',
+          description: `Parallel processing completed in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} of ${response.total_processed} articles accepted`
+        });
+        
+      } else {
+        // Use streaming for larger sets - better UX with progress updates
+        console.log(`Using streaming processing for ${articlesToProcess} articles`);
+        
+        const handlers = createFilteringHandlers(isFilterAll);
+        
+        await smartSearchApi.filterUnifiedStreaming(
+          request,
+          handlers.onMessage,
+          handlers.onArticle,
+          handlers.onComplete,
+          handlers.onError
+        );
+      }
     } catch (error) {
-      handleFilteringError(error, false);
+      handleFilteringError(error, isFilterAll);
     }
   };
 
   // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
   const handleStartFiltering = async () => {
     if (!searchResults || !sessionId) return;
-
-    if (filterAllMode) {
-      await executeFilterAllMode();
-    } else {
-      await executeSelectedMode();
-    }
+    
+    await executeFiltering();
   };
 
   // Article selection helpers

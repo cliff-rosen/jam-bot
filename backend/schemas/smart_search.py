@@ -137,3 +137,33 @@ class FilterAllSearchResultsRequest(BaseModel):
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
     session_id: str = Field(..., description="Session ID for tracking")
+
+
+class UnifiedFilterRequest(BaseModel):
+    """Unified request for filtering articles - supports both selected and all modes"""
+    filter_mode: str = Field(..., description="Filter mode: 'selected' or 'all'")
+    
+    # Common fields
+    refined_question: str = Field(..., description="Refined research question for context")
+    search_query: str = Field(..., description="Boolean search query")
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
+    session_id: str = Field(..., description="Session ID for tracking")
+    
+    # For selected mode
+    articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (required for selected mode)")
+    
+    # For all mode
+    max_results: Optional[int] = Field(500, description="Maximum results to retrieve and filter (for all mode)")
+
+
+class ParallelFilterResponse(BaseModel):
+    """Response from parallel (non-streaming) filtering"""
+    filtered_articles: List[FilteredArticle]
+    total_processed: int
+    total_accepted: int
+    total_rejected: int
+    average_confidence: float
+    duration_seconds: float
+    token_usage: Dict[str, int] = Field(..., description="Token usage statistics")
+    session_id: str

@@ -8,6 +8,19 @@ from utils.message_formatter import format_langchain_messages, format_messages_f
 from utils.prompt_logger import log_prompt_messages
 import json
 
+
+class LLMUsage(BaseModel):
+    """Token usage information from LLM calls"""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
+class LLMResponse(BaseModel):
+    """Response from LLM containing both the result and usage information"""
+    result: Any  # The parsed result
+    usage: LLMUsage
+
 class BasePromptCaller:
     """Base class for creating and using prompt callers"""
     
@@ -150,18 +163,21 @@ class BasePromptCaller:
         self,
         messages: List[ChatMessage] = None,
         log_prompt: bool = True,
+        return_usage: bool = False,
         **kwargs: Dict[str, Any]
-    ) -> BaseModel:
+    ) -> Union[BaseModel, LLMResponse]:
         """
         Invoke the prompt and get a parsed response.
         
         Args:
             messages: List of conversation messages (optional)
             log_prompt: Whether to log the prompt messages
+            return_usage: Whether to return usage information along with result
             **kwargs: Additional variables to format into the prompt
             
         Returns:
-            Parsed response as an instance of the response model
+            If return_usage=True: LLMResponse with result and usage info
+            If return_usage=False: Parsed response as an instance of the response model
         """
         # Use empty list if no messages provided
         if messages is None:
@@ -199,4 +215,17 @@ class BasePromptCaller:
         
         # Parse response
         response_text = response.choices[0].message.content
-        return self.parser.parse(response_text) 
+        parsed_result = self.parser.parse(response_text)
+        
+        # Extract usage information
+        usage_info = LLMUsage(
+            prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
+            completion_tokens=response.usage.completion_tokens if response.usage else 0,
+            total_tokens=response.usage.total_tokens if response.usage else 0
+        )
+        
+        # Return based on return_usage flag
+        if return_usage:
+            return LLMResponse(result=parsed_result, usage=usage_info)
+        else:
+            return parsed_result 

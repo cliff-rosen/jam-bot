@@ -7,7 +7,7 @@ Service for intelligent research article search with LLM-powered refinement and 
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, AsyncGenerator
+from typing import List, Dict, Any, AsyncGenerator, Tuple
 from datetime import datetime
 
 from schemas.smart_search import (
@@ -20,7 +20,7 @@ from schemas.smart_search import (
 )
 from services.google_scholar_service import GoogleScholarService
 from services.pubmed_service import search_pubmed
-from agents.prompts.base_prompt_caller import BasePromptCaller
+from agents.prompts.base_prompt_caller import BasePromptCaller, LLMUsage
 from schemas.chat import ChatMessage, MessageRole
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
         
-    async def refine_research_question(self, question: str) -> str:
+    async def refine_research_question(self, question: str) -> Tuple[str, LLMUsage]:
         """
         Step 2: Refine/improve the user's research question using LLM
         """
@@ -75,36 +75,42 @@ Respond in JSON format with the refined question in the "refined_question" field
                 updated_at=datetime.utcnow()
             )
             result = await prompt_caller.invoke(
-                messages=[user_message]
+                messages=[user_message],
+                return_usage=True
             )
             
             # DEBUG: Log what we actually got back
             logger.info(f"LLM result type: {type(result)}")
             logger.info(f"LLM result: {result}")
             
+            # Extract result and usage from LLMResponse
+            llm_usage = result.usage
+            llm_result = result.result
+            
             # Extract refined_question from the Pydantic model instance
-            if hasattr(result, 'refined_question'):
-                refined_question = result.refined_question
+            if hasattr(llm_result, 'refined_question'):
+                refined_question = llm_result.refined_question
                 logger.info(f"Successfully extracted refined_question: {refined_question}")
             else:
-                logger.error(f"Result does not have 'refined_question' attribute. Type: {type(result)}, value: {result}")
+                logger.error(f"Result does not have 'refined_question' attribute. Type: {type(llm_result)}, value: {llm_result}")
                 # Try model_dump as fallback
-                if hasattr(result, 'model_dump'):
-                    response_data = result.model_dump()
+                if hasattr(llm_result, 'model_dump'):
+                    response_data = llm_result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
                     refined_question = response_data.get('refined_question', question)
                 else:
                     refined_question = question  # Final fallback
                 
             logger.info(f"Final refined question: {refined_question[:100]}...")
-            return refined_question
+            logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
+            return refined_question, llm_usage
             
         except Exception as e:
             logger.error(f"Failed to refine query: {e}")
-            # Fallback: return original query
-            return question
+            # Fallback: return original query with zero usage
+            return question, LLMUsage()
     
-    async def generate_search_query(self, refined_question: str) -> str:
+    async def generate_search_query(self, refined_question: str) -> Tuple[str, LLMUsage]:
         """
         Step 3: Generate boolean search query from the REFINED query using LLM
         """
@@ -167,30 +173,36 @@ Generate an effective boolean search query for academic databases."""
                 updated_at=datetime.utcnow()
             )
             result = await prompt_caller.invoke(
-                messages=[user_message]
+                messages=[user_message],
+                return_usage=True
             )
             
+            # Extract result and usage from LLMResponse
+            llm_usage = result.usage
+            llm_result = result.result
+            
             # Extract search_query from the Pydantic model instance
-            if hasattr(result, 'search_query'):
-                search_query = result.search_query
+            if hasattr(llm_result, 'search_query'):
+                search_query = llm_result.search_query
                 logger.info(f"Successfully extracted search_query: {search_query}")
             else:
-                logger.error(f"Result does not have 'search_query' attribute. Type: {type(result)}, value: {result}")
+                logger.error(f"Result does not have 'search_query' attribute. Type: {type(llm_result)}, value: {llm_result}")
                 # Try model_dump as fallback
-                if hasattr(result, 'model_dump'):
-                    response_data = result.model_dump()
+                if hasattr(llm_result, 'model_dump'):
+                    response_data = llm_result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
                     search_query = response_data.get('search_query', refined_question)
                 else:
                     search_query = refined_question  # Final fallback
             
             logger.info(f"Generated search query: {search_query}")
-            return search_query
+            logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
+            return search_query, llm_usage
             
         except Exception as e:
             logger.error(f"Failed to generate search query: {e}")
-            # Fallback: use refined query as-is
-            return refined_question
+            # Fallback: use refined query as-is with zero usage
+            return refined_question, LLMUsage()
       
     async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0) -> SearchResultsResponse:
         """

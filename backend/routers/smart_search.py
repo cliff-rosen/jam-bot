@@ -65,14 +65,17 @@ async def refine_research_question(
         
         # Refine the question
         service = SmartSearchService()
-        refined_question = await service.refine_research_question(request.question)
+        refined_question, usage = await service.refine_research_question(request.question)
         
         # Update session with refinement results
         session_service.update_refinement_step(
             session_id=session.id,
             user_id=current_user.user_id,
             refined_question=refined_question,
-            submitted_refined_question=None  # Will be set when user actually submits in next step
+            submitted_refined_question=None,  # Will be set when user actually submits in next step
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+            total_tokens=usage.total_tokens
         )
         
         response = SmartSearchRefinementResponse(
@@ -111,7 +114,7 @@ async def generate_search_query(
         
         # Generate search query
         service = SmartSearchService()
-        search_query = await service.generate_search_query(request.refined_question)
+        search_query, usage = await service.generate_search_query(request.refined_question)
         
         # Update session - this is when user actually submits their refined question
         session_service.update_search_query_step(
@@ -119,7 +122,10 @@ async def generate_search_query(
             user_id=current_user.user_id,
             generated_search_query=search_query,
             submitted_search_query=None,  # Will be set when user actually executes search
-            submitted_refined_question=request.refined_question  # What user actually submitted
+            submitted_refined_question=request.refined_question,  # What user actually submitted
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+            total_tokens=usage.total_tokens
         )
         
         response = SearchQueryResponse(

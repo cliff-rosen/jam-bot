@@ -889,6 +889,11 @@ class SmartSearchSession(Base):
     session_duration_seconds = Column(Integer)  # Total time from start to completion
     total_api_calls = Column(Integer, default=0)  # Track API usage
     
+    # Token Usage Tracking
+    total_prompt_tokens = Column(Integer, default=0)  # Total input tokens used
+    total_completion_tokens = Column(Integer, default=0)  # Total output tokens generated
+    total_tokens = Column(Integer, default=0)  # Total tokens used across all LLM calls
+    
     def to_dict(self):
         """Convert to dictionary for API responses"""
         return {
@@ -911,5 +916,8 @@ class SmartSearchSession(Base):
             "status": self.status,
             "last_step_completed": self.last_step_completed,
             "session_duration_seconds": self.session_duration_seconds,
-            "total_api_calls": self.total_api_calls
+            "total_api_calls": self.total_api_calls,
+            "total_prompt_tokens": self.total_prompt_tokens,
+            "total_completion_tokens": self.total_completion_tokens,
+            "total_tokens": self.total_tokens
         }

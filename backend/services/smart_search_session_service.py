@@ -70,7 +70,8 @@ class SmartSearchSessionService:
         return self.create_session(user_id, original_question)
     
     def update_refinement_step(self, session_id: str, user_id: str, 
-                              refined_question: str, submitted_refined_question: str = None) -> SmartSearchSession:
+                              refined_question: str, submitted_refined_question: str = None,
+                              prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
         """Update session with question refinement data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -83,6 +84,11 @@ class SmartSearchSessionService:
             session.last_step_completed = "question_refinement"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
+            # Update token usage
+            session.total_prompt_tokens = (session.total_prompt_tokens or 0) + prompt_tokens
+            session.total_completion_tokens = (session.total_completion_tokens or 0) + completion_tokens
+            session.total_tokens = (session.total_tokens or 0) + total_tokens
+            
             self.db.commit()
             logger.info(f"Updated refinement step for session {session_id}")
             return session
@@ -94,7 +100,8 @@ class SmartSearchSessionService:
     
     def update_search_query_step(self, session_id: str, user_id: str,
                                  generated_search_query: str, submitted_search_query: str = None,
-                                 submitted_refined_question: str = None) -> SmartSearchSession:
+                                 submitted_refined_question: str = None,
+                                 prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
         """Update session with search query generation data"""
         try:
             session = self.get_session(session_id, user_id)
@@ -108,6 +115,11 @@ class SmartSearchSessionService:
                 session.submitted_refined_question = submitted_refined_question
             session.last_step_completed = "search_query_generation"
             session.total_api_calls = (session.total_api_calls or 0) + 1
+            
+            # Update token usage
+            session.total_prompt_tokens = (session.total_prompt_tokens or 0) + prompt_tokens
+            session.total_completion_tokens = (session.total_completion_tokens or 0) + completion_tokens
+            session.total_tokens = (session.total_tokens or 0) + total_tokens
             
             self.db.commit()
             logger.info(f"Updated search query step for session {session_id}")

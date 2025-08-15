@@ -21,8 +21,7 @@ import type {
   SearchQueryGeneration,
   SearchResults,
   FilteredArticle,
-  FilteringProgress,
-  StreamMessage
+  FilteringProgress
 } from '@/types/smart-search';
 
 export default function SmartSearchLab() {

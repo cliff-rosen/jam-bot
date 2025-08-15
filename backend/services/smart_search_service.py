@@ -484,6 +484,17 @@ Respond in JSON format:
             )
             
             return filtered_article, llm_usage
+            
+        except Exception as e:
+            logger.error(f"Failed to evaluate article: {e}")
+            # Default to not passing with low confidence, zero usage
+            filtered_article = FilteredArticle(
+                article=article,
+                passed=False,
+                confidence=0.0,
+                reasoning=f"Evaluation failed: {str(e)}"
+            )
+            return filtered_article, LLMUsage()
     
     async def filter_articles_parallel(
         self,
@@ -508,7 +519,7 @@ Respond in JSON format:
         
         async def evaluate_with_semaphore(article: SearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
             async with semaphore:
-                return await self._evaluate_article(article, discriminator)
+                return await self._evaluate_article(article, custom_discriminator)
         
         # Execute all evaluations in parallel
         logger.info(f"Executing {len(articles)} evaluations in parallel (max 10 concurrent)")

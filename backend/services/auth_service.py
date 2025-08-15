@@ -115,7 +115,8 @@ async def login_user(db: Session, email: str, password: str) -> Token:
         token_data = {
             "sub": user.email,
             "user_id": user.user_id,
-            "username": username
+            "username": username,
+            "role": user.role.value
         }
         logger.debug(f"Token data: {token_data}")
 
@@ -158,6 +159,7 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             access_token=access_token,
             token_type="bearer",
             username=username,
+            role=user.role,
             session_id=session_id,
             session_name=session_name,
             chat_id=chat_id,
@@ -215,7 +217,8 @@ async def validate_token(
 
         email: str = payload.get("sub")
         username: str = payload.get("username")
-        logger.info(f"Token decoded, email: {email}, username: {username}")
+        role: str = payload.get("role")
+        logger.info(f"Token decoded, email: {email}, username: {username}, role: {role}")
 
         if email is None:
             logger.error("Token payload missing email")
@@ -241,8 +244,11 @@ async def validate_token(
                 detail="User not found"
             )
 
-        # Add username to user object for convenience
+        # Add username and role to user object for convenience
         user.username = username
+        # role is already in the user object from database, but verify it matches token
+        if role and hasattr(user, 'role') and user.role.value != role:
+            logger.warning(f"Role mismatch: token has {role}, database has {user.role.value}")
         logger.info(f"Successfully validated token for user: {email}")
         return user
 

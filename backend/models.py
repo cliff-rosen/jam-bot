@@ -78,6 +78,12 @@ class UserSessionStatus(str, PyEnum):
     ABANDONED = "abandoned"
     ARCHIVED = "archived"
 
+class UserRole(str, PyEnum):
+    """User privilege levels"""
+    ADMIN = "admin"
+    USER = "user"
+    TESTER = "tester"
+
 Base = declarative_base()
 
 # Constants
@@ -90,6 +96,9 @@ class User(Base):
     email = Column(String(255), unique=True, index=True)
     password = Column(String(255))
     is_active = Column(Boolean, default=True)
+    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    login_token = Column(String(255), nullable=True, index=True)  # One-time login token
+    login_token_expires = Column(DateTime, nullable=True)  # Token expiration time
     registration_date = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -20,6 +20,7 @@ import JamBotPage from './pages/JamBot';
 import LabPage from './pages/Lab';
 import SmartSearchLab from './pages/SmartSearchLab';
 import WorkbenchPage from './pages/Workbench';
+import TokenLogin from './pages/TokenLogin';
 
 function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
@@ -33,12 +34,15 @@ function App() {
 
   // Main app content when authenticated
   const AuthenticatedApp = () => {
+    const { user } = useAuth();
+    const defaultRoute = user?.role === 'tester' ? '/smart-search' : '/jam-bot';
+
     return (
       <div className="h-screen flex flex-col dark:bg-gray-900 bg-gray-50">
         <TopBar />
         <main className="flex-1 overflow-y-auto pt-16">
           <Routes>
-            <Route path="/" element={<Navigate to="/jam-bot" />} />
+            <Route path="/" element={<Navigate to={defaultRoute} />} />
             <Route path="/jam-bot" element={<JamBotPage />} />
             <Route path="/workbench" element={<WorkbenchPage />} />
             <Route path="/lab" element={<LabPage />} />
@@ -61,15 +65,20 @@ function App() {
         }}
       >
         <ThemeProvider>
-          <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
-            <LoginForm
-              isRegistering={isRegistering}
-              setIsRegistering={setIsRegistering}
-              login={login}
-              register={register}
-              error={authError}
-            />
-          </div>
+          <Routes>
+            <Route path="/auth/token-login" element={<TokenLogin />} />
+            <Route path="*" element={
+              <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
+                <LoginForm
+                  isRegistering={isRegistering}
+                  setIsRegistering={setIsRegistering}
+                  login={login}
+                  register={register}
+                  error={authError}
+                />
+              </div>
+            } />
+          </Routes>
         </ThemeProvider>
       </BrowserRouter>
     );

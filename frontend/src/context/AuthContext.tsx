@@ -4,7 +4,7 @@ import { api } from '../lib/api/index'
 
 interface AuthContextType {
     isAuthenticated: boolean
-    user: { id: string; username: string; email: string } | null
+    user: { id: string; username: string; email: string; role: string } | null
     login: any
     register: any
     logout: () => void
@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [user, setUser] = useState<{ id: string; username: string; email: string } | null>(null)
+    const [user, setUser] = useState<{ id: string; username: string; email: string; role: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
 
     // Session state
@@ -128,12 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('user', JSON.stringify({
                 id: data.user_id,
                 username: data.username,
-                email: data.email
+                email: data.email,
+                role: data.role
             }))
             setUser({
                 id: data.user_id,
                 username: data.username,
-                email: data.email
+                email: data.email,
+                role: data.role
             })
 
             // Set session information directly from login response

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { UseMutationResult } from '@tanstack/react-query';
+import { UseMutationResult, useMutation } from '@tanstack/react-query';
 import settings from '@/config/settings';
+import { api } from '@/lib/api/index';
 
 interface LoginFormProps {
     isRegistering: boolean;
@@ -17,6 +18,30 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
         confirmPassword: ''
     });
     const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [isPasswordlessMode, setIsPasswordlessMode] = useState(false);
+    const [tokenSent, setTokenSent] = useState(false);
+
+    // Mutation for requesting login token
+    const requestToken = useMutation({
+        mutationFn: async (email: string) => {
+            const params = new URLSearchParams();
+            params.append('email', email);
+            
+            const response = await api.post('/api/auth/request-login-token', params, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            });
+            
+            return response.data;
+        },
+        onSuccess: () => {
+            setTokenSent(true);
+        },
+        onError: (error: any) => {
+            console.error('Token request failed:', error);
+        }
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +66,11 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                     }
                 }
             );
+        } else if (isPasswordlessMode) {
+            // Request login token
+            requestToken.mutate(formData.email);
         } else {
+            // Regular login
             login.mutate({ username: formData.email, password: formData.password });
         }
     };
@@ -66,16 +95,25 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                     Welcome
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300">
-                    {isRegistering ? 'Create your account' : 'Sign in to your account'}
+                    {isRegistering 
+                        ? 'Create your account' 
+                        : isPasswordlessMode
+                            ? 'Get a login link via email'
+                            : 'Sign in to your account'
+                    }
                 </p>
             </div>
 
-            {(error || passwordError) && (
-                <div className={`border px-4 py-3 rounded relative ${error?.includes('successful')
-                    ? 'bg-green-100 border-green-400 text-green-700'
-                    : 'bg-red-100 border-red-400 text-red-700'
+            {(error || passwordError || tokenSent || requestToken.error) && (
+                <div className={`border px-4 py-3 rounded relative ${
+                    error?.includes('successful') || tokenSent
+                        ? 'bg-green-100 border-green-400 text-green-700'
+                        : 'bg-red-100 border-red-400 text-red-700'
                     }`}>
-                    {passwordError || error}
+                    {tokenSent 
+                        ? 'Login link sent! Check your email and click the link to sign in.'
+                        : passwordError || error || (requestToken.error as any)?.message
+                    }
                 </div>
             )}
 
@@ -94,19 +132,21 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                             onChange={handleInputChange}
                         />
                     </div>
-                    <div>
-                        <label htmlFor="password" className="sr-only">Password</label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            required
-                            className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                        />
-                    </div>
+                    {!isPasswordlessMode && (
+                        <div>
+                            <label htmlFor="password" className="sr-only">Password</label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                required
+                                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                placeholder="Password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                            />
+                        </div>
+                    )}
                     {isRegistering && (
                         <div>
                             <label htmlFor="confirmPassword" className="sr-only">Confirm Password</label>
@@ -127,17 +167,42 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 <div>
                     <button
                         type="submit"
-                        className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        disabled={requestToken.isPending}
+                        className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isRegistering ? 'Register' : 'Sign in'}
+                        {requestToken.isPending 
+                            ? 'Sending...' 
+                            : isRegistering 
+                                ? 'Register' 
+                                : isPasswordlessMode 
+                                    ? 'Send Login Link'
+                                    : 'Sign in'
+                        }
                     </button>
                 </div>
             </form>
 
-            <div className="text-center">
+            <div className="text-center space-y-2">
+                {!isRegistering && (
+                    <button
+                        onClick={() => {
+                            setIsPasswordlessMode(!isPasswordlessMode);
+                            setTokenSent(false);
+                            setPasswordError(null);
+                        }}
+                        className="block w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-500"
+                    >
+                        {isPasswordlessMode 
+                            ? 'Use password instead' 
+                            : 'Get login link via email'}
+                    </button>
+                )}
+                
                 <button
                     onClick={() => {
                         setIsRegistering(!isRegistering);
+                        setIsPasswordlessMode(false);
+                        setTokenSent(false);
                         setFormData(prev => ({
                             ...prev,
                             password: '',

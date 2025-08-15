@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 export default function TopBar() {
     const { isDarkMode, toggleTheme } = useTheme();
     const location = useLocation();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
 
     const getLinkClass = (path: string) => {
         const isActive = location.pathname.startsWith(path);
@@ -18,6 +18,10 @@ export default function TopBar() {
             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
             }`;
     };
+
+    // Role-based navigation filtering
+    const isTester = user?.role === 'tester';
+    const canSeeAllMenus = user?.role === 'admin' || user?.role === 'user';
 
     return (
         <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50 flex items-center justify-between px-6">
@@ -30,18 +34,25 @@ export default function TopBar() {
 
                 {/* Navigation */}
                 <nav className="flex items-center gap-2">
-                    <NavLink to="/jam-bot" className={getLinkClass('/jam-bot')}>
-                        <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
-                        Chat
-                    </NavLink>
-                    <NavLink to="/workbench" className={getLinkClass('/workbench')}>
-                        <TableCellsIcon className="h-5 w-5 mr-2" />
-                        Workbench
-                    </NavLink>
-                    <NavLink to="/lab" className={getLinkClass('/lab')}>
-                        <BeakerIcon className="h-5 w-5 mr-2" />
-                        Lab
-                    </NavLink>
+                    {/* Show all menu items for admins and users */}
+                    {canSeeAllMenus && (
+                        <>
+                            <NavLink to="/jam-bot" className={getLinkClass('/jam-bot')}>
+                                <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
+                                Chat
+                            </NavLink>
+                            <NavLink to="/workbench" className={getLinkClass('/workbench')}>
+                                <TableCellsIcon className="h-5 w-5 mr-2" />
+                                Workbench
+                            </NavLink>
+                            <NavLink to="/lab" className={getLinkClass('/lab')}>
+                                <BeakerIcon className="h-5 w-5 mr-2" />
+                                Lab
+                            </NavLink>
+                        </>
+                    )}
+                    
+                    {/* Smart Search is visible to all roles */}
                     <NavLink to="/smart-search" className={getLinkClass('/smart-search')}>
                         <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
                         Smart Search

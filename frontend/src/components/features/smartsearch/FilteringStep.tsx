@@ -6,7 +6,7 @@ interface FilteringStepProps {
   filteredArticles: FilteredArticle[];
 }
 
-export function FilteringStep({ filteringProgress, filteredArticles }: FilteringStepProps) {
+export function FilteringStep({ filteringProgress }: FilteringStepProps) {
   return (
     <div className="space-y-6">
       {/* Progress Card */}

@@ -6,6 +6,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { workbenchApi, QuickAction } from '../api/workbenchApi';
 
+export type { QuickAction };
+
 export interface CreateQuickActionRequest {
   name: string;
   prompt: string;

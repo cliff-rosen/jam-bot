@@ -132,7 +132,7 @@ export function FeaturePresetManagementModal({
           name: f.name,
           description: f.description,
           type: f.type,
-          options: f.options || null
+          options: f.options || undefined
         }));
         
         const result = await createPreset({
@@ -157,7 +157,7 @@ export function FeaturePresetManagementModal({
           name: f.name,
           description: f.description,
           type: f.type,
-          options: f.options || null
+          options: f.options || undefined
         }));
         
         const result = await updatePreset(editingPreset.id, {

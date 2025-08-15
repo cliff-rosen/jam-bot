@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 
-import { UnifiedSearchParams, SearchProvider } from '@/types/unifiedSearch';
+import { SearchProvider } from '@/types/unifiedSearch';
 import { ProviderSelector } from './ProviderSelector';
 
 interface UnifiedSearchControlsProps {
@@ -80,7 +80,7 @@ export function UnifiedSearchControls({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showProviders, setShowProviders] = useState(true);
   
-  const currentProvider = searchMode === 'single' ? selectedProviders[0] : undefined;
+  const currentProvider = searchMode === 'single' ? selectedProviders[0] || 'pubmed' : 'pubmed';
 
   const canSearch = query.trim() && (
     (searchMode === 'single' && currentProvider) ||

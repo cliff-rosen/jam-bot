@@ -14,7 +14,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle, Clock, Database, Search } from 'lucide-react';
 import { SearchProvider } from '@/types/unifiedSearch';
-import { unifiedSearchApi } from '@/lib/api/unifiedSearchApi';
 
 interface ProviderSelectorProps {
   selectedProvider: SearchProvider;

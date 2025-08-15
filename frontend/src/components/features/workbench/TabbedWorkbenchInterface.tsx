@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React from 'react';
 import { Search, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

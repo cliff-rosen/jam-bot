@@ -4,6 +4,7 @@ import ReactFlow, {
   Edge,
   Controls,
   Background,
+  BackgroundVariant,
   useNodesState,
   useEdgesState,
   Position,
@@ -52,6 +53,9 @@ function EntityNode({ data }: NodeProps<{ entity: Entity; type: EntityType }>) {
       protein: '#6366f1', // indigo
       pathway: '#ec4899', // pink
       drug: '#059669', // emerald
+      environmental_factor: '#84cc16', // lime
+      animal_model: '#f472b6', // pink-400
+      exposure: '#fb7185', // rose-400
       other: '#6b7280' // gray
     };
     return colors[type] || colors.other;
@@ -237,7 +241,9 @@ export function EntityKnowledgeGraph({ analysis }: EntityKnowledgeGraphProps) {
       inhibitory: '#7c3aed', // purple
       regulatory: '#0891b2', // cyan
       interactive: '#4f46e5', // indigo
-      paradoxical: '#ea580c' // orange
+      paradoxical: '#ea580c', // orange
+      correlative: '#d946ef', // fuchsia
+      predictive: '#06b6d4' // cyan
     };
     return colors[type] || '#6b7280';
   };
@@ -351,7 +357,7 @@ export function EntityKnowledgeGraph({ analysis }: EntityKnowledgeGraphProps) {
         className="bg-gray-50 dark:bg-gray-900"
       >
         <Background 
-          variant="dots" 
+          variant={BackgroundVariant.Dots} 
           gap={20} 
           className="bg-gray-50 dark:bg-gray-900"
         />

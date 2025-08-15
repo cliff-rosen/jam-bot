@@ -17,20 +17,36 @@ export function FilteringStep({ filteringProgress, filteredArticles }: Filtering
       {/* Progress Card */}
       <Card className="p-6 dark:bg-gray-800">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-          Applying Semantic Filter
+          Applying Semantic Filter (Parallel Processing)
         </h2>
 
         <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <span>Progress</span>
-            <span>{filteringProgress.processed} / {filteringProgress.total}</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-            <div
-              className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${(filteringProgress.processed / filteringProgress.total) * 100}%` }}
-            />
-          </div>
+          {filteringProgress.processed === 0 ? (
+            // Show loading state while parallel processing is happening
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Processing {filteringProgress.total} articles in parallel...
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                This is much faster than sequential processing!
+              </p>
+            </div>
+          ) : (
+            // Show completion state when done
+            <>
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <span>Progress</span>
+                <span>{filteringProgress.processed} / {filteringProgress.total}</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${(filteringProgress.processed / filteringProgress.total) * 100}%` }}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-6">

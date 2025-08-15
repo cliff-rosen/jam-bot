@@ -192,40 +192,6 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Common streaming handlers for filtering
-  const createFilteringHandlers = (isFilterAll: boolean) => ({
-    onMessage: (message: StreamMessage) => {
-      if (message.type === 'progress' && message.data) {
-        setFilteringProgress(message.data as FilteringProgress);
-      }
-    },
-    onArticle: (article: FilteredArticle) => {
-      setFilteredArticles(prev => [...prev, article]);
-    },
-    onComplete: (stats: any) => {
-      setStep('results');
-      if (isFilterAll) {
-        setFilterAllMode(false); // Reset flag for filter-all mode
-      }
-      toast({
-        title: 'Filtering Complete',
-        description: isFilterAll
-          ? `Filtered ${stats.total_processed} articles: ${stats.accepted} accepted, ${stats.rejected} rejected`
-          : `${stats.accepted} of ${stats.total_processed} articles passed the filter`
-      });
-    },
-    onError: (error: string) => {
-      if (isFilterAll) {
-        setFilterAllMode(false); // Reset flag on error
-      }
-      toast({
-        title: 'Filtering Failed',
-        description: error,
-        variant: 'destructive'
-      });
-    }
-  });
-
   // Initialize filtering UI state
   const initializeFilteringState = (totalCount: number) => {
     setStep('filtering');
@@ -250,19 +216,21 @@ export default function SmartSearchLab() {
     });
   };
 
-  // Unified filtering execution for both modes - chooses between parallel and streaming
-  const executeFiltering = async () => {
+  // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
+  const handleStartFiltering = async () => {
+    if (!searchResults || !sessionId) return;
+
     const isFilterAll = filterAllMode;
     let articlesToProcess: number;
     let selectedArticleList: any[] = [];
-    
+
     if (isFilterAll) {
       // Filter all available search results
       articlesToProcess = Math.min(searchResults!.pagination.total_available, 500);
     } else {
       // Filter selected articles only
       selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
-      
+
       if (selectedArticleList.length === 0) {
         toast({
           title: 'No Articles Selected',
@@ -271,15 +239,12 @@ export default function SmartSearchLab() {
         });
         return;
       }
-      
+
       articlesToProcess = selectedArticleList.length;
     }
-    
-    // Choose between parallel and streaming based on article count
-    const useParallel = articlesToProcess <= 20; // Parallel for 20 or fewer articles
-    
+
     initializeFilteringState(articlesToProcess);
-    
+
     const request = {
       filter_mode: isFilterAll ? 'all' as const : 'selected' as const,
       refined_question: editedQuestion,
@@ -289,63 +254,42 @@ export default function SmartSearchLab() {
       session_id: sessionId!,
       ...(isFilterAll ? { max_results: articlesToProcess } : { articles: selectedArticleList })
     };
-    
+
     try {
-      if (useParallel) {
-        // Use parallel processing for small sets - faster, immediate results
-        console.log(`Using parallel processing for ${articlesToProcess} articles`);
-        
-        const startTime = Date.now();
-        const response = await smartSearchApi.filterUnifiedParallel(request);
-        const duration = Date.now() - startTime;
-        
-        // Set all articles at once
-        setFilteredArticles(response.filtered_articles);
-        
-        // Update progress to show completion
-        setFilteringProgress({
-          total: response.total_processed,
-          processed: response.total_processed,
-          accepted: response.total_accepted,
-          rejected: response.total_rejected
-        });
-        
-        // Complete immediately
-        setStep('results');
-        if (isFilterAll) {
-          setFilterAllMode(false);
-        }
-        
-        toast({
-          title: 'Filtering Complete',
-          description: `Parallel processing completed in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} of ${response.total_processed} articles accepted`
-        });
-        
-      } else {
-        // Use streaming for larger sets - better UX with progress updates
-        console.log(`Using streaming processing for ${articlesToProcess} articles`);
-        
-        const handlers = createFilteringHandlers(isFilterAll);
-        
-        await smartSearchApi.filterUnifiedStreaming(
-          request,
-          handlers.onMessage,
-          handlers.onArticle,
-          handlers.onComplete,
-          handlers.onError
-        );
+      // Always use parallel processing - it's much faster
+      console.log(`Processing ${articlesToProcess} articles in parallel...`);
+
+      const startTime = Date.now();
+      const response = await smartSearchApi.filterUnifiedParallel(request);
+      const duration = Date.now() - startTime;
+
+      // Set all articles at once
+      setFilteredArticles(response.filtered_articles);
+
+      // Update progress to show completion
+      setFilteringProgress({
+        total: response.total_processed,
+        processed: response.total_processed,
+        accepted: response.total_accepted,
+        rejected: response.total_rejected
+      });
+
+      // Complete immediately
+      setStep('results');
+      if (isFilterAll) {
+        setFilterAllMode(false);
       }
+
+      toast({
+        title: 'Filtering Complete',
+        description: `Processed ${response.total_processed} articles in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} accepted, ${response.total_rejected} rejected`
+      });
+
     } catch (error) {
       handleFilteringError(error, isFilterAll);
     }
   };
 
-  // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
-  const handleStartFiltering = async () => {
-    if (!searchResults || !sessionId) return;
-    
-    await executeFiltering();
-  };
 
   // Article selection helpers
   const handleSelectAll = () => {

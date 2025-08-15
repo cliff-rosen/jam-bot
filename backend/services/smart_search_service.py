@@ -334,15 +334,12 @@ You must respond in this exact JSON format:
         """
         logger.info(f"Starting filtering of {len(articles)} articles")
         
-        # Use custom discriminator if provided, otherwise generate one
-        if custom_discriminator:
-            discriminator = custom_discriminator
-            logger.info("Using custom discriminator prompt")
-        else:
-            discriminator = await self.generate_semantic_discriminator(
-                refined_question, search_query, strictness
-            )
-            logger.info("Generated default discriminator prompt")
+        # Discriminator is required
+        if not custom_discriminator:
+            raise ValueError("Discriminator prompt is required for filtering")
+        
+        discriminator = custom_discriminator
+        logger.info("Using provided discriminator prompt")
         
         # Initialize counters
         total = len(articles)
@@ -502,14 +499,9 @@ Respond in JSON format:
         """
         logger.info(f"Starting parallel filtering of {len(articles)} articles")
         
-        # Generate discriminator if not provided
-        discriminator = custom_discriminator
-        if not discriminator:
-            discriminator = await self.generate_semantic_discriminator(
-                refined_question=refined_question,
-                search_query=search_query,
-                strictness=strictness
-            )
+        # Discriminator is required
+        if not custom_discriminator:
+            raise ValueError("Discriminator prompt is required for filtering")
         
         # Create semaphore to limit concurrent LLM calls (avoid rate limits)
         semaphore = asyncio.Semaphore(10)  # Max 10 concurrent calls

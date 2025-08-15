@@ -406,15 +406,9 @@ async def filter_unified_stream(
             selected_count=len(articles_to_filter)
         )
         
-        # Determine which discriminator to use
-        actual_discriminator = request.discriminator_prompt
-        if not actual_discriminator:
-            # Generate default discriminator if none provided
-            actual_discriminator = await service.generate_semantic_discriminator(
-                refined_question=request.refined_question,
-                search_query=request.search_query,
-                strictness=request.strictness
-            )
+        # Discriminator is required
+        if not request.discriminator_prompt:
+            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
         
         # Use shared filtering stream
         async def generate():
@@ -423,7 +417,7 @@ async def filter_unified_stream(
                 refined_question=request.refined_question,
                 search_query=request.search_query,
                 strictness=request.strictness,
-                actual_discriminator=actual_discriminator,
+                actual_discriminator=request.discriminator_prompt,
                 session_id=session.id,
                 user_id=current_user.user_id,
                 db=db
@@ -531,15 +525,6 @@ async def filter_parallel(
         )
         
         # Update session with filtering results
-        actual_discriminator = request.discriminator_prompt
-        if not actual_discriminator:
-            # We need to get the discriminator that was used
-            actual_discriminator = await service.generate_semantic_discriminator(
-                refined_question=request.refined_question,
-                search_query=request.search_query,
-                strictness=request.strictness
-            )
-        
         session_service.update_filtering_step(
             session_id=session.id,
             user_id=current_user.user_id,
@@ -548,7 +533,7 @@ async def filter_parallel(
             rejected=total_rejected,
             average_confidence=average_confidence,
             duration_seconds=int(duration.total_seconds()),
-            submitted_discriminator=actual_discriminator,
+            submitted_discriminator=request.discriminator_prompt,
             prompt_tokens=token_usage.prompt_tokens,
             completion_tokens=token_usage.completion_tokens,
             total_tokens=token_usage.total_tokens
@@ -606,15 +591,10 @@ async def filter_articles_stream(
         
         service = SmartSearchService()
         
-        # Determine which discriminator will be used
+        # Discriminator is required (deprecated endpoint - for backward compatibility)
         actual_discriminator = request.discriminator_prompt
         if not actual_discriminator:
-            # Generate default discriminator if none provided
-            actual_discriminator = await service.generate_semantic_discriminator(
-                refined_question=request.refined_question,
-                search_query=request.search_query,
-                strictness=request.strictness
-            )
+            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
         
         # Use shared filtering stream
         async def generate():
@@ -698,15 +678,9 @@ async def filter_all_search_results_stream(
             selected_count=len(search_results.articles)
         )
         
-        # Determine which discriminator to use
-        actual_discriminator = request.discriminator_prompt
-        if not actual_discriminator:
-            # Generate default discriminator if none provided
-            actual_discriminator = await service.generate_semantic_discriminator(
-                refined_question=request.refined_question,
-                search_query=request.search_query,
-                strictness=request.strictness
-            )
+        # Discriminator is required
+        if not request.discriminator_prompt:
+            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
         
         # Use shared filtering stream
         async def generate():

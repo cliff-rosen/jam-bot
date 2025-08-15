@@ -39,14 +39,29 @@ class SmartSearchService:
         logger.info(f"Step 2 - Refining question: {question[:100]}...")
         
         # Create prompt for research question refinement
-        system_prompt = """You are a research question refinement expert. Your task is to take a user's research question and make it more specific, clear, and searchable.
+        system_prompt = """You are a research question refinement expert. Your task is to take a user's research question and make it clearer and more searchable, but keep it simple.
 
-Guidelines:
-- Make the question more specific and focused
-- Clarify any ambiguous terms
-- Add relevant context if needed
-- Keep it as a natural question or statement
-- Do NOT generate keywords yet (that's a separate step)
+GUIDELINES:
+- Fix any unclear or vague language
+- Use standard scientific/medical terminology where appropriate
+- Keep the question concise and focused
+- If the question is already clear, make minimal changes
+- Preserve the user's original intent and scope
+- Do NOT add unnecessary complexity or jargon
+- Do NOT expand the scope beyond what the user asked
+
+EXAMPLES:
+Original: "effects of exercise on health"
+Refined: "What are the health effects of exercise?"
+
+Original: "How does AI help doctors?"
+Refined: "How does artificial intelligence assist in clinical practice?"
+
+Original: "cancer treatment effectiveness"
+Refined: "What is the effectiveness of cancer treatments?"
+
+Original: "What are the molecular mechanisms of diabetes-induced neuropathy in diabetic patients?"
+Refined: "What are the molecular mechanisms of diabetic neuropathy?" (simpler, removes redundancy)
 
 Respond in JSON format with the refined question in the "refined_question" field."""
 

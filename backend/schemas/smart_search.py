@@ -127,3 +127,13 @@ class FilteringCompleteResponse(BaseModel):
 class SessionResetRequest(BaseModel):
     """Request to reset session to specific step"""
     step: str = Field(..., description="Step to reset to: question_input, question_refinement, etc.")
+
+
+class FilterAllSearchResultsRequest(BaseModel):
+    """Request to filter all available search results without downloading them first"""
+    search_query: str = Field(..., description="Boolean search query to execute")
+    refined_question: str = Field(..., description="Refined research question for context")
+    max_results: int = Field(500, description="Maximum results to retrieve and filter")
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
+    session_id: str = Field(..., description="Session ID for tracking")

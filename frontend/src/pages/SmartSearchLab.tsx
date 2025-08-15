@@ -311,6 +311,67 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Filter all search results without downloading them first
+  const handleFilterAll = async () => {
+    if (!searchResults || !sessionId) return;
+
+    // Reset filtering state
+    setFilteredArticles([]);
+    setFilteringProgress({
+      total: searchResults.pagination.total_available,
+      processed: 0,
+      accepted: 0,
+      rejected: 0
+    });
+
+    try {
+      await smartSearchApi.filterAllSearchResultsStreaming(
+        {
+          search_query: editedSearchQuery,
+          refined_question: editedQuestion,
+          max_results: Math.min(searchResults.pagination.total_available, 500),
+          strictness,
+          discriminator_prompt: editedDiscriminator,
+          session_id: sessionId
+        },
+        // onMessage
+        (message: StreamMessage) => {
+          if (message.type === 'progress' && message.data) {
+            setFilteringProgress(message.data as FilteringProgress);
+          }
+        },
+        // onArticle
+        (article: FilteredArticle) => {
+          setFilteredArticles(prev => [...prev, article]);
+        },
+        // onComplete
+        (stats: any) => {
+          setStep('results');
+          toast({
+            title: 'Filtering Complete',
+            description: `Filtered ${stats.total_processed} articles: ${stats.accepted} accepted, ${stats.rejected} rejected`
+          });
+        },
+        // onError
+        (error: string) => {
+          toast({
+            title: 'Filtering Failed',
+            description: error,
+            variant: 'destructive'
+          });
+        }
+      );
+
+      setStep('filtering');
+    } catch (error) {
+      toast({
+        title: 'Failed to Start Filtering',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Reset to start
   // Load more search results
   const handleLoadMoreResults = async () => {
@@ -574,6 +635,7 @@ export default function SmartSearchLab() {
               onSelectAll={handleSelectAll}
               onDeselectAll={handleDeselectAll}
               onSubmit={handleGenerateDiscriminator}
+              onSubmitAll={handleFilterAll}
               onLoadMore={handleLoadMoreResults}
               loading={discriminatorLoading}
               loadingMore={searchLoading}

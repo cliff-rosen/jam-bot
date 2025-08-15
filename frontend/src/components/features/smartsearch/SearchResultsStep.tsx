@@ -11,6 +11,7 @@ interface SearchResultsStepProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onSubmit: () => void;
+  onSubmitAll?: () => void;
   onLoadMore: () => void;
   loading: boolean;
   loadingMore: boolean;
@@ -23,10 +24,14 @@ export function SearchResultsStep({
   onSelectAll,
   onDeselectAll,
   onSubmit,
+  onSubmitAll,
   onLoadMore,
   loading,
   loadingMore
 }: SearchResultsStepProps) {
+  const canFilterAll = searchResults.pagination.total_available < 500 && 
+                       searchResults.pagination.has_more &&
+                       onSubmitAll;
   return (
     <Card className="p-6 dark:bg-gray-800 flex flex-col h-[calc(100vh-280px)]">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -134,23 +139,45 @@ export function SearchResultsStep({
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Tip: Uncheck articles that are clearly off-topic to save on filtering costs
           </p>
-          <Button
-            onClick={onSubmit}
-            disabled={selectedArticles.size === 0 || loading}
-            className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4 mr-2" />
-                Generate Filter Criteria
-              </>
+          <div className="flex gap-3">
+            {canFilterAll && (
+              <Button
+                onClick={onSubmitAll}
+                disabled={loading}
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-950"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Filter All {searchResults.pagination.total_available} Results
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button
+              onClick={onSubmit}
+              disabled={selectedArticles.size === 0 || loading}
+              className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4 mr-2" />
+                  Generate Filter Criteria ({selectedArticles.size} selected)
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

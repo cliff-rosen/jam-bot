@@ -25,7 +25,8 @@ from schemas.smart_search import (
     DiscriminatorGenerationRequest,
     DiscriminatorGenerationResponse,
     SemanticFilterRequest,
-    SessionResetRequest
+    SessionResetRequest,
+    FilterAllSearchResultsRequest
 )
 
 from services.auth_service import validate_token
@@ -377,6 +378,165 @@ async def filter_articles_stream(
     except Exception as e:
         logger.error(f"Failed to start filtering for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to start filtering: {str(e)}")
+
+
+@router.post("/filter-all-stream")
+async def filter_all_search_results_stream(
+    request: FilterAllSearchResultsRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Execute a full search and filter all results in one operation (streaming)
+    This is used when user wants to filter all available results without downloading them first
+    """
+    try:
+        logger.info(f"User {current_user.user_id} starting filter-all for query: {request.search_query[:100]}...")
+        
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Initialize smart search service
+        service = SmartSearchService()
+        
+        # Execute full search to get all available articles
+        logger.info(f"Executing full search with max_results={request.max_results}")
+        search_results = await service.search_articles(
+            search_query=request.search_query,
+            max_results=request.max_results,
+            offset=0
+        )
+        
+        logger.info(f"Retrieved {len(search_results.articles)} articles for filtering")
+        
+        # Update session with search execution (full retrieval)
+        session_service.update_search_execution_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            total_available=search_results.pagination.total_available,
+            returned=len(search_results.articles),
+            sources=search_results.sources_searched,
+            is_pagination_load=False,
+            submitted_search_query=request.search_query
+        )
+        
+        # Track article selection (all articles selected for filtering)
+        session_service.update_article_selection_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            selected_count=len(search_results.articles)
+        )
+        
+        # Determine which discriminator to use
+        actual_discriminator = request.discriminator_prompt
+        if not actual_discriminator:
+            # Generate default discriminator if none provided
+            actual_discriminator = await service.generate_semantic_discriminator(
+                refined_question=request.refined_question,
+                search_query=request.search_query,
+                strictness=request.strictness
+            )
+        
+        # Track filtering stats for session update
+        filtering_stats = {
+            "total_filtered": 0,
+            "accepted": 0,
+            "rejected": 0,
+            "start_time": datetime.utcnow(),
+            "actual_discriminator": actual_discriminator
+        }
+        
+        async def generate():
+            try:
+                # Stream the filtering process
+                async for message in service.filter_articles_streaming(
+                    articles=search_results.articles,
+                    refined_question=request.refined_question,
+                    search_query=request.search_query,
+                    strictness=request.strictness,
+                    custom_discriminator=actual_discriminator
+                ):
+                    # Parse and track filtering progress
+                    import json
+                    if message.startswith("data: "):
+                        try:
+                            data = json.loads(message[6:])
+                            if data.get("type") == "complete":
+                                # Update final session stats
+                                stats = data.get("data", {})
+                                filtering_stats["total_filtered"] = stats.get("total_processed", 0)
+                                filtering_stats["accepted"] = stats.get("accepted", 0)
+                                filtering_stats["rejected"] = stats.get("rejected", 0)
+                                
+                                # Extract token usage from completion data
+                                token_usage = stats.get("token_usage", {})
+                                filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
+                                filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
+                                filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
+                                
+                                # Calculate duration and average confidence
+                                duration = datetime.utcnow() - filtering_stats["start_time"]
+                                duration_seconds = int(duration.total_seconds())
+                                
+                                # Update session with final results
+                                avg_confidence = 0.5  # Default fallback
+                                if filtering_stats["accepted"] > 0:
+                                    avg_confidence = 0.7  # Placeholder
+                                
+                                # Create new database session for the update
+                                db_gen = get_db()
+                                new_db = next(db_gen)
+                                try:
+                                    new_session_service = SmartSearchSessionService(new_db)
+                                    new_session_service.update_filtering_step(
+                                        session_id=session.id,
+                                        user_id=current_user.user_id,
+                                        total_filtered=filtering_stats["total_filtered"],
+                                        accepted=filtering_stats["accepted"],
+                                        rejected=filtering_stats["rejected"],
+                                        average_confidence=avg_confidence,
+                                        duration_seconds=duration_seconds,
+                                        submitted_discriminator=filtering_stats["actual_discriminator"],
+                                        prompt_tokens=filtering_stats["prompt_tokens"],
+                                        completion_tokens=filtering_stats["completion_tokens"],
+                                        total_tokens=filtering_stats["total_tokens"]
+                                    )
+                                finally:
+                                    new_db.close()
+                        except Exception as parse_error:
+                            logger.warning(f"Failed to parse filtering message: {parse_error}")
+                    
+                    yield message
+                    
+            except Exception as e:
+                logger.error(f"Filtering error for user {current_user.user_id}: {e}", exc_info=True)
+                # Send error message in SSE format
+                import json
+                error_message = {
+                    "type": "error",
+                    "message": f"Filtering failed: {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                yield f"data: {json.dumps(error_message)}\n\n"
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start filter-all for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start filter-all: {str(e)}")
 
 
 @router.get("/sessions")

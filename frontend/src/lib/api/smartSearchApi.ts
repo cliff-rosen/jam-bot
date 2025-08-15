@@ -41,6 +41,15 @@ export interface SemanticFilterRequest {
   session_id: string;
 }
 
+export interface FilterAllSearchResultsRequest {
+  search_query: string;
+  refined_question: string;
+  max_results?: number;
+  strictness?: 'low' | 'medium' | 'high';
+  discriminator_prompt?: string;
+  session_id: string;
+}
+
 export interface DiscriminatorGenerationRequest {
   refined_question: string;
   search_query: string;
@@ -97,6 +106,83 @@ class SmartSearchApi {
       step
     });
     return response.data;
+  }
+
+  /**
+   * Filter all search results without downloading them first (streaming)
+   */
+  async filterAllSearchResultsStreaming(
+    request: FilterAllSearchResultsRequest,
+    onMessage: (message: StreamMessage) => void,
+    onArticle: (article: FilteredArticle) => void,
+    onComplete: (stats: any) => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    try {
+      const streamGenerator = makeStreamRequest('/api/lab/smart-search/filter-all-stream', request, 'POST');
+      
+      let buffer = '';
+      
+      for await (const update of streamGenerator) {
+        buffer += update.data;
+        
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data) {
+              try {
+                const message: StreamMessage = JSON.parse(data);
+                
+                // Route message to appropriate handler
+                switch (message.type) {
+                  case 'article':
+                    if (message.data) {
+                      onArticle(message.data as FilteredArticle);
+                    }
+                    break;
+                  
+                  case 'complete':
+                    if (message.data) {
+                      onComplete(message.data);
+                    }
+                    return;
+                  
+                  case 'error':
+                    onError(message.message || 'Unknown error');
+                    return;
+                  
+                  default:
+                    onMessage(message);
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse SSE message:', data);
+              }
+            }
+          }
+        }
+      }
+      
+      // Process any remaining data
+      if (buffer.trim() && buffer.startsWith('data: ')) {
+        const data = buffer.slice(6).trim();
+        if (data) {
+          try {
+            const message: StreamMessage = JSON.parse(data);
+            if (message.type === 'complete' && message.data) {
+              onComplete(message.data);
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse final SSE message:', data);
+          }
+        }
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Unknown error');
+    }
   }
 
   /**

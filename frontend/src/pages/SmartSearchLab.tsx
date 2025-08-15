@@ -59,6 +59,7 @@ export default function SmartSearchLab() {
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
+  const [wasFilterAllMode, setWasFilterAllMode] = useState(false); // Track if we used filter all mode
 
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -226,9 +227,11 @@ export default function SmartSearchLab() {
     if (isFilterAll) {
       // Filter all available search results
       articlesToProcess = Math.min(searchResults!.pagination.total_available, 500);
+      setWasFilterAllMode(true); // Remember we used filter all mode
     } else {
       // Filter selected articles only
       selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
+      setWasFilterAllMode(false); // Remember we used selected mode
 
       if (selectedArticleList.length === 0) {
         toast({
@@ -426,6 +429,7 @@ export default function SmartSearchLab() {
       setSearchResults(null);
       setSelectedArticles(new Set());
       setFilterAllMode(false); // Reset filter-all mode when going back to search results or earlier
+      setWasFilterAllMode(false);
     }
     if (targetIndex < stepOrder.indexOf('discriminator')) {
       setDiscriminatorData(null);
@@ -481,6 +485,7 @@ export default function SmartSearchLab() {
     setStep('query');
     setSessionId(null);
     setFilterAllMode(false);
+    setWasFilterAllMode(false);
     setQuestion('');
     setRefinement(null);
     setEditedQuestion('');
@@ -651,7 +656,15 @@ export default function SmartSearchLab() {
           )}
 
           {step === 'results' && (
-            <ResultsStep filteredArticles={filteredArticles} />
+            <ResultsStep 
+              filteredArticles={filteredArticles}
+              originalQuestion={question}
+              refinedQuestion={editedQuestion}
+              searchQuery={editedSearchQuery}
+              totalAvailable={searchResults?.pagination.total_available}
+              totalRetrieved={searchResults?.articles.length}
+              totalFiltered={wasFilterAllMode ? Math.min(searchResults?.pagination.total_available || 0, 500) : selectedArticles.size}
+            />
           )}
         </div>
       </div>

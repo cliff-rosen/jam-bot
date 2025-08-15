@@ -391,10 +391,11 @@ def get_article_ids(
 
 
 def get_articles_from_ids(ids: List[str]) -> List[Article]:
+    BATCH_SIZE = 100
     articles = []
-    batch_size = 100
+    batch_size = BATCH_SIZE
     low = 0
-    high = low + 100
+    high = low + batch_size
 
     while low < len(ids):
         logger.info(f"Processing articles {low} to {high}")
@@ -499,10 +500,10 @@ def search_pubmed(
             # Create CanonicalPubMedArticle
             canonical_pubmed = CanonicalPubMedArticle(
                 pmid=article.PMID,
-                title=article.title,
-                abstract=article.abstract,
+                title=article.title or "[No title available]",
+                abstract=article.abstract or "[No abstract available]",
                 authors=article.authors.split(', ') if article.authors else [],
-                journal=article.journal,
+                journal=article.journal or "[Unknown journal]",
                 publication_date=article.pub_date if article.pub_date else None,
                 keywords=[],  # Would need to extract from XML
                 mesh_terms=[],  # Would need to extract from XML
@@ -525,8 +526,13 @@ def search_pubmed(
             canonical_articles.append(research_article)
             
         except Exception as e:
-            logger.error(f"Error converting article {article.PMID}: {e}")
+            logger.error(f"Error converting article {getattr(article, 'PMID', 'unknown')}: {e}")
+            logger.error(f"Article data - Title: {getattr(article, 'title', 'None')}, Abstract: {getattr(article, 'abstract', 'None')[:100] if getattr(article, 'abstract', None) else 'None'}, Journal: {getattr(article, 'journal', 'None')}")
             continue
+    
+    # Trim to requested max_results if we got extra
+    if len(canonical_articles) > max_results:
+        canonical_articles = canonical_articles[:max_results]
     
     metadata = {
         "total_results": total_count,

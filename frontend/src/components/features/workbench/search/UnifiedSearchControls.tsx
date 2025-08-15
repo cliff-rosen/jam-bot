@@ -91,12 +91,6 @@ export function UnifiedSearchControls({
     onProvidersChange([provider]);
   };
 
-  const getMaxResults = () => {
-    if (searchMode === 'single') {
-      return currentProvider === 'pubmed' ? 100 : 20;
-    }
-    return 20; // Conservative limit for batch searches
-  };
 
   const renderProviderSpecificOptions = () => {
     if (searchMode !== 'single') return null;

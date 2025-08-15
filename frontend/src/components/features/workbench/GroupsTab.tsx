@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Search,
-  FolderOpen,
   FileText,
   Hash,
   Calendar,

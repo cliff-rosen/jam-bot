@@ -96,7 +96,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True)
     password = Column(String(255))
     is_active = Column(Boolean, default=True)
-    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    role = Column(Enum(UserRole, name='userrole'), default=UserRole.USER, nullable=False)
     login_token = Column(String(255), nullable=True, index=True)  # One-time login token
     login_token_expires = Column(DateTime, nullable=True)  # Token expiration time
     registration_date = Column(DateTime, default=datetime.utcnow)
@@ -153,7 +153,6 @@ class Asset(Base):
         Index("idx_asset_user_role", "user_id", "role"),
     )
 
-
 class MissionAsset(Base):
     """Mission to Asset mapping table"""
     __tablename__ = "mission_assets"
@@ -176,7 +175,6 @@ class MissionAsset(Base):
         Index("idx_mission_asset_asset", "asset_id"),
         Index("idx_mission_asset_role", "mission_id", "role"),
     )
-
 
 class HopAsset(Base):
     """Hop to Asset mapping table"""
@@ -446,7 +444,6 @@ class ChatMessage(Base):
         Index('idx_chat_messages_created_at', 'created_at'),
     )
 
-
 class ArticleGroup(Base):
     """
     Article groups - collections of research articles with shared analysis context.
@@ -506,7 +503,6 @@ class ArticleGroup(Base):
         Index('idx_article_group_created_at', 'created_at'),
         Index('idx_article_group_name', 'user_id', 'name'),
     )
-
 
 class ArticleGroupDetail(Base):
     """
@@ -586,7 +582,6 @@ class ArticleGroupDetail(Base):
         Index('idx_article_group_detail_group_id', 'article_group_id'),
         Index('idx_article_group_detail_position', 'article_group_id', 'position'),
     )
-
 
 # ================== FEATURE PRESET MODELS ==================
 

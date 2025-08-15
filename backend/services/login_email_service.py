@@ -8,8 +8,6 @@ Uses SMTP for sending emails.
 import smtplib
 import secrets
 from datetime import datetime, timedelta
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
 from typing import Optional
 import logging
 
@@ -46,7 +44,7 @@ class LoginEmailService:
         
         return token, expires_at
     
-    def _create_login_email(self, email: str, token: str) -> MimeMultipart:
+    def _create_login_email(self, email: str, token: str) -> str:
         """
         Create the login email with token link.
         
@@ -55,82 +53,30 @@ class LoginEmailService:
             token: Login token
             
         Returns:
-            MimeMultipart: Email message
+            str: Email message text
         """
         # Create login URL
         login_url = f"{self.frontend_url}/auth/token-login?token={token}"
         
-        # Create email
-        msg = MimeMultipart('alternative')
-        msg['Subject'] = f"{self.app_name} - One-Click Login"
-        msg['From'] = self.from_email
-        msg['To'] = email
+        # Create simple text email content
+        email_content = f"""Subject: {self.app_name} - One-Click Login
+From: {self.from_email}
+To: {email}
+
+Hello!
+
+You requested a one-click login for {self.app_name}.
+
+Click the link below to log in (expires in 30 minutes):
+{login_url}
+
+If you didn't request this login, you can safely ignore this email.
+
+Best regards,
+The {self.app_name} Team
+"""
         
-        # Create HTML and text versions
-        text_content = f"""
-        Hello!
-        
-        You requested a one-click login for {self.app_name}.
-        
-        Click the link below to log in (expires in 30 minutes):
-        {login_url}
-        
-        If you didn't request this login, you can safely ignore this email.
-        
-        Best regards,
-        The {self.app_name} Team
-        """
-        
-        html_content = f"""
-        <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2563eb;">One-Click Login</h2>
-                    
-                    <p>Hello!</p>
-                    
-                    <p>You requested a one-click login for <strong>{self.app_name}</strong>.</p>
-                    
-                    <div style="margin: 30px 0;">
-                        <a href="{login_url}" 
-                           style="background-color: #2563eb; 
-                                  color: white; 
-                                  padding: 12px 24px; 
-                                  text-decoration: none; 
-                                  border-radius: 5px; 
-                                  display: inline-block;
-                                  font-weight: bold;">
-                            Log In to {self.app_name}
-                        </a>
-                    </div>
-                    
-                    <p style="color: #666; font-size: 14px;">
-                        This link expires in 30 minutes.
-                    </p>
-                    
-                    <p style="color: #666; font-size: 14px;">
-                        If you didn't request this login, you can safely ignore this email.
-                    </p>
-                    
-                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-                    
-                    <p style="color: #999; font-size: 12px;">
-                        Best regards,<br>
-                        The {self.app_name} Team
-                    </p>
-                </div>
-            </body>
-        </html>
-        """
-        
-        # Attach parts
-        text_part = MimeText(text_content, 'plain')
-        html_part = MimeText(html_content, 'html')
-        
-        msg.attach(text_part)
-        msg.attach(html_part)
-        
-        return msg
+        return email_content
     
     async def send_login_token(self, email: str, token: str) -> bool:
         """
@@ -144,22 +90,20 @@ class LoginEmailService:
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Create email message
-            msg = self._create_login_email(email, token)
-            
             # For development, just log the token instead of sending email
             if not self.smtp_username or not self.smtp_password:
                 logger.info(f"DEV MODE: Login token for {email}: {token}")
                 logger.info(f"DEV MODE: Login URL: {self.frontend_url}/auth/token-login?token={token}")
                 return True
             
+            # Create email message
+            email_content = self._create_login_email(email, token)
+            
             # Send email via SMTP
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.smtp_username, self.smtp_password)
-                
-                text = msg.as_string()
-                server.sendmail(self.from_email, email, text)
+                server.sendmail(self.from_email, email, email_content)
                 
             logger.info(f"Login token email sent successfully to {email}")
             return True

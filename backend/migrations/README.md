@@ -33,6 +33,20 @@ This migration:
 3. Creates an index on the `login_token` column for faster lookups
 4. Shows the final table structure for login token columns
 
+### Fix User Role Enum Migration
+
+To fix user role enum values (if you're getting enum validation errors):
+
+```bash
+cd backend
+python migrations/fix_user_role_enum.py
+```
+
+This migration:
+1. Converts any uppercase role values (ADMIN, USER, TESTER) to lowercase (admin, user, tester)
+2. Updates the enum constraint to ensure it has the correct lowercase values
+3. Verifies the final state and shows role distribution
+
 ## Notes
 
 - The main database initialization happens automatically via `init_db()` in `main.py`

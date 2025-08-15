@@ -11,6 +11,8 @@ interface DiscriminatorStepProps {
   strictness: 'low' | 'medium' | 'high';
   setStrictness: (strictness: 'low' | 'medium' | 'high') => void;
   selectedArticlesCount: number;
+  filterAllMode?: boolean;
+  totalAvailable?: number;
   onSubmit: () => void;
 }
 
@@ -22,8 +24,16 @@ export function DiscriminatorStep({
   strictness,
   setStrictness,
   selectedArticlesCount,
+  filterAllMode = false,
+  totalAvailable = 0,
   onSubmit
 }: DiscriminatorStepProps) {
+  
+  // Determine which count and text to show
+  const articlesToProcess = filterAllMode ? Math.min(totalAvailable, 500) : selectedArticlesCount;
+  const buttonText = filterAllMode 
+    ? `Start Filtering All ${articlesToProcess} Articles`
+    : `Start Filtering ${selectedArticlesCount} Selected Articles`;
   return (
     <Card className="p-6 dark:bg-gray-800">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
@@ -109,7 +119,7 @@ export function DiscriminatorStep({
             className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
           >
             <Search className="w-4 h-4 mr-2" />
-            Start Filtering {selectedArticlesCount} Articles
+{buttonText}
           </Button>
         </div>
       </div>

@@ -634,6 +634,8 @@ export default function SmartSearchLab() {
               strictness={strictness}
               setStrictness={setStrictness}
               selectedArticlesCount={selectedArticles.size}
+              filterAllMode={filterAllMode}
+              totalAvailable={searchResults?.pagination.total_available}
               onSubmit={handleStartFiltering}
             />
           )}

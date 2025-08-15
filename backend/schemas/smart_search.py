@@ -76,6 +76,7 @@ class DiscriminatorGenerationRequest(BaseModel):
     refined_question: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class DiscriminatorGenerationResponse(BaseModel):
@@ -84,6 +85,7 @@ class DiscriminatorGenerationResponse(BaseModel):
     search_query: str
     strictness: str
     discriminator_prompt: str
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SemanticFilterRequest(BaseModel):
@@ -93,6 +95,7 @@ class SemanticFilterRequest(BaseModel):
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class FilteredArticle(BaseModel):

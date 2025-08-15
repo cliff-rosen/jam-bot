@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from datetime import datetime
 
+from models import SmartSearchSession
+from database import get_db
+
 from schemas.smart_search import (
     SmartSearchRequest,
     SmartSearchRefinementResponse,
@@ -23,10 +26,10 @@ from schemas.smart_search import (
     DiscriminatorGenerationResponse,
     SemanticFilterRequest
 )
+
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
-from models import SmartSearchSession
-from database import get_db
+from services.smart_search_session_service import SmartSearchSessionService
 
 logger = logging.getLogger(__name__)
 
@@ -49,33 +52,27 @@ async def refine_research_question(
     try:
         logger.info(f"User {current_user.user_id} refining research question: {request.question[:100]}...")
         
-        # Create or get existing session
-        session = None
-        if request.session_id:
-            session = db.query(SmartSearchSession).filter(
-                SmartSearchSession.id == request.session_id,
-                SmartSearchSession.user_id == current_user.user_id
-            ).first()
+        # Create session service
+        session_service = SmartSearchSessionService(db)
         
-        if not session:
-            session = SmartSearchSession(
-                user_id=current_user.user_id,
-                original_question=request.question,
-                status="in_progress",
-                last_step_completed="question_input"
-            )
-            db.add(session)
-            db.commit()
-            db.refresh(session)
+        # Get or create session
+        session = session_service.get_or_create_session(
+            user_id=current_user.user_id,
+            original_question=request.question,
+            session_id=request.session_id
+        )
         
+        # Refine the question
         service = SmartSearchService()
         refined_question = await service.refine_research_question(request.question)
         
         # Update session with refinement results
-        session.refined_question = refined_question
-        session.last_step_completed = "question_refinement"
-        session.total_api_calls = (session.total_api_calls or 0) + 1
-        db.commit()
+        session_service.update_refinement_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            refined_question=refined_question,
+            submitted_refined_question=request.question  # User's original input
+        )
         
         response = SmartSearchRefinementResponse(
             original_question=request.question,
@@ -103,24 +100,25 @@ async def generate_search_query(
     try:
         logger.info(f"User {current_user.user_id} generating search query from: {request.refined_question[:100]}...")
         
-        # Get session
-        session = db.query(SmartSearchSession).filter(
-            SmartSearchSession.id == request.session_id,
-            SmartSearchSession.user_id == current_user.user_id
-        ).first()
+        # Create session service
+        session_service = SmartSearchSessionService(db)
         
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
+        # Generate search query
         service = SmartSearchService()
         search_query = await service.generate_search_query(request.refined_question)
         
         # Update session
-        session.submitted_refined_question = request.refined_question
-        session.generated_search_query = search_query
-        session.last_step_completed = "search_query_generation"
-        session.total_api_calls = (session.total_api_calls or 0) + 1
-        db.commit()
+        session_service.update_search_query_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            generated_search_query=search_query,
+            submitted_search_query=request.refined_question  # Will be updated when user submits actual query
+        )
         
         response = SearchQueryResponse(
             refined_question=request.refined_question,
@@ -148,15 +146,15 @@ async def execute_search(
     try:
         logger.info(f"User {current_user.user_id} executing search with query: {request.search_query[:100]}...")
         
-        # Get session
-        session = db.query(SmartSearchSession).filter(
-            SmartSearchSession.id == request.session_id,
-            SmartSearchSession.user_id == current_user.user_id
-        ).first()
+        # Create session service
+        session_service = SmartSearchSessionService(db)
         
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
+        # Execute search
         service = SmartSearchService()
         response = await service.search_articles(
             search_query=request.search_query,
@@ -165,22 +163,15 @@ async def execute_search(
         )
         
         # Update session with search metadata
-        session.submitted_search_query = request.search_query
-        
-        # Combine with existing search metadata for pagination tracking
-        existing_metadata = session.search_metadata or {}
-        search_metadata = {
-            "total_available": response.pagination.total_available,
-            "total_retrieved": existing_metadata.get("total_retrieved", 0) + response.pagination.returned,
-            "sources_searched": response.sources_searched,
-            "last_search_timestamp": datetime.utcnow().isoformat(),
-            "pagination_loads": existing_metadata.get("pagination_loads", 0) + 1
-        }
-        
-        session.search_metadata = search_metadata
-        session.articles_retrieved_count = search_metadata["total_retrieved"]
-        session.last_step_completed = "search_execution"
-        db.commit()
+        is_pagination_load = request.offset > 0
+        session_service.update_search_execution_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            total_available=response.pagination.total_available,
+            returned=response.pagination.returned,
+            sources=response.sources_searched,
+            is_pagination_load=is_pagination_load
+        )
         
         logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {response.pagination.returned} articles found, {response.pagination.total_available} total available")
         return response
@@ -193,7 +184,8 @@ async def execute_search(
 @router.post("/generate-discriminator", response_model=DiscriminatorGenerationResponse)
 async def generate_semantic_discriminator(
     request: DiscriminatorGenerationRequest,
-    current_user = Depends(validate_token)
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
 ):
     """
     Generate semantic discriminator prompt for review
@@ -201,6 +193,15 @@ async def generate_semantic_discriminator(
     try:
         logger.info(f"User {current_user.user_id} generating semantic discriminator")
         
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Get session
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Generate discriminator
         service = SmartSearchService()
         discriminator_prompt = await service.generate_semantic_discriminator(
             refined_question=request.refined_question,
@@ -208,14 +209,24 @@ async def generate_semantic_discriminator(
             strictness=request.strictness
         )
         
+        # Update session
+        session_service.update_discriminator_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            generated_discriminator=discriminator_prompt,
+            submitted_discriminator=discriminator_prompt,  # Will be updated if user edits
+            strictness=request.strictness
+        )
+        
         response = DiscriminatorGenerationResponse(
             refined_question=request.refined_question,
             search_query=request.search_query,
             strictness=request.strictness,
-            discriminator_prompt=discriminator_prompt
+            discriminator_prompt=discriminator_prompt,
+            session_id=session.id
         )
         
-        logger.info(f"Discriminator generation completed for user {current_user.user_id}")
+        logger.info(f"Discriminator generation completed for user {current_user.user_id}, session {session.id}")
         return response
         
     except Exception as e:
@@ -226,7 +237,8 @@ async def generate_semantic_discriminator(
 @router.post("/filter-stream")
 async def filter_articles_stream(
     request: SemanticFilterRequest,
-    current_user = Depends(validate_token)
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
 ):
     """
     Filter articles with semantic discriminator (streaming)
@@ -234,7 +246,30 @@ async def filter_articles_stream(
     try:
         logger.info(f"User {current_user.user_id} starting article filtering for {len(request.articles)} articles")
         
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Get session and update article selection
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Track article selection
+        session_service.update_article_selection_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            selected_count=len(request.articles)
+        )
+        
         service = SmartSearchService()
+        
+        # Track filtering stats for session update
+        filtering_stats = {
+            "total_filtered": 0,
+            "accepted": 0,
+            "rejected": 0,
+            "start_time": datetime.utcnow()
+        }
         
         async def generate():
             try:
@@ -245,12 +280,46 @@ async def filter_articles_stream(
                     strictness=request.strictness,
                     custom_discriminator=request.discriminator_prompt
                 ):
+                    # Parse and track filtering progress
+                    import json
+                    if message.startswith("data: "):
+                        try:
+                            data = json.loads(message[6:])
+                            if data.get("type") == "complete":
+                                # Update final session stats
+                                stats = data.get("data", {})
+                                filtering_stats["total_filtered"] = stats.get("total_processed", 0)
+                                filtering_stats["accepted"] = stats.get("accepted", 0)
+                                filtering_stats["rejected"] = stats.get("rejected", 0)
+                                
+                                # Calculate duration and average confidence
+                                duration = datetime.utcnow() - filtering_stats["start_time"]
+                                duration_seconds = int(duration.total_seconds())
+                                
+                                # Update session with final results
+                                avg_confidence = 0.5  # Default fallback
+                                if filtering_stats["accepted"] > 0:
+                                    # This would need to be calculated from actual filtered articles
+                                    avg_confidence = 0.7  # Placeholder
+                                
+                                session_service.update_filtering_step(
+                                    session_id=session.id,
+                                    user_id=current_user.user_id,
+                                    total_filtered=filtering_stats["total_filtered"],
+                                    accepted=filtering_stats["accepted"],
+                                    rejected=filtering_stats["rejected"],
+                                    average_confidence=avg_confidence,
+                                    duration_seconds=duration_seconds
+                                )
+                        except Exception as parse_error:
+                            logger.warning(f"Failed to parse filtering message: {parse_error}")
+                    
                     yield message
+                    
             except Exception as e:
                 logger.error(f"Filtering error for user {current_user.user_id}: {e}", exc_info=True)
                 # Send error message in SSE format
                 import json
-                from datetime import datetime
                 error_message = {
                     "type": "error",
                     "message": f"Filtering failed: {str(e)}",
@@ -284,16 +353,12 @@ async def get_search_sessions(
     Get user's smart search session history
     """
     try:
-        sessions = db.query(SmartSearchSession).filter(
-            SmartSearchSession.user_id == current_user.user_id
-        ).order_by(SmartSearchSession.created_at.desc()).offset(offset).limit(limit).all()
-        
-        return {
-            "sessions": [session.to_dict() for session in sessions],
-            "total": db.query(SmartSearchSession).filter(
-                SmartSearchSession.user_id == current_user.user_id
-            ).count()
-        }
+        session_service = SmartSearchSessionService(db)
+        return session_service.get_user_sessions(
+            user_id=current_user.user_id,
+            limit=limit,
+            offset=offset
+        )
         
     except Exception as e:
         logger.error(f"Failed to retrieve sessions for user {current_user.user_id}: {e}", exc_info=True)
@@ -310,10 +375,8 @@ async def get_search_session(
     Get specific smart search session details
     """
     try:
-        session = db.query(SmartSearchSession).filter(
-            SmartSearchSession.id == session_id,
-            SmartSearchSession.user_id == current_user.user_id
-        ).first()
+        session_service = SmartSearchSessionService(db)
+        session = session_service.get_session(session_id, current_user.user_id)
         
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")

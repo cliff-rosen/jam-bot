@@ -38,12 +38,14 @@ export interface SemanticFilterRequest {
   search_query: string;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
+  session_id: string;
 }
 
 export interface DiscriminatorGenerationRequest {
   refined_question: string;
   search_query: string;
   strictness: 'low' | 'medium' | 'high';
+  session_id: string;
 }
 
 export interface DiscriminatorGenerationResponse {
@@ -51,6 +53,7 @@ export interface DiscriminatorGenerationResponse {
   search_query: string;
   strictness: string;
   discriminator_prompt: string;
+  session_id: string;
 }
 
 class SmartSearchApi {

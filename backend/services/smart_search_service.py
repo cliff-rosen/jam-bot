@@ -191,8 +191,7 @@ Generate an effective boolean search query for academic databases."""
             logger.error(f"Failed to generate search query: {e}")
             # Fallback: use refined query as-is
             return refined_question
-    
-    
+      
     async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0) -> SearchResultsResponse:
         """
         Search for articles using search query across multiple sources

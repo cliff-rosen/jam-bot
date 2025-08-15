@@ -220,7 +220,8 @@ export default function SmartSearchLab() {
           refined_question: editedQuestion,
           search_query: editedSearchQuery,
           strictness,
-          discriminator_prompt: editedDiscriminator
+          discriminator_prompt: editedDiscriminator,
+          session_id: sessionId!
         },
         // onMessage
         (message: StreamMessage) => {

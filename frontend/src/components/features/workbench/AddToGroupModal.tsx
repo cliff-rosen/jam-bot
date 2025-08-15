@@ -47,7 +47,7 @@ export function AddToGroupModal({
   const [modalStep, setModalStep] = useState<ModalStep>('select-group');
   const [targetGroupName, setTargetGroupName] = useState('');
   const [rememberChoice, setRememberChoice] = useState(false);
-  const [addResult, setAddResult] = useState<{ articlesAdded: number; duplicatesSkipped: number } | null>(null);
+  const [, setAddResult] = useState<{ articlesAdded: number; duplicatesSkipped: number } | null>(null);
   const { toast } = useToast();
 
   // Load groups when modal opens

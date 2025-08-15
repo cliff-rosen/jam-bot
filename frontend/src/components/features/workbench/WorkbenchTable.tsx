@@ -4,7 +4,7 @@ import { ArticleCollection } from '@/types/articleCollection';
 import { ArticleGroupDetail } from '@/types/workbench';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Plus, Download, X, ExternalLink, Eye, Save, FolderOpen, Trash2, RotateCcw } from 'lucide-react';
+import { ChevronUp, ChevronDown, X, ExternalLink, Eye } from 'lucide-react';
 
 interface WorkbenchTableProps {
   collection: ArticleCollection;
@@ -23,11 +23,7 @@ export function WorkbenchTable({
   collection,
   selectedArticleIds,
   onDeleteFeature,
-  onExport,
-  onClearResults,
-  isExtracting = false,
   onViewArticle,
-  onSaveGroup,
   onToggleArticleSelection,
   displayDateType: initialDisplayDateType = 'publication',
 }: WorkbenchTableProps) {

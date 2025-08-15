@@ -12,7 +12,7 @@ interface NotesTabProps {
   articleDetail?: { notes?: string }; // Get notes from article detail if available
 }
 
-export function NotesTab({ groupId, articleId, initialNotes = '', articleDetail }: NotesTabProps) {
+export function NotesTab({ articleId, initialNotes = '', articleDetail }: NotesTabProps) {
   const [notes, setNotes] = useState(initialNotes);
   const [originalNotes, setOriginalNotes] = useState(initialNotes);
   const [isEditing, setIsEditing] = useState(false);

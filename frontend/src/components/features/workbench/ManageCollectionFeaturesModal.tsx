@@ -176,13 +176,6 @@ export function ManageCollectionFeaturesModal({
     setSelectedForExtraction([]);
   };
 
-  // Render scope information
-  const renderScope = () => {
-    if (selectedArticleCount && selectedArticleCount > 0) {
-      return `${selectedArticleCount} articles selected`;
-    }
-    return `All ${totalArticleCount} articles`;
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

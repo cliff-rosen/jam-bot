@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Brain, ChevronDown, ChevronRight, Settings, Package, Info } from 'lucide-react';
+import { Plus, Brain, ChevronDown, ChevronRight, Package, Info } from 'lucide-react';
 import { FeatureDefinition } from '@/types/workbench';
 import { FeaturePreset } from '@/lib/api/workbenchApi';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';

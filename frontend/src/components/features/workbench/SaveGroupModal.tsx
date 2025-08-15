@@ -34,7 +34,6 @@ export function SaveGroupModal({
   onAddToGroup,
   defaultName,
   existingGroups = [],
-  collectionSource = 'search',
   isModified = false,
   currentGroupName,
   canUpdateExisting = false,

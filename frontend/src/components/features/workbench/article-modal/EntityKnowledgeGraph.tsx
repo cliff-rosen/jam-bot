@@ -21,9 +21,6 @@ import { Button } from '@/components/ui/button';
 import { 
   Maximize2, 
   Minimize2, 
-  ZoomIn, 
-  ZoomOut,
-  Move,
   RotateCw
 } from 'lucide-react';
 

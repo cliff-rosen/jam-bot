@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   ExternalLink, Calendar, Users, BookOpen, Hash, 
-  FileText, Tag, MessageCircle, ChevronDown, ChevronRight
+  FileText, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
 
@@ -14,7 +14,7 @@ interface OverviewTabProps {
   collectionFeatures?: Array<{ id: string; name: string; description: string; type: string }>;
 }
 
-export function OverviewTab({ article, featureData, collectionName, collectionFeatures }: OverviewTabProps) {
+export function OverviewTab({ article, featureData, collectionFeatures }: OverviewTabProps) {
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
 
   const toggleFeatureExpansion = (featureId: string) => {

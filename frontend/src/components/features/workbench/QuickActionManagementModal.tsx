@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Plus, Edit2, Trash2, Check, X, Copy, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Copy, Settings } from 'lucide-react';
 import { useQuickActions, QuickAction, CreateQuickActionRequest, UpdateQuickActionRequest } from '@/lib/hooks/useQuickActions';
 
 interface QuickActionManagementModalProps {

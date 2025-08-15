@@ -673,7 +673,10 @@ export default function SmartSearchLab() {
 
           {step === 'filtering' && filteringProgress && (
             <>
-              <FilteringStep filteringProgress={filteringProgress} />
+              <FilteringStep 
+                filteringProgress={filteringProgress} 
+                filteredArticles={filteredArticles}
+              />
               <div ref={messagesEndRef} />
             </>
           )}

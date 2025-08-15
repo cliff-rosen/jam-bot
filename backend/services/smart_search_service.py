@@ -515,14 +515,14 @@ Respond in JSON format:
             raise ValueError("Discriminator prompt is required for filtering")
         
         # Create semaphore to limit concurrent LLM calls (avoid rate limits)
-        semaphore = asyncio.Semaphore(500)  # Max 500 concurrent calls
+        semaphore = asyncio.Semaphore(50)  # Max 50 concurrent calls
         
         async def evaluate_with_semaphore(article: SearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
             async with semaphore:
                 return await self._evaluate_article(article, custom_discriminator)
         
         # Execute all evaluations in parallel
-        logger.info(f"Executing {len(articles)} evaluations in parallel (max 10 concurrent)")
+        logger.info(f"Executing {len(articles)} evaluations in parallel (max {semaphore._value} concurrent)")
         start_time = datetime.utcnow()
         
         results = await asyncio.gather(

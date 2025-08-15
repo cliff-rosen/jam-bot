@@ -3,10 +3,32 @@ from pydantic import BaseModel, create_model, Field
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from openai import AsyncOpenAI
+import httpx
 from schemas.chat import ChatMessage
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
 import json
+
+#DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-5-mini"
+
+
+# Shared OpenAI client with higher connection limits for parallel processing
+_shared_openai_client = None
+
+def get_shared_openai_client():
+    global _shared_openai_client
+    if _shared_openai_client is None:
+        # Create httpx client with higher connection limits
+        http_client = httpx.AsyncClient(
+            limits=httpx.Limits(
+                max_connections=1000,  # Total connection pool size
+                max_keepalive_connections=100,  # Keep-alive connections
+            ),
+            timeout=httpx.Timeout(60.0)  # 60 second timeout
+        )
+        _shared_openai_client = AsyncOpenAI(http_client=http_client)
+    return _shared_openai_client
 
 
 class LLMUsage(BaseModel):
@@ -54,8 +76,8 @@ class BasePromptCaller:
         self.system_message = system_message
         self.messages_placeholder = messages_placeholder
         
-        # Initialize OpenAI client
-        self.client = AsyncOpenAI()
+        # Use shared OpenAI client with higher connection limits
+        self.client = get_shared_openai_client()
         
     def _json_schema_to_pydantic_model(self, schema: Dict[str, Any], model_name: str = "DynamicModel") -> Type[BaseModel]:
         """
@@ -202,7 +224,7 @@ class BasePromptCaller:
         
         # Call OpenAI
         response = await self.client.chat.completions.create(
-            model="gpt-4o",
+            model=DEFAULT_MODEL,
             messages=formatted_messages,
             response_format={
                 "type": "json_schema",

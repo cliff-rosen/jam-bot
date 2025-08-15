@@ -65,7 +65,88 @@ export interface DiscriminatorGenerationResponse {
   session_id: string;
 }
 
+interface StreamingHandlers {
+  onMessage: (message: StreamMessage) => void;
+  onArticle: (article: FilteredArticle) => void;
+  onComplete: (stats: any) => void;
+  onError: (error: string) => void;
+}
+
 class SmartSearchApi {
+  /**
+   * Generic streaming handler for filter operations
+   */
+  private async handleFilterStreaming(
+    endpoint: string,
+    request: FilterAllSearchResultsRequest | SemanticFilterRequest,
+    handlers: StreamingHandlers
+  ): Promise<void> {
+    try {
+      const streamGenerator = makeStreamRequest(endpoint, request, 'POST');
+      
+      let buffer = '';
+      
+      for await (const update of streamGenerator) {
+        buffer += update.data;
+        
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data) {
+              try {
+                const message: StreamMessage = JSON.parse(data);
+                
+                // Route message to appropriate handler
+                switch (message.type) {
+                  case 'article':
+                    if (message.data) {
+                      handlers.onArticle(message.data as FilteredArticle);
+                    }
+                    break;
+                  
+                  case 'complete':
+                    if (message.data) {
+                      handlers.onComplete(message.data);
+                    }
+                    return;
+                  
+                  case 'error':
+                    handlers.onError(message.message || 'Unknown error');
+                    return;
+                  
+                  default:
+                    handlers.onMessage(message);
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse SSE message:', data);
+              }
+            }
+          }
+        }
+      }
+      
+      // Process any remaining data
+      if (buffer.trim() && buffer.startsWith('data: ')) {
+        const data = buffer.slice(6).trim();
+        if (data) {
+          try {
+            const message: StreamMessage = JSON.parse(data);
+            if (message.type === 'complete' && message.data) {
+              handlers.onComplete(message.data);
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse final SSE message:', data);
+          }
+        }
+      }
+    } catch (error) {
+      handlers.onError(error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
   /**
    * Step 2: Refine a research question
    */
@@ -118,71 +199,12 @@ class SmartSearchApi {
     onComplete: (stats: any) => void,
     onError: (error: string) => void
   ): Promise<void> {
-    try {
-      const streamGenerator = makeStreamRequest('/api/lab/smart-search/filter-all-stream', request, 'POST');
-      
-      let buffer = '';
-      
-      for await (const update of streamGenerator) {
-        buffer += update.data;
-        
-        // Process complete lines
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            if (data) {
-              try {
-                const message: StreamMessage = JSON.parse(data);
-                
-                // Route message to appropriate handler
-                switch (message.type) {
-                  case 'article':
-                    if (message.data) {
-                      onArticle(message.data as FilteredArticle);
-                    }
-                    break;
-                  
-                  case 'complete':
-                    if (message.data) {
-                      onComplete(message.data);
-                    }
-                    return;
-                  
-                  case 'error':
-                    onError(message.message || 'Unknown error');
-                    return;
-                  
-                  default:
-                    onMessage(message);
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE message:', data);
-              }
-            }
-          }
-        }
-      }
-      
-      // Process any remaining data
-      if (buffer.trim() && buffer.startsWith('data: ')) {
-        const data = buffer.slice(6).trim();
-        if (data) {
-          try {
-            const message: StreamMessage = JSON.parse(data);
-            if (message.type === 'complete' && message.data) {
-              onComplete(message.data);
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse final SSE message:', data);
-          }
-        }
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Unknown error');
-    }
+    return this.handleFilterStreaming('/api/lab/smart-search/filter-all-stream', request, {
+      onMessage,
+      onArticle,
+      onComplete,
+      onError
+    });
   }
 
   /**
@@ -195,71 +217,12 @@ class SmartSearchApi {
     onComplete: (stats: any) => void,
     onError: (error: string) => void
   ): Promise<void> {
-    try {
-      const streamGenerator = makeStreamRequest('/api/lab/smart-search/filter-stream', request, 'POST');
-      
-      let buffer = '';
-      
-      for await (const update of streamGenerator) {
-        buffer += update.data;
-        
-        // Process complete lines
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            if (data) {
-              try {
-                const message: StreamMessage = JSON.parse(data);
-                
-                // Route message to appropriate handler
-                switch (message.type) {
-                  case 'article':
-                    if (message.data) {
-                      onArticle(message.data as FilteredArticle);
-                    }
-                    break;
-                  
-                  case 'complete':
-                    if (message.data) {
-                      onComplete(message.data);
-                    }
-                    return;
-                  
-                  case 'error':
-                    onError(message.message || 'Unknown error');
-                    return;
-                  
-                  default:
-                    onMessage(message);
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE message:', data);
-              }
-            }
-          }
-        }
-      }
-      
-      // Process any remaining data
-      if (buffer.trim() && buffer.startsWith('data: ')) {
-        const data = buffer.slice(6).trim();
-        if (data) {
-          try {
-            const message: StreamMessage = JSON.parse(data);
-            if (message.type === 'complete' && message.data) {
-              onComplete(message.data);
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse final SSE message:', data);
-          }
-        }
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Unknown error');
-    }
+    return this.handleFilterStreaming('/api/lab/smart-search/filter-stream', request, {
+      onMessage,
+      onArticle,
+      onComplete,
+      onError
+    });
   }
 }
 

@@ -37,7 +37,7 @@ export default function SmartSearchLab() {
   // Step 2: Refinement
   const [refinement, setRefinement] = useState<SmartSearchRefinement | null>(null);
   const [editedQuestion, setEditedQuestion] = useState('');
-  
+
   // Step 3: Search Query Generation
   const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
@@ -47,12 +47,13 @@ export default function SmartSearchLab() {
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [selectedArticles, setSelectedArticles] = useState<Set<number>>(new Set());
   const [searchLoading, setSearchLoading] = useState(false);
-  
+  const [filterAllMode, setFilterAllMode] = useState(false);
+
   // Step 6: Discriminator generation and editing
   const [discriminatorData, setDiscriminatorData] = useState<any>(null);
   const [editedDiscriminator, setEditedDiscriminator] = useState('');
   const [discriminatorLoading, setDiscriminatorLoading] = useState(false);
-  
+
   // Step 7: Filtering
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
@@ -79,7 +80,7 @@ export default function SmartSearchLab() {
 
     setQuestionLoading(true);
     try {
-      const response = await smartSearchApi.refineQuestion({ 
+      const response = await smartSearchApi.refineQuestion({
         question: question,
         session_id: sessionId || undefined
       });
@@ -113,17 +114,17 @@ export default function SmartSearchLab() {
       });
       return;
     }
-    
+
     setSearchQueryLoading(true);
     try {
-      const response = await smartSearchApi.generateSearchQuery({ 
+      const response = await smartSearchApi.generateSearchQuery({
         refined_question: editedQuestion,
         session_id: sessionId!
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
       setStep('search-query');
-      
+
       toast({
         title: 'Search Query Generated',
         description: 'Review and edit the boolean search query'
@@ -189,11 +190,94 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Step 4: Start filtering with selected articles
-  const handleStartFiltering = async () => {
-    if (!searchResults) return;
+  // Common streaming handlers for filtering
+  const createFilteringHandlers = (isFilterAll: boolean) => ({
+    onMessage: (message: StreamMessage) => {
+      if (message.type === 'progress' && message.data) {
+        setFilteringProgress(message.data as FilteringProgress);
+      }
+    },
+    onArticle: (article: FilteredArticle) => {
+      setFilteredArticles(prev => [...prev, article]);
+    },
+    onComplete: (stats: any) => {
+      setStep('results');
+      if (isFilterAll) {
+        setFilterAllMode(false); // Reset flag for filter-all mode
+      }
+      toast({
+        title: 'Filtering Complete',
+        description: isFilterAll 
+          ? `Filtered ${stats.total_processed} articles: ${stats.accepted} accepted, ${stats.rejected} rejected`
+          : `${stats.accepted} of ${stats.total_processed} articles passed the filter`
+      });
+    },
+    onError: (error: string) => {
+      if (isFilterAll) {
+        setFilterAllMode(false); // Reset flag on error
+      }
+      toast({
+        title: 'Filtering Failed',
+        description: error,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Initialize filtering UI state
+  const initializeFilteringState = (totalCount: number) => {
+    setStep('filtering');
+    setFilteredArticles([]);
+    setFilteringProgress({
+      total: totalCount,
+      processed: 0,
+      accepted: 0,
+      rejected: 0
+    });
+  };
+
+  // Handle filtering errors
+  const handleFilteringError = (error: unknown, isFilterAll: boolean) => {
+    if (isFilterAll) {
+      setFilterAllMode(false); // Reset flag on error
+    }
+    toast({
+      title: 'Failed to Start Filtering',
+      description: error instanceof Error ? error.message : 'Unknown error',
+      variant: 'destructive'
+    });
+  };
+
+  // Filter all available search results
+  const executeFilterAllMode = async () => {
+    const totalCount = searchResults!.pagination.total_available;
+    initializeFilteringState(totalCount);
     
-    const selectedArticleList = Array.from(selectedArticles).map(index => searchResults.articles[index]);
+    const handlers = createFilteringHandlers(true);
+    
+    try {
+      await smartSearchApi.filterAllSearchResultsStreaming(
+        {
+          search_query: editedSearchQuery,
+          refined_question: editedQuestion,
+          max_results: Math.min(totalCount, 500),
+          strictness,
+          discriminator_prompt: editedDiscriminator,
+          session_id: sessionId!
+        },
+        handlers.onMessage,
+        handlers.onArticle,
+        handlers.onComplete,
+        handlers.onError
+      );
+    } catch (error) {
+      handleFilteringError(error, true);
+    }
+  };
+
+  // Filter selected articles only
+  const executeSelectedMode = async () => {
+    const selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
     
     if (selectedArticleList.length === 0) {
       toast({
@@ -204,15 +288,10 @@ export default function SmartSearchLab() {
       return;
     }
     
-    setStep('filtering');
-    setFilteredArticles([]);
-    setFilteringProgress({
-      total: selectedArticleList.length,
-      processed: 0,
-      accepted: 0,
-      rejected: 0
-    });
-
+    initializeFilteringState(selectedArticleList.length);
+    
+    const handlers = createFilteringHandlers(false);
+    
     try {
       await smartSearchApi.filterArticlesStreaming(
         {
@@ -223,39 +302,24 @@ export default function SmartSearchLab() {
           discriminator_prompt: editedDiscriminator,
           session_id: sessionId!
         },
-        // onMessage
-        (message: StreamMessage) => {
-          if (message.type === 'progress' && message.data) {
-            setFilteringProgress(message.data as FilteringProgress);
-          }
-        },
-        // onArticle
-        (article: FilteredArticle) => {
-          setFilteredArticles(prev => [...prev, article]);
-        },
-        // onComplete
-        (stats: any) => {
-          setStep('results');
-          toast({
-            title: 'Filtering Complete',
-            description: `${stats.accepted} of ${stats.total_processed} articles passed the filter`
-          });
-        },
-        // onError
-        (error: string) => {
-          toast({
-            title: 'Filtering Failed',
-            description: error,
-            variant: 'destructive'
-          });
-        }
+        handlers.onMessage,
+        handlers.onArticle,
+        handlers.onComplete,
+        handlers.onError
       );
     } catch (error) {
-      toast({
-        title: 'Failed to Start Filtering',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleFilteringError(error, false);
+    }
+  };
+
+  // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
+  const handleStartFiltering = async () => {
+    if (!searchResults || !sessionId) return;
+    
+    if (filterAllMode) {
+      await executeFilterAllMode();
+    } else {
+      await executeSelectedMode();
     }
   };
 
@@ -282,7 +346,7 @@ export default function SmartSearchLab() {
   // Generate discriminator for review
   const handleGenerateDiscriminator = async () => {
     if (!searchResults) return;
-    
+
     setDiscriminatorLoading(true);
     try {
       const response = await smartSearchApi.generateDiscriminator({
@@ -291,11 +355,11 @@ export default function SmartSearchLab() {
         strictness: strictness,
         session_id: sessionId!
       });
-      
+
       setDiscriminatorData(response);
       setEditedDiscriminator(response.discriminator_prompt);
       setStep('discriminator');
-      
+
       toast({
         title: 'Discriminator Generated',
         description: 'Review and edit the semantic evaluation criteria'
@@ -311,65 +375,15 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Filter all search results without downloading them first
+  // Filter all search results - set flag and proceed to discriminator generation
   const handleFilterAll = async () => {
-    if (!searchResults || !sessionId) return;
+    if (!searchResults) return;
 
-    // Reset filtering state
-    setFilteredArticles([]);
-    setFilteringProgress({
-      total: searchResults.pagination.total_available,
-      processed: 0,
-      accepted: 0,
-      rejected: 0
-    });
+    // Set flag to indicate we want to filter all results
+    setFilterAllMode(true);
 
-    try {
-      await smartSearchApi.filterAllSearchResultsStreaming(
-        {
-          search_query: editedSearchQuery,
-          refined_question: editedQuestion,
-          max_results: Math.min(searchResults.pagination.total_available, 500),
-          strictness,
-          discriminator_prompt: editedDiscriminator,
-          session_id: sessionId
-        },
-        // onMessage
-        (message: StreamMessage) => {
-          if (message.type === 'progress' && message.data) {
-            setFilteringProgress(message.data as FilteringProgress);
-          }
-        },
-        // onArticle
-        (article: FilteredArticle) => {
-          setFilteredArticles(prev => [...prev, article]);
-        },
-        // onComplete
-        (stats: any) => {
-          setStep('results');
-          toast({
-            title: 'Filtering Complete',
-            description: `Filtered ${stats.total_processed} articles: ${stats.accepted} accepted, ${stats.rejected} rejected`
-          });
-        },
-        // onError
-        (error: string) => {
-          toast({
-            title: 'Filtering Failed',
-            description: error,
-            variant: 'destructive'
-          });
-        }
-      );
-
-      setStep('filtering');
-    } catch (error) {
-      toast({
-        title: 'Failed to Start Filtering',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
-    }
+    // Proceed to discriminator generation step (maintaining normal workflow)
+    await handleGenerateDiscriminator();
   };
 
   // Reset to start
@@ -397,7 +411,7 @@ export default function SmartSearchLab() {
       };
 
       setSearchResults(combinedResults);
-      
+
       // Update selected articles to include new ones by default
       const newIndices = moreResults.articles.map((_, index) => searchResults.articles.length + index);
       setSelectedArticles(prev => new Set([...prev, ...newIndices]));
@@ -423,7 +437,7 @@ export default function SmartSearchLab() {
     const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
     const currentIndex = stepOrder.indexOf(step);
     const targetIndex = stepOrder.indexOf(targetStep);
-    
+
     // Can't go back to current or future steps, and can't go back if no session exists yet
     return targetIndex < currentIndex && sessionId !== null;
   };
@@ -432,7 +446,7 @@ export default function SmartSearchLab() {
     // Clear frontend state for all steps forward of the target step
     const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
     const targetIndex = stepOrder.indexOf(targetStep);
-    
+
     if (targetIndex < stepOrder.indexOf('refinement')) {
       setRefinement(null);
       setEditedQuestion('');
@@ -444,6 +458,7 @@ export default function SmartSearchLab() {
     if (targetIndex < stepOrder.indexOf('search-results')) {
       setSearchResults(null);
       setSelectedArticles(new Set());
+      setFilterAllMode(false); // Reset filter-all mode when going back to search results or earlier
     }
     if (targetIndex < stepOrder.indexOf('discriminator')) {
       setDiscriminatorData(null);
@@ -474,13 +489,13 @@ export default function SmartSearchLab() {
 
       // Call backend to reset session
       await smartSearchApi.resetSessionToStep(sessionId, backendStep);
-      
+
       // Clear frontend state for steps forward of target
       clearStateForward(targetStep);
-      
+
       // Navigate to target step
       setStep(targetStep as any);
-      
+
       toast({
         title: 'Stepped Back',
         description: `Returned to ${targetStep.replace('-', ' ')} step`,
@@ -498,6 +513,7 @@ export default function SmartSearchLab() {
   const handleReset = () => {
     setStep('query');
     setSessionId(null);
+    setFilterAllMode(false);
     setQuestion('');
     setRefinement(null);
     setEditedQuestion('');
@@ -538,7 +554,7 @@ export default function SmartSearchLab() {
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <Badge 
+          <Badge
             variant={step === 'query' ? 'default' : 'secondary'}
             className={getStepAvailability('query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('query') ? () => handleStepBack('query') : undefined}
@@ -546,7 +562,7 @@ export default function SmartSearchLab() {
             1. Enter Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge 
+          <Badge
             variant={step === 'refinement' ? 'default' : !['query'].includes(step) ? 'secondary' : 'outline'}
             className={getStepAvailability('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('refinement') ? () => handleStepBack('refinement') : undefined}
@@ -554,7 +570,7 @@ export default function SmartSearchLab() {
             2. Refine Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge 
+          <Badge
             variant={step === 'search-query' ? 'default' : !['query', 'refinement'].includes(step) ? 'secondary' : 'outline'}
             className={getStepAvailability('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('search-query') ? () => handleStepBack('search-query') : undefined}
@@ -562,7 +578,7 @@ export default function SmartSearchLab() {
             3. Generate Search Query
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge 
+          <Badge
             variant={step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
             className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
@@ -570,7 +586,7 @@ export default function SmartSearchLab() {
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge 
+          <Badge
             variant={step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
             className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
@@ -578,7 +594,7 @@ export default function SmartSearchLab() {
             5. Review & Curate
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge 
+          <Badge
             variant={step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
             className={getStepAvailability('discriminator') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('discriminator') ? () => handleStepBack('discriminator') : undefined}

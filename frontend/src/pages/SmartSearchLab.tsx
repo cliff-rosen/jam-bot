@@ -288,7 +288,8 @@ export default function SmartSearchLab() {
       const response = await smartSearchApi.generateDiscriminator({
         refined_question: editedQuestion,
         search_query: editedSearchQuery,
-        strictness: strictness
+        strictness: strictness,
+        session_id: sessionId!
       });
       
       setDiscriminatorData(response);

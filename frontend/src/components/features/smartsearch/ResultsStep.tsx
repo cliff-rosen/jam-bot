@@ -1,8 +1,10 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, ExternalLink, Search, Filter, FileSearch, Database, Download, Copy } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Check, X, ExternalLink, Search, Filter, FileSearch, Database, Download, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useState } from 'react';
 import type { FilteredArticle } from '@/types/smart-search';
 
 interface ResultsStepProps {
@@ -27,6 +29,8 @@ export function ResultsStep({
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
   const { toast } = useToast();
+  const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
+  const [isRejectedOpen, setIsRejectedOpen] = useState(false);
 
   const exportToCSV = () => {
     const csvContent = [
@@ -100,135 +104,104 @@ export function ResultsStep({
           </div>
         </div>
 
-        <div className="space-y-4">
-          {/* Original Question */}
-          {originalQuery && (
-            <div>
-              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Your Query
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300 italic">
-                "{originalQuery}"
-              </p>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Check className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-green-800 dark:text-green-200">{acceptedArticles.length}</p>
+                <p className="text-sm text-green-600 dark:text-green-400">Accepted</p>
+              </div>
             </div>
-          )}
-
-          {/* Refined Question */}
-          {evidenceSpecification && evidenceSpecification !== originalQuery && (
-            <div>
-              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Evidence Specification
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300 italic">
-                "{evidenceSpecification}"
-              </p>
+          </div>
+          
+          <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <X className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-red-800 dark:text-red-200">{rejectedArticles.length}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">Rejected</p>
+              </div>
             </div>
-          )}
-
-          {/* Search Query */}
-          {searchQuery && (
-            <div>
-              <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Search Keywords
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300 font-mono bg-gray-100 dark:bg-gray-900 p-2 rounded">
-                {searchQuery}
-              </p>
+          </div>
+          
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-blue-800 dark:text-blue-200">{totalFiltered}</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">Filtered</p>
+              </div>
             </div>
-          )}
-
-          {/* Workflow Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Database className="w-4 h-4 text-gray-400" />
-                <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Total Found
-                </span>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Database className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{totalAvailable?.toLocaleString()}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
               </div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {totalAvailable?.toLocaleString() || '—'}
-              </div>
-              <div className="text-xs text-gray-500">in database</div>
-            </div>
-            
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Search className="w-4 h-4 text-gray-400" />
-                <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Retrieved
-                </span>
-              </div>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {totalRetrieved || filteredArticles.length}
-              </div>
-              <div className="text-xs text-gray-500">for review</div>
-            </div>
-            
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Filter className="w-4 h-4 text-gray-400" />
-                <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Filtered
-                </span>
-              </div>
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {totalFiltered || filteredArticles.length}
-              </div>
-              <div className="text-xs text-gray-500">evaluated</div>
-            </div>
-            
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Check className="w-4 h-4 text-gray-400" />
-                <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Accepted
-                </span>
-              </div>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {acceptedArticles.length}
-              </div>
-              <div className="text-xs text-gray-500">relevant</div>
             </div>
           </div>
         </div>
-      </Card>
 
-      {/* Filtering Results Card */}
-      <Card className="p-6 dark:bg-gray-800">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-          Filtering Results
-        </h2>
+        {/* Workflow Details - Collapsible */}
+        <Collapsible open={isWorkflowOpen} onOpenChange={setIsWorkflowOpen} className="mb-6">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="flex items-center w-full justify-start p-0 h-auto">
+              {isWorkflowOpen ? (
+                <ChevronDown className="w-4 h-4 mr-2" />
+              ) : (
+                <ChevronRight className="w-4 h-4 mr-2" />
+              )}
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Workflow Details
+              </span>
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              {/* Original Query */}
+              {originalQuery && (
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                    Your Query
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic">
+                    "{originalQuery}"
+                  </p>
+                </div>
+              )}
 
-        <div className="grid grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {filteredArticles.length}
+              {/* Evidence Specification */}
+              {evidenceSpecification && evidenceSpecification !== originalQuery && (
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                    Evidence Specification
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic">
+                    "{evidenceSpecification}"
+                  </p>
+                </div>
+              )}
+
+              {/* Search Keywords */}
+              {searchQuery && (
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                    Search Keywords
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 font-mono bg-gray-100 dark:bg-gray-900 p-2 rounded">
+                    {searchQuery}
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Processed</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {acceptedArticles.length}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Accepted</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {rejectedArticles.length}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Rejected</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {acceptedArticles.length > 0
-                ? Math.round((acceptedArticles.reduce((sum, a) => sum + a.confidence, 0) / acceptedArticles.length) * 100)
-                : 0}%
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Avg Confidence</div>
-          </div>
-        </div>
-      </Card>
+          </CollapsibleContent>
+        </Collapsible>
+
 
       {acceptedArticles.length > 0 && (
         <Card className="p-6 dark:bg-gray-800">
@@ -281,19 +254,25 @@ export function ResultsStep({
       )}
 
       {rejectedArticles.length > 0 && (
-        <details className="group">
-          <summary className="cursor-pointer">
-            <Card className="p-6 dark:bg-gray-800">
+        <Collapsible open={isRejectedOpen} onOpenChange={setIsRejectedOpen}>
+          <CollapsibleTrigger asChild>
+            <Card className="p-6 dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
                 <X className="w-5 h-5 text-red-600 mr-2" />
                 Rejected Articles ({rejectedArticles.length})
+                {isRejectedOpen ? (
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                )}
                 <span className="ml-2 text-sm font-normal text-gray-500">
                   (Click to expand)
                 </span>
               </h3>
             </Card>
-          </summary>
-          <Card className="p-6 dark:bg-gray-800 mt-2">
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="p-6 dark:bg-gray-800 mt-2">
             <div className="space-y-1">
               {rejectedArticles.map((item, idx) => (
                 <div
@@ -338,8 +317,9 @@ export function ResultsStep({
                 </div>
               ))}
             </div>
-          </Card>
-        </details>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </>
   );

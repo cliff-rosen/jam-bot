@@ -93,12 +93,12 @@ export default function LoginForm() {
             </div>
 
             {(error || passwordError || tokenSent) && (
-                <div className={`border px-4 py-3 rounded relative ${error?.includes('successful') || tokenSent
+                <div className={`border px-4 py-3 rounded relative ${error?.includes('successful') || error?.includes('login link') || error?.includes('account with this email') || tokenSent
                         ? 'bg-green-100 border-green-400 text-green-700'
                         : 'bg-red-100 border-red-400 text-red-700'
                     }`}>
-                    {tokenSent
-                        ? 'Login link sent! Check your email and click the link to sign in.'
+                    {tokenSent && error
+                        ? error  // Show the backend's message
                         : passwordError || error
                     }
                 </div>

@@ -206,7 +206,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsTokenRequestLoading(true)
             setError(null)
             
-            await authApi.requestLoginToken(email)
+            const response = await authApi.requestLoginToken(email)
+            // Set the backend's message as a success message
+            setError(response.message)
         } catch (error: any) {
             const errorMessage = extractErrorMessage(error, 'Failed to send login token. Please try again.')
             setError(errorMessage)

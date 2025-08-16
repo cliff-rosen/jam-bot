@@ -153,10 +153,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const authResponse = await authApi.login(credentials)
             handleAuthSuccess(authResponse)
         } catch (error: any) {
-            const errorMessage = error.response?.data?.detail ||
-                error.response?.data?.message ||
-                error.message ||
-                'Login failed. Please try again.'
+            let errorMessage = 'Login failed. Please try again.'
+            
+            if (error.response?.data) {
+                if (Array.isArray(error.response.data)) {
+                    const validationErrors = error.response.data.map((err: any) => err.msg).join(', ')
+                    errorMessage = `Validation error: ${validationErrors}`
+                } else if (error.response.data.detail) {
+                    errorMessage = error.response.data.detail
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message
+                } else if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data
+                }
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
             setError(errorMessage)
             throw error
         } finally {
@@ -172,10 +185,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const authResponse = await authApi.loginWithToken(token)
             handleAuthSuccess(authResponse)
         } catch (error: any) {
-            const errorMessage = error.response?.data?.detail ||
-                error.response?.data?.message ||
-                error.message ||
-                'Token login failed. The token may be invalid or expired.'
+            let errorMessage = 'Token login failed. The token may be invalid or expired.'
+            
+            if (error.response?.data) {
+                if (Array.isArray(error.response.data)) {
+                    const validationErrors = error.response.data.map((err: any) => err.msg).join(', ')
+                    errorMessage = `Validation error: ${validationErrors}`
+                } else if (error.response.data.detail) {
+                    errorMessage = error.response.data.detail
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message
+                } else if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data
+                }
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
             setError(errorMessage)
             throw error
         } finally {
@@ -190,10 +216,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             await authApi.requestLoginToken(email)
         } catch (error: any) {
-            const errorMessage = error.response?.data?.detail ||
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to send login token. Please try again.'
+            let errorMessage = 'Failed to send login token. Please try again.'
+            
+            if (error.response?.data) {
+                if (Array.isArray(error.response.data)) {
+                    const validationErrors = error.response.data.map((err: any) => err.msg).join(', ')
+                    errorMessage = `Validation error: ${validationErrors}`
+                } else if (error.response.data.detail) {
+                    errorMessage = error.response.data.detail
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message
+                } else if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data
+                }
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
             setError(errorMessage)
             throw error
         } finally {
@@ -209,10 +248,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await authApi.register(credentials)
             setError('Registration successful! Please sign in.')
         } catch (error: any) {
-            const errorMessage = error.response?.data?.detail ||
-                error.response?.data?.message ||
-                error.message ||
-                'Registration failed. Please try again.'
+            let errorMessage = 'Registration failed. Please try again.'
+            
+            if (error.response?.data) {
+                // Handle FastAPI validation errors
+                if (Array.isArray(error.response.data)) {
+                    // Pydantic validation errors
+                    const validationErrors = error.response.data.map((err: any) => err.msg).join(', ')
+                    errorMessage = `Validation error: ${validationErrors}`
+                } else if (error.response.data.detail) {
+                    errorMessage = error.response.data.detail
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message
+                } else if (typeof error.response.data === 'string') {
+                    errorMessage = error.response.data
+                }
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
             setError(errorMessage)
             throw error
         } finally {

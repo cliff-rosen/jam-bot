@@ -240,64 +240,7 @@ Generate an effective boolean search query for academic databases."""
             logger.error(f"Failed to get search count: {e}")
             return 0, []
     
-    def get_refinement_strategy(self, evidence_spec: str) -> List[str]:
-        """
-        Determine refinement terms based on evidence specification content
-        """
-        evidence_lower = evidence_spec.lower()
-        refinement_terms = []
-        
-        # Clinical/Medical evidence
-        if any(term in evidence_lower for term in ['treatment', 'therapy', 'clinical', 'patient', 'medical', 'drug', 'medication']):
-            refinement_terms.extend(['(clinical OR trial OR study OR patient OR treatment)', '(human OR humans)'])
-        
-        # Behavioral/Psychological evidence  
-        if any(term in evidence_lower for term in ['behavior', 'behaviour', 'psychological', 'cognitive', 'mental', 'motivation', 'depression']):
-            refinement_terms.extend(['(study OR research OR analysis OR survey)', '(longitudinal OR cross-sectional OR cohort OR randomized)'])
-        
-        # Technology/AI evidence
-        if any(term in evidence_lower for term in ['algorithm', 'model', 'ai', 'artificial intelligence', 'machine learning', 'technology']):
-            refinement_terms.extend(['(evaluation OR performance OR validation OR comparison)', '(algorithm OR model OR system OR method)'])
-        
-        # General research quality filters
-        refinement_terms.extend([
-            '(outcome OR effectiveness OR efficacy OR result)',
-            '(research OR study OR analysis OR investigation)'
-        ])
-        
-        return refinement_terms
     
-    async def refine_query_for_volume(self, initial_query: str, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
-        """
-        Refine a search query to reduce result volume while maintaining relevance
-        """
-        logger.info(f"Refining query to target {target_max} results...")
-        
-        refinement_terms = self.get_refinement_strategy(evidence_spec)
-        refined_query = initial_query
-        refinements_applied = []
-        
-        # Try adding refinement terms one by one until we get under target
-        for term in refinement_terms:
-            test_query = f"({refined_query}) AND {term}"
-            count, _ = await self.get_search_count(test_query)
-            
-            if count <= target_max and count > 0:
-                refined_query = test_query
-                refinements_applied.append(term)
-                logger.info(f"Applied refinement '{term}': {count} results")
-                break
-            elif count == 0:
-                # This refinement was too restrictive, skip it
-                continue
-            else:
-                # Still too many results, try this refinement and continue
-                refined_query = test_query
-                refinements_applied.append(term)
-                logger.info(f"Applied refinement '{term}': {count} results (still above target)")
-        
-        refinement_description = f"Added: {', '.join(refinements_applied)}" if refinements_applied else "No refinements applied"
-        return refined_query, refinement_description
     
     async def add_targeted_refinement(self, current_query: str, current_count: int, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
         """
@@ -380,17 +323,32 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             # Extract result
             llm_result = result.result
             
+            # DEBUG: Log what we actually got back
+            logger.info(f"LLM result type: {type(llm_result)}")
+            logger.info(f"LLM result: {llm_result}")
+            logger.info(f"LLM result attributes: {dir(llm_result) if hasattr(llm_result, '__dict__') else 'No attributes'}")
+            
             if hasattr(llm_result, 'refined_query'):
                 refined_query = llm_result.refined_query
                 explanation = llm_result.explanation if hasattr(llm_result, 'explanation') else "LLM-generated refinement"
+                logger.info(f"SUCCESS: Using direct attributes - refined_query: {refined_query}")
             else:
+                logger.warning(f"LLM result does not have 'refined_query' attribute. Trying model_dump...")
                 # Fallback to model_dump
-                response_data = llm_result.model_dump() if hasattr(llm_result, 'model_dump') else {}
-                refined_query = response_data.get('refined_query', f"({current_query}) AND (study OR research)")
-                explanation = response_data.get('explanation', "Added research focus as fallback refinement")
+                if hasattr(llm_result, 'model_dump'):
+                    response_data = llm_result.model_dump()
+                    logger.info(f"model_dump result: {response_data}")
+                    refined_query = response_data.get('refined_query', f"({current_query}) AND (study OR research)")
+                    explanation = response_data.get('explanation', "Added research focus as fallback refinement")
+                    logger.info(f"FALLBACK 1: Using model_dump - refined_query: {refined_query}")
+                else:
+                    logger.warning(f"LLM result has no model_dump method. Using hardcoded fallback.")
+                    refined_query = f"({current_query}) AND (study OR research)"
+                    explanation = "Added research focus as fallback refinement"
+                    logger.info(f"FALLBACK 2: Using hardcoded fallback - refined_query: {refined_query}")
                 
-            logger.info(f"LLM suggested refinement: {refined_query}")
-            logger.info(f"Explanation: {explanation}")
+            logger.info(f"FINAL: LLM suggested refinement: {refined_query}")
+            logger.info(f"FINAL: Explanation: {explanation}")
             return refined_query, explanation
             
         except Exception as e:

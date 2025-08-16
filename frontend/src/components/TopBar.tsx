@@ -20,7 +20,6 @@ export default function TopBar() {
     };
 
     // Role-based navigation filtering
-    const isTester = user?.role === 'tester' || user?.role === 'user';;
     const canSeeAllMenus = user?.role === 'admin'
 
     return (

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "HopBot"
     SETTING_VERSION: str = "0.0.1"
     FRONTEND_URL: str = "https://hopbot.ironcliff.ai"
+
     # Database settings
     DB_HOST: str = os.getenv("DB_HOST")
     DB_PORT: str = os.getenv("DB_PORT", "3306")
@@ -44,8 +45,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI")
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL")
-
+    
     # CORS settings
     CORS_ORIGINS: list[str] = ["*"]  # In production, specify exact origins
     CORS_ALLOW_CREDENTIALS: bool = True

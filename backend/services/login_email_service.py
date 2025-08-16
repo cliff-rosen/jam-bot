@@ -27,7 +27,7 @@ class LoginEmailService:
         self.smtp_password = settings.SMTP_PASSWORD
         self.from_email = settings.FROM_EMAIL or 'noreply@jambot.com'
         self.app_name = settings.APP_NAME
-        self.frontend_url = settings.FRONTEND_URL or 'http://localhost:3000'
+        self.frontend_url = settings.FRONTEND_URL
     
     def generate_login_token(self) -> tuple[str, datetime]:
         """

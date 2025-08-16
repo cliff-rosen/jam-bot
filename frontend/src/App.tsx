@@ -34,7 +34,6 @@ function App() {
 
   // Main app content when authenticated
   const AuthenticatedApp = () => {
-    const { user } = useAuth();
     const defaultRoute = '/smart-search';  // Smart Search is now default for all users
 
     return (

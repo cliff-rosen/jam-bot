@@ -31,7 +31,8 @@ export default function TokenLogin() {
                 setStatus('error');
             }
         });
-    }, [token, loginWithToken, navigate]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token, navigate]); // loginWithToken mutation doesn't need to be in deps
 
     // If already authenticated, redirect to home
     if (isAuthenticated) {

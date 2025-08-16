@@ -78,8 +78,8 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                     Welcome
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300">
-                    {isRegistering 
-                        ? 'Create your account' 
+                    {isRegistering
+                        ? 'Create your account'
                         : isPasswordlessMode
                             ? 'Get a login link via email'
                             : 'Sign in to your account'
@@ -87,15 +87,14 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 </p>
             </div>
 
-            {(error || passwordError || tokenSent || requestToken.error) && (
-                <div className={`border px-4 py-3 rounded relative ${
-                    error?.includes('successful') || tokenSent
+            {(error || passwordError || tokenSent || requestLoginToken.error) && (
+                <div className={`border px-4 py-3 rounded relative ${error?.includes('successful') || tokenSent
                         ? 'bg-green-100 border-green-400 text-green-700'
                         : 'bg-red-100 border-red-400 text-red-700'
                     }`}>
-                    {tokenSent 
+                    {tokenSent
                         ? 'Login link sent! Check your email and click the link to sign in.'
-                        : passwordError || error || (requestToken.error as any)?.message
+                        : passwordError || error || (requestLoginToken.error as any)?.message
                     }
                 </div>
             )}
@@ -150,14 +149,14 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 <div>
                     <button
                         type="submit"
-                        disabled={requestToken.isPending}
+                        disabled={requestLoginToken.isPending}
                         className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {requestToken.isPending 
-                            ? 'Sending...' 
-                            : isRegistering 
-                                ? 'Register' 
-                                : isPasswordlessMode 
+                        {requestLoginToken.isPending
+                            ? 'Sending...'
+                            : isRegistering
+                                ? 'Register'
+                                : isPasswordlessMode
                                     ? 'Send Login Link'
                                     : 'Sign in'
                         }
@@ -175,12 +174,12 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                         }}
                         className="block w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-500"
                     >
-                        {isPasswordlessMode 
-                            ? 'Use password instead' 
+                        {isPasswordlessMode
+                            ? 'Use password instead'
                             : 'Get login link via email'}
                     </button>
                 )}
-                
+
                 <button
                     onClick={() => {
                         setIsRegistering(!isRegistering);

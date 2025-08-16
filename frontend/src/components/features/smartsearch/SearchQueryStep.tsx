@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Target, AlertTriangle, CheckCircle, TrendingDown, ArrowRight } from 'lucide-react';
+import { Search, Target, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
@@ -12,6 +12,15 @@ interface OptimizationResult {
   final_count: number;
   refinement_applied: string;
   refinement_status: 'optimal' | 'refined' | 'manual_needed';
+}
+
+interface QueryAttempt {
+  query: string;
+  count: number;
+  changeDescription?: string;
+  refinementDetails?: string;
+  previousQuery?: string;
+  timestamp: Date;
 }
 
 interface SearchQueryStepProps {
@@ -37,54 +46,50 @@ export function SearchQueryStep({
   loading,
   initialCount
 }: SearchQueryStepProps) {
-  const [optimization, setOptimization] = useState<OptimizationResult | null>(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [showOptimization, setShowOptimization] = useState(false);
-  const [queryCount, setQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
+  const [queryHistory, setQueryHistory] = useState<QueryAttempt[]>([]);
+  const [currentCount, setCurrentCount] = useState<number | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
-  const [hasTestedQuery, setHasTestedQuery] = useState(false);
-  const [optimizationHistory, setOptimizationHistory] = useState<Array<{
-    step: number;
-    query: string;
-    count: number;
-    action: string;
-    timestamp: Date;
-  }>>([]);
-  const [showHistory, setShowHistory] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   
-  // Set initial count when component loads
+  // Initialize with the generated query and count
   useEffect(() => {
-    if (initialCount && editedSearchQuery) {
-      setQueryCount(initialCount);
-      setHasTestedQuery(true);
-      
-      // Initialize optimization history with the starting point
-      setOptimizationHistory([{
-        step: 1,
+    if (initialCount && editedSearchQuery && queryHistory.length === 0) {
+      setQueryHistory([{
         query: editedSearchQuery,
         count: initialCount.total_count,
-        action: "Generated from evidence specification",
+        changeDescription: "Generated from evidence specification",
         timestamp: new Date()
       }]);
+      setCurrentCount(initialCount.total_count);
     }
   }, [initialCount, editedSearchQuery]);
-  
+
+  // Clear current count when query is edited
+  const handleQueryChange = (newQuery: string) => {
+    setEditedSearchQuery(newQuery);
+    // Clear the current count since the query has changed
+    setCurrentCount(null);
+  };
+
   // Test current query count
   const handleTestQuery = async () => {
+    if (!editedSearchQuery.trim()) return;
+    
     setIsTestingCount(true);
     try {
       const result = await onTestCount(editedSearchQuery, sessionId);
-      setQueryCount(result);
-      setHasTestedQuery(true);
+      setCurrentCount(result.total_count);
       
-      // Add to optimization history
-      setOptimizationHistory(prev => [...prev, {
-        step: prev.length + 1,
-        query: editedSearchQuery,
-        count: result.total_count,
-        action: "Manual retest",
-        timestamp: new Date()
-      }]);
+      // Add to history only if it's different from the last entry
+      const lastEntry = queryHistory[queryHistory.length - 1];
+      if (!lastEntry || lastEntry.query !== editedSearchQuery) {
+        setQueryHistory(prev => [...prev, {
+          query: editedSearchQuery,
+          count: result.total_count,
+          changeDescription: "Manual edit and test",
+          timestamp: new Date()
+        }]);
+      }
     } catch (error) {
       console.error('Query count test failed:', error);
     } finally {
@@ -95,60 +100,25 @@ export function SearchQueryStep({
   // Optimize query to reduce volume
   const handleOptimize = async () => {
     setIsOptimizing(true);
+    const previousQuery = editedSearchQuery;
     try {
       const result = await onOptimize(evidenceSpec, sessionId);
-      setOptimization(result);
       setEditedSearchQuery(result.final_query);
-      setShowOptimization(true);
+      setCurrentCount(result.final_count);
       
-      // Test the optimized query count
-      const countResult = await onTestCount(result.final_query, sessionId);
-      setQueryCount(countResult);
-      
-      // Add optimization step to history
-      setOptimizationHistory(prev => [...prev, {
-        step: prev.length + 1,
+      // Add optimization to history with clear explanation
+      setQueryHistory(prev => [...prev, {
         query: result.final_query,
         count: result.final_count,
-        action: `Auto-optimized: ${result.refinement_applied}`,
+        changeDescription: `Suggested optimization applied`,
+        refinementDetails: result.refinement_applied,
+        previousQuery: previousQuery,
         timestamp: new Date()
       }]);
-      
-      // Auto-expand the timeline to show the optimization
-      setShowHistory(true);
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
       setIsOptimizing(false);
-    }
-  };
-
-  // Reset to retest after manual edits
-  const handleQueryChange = (newQuery: string) => {
-    setEditedSearchQuery(newQuery);
-    setHasTestedQuery(false);
-    setQueryCount(null);
-    setOptimization(null);
-    setShowOptimization(false);
-    // Only reset history if this is a completely different query
-    // (don't reset if user is just making minor edits)
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'optimal': return 'text-green-600 dark:text-green-400';
-      case 'refined': return 'text-blue-600 dark:text-blue-400';
-      case 'manual_needed': return 'text-amber-600 dark:text-amber-400';
-      default: return 'text-gray-600 dark:text-gray-400';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'optimal': return <CheckCircle className="w-4 h-4" />;
-      case 'refined': return <TrendingDown className="w-4 h-4" />;
-      case 'manual_needed': return <AlertTriangle className="w-4 h-4" />;
-      default: return null;
     }
   };
 
@@ -158,210 +128,80 @@ export function SearchQueryStep({
         Search Keywords
       </h2>
 
-      {/* Optimization History Timeline */}
-      {optimizationHistory.length > 0 && (
-        <div className="mb-6">
-          <Collapsible open={showHistory} onOpenChange={setShowHistory}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-3 h-auto border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Query Evolution Timeline
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {optimizationHistory.length} step{optimizationHistory.length !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-                {showHistory ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <div className="space-y-3">
-                {/* Evidence Specification Starting Point */}
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                  <div className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center text-xs font-medium text-blue-600 dark:text-blue-300">
-                    📋
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-                      Starting Evidence Specification
-                    </div>
-                    <div className="text-xs text-blue-700 dark:text-blue-300 break-words">
-                      {evidenceSpec}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Arrow */}
-                <div className="flex justify-center">
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
-                </div>
-
-                {/* Query Evolution Steps */}
-                {optimizationHistory.map((step, index) => (
-                  <div key={step.step}>
-                    <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-                      index === optimizationHistory.length - 1 
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
-                        : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                    }`}>
-                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                        index === optimizationHistory.length - 1
-                          ? 'bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                      }`}>
-                        {step.step}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className={`text-sm font-medium ${
-                            index === optimizationHistory.length - 1
-                              ? 'text-green-900 dark:text-green-100'
-                              : 'text-gray-900 dark:text-gray-100'
-                          }`}>
-                            {step.action}
-                          </div>
-                          <Badge 
-                            variant={step.count <= 250 ? "default" : "destructive"} 
-                            className="text-xs"
-                          >
-                            {step.count.toLocaleString()} results
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all mb-1">
-                          {step.query}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-500">
-                          {step.timestamp.toLocaleTimeString()}
-                        </div>
-                      </div>
-                    </div>
-                    {index < optimizationHistory.length - 1 && (
-                      <div className="flex justify-center py-1">
-                        <ArrowRight className="h-3 w-3 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+      {/* Evidence Specification - Always Visible */}
+      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+        <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+          Evidence Specification
         </div>
-      )}
-
-      {/* Query Count Results */}
-      {hasTestedQuery && queryCount && (
-        <div className={`mb-6 p-4 rounded-lg border ${
-          queryCount.total_count > 250 
-            ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
-            : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-        }`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className={queryCount.total_count > 250 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}>
-              {queryCount.total_count > 250 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-            </div>
-            <h3 className={`font-medium ${
-              queryCount.total_count > 250 
-                ? 'text-amber-900 dark:text-amber-100' 
-                : 'text-green-900 dark:text-green-100'
-            }`}>
-              Search Results Preview
-            </h3>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <Badge 
-                variant={queryCount.total_count <= 250 ? "default" : "destructive"} 
-                className="text-sm"
-              >
-                {queryCount.total_count.toLocaleString()} results found
-              </Badge>
-              <p className={`text-xs mt-1 ${
-                queryCount.total_count > 250 
-                  ? 'text-amber-700 dark:text-amber-300' 
-                  : 'text-green-700 dark:text-green-300'
-              }`}>
-                Sources: {queryCount.sources_searched.join(', ')}
-              </p>
-            </div>
-            
-            {queryCount.total_count > 250 && (
-              <Button
-                onClick={handleOptimize}
-                disabled={isOptimizing}
-                variant="outline"
-                size="sm"
-                className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"
-              >
-                {isOptimizing ? (
-                  <>
-                    <div className="animate-spin mr-2 h-3 w-3 border-2 border-amber-500 border-t-transparent rounded-full" />
-                    Optimizing...
-                  </>
-                ) : (
-                  <>
-                    <TrendingDown className="w-4 h-4 mr-2" />
-                    Optimize to Reduce Volume
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-          
-          {queryCount.total_count > 250 && (
-            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-700">
-              <p className="text-amber-800 dark:text-amber-200 text-sm">
-                ⚠️ <strong>Large result set detected.</strong> Consider optimizing for better filtering performance.
-                Target: &lt;250 results for optimal semantic filtering.
-              </p>
-            </div>
-          )}
+        <div className="text-sm text-blue-700 dark:text-blue-300">
+          {evidenceSpec}
         </div>
-      )}
-      
-      {/* Optimization Results */}
-      {showOptimization && optimization && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-          <div className="flex items-center gap-2 mb-3">
-            <div className={getStatusColor(optimization.refinement_status)}>
-              {getStatusIcon(optimization.refinement_status)}
-            </div>
-            <h3 className="font-medium text-blue-900 dark:text-blue-100">
-              Optimization Applied
-            </h3>
+      </div>
+
+      {/* Query History - Always Visible */}
+      {queryHistory.length > 0 && (
+        <div className="mb-6 space-y-3">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Query Optimization History
           </div>
           
-          <div className="text-sm">
-            <div className="grid grid-cols-2 gap-4 mb-3">
-              <div className="text-center">
-                <p className="text-blue-700 dark:text-blue-300 font-medium">Before</p>
-                <Badge variant="destructive" className="text-xs">
-                  {optimization.initial_count.toLocaleString()} results
+          {queryHistory.map((attempt, index) => (
+            <div 
+              key={index}
+              className={`p-3 rounded-lg border ${
+                attempt.count <= 250
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    attempt.count <= 250
+                      ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200'
+                      : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {attempt.changeDescription}
+                  </div>
+                </div>
+                <Badge 
+                  variant={attempt.count <= 250 ? "default" : "destructive"}
+                  className="text-xs"
+                >
+                  {attempt.count.toLocaleString()} results
                 </Badge>
               </div>
-              <div className="text-center">
-                <p className="text-blue-700 dark:text-blue-300 font-medium">After</p>
-                <Badge variant={optimization.final_count <= 250 ? "default" : "destructive"} className="text-xs">
-                  {optimization.final_count.toLocaleString()} results
-                </Badge>
+              <div className="ml-8 text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
+                {attempt.query}
               </div>
+              {attempt.refinementDetails && (
+                <div className="ml-8 mt-2 p-2 bg-blue-50 dark:bg-blue-900/10 rounded text-xs text-blue-700 dark:text-blue-300">
+                  <span className="font-medium">What changed: </span>
+                  {attempt.refinementDetails}
+                </div>
+              )}
+              {index > 0 && queryHistory[index - 1] && (
+                <div className="ml-8 mt-2 text-xs text-gray-500 dark:text-gray-500">
+                  Result change: {attempt.count - queryHistory[index - 1].count < 0 ? '↓' : '↑'} 
+                  {' '}{Math.abs(attempt.count - queryHistory[index - 1].count).toLocaleString()} results
+                  {attempt.count <= 250 && queryHistory[index - 1].count > 250 && (
+                    <span className="ml-2 text-green-600 dark:text-green-400 font-medium">✓ Target achieved</span>
+                  )}
+                </div>
+              )}
             </div>
-            
-            <div className="pt-3 border-t border-blue-200 dark:border-blue-700">
-              <span className="font-medium text-blue-800 dark:text-blue-200 text-sm">Applied:</span>
-              <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
-                {optimization.refinement_applied}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       )}
-      
+
+      {/* Current Query Editor */}
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-            Search Keywords
+            Current Search Query
           </label>
           <Textarea
             value={editedSearchQuery}
@@ -371,12 +211,50 @@ export function SearchQueryStep({
             placeholder="(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Boolean search query with AND, OR operators. Target: &lt;250 results for optimal filtering.
+            Edit the boolean search query and test to see the result count
           </p>
         </div>
-        
-        <div className="flex gap-3">
-          {!hasTestedQuery ? (
+
+        {/* Current Count Display */}
+        {currentCount !== null && (
+          <div className={`p-3 rounded-lg border ${
+            currentCount <= 250
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+              : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {currentCount <= 250 ? (
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                )}
+                <span className={`text-sm font-medium ${
+                  currentCount <= 250
+                    ? 'text-green-900 dark:text-green-100'
+                    : 'text-amber-900 dark:text-amber-100'
+                }`}>
+                  Current query will return {currentCount.toLocaleString()} results
+                </span>
+              </div>
+              {currentCount > 250 && (
+                <Badge variant="destructive" className="text-xs">
+                  Target: ≤250
+                </Badge>
+              )}
+            </div>
+            {currentCount > 250 && (
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
+                Consider optimizing to reduce the result set for better filtering performance
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons - Test and Optimize Section */}
+        <div className="space-y-3">
+          {/* Test Count and Optimization Row */}
+          <div className="flex items-center gap-3">
             <Button
               onClick={handleTestQuery}
               disabled={isTestingCount || !editedSearchQuery.trim()}
@@ -391,46 +269,69 @@ export function SearchQueryStep({
               ) : (
                 <>
                   <Target className="w-4 h-4 mr-2" />
-                  Test Query Volume
+                  Test Count
                 </>
               )}
             </Button>
-          ) : (
-            <Button
-              onClick={handleTestQuery}
-              disabled={isTestingCount}
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 dark:text-gray-400"
-            >
-              {isTestingCount ? (
-                <>
-                  <div className="animate-spin mr-2 h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full" />
-                  Retesting...
-                </>
-              ) : (
-                'Retest Query'
-              )}
-            </Button>
-          )}
-          
-          <Button
-            onClick={onSubmit}
-            disabled={loading || !editedSearchQuery.trim()}
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-          >
-            {loading ? (
+
+            {currentCount !== null && currentCount > 250 && (
               <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                Searching...
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4 mr-2" />
-                Search Articles
+                <span className="text-xs text-gray-500">or</span>
+                <Button
+                  onClick={handleOptimize}
+                  disabled={isOptimizing}
+                  variant="outline"
+                  className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"
+                >
+                  {isOptimizing ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full" />
+                      Optimizing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Suggest Optimization
+                    </>
+                  )}
+                </Button>
               </>
             )}
-          </Button>
+
+            {currentCount === null && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                Test the query to see result count
+              </span>
+            )}
+          </div>
+
+          {/* Optimization Help Text */}
+          {currentCount !== null && currentCount > 250 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 ml-1">
+              The "Suggest Optimization" button will analyze the current query text above and add filters to reduce results below 250
+            </p>
+          )}
+
+          {/* Search Button - Separate Row */}
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              onClick={onSubmit}
+              disabled={loading || !editedSearchQuery.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4 mr-2" />
+                  Search Articles with Current Query
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

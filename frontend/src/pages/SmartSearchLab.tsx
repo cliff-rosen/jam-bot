@@ -513,8 +513,8 @@ export default function SmartSearchLab() {
     try {
       // Map frontend step names to backend step names
       const stepMapping: Record<string, string> = {
-        'query': 'query_input',
-        'refinement': 'evidence_specification',
+        'query': 'question_input',
+        'refinement': 'question_refinement',
         'search-query': 'search_query_generation',
         'search-results': 'search_execution',
         'discriminator': 'discriminator_generation',

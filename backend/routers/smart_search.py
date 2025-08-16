@@ -49,7 +49,8 @@ class QueryCountResponse(BaseModel):
 
 class OptimizedQueryRequest(BaseModel):
     """Request to generate optimized search query with volume control"""
-    evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
+    current_query: str = Field(..., description="Current search query to refine")
+    evidence_specification: str = Field(..., description="Evidence specification for context")
     target_max_results: int = Field(250, description="Target maximum number of results")
     session_id: str = Field(..., description="Session ID for tracking")
 
@@ -341,6 +342,7 @@ async def generate_optimized_query(
         service = SmartSearchService()
         (initial_query, initial_count, final_query, 
          final_count, refinement_description, status) = await service.generate_optimized_search_query(
+            request.current_query,
             request.evidence_specification, 
             request.target_max_results
         )

@@ -38,6 +38,7 @@ export interface QueryCountResponse {
 }
 
 export interface OptimizedQueryRequest {
+  current_query: string;
   evidence_specification: string;
   target_max_results?: number;
   session_id: string;

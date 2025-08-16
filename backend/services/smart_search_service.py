@@ -311,35 +311,135 @@ Generate an effective boolean search query for academic databases."""
         refinement_description = f"Added: {', '.join(refinements_applied)}" if refinements_applied else "No refinements applied"
         return refined_query, refinement_description
     
-    async def generate_optimized_search_query(self, evidence_spec: str, target_max: int = 250) -> Tuple[str, int, str, int, str, str]:
+    async def add_targeted_refinement(self, current_query: str, current_count: int, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
         """
-        Generate an optimized search query with volume control
+        Add a single targeted AND refinement to the current query to reduce volume
+        with minimal Type II error risk
+        """
+        logger.info(f"Adding targeted refinement to: {current_query[:100]}... (current: {current_count:,} → target: <{target_max})")
+        
+        # Use LLM to suggest a conservative refinement
+        system_prompt = """You are a search query refinement expert. Your task is to add ONE conservative AND clause to an existing search query to reduce the number of results while minimizing the risk of excluding relevant articles (Type II errors).
+
+GUIDELINES:
+1. Look at the evidence specification to understand what the user is seeking
+2. Examine the current query to see what terms are already included
+3. Identify ONE aspect of the evidence specification that can be safely narrowed down
+4. Add a single AND clause that is highly likely to be relevant
+5. Be CONSERVATIVE - it's better to be too inclusive than to exclude relevant articles
+6. Focus on study types, populations, or methodological aspects that are clearly implied
+
+STRATEGY:
+- If evidence spec mentions "treatment" or "therapy" → add study type filters
+- If evidence spec mentions "children" or "adults" → add population filters  
+- If evidence spec mentions "effectiveness" → add outcome measurement terms
+- If evidence spec mentions specific conditions → add condition-specific terms
+
+EXAMPLES:
+Current: (cannabis OR marijuana) AND motivation
+Evidence: "Find articles that examine cannabis effects on motivation in clinical populations"
+Refinement: (cannabis OR marijuana) AND motivation AND (clinical OR patient OR treatment)
+Explanation: "Added clinical population focus based on evidence specification"
+
+Current: (exercise OR physical activity) AND depression  
+Evidence: "Find articles that evaluate exercise interventions for depression treatment"
+Refinement: (exercise OR physical activity) AND depression AND (intervention OR treatment OR therapy)
+Explanation: "Added intervention focus to target treatment studies"
+
+Respond in JSON format with the refined query and explanation."""
+
+        user_prompt = f"""Current query: {current_query}
+Current result count: {current_count:,} results
+Target: Under {target_max} results
+
+Evidence specification: {evidence_spec}
+
+Add ONE conservative AND clause to reduce results while minimizing risk of excluding relevant articles. The current query returns {current_count:,} results, so we need to reduce this to under {target_max}."""
+
+        # Schema for refinement response
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "refined_query": {"type": "string"},
+                "explanation": {"type": "string"}
+            },
+            "required": ["refined_query", "explanation"]
+        }
+        
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message=system_prompt
+        )
+        
+        try:
+            # Get LLM refinement suggestion
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat", 
+                role=MessageRole.USER,
+                content=user_prompt,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            result = await prompt_caller.invoke(
+                messages=[user_message],
+                return_usage=True
+            )
+            
+            # Extract result
+            llm_result = result.result
+            
+            if hasattr(llm_result, 'refined_query'):
+                refined_query = llm_result.refined_query
+                explanation = llm_result.explanation if hasattr(llm_result, 'explanation') else "LLM-generated refinement"
+            else:
+                # Fallback to model_dump
+                response_data = llm_result.model_dump() if hasattr(llm_result, 'model_dump') else {}
+                refined_query = response_data.get('refined_query', f"({current_query}) AND (study OR research)")
+                explanation = response_data.get('explanation', "Added research focus as fallback refinement")
+                
+            logger.info(f"LLM suggested refinement: {refined_query}")
+            logger.info(f"Explanation: {explanation}")
+            return refined_query, explanation
+            
+        except Exception as e:
+            logger.error(f"Failed to generate LLM refinement: {e}")
+            # Conservative fallback: add research/study filter
+            fallback_query = f"({current_query}) AND (study OR research OR analysis)"
+            return fallback_query, "Added research focus (fallback refinement)"
+    
+    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250) -> Tuple[str, int, str, int, str, str]:
+        """
+        Generate an optimized search query by adding refinements to the current query
         Returns: (initial_query, initial_count, final_query, final_count, refinement_description, status)
         """
-        logger.info(f"Generating optimized search query for: {evidence_spec[:100]}...")
+        logger.info(f"Optimizing current query: {current_query[:100]}...")
         
-        # Phase 1: Generate initial broad query
-        initial_query, _ = await self.generate_search_keywords(evidence_spec)
+        # Phase 1: Get current query count
+        initial_query = current_query
         initial_count, _ = await self.get_search_count(initial_query)
         
-        logger.info(f"Initial query generated {initial_count} results")
+        logger.info(f"Current query has {initial_count} results")
         
         # Phase 2: Check if refinement is needed
         if initial_count <= target_max:
             return initial_query, initial_count, initial_query, initial_count, "Query already optimal", "optimal"
         
-        # Phase 3: Refine query to reduce volume
-        final_query, refinement_description = await self.refine_query_for_volume(initial_query, evidence_spec, target_max)
+        # Phase 3: Add targeted refinement to current query
+        final_query, refinement_description = await self.add_targeted_refinement(initial_query, initial_count, evidence_spec, target_max)
         final_count, _ = await self.get_search_count(final_query)
         
         # Determine status
-        if final_count <= target_max:
+        if final_count <= target_max and final_count > 0:
             status = "refined"
+        elif final_count == 0:
+            status = "manual_needed"
+            refinement_description += " (Refinement too restrictive - no results found)"
         else:
             status = "manual_needed"
             refinement_description += f" (Still {final_count} results - manual refinement may be needed)"
         
-        logger.info(f"Final optimized query: {final_count} results, status: {status}")
+        logger.info(f"Optimized query: {final_count} results, status: {status}")
         return initial_query, initial_count, final_query, final_count, refinement_description, status
       
     async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False) -> SearchResultsResponse:

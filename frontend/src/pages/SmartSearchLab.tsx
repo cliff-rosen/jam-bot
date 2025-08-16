@@ -126,6 +126,7 @@ export default function SmartSearchLab() {
   const handleOptimizeQuery = async (evidenceSpecification: string, sessionId: string) => {
     try {
       const response = await smartSearchApi.generateOptimizedQuery({
+        current_query: editedSearchQuery,
         evidence_specification: evidenceSpecification,
         target_max_results: 250,
         session_id: sessionId

@@ -33,7 +33,7 @@ export default function TokenLogin() {
         };
 
         attemptLogin();
-    }, [token, loginWithToken, navigate]);
+    }, [token]); // Removed loginWithToken and navigate from deps to prevent loops
 
     // If already authenticated, redirect to home
     if (isAuthenticated) {

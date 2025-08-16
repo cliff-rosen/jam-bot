@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronRight, ArrowLeft } from 'lucide-react';
 import type { SearchResults } from '@/types/smart-search';
 
 interface SearchResultsStepProps {
@@ -13,6 +13,7 @@ interface SearchResultsStepProps {
   onSubmit: () => void;
   onSubmitAll?: () => void;
   onLoadMore: () => void;
+  onGoBack?: () => void;  // Go back to keywords step
   loading: boolean;
   loadingMore: boolean;
 }
@@ -21,6 +22,7 @@ export function SearchResultsStep({
   searchResults,
   onSubmit,
   onLoadMore,
+  onGoBack,
   loading,
   loadingMore
 }: SearchResultsStepProps) {
@@ -35,6 +37,9 @@ export function SearchResultsStep({
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         Review Search Results
       </h2>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Preview your search results. If they look relevant, proceed to filtering. If not, go back to adjust your keywords.
+      </p>
 
       {/* Results Summary */}
       <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 flex-shrink-0">
@@ -120,9 +125,22 @@ export function SearchResultsStep({
           </Button>
         )}
 
-        {/* Proceed to Filter Button */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+        {/* Action Buttons Row */}
+        <div className="flex items-center justify-between gap-3">
+          {/* Go Back Button */}
+          {onGoBack && (
+            <Button
+              onClick={onGoBack}
+              variant="outline"
+              className="border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Adjust Keywords
+            </Button>
+          )}
+
+          {/* Status Text */}
+          <div className="flex-1 text-center text-sm text-gray-600 dark:text-gray-400">
             {searchResults.pagination.total_available > 500 ? (
               <span className="text-amber-600 dark:text-amber-400">
                 ⚠️ Will filter up to 500 articles maximum
@@ -133,6 +151,8 @@ export function SearchResultsStep({
               </span>
             )}
           </div>
+
+          {/* Proceed Button */}
           <Button
             onClick={handleProceed}
             disabled={loading}

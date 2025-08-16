@@ -568,7 +568,7 @@ export default function SmartSearchLab() {
             className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
           >
-            5. Review & Curate
+            5. Review Results
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
@@ -630,6 +630,7 @@ export default function SmartSearchLab() {
               searchResults={searchResults}
               onSubmit={handleProceedToDiscriminator}
               onLoadMore={handleLoadMoreResults}
+              onGoBack={() => handleStepBack('search-query')}
               loading={discriminatorLoading}
               loadingMore={searchLoading}
             />

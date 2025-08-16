@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 from models import SmartSearchSession
 from database import get_db
@@ -28,12 +29,41 @@ from schemas.smart_search import (
     SessionResetRequest,
     FilterAllSearchResultsRequest,
     UnifiedFilterRequest,
-    ParallelFilterResponse,
-    QueryCountRequest,
-    QueryCountResponse,
-    OptimizedQueryRequest,
-    OptimizedQueryResponse
+    ParallelFilterResponse
 )
+
+# Query optimization schemas - defined locally in router
+class QueryCountRequest(BaseModel):
+    """Request to test search query result count"""
+    search_query: str = Field(..., description="Boolean search query to test")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class QueryCountResponse(BaseModel):
+    """Response with search result count"""
+    search_query: str = Field(..., description="The tested search query")
+    total_count: int = Field(..., description="Total number of results found")
+    sources_searched: List[str] = Field(..., description="List of sources that were searched")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class OptimizedQueryRequest(BaseModel):
+    """Request to generate optimized search query with volume control"""
+    evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
+    target_max_results: int = Field(250, description="Target maximum number of results")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class OptimizedQueryResponse(BaseModel):
+    """Response from optimized query generation"""
+    evidence_specification: str = Field(..., description="The evidence specification used")
+    initial_query: str = Field(..., description="Initial broad search query")
+    initial_count: int = Field(..., description="Result count for initial query")
+    final_query: str = Field(..., description="Final optimized search query")
+    final_count: int = Field(..., description="Result count for final query")
+    refinement_applied: str = Field(..., description="Description of refinements made")
+    refinement_status: str = Field(..., description="Status: 'optimal', 'refined', or 'manual_needed'")
+    session_id: str = Field(..., description="Session ID for tracking")
 
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService

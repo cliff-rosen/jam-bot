@@ -155,7 +155,7 @@ export function SearchQueryStep({
             placeholder="(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Boolean search query with AND, OR operators. Target: <250 results for optimal filtering.
+            Boolean search query with AND, OR operators. Target: &lt;250 results for optimal filtering.
           </p>
         </div>
         

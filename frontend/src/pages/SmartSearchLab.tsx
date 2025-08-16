@@ -633,7 +633,7 @@ export default function SmartSearchLab() {
           {step === 'discriminator' && discriminatorData && (
             <DiscriminatorStep
               evidenceSpec={evidenceSpec}
-              editedSearchQuery={editedSearchQuery}
+              searchKeywords={editedSearchQuery}
               editedDiscriminator={editedDiscriminator}
               setEditedDiscriminator={setEditedDiscriminator}
               strictness={strictness}

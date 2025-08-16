@@ -4,8 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 
 interface DiscriminatorStepProps {
-  editedQuestion: string;
-  editedSearchQuery: string;
+  evidenceSpec: string;
+  searchKeywords: string;
   editedDiscriminator: string;
   setEditedDiscriminator: (discriminator: string) => void;
   strictness: 'low' | 'medium' | 'high';
@@ -17,8 +17,8 @@ interface DiscriminatorStepProps {
 }
 
 export function DiscriminatorStep({
-  editedQuestion,
-  editedSearchQuery,
+  evidenceSpec,
+  searchKeywords,
   editedDiscriminator,
   setEditedDiscriminator,
   strictness,
@@ -36,90 +36,82 @@ export function DiscriminatorStep({
     : `Start Filtering ${selectedArticlesCount} Selected Articles`;
   return (
     <Card className="p-6 dark:bg-gray-800">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Review & Edit Semantic Filter Criteria
+      <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
+        Filter Criteria
       </h2>
 
-      <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-        <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Step Completed:</h3>
-        <p className="text-sm text-purple-800 dark:text-purple-200">
-          ✓ Generated semantic evaluation criteria for {strictness} strictness filtering
-        </p>
-        <p className="text-sm text-purple-800 dark:text-purple-200 mt-1">
-          Review and edit the criteria below. This prompt will be used to evaluate each article for relevance.
-        </p>
-      </div>
-
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+        {/* Context Summary */}
+        <div className="space-y-3 mb-6">
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Research Question
-            </label>
-            <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border">
-              {editedQuestion}
-            </div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Evidence Specification
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 italic">
+              "{evidenceSpec}"
+            </p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-              Search Query
-            </label>
-            <div className="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border font-mono">
-              {editedSearchQuery}
-            </div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Search Keywords
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+              {searchKeywords}
+            </p>
           </div>
         </div>
 
-        <div>
+        {/* Filter Criteria */}
+        <div className="mb-6">
           <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-            Semantic Evaluation Criteria
+            Evaluation Criteria
           </label>
           <Textarea
             value={editedDiscriminator}
             onChange={(e) => setEditedDiscriminator(e.target.value)}
-            rows={12}
-            className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
-            placeholder="Enter evaluation criteria for filtering articles..."
+            rows={8}
+            className="dark:bg-gray-700 dark:text-gray-100 text-sm"
+            placeholder="Enter criteria for evaluating article relevance..."
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            This prompt will be used to evaluate each article. Edit it to adjust the filtering criteria.
+            This will be used to evaluate each article for relevance.
           </p>
         </div>
 
-        <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-          <div className="flex items-center gap-4 mb-3">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Filter Strictness:
-            </span>
+        {/* Strictness Setting */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
+            Filter Strictness
+          </label>
+          <div className="flex gap-2">
             {(['low', 'medium', 'high'] as const).map((level) => (
               <Button
                 key={level}
                 variant={strictness === level ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStrictness(level)}
+                className="min-w-[80px]"
               >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
               </Button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {strictness === 'low' && 'More inclusive - accepts somewhat related articles'}
             {strictness === 'medium' && 'Balanced - accepts clearly related articles'}
             {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
           </p>
         </div>
 
-        <div className="flex justify-between items-center pt-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Tip: Make criteria more specific to improve filtering precision
-          </p>
+        {/* Start Filtering Button */}
+        <div className="flex justify-end">
           <Button
             onClick={onSubmit}
             disabled={!editedDiscriminator.trim()}
-            className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             <Search className="w-4 h-4 mr-2" />
-{buttonText}
+            {buttonText}
           </Button>
         </div>
       </div>

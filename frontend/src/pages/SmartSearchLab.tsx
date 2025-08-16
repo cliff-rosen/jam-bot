@@ -500,7 +500,7 @@ export default function SmartSearchLab() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="flex-shrink-0 border-b-2 border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between">

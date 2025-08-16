@@ -1,15 +1,15 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, ExternalLink } from 'lucide-react';
+import { Filter, ExternalLink, ChevronRight } from 'lucide-react';
 import type { SearchResults } from '@/types/smart-search';
 
 interface SearchResultsStepProps {
   searchResults: SearchResults;
-  selectedArticles: Set<number>;
-  onToggleArticle: (index: number) => void;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
+  selectedArticles?: Set<number>;  // Keep for backward compatibility but mark optional
+  onToggleArticle?: (index: number) => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
   onSubmit: () => void;
   onSubmitAll?: () => void;
   onLoadMore: () => void;
@@ -19,165 +19,142 @@ interface SearchResultsStepProps {
 
 export function SearchResultsStep({
   searchResults,
-  selectedArticles,
-  onToggleArticle,
-  onSelectAll,
-  onDeselectAll,
   onSubmit,
   onSubmitAll,
   onLoadMore,
   loading,
   loadingMore
 }: SearchResultsStepProps) {
-  const canFilterAll = searchResults.pagination.total_available < 500 && 
-                       searchResults.pagination.has_more &&
-                       onSubmitAll;
+  // Always filter all - simplified flow
+  const handleProceed = () => {
+    if (onSubmitAll) {
+      onSubmitAll();
+    } else {
+      onSubmit();
+    }
+  };
+
   return (
     <Card className="p-6 dark:bg-gray-800 flex flex-col h-[calc(100vh-280px)]">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Review & Curate Search Results
+        Review Search Results
       </h2>
 
-      <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex-shrink-0">
-        <h3 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Step Completed:</h3>
-        <p className="text-sm text-yellow-800 dark:text-yellow-200">
-          ✓ Found {searchResults.pagination.returned} articles (showing {searchResults.pagination.returned} of {searchResults.pagination.total_available} total) from {searchResults.sources_searched.join(', ')}
-        </p>
-        <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
-          Review the articles below and uncheck any that are obviously irrelevant before proceeding to semantic filtering.
-        </p>
+      {/* Results Summary */}
+      <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+              Search Complete
+            </h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Found {searchResults.pagination.total_available.toLocaleString()} total articles from {searchResults.sources_searched.join(', ')}
+            </p>
+            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+              Showing {searchResults.articles.length} of {searchResults.pagination.total_available} articles
+            </p>
+          </div>
+          <div className="text-right">
+            <Badge variant={searchResults.pagination.total_available <= 500 ? "default" : "secondary"}>
+              {searchResults.pagination.total_available <= 500 ? 'Ready to filter' : 'Large result set'}
+            </Badge>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-4 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {selectedArticles.size} of {searchResults.articles.length} articles selected
-            </span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={onSelectAll}>
-                Select All
-              </Button>
-              <Button size="sm" variant="outline" onClick={onDeselectAll}>
-                Deselect All
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-1 overflow-y-auto flex-1 pr-2">
-          {searchResults.articles.map((article, index) => (
-            <div
-              key={index}
-              className={`p-2 border rounded transition-all ${
-                selectedArticles.has(index)
-                  ? 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
-                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedArticles.has(index)}
-                  onChange={() => onToggleArticle(index)}
-                  className="h-4 w-4 text-blue-600 rounded shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                      {article.title}
-                    </h4>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                    <span className="truncate">
-                      {article.authors.slice(0, 2).join(', ')}
-                      {article.authors.length > 2 && ' et al.'}
-                      {article.year && ` (${article.year})`}
-                    </span>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {article.source}
-                    </Badge>
-                    {article.url && (
-                      <a
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 shrink-0"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
+      {/* Articles List */}
+      <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+        {searchResults.articles.map((article, index) => (
+          <div
+            key={index}
+            className="p-3 border rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-2 mb-1">
+                  {article.title}
+                </h4>
+                <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
+                  <span className="truncate">
+                    {article.authors.slice(0, 2).join(', ')}
+                    {article.authors.length > 2 && ' et al.'}
+                    {article.year && ` (${article.year})`}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {article.source}
+                  </Badge>
                 </div>
               </div>
+              {article.url && (
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0"
+                  title="View article"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
 
+      {/* Action Buttons */}
+      <div className="flex-shrink-0 space-y-3 border-t pt-4 border-gray-200 dark:border-gray-700">
         {/* Load More Button */}
         {searchResults.pagination.has_more && (
-          <div className="flex justify-center py-4 flex-shrink-0">
-            <Button
-              onClick={onLoadMore}
-              disabled={loadingMore}
-              variant="outline"
-              className="w-full max-w-xs"
-            >
-              {loadingMore ? (
-                <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                  Loading More...
-                </>
-              ) : (
-                `Load More (${searchResults.pagination.total_available - searchResults.pagination.returned} remaining)`
-              )}
-            </Button>
-          </div>
+          <Button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            variant="outline"
+            className="w-full"
+          >
+            {loadingMore ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                Loading More...
+              </>
+            ) : (
+              <>
+                Load More Articles ({searchResults.pagination.total_available - searchResults.articles.length} remaining)
+              </>
+            )}
+          </Button>
         )}
 
-        <div className="flex justify-between items-center pt-4 flex-shrink-0">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Tip: Uncheck articles that are clearly off-topic to save on filtering costs
-          </p>
-          <div className="flex gap-3">
-            {canFilterAll && (
-              <Button
-                onClick={onSubmitAll}
-                disabled={loading}
-                variant="outline"
-                className="border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-950"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    Filter All {searchResults.pagination.total_available} Results
-                  </>
-                )}
-              </Button>
+        {/* Proceed to Filter Button */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {searchResults.pagination.total_available > 500 ? (
+              <span className="text-amber-600 dark:text-amber-400">
+                ⚠️ Will filter up to 500 articles maximum
+              </span>
+            ) : (
+              <span>
+                Ready to apply semantic filtering to all {searchResults.pagination.total_available} articles
+              </span>
             )}
-            <Button
-              onClick={onSubmit}
-              disabled={selectedArticles.size === 0 || loading}
-              className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Generate Filter Criteria ({selectedArticles.size} selected)
-                </>
-              )}
-            </Button>
           </div>
+          <Button
+            onClick={handleProceed}
+            disabled={loading}
+            className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Filter className="w-4 h-4 mr-2" />
+                Proceed to Filter
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </Card>

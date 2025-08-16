@@ -410,14 +410,14 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Filter all search results - set flag and proceed to discriminator generation
+  // Filter all search results - always filter all now
   const handleFilterAll = async () => {
     if (!searchResults) return;
 
-    // Set flag to indicate we want to filter all results
+    // Always filter all results (simplified flow)
     setFilterAllMode(true);
 
-    // Proceed to discriminator generation step (maintaining normal workflow)
+    // Proceed to discriminator generation step
     await handleGenerateDiscriminator();
   };
 
@@ -694,7 +694,7 @@ export default function SmartSearchLab() {
               onToggleArticle={handleToggleArticle}
               onSelectAll={handleSelectAll}
               onDeselectAll={handleDeselectAll}
-              onSubmit={handleGenerateDiscriminator}
+              onSubmit={handleFilterAll}  // Always filter all
               onSubmitAll={handleFilterAll}
               onLoadMore={handleLoadMoreResults}
               loading={discriminatorLoading}

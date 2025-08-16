@@ -20,8 +20,8 @@ export default function TopBar() {
     };
 
     // Role-based navigation filtering
-    const isTester = user?.role === 'tester';
-    const canSeeAllMenus = user?.role === 'admin' || user?.role === 'user';
+    const isTester = user?.role === 'tester' || user?.role === 'user';;
+    const canSeeAllMenus = user?.role === 'admin'
 
     return (
         <header className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50 flex items-center justify-between px-6">
@@ -51,7 +51,7 @@ export default function TopBar() {
                             </NavLink>
                         </>
                     )}
-                    
+
                     {/* Smart Search is visible to all roles */}
                     <NavLink to="/smart-search" className={getLinkClass('/smart-search')}>
                         <MagnifyingGlassIcon className="h-5 w-5 mr-2" />

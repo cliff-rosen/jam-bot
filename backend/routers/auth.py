@@ -334,3 +334,31 @@ async def login_with_token(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during authentication."
         )
+
+
+@router.post(
+    "/test-email",
+    summary="Send test email to cliff.rosen@gmail.com"
+)
+async def test_email():
+    """
+    Send a simple test email to cliff.rosen@gmail.com to verify email functionality.
+    """
+    try:
+        email_service = LoginEmailService()
+        success = await email_service.send_test_email()
+        
+        if success:
+            return {"message": "Test email sent successfully"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send test email"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error sending test email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while sending test email."
+        )

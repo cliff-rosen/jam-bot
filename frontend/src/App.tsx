@@ -4,9 +4,9 @@ import { Toaster } from './components/ui/toaster';
 
 // contexts
 import { ThemeProvider } from './context/ThemeContext';
-import { useAuth } from './context/AuthContext';
 import { JamBotProvider } from './context/JamBotContext';
 import { WorkbenchProvider } from './context/WorkbenchContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // utils
 import { setStreamSessionExpiredHandler } from './lib/api/streamUtils';
@@ -22,7 +22,8 @@ import SmartSearchLab from './pages/SmartSearchLab';
 import WorkbenchPage from './pages/Workbench';
 import TokenLogin from './pages/TokenLogin';
 
-function App() {
+// Inner component that uses auth context
+function AppContent() {
   const { handleSessionExpired, isAuthenticated } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -57,29 +58,36 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true
-        }}
-      >
-        <ThemeProvider>
-          <Routes>
-            <Route path="/auth/token-login" element={<TokenLogin />} />
-            <Route path="*" element={
-              <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
-                <LoginForm
-                  isRegistering={isRegistering}
-                  setIsRegistering={setIsRegistering}
-                />
-              </div>
-            } />
-          </Routes>
-        </ThemeProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <Routes>
+          <Route path="/auth/token-login" element={<TokenLogin />} />
+          <Route path="*" element={
+            <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
+              <LoginForm
+                isRegistering={isRegistering}
+                setIsRegistering={setIsRegistering}
+              />
+            </div>
+          } />
+        </Routes>
+      </ThemeProvider>
     );
   }
 
+  return (
+    <ThemeProvider>
+      <JamBotProvider>
+        <WorkbenchProvider>
+          <AuthenticatedApp />
+        </WorkbenchProvider>
+      </JamBotProvider>
+      <Toaster />
+    </ThemeProvider>
+  );
+}
+
+// Main App component that provides contexts
+function App() {
   return (
     <BrowserRouter
       future={{
@@ -87,14 +95,9 @@ function App() {
         v7_relativeSplatPath: true
       }}
     >
-      <ThemeProvider>
-        <JamBotProvider>
-          <WorkbenchProvider>
-            <AuthenticatedApp />
-          </WorkbenchProvider>
-        </JamBotProvider>
-        <Toaster />
-      </ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

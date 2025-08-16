@@ -6,7 +6,7 @@ import settings from '../config/settings';
 export default function TokenLogin() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { isAuthenticated, loginWithToken, isTokenLoginLoading, error } = useAuth();
+    const { isAuthenticated, loginWithToken, error } = useAuth();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     
     const token = searchParams.get('token');

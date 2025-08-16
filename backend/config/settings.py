@@ -65,10 +65,6 @@ class Settings(BaseSettings):
     LOG_SENSITIVE_FIELDS: list[str] = ["password", "token", "secret", "key", "authorization"]
     LOG_PERFORMANCE_THRESHOLD_MS: int = 500  # Log slow operations above this threshold
 
-    # Neo4j Settings
-    NEO4J_URI: str = "neo4j+ssc://801e8074.databases.neo4j.io"
-    NEO4J_API_KEY: str = os.getenv("NEO4J_API_KEY", "")
-    NEO4J_DATABASE: str = os.getenv("NEO4J_DATABASE", "neo4j")
 
     # Tool Stubbing Settings
     TOOL_STUBBING_ENABLED: bool = os.getenv("TOOL_STUBBING_ENABLED", "false").lower() == "true"
@@ -123,10 +119,6 @@ class Settings(BaseSettings):
         os.environ["GOOGLE_API_KEY"] = self.GOOGLE_SEARCH_API_KEY
         os.environ["GOOGLE_CSE_ID"] = self.GOOGLE_SEARCH_ENGINE_ID
 
-        # Add Neo4j validation
-        if not self.NEO4J_API_KEY:
-            raise ValueError(
-                "NEO4J_API_KEY not found in environment variables")
 
 
 settings = Settings()

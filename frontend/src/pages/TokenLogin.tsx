@@ -6,7 +6,7 @@ import settings from '../config/settings';
 export default function TokenLogin() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { isAuthenticated, loginWithToken, error } = useAuth();
+    const { isAuthenticated, loginWithToken, isTokenLoginLoading, error } = useAuth();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     
     const token = searchParams.get('token');
@@ -18,21 +18,22 @@ export default function TokenLogin() {
         }
 
         // Attempt login with token using AuthContext
-        setStatus('loading');
-        loginWithToken.mutate(token, {
-            onSuccess: () => {
+        const attemptLogin = async () => {
+            try {
+                setStatus('loading');
+                await loginWithToken(token);
                 setStatus('success');
                 // Redirect after a brief delay
                 setTimeout(() => {
                     navigate('/');
                 }, 1500);
-            },
-            onError: () => {
+            } catch (error) {
                 setStatus('error');
             }
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token, navigate]); // loginWithToken mutation doesn't need to be in deps
+        };
+
+        attemptLogin();
+    }, [token, loginWithToken, navigate]);
 
     // If already authenticated, redirect to home
     if (isAuthenticated) {

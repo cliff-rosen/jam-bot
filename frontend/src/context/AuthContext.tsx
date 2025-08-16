@@ -1,15 +1,24 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { api } from '../lib/api/index'
+import { authApi, type LoginCredentials, type RegisterCredentials, type AuthResponse } from '../lib/api/authApi'
 
 interface AuthContextType {
     isAuthenticated: boolean
     user: { id: string; username: string; email: string; role: string } | null
-    login: any
-    loginWithToken: any
-    requestLoginToken: any
-    register: any
+    
+    // Auth methods
+    login: (credentials: LoginCredentials) => Promise<void>
+    loginWithToken: (token: string) => Promise<void>
+    requestLoginToken: (email: string) => Promise<void>
+    register: (credentials: RegisterCredentials) => Promise<void>
     logout: () => void
+    
+    // Loading states
+    isLoginLoading: boolean
+    isTokenLoginLoading: boolean
+    isTokenRequestLoading: boolean
+    isRegisterLoading: boolean
+    
+    // Error handling
     error: string | null
     handleSessionExpired: () => void
 
@@ -33,6 +42,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [user, setUser] = useState<{ id: string; username: string; email: string; role: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
+
+    // Loading states
+    const [isLoginLoading, setIsLoginLoading] = useState(false)
+    const [isTokenLoginLoading, setIsTokenLoginLoading] = useState(false)
+    const [isTokenRequestLoading, setIsTokenRequestLoading] = useState(false)
+    const [isRegisterLoading, setIsRegisterLoading] = useState(false)
 
     // Session state
     const [sessionId, setSessionId] = useState<string | null>(null)
@@ -106,8 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchActiveSession = async () => {
         try {
-            const response = await api.get('/api/sessions/active')
-            const sessionData = response.data
+            const sessionData = await authApi.getActiveSession()
 
             setSessionId(sessionData.id)
             setSessionName(sessionData.name)
@@ -131,152 +145,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
-    const login = useMutation({
-        mutationFn: async (credentials: { username: string; password: string }) => {
-            try {
-                const params = new URLSearchParams()
-                params.append('username', credentials.username)
-                params.append('password', credentials.password)
-
-                const response = await api.post('/api/auth/login', params, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                })
-
-                return response.data
-            } catch (error: any) {
-                if (error.response) {
-                    const errorMessage = error.response.data?.detail ||
-                        error.response.data?.message ||
-                        error.response.data ||
-                        'Login failed'
-                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
-                } else if (error.request) {
-                    throw new Error('No response from server. Please try again.')
-                } else {
-                    throw new Error(error.message || 'Login failed. Please try again.')
-                }
-            }
-        },
-        onSuccess: handleAuthSuccess,
-        onError: (error: Error) => {
-            setError(error.message)
-        }
-    })
-
-    const loginWithToken = useMutation({
-        mutationFn: async (token: string) => {
-            try {
-                const params = new URLSearchParams()
-                params.append('token', token)
-                
-                const response = await api.post('/api/auth/login-with-token', params, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                })
-                
-                return response.data
-            } catch (error: any) {
-                if (error.response) {
-                    const errorMessage = error.response.data?.detail ||
-                        error.response.data?.message ||
-                        error.response.data ||
-                        'Token login failed'
-                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
-                } else if (error.request) {
-                    throw new Error('No response from server. Please try again.')
-                } else {
-                    throw new Error(error.message || 'Token login failed. Please try again.')
-                }
-            }
-        },
-        onSuccess: handleAuthSuccess,
-        onError: (error: Error) => {
-            setError(error.message)
-        }
-    })
-
-    const requestLoginToken = useMutation({
-        mutationFn: async (email: string) => {
-            try {
-                const params = new URLSearchParams()
-                params.append('email', email)
-                
-                const response = await api.post('/api/auth/request-login-token', params, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                })
-                
-                return response.data
-            } catch (error: any) {
-                if (error.response) {
-                    const errorMessage = error.response.data?.detail ||
-                        error.response.data?.message ||
-                        error.response.data ||
-                        'Failed to send login token'
-                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
-                } else if (error.request) {
-                    throw new Error('No response from server. Please try again.')
-                } else {
-                    throw new Error(error.message || 'Failed to send login token. Please try again.')
-                }
-            }
-        },
-        onSuccess: () => {
+    const login = async (credentials: LoginCredentials): Promise<void> => {
+        try {
+            setIsLoginLoading(true)
             setError(null)
-        },
-        onError: (error: Error) => {
-            setError(error.message)
+            
+            const authResponse = await authApi.login(credentials)
+            handleAuthSuccess(authResponse)
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.message ||
+                error.message ||
+                'Login failed. Please try again.'
+            setError(errorMessage)
+            throw error
+        } finally {
+            setIsLoginLoading(false)
         }
-    })
+    }
 
-    const register = useMutation({
-        mutationFn: async (credentials: { email: string; password: string }) => {
-            try {
-                const response = await api.post('/api/auth/register', credentials)
-                return response.data
-            } catch (error: any) {
-                if (error.response) {
-                    const errorMessage = error.response.data?.detail ||
-                        error.response.data?.message ||
-                        error.response.data ||
-                        'Registration failed'
-                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
-                } else if (error.request) {
-                    throw new Error('No response from server. Please try again.')
-                } else {
-                    throw new Error(error.message || 'Registration failed. Please try again.')
-                }
-            }
-        },
-        onSuccess: () => {
+    const loginWithToken = async (token: string): Promise<void> => {
+        try {
+            setIsTokenLoginLoading(true)
             setError(null)
+            
+            const authResponse = await authApi.loginWithToken(token)
+            handleAuthSuccess(authResponse)
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.message ||
+                error.message ||
+                'Token login failed. The token may be invalid or expired.'
+            setError(errorMessage)
+            throw error
+        } finally {
+            setIsTokenLoginLoading(false)
+        }
+    }
+
+    const requestLoginToken = async (email: string): Promise<void> => {
+        try {
+            setIsTokenRequestLoading(true)
+            setError(null)
+            
+            await authApi.requestLoginToken(email)
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.message ||
+                error.message ||
+                'Failed to send login token. Please try again.'
+            setError(errorMessage)
+            throw error
+        } finally {
+            setIsTokenRequestLoading(false)
+        }
+    }
+
+    const register = async (credentials: RegisterCredentials): Promise<void> => {
+        try {
+            setIsRegisterLoading(true)
+            setError(null)
+            
+            await authApi.register(credentials)
             setError('Registration successful! Please sign in.')
-        },
-        onError: (error: Error) => {
-            setError(error.message)
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.message ||
+                error.message ||
+                'Registration failed. Please try again.'
+            setError(errorMessage)
+            throw error
+        } finally {
+            setIsRegisterLoading(false)
         }
-    })
+    }
 
     // Session management functions
     const updateSessionMission = async (newMissionId: string) => {
         if (!sessionId) return
 
         try {
-            const response = await api.put(`/api/sessions/${sessionId}`, {
-                mission_id: newMissionId
-            })
-            setMissionId(response.data.mission_id)
+            const response = await authApi.updateSessionMission(sessionId, newMissionId)
+            setMissionId(response.mission_id)
 
             // Update localStorage with new mission_id
             localStorage.setItem('sessionData', JSON.stringify({
                 sessionId: sessionId,
                 sessionName: sessionName,
                 chatId: chatId,
-                missionId: response.data.mission_id,
+                missionId: response.mission_id,
                 sessionMetadata: sessionMetadata
             }))
         } catch (error) {
@@ -290,10 +247,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         try {
             const updatedMetadata = { ...sessionMetadata, ...metadata }
-            const response = await api.put(`/api/sessions/${sessionId}`, {
-                session_metadata: updatedMetadata
-            })
-            setSessionMetadata(response.data.session_metadata)
+            const response = await authApi.updateSessionMetadata(sessionId, updatedMetadata)
+            setSessionMetadata(response.session_metadata)
 
             // Update localStorage with new metadata
             localStorage.setItem('sessionData', JSON.stringify({
@@ -301,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sessionName: sessionName,
                 chatId: chatId,
                 missionId: missionId,
-                sessionMetadata: response.data.session_metadata
+                sessionMetadata: response.session_metadata
             }))
         } catch (error) {
             console.error('Error updating session metadata:', error)
@@ -350,11 +305,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <AuthContext.Provider value={{
             isAuthenticated,
             user,
+            
+            // Auth methods
             login,
             loginWithToken,
             requestLoginToken,
             register,
             logout,
+            
+            // Loading states
+            isLoginLoading,
+            isTokenLoginLoading,
+            isTokenRequestLoading,
+            isRegisterLoading,
+            
+            // Error handling
             error,
             handleSessionExpired,
 

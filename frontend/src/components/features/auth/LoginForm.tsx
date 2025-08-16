@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { UseMutationResult } from '@tanstack/react-query';
 import settings from '@/config/settings';
 import { useAuth } from '@/context/AuthContext';
 
 interface LoginFormProps {
     isRegistering: boolean;
     setIsRegistering: (value: boolean) => void;
-    login: UseMutationResult<any, Error, { username: string; password: string }, unknown>;
-    register: UseMutationResult<any, Error, { email: string; password: string }, unknown>;
-    error: string | null;
 }
 
-export default function LoginForm({ isRegistering, setIsRegistering, login, register, error }: LoginFormProps) {
-    const { requestLoginToken } = useAuth();
+export default function LoginForm({ isRegistering, setIsRegistering }: LoginFormProps) {
+    const { 
+        login, 
+        register, 
+        requestLoginToken, 
+        isLoginLoading,
+        isRegisterLoading,
+        isTokenRequestLoading, 
+        error 
+    } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -31,30 +35,33 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 return;
             }
 
-            register.mutate(
-                { email: formData.email, password: formData.password },
-                {
-                    onSuccess: () => {
-                        setIsRegistering(false);
-                        setFormData(prev => ({
-                            ...prev,
-                            password: '',
-                            confirmPassword: ''
-                        }));
-                        setPasswordError(null);
-                    }
-                }
-            );
+            try {
+                await register({ email: formData.email, password: formData.password });
+                setIsRegistering(false);
+                setFormData(prev => ({
+                    ...prev,
+                    password: '',
+                    confirmPassword: ''
+                }));
+                setPasswordError(null);
+            } catch (error) {
+                // Error is handled by AuthContext
+            }
         } else if (isPasswordlessMode) {
             // Request login token using AuthContext
-            requestLoginToken.mutate(formData.email, {
-                onSuccess: () => {
-                    setTokenSent(true);
-                }
-            });
+            try {
+                await requestLoginToken(formData.email);
+                setTokenSent(true);
+            } catch (error) {
+                // Error is handled by AuthContext
+            }
         } else {
             // Regular login
-            login.mutate({ username: formData.email, password: formData.password });
+            try {
+                await login({ username: formData.email, password: formData.password });
+            } catch (error) {
+                // Error is handled by AuthContext
+            }
         }
     };
 
@@ -87,14 +94,14 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 </p>
             </div>
 
-            {(error || passwordError || tokenSent || requestLoginToken.error) && (
+            {(error || passwordError || tokenSent) && (
                 <div className={`border px-4 py-3 rounded relative ${error?.includes('successful') || tokenSent
                         ? 'bg-green-100 border-green-400 text-green-700'
                         : 'bg-red-100 border-red-400 text-red-700'
                     }`}>
                     {tokenSent
                         ? 'Login link sent! Check your email and click the link to sign in.'
-                        : passwordError || error || (requestLoginToken.error as any)?.message
+                        : passwordError || error
                     }
                 </div>
             )}
@@ -149,10 +156,10 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 <div>
                     <button
                         type="submit"
-                        disabled={requestLoginToken.isPending}
+                        disabled={isTokenRequestLoading}
                         className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {requestLoginToken.isPending
+                        {isTokenRequestLoading
                             ? 'Sending...'
                             : isRegistering
                                 ? 'Register'

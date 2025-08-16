@@ -9,7 +9,7 @@ load_dotenv(override=True)
 class Settings(BaseSettings):
     APP_NAME: str = "HopBot"
     SETTING_VERSION: str = "0.0.1"
-
+    FRONTEND_URL: str = "https://hopbot.ironcliff.ai"
     # Database settings
     DB_HOST: str = os.getenv("DB_HOST")
     DB_PORT: str = os.getenv("DB_PORT", "3306")

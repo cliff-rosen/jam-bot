@@ -35,7 +35,7 @@ function App() {
   // Main app content when authenticated
   const AuthenticatedApp = () => {
     const { user } = useAuth();
-    const defaultRoute = user?.role === 'tester' ? '/smart-search' : '/jam-bot';
+    const defaultRoute = '/smart-search';  // Smart Search is now default for all users
 
     return (
       <div className="h-screen flex flex-col dark:bg-gray-900 bg-gray-50">

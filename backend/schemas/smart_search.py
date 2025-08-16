@@ -73,7 +73,7 @@ class SearchResultsResponse(BaseModel):
 
 class DiscriminatorGenerationRequest(BaseModel):
     """Request to generate semantic discriminator prompt"""
-    refined_question: str
+    evidence_specification: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -81,7 +81,7 @@ class DiscriminatorGenerationRequest(BaseModel):
 
 class DiscriminatorGenerationResponse(BaseModel):
     """Response from discriminator generation"""
-    refined_question: str
+    evidence_specification: str
     search_query: str
     strictness: str
     discriminator_prompt: str
@@ -91,7 +91,7 @@ class DiscriminatorGenerationResponse(BaseModel):
 class SemanticFilterRequest(BaseModel):
     """Request to filter articles semantically"""
     articles: List[SearchArticle]
-    refined_question: str
+    evidence_specification: str
     search_query: str
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
@@ -132,7 +132,7 @@ class SessionResetRequest(BaseModel):
 class FilterAllSearchResultsRequest(BaseModel):
     """Request to filter all available search results without downloading them first"""
     search_query: str = Field(..., description="Boolean search query to execute")
-    refined_question: str = Field(..., description="Refined research question for context")
+    evidence_specification: str = Field(..., description="Evidence specification for context")
     max_results: int = Field(500, description="Maximum results to retrieve and filter")
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
@@ -144,7 +144,7 @@ class UnifiedFilterRequest(BaseModel):
     filter_mode: str = Field(..., description="Filter mode: 'selected' or 'all'")
     
     # Common fields
-    refined_question: str = Field(..., description="Refined research question for context")
+    evidence_specification: str = Field(..., description="Evidence specification for context")
     search_query: str = Field(..., description="Boolean search query")
     strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")

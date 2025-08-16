@@ -315,7 +315,7 @@ async def generate_semantic_discriminator(
         # Generate discriminator
         service = SmartSearchService()
         discriminator_prompt = await service.generate_semantic_discriminator(
-            refined_question=request.refined_question,
+            refined_question=request.evidence_specification,
             search_query=request.search_query,
             strictness=request.strictness
         )
@@ -330,7 +330,7 @@ async def generate_semantic_discriminator(
         )
         
         response = DiscriminatorGenerationResponse(
-            refined_question=request.refined_question,
+            evidence_specification=request.evidence_specification,
             search_query=request.search_query,
             strictness=request.strictness,
             discriminator_prompt=discriminator_prompt,
@@ -414,7 +414,7 @@ async def filter_unified_stream(
         async def generate():
             async for message in create_filtering_stream(
                 articles=articles_to_filter,
-                refined_question=request.refined_question,
+                refined_question=request.evidence_specification,
                 search_query=request.search_query,
                 strictness=request.strictness,
                 actual_discriminator=request.discriminator_prompt,
@@ -505,7 +505,7 @@ async def filter_parallel(
         start_time = datetime.utcnow()
         filtered_articles, token_usage = await service.filter_articles_parallel(
             articles=articles_to_filter,
-            refined_question=request.refined_question,
+            refined_question=request.evidence_specification,
             search_query=request.search_query,
             strictness=request.strictness,
             custom_discriminator=request.discriminator_prompt
@@ -600,7 +600,7 @@ async def filter_articles_stream(
         async def generate():
             async for message in create_filtering_stream(
                 articles=request.articles,
-                refined_question=request.refined_question,
+                refined_question=request.evidence_specification,
                 search_query=request.search_query,
                 strictness=request.strictness,
                 actual_discriminator=actual_discriminator,
@@ -686,7 +686,7 @@ async def filter_all_search_results_stream(
         async def generate():
             async for message in create_filtering_stream(
                 articles=search_results.articles,
-                refined_question=request.refined_question,
+                refined_question=request.evidence_specification,
                 search_query=request.search_query,
                 strictness=request.strictness,
                 actual_discriminator=actual_discriminator,

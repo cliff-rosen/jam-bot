@@ -6,6 +6,8 @@ interface AuthContextType {
     isAuthenticated: boolean
     user: { id: string; username: string; email: string; role: string } | null
     login: any
+    loginWithToken: any
+    requestLoginToken: any
     register: any
     logout: () => void
     error: string | null
@@ -67,6 +69,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [])
 
+    const handleAuthSuccess = (data: any) => {
+        setError(null)
+        localStorage.setItem('authToken', data.access_token)
+        localStorage.setItem('user', JSON.stringify({
+            id: data.user_id,
+            username: data.username,
+            email: data.email,
+            role: data.role
+        }))
+        setUser({
+            id: data.user_id,
+            username: data.username,
+            email: data.email,
+            role: data.role
+        })
+
+        // Set session information directly from login response
+        setSessionId(data.session_id)
+        setSessionName(data.session_name)
+        setChatId(data.chat_id)
+        setMissionId(data.mission_id)
+        setSessionMetadata(data.session_metadata || {})
+
+        // Save session data to localStorage
+        localStorage.setItem('sessionData', JSON.stringify({
+            sessionId: data.session_id,
+            sessionName: data.session_name,
+            chatId: data.chat_id,
+            missionId: data.mission_id,
+            sessionMetadata: data.session_metadata || {}
+        }))
+
+        setIsAuthenticated(true)
+    }
+
     const fetchActiveSession = async () => {
         try {
             const response = await api.get('/api/sessions/active')
@@ -122,39 +159,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
         },
-        onSuccess: async (data) => {
+        onSuccess: handleAuthSuccess,
+        onError: (error: Error) => {
+            setError(error.message)
+        }
+    })
+
+    const loginWithToken = useMutation({
+        mutationFn: async (token: string) => {
+            try {
+                const params = new URLSearchParams()
+                params.append('token', token)
+                
+                const response = await api.post('/api/auth/login-with-token', params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                })
+                
+                return response.data
+            } catch (error: any) {
+                if (error.response) {
+                    const errorMessage = error.response.data?.detail ||
+                        error.response.data?.message ||
+                        error.response.data ||
+                        'Token login failed'
+                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
+                } else if (error.request) {
+                    throw new Error('No response from server. Please try again.')
+                } else {
+                    throw new Error(error.message || 'Token login failed. Please try again.')
+                }
+            }
+        },
+        onSuccess: handleAuthSuccess,
+        onError: (error: Error) => {
+            setError(error.message)
+        }
+    })
+
+    const requestLoginToken = useMutation({
+        mutationFn: async (email: string) => {
+            try {
+                const params = new URLSearchParams()
+                params.append('email', email)
+                
+                const response = await api.post('/api/auth/request-login-token', params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                })
+                
+                return response.data
+            } catch (error: any) {
+                if (error.response) {
+                    const errorMessage = error.response.data?.detail ||
+                        error.response.data?.message ||
+                        error.response.data ||
+                        'Failed to send login token'
+                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
+                } else if (error.request) {
+                    throw new Error('No response from server. Please try again.')
+                } else {
+                    throw new Error(error.message || 'Failed to send login token. Please try again.')
+                }
+            }
+        },
+        onSuccess: () => {
             setError(null)
-            localStorage.setItem('authToken', data.access_token)
-            localStorage.setItem('user', JSON.stringify({
-                id: data.user_id,
-                username: data.username,
-                email: data.email,
-                role: data.role
-            }))
-            setUser({
-                id: data.user_id,
-                username: data.username,
-                email: data.email,
-                role: data.role
-            })
-
-            // Set session information directly from login response
-            setSessionId(data.session_id)
-            setSessionName(data.session_name)
-            setChatId(data.chat_id)
-            setMissionId(data.mission_id)
-            setSessionMetadata(data.session_metadata || {})
-
-            // Save session data to localStorage
-            localStorage.setItem('sessionData', JSON.stringify({
-                sessionId: data.session_id,
-                sessionName: data.session_name,
-                chatId: data.chat_id,
-                missionId: data.mission_id,
-                sessionMetadata: data.session_metadata || {}
-            }))
-
-            setIsAuthenticated(true)
         },
         onError: (error: Error) => {
             setError(error.message)
@@ -279,6 +351,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isAuthenticated,
             user,
             login,
+            loginWithToken,
+            requestLoginToken,
             register,
             logout,
             error,

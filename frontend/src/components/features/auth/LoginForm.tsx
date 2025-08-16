@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { UseMutationResult, useMutation } from '@tanstack/react-query';
+import { UseMutationResult } from '@tanstack/react-query';
 import settings from '@/config/settings';
-import { api } from '@/lib/api/index';
+import { useAuth } from '@/context/AuthContext';
 
 interface LoginFormProps {
     isRegistering: boolean;
@@ -12,6 +12,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ isRegistering, setIsRegistering, login, register, error }: LoginFormProps) {
+    const { requestLoginToken } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -20,28 +21,6 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
     const [passwordError, setPasswordError] = useState<string | null>(null);
     const [isPasswordlessMode, setIsPasswordlessMode] = useState(false);
     const [tokenSent, setTokenSent] = useState(false);
-
-    // Mutation for requesting login token
-    const requestToken = useMutation({
-        mutationFn: async (email: string) => {
-            const params = new URLSearchParams();
-            params.append('email', email);
-            
-            const response = await api.post('/api/auth/request-login-token', params, {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            });
-            
-            return response.data;
-        },
-        onSuccess: () => {
-            setTokenSent(true);
-        },
-        onError: (error: any) => {
-            console.error('Token request failed:', error);
-        }
-    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,8 +46,12 @@ export default function LoginForm({ isRegistering, setIsRegistering, login, regi
                 }
             );
         } else if (isPasswordlessMode) {
-            // Request login token
-            requestToken.mutate(formData.email);
+            // Request login token using AuthContext
+            requestLoginToken.mutate(formData.email, {
+                onSuccess: () => {
+                    setTokenSent(true);
+                }
+            });
         } else {
             // Regular login
             login.mutate({ username: formData.email, password: formData.password });

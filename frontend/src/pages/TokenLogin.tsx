@@ -1,77 +1,37 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../lib/api/index';
 import settings from '../config/settings';
 
 export default function TokenLogin() {
     const [searchParams] = useSearchParams();
-    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const { isAuthenticated, loginWithToken, error } = useAuth();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-    const [errorMessage, setErrorMessage] = useState<string>('');
     
     const token = searchParams.get('token');
-
-    const loginWithToken = useMutation({
-        mutationFn: async (loginToken: string) => {
-            const params = new URLSearchParams();
-            params.append('token', loginToken);
-            
-            const response = await api.post('/api/auth/login-with-token', params, {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            });
-            
-            return response.data;
-        },
-        onSuccess: (data) => {
-            // Store auth data in localStorage (same as regular login)
-            localStorage.setItem('authToken', data.access_token);
-            localStorage.setItem('user', JSON.stringify({
-                id: data.user_id,
-                username: data.username,
-                email: data.email,
-                role: data.role
-            }));
-            
-            // Store session data
-            localStorage.setItem('sessionData', JSON.stringify({
-                sessionId: data.session_id,
-                sessionName: data.session_name,
-                chatId: data.chat_id,
-                missionId: data.mission_id,
-                sessionMetadata: data.session_metadata || {}
-            }));
-            
-            setStatus('success');
-            
-            // Redirect after a brief delay
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
-        },
-        onError: (error: any) => {
-            setStatus('error');
-            setErrorMessage(
-                error.response?.data?.detail || 
-                error.message || 
-                'Login failed. The token may be invalid or expired.'
-            );
-        }
-    });
 
     useEffect(() => {
         if (!token) {
             setStatus('error');
-            setErrorMessage('No login token provided.');
             return;
         }
 
-        // Attempt login with token
-        loginWithToken.mutate(token);
-    }, [token]);
+        // Attempt login with token using AuthContext
+        setStatus('loading');
+        loginWithToken.mutate(token, {
+            onSuccess: () => {
+                setStatus('success');
+                // Redirect after a brief delay
+                setTimeout(() => {
+                    navigate('/');
+                }, 1500);
+            },
+            onError: () => {
+                setStatus('error');
+            }
+        });
+    }, [token, loginWithToken, navigate]);
 
     // If already authenticated, redirect to home
     if (isAuthenticated) {
@@ -117,7 +77,7 @@ export default function TokenLogin() {
                 {status === 'error' && (
                     <div>
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                            {errorMessage}
+                            {!token ? 'No login token provided.' : (error || 'Login failed. The token may be invalid or expired.')}
                         </div>
                         <div className="text-center">
                             <a

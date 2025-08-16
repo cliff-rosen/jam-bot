@@ -44,10 +44,6 @@ export default function TopBar() {
                                 <TableCellsIcon className="h-5 w-5 mr-2" />
                                 Workbench
                             </NavLink>
-                            <NavLink to="/lab" className={getLinkClass('/lab')}>
-                                <BeakerIcon className="h-5 w-5 mr-2" />
-                                Lab
-                            </NavLink>
                         </>
                     )}
 
@@ -56,6 +52,11 @@ export default function TopBar() {
                         <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
                         Smart Search
                     </NavLink>
+                    <NavLink to="/lab" className={getLinkClass('/lab')}>
+                        <BeakerIcon className="h-5 w-5 mr-2" />
+                        Lab
+                    </NavLink>
+
                 </nav>
             </div>
 

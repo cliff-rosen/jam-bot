@@ -25,7 +25,6 @@ import TokenLogin from './pages/TokenLogin';
 // Inner component that uses auth context
 function AppContent() {
   const { handleSessionExpired, isAuthenticated } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
 
   // Set up session expiry handler
   useEffect(() => {
@@ -63,10 +62,7 @@ function AppContent() {
           <Route path="/auth/token-login" element={<TokenLogin />} />
           <Route path="*" element={
             <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
-              <LoginForm
-                isRegistering={isRegistering}
-                setIsRegistering={setIsRegistering}
-              />
+              <LoginForm />
             </div>
           } />
         </Routes>

@@ -2,12 +2,7 @@ import { useState } from 'react';
 import settings from '@/config/settings';
 import { useAuth } from '@/context/AuthContext';
 
-interface LoginFormProps {
-    isRegistering: boolean;
-    setIsRegistering: (value: boolean) => void;
-}
-
-export default function LoginForm({ isRegistering, setIsRegistering }: LoginFormProps) {
+export default function LoginForm() {
     const { 
         login, 
         register, 
@@ -17,6 +12,9 @@ export default function LoginForm({ isRegistering, setIsRegistering }: LoginForm
         isTokenRequestLoading, 
         error 
     } = useAuth();
+    
+    // Local state - now managed within LoginForm
+    const [isRegistering, setIsRegistering] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
         password: '',

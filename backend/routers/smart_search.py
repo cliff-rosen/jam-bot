@@ -821,7 +821,7 @@ async def filter_all_search_results_stream(
                 refined_question=request.evidence_specification,
                 search_query=request.search_query,
                 strictness=request.strictness,
-                actual_discriminator=actual_discriminator,
+                actual_discriminator=request.discriminator_prompt,
                 session_id=session.id,
                 user_id=current_user.user_id,
                 db=db

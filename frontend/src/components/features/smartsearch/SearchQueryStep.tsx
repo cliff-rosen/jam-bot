@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Target, AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
   initial_query: string;
@@ -21,7 +21,9 @@ interface SearchQueryStepProps {
   sessionId: string;
   onSubmit: () => void;
   onOptimize: (evidenceSpec: string, sessionId: string) => Promise<OptimizationResult>;
+  onTestCount: (query: string, sessionId: string) => Promise<{total_count: number; sources_searched: string[]}>;
   loading: boolean;
+  initialCount?: {total_count: number; sources_searched: string[]} | null;
 }
 
 export function SearchQueryStep({
@@ -31,11 +33,40 @@ export function SearchQueryStep({
   sessionId,
   onSubmit,
   onOptimize,
-  loading
+  onTestCount,
+  loading,
+  initialCount
 }: SearchQueryStepProps) {
   const [optimization, setOptimization] = useState<OptimizationResult | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showOptimization, setShowOptimization] = useState(false);
+  const [queryCount, setQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
+  const [isTestingCount, setIsTestingCount] = useState(false);
+  const [hasTestedQuery, setHasTestedQuery] = useState(false);
+  
+  // Set initial count when component loads
+  useEffect(() => {
+    if (initialCount) {
+      setQueryCount(initialCount);
+      setHasTestedQuery(true);
+    }
+  }, [initialCount]);
+  
+  // Test current query count
+  const handleTestQuery = async () => {
+    setIsTestingCount(true);
+    try {
+      const result = await onTestCount(editedSearchQuery, sessionId);
+      setQueryCount(result);
+      setHasTestedQuery(true);
+    } catch (error) {
+      console.error('Query count test failed:', error);
+    } finally {
+      setIsTestingCount(false);
+    }
+  };
+
+  // Optimize query to reduce volume
   const handleOptimize = async () => {
     setIsOptimizing(true);
     try {
@@ -43,11 +74,23 @@ export function SearchQueryStep({
       setOptimization(result);
       setEditedSearchQuery(result.final_query);
       setShowOptimization(true);
+      // Test the optimized query count
+      const countResult = await onTestCount(result.final_query, sessionId);
+      setQueryCount(countResult);
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
       setIsOptimizing(false);
     }
+  };
+
+  // Reset to retest after manual edits
+  const handleQueryChange = (newQuery: string) => {
+    setEditedSearchQuery(newQuery);
+    setHasTestedQuery(false);
+    setQueryCount(null);
+    setOptimization(null);
+    setShowOptimization(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -70,32 +113,81 @@ export function SearchQueryStep({
 
   return (
     <Card className="p-6 dark:bg-gray-800">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-          Search Keywords
-        </h2>
-        
-        <Button
-          onClick={handleOptimize}
-          disabled={isOptimizing || loading}
-          variant="outline"
-          size="sm"
-          className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
-        >
-          {isOptimizing ? (
-            <>
-              <div className="animate-spin mr-2 h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full" />
-              Optimizing...
-            </>
-          ) : (
-            <>
-              <Target className="w-4 h-4 mr-2" />
-              Optimize for Volume
-            </>
-          )}
-        </Button>
-      </div>
+      <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
+        Search Keywords
+      </h2>
 
+      {/* Query Count Results */}
+      {hasTestedQuery && queryCount && (
+        <div className={`mb-6 p-4 rounded-lg border ${
+          queryCount.total_count > 250 
+            ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+            : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+        }`}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className={queryCount.total_count > 250 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}>
+              {queryCount.total_count > 250 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+            </div>
+            <h3 className={`font-medium ${
+              queryCount.total_count > 250 
+                ? 'text-amber-900 dark:text-amber-100' 
+                : 'text-green-900 dark:text-green-100'
+            }`}>
+              Search Results Preview
+            </h3>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <Badge 
+                variant={queryCount.total_count <= 250 ? "default" : "destructive"} 
+                className="text-sm"
+              >
+                {queryCount.total_count.toLocaleString()} results found
+              </Badge>
+              <p className={`text-xs mt-1 ${
+                queryCount.total_count > 250 
+                  ? 'text-amber-700 dark:text-amber-300' 
+                  : 'text-green-700 dark:text-green-300'
+              }`}>
+                Sources: {queryCount.sources_searched.join(', ')}
+              </p>
+            </div>
+            
+            {queryCount.total_count > 250 && (
+              <Button
+                onClick={handleOptimize}
+                disabled={isOptimizing}
+                variant="outline"
+                size="sm"
+                className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"
+              >
+                {isOptimizing ? (
+                  <>
+                    <div className="animate-spin mr-2 h-3 w-3 border-2 border-amber-500 border-t-transparent rounded-full" />
+                    Optimizing...
+                  </>
+                ) : (
+                  <>
+                    <TrendingDown className="w-4 h-4 mr-2" />
+                    Optimize to Reduce Volume
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          
+          {queryCount.total_count > 250 && (
+            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-700">
+              <p className="text-amber-800 dark:text-amber-200 text-sm">
+                ⚠️ <strong>Large result set detected.</strong> Consider optimizing for better filtering performance.
+                Target: &lt;250 results for optimal semantic filtering.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Optimization Results */}
       {showOptimization && optimization && (
         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
@@ -104,40 +196,32 @@ export function SearchQueryStep({
               {getStatusIcon(optimization.refinement_status)}
             </div>
             <h3 className="font-medium text-blue-900 dark:text-blue-100">
-              Query Optimization Results
+              Optimization Applied
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-blue-800 dark:text-blue-200">Initial Query:</span>
-              <p className="text-blue-700 dark:text-blue-300 font-mono text-xs mt-1 p-2 bg-blue-100 dark:bg-blue-800 rounded">
-                {optimization.initial_query}
-              </p>
-              <Badge variant="outline" className="mt-1 text-xs">
-                {optimization.initial_count.toLocaleString()} results
-              </Badge>
+          <div className="text-sm">
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div className="text-center">
+                <p className="text-blue-700 dark:text-blue-300 font-medium">Before</p>
+                <Badge variant="destructive" className="text-xs">
+                  {optimization.initial_count.toLocaleString()} results
+                </Badge>
+              </div>
+              <div className="text-center">
+                <p className="text-blue-700 dark:text-blue-300 font-medium">After</p>
+                <Badge variant={optimization.final_count <= 250 ? "default" : "destructive"} className="text-xs">
+                  {optimization.final_count.toLocaleString()} results
+                </Badge>
+              </div>
             </div>
             
-            <div>
-              <span className="font-medium text-blue-800 dark:text-blue-200">Optimized Query:</span>
-              <p className="text-blue-700 dark:text-blue-300 font-mono text-xs mt-1 p-2 bg-blue-100 dark:bg-blue-800 rounded">
-                {optimization.final_query}
+            <div className="pt-3 border-t border-blue-200 dark:border-blue-700">
+              <span className="font-medium text-blue-800 dark:text-blue-200 text-sm">Applied:</span>
+              <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
+                {optimization.refinement_applied}
               </p>
-              <Badge 
-                variant={optimization.final_count <= 250 ? "default" : "destructive"} 
-                className="mt-1 text-xs"
-              >
-                {optimization.final_count.toLocaleString()} results {optimization.final_count <= 250 ? '✓' : '⚠️'}
-              </Badge>
             </div>
-          </div>
-          
-          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-            <span className="font-medium text-blue-800 dark:text-blue-200 text-sm">Refinements Applied:</span>
-            <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
-              {optimization.refinement_applied}
-            </p>
           </div>
         </div>
       )}
@@ -149,7 +233,7 @@ export function SearchQueryStep({
           </label>
           <Textarea
             value={editedSearchQuery}
-            onChange={(e) => setEditedSearchQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             rows={3}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
             placeholder="(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)"
@@ -159,23 +243,63 @@ export function SearchQueryStep({
           </p>
         </div>
         
-        <Button
-          onClick={onSubmit}
-          disabled={loading || !editedSearchQuery.trim()}
-          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Searching...
-            </>
+        <div className="flex gap-3">
+          {!hasTestedQuery ? (
+            <Button
+              onClick={handleTestQuery}
+              disabled={isTestingCount || !editedSearchQuery.trim()}
+              variant="outline"
+              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
+            >
+              {isTestingCount ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <Target className="w-4 h-4 mr-2" />
+                  Test Query Volume
+                </>
+              )}
+            </Button>
           ) : (
-            <>
-              <Search className="w-4 h-4 mr-2" />
-              Search Articles
-            </>
+            <Button
+              onClick={handleTestQuery}
+              disabled={isTestingCount}
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 dark:text-gray-400"
+            >
+              {isTestingCount ? (
+                <>
+                  <div className="animate-spin mr-2 h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full" />
+                  Retesting...
+                </>
+              ) : (
+                'Retest Query'
+              )}
+            </Button>
           )}
-        </Button>
+          
+          <Button
+            onClick={onSubmit}
+            disabled={loading || !editedSearchQuery.trim()}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Search Articles
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Card>
   );

@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Search, Filter, FileSearch, Database, Download, Copy, ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Download, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useState } from 'react';
 import type { FilteredArticle } from '@/types/smart-search';
@@ -13,7 +13,6 @@ interface ResultsStepProps {
   evidenceSpecification?: string;
   searchQuery?: string;
   totalAvailable?: number;
-  totalRetrieved?: number;
   totalFiltered?: number;
 }
 
@@ -23,7 +22,6 @@ export function ResultsStep({
   evidenceSpecification,
   searchQuery,
   totalAvailable,
-  totalRetrieved,
   totalFiltered
 }: ResultsStepProps) {
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);

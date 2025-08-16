@@ -43,6 +43,7 @@ export default function SmartSearchLab() {
   const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
+  const [initialQueryCount, setInitialQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
 
   // Step 4: Search results and curation
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
@@ -106,6 +107,24 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Test query count without retrieving articles
+  const handleTestQueryCount = async (query: string, sessionId: string) => {
+    try {
+      const response = await smartSearchApi.testQueryCount({
+        search_query: query,
+        session_id: sessionId
+      });
+      
+      return {
+        total_count: response.total_count,
+        sources_searched: response.sources_searched
+      };
+    } catch (error) {
+      console.error('Query count test failed:', error);
+      throw error;
+    }
+  };
+
   // Handle query optimization for volume control
   const handleOptimizeQuery = async (evidenceSpecification: string, sessionId: string) => {
     try {
@@ -148,12 +167,35 @@ export default function SmartSearchLab() {
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
-      setStep('search-query');
+      
+      // Automatically test the generated query count
+      try {
+        const countResult = await handleTestQueryCount(response.search_query, sessionId!);
+        setInitialQueryCount(countResult);
+        setStep('search-query');
 
-      toast({
-        title: 'Keywords Generated',
-        description: 'Review and edit the search keywords'
-      });
+        if (countResult.total_count > 250) {
+          toast({
+            title: 'Keywords Generated',
+            description: `Query generated ${countResult.total_count.toLocaleString()} results. Consider optimizing for better performance.`,
+            variant: 'default'
+          });
+        } else {
+          toast({
+            title: 'Keywords Generated',
+            description: `Query generated ${countResult.total_count.toLocaleString()} results. Ready to search!`
+          });
+        }
+      } catch (countError) {
+        // If count test fails, still proceed to search-query step
+        setInitialQueryCount(null);
+        setStep('search-query');
+        toast({
+          title: 'Keywords Generated',
+          description: 'Review and test the search keywords'
+        });
+      }
+
     } catch (error) {
       toast({
         title: 'Keyword Generation Failed',
@@ -447,6 +489,7 @@ export default function SmartSearchLab() {
     if (targetIndex < stepOrder.indexOf('search-query')) {
       setSearchQueryGeneration(null);
       setEditedSearchQuery('');
+      setInitialQueryCount(null);
     }
     if (targetIndex < stepOrder.indexOf('search-results')) {
       setSearchResults(null);
@@ -514,6 +557,7 @@ export default function SmartSearchLab() {
     setEvidenceSpec('');
     setSearchQueryGeneration(null);
     setEditedSearchQuery('');
+    setInitialQueryCount(null);
     setSearchResults(null);
     setSelectedArticles(new Set());
     setDiscriminatorData(null);
@@ -635,7 +679,9 @@ export default function SmartSearchLab() {
               sessionId={sessionId!}
               onSubmit={handleExecuteSearch}
               onOptimize={handleOptimizeQuery}
+              onTestCount={handleTestQueryCount}
               loading={searchLoading}
+              initialCount={initialQueryCount}
             />
           )}
 
@@ -688,7 +734,6 @@ export default function SmartSearchLab() {
               evidenceSpecification={evidenceSpec}
               searchQuery={editedSearchQuery}
               totalAvailable={searchResults?.pagination.total_available}
-              totalRetrieved={searchResults?.articles.length}
               totalFiltered={wasFilterAllMode ? Math.min(searchResults?.pagination.total_available || 0, 500) : selectedArticles.size}
             />
           )}

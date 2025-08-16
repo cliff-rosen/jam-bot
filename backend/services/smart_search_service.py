@@ -258,7 +258,6 @@ CRITICAL REQUIREMENTS:
 3. Choose the MOST RESTRICTIVE reasonable filter from the evidence specification that will not produce excessive type II errors
 4. Prefer single terms or small 2-3 term OR groups, NOT large OR lists
 5. Focus on the most specific, distinctive aspect that will actually filter results.
-6. The current query returns {current_count:,} results, so we need to reduce this to under {target_max}.
 
 EFFECTIVE STRATEGIES (choose ONE):
 - Study design: AND "randomized controlled trial" OR AND longitudinal OR AND "systematic review"

@@ -7,8 +7,8 @@ import type { FilteredArticle } from '@/types/smart-search';
 
 interface ResultsStepProps {
   filteredArticles: FilteredArticle[];
-  originalQuestion?: string;
-  refinedQuestion?: string;
+  originalQuery?: string;
+  evidenceSpecification?: string;
   searchQuery?: string;
   totalAvailable?: number;
   totalRetrieved?: number;
@@ -17,8 +17,8 @@ interface ResultsStepProps {
 
 export function ResultsStep({ 
   filteredArticles,
-  originalQuestion,
-  refinedQuestion,
+  originalQuery,
+  evidenceSpecification,
   searchQuery,
   totalAvailable,
   totalRetrieved,
@@ -102,25 +102,25 @@ export function ResultsStep({
 
         <div className="space-y-4">
           {/* Original Question */}
-          {originalQuestion && (
+          {originalQuery && (
             <div>
               <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Your Question
+                Your Query
               </h3>
               <p className="text-sm text-gray-700 dark:text-gray-300 italic">
-                "{originalQuestion}"
+                "{originalQuery}"
               </p>
             </div>
           )}
 
           {/* Refined Question */}
-          {refinedQuestion && refinedQuestion !== originalQuestion && (
+          {evidenceSpecification && evidenceSpecification !== originalQuery && (
             <div>
               <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Refined Question
+                Evidence Specification
               </h3>
               <p className="text-sm text-gray-700 dark:text-gray-300 italic">
-                "{refinedQuestion}"
+                "{evidenceSpecification}"
               </p>
             </div>
           )}

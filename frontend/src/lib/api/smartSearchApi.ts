@@ -14,14 +14,14 @@ import type {
   StreamMessage
 } from '@/types/smart-search';
 
-export interface SmartSearchRequest {
-  question: string;
+export interface EvidenceSpecificationRequest {
+  query: string;
   max_results?: number;
   session_id?: string;
 }
 
-export interface SearchQueryRequest {
-  refined_question: string;
+export interface KeywordGenerationRequest {
+  evidence_specification: string;
   session_id: string;
 }
 
@@ -34,7 +34,7 @@ export interface ArticleSearchRequest {
 
 export interface SemanticFilterRequest {
   articles: any[];
-  refined_question: string;
+  evidence_specification: string;
   search_query: string;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
@@ -43,7 +43,7 @@ export interface SemanticFilterRequest {
 
 export interface FilterAllSearchResultsRequest {
   search_query: string;
-  refined_question: string;
+  evidence_specification: string;
   max_results?: number;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
@@ -52,7 +52,7 @@ export interface FilterAllSearchResultsRequest {
 
 export interface UnifiedFilterRequest {
   filter_mode: 'selected' | 'all';
-  refined_question: string;
+  evidence_specification: string;
   search_query: string;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
@@ -77,14 +77,14 @@ export interface ParallelFilterResponse {
 }
 
 export interface DiscriminatorGenerationRequest {
-  refined_question: string;
+  evidence_specification: string;
   search_query: string;
   strictness: 'low' | 'medium' | 'high';
   session_id: string;
 }
 
 export interface DiscriminatorGenerationResponse {
-  refined_question: string;
+  evidence_specification: string;
   search_query: string;
   strictness: string;
   discriminator_prompt: string;
@@ -174,18 +174,18 @@ class SmartSearchApi {
     }
   }
   /**
-   * Step 2: Refine a research question
+   * Step 2: Create evidence specification from query
    */
-  async refineQuestion(request: SmartSearchRequest): Promise<SmartSearchRefinement> {
-    const response = await api.post('/api/lab/smart-search/refine', request);
+  async createEvidenceSpecification(request: EvidenceSpecificationRequest): Promise<SmartSearchRefinement> {
+    const response = await api.post('/api/lab/smart-search/create-evidence-spec', request);
     return response.data;
   }
 
   /**
-   * Step 3: Generate boolean search query from refined question
+   * Step 3: Generate search keywords from evidence specification
    */
-  async generateSearchQuery(request: SearchQueryRequest): Promise<SearchQueryGeneration> {
-    const response = await api.post('/api/lab/smart-search/generate-query', request);
+  async generateKeywords(request: KeywordGenerationRequest): Promise<SearchQueryGeneration> {
+    const response = await api.post('/api/lab/smart-search/generate-keywords', request);
     return response.data;
   }
 

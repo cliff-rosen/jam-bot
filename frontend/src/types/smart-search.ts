@@ -3,13 +3,13 @@
  */
 
 export interface SmartSearchRefinement {
-  original_question: string;
-  refined_question: string;
+  original_query: string;
+  evidence_specification: string;
   session_id: string;
 }
 
 export interface SearchQueryGeneration {
-  refined_question: string;
+  evidence_specification: string;
   search_query: string;
   session_id: string;
 }

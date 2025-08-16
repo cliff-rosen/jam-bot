@@ -34,46 +34,47 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
         
-    async def refine_research_question(self, question: str) -> Tuple[str, LLMUsage]:
+    async def create_evidence_specification(self, query: str) -> Tuple[str, LLMUsage]:
         """
-        Step 2: Refine/improve the user's research question using LLM
+        Step 2: Create evidence specification from user's query using LLM
         """
-        logger.info(f"Step 2 - Refining question: {question[:100]}...")
+        logger.info(f"Step 2 - Creating evidence specification from: {query[:100]}...")
         
-        # Create prompt for research question refinement
-        system_prompt = """You are a research question refinement expert. Your task is to take a user's research question and make it clearer and more searchable, but keep it simple.
+        # Create prompt for evidence specification
+        system_prompt = """You are an evidence specification expert. Your task is to convert a user's search query into a clear specification for finding relevant documents. 
+
+The goal is to create a specification that starts with "Find articles that..." and clearly describes what evidence or documents are needed.
 
 GUIDELINES:
-- Fix any unclear or vague language
-- Use standard scientific/medical terminology where appropriate
-- Keep the question concise and focused
-- If the question is already clear, make minimal changes
+- Always start with "Find articles that..."
+- Focus on what documents/evidence are needed, not questions to answer
+- Use clear, specific language about document types and content
 - Preserve the user's original intent and scope
-- Do NOT add unnecessary complexity or jargon
-- Do NOT expand the scope beyond what the user asked
+- Use standard scientific/medical terminology where appropriate
+- Be concise but specific
 
 EXAMPLES:
 Original: "effects of exercise on health"
-Refined: "What are the health effects of exercise?"
+Evidence Spec: "Find articles that examine the health effects of physical exercise"
 
 Original: "How does AI help doctors?"
-Refined: "How does artificial intelligence assist in clinical practice?"
+Evidence Spec: "Find articles that discuss artificial intelligence applications in clinical practice"
 
 Original: "cancer treatment effectiveness"
-Refined: "What is the effectiveness of cancer treatments?"
+Evidence Spec: "Find articles that evaluate the effectiveness of cancer treatment methods"
 
-Original: "What are the molecular mechanisms of diabetes-induced neuropathy in diabetic patients?"
-Refined: "What are the molecular mechanisms of diabetic neuropathy?" (simpler, removes redundancy)
+Original: "CRISPR gene editing safety"
+Evidence Spec: "Find articles that assess the safety profile of CRISPR gene editing technologies"
 
-Respond in JSON format with the refined question in the "refined_question" field."""
+Respond in JSON format with the evidence specification in the "evidence_specification" field."""
 
         # Object schema with refined_query field for BasePromptCaller
         response_schema = {
             "type": "object",
             "properties": {
-                "refined_question": {"type": "string"}
+                "evidence_specification": {"type": "string"}
             },
-            "required": ["refined_question"]
+            "required": ["evidence_specification"]
         }
         
         prompt_caller = BasePromptCaller(
@@ -87,7 +88,7 @@ Respond in JSON format with the refined question in the "refined_question" field
                 id="temp_id",
                 chat_id="temp_chat", 
                 role=MessageRole.USER,
-                content=f"Original research question: {question}\n\nPlease provide a more specific and searchable version of this question.",
+                content=f"User query: {query}\n\nPlease create an evidence specification that describes what documents are needed.",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -104,37 +105,47 @@ Respond in JSON format with the refined question in the "refined_question" field
             llm_usage = result.usage
             llm_result = result.result
             
-            # Extract refined_question from the Pydantic model instance
-            if hasattr(llm_result, 'refined_question'):
-                refined_question = llm_result.refined_question
-                logger.info(f"Successfully extracted refined_question: {refined_question}")
+            # Extract evidence_specification from the Pydantic model instance
+            if hasattr(llm_result, 'evidence_specification'):
+                evidence_spec = llm_result.evidence_specification
+                logger.info(f"Successfully extracted evidence_specification: {evidence_spec}")
             else:
-                logger.error(f"Result does not have 'refined_question' attribute. Type: {type(llm_result)}, value: {llm_result}")
+                logger.error(f"Result does not have 'evidence_specification' attribute. Type: {type(llm_result)}, value: {llm_result}")
                 # Try model_dump as fallback
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
-                    refined_question = response_data.get('refined_question', question)
+                    evidence_spec = response_data.get('evidence_specification', f"Find articles that {query}")
                 else:
-                    refined_question = question  # Final fallback
+                    evidence_spec = f"Find articles that {query}"  # Final fallback
                 
-            logger.info(f"Final refined question: {refined_question[:100]}...")
+            logger.info(f"Final evidence specification: {evidence_spec[:100]}...")
             logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
-            return refined_question, llm_usage
+            return evidence_spec, llm_usage
             
         except Exception as e:
             logger.error(f"Failed to refine query: {e}")
-            # Fallback: return original query with zero usage
-            return question, LLMUsage()
+            # Fallback: return evidence specification format with zero usage
+            return f"Find articles that {query}", LLMUsage()
     
+    # Legacy method for backward compatibility
+    async def refine_research_question(self, question: str) -> Tuple[str, LLMUsage]:
+        """Legacy method - redirects to create_evidence_specification"""
+        return await self.create_evidence_specification(question)
+    
+    # Legacy method for backward compatibility  
     async def generate_search_query(self, refined_question: str) -> Tuple[str, LLMUsage]:
+        """Legacy method - redirects to generate_search_keywords"""
+        return await self.generate_search_keywords(refined_question)
+    
+    async def generate_search_keywords(self, evidence_specification: str) -> Tuple[str, LLMUsage]:
         """
-        Step 3: Generate boolean search query from the REFINED query using LLM
+        Step 3: Generate boolean search query from the evidence specification using LLM
         """
-        logger.info(f"Step 3 - Generating boolean search query from refined query...")
+        logger.info(f"Step 3 - Generating search keywords from evidence specification...")
         
-        # Create prompt for search query generation
-        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert a research question into an EFFECTIVE and BALANCED search query.
+        # Create prompt for search keyword generation
+        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert an evidence specification into an EFFECTIVE and BALANCED search query.
 
 CORE PRINCIPLES:
 - Target 500-2000 relevant results (not too broad, not too narrow)
@@ -143,7 +154,7 @@ CORE PRINCIPLES:
 - Focus on the most important 2-3 concepts
 
 GUIDELINES:
-1. Identify the 2-3 CORE concepts from the research question
+1. Identify the 2-3 CORE concepts from the evidence specification
 2. For each concept, use 2-4 of the most common synonyms/variants
 3. Use AND to connect different concepts
 4. Use OR only for true synonyms within the same concept
@@ -171,7 +182,7 @@ BAD EXAMPLES (too simple):
 
 Respond in JSON format with a "search_query" field containing the boolean search string."""
 
-        user_prompt = f"""Research question: {refined_question}
+        user_prompt = f"""Evidence specification: {evidence_specification}
 
 Generate an effective boolean search query for academic databases."""
 

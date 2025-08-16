@@ -143,17 +143,17 @@ async def create_filtering_stream(
         yield f"data: {json.dumps(error_message)}\n\n"
 
 
-@router.post("/refine", response_model=SmartSearchRefinementResponse)
-async def refine_research_question(
+@router.post("/create-evidence-spec", response_model=SmartSearchRefinementResponse)
+async def create_evidence_specification(
     request: SmartSearchRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> SmartSearchRefinementResponse:
     """
-    Step 2: Refine user's research question
+    Step 2: Create evidence specification from user's query
     """
     try:
-        logger.info(f"User {current_user.user_id} refining research question: {request.question[:100]}...")
+        logger.info(f"User {current_user.user_id} creating evidence specification: {request.query[:100]}...")
         
         # Create session service
         session_service = SmartSearchSessionService(db)
@@ -161,19 +161,19 @@ async def refine_research_question(
         # Get or create session
         session = session_service.get_or_create_session(
             user_id=current_user.user_id,
-            original_question=request.question,
+            original_question=request.query,
             session_id=request.session_id
         )
         
-        # Refine the question
+        # Create evidence specification
         service = SmartSearchService()
-        refined_question, usage = await service.refine_research_question(request.question)
+        evidence_spec, usage = await service.create_evidence_specification(request.query)
         
-        # Update session with refinement results
+        # Update session with evidence specification results
         session_service.update_refinement_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            refined_question=refined_question,
+            refined_question=evidence_spec,
             submitted_refined_question=None,  # Will be set when user actually submits in next step
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
@@ -181,30 +181,30 @@ async def refine_research_question(
         )
         
         response = SmartSearchRefinementResponse(
-            original_question=request.question,
-            refined_question=refined_question,
+            original_query=request.query,
+            evidence_specification=evidence_spec,
             session_id=session.id
         )
         
-        logger.info(f"Query refinement completed for user {current_user.user_id}, session {session.id}")
+        logger.info(f"Evidence specification completed for user {current_user.user_id}, session {session.id}")
         return response
         
     except Exception as e:
         logger.error(f"Query refinement failed for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Query refinement failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Evidence specification failed: {str(e)}")
 
 
-@router.post("/generate-query", response_model=SearchQueryResponse)
-async def generate_search_query(
+@router.post("/generate-keywords", response_model=SearchQueryResponse)
+async def generate_keywords(
     request: SearchQueryRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> SearchQueryResponse:
     """
-    Step 3: Generate boolean search query from refined question
+    Step 3: Generate search keywords from evidence specification
     """
     try:
-        logger.info(f"User {current_user.user_id} generating search query from: {request.refined_question[:100]}...")
+        logger.info(f"User {current_user.user_id} generating keywords from: {request.evidence_specification[:100]}...")
         
         # Create session service
         session_service = SmartSearchSessionService(db)
@@ -214,29 +214,29 @@ async def generate_search_query(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Generate search query
+        # Generate search keywords
         service = SmartSearchService()
-        search_query, usage = await service.generate_search_query(request.refined_question)
+        search_query, usage = await service.generate_search_keywords(request.evidence_specification)
         
-        # Update session - this is when user actually submits their refined question
+        # Update session - this is when user actually submits their evidence specification
         session_service.update_search_query_step(
             session_id=session.id,
             user_id=current_user.user_id,
             generated_search_query=search_query,
             submitted_search_query=None,  # Will be set when user actually executes search
-            submitted_refined_question=request.refined_question,  # What user actually submitted
+            submitted_refined_question=request.evidence_specification,  # What user actually submitted
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
             total_tokens=usage.total_tokens
         )
         
         response = SearchQueryResponse(
-            refined_question=request.refined_question,
+            evidence_specification=request.evidence_specification,
             search_query=search_query,
             session_id=session.id
         )
         
-        logger.info(f"Search query generation completed for user {current_user.user_id}, session {session.id}")
+        logger.info(f"Keyword generation completed for user {current_user.user_id}, session {session.id}")
         return response
         
     except Exception as e:

@@ -6,29 +6,29 @@ import type { SmartSearchRefinement } from '@/types/smart-search';
 
 interface RefinementStepProps {
   refinement: SmartSearchRefinement;
-  editedQuestion: string;
-  setEditedQuestion: (question: string) => void;
+  evidenceSpec: string;
+  setEvidenceSpec: (spec: string) => void;
   onSubmit: () => void;
   loading: boolean;
 }
 
 export function RefinementStep({ 
   refinement, 
-  editedQuestion, 
-  setEditedQuestion, 
+  evidenceSpec, 
+  setEvidenceSpec, 
   onSubmit, 
   loading 
 }: RefinementStepProps) {
   return (
     <Card className="p-6 dark:bg-gray-800">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Review Refined Question
+        Review Evidence Specification
       </h2>
 
       <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
         <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Step Completed:</h3>
         <p className="text-sm text-blue-800 dark:text-blue-200">
-          ✓ Original question refined for clarity and specificity
+          ✓ Evidence specification created from your query
         </p>
       </div>
 
@@ -36,19 +36,19 @@ export function RefinementStep({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Original Question
+              Original Query
             </label>
             <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm text-gray-900 dark:text-gray-100">
-              {refinement.original_question}
+              {refinement.original_query}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Refined Question (Step 2 Output)
+              Evidence Specification
             </label>
             <Textarea
-              value={editedQuestion}
-              onChange={(e) => setEditedQuestion(e.target.value)}
+              value={evidenceSpec}
+              onChange={(e) => setEvidenceSpec(e.target.value)}
               rows={3}
               className="dark:bg-gray-700 dark:text-gray-100 text-sm"
             />
@@ -57,7 +57,7 @@ export function RefinementStep({
 
         <Button
           onClick={onSubmit}
-          disabled={loading || !editedQuestion.trim()}
+          disabled={loading || !evidenceSpec.trim()}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           {loading ? (
@@ -68,7 +68,7 @@ export function RefinementStep({
           ) : (
             <>
               <Search className="w-4 h-4 mr-2" />
-              Generate Search Query
+              Generate Keywords
             </>
           )}
         </Button>

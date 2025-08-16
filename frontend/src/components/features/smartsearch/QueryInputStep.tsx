@@ -4,40 +4,40 @@ import { Card } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 
 interface QueryInputStepProps {
-  question: string;
-  setQuestion: (question: string) => void;
+  query: string;
+  setQuery: (query: string) => void;
   onSubmit: () => void;
   loading: boolean;
 }
 
-export function QueryInputStep({ question, setQuestion, onSubmit, loading }: QueryInputStepProps) {
+export function QueryInputStep({ query, setQuery, onSubmit, loading }: QueryInputStepProps) {
   return (
     <Card className="p-6 dark:bg-gray-800">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-        Enter Your Research Question
+        What Documents Are You Looking For?
       </h2>
       <div className="space-y-4">
         <Textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="e.g., What are the effects of CRISPR gene editing on cancer treatment outcomes?"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="e.g., Find articles that discuss CRISPR gene editing applications in cancer treatment"
           rows={4}
           className="dark:bg-gray-700 dark:text-gray-100"
         />
         <Button
           onClick={onSubmit}
-          disabled={loading || !question.trim()}
+          disabled={loading || !query.trim()}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           {loading ? (
             <>
               <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Refining...
+              Creating Evidence Specification...
             </>
           ) : (
             <>
               <Search className="w-4 h-4 mr-2" />
-              Refine & Generate Keywords
+              Create Evidence Specification
             </>
           )}
         </Button>

@@ -31,13 +31,13 @@ export default function SmartSearchLab() {
   // Session tracking
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Step 1: Question input
-  const [question, setQuestion] = useState('');
-  const [questionLoading, setQuestionLoading] = useState(false);
+  // Step 1: Query input
+  const [query, setQuery] = useState('');
+  const [queryLoading, setQueryLoading] = useState(false);
 
-  // Step 2: Refinement
+  // Step 2: Evidence Specification
   const [refinement, setRefinement] = useState<SmartSearchRefinement | null>(null);
-  const [editedQuestion, setEditedQuestion] = useState('');
+  const [evidenceSpec, setEvidenceSpec] = useState('');
 
   // Step 3: Search Query Generation
   const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
@@ -69,49 +69,49 @@ export default function SmartSearchLab() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [filteringProgress]);
 
-  // Step 1: Submit question for refinement
-  const handleRefineQuestion = async () => {
-    if (!question.trim()) {
+  // Step 1: Submit query for evidence specification
+  const handleCreateEvidenceSpec = async () => {
+    if (!query.trim()) {
       toast({
         title: 'Error',
-        description: 'Please enter a research question',
+        description: 'Please enter your document search query',
         variant: 'destructive'
       });
       return;
     }
 
-    setQuestionLoading(true);
+    setQueryLoading(true);
     try {
-      const response = await smartSearchApi.refineQuestion({
-        question: question,
+      const response = await smartSearchApi.createEvidenceSpecification({
+        query: query,
         session_id: sessionId || undefined
       });
       setRefinement(response);
-      setEditedQuestion(response.refined_question);
+      setEvidenceSpec(response.evidence_specification);
       setSessionId(response.session_id);
       setStep('refinement');
 
       toast({
-        title: 'Question Refined',
-        description: 'Review and edit the refined question'
+        title: 'Evidence Specification Created',
+        description: 'Review and edit the evidence specification'
       });
     } catch (error) {
       toast({
-        title: 'Refinement Failed',
+        title: 'Evidence Specification Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
     } finally {
-      setQuestionLoading(false);
+      setQueryLoading(false);
     }
   };
 
-  // Step 2: Generate search query from refined question
-  const handleGenerateSearchQuery = async () => {
-    if (!editedQuestion.trim()) {
+  // Step 2: Generate search keywords from evidence specification
+  const handleGenerateKeywords = async () => {
+    if (!evidenceSpec.trim()) {
       toast({
         title: 'Error',
-        description: 'Please provide a refined question',
+        description: 'Please provide an evidence specification',
         variant: 'destructive'
       });
       return;
@@ -119,8 +119,8 @@ export default function SmartSearchLab() {
 
     setSearchQueryLoading(true);
     try {
-      const response = await smartSearchApi.generateSearchQuery({
-        refined_question: editedQuestion,
+      const response = await smartSearchApi.generateKeywords({
+        evidence_specification: evidenceSpec,
         session_id: sessionId!
       });
       setSearchQueryGeneration(response);
@@ -128,12 +128,12 @@ export default function SmartSearchLab() {
       setStep('search-query');
 
       toast({
-        title: 'Search Query Generated',
-        description: 'Review and edit the boolean search query'
+        title: 'Keywords Generated',
+        description: 'Review and edit the search keywords'
       });
     } catch (error) {
       toast({
-        title: 'Search Query Generation Failed',
+        title: 'Keyword Generation Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
@@ -147,7 +147,7 @@ export default function SmartSearchLab() {
     if (!editedSearchQuery.trim()) {
       toast({
         title: 'Error',
-        description: 'Please provide a search query',
+        description: 'Please provide search keywords',
         variant: 'destructive'
       });
       return;
@@ -166,7 +166,7 @@ export default function SmartSearchLab() {
       if (results.articles.length === 0) {
         toast({
           title: 'No Results',
-          description: 'No articles found. Try a different search query.',
+          description: 'No articles found. Try different search keywords',
           variant: 'destructive'
         });
         setStep('search-query');
@@ -249,7 +249,7 @@ export default function SmartSearchLab() {
 
     const request = {
       filter_mode: isFilterAll ? 'all' as const : 'selected' as const,
-      refined_question: editedQuestion,
+      evidence_specification: evidenceSpec,
       search_query: editedSearchQuery,
       strictness,
       discriminator_prompt: editedDiscriminator,
@@ -320,7 +320,7 @@ export default function SmartSearchLab() {
     setDiscriminatorLoading(true);
     try {
       const response = await smartSearchApi.generateDiscriminator({
-        refined_question: editedQuestion,
+        evidence_specification: evidenceSpec,
         search_query: editedSearchQuery,
         strictness: strictness,
         session_id: sessionId!
@@ -419,7 +419,7 @@ export default function SmartSearchLab() {
 
     if (targetIndex < stepOrder.indexOf('refinement')) {
       setRefinement(null);
-      setEditedQuestion('');
+      setEvidenceSpec('');
     }
     if (targetIndex < stepOrder.indexOf('search-query')) {
       setSearchQueryGeneration(null);
@@ -447,8 +447,8 @@ export default function SmartSearchLab() {
     try {
       // Map frontend step names to backend step names
       const stepMapping: Record<string, string> = {
-        'query': 'question_input',
-        'refinement': 'question_refinement',
+        'query': 'query_input',
+        'refinement': 'evidence_specification',
         'search-query': 'search_query_generation',
         'search-results': 'search_execution',
         'discriminator': 'discriminator_generation',
@@ -486,9 +486,9 @@ export default function SmartSearchLab() {
     setSessionId(null);
     setFilterAllMode(false);
     setWasFilterAllMode(false);
-    setQuestion('');
+    setQuery('');
     setRefinement(null);
-    setEditedQuestion('');
+    setEvidenceSpec('');
     setSearchQueryGeneration(null);
     setEditedSearchQuery('');
     setSearchResults(null);
@@ -509,7 +509,7 @@ export default function SmartSearchLab() {
               Smart Search Lab
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              AI-powered research article discovery with semantic filtering
+              AI-powered document discovery with semantic filtering
             </p>
           </div>
           {step !== 'query' && (
@@ -531,7 +531,7 @@ export default function SmartSearchLab() {
             className={getStepAvailability('query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('query') ? () => handleStepBack('query') : undefined}
           >
-            1. Enter Query
+            1. Enter Search Request
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
@@ -539,7 +539,7 @@ export default function SmartSearchLab() {
             className={getStepAvailability('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('refinement') ? () => handleStepBack('refinement') : undefined}
           >
-            2. Refine Query
+            2. Evidence Specification
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
@@ -547,7 +547,7 @@ export default function SmartSearchLab() {
             className={getStepAvailability('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={getStepAvailability('search-query') ? () => handleStepBack('search-query') : undefined}
           >
-            3. Generate Search Query
+            3. Generate Keywords
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
@@ -587,19 +587,19 @@ export default function SmartSearchLab() {
           {/* Step Components */}
           {step === 'query' && (
             <QueryInputStep
-              question={question}
-              setQuestion={setQuestion}
-              onSubmit={handleRefineQuestion}
-              loading={questionLoading}
+              query={query}
+              setQuery={setQuery}
+              onSubmit={handleCreateEvidenceSpec}
+              loading={queryLoading}
             />
           )}
 
           {step === 'refinement' && refinement && (
             <RefinementStep
               refinement={refinement}
-              editedQuestion={editedQuestion}
-              setEditedQuestion={setEditedQuestion}
-              onSubmit={handleGenerateSearchQuery}
+              evidenceSpec={evidenceSpec}
+              setEvidenceSpec={setEvidenceSpec}
+              onSubmit={handleGenerateKeywords}
               loading={searchQueryLoading}
             />
           )}
@@ -632,7 +632,7 @@ export default function SmartSearchLab() {
 
           {step === 'discriminator' && discriminatorData && (
             <DiscriminatorStep
-              editedQuestion={editedQuestion}
+              evidenceSpec={evidenceSpec}
               editedSearchQuery={editedSearchQuery}
               editedDiscriminator={editedDiscriminator}
               setEditedDiscriminator={setEditedDiscriminator}
@@ -658,8 +658,8 @@ export default function SmartSearchLab() {
           {step === 'results' && (
             <ResultsStep 
               filteredArticles={filteredArticles}
-              originalQuestion={question}
-              refinedQuestion={editedQuestion}
+              originalQuery={query}
+              evidenceSpecification={evidenceSpec}
               searchQuery={editedSearchQuery}
               totalAvailable={searchResults?.pagination.total_available}
               totalRetrieved={searchResults?.articles.length}

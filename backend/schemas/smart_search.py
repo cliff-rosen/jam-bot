@@ -10,27 +10,27 @@ from pydantic import BaseModel, Field
 
 class SmartSearchRequest(BaseModel):
     """Initial search request from user"""
-    question: str = Field(..., description="User's research question")
+    query: str = Field(..., description="User's document search query")
     max_results: int = Field(50, description="Maximum results to return")
     session_id: Optional[str] = Field(None, description="Optional session ID to continue existing session")
 
 
 class SmartSearchRefinementResponse(BaseModel):
-    """Response from question refinement step (Step 2)"""
-    original_question: str = Field(..., description="Original user question")
-    refined_question: str = Field(..., description="Refined, more specific question")
+    """Response from evidence specification step (Step 2)"""
+    original_query: str = Field(..., description="Original user query")
+    evidence_specification: str = Field(..., description="Evidence specification for document search")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SearchQueryRequest(BaseModel):
-    """Request to generate search query from refined question (Step 3)"""
-    refined_question: str = Field(..., description="Refined question to convert to search terms")
+    """Request to generate search keywords from evidence specification (Step 3)"""
+    evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
 class SearchQueryResponse(BaseModel):
-    """Response from search query generation (Step 3)"""
-    refined_question: str = Field(..., description="The refined question used")
+    """Response from search keyword generation (Step 3)"""
+    evidence_specification: str = Field(..., description="The evidence specification used")
     search_query: str = Field(..., description="Boolean search query for databases")
     session_id: str = Field(..., description="Session ID for tracking")
 

@@ -201,7 +201,7 @@ export function ResultsStep({
             </div>
           </CollapsibleContent>
         </Collapsible>
-
+      </Card>
 
       {acceptedArticles.length > 0 && (
         <Card className="p-6 dark:bg-gray-800">

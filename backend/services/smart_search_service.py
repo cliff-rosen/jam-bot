@@ -318,33 +318,36 @@ Generate an effective boolean search query for academic databases."""
         """
         logger.info(f"Adding targeted refinement to: {current_query[:100]}... (current: {current_count:,} → target: <{target_max})")
         
-        # Use LLM to suggest a conservative refinement
-        system_prompt = """You are a search query refinement expert. Your task is to add ONE conservative AND clause to an existing search query to reduce the number of results while minimizing the risk of excluding relevant articles (Type II errors).
+        # Use LLM to suggest a targeted refinement
+        system_prompt = """You are a search query refinement expert. Your task is to add ONE targeted AND clause to reduce search results to the target range while maintaining relevance.
 
-GUIDELINES:
-1. Look at the evidence specification to understand what the user is seeking
-2. Examine the current query to see what terms are already included
-3. Identify ONE aspect of the evidence specification that can be safely narrowed down
-4. Add a single AND clause that is highly likely to be relevant
-5. Be CONSERVATIVE - it's better to be too inclusive than to exclude relevant articles
-6. Focus on study types, populations, or methodological aspects that are clearly implied
+CRITICAL REQUIREMENTS:
+1. The current query returns too many results and MUST be reduced to the target range
+2. Add ONE specific AND clause - NOT a broad OR clause with many alternatives
+3. Choose the MOST RESTRICTIVE reasonable filter from the evidence specification that will not produce excessive type II errors
+4. Prefer single terms or small 2-3 term OR groups, NOT large OR lists
+5. Focus on the most specific, distinctive aspect that will actually filter results.
+6. The current query returns {current_count:,} results, so we need to reduce this to under {target_max}.
 
-STRATEGY:
-- If evidence spec mentions "treatment" or "therapy" → add study type filters
-- If evidence spec mentions "children" or "adults" → add population filters  
-- If evidence spec mentions "effectiveness" → add outcome measurement terms
-- If evidence spec mentions specific conditions → add condition-specific terms
+EFFECTIVE STRATEGIES (choose ONE):
+- Study design: AND "randomized controlled trial" OR AND longitudinal OR AND "systematic review"
+- Population: AND adolescent OR AND "young adult" OR AND "college student" 
+- Setting: AND clinical OR AND laboratory OR AND workplace
+- Outcome type: AND cognitive OR AND behavioral OR AND neuroimaging
+- Timeframe: AND chronic OR AND acute OR AND "long-term"
 
-EXAMPLES:
-Current: (cannabis OR marijuana) AND motivation
-Evidence: "Find articles that examine cannabis effects on motivation in clinical populations"
-Refinement: (cannabis OR marijuana) AND motivation AND (clinical OR patient OR treatment)
-Explanation: "Added clinical population focus based on evidence specification"
+BAD EXAMPLES (too broad, won't reduce results):
+❌ AND (study OR research OR analysis OR investigation OR trial OR experiment)
+❌ AND (human OR participant OR subject OR patient OR control OR experimental)
+❌ AND (outcome OR result OR effect OR impact OR change OR difference)
 
-Current: (exercise OR physical activity) AND depression  
-Evidence: "Find articles that evaluate exercise interventions for depression treatment"
-Refinement: (exercise OR physical activity) AND depression AND (intervention OR treatment OR therapy)
-Explanation: "Added intervention focus to target treatment studies"
+GOOD EXAMPLES (specific, will actually filter):
+✅ AND "randomized controlled trial"
+✅ AND adolescent  
+✅ AND cognitive
+✅ AND (fMRI OR neuroimaging)
+
+The goal is meaningful reduction in result count, not just adding more terms.
 
 Respond in JSON format with the refined query and explanation."""
 

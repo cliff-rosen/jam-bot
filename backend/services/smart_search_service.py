@@ -41,32 +41,20 @@ class SmartSearchService:
         logger.info(f"Step 2 - Creating evidence specification from: {query[:100]}...")
         
         # Create prompt for evidence specification
-        system_prompt = """You are an evidence specification expert. Your task is to convert a user's search query into a clear specification for finding relevant documents. 
+        system_prompt = """Convert the user's search request into a clear document specification.
 
-The goal is to create a specification that starts with "Find articles that..." and clearly describes what evidence or documents are needed.
-
-GUIDELINES:
-- Always start with "Find articles that..."
-- Focus on what documents/evidence are needed, not questions to answer
-- Use clear, specific language about document types and content
-- Preserve the user's original intent and scope
-- Use standard scientific/medical terminology where appropriate
-- Be concise but specific
+RULES:
+1. Always start with "Find articles that..."
+2. Keep it simple and direct
+3. Focus on what documents are needed, not research questions
+4. Use the user's own terms when possible
 
 EXAMPLES:
-Original: "effects of exercise on health"
-Evidence Spec: "Find articles that examine the health effects of physical exercise"
+"effects of exercise on health" → "Find articles that examine the health effects of physical exercise"
+"How does AI help doctors?" → "Find articles that discuss AI applications in clinical practice"  
+"cannabis and motivation" → "Find articles that examine cannabis effects on motivation"
 
-Original: "How does AI help doctors?"
-Evidence Spec: "Find articles that discuss artificial intelligence applications in clinical practice"
-
-Original: "cancer treatment effectiveness"
-Evidence Spec: "Find articles that evaluate the effectiveness of cancer treatment methods"
-
-Original: "CRISPR gene editing safety"
-Evidence Spec: "Find articles that assess the safety profile of CRISPR gene editing technologies"
-
-Respond in JSON format with the evidence specification in the "evidence_specification" field."""
+Respond in JSON format with the "evidence_specification" field."""
 
         # Object schema with refined_query field for BasePromptCaller
         response_schema = {

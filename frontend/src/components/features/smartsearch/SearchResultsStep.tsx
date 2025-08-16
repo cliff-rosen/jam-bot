@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Filter, ExternalLink, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronRight } from 'lucide-react';
 import type { SearchResults } from '@/types/smart-search';
 
 interface SearchResultsStepProps {
@@ -20,18 +20,14 @@ interface SearchResultsStepProps {
 export function SearchResultsStep({
   searchResults,
   onSubmit,
-  onSubmitAll,
   onLoadMore,
   loading,
   loadingMore
 }: SearchResultsStepProps) {
-  // Always filter all - simplified flow
+  // Proceed to discriminator generation (not directly to filtering)
   const handleProceed = () => {
-    if (onSubmitAll) {
-      onSubmitAll();
-    } else {
-      onSubmit();
-    }
+    // Always use onSubmit which should lead to discriminator generation
+    onSubmit();
   };
 
   return (
@@ -149,9 +145,8 @@ export function SearchResultsStep({
               </>
             ) : (
               <>
-                <Filter className="w-4 h-4 mr-2" />
-                Proceed to Filter
-                <ChevronRight className="w-4 h-4 ml-1" />
+                Generate Filter Criteria
+                <ChevronRight className="w-4 h-4 ml-2" />
               </>
             )}
           </Button>

@@ -45,11 +45,9 @@ export default function SmartSearchLab() {
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
   const [initialQueryCount, setInitialQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
 
-  // Step 4: Search results and curation
+  // Step 4: Search results
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
-  const [selectedArticles, setSelectedArticles] = useState<Set<number>>(new Set());
   const [searchLoading, setSearchLoading] = useState(false);
-  const [filterAllMode, setFilterAllMode] = useState(false);
 
   // Step 6: Discriminator generation and editing
   const [discriminatorData, setDiscriminatorData] = useState<any>(null);
@@ -60,7 +58,6 @@ export default function SmartSearchLab() {
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
-  const [wasFilterAllMode, setWasFilterAllMode] = useState(false); // Track if we used filter all mode
 
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -242,7 +239,6 @@ export default function SmartSearchLab() {
         });
         // Go to search results review step
         setSearchResults(results);
-        setSelectedArticles(new Set(results.articles.map((_, index) => index))); // Select all by default
         setStep('search-results');
       }
     } catch (error) {
@@ -270,10 +266,7 @@ export default function SmartSearchLab() {
   };
 
   // Handle filtering errors
-  const handleFilteringError = (error: unknown, isFilterAll: boolean) => {
-    if (isFilterAll) {
-      setFilterAllMode(false); // Reset flag on error
-    }
+  const handleFilteringError = (error: unknown) => {
     toast({
       title: 'Failed to Start Filtering',
       description: error instanceof Error ? error.message : 'Unknown error',
@@ -281,45 +274,23 @@ export default function SmartSearchLab() {
     });
   };
 
-  // Step 4: Start filtering with selected articles or all articles (based on filterAllMode)
+  // Step 4: Start filtering - always filter all articles
   const handleStartFiltering = async () => {
     if (!searchResults || !sessionId) return;
 
-    const isFilterAll = filterAllMode;
-    let articlesToProcess: number;
-    let selectedArticleList: any[] = [];
-
-    if (isFilterAll) {
-      // Filter all available search results
-      articlesToProcess = Math.min(searchResults!.pagination.total_available, 500);
-      setWasFilterAllMode(true); // Remember we used filter all mode
-    } else {
-      // Filter selected articles only
-      selectedArticleList = Array.from(selectedArticles).map(index => searchResults!.articles[index]);
-      setWasFilterAllMode(false); // Remember we used selected mode
-
-      if (selectedArticleList.length === 0) {
-        toast({
-          title: 'No Articles Selected',
-          description: 'Please select at least one article to filter.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      articlesToProcess = selectedArticleList.length;
-    }
+    // Always filter all available search results
+    const articlesToProcess = Math.min(searchResults.pagination.total_available, 500);
 
     initializeFilteringState(articlesToProcess);
 
     const request = {
-      filter_mode: isFilterAll ? 'all' as const : 'selected' as const,
+      filter_mode: 'all' as const,
       evidence_specification: evidenceSpec,
       search_query: editedSearchQuery,
       strictness,
       discriminator_prompt: editedDiscriminator,
       session_id: sessionId!,
-      ...(isFilterAll ? { max_results: articlesToProcess } : { articles: selectedArticleList })
+      max_results: articlesToProcess
     };
 
     try {
@@ -343,9 +314,6 @@ export default function SmartSearchLab() {
 
       // Complete immediately
       setStep('results');
-      if (isFilterAll) {
-        setFilterAllMode(false);
-      }
 
       toast({
         title: 'Filtering Complete',
@@ -353,30 +321,12 @@ export default function SmartSearchLab() {
       });
 
     } catch (error) {
-      handleFilteringError(error, isFilterAll);
+      handleFilteringError(error);
     }
   };
 
 
-  // Article selection helpers
-  const handleSelectAll = () => {
-    if (!searchResults) return;
-    setSelectedArticles(new Set(searchResults.articles.map((_, index) => index)));
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedArticles(new Set());
-  };
-
-  const handleToggleArticle = (index: number) => {
-    const newSelected = new Set(selectedArticles);
-    if (newSelected.has(index)) {
-      newSelected.delete(index);
-    } else {
-      newSelected.add(index);
-    }
-    setSelectedArticles(newSelected);
-  };
+  // Removed article selection helpers - no longer needed
 
   // Generate discriminator for review
   const handleGenerateDiscriminator = async () => {
@@ -410,14 +360,11 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Filter all search results - always filter all now
-  const handleFilterAll = async () => {
+  // Generate discriminator - always filters all results
+  const handleProceedToDiscriminator = async () => {
     if (!searchResults) return;
 
-    // Always filter all results (simplified flow)
-    setFilterAllMode(true);
-
-    // Proceed to discriminator generation step
+    // Generate discriminator for filtering all results
     await handleGenerateDiscriminator();
   };
 
@@ -446,10 +393,6 @@ export default function SmartSearchLab() {
       };
 
       setSearchResults(combinedResults);
-
-      // Update selected articles to include new ones by default
-      const newIndices = moreResults.articles.map((_, index) => searchResults.articles.length + index);
-      setSelectedArticles(prev => new Set([...prev, ...newIndices]));
 
       toast({
         title: 'More Results Loaded',
@@ -493,9 +436,6 @@ export default function SmartSearchLab() {
     }
     if (targetIndex < stepOrder.indexOf('search-results')) {
       setSearchResults(null);
-      setSelectedArticles(new Set());
-      setFilterAllMode(false); // Reset filter-all mode when going back to search results or earlier
-      setWasFilterAllMode(false);
     }
     if (targetIndex < stepOrder.indexOf('discriminator')) {
       setDiscriminatorData(null);
@@ -550,8 +490,6 @@ export default function SmartSearchLab() {
   const handleReset = () => {
     setStep('query');
     setSessionId(null);
-    setFilterAllMode(false);
-    setWasFilterAllMode(false);
     setQuery('');
     setRefinement(null);
     setEvidenceSpec('');
@@ -559,7 +497,6 @@ export default function SmartSearchLab() {
     setEditedSearchQuery('');
     setInitialQueryCount(null);
     setSearchResults(null);
-    setSelectedArticles(new Set());
     setDiscriminatorData(null);
     setEditedDiscriminator('');
     setFilteredArticles([]);
@@ -690,12 +627,7 @@ export default function SmartSearchLab() {
           {step === 'search-results' && searchResults && (
             <SearchResultsStep
               searchResults={searchResults}
-              selectedArticles={selectedArticles}
-              onToggleArticle={handleToggleArticle}
-              onSelectAll={handleSelectAll}
-              onDeselectAll={handleDeselectAll}
-              onSubmit={handleFilterAll}  // Always filter all
-              onSubmitAll={handleFilterAll}
+              onSubmit={handleProceedToDiscriminator}
               onLoadMore={handleLoadMoreResults}
               loading={discriminatorLoading}
               loadingMore={searchLoading}
@@ -710,8 +642,8 @@ export default function SmartSearchLab() {
               setEditedDiscriminator={setEditedDiscriminator}
               strictness={strictness}
               setStrictness={setStrictness}
-              selectedArticlesCount={selectedArticles.size}
-              filterAllMode={filterAllMode}
+              selectedArticlesCount={searchResults?.pagination.total_available || 0}
+              filterAllMode={true}  // Always filter all
               totalAvailable={searchResults?.pagination.total_available}
               onSubmit={handleStartFiltering}
             />
@@ -734,7 +666,7 @@ export default function SmartSearchLab() {
               evidenceSpecification={evidenceSpec}
               searchQuery={editedSearchQuery}
               totalAvailable={searchResults?.pagination.total_available}
-              totalFiltered={wasFilterAllMode ? Math.min(searchResults?.pagination.total_available || 0, 500) : selectedArticles.size}
+              totalFiltered={Math.min(searchResults?.pagination.total_available || 0, 500)}
             />
           )}
         </div>

@@ -149,7 +149,7 @@ export function SearchQueryStep({
             <div 
               key={index}
               className={`p-3 rounded-lg border ${
-                attempt.count <= 250
+                attempt.count > 0 && attempt.count <= 250
                   ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
                   : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
               }`}
@@ -157,7 +157,7 @@ export function SearchQueryStep({
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    attempt.count <= 250
+                    attempt.count > 0 && attempt.count <= 250
                       ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200'
                       : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200'
                   }`}>
@@ -168,7 +168,7 @@ export function SearchQueryStep({
                   </div>
                 </div>
                 <Badge 
-                  variant={attempt.count <= 250 ? "default" : "destructive"}
+                  variant={attempt.count > 0 && attempt.count <= 250 ? "default" : "destructive"}
                   className="text-xs"
                 >
                   {attempt.count.toLocaleString()} results
@@ -187,8 +187,11 @@ export function SearchQueryStep({
                 <div className="ml-8 mt-2 text-xs text-gray-500 dark:text-gray-500">
                   Result change: {attempt.count - queryHistory[index - 1].count < 0 ? '↓' : '↑'} 
                   {' '}{Math.abs(attempt.count - queryHistory[index - 1].count).toLocaleString()} results
-                  {attempt.count <= 250 && queryHistory[index - 1].count > 250 && (
+                  {attempt.count > 0 && attempt.count <= 250 && (queryHistory[index - 1].count > 250 || queryHistory[index - 1].count === 0) && (
                     <span className="ml-2 text-green-600 dark:text-green-400 font-medium">✓ Target achieved</span>
+                  )}
+                  {attempt.count === 0 && (
+                    <span className="ml-2 text-red-600 dark:text-red-400 font-medium">⚠ Too restrictive - no results</span>
                   )}
                 </div>
               )}
@@ -218,34 +221,45 @@ export function SearchQueryStep({
         {/* Current Count Display */}
         {currentCount !== null && (
           <div className={`p-3 rounded-lg border ${
-            currentCount <= 250
+            currentCount > 0 && currentCount <= 250
               ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+              : currentCount === 0
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
               : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {currentCount <= 250 ? (
+                {currentCount > 0 && currentCount <= 250 ? (
                   <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <AlertTriangle className={`w-4 h-4 ${
+                    currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                  }`} />
                 )}
                 <span className={`text-sm font-medium ${
-                  currentCount <= 250
+                  currentCount > 0 && currentCount <= 250
                     ? 'text-green-900 dark:text-green-100'
+                    : currentCount === 0
+                    ? 'text-red-900 dark:text-red-100'
                     : 'text-amber-900 dark:text-amber-100'
                 }`}>
                   Current query will return {currentCount.toLocaleString()} results
                 </span>
               </div>
-              {currentCount > 250 && (
+              {(currentCount > 250 || currentCount === 0) && (
                 <Badge variant="destructive" className="text-xs">
-                  Target: ≤250
+                  Target: 1-250
                 </Badge>
               )}
             </div>
             {currentCount > 250 && (
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
                 Consider optimizing to reduce the result set for better filtering performance
+              </p>
+            )}
+            {currentCount === 0 && (
+              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                Query is too restrictive. Try removing some filters or using broader terms
               </p>
             )}
           </div>
@@ -274,7 +288,7 @@ export function SearchQueryStep({
               )}
             </Button>
 
-            {currentCount !== null && currentCount > 250 && (
+            {currentCount !== null && (currentCount > 250 || currentCount === 0) && (
               <>
                 <span className="text-xs text-gray-500">or</span>
                 <Button
@@ -306,9 +320,12 @@ export function SearchQueryStep({
           </div>
 
           {/* Optimization Help Text */}
-          {currentCount !== null && currentCount > 250 && (
+          {currentCount !== null && (currentCount > 250 || currentCount === 0) && (
             <p className="text-xs text-amber-600 dark:text-amber-400 ml-1">
-              The "Suggest Optimization" button will analyze the current query text above and add filters to reduce results below 250
+              {currentCount > 250 
+                ? 'The "Suggest Optimization" button will analyze the current query text above and add filters to reduce results below 250'
+                : 'The "Suggest Optimization" button will analyze the current query text above and adjust filters to find results'
+              }
             </p>
           )}
 

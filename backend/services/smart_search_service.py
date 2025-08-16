@@ -133,11 +133,6 @@ Respond in JSON format with the evidence specification in the "evidence_specific
         """Legacy method - redirects to create_evidence_specification"""
         return await self.create_evidence_specification(question)
     
-    # Legacy method for backward compatibility  
-    async def generate_search_query(self, refined_question: str) -> Tuple[str, LLMUsage]:
-        """Legacy method - redirects to generate_search_keywords"""
-        return await self.generate_search_keywords(refined_question)
-    
     async def generate_search_keywords(self, evidence_specification: str) -> Tuple[str, LLMUsage]:
         """
         Step 3: Generate boolean search query from the evidence specification using LLM
@@ -241,12 +236,120 @@ Generate an effective boolean search query for academic databases."""
             logger.error(f"Failed to generate search query: {e}")
             # Fallback: use evidence specification as-is with zero usage
             return evidence_specification, LLMUsage()
+    
+    async def get_search_count(self, search_query: str) -> Tuple[int, List[str]]:
+        """
+        Get total count of search results without retrieving articles
+        """
+        logger.info(f"Getting result count for query: {search_query[:100]}...")
+        
+        try:
+            # Use the existing search method but with count_only mode
+            # We'll need to modify search_articles to support count-only mode
+            search_response = await self.search_articles(search_query, max_results=1, offset=0, count_only=True)
+            return search_response.pagination.total_available, search_response.sources_searched
+        except Exception as e:
+            logger.error(f"Failed to get search count: {e}")
+            return 0, []
+    
+    def get_refinement_strategy(self, evidence_spec: str) -> List[str]:
+        """
+        Determine refinement terms based on evidence specification content
+        """
+        evidence_lower = evidence_spec.lower()
+        refinement_terms = []
+        
+        # Clinical/Medical evidence
+        if any(term in evidence_lower for term in ['treatment', 'therapy', 'clinical', 'patient', 'medical', 'drug', 'medication']):
+            refinement_terms.extend(['(clinical OR trial OR study OR patient OR treatment)', '(human OR humans)'])
+        
+        # Behavioral/Psychological evidence  
+        if any(term in evidence_lower for term in ['behavior', 'behaviour', 'psychological', 'cognitive', 'mental', 'motivation', 'depression']):
+            refinement_terms.extend(['(study OR research OR analysis OR survey)', '(longitudinal OR cross-sectional OR cohort OR randomized)'])
+        
+        # Technology/AI evidence
+        if any(term in evidence_lower for term in ['algorithm', 'model', 'ai', 'artificial intelligence', 'machine learning', 'technology']):
+            refinement_terms.extend(['(evaluation OR performance OR validation OR comparison)', '(algorithm OR model OR system OR method)'])
+        
+        # General research quality filters
+        refinement_terms.extend([
+            '(outcome OR effectiveness OR efficacy OR result)',
+            '(research OR study OR analysis OR investigation)'
+        ])
+        
+        return refinement_terms
+    
+    async def refine_query_for_volume(self, initial_query: str, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
+        """
+        Refine a search query to reduce result volume while maintaining relevance
+        """
+        logger.info(f"Refining query to target {target_max} results...")
+        
+        refinement_terms = self.get_refinement_strategy(evidence_spec)
+        refined_query = initial_query
+        refinements_applied = []
+        
+        # Try adding refinement terms one by one until we get under target
+        for term in refinement_terms:
+            test_query = f"({refined_query}) AND {term}"
+            count, _ = await self.get_search_count(test_query)
+            
+            if count <= target_max and count > 0:
+                refined_query = test_query
+                refinements_applied.append(term)
+                logger.info(f"Applied refinement '{term}': {count} results")
+                break
+            elif count == 0:
+                # This refinement was too restrictive, skip it
+                continue
+            else:
+                # Still too many results, try this refinement and continue
+                refined_query = test_query
+                refinements_applied.append(term)
+                logger.info(f"Applied refinement '{term}': {count} results (still above target)")
+        
+        refinement_description = f"Added: {', '.join(refinements_applied)}" if refinements_applied else "No refinements applied"
+        return refined_query, refinement_description
+    
+    async def generate_optimized_search_query(self, evidence_spec: str, target_max: int = 250) -> Tuple[str, int, str, int, str, str]:
+        """
+        Generate an optimized search query with volume control
+        Returns: (initial_query, initial_count, final_query, final_count, refinement_description, status)
+        """
+        logger.info(f"Generating optimized search query for: {evidence_spec[:100]}...")
+        
+        # Phase 1: Generate initial broad query
+        initial_query, _ = await self.generate_search_keywords(evidence_spec)
+        initial_count, _ = await self.get_search_count(initial_query)
+        
+        logger.info(f"Initial query generated {initial_count} results")
+        
+        # Phase 2: Check if refinement is needed
+        if initial_count <= target_max:
+            return initial_query, initial_count, initial_query, initial_count, "Query already optimal", "optimal"
+        
+        # Phase 3: Refine query to reduce volume
+        final_query, refinement_description = await self.refine_query_for_volume(initial_query, evidence_spec, target_max)
+        final_count, _ = await self.get_search_count(final_query)
+        
+        # Determine status
+        if final_count <= target_max:
+            status = "refined"
+        else:
+            status = "manual_needed"
+            refinement_description += f" (Still {final_count} results - manual refinement may be needed)"
+        
+        logger.info(f"Final optimized query: {final_count} results, status: {status}")
+        return initial_query, initial_count, final_query, final_count, refinement_description, status
       
-    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0) -> SearchResultsResponse:
+    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False) -> SearchResultsResponse:
         """
         Search for articles using search query across multiple sources
         """
-        logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}")
+        if count_only:
+            logger.info(f"Getting count for query: {search_query}")
+        else:
+            logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}")
         
         all_articles = []
         sources_searched = []
@@ -258,30 +361,43 @@ Generate an effective boolean search query for academic databases."""
             # Use search_pubmed function from pubmed_service (it's a sync function)
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            pubmed_articles, metadata = await loop.run_in_executor(
-                None, 
-                search_pubmed,
-                search_query,
-                max_results,  # Use full max_results since Scholar is disabled
-                offset
-            )
             
-            # Get total count from metadata
-            total_available = metadata.get('total_results', 0)
-            
-            for article in pubmed_articles:
-                # article is now a CanonicalResearchArticle, not the raw Article class
-                all_articles.append(SearchArticle(
-                    title=article.title,
-                    abstract=article.abstract if article.abstract else "",
-                    authors=article.authors if article.authors else [],
-                    year=article.publication_year if article.publication_year else 0,
-                    journal=article.journal if article.journal else None,
-                    doi=article.doi if article.doi else None,
-                    pmid=article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None,
-                    url=article.url if article.url else None,
-                    source="pubmed"
-                ))
+            if count_only:
+                # For count-only mode, just get metadata with minimal results
+                pubmed_articles, metadata = await loop.run_in_executor(
+                    None, 
+                    search_pubmed,
+                    search_query,
+                    1,  # Minimal results for count-only
+                    0
+                )
+                total_available = metadata.get('total_results', 0)
+            else:
+                # Normal search mode
+                pubmed_articles, metadata = await loop.run_in_executor(
+                    None, 
+                    search_pubmed,
+                    search_query,
+                    max_results,  # Use full max_results since Scholar is disabled
+                    offset
+                )
+                
+                # Get total count from metadata
+                total_available = metadata.get('total_results', 0)
+                
+                for article in pubmed_articles:
+                    # article is now a CanonicalResearchArticle, not the raw Article class
+                    all_articles.append(SearchArticle(
+                        title=article.title,
+                        abstract=article.abstract if article.abstract else "",
+                        authors=article.authors if article.authors else [],
+                        year=article.publication_year if article.publication_year else 0,
+                        journal=article.journal if article.journal else None,
+                        doi=article.doi if article.doi else None,
+                        pmid=article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None,
+                        url=article.url if article.url else None,
+                        source="pubmed"
+                    ))
             sources_searched.append("pubmed")
             logger.info(f"Found {len(pubmed_articles)} PubMed articles")
             

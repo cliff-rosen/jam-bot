@@ -28,7 +28,11 @@ from schemas.smart_search import (
     SessionResetRequest,
     FilterAllSearchResultsRequest,
     UnifiedFilterRequest,
-    ParallelFilterResponse
+    ParallelFilterResponse,
+    QueryCountRequest,
+    QueryCountResponse,
+    OptimizedQueryRequest,
+    OptimizedQueryResponse
 )
 
 from services.auth_service import validate_token
@@ -242,6 +246,104 @@ async def generate_keywords(
     except Exception as e:
         logger.error(f"Search query generation failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Search query generation failed: {str(e)}")
+
+
+@router.post("/test-query-count", response_model=QueryCountResponse)
+async def test_query_count(
+    request: QueryCountRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> QueryCountResponse:
+    """
+    Test search query to get result count without retrieving articles
+    """
+    try:
+        logger.info(f"User {current_user.user_id} testing query count: {request.search_query[:100]}...")
+        
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Verify session exists
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get search count
+        service = SmartSearchService()
+        total_count, sources_searched = await service.get_search_count(request.search_query)
+        
+        response = QueryCountResponse(
+            search_query=request.search_query,
+            total_count=total_count,
+            sources_searched=sources_searched,
+            session_id=session.id
+        )
+        
+        logger.info(f"Query count test completed: {total_count} results")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Query count test failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Query count test failed: {str(e)}")
+
+
+@router.post("/generate-optimized-query", response_model=OptimizedQueryResponse)
+async def generate_optimized_query(
+    request: OptimizedQueryRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> OptimizedQueryResponse:
+    """
+    Generate optimized search query with volume control
+    """
+    try:
+        logger.info(f"User {current_user.user_id} generating optimized query with target {request.target_max_results} results...")
+        
+        # Create session service
+        session_service = SmartSearchSessionService(db)
+        
+        # Verify session exists
+        session = session_service.get_session(request.session_id, current_user.user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Generate optimized query
+        service = SmartSearchService()
+        (initial_query, initial_count, final_query, 
+         final_count, refinement_description, status) = await service.generate_optimized_search_query(
+            request.evidence_specification, 
+            request.target_max_results
+        )
+        
+        # Update session with optimized search query
+        session_service.update_search_query_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            generated_search_query=final_query,
+            submitted_search_query=None,
+            submitted_refined_question=request.evidence_specification,
+            prompt_tokens=0,  # Optimization doesn't use LLM tokens
+            completion_tokens=0,
+            total_tokens=0
+        )
+        
+        response = OptimizedQueryResponse(
+            evidence_specification=request.evidence_specification,
+            initial_query=initial_query,
+            initial_count=initial_count,
+            final_query=final_query,
+            final_count=final_count,
+            refinement_applied=refinement_description,
+            refinement_status=status,
+            session_id=session.id
+        )
+        
+        logger.info(f"Optimized query generation completed: {final_count} results, status: {status}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Optimized query generation failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimized query generation failed: {str(e)}")
 
 
 @router.post("/execute", response_model=SearchResultsResponse)

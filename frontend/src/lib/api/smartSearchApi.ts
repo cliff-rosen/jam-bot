@@ -25,6 +25,35 @@ export interface KeywordGenerationRequest {
   session_id: string;
 }
 
+export interface QueryCountRequest {
+  search_query: string;
+  session_id: string;
+}
+
+export interface QueryCountResponse {
+  search_query: string;
+  total_count: number;
+  sources_searched: string[];
+  session_id: string;
+}
+
+export interface OptimizedQueryRequest {
+  evidence_specification: string;
+  target_max_results?: number;
+  session_id: string;
+}
+
+export interface OptimizedQueryResponse {
+  evidence_specification: string;
+  initial_query: string;
+  initial_count: number;
+  final_query: string;
+  final_count: number;
+  refinement_applied: string;
+  refinement_status: 'optimal' | 'refined' | 'manual_needed';
+  session_id: string;
+}
+
 export interface ArticleSearchRequest {
   search_query: string;
   max_results?: number;
@@ -202,6 +231,22 @@ class SmartSearchApi {
    */
   async generateDiscriminator(request: DiscriminatorGenerationRequest): Promise<DiscriminatorGenerationResponse> {
     const response = await api.post('/api/lab/smart-search/generate-discriminator', request);
+    return response.data;
+  }
+
+  /**
+   * Test search query to get result count without retrieving articles
+   */
+  async testQueryCount(request: QueryCountRequest): Promise<QueryCountResponse> {
+    const response = await api.post('/api/lab/smart-search/test-query-count', request);
+    return response.data;
+  }
+
+  /**
+   * Generate optimized search query with volume control
+   */
+  async generateOptimizedQuery(request: OptimizedQueryRequest): Promise<OptimizedQueryResponse> {
+    const response = await api.post('/api/lab/smart-search/generate-optimized-query', request);
     return response.data;
   }
 

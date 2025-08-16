@@ -106,6 +106,29 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Handle query optimization for volume control
+  const handleOptimizeQuery = async (evidenceSpecification: string, sessionId: string) => {
+    try {
+      const response = await smartSearchApi.generateOptimizedQuery({
+        evidence_specification: evidenceSpecification,
+        target_max_results: 250,
+        session_id: sessionId
+      });
+      
+      return {
+        initial_query: response.initial_query,
+        initial_count: response.initial_count,
+        final_query: response.final_query,
+        final_count: response.final_count,
+        refinement_applied: response.refinement_applied,
+        refinement_status: response.refinement_status
+      };
+    } catch (error) {
+      console.error('Query optimization failed:', error);
+      throw error;
+    }
+  };
+
   // Step 2: Generate search keywords from evidence specification
   const handleGenerateKeywords = async () => {
     if (!evidenceSpec.trim()) {
@@ -608,7 +631,10 @@ export default function SmartSearchLab() {
             <SearchQueryStep
               editedSearchQuery={editedSearchQuery}
               setEditedSearchQuery={setEditedSearchQuery}
+              evidenceSpec={evidenceSpec}
+              sessionId={sessionId!}
               onSubmit={handleExecuteSearch}
+              onOptimize={handleOptimizeQuery}
               loading={searchLoading}
             />
           )}

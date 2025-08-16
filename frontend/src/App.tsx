@@ -23,7 +23,7 @@ import WorkbenchPage from './pages/Workbench';
 import TokenLogin from './pages/TokenLogin';
 
 function App() {
-  const { handleSessionExpired, isAuthenticated, login, register, error: authError } = useAuth();
+  const { handleSessionExpired, isAuthenticated } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Set up session expiry handler
@@ -71,9 +71,6 @@ function App() {
                 <LoginForm
                   isRegistering={isRegistering}
                   setIsRegistering={setIsRegistering}
-                  login={login}
-                  register={register}
-                  error={authError}
                 />
               </div>
             } />

@@ -206,7 +206,7 @@ Generate an effective boolean search query for academic databases."""
                 id="temp_id",
                 chat_id="temp_chat", 
                 role=MessageRole.USER,
-                content=f"Research question: {refined_question}\n\nGenerate an effective boolean search query for academic databases.",
+                content=f"Evidence specification: {evidence_specification}\n\nGenerate an effective boolean search query for academic databases.",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -229,9 +229,9 @@ Generate an effective boolean search query for academic databases."""
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
                     logger.info(f"model_dump fallback: {response_data}")
-                    search_query = response_data.get('search_query', refined_question)
+                    search_query = response_data.get('search_query', evidence_specification)
                 else:
-                    search_query = refined_question  # Final fallback
+                    search_query = evidence_specification  # Final fallback
             
             logger.info(f"Generated search query: {search_query}")
             logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
@@ -239,8 +239,8 @@ Generate an effective boolean search query for academic databases."""
             
         except Exception as e:
             logger.error(f"Failed to generate search query: {e}")
-            # Fallback: use refined query as-is with zero usage
-            return refined_question, LLMUsage()
+            # Fallback: use evidence specification as-is with zero usage
+            return evidence_specification, LLMUsage()
       
     async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0) -> SearchResultsResponse:
         """

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Target, AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
+import { Search, Target, AlertTriangle, CheckCircle, TrendingDown, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
@@ -43,14 +43,31 @@ export function SearchQueryStep({
   const [queryCount, setQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
   const [hasTestedQuery, setHasTestedQuery] = useState(false);
+  const [optimizationHistory, setOptimizationHistory] = useState<Array<{
+    step: number;
+    query: string;
+    count: number;
+    action: string;
+    timestamp: Date;
+  }>>([]);
+  const [showHistory, setShowHistory] = useState(false);
   
   // Set initial count when component loads
   useEffect(() => {
-    if (initialCount) {
+    if (initialCount && editedSearchQuery) {
       setQueryCount(initialCount);
       setHasTestedQuery(true);
+      
+      // Initialize optimization history with the starting point
+      setOptimizationHistory([{
+        step: 1,
+        query: editedSearchQuery,
+        count: initialCount.total_count,
+        action: "Generated from evidence specification",
+        timestamp: new Date()
+      }]);
     }
-  }, [initialCount]);
+  }, [initialCount, editedSearchQuery]);
   
   // Test current query count
   const handleTestQuery = async () => {
@@ -59,6 +76,15 @@ export function SearchQueryStep({
       const result = await onTestCount(editedSearchQuery, sessionId);
       setQueryCount(result);
       setHasTestedQuery(true);
+      
+      // Add to optimization history
+      setOptimizationHistory(prev => [...prev, {
+        step: prev.length + 1,
+        query: editedSearchQuery,
+        count: result.total_count,
+        action: "Manual retest",
+        timestamp: new Date()
+      }]);
     } catch (error) {
       console.error('Query count test failed:', error);
     } finally {
@@ -74,9 +100,22 @@ export function SearchQueryStep({
       setOptimization(result);
       setEditedSearchQuery(result.final_query);
       setShowOptimization(true);
+      
       // Test the optimized query count
       const countResult = await onTestCount(result.final_query, sessionId);
       setQueryCount(countResult);
+      
+      // Add optimization step to history
+      setOptimizationHistory(prev => [...prev, {
+        step: prev.length + 1,
+        query: result.final_query,
+        count: result.final_count,
+        action: `Auto-optimized: ${result.refinement_applied}`,
+        timestamp: new Date()
+      }]);
+      
+      // Auto-expand the timeline to show the optimization
+      setShowHistory(true);
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
@@ -91,6 +130,8 @@ export function SearchQueryStep({
     setQueryCount(null);
     setOptimization(null);
     setShowOptimization(false);
+    // Only reset history if this is a completely different query
+    // (don't reset if user is just making minor edits)
   };
 
   const getStatusColor = (status: string) => {
@@ -116,6 +157,97 @@ export function SearchQueryStep({
       <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
         Search Keywords
       </h2>
+
+      {/* Optimization History Timeline */}
+      {optimizationHistory.length > 0 && (
+        <div className="mb-6">
+          <Collapsible open={showHistory} onOpenChange={setShowHistory}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-3 h-auto border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Query Evolution Timeline
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {optimizationHistory.length} step{optimizationHistory.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+                {showHistory ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <div className="space-y-3">
+                {/* Evidence Specification Starting Point */}
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <div className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center text-xs font-medium text-blue-600 dark:text-blue-300">
+                    📋
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                      Starting Evidence Specification
+                    </div>
+                    <div className="text-xs text-blue-700 dark:text-blue-300 break-words">
+                      {evidenceSpec}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex justify-center">
+                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                </div>
+
+                {/* Query Evolution Steps */}
+                {optimizationHistory.map((step, index) => (
+                  <div key={step.step}>
+                    <div className={`flex items-start gap-3 p-3 rounded-lg border ${
+                      index === optimizationHistory.length - 1 
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
+                        : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}>
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        index === optimizationHistory.length - 1
+                          ? 'bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      }`}>
+                        {step.step}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className={`text-sm font-medium ${
+                            index === optimizationHistory.length - 1
+                              ? 'text-green-900 dark:text-green-100'
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`}>
+                            {step.action}
+                          </div>
+                          <Badge 
+                            variant={step.count <= 250 ? "default" : "destructive"} 
+                            className="text-xs"
+                          >
+                            {step.count.toLocaleString()} results
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all mb-1">
+                          {step.query}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">
+                          {step.timestamp.toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                    {index < optimizationHistory.length - 1 && (
+                      <div className="flex justify-center py-1">
+                        <ArrowRight className="h-3 w-3 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
 
       {/* Query Count Results */}
       {hasTestedQuery && queryCount && (

@@ -15,6 +15,7 @@ export interface SearchQueryGeneration {
 }
 
 export interface SearchArticle {
+  id: string;
   title: string;
   abstract: string;
   authors: string[];

@@ -35,8 +35,7 @@ export default function LoginForm() {
 
             try {
                 await register({ email: formData.email, password: formData.password });
-                // Registration now automatically logs the user in, no need to switch modes
-                // The user will be redirected to the main app by the auth system
+                setPasswordError(null);
             } catch (error) {
                 // Error is handled by AuthContext
             }
@@ -45,6 +44,7 @@ export default function LoginForm() {
             try {
                 await requestLoginToken(formData.email);
                 setTokenSent(true);
+
             } catch (error) {
                 // Error is handled by AuthContext
             }

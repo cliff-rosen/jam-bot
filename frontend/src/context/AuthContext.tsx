@@ -226,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const authResponse = await authApi.register(credentials)
             // Registration now returns Token response and automatically logs user in
             handleAuthSuccess(authResponse)
-            setError('Registration successful! Welcome!')
+            setError(null)
         } catch (error: any) {
             const errorMessage = extractErrorMessage(error, 'Registration failed. Please try again.')
             setError(errorMessage)

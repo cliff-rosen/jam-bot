@@ -436,6 +436,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 for article in pubmed_articles:
                     # article is now a CanonicalResearchArticle, not the raw Article class
                     all_articles.append(SearchArticle(
+                        id=article.id,  # Use the canonical article ID
                         title=article.title,
                         abstract=article.abstract if article.abstract else "",
                         authors=article.authors if article.authors else [],
@@ -735,7 +736,8 @@ Respond in JSON format:
         async def extract_for_article(article: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
             async with semaphore:
                 article_content = self._get_article_content(article)
-                article_id = self._get_article_id(article)
+                # Extract article ID from filtered article structure
+                article_id = article['article']['id']
                 
                 try:
                     # Perform extraction for this article

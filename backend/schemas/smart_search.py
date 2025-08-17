@@ -54,6 +54,7 @@ class SearchPaginationInfo(BaseModel):
 
 class SearchArticle(BaseModel):
     """Article from search results"""
+    id: str = Field(..., description="Unique identifier for the article")
     title: str
     abstract: str
     authors: List[str]

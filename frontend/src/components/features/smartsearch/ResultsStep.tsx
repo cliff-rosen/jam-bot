@@ -293,21 +293,14 @@ export function ResultsStep({
       
       // For each article, add the new extracted features
       for (const article of acceptedArticles) {
-        const articleId = `${article.article.title}-${article.article.authors.join(',')}`;
+        const articleId = article.article.id; // Use the actual article ID
         newExtractedData[articleId] = { ...newExtractedData[articleId] || {} };
         
         // Add the extracted features from the API response
-        const apiArticleId = article.article.url || articleId; // Backend might use URL or title-based ID
-        if (response.results[apiArticleId]) {
-          Object.assign(newExtractedData[articleId], response.results[apiArticleId]);
+        if (response.results[articleId]) {
+          Object.assign(newExtractedData[articleId], response.results[articleId]);
         } else {
-          // If backend uses different ID format, try to match by title
-          for (const [backendArticleId, features] of Object.entries(response.results)) {
-            if (backendArticleId.includes(article.article.title.substring(0, 20))) {
-              Object.assign(newExtractedData[articleId], features);
-              break;
-            }
-          }
+          console.warn(`No extraction results found for article: ${articleId}`);
         }
       }
 
@@ -340,7 +333,7 @@ export function ResultsStep({
   };
 
   const renderFeatureValue = (article: FilteredArticle, feature: FeatureDefinition) => {
-    const articleId = `${article.article.title}-${article.article.authors.join(',')}`;
+    const articleId = article.article.id; // Use the actual article ID
     const value = extractedFeatures[articleId]?.[feature.id];
 
     if (value === undefined || value === null) {
@@ -691,22 +684,46 @@ export function ResultsStep({
               </div>
 
               {/* Extraction Progress */}
-              {isExtracting && extractionProgress && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Extracting features...
-                    </span>
-                    <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {extractionProgress.current} / {extractionProgress.total}
-                    </span>
+              {isExtracting && (
+                <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-lg border-2 border-blue-200 dark:border-blue-600 shadow-sm">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                        🤖 AI is extracting custom columns...
+                      </span>
+                    </div>
                   </div>
-                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                  
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                      Processing {acceptedArticles.length} articles with {pendingFeatures.length} custom column{pendingFeatures.length !== 1 ? 's' : ''}
+                    </p>
+                    <div className="text-xs text-blue-600 dark:text-blue-400">
+                      This may take a few moments...
+                    </div>
+                  </div>
+                  
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(extractionProgress.current / extractionProgress.total) * 100}%` }}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 h-full rounded-full transition-all duration-700 ease-out"
+                      style={{ 
+                        width: extractionProgress ? `${(extractionProgress.current / extractionProgress.total) * 100}%` : '30%',
+                        animation: extractionProgress ? 'none' : 'pulse 2s infinite'
+                      }}
                     />
                   </div>
+                  
+                  {extractionProgress && (
+                    <div className="flex justify-between mt-2 text-xs text-blue-600 dark:text-blue-400">
+                      <span>Progress</span>
+                      <span>{extractionProgress.current} / {extractionProgress.total}</span>
+                    </div>
+                  )}
                 </div>
               )}
 

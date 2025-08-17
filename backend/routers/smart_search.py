@@ -81,101 +81,6 @@ router = APIRouter(
 )
 
 
-async def create_filtering_stream(
-    articles: List[SearchArticle],
-    refined_question: str,
-    search_query: str,
-    strictness: str,
-    actual_discriminator: str,
-    session_id: str,
-    user_id: str,
-    db: Session
-) -> AsyncGenerator[str, None]:
-    """
-    Shared filtering stream generator for both filter endpoints
-    """
-    service = SmartSearchService()
-    
-    # Track filtering stats for session update
-    filtering_stats = {
-        "total_filtered": 0,
-        "accepted": 0,
-        "rejected": 0,
-        "start_time": datetime.utcnow(),
-        "actual_discriminator": actual_discriminator
-    }
-    
-    try:
-        # Stream the filtering process
-        async for message in service.filter_articles_streaming(
-            articles=articles,
-            refined_question=refined_question,
-            search_query=search_query,
-            strictness=strictness,
-            custom_discriminator=actual_discriminator
-        ):
-            # Parse and track filtering progress
-            import json
-            if message.startswith("data: "):
-                try:
-                    data = json.loads(message[6:])
-                    if data.get("type") == "complete":
-                        # Update final session stats
-                        stats = data.get("data", {})
-                        filtering_stats["total_filtered"] = stats.get("total_processed", 0)
-                        filtering_stats["accepted"] = stats.get("accepted", 0)
-                        filtering_stats["rejected"] = stats.get("rejected", 0)
-                        
-                        # Extract token usage from completion data
-                        token_usage = stats.get("token_usage", {})
-                        filtering_stats["prompt_tokens"] = token_usage.get("prompt_tokens", 0)
-                        filtering_stats["completion_tokens"] = token_usage.get("completion_tokens", 0)
-                        filtering_stats["total_tokens"] = token_usage.get("total_tokens", 0)
-                        
-                        # Calculate duration and average confidence
-                        duration = datetime.utcnow() - filtering_stats["start_time"]
-                        duration_seconds = int(duration.total_seconds())
-                        
-                        # Update session with final results
-                        avg_confidence = 0.5  # Default fallback
-                        if filtering_stats["accepted"] > 0:
-                            avg_confidence = 0.7  # Placeholder
-                        
-                        # Create new database session for the update
-                        db_gen = get_db()
-                        new_db = next(db_gen)
-                        try:
-                            new_session_service = SmartSearchSessionService(new_db)
-                            new_session_service.update_filtering_step(
-                                session_id=session_id,
-                                user_id=user_id,
-                                total_filtered=filtering_stats["total_filtered"],
-                                accepted=filtering_stats["accepted"],
-                                rejected=filtering_stats["rejected"],
-                                average_confidence=avg_confidence,
-                                duration_seconds=duration_seconds,
-                                submitted_discriminator=filtering_stats["actual_discriminator"],
-                                prompt_tokens=filtering_stats["prompt_tokens"],
-                                completion_tokens=filtering_stats["completion_tokens"],
-                                total_tokens=filtering_stats["total_tokens"]
-                            )
-                        finally:
-                            new_db.close()
-                except Exception as parse_error:
-                    logger.warning(f"Failed to parse filtering message: {parse_error}")
-            
-            yield message
-            
-    except Exception as e:
-        logger.error(f"Filtering error for user {user_id}: {e}", exc_info=True)
-        # Send error message in SSE format
-        import json
-        error_message = {
-            "type": "error",
-            "message": f"Filtering failed: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        yield f"data: {json.dumps(error_message)}\n\n"
 
 
 @router.post("/create-evidence-spec", response_model=SmartSearchRefinementResponse)
@@ -479,98 +384,6 @@ async def generate_semantic_discriminator(
         raise HTTPException(status_code=500, detail=f"Discriminator generation failed: {str(e)}")
 
 
-@router.post("/filter-unified-stream")
-async def filter_unified_stream(
-    request: UnifiedFilterRequest,
-    current_user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Unified filtering endpoint that handles both selected and all filtering modes
-    """
-    try:
-        logger.info(f"User {current_user.user_id} starting unified filtering in {request.filter_mode} mode")
-        
-        # Create session service
-        session_service = SmartSearchSessionService(db)
-        
-        # Get session
-        session = session_service.get_session(request.session_id, current_user.user_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Initialize smart search service
-        service = SmartSearchService()
-        
-        # Determine articles to filter based on mode
-        if request.filter_mode == "selected":
-            if not request.articles:
-                raise HTTPException(status_code=400, detail="Articles required for selected mode")
-            articles_to_filter = request.articles
-            logger.info(f"Filtering {len(articles_to_filter)} selected articles")
-        elif request.filter_mode == "all":
-            # Execute full search to get all available articles
-            max_results = request.max_results or 500
-            logger.info(f"Executing full search with max_results={max_results}")
-            search_results = await service.search_articles(
-                search_query=request.search_query,
-                max_results=max_results,
-                offset=0
-            )
-            articles_to_filter = search_results.articles
-            logger.info(f"Retrieved {len(articles_to_filter)} articles for filtering")
-            
-            # Update session with search execution (full retrieval)
-            session_service.update_search_execution_step(
-                session_id=session.id,
-                user_id=current_user.user_id,
-                total_available=search_results.pagination.total_available,
-                returned=len(articles_to_filter),
-                sources=search_results.sources_searched,
-                is_pagination_load=False,
-                submitted_search_query=request.search_query
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Invalid filter_mode. Must be 'selected' or 'all'")
-        
-        # Track article selection
-        session_service.update_article_selection_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            selected_count=len(articles_to_filter)
-        )
-        
-        # Discriminator is required
-        if not request.discriminator_prompt:
-            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
-        
-        # Use shared filtering stream
-        async def generate():
-            async for message in create_filtering_stream(
-                articles=articles_to_filter,
-                refined_question=request.evidence_specification,
-                search_query=request.search_query,
-                strictness=request.strictness,
-                actual_discriminator=request.discriminator_prompt,
-                session_id=session.id,
-                user_id=current_user.user_id,
-                db=db
-            ):
-                yield message
-        
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start unified filtering for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to start unified filtering: {str(e)}")
 
 
 @router.post("/filter-parallel", response_model=ParallelFilterResponse)
@@ -706,154 +519,81 @@ async def filter_parallel(
         raise HTTPException(status_code=500, detail=f"Failed to start parallel filtering: {str(e)}")
 
 
-@router.post("/filter-stream")
-async def filter_articles_stream(
-    request: SemanticFilterRequest,
+# Feature extraction models
+class FeatureDefinition(BaseModel):
+    id: str
+    name: str
+    description: str
+    type: str  # "text", "boolean", "score"
+    options: dict = None
+
+class FeatureExtractionRequest(BaseModel):
+    session_id: str
+    features: List[FeatureDefinition]
+
+class FeatureExtractionResponse(BaseModel):
+    session_id: str
+    extracted_features: dict  # {article_id: {feature_id: value}}
+    extraction_metadata: dict
+
+
+@router.post("/extract-features", response_model=FeatureExtractionResponse)
+async def extract_features(
+    request: FeatureExtractionRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """
-    Filter articles with semantic discriminator (streaming)
-    DEPRECATED: Use /filter-unified-stream with filter_mode: 'selected' instead
+    Extract custom AI features from Smart Search filtered articles.
+    Uses parallel processing like filter_parallel.
     """
     try:
-        logger.info(f"User {current_user.user_id} starting article filtering for {len(request.articles)} articles")
-        
-        # Create session service
-        session_service = SmartSearchSessionService(db)
-        
-        # Get session and update article selection
-        session = session_service.get_session(request.session_id, current_user.user_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Track article selection
-        session_service.update_article_selection_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            selected_count=len(request.articles)
-        )
-        
-        service = SmartSearchService()
-        
-        # Discriminator is required (deprecated endpoint - for backward compatibility)
-        actual_discriminator = request.discriminator_prompt
-        if not actual_discriminator:
-            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
-        
-        # Use shared filtering stream
-        async def generate():
-            async for message in create_filtering_stream(
-                articles=request.articles,
-                refined_question=request.evidence_specification,
-                search_query=request.search_query,
-                strictness=request.strictness,
-                actual_discriminator=actual_discriminator,
-                session_id=session.id,
-                user_id=current_user.user_id,
-                db=db
-            ):
-                yield message
-        
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to start filtering for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to start filtering: {str(e)}")
-
-
-@router.post("/filter-all-stream")
-async def filter_all_search_results_stream(
-    request: FilterAllSearchResultsRequest,
-    current_user = Depends(validate_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Execute a full search and filter all results in one operation (streaming)
-    This is used when user wants to filter all available results without downloading them first
-    DEPRECATED: Use /filter-unified-stream with filter_mode: 'all' instead
-    """
-    try:
-        logger.info(f"User {current_user.user_id} starting filter-all for query: {request.search_query[:100]}...")
-        
-        # Create session service
-        session_service = SmartSearchSessionService(db)
+        logger.info(f"User {current_user.user_id} extracting {len(request.features)} features for session {request.session_id}")
         
         # Get session
+        session_service = SmartSearchSessionService(db)
         session = session_service.get_session(request.session_id, current_user.user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Initialize smart search service
+        # Get filtered articles (accepted ones only)
+        filtered_articles = session.filtered_articles or []
+        accepted_articles = [fa for fa in filtered_articles if fa.get('passed', False)]
+        
+        if not accepted_articles:
+            raise HTTPException(status_code=400, detail="No accepted articles found in session")
+        
+        logger.info(f"Extracting features from {len(accepted_articles)} accepted articles")
+        
+        # Initialize service and extract features
         service = SmartSearchService()
+        start_time = datetime.utcnow()
         
-        # Execute full search to get all available articles
-        logger.info(f"Executing full search with max_results={request.max_results}")
-        search_results = await service.search_articles(
-            search_query=request.search_query,
-            max_results=request.max_results,
-            offset=0
+        extracted_features = await service.extract_features_parallel(
+            articles=accepted_articles,
+            features=request.features
         )
         
-        logger.info(f"Retrieved {len(search_results.articles)} articles for filtering")
+        duration = datetime.utcnow() - start_time
         
-        # Update session with search execution (full retrieval)
-        session_service.update_search_execution_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            total_available=search_results.pagination.total_available,
-            returned=len(search_results.articles),
-            sources=search_results.sources_searched,
-            is_pagination_load=False,
-            submitted_search_query=request.search_query
-        )
-        
-        # Track article selection (all articles selected for filtering)
-        session_service.update_article_selection_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            selected_count=len(search_results.articles)
-        )
-        
-        # Discriminator is required
-        if not request.discriminator_prompt:
-            raise HTTPException(status_code=400, detail="Discriminator prompt is required")
-        
-        # Use shared filtering stream
-        async def generate():
-            async for message in create_filtering_stream(
-                articles=search_results.articles,
-                refined_question=request.evidence_specification,
-                search_query=request.search_query,
-                strictness=request.strictness,
-                actual_discriminator=request.discriminator_prompt,
-                session_id=session.id,
-                user_id=current_user.user_id,
-                db=db
-            ):
-                yield message
-        
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no"
+        # Return response
+        return FeatureExtractionResponse(
+            session_id=request.session_id,
+            extracted_features=extracted_features,
+            extraction_metadata={
+                "total_articles": len(accepted_articles),
+                "features_extracted": len(request.features),
+                "extraction_time": duration.total_seconds()
             }
         )
         
     except Exception as e:
-        logger.error(f"Failed to start filter-all for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to start filter-all: {str(e)}")
+        logger.error(f"Failed to extract features for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to extract features: {str(e)}")
+
+
+
+
 
 
 @router.get("/sessions")

@@ -522,101 +522,7 @@ You must respond in this exact JSON format:
         
         return discriminator_prompt
     
-    async def filter_articles_streaming(
-        self,
-        articles: List[SearchArticle],
-        refined_question: str,
-        search_query: str,
-        strictness: str = "medium",
-        custom_discriminator: str = None
-    ) -> AsyncGenerator[str, None]:
-        """
-        Filter articles using semantic discriminator with streaming updates
-        """
-        logger.info(f"Starting filtering of {len(articles)} articles")
-        
-        # Discriminator is required
-        if not custom_discriminator:
-            raise ValueError("Discriminator prompt is required for filtering")
-        
-        discriminator = custom_discriminator
-        logger.info("Using provided discriminator prompt")
-        
-        # Initialize counters
-        total = len(articles)
-        processed = 0
-        accepted = 0
-        rejected = 0
-        
-        # Initialize token usage tracking
-        total_filtering_tokens = LLMUsage()
-        
-        # Send initial progress
-        progress = FilteringProgress(
-            total=total,
-            processed=0,
-            accepted=0,
-            rejected=0
-        )
-        yield f"data: {json.dumps({'type': 'progress', 'data': progress.dict(), 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-        
-        # Process each article
-        for article in articles:
-            try:
-                # Update current article
-                progress.current_article = article.title[:100]
-                yield f"data: {json.dumps({'type': 'status', 'message': f'Evaluating: {article.title[:100]}...', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-                
-                # Evaluate article
-                result, usage = await self._evaluate_article(article, discriminator)
-                
-                # Accumulate token usage
-                total_filtering_tokens.prompt_tokens += usage.prompt_tokens
-                total_filtering_tokens.completion_tokens += usage.completion_tokens
-                total_filtering_tokens.total_tokens += usage.total_tokens
-                
-                # Update counters
-                processed += 1
-                if result.passed:
-                    accepted += 1
-                else:
-                    rejected += 1
-                
-                # Send filtered article result
-                yield f"data: {json.dumps({'type': 'article', 'data': result.dict(), 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-                
-                # Send progress update
-                progress = FilteringProgress(
-                    total=total,
-                    processed=processed,
-                    accepted=accepted,
-                    rejected=rejected,
-                    current_article=article.title[:100]
-                )
-                yield f"data: {json.dumps({'type': 'progress', 'data': progress.dict(), 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-                
-                # Small delay to prevent overwhelming
-                await asyncio.sleep(0.1)
-                
-            except Exception as e:
-                logger.error(f"Error filtering article '{article.title}': {e}")
-                # Send error but continue
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Error filtering article: {str(e)}', 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-        
-        # Send completion message with token usage
-        completion_data = {
-            'total_processed': processed, 
-            'accepted': accepted, 
-            'rejected': rejected,
-            'token_usage': {
-                'prompt_tokens': total_filtering_tokens.prompt_tokens,
-                'completion_tokens': total_filtering_tokens.completion_tokens,
-                'total_tokens': total_filtering_tokens.total_tokens
-            }
-        }
-        yield f"data: {json.dumps({'type': 'complete', 'data': completion_data, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-        
-        logger.info(f"Filtering complete: {accepted}/{total} articles accepted")
+    # DEPRECATED - Removed filter_articles_streaming - use filter_articles_parallel instead
     
     async def _evaluate_article(self, article: SearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
         """
@@ -768,3 +674,175 @@ Respond in JSON format:
         logger.info(f"Parallel filtering results: {accepted_count} accepted, {rejected_count} rejected")
         
         return filtered_articles, total_usage
+    
+    async def extract_features_parallel(
+        self,
+        articles: List[Dict],
+        features: List[Dict]
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Extract custom features from articles in parallel.
+        Follows same pattern as filter_articles_parallel.
+        
+        Args:
+            articles: List of accepted articles from filtered results
+            features: List of feature definitions with id, name, description, type
+            
+        Returns:
+            Dict mapping article_id to extracted features {feature_id: value}
+        """
+        logger.info(f"Starting parallel feature extraction for {len(articles)} articles with {len(features)} features")
+        
+        # Create semaphore to limit concurrent LLM calls
+        semaphore = asyncio.Semaphore(500)
+        
+        async def extract_with_semaphore(article: Dict) -> Tuple[str, Dict[str, Any]]:
+            """Extract all features for a single article"""
+            async with semaphore:
+                return await self._extract_features_for_article(article, features)
+        
+        # Execute all extractions in parallel
+        logger.info(f"Executing {len(articles)} extractions in parallel (max {semaphore._value} concurrent)")
+        start_time = datetime.utcnow()
+        
+        results = await asyncio.gather(
+            *[extract_with_semaphore(article) for article in articles],
+            return_exceptions=True
+        )
+        
+        duration = datetime.utcnow() - start_time
+        logger.info(f"Parallel feature extraction completed in {duration.total_seconds():.2f} seconds")
+        
+        # Process results into final format
+        extracted_features = {}
+        failed_count = 0
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to extract features for article {i}: {result}")
+                failed_count += 1
+                # Return empty features for failed articles
+                article_id = self._get_article_id(articles[i])
+                extracted_features[article_id] = {
+                    feature['id']: None for feature in features
+                }
+            else:
+                article_id, features_dict = result
+                extracted_features[article_id] = features_dict
+        
+        if failed_count > 0:
+            logger.warning(f"Failed to extract features for {failed_count}/{len(articles)} articles")
+        
+        return extracted_features
+    
+    async def _extract_features_for_article(
+        self, 
+        article: Dict, 
+        features: List[Dict]
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Extract all features for a single article using one LLM call.
+        
+        Returns:
+            Tuple of (article_id, {feature_id: extracted_value})
+        """
+        # Get article content
+        article_content = self._get_article_content(article)
+        article_id = self._get_article_id(article)
+        
+        # Build extraction prompt for all features at once
+        prompt = self._build_extraction_prompt(article_content, features)
+        
+        # Call LLM
+        prompt_caller = BasePromptCaller(
+            model="gpt-4-turbo-preview",
+            system_prompt="You are a research article analysis assistant. Extract the requested information accurately and concisely."
+        )
+        
+        try:
+            response, usage = await prompt_caller.call_async(
+                messages=[ChatMessage(role=MessageRole.USER, content=prompt)],
+                response_format={"type": "json_object"}
+            )
+            
+            # Parse JSON response
+            extracted = json.loads(response)
+            
+            # Ensure all feature IDs are present
+            result = {}
+            for feature in features:
+                feature_id = feature['id']
+                result[feature_id] = extracted.get(feature_id, None)
+            
+            return article_id, result
+            
+        except Exception as e:
+            logger.error(f"Failed to extract features for article {article_id}: {e}")
+            # Return None values for all features on error
+            return article_id, {feature['id']: None for feature in features}
+    
+    def _build_extraction_prompt(self, article_content: str, features: List[Dict]) -> str:
+        """Build a single prompt to extract all features at once."""
+        prompt = f"""Analyze the following research article and extract the requested information.
+        
+Article Title: {article_content.get('title', 'N/A')}
+Authors: {article_content.get('authors', 'N/A')}
+Abstract: {article_content.get('abstract', 'N/A')[:2000]}
+
+Extract the following features:
+"""
+        
+        for feature in features:
+            prompt += f"\n\n{feature['name']} (ID: {feature['id']}):"
+            prompt += f"\n{feature['description']}"
+            
+            if feature['type'] == 'boolean':
+                prompt += "\nReturn true or false only."
+            elif feature['type'] == 'score':
+                options = feature.get('options', {})
+                min_val = options.get('min', 1)
+                max_val = options.get('max', 10)
+                prompt += f"\nProvide a score between {min_val} and {max_val}."
+            else:  # text
+                prompt += "\nProvide a concise text response."
+        
+        prompt += """
+
+Return a JSON object with feature IDs as keys and extracted values.
+Example: {"feat_123": "RCT", "feat_456": true, "feat_789": 8}
+
+Ensure all feature IDs are included. Use null if information cannot be determined."""
+        
+        return prompt
+    
+    def _get_article_content(self, article: Dict) -> Dict:
+        """Extract relevant content from article object."""
+        # Handle both filtered article format and raw article format
+        if 'article' in article:
+            article_data = article['article']
+        else:
+            article_data = article
+        
+        return {
+            'title': article_data.get('title', ''),
+            'authors': ', '.join(article_data.get('authors', [])),
+            'abstract': article_data.get('abstract', article_data.get('snippet', '')),
+            'journal': article_data.get('journal', ''),
+            'year': article_data.get('year', '')
+        }
+    
+    def _get_article_id(self, article: Dict) -> str:
+        """Generate consistent article ID."""
+        # Handle both filtered article format and raw article format
+        if 'article' in article:
+            article_data = article['article']
+        else:
+            article_data = article
+        
+        # Use URL if available, otherwise create from title and authors
+        if article_data.get('url'):
+            return article_data['url']
+        else:
+            title = article_data.get('title', '')
+            authors = article_data.get('authors', [])
+            return f"{title[:50]}_{','.join(authors[:2])}"

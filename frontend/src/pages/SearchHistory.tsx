@@ -79,7 +79,7 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border dark:border-gray-600">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Session Summary</h2>
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -101,24 +101,24 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
           {session.submitted_search_query && (
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Search Query</h3>
-              <p className="font-mono text-sm bg-gray-100 dark:bg-gray-700 p-2 rounded">{session.submitted_search_query}</p>
+              <p className="font-mono text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded">{session.submitted_search_query}</p>
             </div>
           )}
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
               <div className="text-sm text-blue-600 dark:text-blue-400">Articles Found</div>
-              <div className="text-xl font-bold">{session.search_metadata?.total_available?.toLocaleString() || 'N/A'}</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.search_metadata?.total_available?.toLocaleString() || 'N/A'}</div>
             </div>
             
             <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
               <div className="text-sm text-green-600 dark:text-green-400">Accepted</div>
-              <div className="text-xl font-bold">{session.filtering_metadata?.accepted || 0}</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.filtering_metadata?.accepted || 0}</div>
             </div>
             
             <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
               <div className="text-sm text-red-600 dark:text-red-400">Rejected</div>
-              <div className="text-xl font-bold">{session.filtering_metadata?.rejected || 0}</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.filtering_metadata?.rejected || 0}</div>
             </div>
             
             <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded">
@@ -129,7 +129,7 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
           
           <div>
             <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Session Details</h3>
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <div>Created: {formatDate(session.created_at)}</div>
               <div>Last Updated: {formatDate(session.updated_at)}</div>
               {session.filter_strictness && <div>Filter Strictness: {session.filter_strictness}</div>}
@@ -321,14 +321,14 @@ export default function SearchHistory() {
                       </button>
                     </th>
                     {showAdminView && isAdmin && (
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         User
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Question
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <button
                         onClick={() => handleSort('status')}
                         className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
@@ -336,7 +336,7 @@ export default function SearchHistory() {
                         Status {getSortIcon('status')}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <button
                         onClick={() => handleSort('found')}
                         className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
@@ -344,7 +344,7 @@ export default function SearchHistory() {
                         Found {getSortIcon('found')}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <button
                         onClick={() => handleSort('accepted')}
                         className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
@@ -352,19 +352,19 @@ export default function SearchHistory() {
                         Accepted {getSortIcon('accepted')}
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                   {sessions.map((session) => (
-                    <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {formatDate(session.created_at)}
                       </td>
                       {showAdminView && isAdmin && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                           User {session.user_id}
                         </td>
                       )}
@@ -372,7 +372,7 @@ export default function SearchHistory() {
                         <div className="max-w-md">
                           <div className="font-medium truncate">{session.original_question}</div>
                           {(session.submitted_refined_question || session.refined_question) && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                            <div className="text-xs text-gray-500 dark:text-gray-300 mt-1 truncate">
                               "{session.submitted_refined_question || session.refined_question}"
                             </div>
                           )}

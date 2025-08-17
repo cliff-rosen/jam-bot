@@ -342,7 +342,7 @@ export function ResultsStep({
 
     switch (feature.type) {
       case 'boolean':
-        return value ? <Check className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-red-600" />;
+        return value === 'yes' ? <Check className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-red-600" />;
       case 'score':
         return <Badge variant="secondary" className="text-xs">{value}</Badge>;
       default:

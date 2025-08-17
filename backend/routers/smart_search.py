@@ -554,13 +554,24 @@ async def extract_features(
         
         logger.info(f"Extracting features from {len(accepted_articles)} accepted articles")
         
+        # Convert request features to FeatureDefinition objects
+        feature_definitions = [
+            FeatureDefinition(
+                id=f.id,
+                name=f.name, 
+                description=f.description,
+                type=f.type,
+                options=f.options
+            ) for f in request.features
+        ]
+        
         # Initialize service and extract features
         service = SmartSearchService()
         start_time = datetime.utcnow()
         
         extracted_features = await service.extract_features_parallel(
             articles=accepted_articles,
-            features=request.features
+            features=feature_definitions
         )
         
         duration = datetime.utcnow() - start_time

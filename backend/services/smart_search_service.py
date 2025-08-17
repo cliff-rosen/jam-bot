@@ -7,9 +7,10 @@ Service for intelligent research article search with LLM-powered refinement and 
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, AsyncGenerator, Tuple
+from typing import List, Dict, Any, AsyncGenerator, Tuple, Union
 from datetime import datetime
 
+from schemas.features import FeatureDefinition
 from schemas.smart_search import (
     SmartSearchRefinementResponse,
     SearchArticle,
@@ -677,15 +678,15 @@ Respond in JSON format:
     
     async def extract_features_parallel(
         self,
-        articles: List[Dict],
-        features: List[Dict]
+        articles: List[Dict[str, Any]],
+        features: List[FeatureDefinition]
     ) -> Dict[str, Dict[str, Any]]:
         """
         Extract custom features from articles using the shared extraction service.
         
         Args:
-            articles: List of accepted articles from filtered results
-            features: List of feature definitions with id, name, description, type
+            articles: List of accepted articles from filtered results  
+            features: List of FeatureDefinition objects
             
         Returns:
             Dict mapping article_id to extracted features {feature_id: value}
@@ -721,21 +722,11 @@ Respond in JSON format:
         try:
             detail_service = ArticleGroupDetailService(db, extraction_service)
             
-            # Convert feature format to match what extract_features expects
-            extraction_features = []
-            for feature in features:
-                extraction_features.append({
-                    'id': feature['id'],
-                    'name': feature['name'],
-                    'description': feature['description'],
-                    'type': feature['type'],
-                    'options': feature.get('options', {})
-                })
-            
             # Extract features without persisting (no user_id/group_id)
+            # ArticleGroupDetailService now accepts FeatureDefinition objects directly
             results = await detail_service.extract_features(
                 articles=extraction_articles,
-                features=extraction_features,
+                features=features,  # Pass FeatureDefinition objects directly
                 user_id=None,  # Don't persist to database
                 group_id=None
             )

@@ -13,6 +13,7 @@ from datetime import datetime
 import json
 
 from models import ArticleGroup, ArticleGroupDetail
+from schemas.features import FeatureDefinition
 from services.extraction_service import ExtractionService
 from schemas.workbench import ArticleDetailResponse
 from schemas.canonical_types import CanonicalResearchArticle
@@ -190,7 +191,7 @@ class ArticleGroupDetailService:
     async def extract_features(
         self,
         articles: List[Dict[str, Any]],
-        features: List[Dict[str, Any]],
+        features: List[FeatureDefinition],
         user_id: Optional[int] = None,
         group_id: Optional[str] = None
     ) -> Dict[str, Dict[str, str]]:
@@ -212,31 +213,28 @@ class ArticleGroupDetailService:
         # Build the schema for extraction
         properties = {}
         for feature in features:
-            properties[feature['name']] = self._build_feature_schema(feature)
+            properties[feature.name] = self._build_feature_schema(feature)
         
         result_schema = {
             "type": "object",
             "properties": properties,
-            "required": [f['name'] for f in features]
+            "required": [f.name for f in features]
         }
         
         # Build extraction instructions
         instruction_parts = []
         for feature in features:
-            feat_type = feature.get('type', 'text')
-            description = feature['description']
-            
-            if feat_type == 'boolean':
+            if feature.type == 'boolean':
                 format_hint = "(Answer: 'yes' or 'no')"
-            elif feat_type in ['score', 'number']:
-                options = feature.get('options', {})
+            elif feature.type in ['score', 'number']:
+                options = feature.options or {}
                 min_val = options.get('min', 1)
                 max_val = options.get('max', 10)
                 format_hint = f"(Numeric score {min_val}-{max_val})"
             else:
                 format_hint = "(Brief text, max 100 chars)"
             
-            instruction_parts.append(f"- {feature['name']}: {description} {format_hint}")
+            instruction_parts.append(f"- {feature.name}: {feature.description} {format_hint}")
         
         extraction_instructions = "\n".join(instruction_parts)
         
@@ -255,22 +253,18 @@ class ArticleGroupDetailService:
                     },
                     result_schema=result_schema,
                     extraction_instructions=extraction_instructions,
-                    schema_key=f"features_{hash(tuple(f['name'] for f in features))}"
+                    schema_key=f"features_{hash(tuple(f.name for f in features))}"
                 )
                 
                 # Process results
                 article_results = {}
                 if extraction_result.extraction:
                     for feature in features:
-                        feat_id = feature['id']
-                        feat_name = feature['name']
-                        feat_type = feature.get('type', 'text')
-                        
-                        if feat_name in extraction_result.extraction:
-                            raw_value = extraction_result.extraction[feat_name]
-                            article_results[feat_id] = self._clean_value(raw_value, feat_type, feature.get('options'))
+                        if feature.name in extraction_result.extraction:
+                            raw_value = extraction_result.extraction[feature.name]
+                            article_results[feature.id] = self._clean_value(raw_value, feature.type, feature.options)
                         else:
-                            article_results[feat_id] = self._get_default_value(feat_type, feature.get('options'))
+                            article_results[feature.id] = self._get_default_value(feature.type, feature.options)
                 
                 results[article_id] = article_results
                 
@@ -282,9 +276,7 @@ class ArticleGroupDetailService:
                 # On error, use default values
                 article_results = {}
                 for feature in features:
-                    feat_id = feature['id']
-                    feat_type = feature.get('type', 'text')
-                    article_results[feat_id] = self._get_default_value(feat_type, feature.get('options'))
+                    article_results[feature.id] = self._get_default_value(feature.type, feature.options)
                 results[article_id] = article_results
         
         return results
@@ -399,30 +391,27 @@ class ArticleGroupDetailService:
         else:
             return data
     
-    def _build_feature_schema(self, feature_config: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_feature_schema(self, feature: FeatureDefinition) -> Dict[str, Any]:
         """Build JSON schema for a single feature."""
-        feat_type = feature_config.get('type', 'text')
-        description = feature_config['description']
-        
-        if feat_type == 'boolean':
+        if feature.type == 'boolean':
             return {
                 "type": "string",
                 "enum": ["yes", "no"],
-                "description": description
+                "description": feature.description
             }
-        elif feat_type in ['score', 'number']:
-            options = feature_config.get('options', {})
+        elif feature.type in ['score', 'number']:
+            options = feature.options or {}
             return {
                 "type": "number",
                 "minimum": options.get('min', 1),
                 "maximum": options.get('max', 10),
-                "description": description
+                "description": feature.description
             }
         else:  # text
             return {
                 "type": "string",
                 "maxLength": 100,
-                "description": description
+                "description": feature.description
             }
     
     def _clean_value(self, value: Any, feature_type: str, options: Optional[Dict[str, Any]] = None) -> str:

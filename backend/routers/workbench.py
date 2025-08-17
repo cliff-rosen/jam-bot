@@ -344,25 +344,15 @@ async def extract_unified(
         # Use ArticleGroupDetailService since it understands article structure
         detail_service = ArticleGroupDetailService(db, extraction_service)
         
-        # Convert features to unified extraction format
-        columns = []
-        for feature in request.features:
-            columns.append({
-                "id": feature.id,
-                "name": feature.name,
-                "description": feature.description,
-                "type": feature.type,
-                "options": feature.options or {}
-            })
-        
+        # Pass FeatureDefinition objects directly
         results = await detail_service.extract_features(
             request.articles, 
-            columns
+            request.features  # Pass FeatureDefinition objects directly
         )
         
         return ExtractResponse(
             results=results,
-            metadata={"total_articles": len(request.articles), "total_features": len(columns)}
+            metadata={"total_articles": len(request.articles), "total_features": len(request.features)}
         )
         
     except Exception as e:

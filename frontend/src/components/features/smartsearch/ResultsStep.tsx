@@ -474,16 +474,16 @@ export function ResultsStep({
           </div>
         </div>
 
-        {/* Workflow Details - Collapsible */}
-        <Collapsible open={isWorkflowOpen} onOpenChange={setIsWorkflowOpen} className="mb-6">
+        {/* Workflow Details - Compact Collapsible */}
+        <Collapsible open={isWorkflowOpen} onOpenChange={setIsWorkflowOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="flex items-center w-full justify-start p-0 h-auto">
+            <Button variant="ghost" size="sm" className="flex items-center justify-start p-1 h-auto mb-2">
               {isWorkflowOpen ? (
-                <ChevronDown className="w-4 h-4 mr-2" />
+                <ChevronDown className="w-3 h-3 mr-1" />
               ) : (
-                <ChevronRight className="w-4 h-4 mr-2" />
+                <ChevronRight className="w-3 h-3 mr-1" />
               )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                 Workflow Details
               </span>
             </Button>

@@ -884,6 +884,7 @@ class SmartSearchSession(Base):
     
     # Step 7: Filtering Results
     filtering_metadata = Column(JSON)
+    filtered_articles = Column(JSON)  # Store the actual filtered articles results
     
     # Session Status
     status = Column(String(50), default="in_progress")  # in_progress, completed, abandoned
@@ -917,6 +918,7 @@ class SmartSearchSession(Base):
             "submitted_discriminator": self.submitted_discriminator,
             "filter_strictness": self.filter_strictness,
             "filtering_metadata": self.filtering_metadata,
+            "filtered_articles": self.filtered_articles,
             "status": self.status,
             "last_step_completed": self.last_step_completed,
             "session_duration_seconds": self.session_duration_seconds,

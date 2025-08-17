@@ -658,6 +658,16 @@ async def filter_parallel(
             if accepted_articles else 0.0
         )
         
+        # Convert filtered articles to dictionaries for storage
+        filtered_articles_data = []
+        for fa in filtered_articles:
+            filtered_articles_data.append({
+                "article": fa.article.dict() if hasattr(fa.article, 'dict') else fa.article,
+                "passed": fa.passed,
+                "confidence": fa.confidence,
+                "reasoning": fa.reasoning
+            })
+        
         # Update session with filtering results
         session_service.update_filtering_step(
             session_id=session.id,
@@ -667,6 +677,7 @@ async def filter_parallel(
             rejected=total_rejected,
             average_confidence=average_confidence,
             duration_seconds=int(duration.total_seconds()),
+            filtered_articles=filtered_articles_data,
             submitted_discriminator=request.discriminator_prompt,
             prompt_tokens=token_usage.prompt_tokens,
             completion_tokens=token_usage.completion_tokens,

@@ -225,6 +225,7 @@ class SmartSearchSessionService:
     def update_filtering_step(self, session_id: str, user_id: str,
                              total_filtered: int, accepted: int, rejected: int,
                              average_confidence: float, duration_seconds: int,
+                             filtered_articles: List[Dict] = None,
                              submitted_discriminator: str = None,
                              prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
         """Update session with filtering results data"""
@@ -243,6 +244,11 @@ class SmartSearchSessionService:
             }
             
             session.filtering_metadata = filtering_metadata
+            
+            # Store the actual filtered articles if provided
+            if filtered_articles is not None:
+                session.filtered_articles = filtered_articles
+            
             session.last_step_completed = "filtering"
             session.status = "completed"
             

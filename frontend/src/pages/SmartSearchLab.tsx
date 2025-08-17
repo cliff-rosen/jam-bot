@@ -130,6 +130,11 @@ export default function SmartSearchLab() {
           setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
         }
         
+        // Restore filtered articles if they exist
+        if (session.filtered_articles && Array.isArray(session.filtered_articles)) {
+          setFilteredArticles(session.filtered_articles);
+        }
+        
         // Determine which step to show based on session progress
         if (lastStep === 'filtering' && session.filtering_metadata?.accepted !== undefined) {
           setStep('results');

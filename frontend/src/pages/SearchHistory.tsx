@@ -50,6 +50,30 @@ interface SessionSummaryModalProps {
   onClose: () => void;
 }
 
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const getStepBadge = (step?: string) => {
+  const stepMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    'question_input': { label: 'Started', variant: 'outline' },
+    'question_refinement': { label: 'Evidence Spec', variant: 'outline' },
+    'search_query_generation': { label: 'Keywords', variant: 'outline' },
+    'search_execution': { label: 'Search Complete', variant: 'secondary' },
+    'discriminator_generation': { label: 'Filter Setup', variant: 'secondary' },
+    'filtering': { label: 'Completed', variant: 'default' }
+  };
+
+  const stepInfo = stepMap[step || 'question_input'] || { label: 'Unknown', variant: 'outline' as const };
+  return <Badge variant={stepInfo.variant}>{stepInfo.label}</Badge>;
+};
+
 function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalProps) {
   if (!isOpen) return null;
 
@@ -207,30 +231,6 @@ export default function SearchHistory() {
 
   const isAdmin = user?.role === 'admin';
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStepBadge = (step?: string) => {
-    const stepMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      'question_input': { label: 'Started', variant: 'outline' },
-      'question_refinement': { label: 'Evidence Spec', variant: 'outline' },
-      'search_query_generation': { label: 'Keywords', variant: 'outline' },
-      'search_execution': { label: 'Search Complete', variant: 'secondary' },
-      'discriminator_generation': { label: 'Filter Setup', variant: 'secondary' },
-      'filtering': { label: 'Completed', variant: 'default' }
-    };
-
-    const stepInfo = stepMap[step || 'question_input'] || { label: 'Unknown', variant: 'outline' as const };
-    return <Badge variant={stepInfo.variant}>{stepInfo.label}</Badge>;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -310,9 +310,9 @@ export default function SearchHistory() {
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr className="border-b border-gray-200 dark:border-gray-600">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <button
                         onClick={() => handleSort('created_at')}
                         className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"

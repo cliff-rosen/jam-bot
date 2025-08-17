@@ -29,74 +29,15 @@ export function ResultsStep({
   const { toast } = useToast();
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
   const [isRejectedOpen, setIsRejectedOpen] = useState(false);
-  const [displayMode, setDisplayMode] = useState<'list' | 'cards' | 'table'>('list');
+  const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
   
-  // Client-side filtering state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [yearFilter, setYearFilter] = useState('all');
-  const [sourceFilter, setSourceFilter] = useState('all');
-  const [minConfidence, setMinConfidence] = useState(0);
-  const [maxConfidence, setMaxConfidence] = useState(100);
-  const [showFilters, setShowFilters] = useState(false);
+  // Column visibility for table view
+  const [showColumns, setShowColumns] = useState(false);
   
-  // Filter and search logic
-  const { filteredAccepted, filteredRejected } = useMemo(() => {
-    const filterArticles = (articles: FilteredArticle[]) => {
-      return articles.filter(item => {
-        // Text search in title, authors, journal, abstract
-        const searchTermLower = searchTerm.toLowerCase();
-        const matchesSearch = !searchTerm || 
-          item.article.title.toLowerCase().includes(searchTermLower) ||
-          item.article.authors.some(author => author.toLowerCase().includes(searchTermLower)) ||
-          (item.article.journal || '').toLowerCase().includes(searchTermLower) ||
-          (item.article.abstract || '').toLowerCase().includes(searchTermLower);
-        
-        // Year filter
-        const matchesYear = !yearFilter || yearFilter === 'all' || item.article.year?.toString() === yearFilter;
-        
-        // Source filter
-        const matchesSource = !sourceFilter || sourceFilter === 'all' || item.article.source === sourceFilter;
-        
-        // Confidence range filter
-        const confidence = Math.round(item.confidence * 100);
-        const matchesConfidence = confidence >= minConfidence && confidence <= maxConfidence;
-        
-        return matchesSearch && matchesYear && matchesSource && matchesConfidence;
-      });
-    };
-    
-    const accepted = filteredArticles.filter(fa => fa.passed);
-    const rejected = filteredArticles.filter(fa => !fa.passed);
-    
-    return {
-      filteredAccepted: filterArticles(accepted),
-      filteredRejected: filterArticles(rejected)
-    };
-  }, [filteredArticles, searchTerm, yearFilter, sourceFilter, minConfidence, maxConfidence]);
-  
-  // Get unique values for filter dropdowns
-  const availableYears = useMemo(() => {
-    const years = [...new Set(filteredArticles.map(item => item.article.year).filter(Boolean))];
-    return years.sort((a, b) => (b || 0) - (a || 0));
-  }, [filteredArticles]);
-  
-  const availableSources = useMemo(() => {
-    return [...new Set(filteredArticles.map(item => item.article.source))].sort();
-  }, [filteredArticles]);
-  
-  const clearFilters = () => {
-    setSearchTerm('');
-    setYearFilter('all');
-    setSourceFilter('all');
-    setMinConfidence(0);
-    setMaxConfidence(100);
-  };
-  
-  const hasActiveFilters = searchTerm || (yearFilter && yearFilter !== 'all') || (sourceFilter && sourceFilter !== 'all') || minConfidence > 0 || maxConfidence < 100;
-  
-  // Use original articles for stats and export, filtered for display
+  // Use all articles for display (no client-side filtering)
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
+  
 
   const exportToCSV = () => {
     const csvContent = [
@@ -274,28 +215,31 @@ export function ResultsStep({
             {/* Display Mode Toggle */}
             <div className="flex border rounded-lg">
               <Button
-                onClick={() => setDisplayMode('list')}
-                variant={displayMode === 'list' ? 'default' : 'ghost'}
+                onClick={() => setDisplayMode('table')}
+                variant={displayMode === 'table' ? 'default' : 'ghost'}
                 size="sm"
                 className="rounded-r-none border-r"
+                title="Table view"
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={() => setDisplayMode('card-compressed')}
+                variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
+                size="sm"
+                className="rounded-none border-r"
+                title="Card compressed"
               >
                 <List className="w-4 h-4" />
               </Button>
               <Button
-                onClick={() => setDisplayMode('cards')}
-                variant={displayMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-none border-r"
-              >
-                <Grid className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={() => setDisplayMode('table')}
-                variant={displayMode === 'table' ? 'default' : 'ghost'}
+                onClick={() => setDisplayMode('card-full')}
+                variant={displayMode === 'card-full' ? 'default' : 'ghost'}
                 size="sm"
                 className="rounded-l-none"
+                title="Card full"
               >
-                <Eye className="w-4 h-4" />
+                <Grid className="w-4 h-4" />
               </Button>
             </div>
             <Button
@@ -445,121 +389,34 @@ export function ResultsStep({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
               <Check className="w-5 h-5 text-green-600 mr-2" />
-              Accepted Articles ({filteredAccepted.length}{filteredAccepted.length !== acceptedArticles.length ? ` of ${acceptedArticles.length}` : ''})
+              Accepted Articles ({acceptedArticles.length})
             </h3>
             
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setShowFilters(!showFilters)}
-                variant="outline"
-                size="sm"
-                className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-                {hasActiveFilters && <span className="ml-1 bg-blue-500 text-white text-xs px-1 rounded-full">•</span>}
-              </Button>
-              {hasActiveFilters && (
+            {displayMode === 'table' && (
+              <div className="flex items-center gap-2">
                 <Button
-                  onClick={clearFilters}
-                  variant="ghost"
+                  onClick={() => setShowColumns(!showColumns)}
+                  variant="outline"
                   size="sm"
-                  className="text-gray-500 hover:text-gray-700"
                 >
-                  <FilterX className="w-4 h-4" />
+                  <Filter className="w-4 h-4 mr-2" />
+                  Columns
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           
-          {/* Search and Filter Controls */}
-          {showFilters && (
-            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Search Text
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <Input
-                      placeholder="Search in titles, authors..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 text-sm"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Publication Year
-                  </label>
-                  <Select value={yearFilter} onValueChange={setYearFilter}>
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Any year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Any year</SelectItem>
-                      {availableYears.map(year => (
-                        <SelectItem key={year} value={year!.toString()}>{year}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Source
-                  </label>
-                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Any source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Any source</SelectItem>
-                      {availableSources.map(source => (
-                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Confidence Range
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={minConfidence}
-                      onChange={(e) => setMinConfidence(Number(e.target.value))}
-                      className="text-sm w-16"
-                      placeholder="0"
-                    />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">to</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={maxConfidence}
-                      onChange={(e) => setMaxConfidence(Number(e.target.value))}
-                      className="text-sm w-16"
-                      placeholder="100"
-                    />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
-                  </div>
-                </div>
-              </div>
+          {/* Column Controls - only show for table view */}
+          {displayMode === 'table' && showColumns && (
+            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Column visibility controls will go here</p>
             </div>
           )}
           
-          {/* List View */}
-          {displayMode === 'list' && (
+          {/* Card Compressed View */}
+          {displayMode === 'card-compressed' && (
             <div className="space-y-1">
-              {filteredAccepted.map((item, idx) => (
+              {acceptedArticles.map((item, idx) => (
                 <div
                   key={idx}
                   className="p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -601,10 +458,10 @@ export function ResultsStep({
             </div>
           )}
           
-          {/* Cards View */}
-          {displayMode === 'cards' && (
+          {/* Card Full View */}
+          {displayMode === 'card-full' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredAccepted.map((item, idx) => (
+              {acceptedArticles.map((item, idx) => (
                 <Card key={idx} className="p-4 hover:shadow-md transition-shadow">
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
@@ -678,7 +535,7 @@ export function ResultsStep({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAccepted.map((item, idx) => (
+                  {acceptedArticles.map((item, idx) => (
                     <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="p-2">
                         <div className="font-medium text-gray-900 dark:text-gray-100 max-w-md">
@@ -736,7 +593,7 @@ export function ResultsStep({
             <Card className="p-6 dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
                 <X className="w-5 h-5 text-red-600 mr-2" />
-                Rejected Articles ({filteredRejected.length}{filteredRejected.length !== rejectedArticles.length ? ` of ${rejectedArticles.length}` : ''})
+                Rejected Articles ({rejectedArticles.length})
                 {isRejectedOpen ? (
                   <ChevronDown className="w-4 h-4 ml-2" />
                 ) : (
@@ -751,7 +608,7 @@ export function ResultsStep({
           <CollapsibleContent>
             <Card className="p-6 dark:bg-gray-800 mt-2">
             <div className="space-y-1">
-              {filteredRejected.map((item, idx) => (
+              {rejectedArticles.map((item, idx) => (
                 <div
                   key={idx}
                   className="p-2 border border-gray-200 dark:border-gray-700 rounded opacity-60"

@@ -477,11 +477,11 @@ export function ResultsStep({
             <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Search Text
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <Input
                       placeholder="Search in titles, authors..."
                       value={searchTerm}
@@ -492,7 +492,7 @@ export function ResultsStep({
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Publication Year
                   </label>
                   <Select value={yearFilter} onValueChange={setYearFilter}>
@@ -509,7 +509,7 @@ export function ResultsStep({
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Source
                   </label>
                   <Select value={sourceFilter} onValueChange={setSourceFilter}>
@@ -526,7 +526,7 @@ export function ResultsStep({
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Confidence Range
                   </label>
                   <div className="flex items-center gap-2">
@@ -539,7 +539,7 @@ export function ResultsStep({
                       className="text-sm w-16"
                       placeholder="0"
                     />
-                    <span className="text-xs text-gray-500">to</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">to</span>
                     <Input
                       type="number"
                       min="0"
@@ -549,7 +549,7 @@ export function ResultsStep({
                       className="text-sm w-16"
                       placeholder="100"
                     />
-                    <span className="text-xs text-gray-500">%</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
                   </div>
                 </div>
               </div>

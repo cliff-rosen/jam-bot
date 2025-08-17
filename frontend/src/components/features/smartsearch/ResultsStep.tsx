@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,9 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Settings } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useState } from 'react';
+
 import type { FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
@@ -23,7 +25,7 @@ interface ResultsStepProps {
   totalFiltered?: number;
 }
 
-export function ResultsStep({ 
+export function ResultsStep({
   filteredArticles,
   originalQuery,
   evidenceSpecification,
@@ -35,26 +37,28 @@ export function ResultsStep({
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
   const [isRejectedOpen, setIsRejectedOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
-  
+
   // Column/Feature management for table view
   const [showColumns, setShowColumns] = useState(false);
-  const [showAddFeature, setShowAddFeature] = useState(false);
-  const [customFeatures, setCustomFeatures] = useState<FeatureDefinition[]>([]);
+  const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
+  const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
   const [extractedFeatures, setExtractedFeatures] = useState<Record<string, Record<string, any>>>({});
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number } | null>(null);
   
-  // New feature form state
+  // Add Features modal state
+  const [showAddFeatures, setShowAddFeatures] = useState(false);
   const [newFeature, setNewFeature] = useState<FeatureDefinition>({
     id: '',
     name: '',
     description: '',
     type: 'text'
   });
-  
+
   // Use all articles for display (no client-side filtering)
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
-  
+
 
   const exportToCSV = () => {
     const csvContent = [
@@ -92,7 +96,7 @@ export function ResultsStep({
         const doi = item.article.doi || '';
         const url = item.article.url || '';
         const key = `article${index + 1}`;
-        
+
         let bibEntry = `@article{${key},\n`;
         bibEntry += `  title={${cleanTitle}},\n`;
         bibEntry += `  author={${authors}},\n`;
@@ -186,7 +190,7 @@ export function ResultsStep({
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       printWindow.focus();
-      
+
       // Wait for content to load then trigger print
       setTimeout(() => {
         printWindow.print();
@@ -211,7 +215,7 @@ export function ResultsStep({
   };
 
   // Feature management functions
-  const addCustomFeature = () => {
+  const addNewPendingFeature = () => {
     if (!newFeature.name.trim() || !newFeature.description.trim()) {
       toast({
         title: 'Invalid Feature',
@@ -226,23 +230,26 @@ export function ResultsStep({
       id: generatePrefixedUUID('feat')
     };
 
-    setCustomFeatures(prev => [...prev, feature]);
+    setPendingFeatures(prev => [...prev, feature]);
     setNewFeature({
       id: '',
       name: '',
       description: '',
       type: 'text'
     });
-    setShowAddFeature(false);
 
     toast({
       title: 'Feature Added',
-      description: `Added "${feature.name}" column. Click the settings icon to extract data.`
+      description: `Added "${feature.name}" to pending features.`
     });
   };
 
-  const removeCustomFeature = (featureId: string) => {
-    setCustomFeatures(prev => prev.filter(f => f.id !== featureId));
+  const removePendingFeature = (featureId: string) => {
+    setPendingFeatures(prev => prev.filter(f => f.id !== featureId));
+  };
+
+  const removeAppliedFeature = (featureId: string) => {
+    setAppliedFeatures(prev => prev.filter(f => f.id !== featureId));
     setExtractedFeatures(prev => {
       const updated = { ...prev };
       Object.keys(updated).forEach(articleId => {
@@ -252,64 +259,79 @@ export function ResultsStep({
     });
   };
 
-  const extractFeatureForAllArticles = async (featureId: string) => {
-    const feature = customFeatures.find(f => f.id === featureId);
-    if (!feature) return;
-
-    setIsExtracting(true);
-    
-    try {
-      // TODO: Call backend API to extract feature for all articles
-      // For now, simulate with mock data
-      setTimeout(() => {
-        const mockExtractions: Record<string, any> = {};
-        acceptedArticles.forEach((item, idx) => {
-          // Create a unique ID for the article (use title + authors as fallback)
-          const uniqueId = `${item.article.title}-${item.article.authors.join(',')}`;
-          if (!extractedFeatures[uniqueId]) {
-            extractedFeatures[uniqueId] = {};
-          }
-          
-          // Mock extraction based on feature type
-          switch (feature.type) {
-            case 'boolean':
-              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: Math.random() > 0.5 };
-              break;
-            case 'score':
-              const min = feature.options?.min || 1;
-              const max = feature.options?.max || 10;
-              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: Math.floor(Math.random() * (max - min + 1)) + min };
-              break;
-            default: // text
-              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: `Sample ${feature.name.toLowerCase()} ${idx + 1}` };
-          }
-        });
-        
-        setExtractedFeatures(prev => ({ ...prev, ...mockExtractions }));
-        setIsExtracting(false);
-        
-        toast({
-          title: 'Extraction Complete',
-          description: `Extracted "${feature.name}" for ${acceptedArticles.length} articles`
-        });
-      }, 2000);
-    } catch (error) {
-      setIsExtracting(false);
+  const submitAllPendingFeatures = async () => {
+    if (pendingFeatures.length === 0) {
       toast({
-        title: 'Extraction Failed',
-        description: 'Failed to extract feature data',
+        title: 'No Features',
+        description: 'Add some features before applying.',
         variant: 'destructive'
       });
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractionProgress({ current: 0, total: pendingFeatures.length * acceptedArticles.length });
+
+    try {
+      // Here we would call the backend API similar to workbench's extract_unified
+      // For now, simulate the extraction with mock data
+      const newExtractedData: Record<string, Record<string, any>> = {};
+      
+      for (const article of acceptedArticles) {
+        const articleId = `${article.article.title}-${article.article.authors.join(',')}`;
+        newExtractedData[articleId] = { ...extractedFeatures[articleId] || {} };
+        
+        for (const feature of pendingFeatures) {
+          // Mock extraction - in real implementation, this would call the backend
+          let mockValue: any = 'Sample extracted value';
+          if (feature.type === 'boolean') {
+            mockValue = Math.random() > 0.5;
+          } else if (feature.type === 'score') {
+            const min = feature.options?.min || 1;
+            const max = feature.options?.max || 10;
+            mockValue = Math.floor(Math.random() * (max - min + 1)) + min;
+          }
+          
+          newExtractedData[articleId][feature.id] = mockValue;
+        }
+      }
+
+      // Move pending features to applied features
+      setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
+      const extractedCount = pendingFeatures.length;
+      setPendingFeatures([]);
+      setExtractedFeatures(newExtractedData);
+
+      toast({
+        title: 'Columns Applied Successfully!',
+        description: `Extracted ${extractedCount} custom column${extractedCount !== 1 ? 's' : ''} for ${acceptedArticles.length} articles.`
+      });
+
+      // Auto-hide the columns area after successful extraction
+      setTimeout(() => {
+        setShowColumns(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Error extracting features:', error);
+      toast({
+        title: 'Extraction Failed',
+        description: 'Failed to extract feature data.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsExtracting(false);
+      setExtractionProgress(null);
     }
   };
 
-  const renderFeatureValue = (articleId: string, feature: FeatureDefinition) => {
+  const renderFeatureValue = (article: FilteredArticle, feature: FeatureDefinition) => {
+    const articleId = `${article.article.title}-${article.article.authors.join(',')}`;
     const value = extractedFeatures[articleId]?.[feature.id];
-    
+
     if (value === undefined || value === null) {
       return <span className="text-gray-400 text-xs">-</span>;
     }
-    
+
     switch (feature.type) {
       case 'boolean':
         return value ? <Check className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-red-600" />;
@@ -378,7 +400,7 @@ export function ResultsStep({
               <Copy className="w-4 h-4 mr-2" />
               Copy Titles
             </Button>
-            
+
             {/* Export Buttons */}
             <div className="flex gap-1">
               <Button
@@ -423,7 +445,7 @@ export function ResultsStep({
               </div>
             </div>
           </div>
-          
+
           <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
             <div className="flex items-center">
               <X className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
@@ -433,7 +455,7 @@ export function ResultsStep({
               </div>
             </div>
           </div>
-          
+
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <div className="flex items-center">
               <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
@@ -443,7 +465,7 @@ export function ResultsStep({
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
             <div className="flex items-center">
               <Database className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
@@ -518,11 +540,23 @@ export function ResultsStep({
               <Check className="w-5 h-5 text-green-600 mr-2" />
               Accepted Articles ({acceptedArticles.length})
             </h3>
-            
+
             {displayMode === 'table' && (
               <div className="flex items-center gap-2">
                 <Button
-                  onClick={() => setShowColumns(!showColumns)}
+                  onClick={() => {
+                    setShowColumns(!showColumns);
+                    // Reset form when opening
+                    if (!showColumns) {
+                      setPendingFeatures([]);
+                      setNewFeature({
+                        id: '',
+                        name: '',
+                        description: '',
+                        type: 'text'
+                      });
+                    }
+                  }}
                   variant="outline"
                   size="sm"
                 >
@@ -532,60 +566,207 @@ export function ResultsStep({
               </div>
             )}
           </div>
-          
-          {/* Column Controls - only show for table view */}
+
+          {/* Column Management Panel - only show for table view */}
           {displayMode === 'table' && showColumns && (
-            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+            <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Custom Columns</h4>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Add Custom Columns</h4>
                 <Button
-                  onClick={() => setShowAddFeature(true)}
+                  onClick={submitAllPendingFeatures}
                   size="sm"
-                  variant="outline"
+                  disabled={isExtracting || pendingFeatures.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Column
+                  {isExtracting ? 'Applying...' : `Apply ${pendingFeatures.length} Column${pendingFeatures.length !== 1 ? 's' : ''}`}
                 </Button>
               </div>
-              
-              {customFeatures.length > 0 && (
+
+              {/* Add Column Form */}
+              <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="column-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
+                    <Input
+                      id="column-name"
+                      value={newFeature.name}
+                      onChange={(e) => setNewFeature(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g., Sample Size"
+                      className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="column-type" className="text-gray-900 dark:text-gray-100">Type</Label>
+                    <Select value={newFeature.type} onValueChange={(value: 'text' | 'boolean' | 'score') => setNewFeature(prev => ({ ...prev, type: value }))}>
+                      <SelectTrigger className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                        <SelectItem value="text" className="text-gray-900 dark:text-gray-100">Text</SelectItem>
+                        <SelectItem value="boolean" className="text-gray-900 dark:text-gray-100">Yes/No</SelectItem>
+                        <SelectItem value="score" className="text-gray-900 dark:text-gray-100">Score</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-gray-900 dark:text-gray-100">&nbsp;</Label>
+                    <Button
+                      onClick={addNewPendingFeature}
+                      size="sm"
+                      disabled={!newFeature.name.trim() || !newFeature.description.trim()}
+                      className="w-full mt-1"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Column
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="column-description" className="text-gray-900 dark:text-gray-100">
+                    Extraction Instructions
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                      (Describe what AI should extract from each article)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="column-description"
+                    value={newFeature.description}
+                    onChange={(e) => setNewFeature(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="e.g., Extract the sample size from the methods section. Look for phrases like 'n=' or 'participants'."
+                    className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                    rows={3}
+                  />
+                </div>
+
+                {newFeature.type === 'score' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="score-min" className="text-gray-900 dark:text-gray-100">Min Value</Label>
+                      <Input
+                        id="score-min"
+                        type="number"
+                        value={newFeature.options?.min || 1}
+                        onChange={(e) => setNewFeature(prev => ({
+                          ...prev,
+                          options: { ...prev.options, min: Number(e.target.value) }
+                        }))}
+                        className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="score-max" className="text-gray-900 dark:text-gray-100">Max Value</Label>
+                      <Input
+                        id="score-max"
+                        type="number"
+                        value={newFeature.options?.max || 10}
+                        onChange={(e) => setNewFeature(prev => ({
+                          ...prev,
+                          options: { ...prev.options, max: Number(e.target.value) }
+                        }))}
+                        className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Extraction Progress */}
+              {isExtracting && extractionProgress && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Extracting features...
+                    </span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
+                      {extractionProgress.current} / {extractionProgress.total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(extractionProgress.current / extractionProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Applied Features */}
+              {appliedFeatures.length > 0 && (
                 <div className="space-y-2">
-                  {customFeatures.map(feature => (
-                    <div key={feature.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
-                      <div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
-                        <Badge variant="outline" className="ml-2 text-xs">{feature.type}</Badge>
+                  <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Active Columns ({appliedFeatures.length})
+                  </h5>
+                  {appliedFeatures.map(feature => (
+                    <div key={feature.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-green-200 dark:border-green-700">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                          <Badge variant="outline" className="text-xs">{feature.type}</Badge>
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            ✓ Applied
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{feature.description}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => extractFeatureForAllArticles(feature.id)}
-                          disabled={isExtracting}
-                        >
-                          <Settings className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeCustomFeature(feature.id)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeAppliedFeature(feature.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        disabled={isExtracting}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
-              
-              {customFeatures.length === 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                  No custom columns added yet. Click "Add Column" to get started.
-                </p>
+
+              {/* Pending Features */}
+              {pendingFeatures.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Pending Columns ({pendingFeatures.length})
+                  </h5>
+                  {pendingFeatures.map(feature => (
+                    <div key={feature.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-yellow-200 dark:border-yellow-700">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                          <Badge variant="outline" className="text-xs">{feature.type}</Badge>
+                          <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                            ⏳ Pending
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{feature.description}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removePendingFeature(feature.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        disabled={isExtracting}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {appliedFeatures.length === 0 && pendingFeatures.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    No custom columns added yet.
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Click "Add Columns" to extract custom data from your articles using AI.
+                  </p>
+                </div>
               )}
             </div>
           )}
-          
+
           {/* Card Compressed View */}
           {displayMode === 'card-compressed' && (
             <div className="space-y-1">
@@ -630,7 +811,7 @@ export function ResultsStep({
               ))}
             </div>
           )}
-          
+
           {/* Card Full View */}
           {displayMode === 'card-full' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -645,7 +826,7 @@ export function ResultsStep({
                         {Math.round(item.confidence * 100)}%
                       </Badge>
                     </div>
-                    
+
                     <div className="text-xs text-gray-600 dark:text-gray-400">
                       <div className="font-medium mb-1">
                         {item.article.authors.slice(0, 3).join(', ')}
@@ -658,19 +839,19 @@ export function ResultsStep({
                         </Badge>
                       </div>
                     </div>
-                    
+
                     {item.article.journal && (
                       <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate">
                         {item.article.journal}
                       </div>
                     )}
-                    
+
                     {item.article.abstract && (
                       <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">
                         {item.article.abstract}
                       </div>
                     )}
-                    
+
                     <div className="flex items-center justify-between pt-2 border-t">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Confidence: {Math.round(item.confidence * 100)}%
@@ -691,87 +872,99 @@ export function ResultsStep({
               ))}
             </div>
           )}
-          
+
           {/* Table View */}
           {displayMode === 'table' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-600">
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Title</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Authors</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Year</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Journal</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Source</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Confidence</th>
-                    <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Link</th>
-                    {customFeatures.map(feature => (
-                      <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
-                        {feature.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {acceptedArticles.map((item, idx) => (
-                    <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="p-2">
-                        <div className="font-medium text-gray-900 dark:text-gray-100 max-w-md">
-                          {item.article.title}
-                        </div>
-                      </td>
-                      <td className="p-2 text-gray-600 dark:text-gray-400">
-                        <div className="max-w-xs truncate">
-                          {item.article.authors.slice(0, 2).join(', ')}
-                          {item.article.authors.length > 2 && ' et al.'}
-                        </div>
-                      </td>
-                      <td className="p-2 text-gray-600 dark:text-gray-400">
-                        {item.article.year || 'N/A'}
-                      </td>
-                      <td className="p-2 text-gray-600 dark:text-gray-400">
-                        <div className="max-w-xs truncate">
-                          {item.article.journal || 'N/A'}
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <Badge variant="outline" className="text-xs">
-                          {item.article.source}
-                        </Badge>
-                      </td>
-                      <td className="p-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {Math.round(item.confidence * 100)}%
-                        </Badge>
-                      </td>
-                      <td className="p-2">
-                        {item.article.url && (
-                          <a
-                            href={item.article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                      </td>
-                      {customFeatures.map(feature => (
-                        <td key={feature.id} className="p-2 text-gray-600 dark:text-gray-400">
-                          {renderFeatureValue(`${item.article.title}-${item.article.authors.join(',')}`, feature)}
-                        </td>
+            <div className="w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-600">
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Title</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Authors</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Year</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Journal</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Source</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Confidence</th>
+                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Link</th>
+                      {appliedFeatures.map(feature => (
+                        <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
+                          <div className="flex items-center justify-between">
+                            <span>{feature.name}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeAppliedFeature(feature.id)}
+                              className="ml-2 h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {acceptedArticles.map((item, idx) => (
+                      <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="p-2">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                            {item.article.title}
+                          </div>
+                        </td>
+                        <td className="p-2 text-gray-600 dark:text-gray-400">
+                          <div>
+                            {item.article.authors.slice(0, 2).join(', ')}
+                            {item.article.authors.length > 2 && ' et al.'}
+                          </div>
+                        </td>
+                        <td className="p-2 text-gray-600 dark:text-gray-400">
+                          {item.article.year || 'N/A'}
+                        </td>
+                        <td className="p-2 text-gray-600 dark:text-gray-400">
+                          <div>
+                            {item.article.journal || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          <Badge variant="outline" className="text-xs">
+                            {item.article.source}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {Math.round(item.confidence * 100)}%
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          {item.article.url && (
+                            <a
+                              href={item.article.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+                        </td>
+                        {appliedFeatures.map(feature => (
+                          <td key={feature.id} className="p-2 text-gray-600 dark:text-gray-400">
+                            {renderFeatureValue(item, feature)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </Card>
       )}
-      
+
       {/* Add Feature Dialog */}
-      <Dialog open={showAddFeature} onOpenChange={setShowAddFeature}>
+      <Dialog open={showAddFeatures} onOpenChange={setShowAddFeatures}>
         <DialogContent className="max-w-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600">
           <DialogHeader>
             <DialogTitle className="text-gray-900 dark:text-gray-100">Add Custom Column</DialogTitle>
@@ -784,9 +977,10 @@ export function ResultsStep({
                 placeholder="e.g., Study Type, Sample Size"
                 value={newFeature.name}
                 onChange={(e) => setNewFeature(prev => ({ ...prev, name: e.target.value }))}
+                className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="feature-description" className="text-gray-900 dark:text-gray-100">Description</Label>
               <Textarea
@@ -795,18 +989,19 @@ export function ResultsStep({
                 value={newFeature.description}
                 onChange={(e) => setNewFeature(prev => ({ ...prev, description: e.target.value }))}
                 rows={3}
+                className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
               />
             </div>
-            
+
             <div>
               <Label className="text-gray-900 dark:text-gray-100">Data Type</Label>
               <Select
                 value={newFeature.type}
-                onValueChange={(value: 'text' | 'boolean' | 'score') => 
+                onValueChange={(value: 'text' | 'boolean' | 'score') =>
                   setNewFeature(prev => ({ ...prev, type: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -816,7 +1011,7 @@ export function ResultsStep({
                 </SelectContent>
               </Select>
             </div>
-            
+
             {newFeature.type === 'score' && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -829,6 +1024,7 @@ export function ResultsStep({
                       ...prev,
                       options: { ...prev.options, min: Number(e.target.value) }
                     }))}
+                    className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                   />
                 </div>
                 <div>
@@ -841,19 +1037,20 @@ export function ResultsStep({
                       ...prev,
                       options: { ...prev.options, max: Number(e.target.value) }
                     }))}
+                    className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                   />
                 </div>
               </div>
             )}
-            
+
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowAddFeature(false)}
+                onClick={() => setShowAddFeatures(false)}
               >
                 Cancel
               </Button>
-              <Button onClick={addCustomFeature}>
+              <Button onClick={addNewPendingFeature}>
                 Add Column
               </Button>
             </div>
@@ -881,50 +1078,50 @@ export function ResultsStep({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <Card className="p-6 dark:bg-gray-800 mt-2">
-            <div className="space-y-1">
-              {rejectedArticles.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-2 border border-gray-200 dark:border-gray-700 rounded opacity-60"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 truncate">
-                          {item.article.title}
-                        </h4>
-                        <Badge variant="outline" className="text-xs shrink-0 text-red-600">
-                          {Math.round(item.confidence * 100)}%
-                        </Badge>
+              <div className="space-y-1">
+                {rejectedArticles.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 border border-gray-200 dark:border-gray-700 rounded opacity-60"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300 truncate">
+                            {item.article.title}
+                          </h4>
+                          <Badge variant="outline" className="text-xs shrink-0 text-red-600">
+                            {Math.round(item.confidence * 100)}%
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="truncate">
+                            {item.article.authors.slice(0, 2).join(', ')}
+                            {item.article.authors.length > 2 && ' et al.'}
+                            {item.article.year && ` (${item.article.year})`}
+                          </span>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {item.article.source}
+                          </Badge>
+                          {item.article.url && (
+                            <a
+                              href={item.article.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 shrink-0"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">
+                          Reason: {item.reasoning}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="truncate">
-                          {item.article.authors.slice(0, 2).join(', ')}
-                          {item.article.authors.length > 2 && ' et al.'}
-                          {item.article.year && ` (${item.article.year})`}
-                        </span>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {item.article.source}
-                        </Badge>
-                        {item.article.url && (
-                          <a
-                            href={item.article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 shrink-0"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-1">
-                        Reason: {item.reasoning}
-                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             </Card>
           </CollapsibleContent>
         </Collapsible>

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Sparkles } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 import type { FilteredArticle } from '@/types/smart-search';
@@ -358,36 +358,6 @@ export function ResultsStep({
             Search Workflow Summary
           </h2>
           <div className="flex gap-2">
-            {/* Display Mode Toggle */}
-            <div className="flex border rounded-lg">
-              <Button
-                onClick={() => setDisplayMode('table')}
-                variant={displayMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-r-none border-r"
-                title="Table view"
-              >
-                <Eye className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={() => setDisplayMode('card-compressed')}
-                variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-none border-r"
-                title="Card compressed"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={() => setDisplayMode('card-full')}
-                variant={displayMode === 'card-full' ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-l-none"
-                title="Card full"
-              >
-                <Grid className="w-4 h-4" />
-              </Button>
-            </div>
             <Button
               onClick={copyAcceptedTitles}
               variant="outline"
@@ -538,8 +508,39 @@ export function ResultsStep({
               Accepted Articles ({acceptedArticles.length})
             </h3>
 
-            {displayMode === 'table' && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {/* Display Mode Toggle */}
+              <div className="flex border rounded-lg">
+                <Button
+                  onClick={() => setDisplayMode('table')}
+                  variant={displayMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-r-none border-r"
+                  title="Table view"
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setDisplayMode('card-compressed')}
+                  variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-none border-r"
+                  title="Card compressed"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setDisplayMode('card-full')}
+                  variant={displayMode === 'card-full' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-l-none"
+                  title="Card full"
+                >
+                  <Grid className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {displayMode === 'table' ? (
                 <Button
                   onClick={() => {
                     setShowColumns(!showColumns);
@@ -556,12 +557,15 @@ export function ResultsStep({
                   }}
                   variant="outline"
                   size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
                 >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Columns
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Smart Columns
                 </Button>
-              </div>
-            )}
+              ) : (
+                <div className="w-[127px]"></div> // Placeholder to prevent jumping
+              )}
+            </div>
           </div>
 
           {/* Column Management Panel - only show for table view */}

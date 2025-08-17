@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Search, FileText, ArrowRight, RefreshCw, ChevronDown, ChevronUp, Eye, Play, Users } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, ChevronUp, Eye, Play, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +53,7 @@ interface SessionSummaryModalProps {
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'short', 
+    month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
@@ -84,49 +84,49 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Session Summary</h2>
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Original Question</h3>
             <p className="text-gray-700 dark:text-gray-300">{session.original_question}</p>
           </div>
-          
+
           {session.submitted_refined_question && (
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Evidence Specification</h3>
               <p className="text-gray-700 dark:text-gray-300">{session.submitted_refined_question}</p>
             </div>
           )}
-          
+
           {session.submitted_search_query && (
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Search Query</h3>
               <p className="font-mono text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded">{session.submitted_search_query}</p>
             </div>
           )}
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
               <div className="text-sm text-blue-600 dark:text-blue-400">Articles Found</div>
               <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.search_metadata?.total_available?.toLocaleString() || 'N/A'}</div>
             </div>
-            
+
             <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
               <div className="text-sm text-green-600 dark:text-green-400">Accepted</div>
               <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.filtering_metadata?.accepted || 0}</div>
             </div>
-            
+
             <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
               <div className="text-sm text-red-600 dark:text-red-400">Rejected</div>
               <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{session.filtering_metadata?.rejected || 0}</div>
             </div>
-            
+
             <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded">
               <div className="text-sm text-purple-600 dark:text-purple-400">Status</div>
               <div className="text-xl font-bold">{getStepBadge(session.last_step_completed)}</div>
             </div>
           </div>
-          
+
           <div>
             <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Session Details</h3>
             <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
@@ -156,18 +156,18 @@ export default function SearchHistory() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Use admin endpoint if admin view is enabled
-      const response = showAdminView && isAdmin 
+      const response = showAdminView && isAdmin
         ? await smartSearchApi.getAllSessions()
         : await smartSearchApi.getUserSessions();
       // Extract sessions array from response object
       const sessionData = response?.sessions || [];
-      
+
       // Apply sorting
       const sortedSessions = [...sessionData].sort((a, b) => {
         let aValue: any, bValue: any;
-        
+
         switch (sortField) {
           case 'created_at':
             aValue = new Date(a.created_at);
@@ -189,14 +189,14 @@ export default function SearchHistory() {
             aValue = 0;
             bValue = 0;
         }
-        
+
         if (sortDirection === 'asc') {
           return aValue > bValue ? 1 : -1;
         } else {
           return aValue < bValue ? 1 : -1;
         }
       });
-      
+
       setSessions(sortedSessions);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load search history';
@@ -418,7 +418,7 @@ export default function SearchHistory() {
             </div>
           </Card>
         )}
-        
+
         {/* Session Summary Modal */}
         <SessionSummaryModal
           session={selectedSession!}

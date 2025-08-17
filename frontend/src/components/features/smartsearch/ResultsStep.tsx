@@ -540,9 +540,9 @@ export function ResultsStep({
                 </Button>
               </div>
               
-              {displayMode === 'table' ? (
-                <Button
-                  onClick={() => {
+              <Button
+                onClick={() => {
+                  if (displayMode === 'table') {
                     setShowColumns(!showColumns);
                     // Reset form when opening
                     if (!showColumns) {
@@ -554,17 +554,18 @@ export function ResultsStep({
                         type: 'text'
                       });
                     }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Smart Columns
-                </Button>
-              ) : (
-                <div className="w-[127px]"></div> // Placeholder to prevent jumping
-              )}
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                disabled={displayMode !== 'table'}
+                className={displayMode === 'table' 
+                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0" 
+                  : "opacity-50 cursor-not-allowed"}
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                AI+
+              </Button>
             </div>
           </div>
 

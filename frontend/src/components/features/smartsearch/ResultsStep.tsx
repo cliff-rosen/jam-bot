@@ -33,8 +33,8 @@ export function ResultsStep({
   
   // Client-side filtering state
   const [searchTerm, setSearchTerm] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [minConfidence, setMinConfidence] = useState(0);
   const [maxConfidence, setMaxConfidence] = useState(100);
   const [showFilters, setShowFilters] = useState(false);
@@ -52,10 +52,10 @@ export function ResultsStep({
           (item.article.abstract || '').toLowerCase().includes(searchTermLower);
         
         // Year filter
-        const matchesYear = !yearFilter || item.article.year?.toString() === yearFilter;
+        const matchesYear = !yearFilter || yearFilter === 'all' || item.article.year?.toString() === yearFilter;
         
         // Source filter
-        const matchesSource = !sourceFilter || item.article.source === sourceFilter;
+        const matchesSource = !sourceFilter || sourceFilter === 'all' || item.article.source === sourceFilter;
         
         // Confidence range filter
         const confidence = Math.round(item.confidence * 100);
@@ -86,13 +86,13 @@ export function ResultsStep({
   
   const clearFilters = () => {
     setSearchTerm('');
-    setYearFilter('');
-    setSourceFilter('');
+    setYearFilter('all');
+    setSourceFilter('all');
     setMinConfidence(0);
     setMaxConfidence(100);
   };
   
-  const hasActiveFilters = searchTerm || yearFilter || sourceFilter || minConfidence > 0 || maxConfidence < 100;
+  const hasActiveFilters = searchTerm || (yearFilter && yearFilter !== 'all') || (sourceFilter && sourceFilter !== 'all') || minConfidence > 0 || maxConfidence < 100;
   
   // Use original articles for stats and export, filtered for display
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
@@ -500,7 +500,7 @@ export function ResultsStep({
                       <SelectValue placeholder="Any year" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any year</SelectItem>
+                      <SelectItem value="all">Any year</SelectItem>
                       {availableYears.map(year => (
                         <SelectItem key={year} value={year!.toString()}>{year}</SelectItem>
                       ))}
@@ -517,7 +517,7 @@ export function ResultsStep({
                       <SelectValue placeholder="Any source" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any source</SelectItem>
+                      <SelectItem value="all">Any source</SelectItem>
                       {availableSources.map(source => (
                         <SelectItem key={source} value={source}>{source}</SelectItem>
                       ))}

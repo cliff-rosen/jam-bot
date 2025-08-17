@@ -681,8 +681,7 @@ Respond in JSON format:
         features: List[Dict]
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Extract custom features from articles in parallel.
-        Follows same pattern as filter_articles_parallel.
+        Extract custom features from articles using the shared extraction service.
         
         Args:
             articles: List of accepted articles from filtered results
@@ -693,127 +692,59 @@ Respond in JSON format:
         """
         logger.info(f"Starting parallel feature extraction for {len(articles)} articles with {len(features)} features")
         
-        # Create semaphore to limit concurrent LLM calls
-        semaphore = asyncio.Semaphore(500)
+        # Import and initialize the extraction service
+        from services.extraction_service import get_extraction_service
+        extraction_service = get_extraction_service()
         
-        async def extract_with_semaphore(article: Dict) -> Tuple[str, Dict[str, Any]]:
-            """Extract all features for a single article"""
-            async with semaphore:
-                return await self._extract_features_for_article(article, features)
+        # Convert articles to the format expected by extraction service
+        extraction_articles = []
+        for article in articles:
+            article_content = self._get_article_content(article)
+            article_id = self._get_article_id(article)
+            extraction_articles.append({
+                "id": article_id,
+                "title": article_content.get('title', ''),
+                "abstract": article_content.get('abstract', ''),
+                "authors": article_content.get('authors', ''),
+                "journal": article_content.get('journal', ''),
+                "year": article_content.get('year', '')
+            })
         
-        # Execute all extractions in parallel
-        logger.info(f"Executing {len(articles)} extractions in parallel (max {semaphore._value} concurrent)")
-        start_time = datetime.utcnow()
+        # Use the ArticleGroupDetailService's extract_features method
+        # which handles the proper extraction logic
+        from services.article_group_detail_service import ArticleGroupDetailService
+        from database import get_db
         
-        results = await asyncio.gather(
-            *[extract_with_semaphore(article) for article in articles],
-            return_exceptions=True
-        )
-        
-        duration = datetime.utcnow() - start_time
-        logger.info(f"Parallel feature extraction completed in {duration.total_seconds():.2f} seconds")
-        
-        # Process results into final format
-        extracted_features = {}
-        failed_count = 0
-        
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.error(f"Failed to extract features for article {i}: {result}")
-                failed_count += 1
-                # Return empty features for failed articles
-                article_id = self._get_article_id(articles[i])
-                extracted_features[article_id] = {
-                    feature['id']: None for feature in features
-                }
-            else:
-                article_id, features_dict = result
-                extracted_features[article_id] = features_dict
-        
-        if failed_count > 0:
-            logger.warning(f"Failed to extract features for {failed_count}/{len(articles)} articles")
-        
-        return extracted_features
-    
-    async def _extract_features_for_article(
-        self, 
-        article: Dict, 
-        features: List[Dict]
-    ) -> Tuple[str, Dict[str, Any]]:
-        """
-        Extract all features for a single article using one LLM call.
-        
-        Returns:
-            Tuple of (article_id, {feature_id: extracted_value})
-        """
-        # Get article content
-        article_content = self._get_article_content(article)
-        article_id = self._get_article_id(article)
-        
-        # Build extraction prompt for all features at once
-        prompt = self._build_extraction_prompt(article_content, features)
-        
-        # Call LLM
-        prompt_caller = BasePromptCaller(
-            model="gpt-4-turbo-preview",
-            system_prompt="You are a research article analysis assistant. Extract the requested information accurately and concisely."
-        )
-        
+        # Get a database session (we don't need to persist, just use the extraction logic)
+        db_gen = get_db()
+        db = next(db_gen)
         try:
-            response, usage = await prompt_caller.call_async(
-                messages=[ChatMessage(role=MessageRole.USER, content=prompt)],
-                response_format={"type": "json_object"}
+            detail_service = ArticleGroupDetailService(db, extraction_service)
+            
+            # Convert feature format to match what extract_features expects
+            extraction_features = []
+            for feature in features:
+                extraction_features.append({
+                    'id': feature['id'],
+                    'name': feature['name'],
+                    'description': feature['description'],
+                    'type': feature['type'],
+                    'options': feature.get('options', {})
+                })
+            
+            # Extract features without persisting (no user_id/group_id)
+            results = await detail_service.extract_features(
+                articles=extraction_articles,
+                features=extraction_features,
+                user_id=None,  # Don't persist to database
+                group_id=None
             )
             
-            # Parse JSON response
-            extracted = json.loads(response)
+            logger.info(f"Feature extraction completed for {len(results)} articles")
+            return results
             
-            # Ensure all feature IDs are present
-            result = {}
-            for feature in features:
-                feature_id = feature['id']
-                result[feature_id] = extracted.get(feature_id, None)
-            
-            return article_id, result
-            
-        except Exception as e:
-            logger.error(f"Failed to extract features for article {article_id}: {e}")
-            # Return None values for all features on error
-            return article_id, {feature['id']: None for feature in features}
-    
-    def _build_extraction_prompt(self, article_content: str, features: List[Dict]) -> str:
-        """Build a single prompt to extract all features at once."""
-        prompt = f"""Analyze the following research article and extract the requested information.
-        
-Article Title: {article_content.get('title', 'N/A')}
-Authors: {article_content.get('authors', 'N/A')}
-Abstract: {article_content.get('abstract', 'N/A')[:2000]}
-
-Extract the following features:
-"""
-        
-        for feature in features:
-            prompt += f"\n\n{feature['name']} (ID: {feature['id']}):"
-            prompt += f"\n{feature['description']}"
-            
-            if feature['type'] == 'boolean':
-                prompt += "\nReturn true or false only."
-            elif feature['type'] == 'score':
-                options = feature.get('options', {})
-                min_val = options.get('min', 1)
-                max_val = options.get('max', 10)
-                prompt += f"\nProvide a score between {min_val} and {max_val}."
-            else:  # text
-                prompt += "\nProvide a concise text response."
-        
-        prompt += """
-
-Return a JSON object with feature IDs as keys and extracted values.
-Example: {"feat_123": "RCT", "feat_456": true, "feat_789": 8}
-
-Ensure all feature IDs are included. Use null if information cannot be determined."""
-        
-        return prompt
+        finally:
+            db.close()
     
     def _get_article_content(self, article: Dict) -> Dict:
         """Extract relevant content from article object."""

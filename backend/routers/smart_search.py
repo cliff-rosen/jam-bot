@@ -81,8 +81,6 @@ router = APIRouter(
 )
 
 
-
-
 @router.post("/create-evidence-spec", response_model=SmartSearchRefinementResponse)
 async def create_evidence_specification(
     request: SmartSearchRequest,
@@ -384,8 +382,6 @@ async def generate_semantic_discriminator(
         raise HTTPException(status_code=500, detail=f"Discriminator generation failed: {str(e)}")
 
 
-
-
 @router.post("/filter-parallel", response_model=ParallelFilterResponse)
 async def filter_parallel(
     request: UnifiedFilterRequest,
@@ -519,22 +515,15 @@ async def filter_parallel(
         raise HTTPException(status_code=500, detail=f"Failed to start parallel filtering: {str(e)}")
 
 
-# Feature extraction models
-class FeatureDefinition(BaseModel):
-    id: str
-    name: str
-    description: str
-    type: str  # "text", "boolean", "score"
-    options: dict = None
+# Import shared feature schemas
+from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
 
-class FeatureExtractionRequest(BaseModel):
+# Smart Search specific feature extraction models
+class FeatureExtractionRequest(BaseFeatureExtractionRequest):
     session_id: str
-    features: List[FeatureDefinition]
 
-class FeatureExtractionResponse(BaseModel):
+class FeatureExtractionResponse(BaseFeatureExtractionResponse):
     session_id: str
-    extracted_features: dict  # {article_id: {feature_id: value}}
-    extraction_metadata: dict
 
 
 @router.post("/extract-features", response_model=FeatureExtractionResponse)
@@ -590,10 +579,6 @@ async def extract_features(
     except Exception as e:
         logger.error(f"Failed to extract features for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to extract features: {str(e)}")
-
-
-
-
 
 
 @router.get("/sessions")

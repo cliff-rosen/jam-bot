@@ -16,9 +16,10 @@ from sqlalchemy.orm import Session
 from models import User, UserCompanyProfile
 from database import get_db
 from schemas.workbench import (
-    ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails, FeatureDefinition,
+    ArticleGroup, ArticleGroupDetail, ArticleGroupWithDetails,
     ArticleDetailResponse
 )
+from schemas.features import FeatureDefinition
 from schemas.canonical_types import CanonicalResearchArticle
 
 from services.auth_service import validate_token

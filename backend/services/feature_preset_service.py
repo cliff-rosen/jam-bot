@@ -12,7 +12,7 @@ from datetime import datetime
 import uuid
 
 from models import FeaturePresetGroup, FeaturePresetFeature
-from schemas.workbench import FeatureDefinition
+from schemas.features import FeatureDefinition
 
 
 class FeaturePresetService:

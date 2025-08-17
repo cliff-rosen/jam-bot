@@ -9,17 +9,12 @@ from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
 from schemas.canonical_types import CanonicalResearchArticle
+from schemas.features import FeatureDefinition
 
 
 # ================== FEATURE METADATA AND DATA STRUCTURES ==================
 
-class FeatureDefinition(BaseModel):
-    """Feature metadata stored in article groups - defines what features to extract"""
-    id: str = Field(..., description="Stable UUID for feature identification")
-    name: str = Field(..., description="Feature display name") 
-    description: str = Field(..., description="Feature description for LLM extraction")
-    type: Literal['boolean', 'text', 'score'] = Field(..., description="Feature data type")
-    options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
+# FeatureDefinition is now imported from shared schemas.features module
 
 
 

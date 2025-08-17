@@ -5,7 +5,7 @@ API endpoints for smart search functionality in the lab.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -37,6 +37,7 @@ class QueryCountRequest(BaseModel):
     """Request to test search query result count"""
     search_query: str = Field(..., description="Boolean search query to test")
     session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: Optional[List[str]] = Field(None, description="List of sources to search")
 
 
 class QueryCountResponse(BaseModel):
@@ -207,9 +208,17 @@ async def test_query_count(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
+        # Get selected sources from request or session
+        selected_sources = request.selected_sources
+        if not selected_sources and hasattr(session, 'selected_sources'):
+            selected_sources = session.selected_sources
+        
         # Get search count
         service = SmartSearchService()
-        total_count, sources_searched = await service.get_search_count(request.search_query)
+        total_count, sources_searched = await service.get_search_count(
+            request.search_query,
+            selected_sources=selected_sources
+        )
         
         response = QueryCountResponse(
             search_query=request.search_query,

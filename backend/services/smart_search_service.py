@@ -385,7 +385,7 @@ Generate an effective boolean search query for academic databases."""
             # Fallback: use evidence specification as-is with zero usage
             return evidence_specification, LLMUsage()
     
-    async def get_search_count(self, search_query: str) -> Tuple[int, List[str]]:
+    async def get_search_count(self, search_query: str, selected_sources: Optional[List[str]] = None) -> Tuple[int, List[str]]:
         """
         Get total count of search results without retrieving articles
         """
@@ -393,8 +393,13 @@ Generate an effective boolean search query for academic databases."""
         
         try:
             # Use the existing search method but with count_only mode
-            # We'll need to modify search_articles to support count-only mode
-            search_response = await self.search_articles(search_query, max_results=1, offset=0, count_only=True)
+            search_response = await self.search_articles(
+                search_query, 
+                max_results=1, 
+                offset=0, 
+                count_only=True,
+                selected_sources=selected_sources
+            )
             return search_response.pagination.total_available, search_response.sources_searched
         except Exception as e:
             logger.error(f"Failed to get search count: {e}")
@@ -642,9 +647,27 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         if 'google_scholar' in selected_sources:
             try:
                 logger.info("Searching Google Scholar...")
+                loop = asyncio.get_event_loop()
                 
-                if not count_only:  # Skip Scholar for count-only mode
-                    loop = asyncio.get_event_loop()
+                if count_only:
+                    # For count-only mode, get minimal results but still get metadata
+                    scholar_articles, scholar_metadata = await loop.run_in_executor(
+                        None,
+                        self.google_scholar_service.search_articles,
+                        search_query,
+                        1  # Minimal results for count
+                    )
+                    # Add Google Scholar count to total
+                    scholar_count = scholar_metadata.get('total_results', 0)
+                    if num_sources == 1:
+                        # If only Google Scholar, use its count
+                        total_available = scholar_count
+                    else:
+                        # If both sources, add to total with deduplication estimate
+                        total_available = int(total_available + (scholar_count * 0.8))  # Assume 20% overlap
+                    logger.info(f"Google Scholar count: {scholar_count}")
+                else:
+                    # Normal search mode
                     scholar_articles, _ = await loop.run_in_executor(
                         None,
                         self.google_scholar_service.search_articles,

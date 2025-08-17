@@ -215,7 +215,8 @@ export default function SmartSearchLab() {
     try {
       const response = await smartSearchApi.testQueryCount({
         search_query: query,
-        session_id: sessionId
+        session_id: sessionId,
+        selected_sources: selectedSources
       });
       
       return {

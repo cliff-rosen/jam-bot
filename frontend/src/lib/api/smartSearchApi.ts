@@ -28,6 +28,7 @@ export interface KeywordGenerationRequest {
 export interface QueryCountRequest {
   search_query: string;
   session_id: string;
+  selected_sources?: string[];
 }
 
 export interface QueryCountResponse {

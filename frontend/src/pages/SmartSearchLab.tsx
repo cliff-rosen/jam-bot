@@ -783,6 +783,7 @@ export default function SmartSearchLab() {
               searchQuery={editedSearchQuery}
               totalAvailable={searchResults?.pagination.total_available}
               totalFiltered={Math.min(searchResults?.pagination.total_available || 0, 500)}
+              sessionId={sessionId || undefined}
             />
           )}
         </div>

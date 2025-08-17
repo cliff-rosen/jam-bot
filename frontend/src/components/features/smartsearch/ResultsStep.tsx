@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import type { FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
+import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
 interface ResultsStepProps {
   filteredArticles: FilteredArticle[];
@@ -22,6 +23,7 @@ interface ResultsStepProps {
   searchQuery?: string;
   totalAvailable?: number;
   totalFiltered?: number;
+  sessionId?: string;
 }
 
 export function ResultsStep({
@@ -30,7 +32,8 @@ export function ResultsStep({
   evidenceSpecification,
   searchQuery,
   totalAvailable,
-  totalFiltered
+  totalFiltered,
+  sessionId
 }: ResultsStepProps) {
   const { toast } = useToast();
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
@@ -266,30 +269,45 @@ export function ResultsStep({
       return;
     }
 
+    if (!sessionId) {
+      toast({
+        title: 'Session Error',
+        description: 'No active session found. Please refresh and try again.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsExtracting(true);
     setExtractionProgress({ current: 0, total: pendingFeatures.length * acceptedArticles.length });
 
     try {
-      // Here we would call the backend API similar to workbench's extract_unified
-      // For now, simulate the extraction with mock data
-      const newExtractedData: Record<string, Record<string, any>> = {};
+      // Call the backend API to extract features
+      const response = await smartSearchApi.extractFeatures({
+        session_id: sessionId,
+        features: pendingFeatures
+      });
+
+      // Process the response and update state
+      const newExtractedData: Record<string, Record<string, any>> = { ...extractedFeatures };
       
+      // For each article, add the new extracted features
       for (const article of acceptedArticles) {
         const articleId = `${article.article.title}-${article.article.authors.join(',')}`;
-        newExtractedData[articleId] = { ...extractedFeatures[articleId] || {} };
+        newExtractedData[articleId] = { ...newExtractedData[articleId] || {} };
         
-        for (const feature of pendingFeatures) {
-          // Mock extraction - in real implementation, this would call the backend
-          let mockValue: any = 'Sample extracted value';
-          if (feature.type === 'boolean') {
-            mockValue = Math.random() > 0.5;
-          } else if (feature.type === 'score') {
-            const min = feature.options?.min || 1;
-            const max = feature.options?.max || 10;
-            mockValue = Math.floor(Math.random() * (max - min + 1)) + min;
+        // Add the extracted features from the API response
+        const apiArticleId = article.article.url || articleId; // Backend might use URL or title-based ID
+        if (response.results[apiArticleId]) {
+          Object.assign(newExtractedData[articleId], response.results[apiArticleId]);
+        } else {
+          // If backend uses different ID format, try to match by title
+          for (const [backendArticleId, features] of Object.entries(response.results)) {
+            if (backendArticleId.includes(article.article.title.substring(0, 20))) {
+              Object.assign(newExtractedData[articleId], features);
+              break;
+            }
           }
-          
-          newExtractedData[articleId][feature.id] = mockValue;
         }
       }
 
@@ -301,7 +319,7 @@ export function ResultsStep({
 
       toast({
         title: 'Columns Applied Successfully!',
-        description: `Extracted ${extractedCount} custom column${extractedCount !== 1 ? 's' : ''} for ${acceptedArticles.length} articles.`
+        description: `Extracted ${extractedCount} custom column${extractedCount !== 1 ? 's' : ''} for ${acceptedArticles.length} articles in ${response.extraction_metadata.extraction_time.toFixed(1)}s.`
       });
 
       // Auto-hide the columns area after successful extraction
@@ -312,7 +330,7 @@ export function ResultsStep({
       console.error('Error extracting features:', error);
       toast({
         title: 'Extraction Failed',
-        description: 'Failed to extract feature data.',
+        description: error instanceof Error ? error.message : 'Failed to extract feature data.',
         variant: 'destructive'
       });
     } finally {

@@ -13,6 +13,7 @@ import type {
   FilteredArticle,
   StreamMessage
 } from '@/types/smart-search';
+import type { FeatureDefinition } from '@/types/workbench';
 
 export interface EvidenceSpecificationRequest {
   query: string;
@@ -121,12 +122,21 @@ export interface DiscriminatorGenerationResponse {
   session_id: string;
 }
 
-interface StreamingHandlers {
-  onMessage: (message: StreamMessage) => void;
-  onArticle: (article: FilteredArticle) => void;
-  onComplete: (stats: any) => void;
-  onError: (error: string) => void;
+export interface FeatureExtractionRequest {
+  session_id: string;
+  features: FeatureDefinition[];
 }
+
+export interface FeatureExtractionResponse {
+  session_id: string;
+  results: Record<string, Record<string, any>>;  // article_id -> feature_id -> value
+  extraction_metadata: {
+    total_articles: number;
+    features_extracted: number;
+    extraction_time: number;
+  };
+}
+
 
 class SmartSearchApi {
   /**
@@ -285,23 +295,6 @@ class SmartSearchApi {
     return response.data;
   }
 
-  /**
-   * Unified filtering method that handles both selected and all modes (streaming)
-   */
-  async filterUnifiedStreaming(
-    request: UnifiedFilterRequest,
-    onMessage: (message: StreamMessage) => void,
-    onArticle: (article: FilteredArticle) => void,
-    onComplete: (stats: any) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    return this.handleFilterStreaming('/api/lab/smart-search/filter-unified-stream', request, {
-      onMessage,
-      onArticle,
-      onComplete,
-      onError
-    });
-  }
 
   /**
    * Unified parallel filtering method that processes all articles concurrently (non-streaming)
@@ -313,42 +306,13 @@ class SmartSearchApi {
   }
 
   /**
-   * Filter all search results without downloading them first (streaming)
-   * @deprecated Use filterUnifiedStreaming with filter_mode: 'all' instead
+   * Extract custom AI features from Smart Search filtered articles
    */
-  async filterAllSearchResultsStreaming(
-    request: FilterAllSearchResultsRequest,
-    onMessage: (message: StreamMessage) => void,
-    onArticle: (article: FilteredArticle) => void,
-    onComplete: (stats: any) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    return this.handleFilterStreaming('/api/lab/smart-search/filter-all-stream', request, {
-      onMessage,
-      onArticle,
-      onComplete,
-      onError
-    });
+  async extractFeatures(request: FeatureExtractionRequest): Promise<FeatureExtractionResponse> {
+    const response = await api.post('/api/lab/smart-search/extract-features', request);
+    return response.data;
   }
 
-  /**
-   * Filter articles with semantic discriminator (streaming)
-   * @deprecated Use filterUnifiedStreaming with filter_mode: 'selected' instead
-   */
-  async filterArticlesStreaming(
-    request: SemanticFilterRequest,
-    onMessage: (message: StreamMessage) => void,
-    onArticle: (article: FilteredArticle) => void,
-    onComplete: (stats: any) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    return this.handleFilterStreaming('/api/lab/smart-search/filter-stream', request, {
-      onMessage,
-      onArticle,
-      onComplete,
-      onError
-    });
-  }
 }
 
 export const smartSearchApi = new SmartSearchApi();

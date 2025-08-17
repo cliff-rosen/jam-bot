@@ -579,7 +579,7 @@ async def extract_features(
         # Return response
         return FeatureExtractionResponse(
             session_id=request.session_id,
-            extracted_features=extracted_features,
+            results=extracted_features,
             extraction_metadata={
                 "total_articles": len(accepted_articles),
                 "features_extracted": len(request.features),

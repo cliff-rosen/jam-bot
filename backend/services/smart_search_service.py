@@ -730,7 +730,7 @@ Respond in JSON format:
         schema_key = f"features_{hash(tuple(f.name for f in features))}"
         
         # Create semaphore to limit concurrent LLM calls (avoid rate limits)
-        semaphore = asyncio.Semaphore(10)  # Conservative limit for feature extraction
+        semaphore = asyncio.Semaphore(100)  # Higher limit for feature extraction - can handle more concurrent requests
         
         async def extract_for_article(article: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
             async with semaphore:

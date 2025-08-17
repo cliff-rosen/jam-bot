@@ -435,15 +435,28 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 
                 for article in pubmed_articles:
                     # article is now a CanonicalResearchArticle, not the raw Article class
+                    
+                    # Generate proper ID: pmid > doi > generated
+                    pmid = article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None
+                    doi = article.doi
+                    
+                    if pmid:
+                        article_id = f"pmid:{pmid}"
+                    elif doi:
+                        article_id = f"doi:{doi}"
+                    else:
+                        # Generate from title + authors
+                        article_id = f"{article.title[:50]}_{','.join(article.authors[:2]) if article.authors else ''}"
+                    
                     all_articles.append(SearchArticle(
-                        id=article.id,  # Use the canonical article ID
+                        id=article_id,
                         title=article.title,
                         abstract=article.abstract if article.abstract else "",
                         authors=article.authors if article.authors else [],
                         year=article.publication_year if article.publication_year else 0,
                         journal=article.journal if article.journal else None,
-                        doi=article.doi if article.doi else None,
-                        pmid=article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None,
+                        doi=doi,
+                        pmid=pmid,
                         url=article.url if article.url else None,
                         source="pubmed"
                     ))
@@ -736,7 +749,7 @@ Respond in JSON format:
         async def extract_for_article(article: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
             async with semaphore:
                 article_content = self._get_article_content(article)
-                # Extract article ID from filtered article structure
+                # Use the actual article ID from the data
                 article_id = article['article']['id']
                 
                 try:

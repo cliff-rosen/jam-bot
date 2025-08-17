@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -46,8 +45,6 @@ export function ResultsStep({
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number } | null>(null);
   
-  // Add Features modal state
-  const [showAddFeatures, setShowAddFeatures] = useState(false);
   const [newFeature, setNewFeature] = useState<FeatureDefinition>({
     id: '',
     name: '',
@@ -534,8 +531,8 @@ export function ResultsStep({
       </Card>
 
       {acceptedArticles.length > 0 && (
-        <Card className="p-6 dark:bg-gray-800">
-          <div className="flex items-center justify-between mb-4">
+        <Card className={`dark:bg-gray-800 ${displayMode === 'table' ? 'p-0' : 'p-6'}`}>
+          <div className={`flex items-center justify-between mb-4 ${displayMode === 'table' ? 'p-6 pb-0' : ''}`}>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
               <Check className="w-5 h-5 text-green-600 mr-2" />
               Accepted Articles ({acceptedArticles.length})
@@ -569,7 +566,7 @@ export function ResultsStep({
 
           {/* Column Management Panel - only show for table view */}
           {displayMode === 'table' && showColumns && (
-            <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 space-y-4">
+            <div className="mb-4 mx-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Add Custom Columns</h4>
                 <Button
@@ -722,23 +719,20 @@ export function ResultsStep({
                 </div>
               )}
 
-              {/* Pending Features */}
+              {/* Show pending columns inline */}
               {pendingFeatures.length > 0 && (
                 <div className="space-y-2">
                   <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                    Pending Columns ({pendingFeatures.length})
+                    Ready to Apply ({pendingFeatures.length})
                   </h5>
                   {pendingFeatures.map(feature => (
-                    <div key={feature.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-yellow-200 dark:border-yellow-700">
+                    <div key={feature.id} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">{feature.name}</span>
                           <Badge variant="outline" className="text-xs">{feature.type}</Badge>
-                          <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                            ⏳ Pending
-                          </Badge>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{feature.description}</p>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 truncate">{feature.description}</p>
                       </div>
                       <Button
                         size="sm"
@@ -751,17 +745,6 @@ export function ResultsStep({
                       </Button>
                     </div>
                   ))}
-                </div>
-              )}
-
-              {appliedFeatures.length === 0 && pendingFeatures.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    No custom columns added yet.
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    Click "Add Columns" to extract custom data from your articles using AI.
-                  </p>
                 </div>
               )}
             </div>
@@ -875,9 +858,8 @@ export function ResultsStep({
 
           {/* Table View */}
           {displayMode === 'table' && (
-            <div className="w-full">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-full">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-600">
                       <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Title</th>
@@ -957,106 +939,11 @@ export function ResultsStep({
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           )}
         </Card>
       )}
 
-      {/* Add Feature Dialog */}
-      <Dialog open={showAddFeatures} onOpenChange={setShowAddFeatures}>
-        <DialogContent className="max-w-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600">
-          <DialogHeader>
-            <DialogTitle className="text-gray-900 dark:text-gray-100">Add Custom Column</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="feature-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
-              <Input
-                id="feature-name"
-                placeholder="e.g., Study Type, Sample Size"
-                value={newFeature.name}
-                onChange={(e) => setNewFeature(prev => ({ ...prev, name: e.target.value }))}
-                className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="feature-description" className="text-gray-900 dark:text-gray-100">Description</Label>
-              <Textarea
-                id="feature-description"
-                placeholder="Describe what information you want to extract from each article..."
-                value={newFeature.description}
-                onChange={(e) => setNewFeature(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-                className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-
-            <div>
-              <Label className="text-gray-900 dark:text-gray-100">Data Type</Label>
-              <Select
-                value={newFeature.type}
-                onValueChange={(value: 'text' | 'boolean' | 'score') =>
-                  setNewFeature(prev => ({ ...prev, type: value }))
-                }
-              >
-                <SelectTrigger className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="boolean">Yes/No</SelectItem>
-                  <SelectItem value="score">Score (1-10)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {newFeature.type === 'score' && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="score-min" className="text-gray-900 dark:text-gray-100">Min Value</Label>
-                  <Input
-                    id="score-min"
-                    type="number"
-                    value={newFeature.options?.min || 1}
-                    onChange={(e) => setNewFeature(prev => ({
-                      ...prev,
-                      options: { ...prev.options, min: Number(e.target.value) }
-                    }))}
-                    className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="score-max" className="text-gray-900 dark:text-gray-100">Max Value</Label>
-                  <Input
-                    id="score-max"
-                    type="number"
-                    value={newFeature.options?.max || 10}
-                    onChange={(e) => setNewFeature(prev => ({
-                      ...prev,
-                      options: { ...prev.options, max: Number(e.target.value) }
-                    }))}
-                    className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowAddFeatures(false)}
-              >
-                Cancel
-              </Button>
-              <Button onClick={addNewPendingFeature}>
-                Add Column
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {rejectedArticles.length > 0 && (
         <Collapsible open={isRejectedOpen} onOpenChange={setIsRejectedOpen}>

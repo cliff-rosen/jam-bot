@@ -7,7 +7,7 @@ Service for intelligent research article search with LLM-powered refinement and 
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, AsyncGenerator, Tuple, Union
+from typing import List, Dict, Any, AsyncGenerator, Tuple, Union, Optional
 from datetime import datetime
 
 from schemas.features import FeatureDefinition
@@ -682,7 +682,7 @@ Respond in JSON format:
         features: List[FeatureDefinition]
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Extract custom features from articles using the shared extraction service.
+        Extract custom features from articles using parallel processing.
         
         Args:
             articles: List of accepted articles from filtered results  
@@ -693,49 +693,122 @@ Respond in JSON format:
         """
         logger.info(f"Starting parallel feature extraction for {len(articles)} articles with {len(features)} features")
         
+        if not features:
+            return {}
+        
         # Import and initialize the extraction service
         from services.extraction_service import get_extraction_service
         extraction_service = get_extraction_service()
         
-        # Convert articles to the format expected by extraction service
-        extraction_articles = []
-        for article in articles:
-            article_content = self._get_article_content(article)
-            article_id = self._get_article_id(article)
-            extraction_articles.append({
-                "id": article_id,
-                "title": article_content.get('title', ''),
-                "abstract": article_content.get('abstract', ''),
-                "authors": article_content.get('authors', ''),
-                "journal": article_content.get('journal', ''),
-                "year": article_content.get('year', '')
-            })
+        # Build the schema for extraction (same logic as ArticleGroupDetailService)
+        properties = {}
+        for feature in features:
+            properties[feature.name] = self._build_feature_schema(feature)
         
-        # Use the ArticleGroupDetailService's extract_features method
-        # which handles the proper extraction logic
-        from services.article_group_detail_service import ArticleGroupDetailService
-        from database import get_db
+        result_schema = {
+            "type": "object",
+            "properties": properties,
+            "required": [f.name for f in features]
+        }
         
-        # Get a database session (we don't need to persist, just use the extraction logic)
-        db_gen = get_db()
-        db = next(db_gen)
-        try:
-            detail_service = ArticleGroupDetailService(db, extraction_service)
+        # Build extraction instructions
+        instruction_parts = []
+        for feature in features:
+            if feature.type == 'boolean':
+                format_hint = "(Answer: 'yes' or 'no')"
+            elif feature.type in ['score', 'number']:
+                options = feature.options or {}
+                min_val = options.get('min', 1)
+                max_val = options.get('max', 10)
+                format_hint = f"(Numeric score {min_val}-{max_val})"
+            else:
+                format_hint = "(Brief text, max 100 chars)"
             
-            # Extract features without persisting (no user_id/group_id)
-            # ArticleGroupDetailService now accepts FeatureDefinition objects directly
-            results = await detail_service.extract_features(
-                articles=extraction_articles,
-                features=features,  # Pass FeatureDefinition objects directly
-                user_id=None,  # Don't persist to database
-                group_id=None
-            )
-            
-            logger.info(f"Feature extraction completed for {len(results)} articles")
-            return results
-            
-        finally:
-            db.close()
+            instruction_parts.append(f"- {feature.name}: {feature.description} {format_hint}")
+        
+        extraction_instructions = "\n".join(instruction_parts)
+        schema_key = f"features_{hash(tuple(f.name for f in features))}"
+        
+        # Create semaphore to limit concurrent LLM calls (avoid rate limits)
+        semaphore = asyncio.Semaphore(10)  # Conservative limit for feature extraction
+        
+        async def extract_for_article(article: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+            async with semaphore:
+                article_content = self._get_article_content(article)
+                article_id = self._get_article_id(article)
+                
+                try:
+                    # Perform extraction for this article
+                    extraction_result = await extraction_service.perform_extraction(
+                        item={
+                            "id": article_id,
+                            "title": article_content.get('title', ''),
+                            "abstract": article_content.get('abstract', '')
+                        },
+                        result_schema=result_schema,
+                        extraction_instructions=extraction_instructions,
+                        schema_key=schema_key
+                    )
+                    
+                    # Process results
+                    article_results = {}
+                    if extraction_result.extraction:
+                        for feature in features:
+                            if feature.name in extraction_result.extraction:
+                                raw_value = extraction_result.extraction[feature.name]
+                                article_results[feature.id] = self._clean_value(raw_value, feature.type, feature.options)
+                            else:
+                                article_results[feature.id] = self._get_default_value(feature.type, feature.options)
+                    else:
+                        # No extraction results - use defaults
+                        for feature in features:
+                            article_results[feature.id] = self._get_default_value(feature.type, feature.options)
+                    
+                    return article_id, article_results
+                    
+                except Exception as e:
+                    logger.error(f"Failed to extract features for article {article_id}: {e}")
+                    # On error, use default values
+                    article_results = {}
+                    for feature in features:
+                        article_results[feature.id] = self._get_default_value(feature.type, feature.options)
+                    return article_id, article_results
+        
+        # Execute all extractions in parallel
+        logger.info(f"Executing {len(articles)} feature extractions in parallel (max {semaphore._value} concurrent)")
+        start_time = datetime.utcnow()
+        
+        results = await asyncio.gather(
+            *[extract_for_article(article) for article in articles],
+            return_exceptions=True
+        )
+        
+        duration = datetime.utcnow() - start_time
+        logger.info(f"Parallel feature extraction completed in {duration.total_seconds():.2f} seconds")
+        
+        # Process results
+        final_results = {}
+        failed_count = 0
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to extract features for article {i}: {result}")
+                failed_count += 1
+                # Use article ID and default values for failed extractions
+                article_id = self._get_article_id(articles[i])
+                article_results = {}
+                for feature in features:
+                    article_results[feature.id] = self._get_default_value(feature.type, feature.options)
+                final_results[article_id] = article_results
+            else:
+                article_id, article_results = result
+                final_results[article_id] = article_results
+        
+        if failed_count > 0:
+            logger.warning(f"{failed_count} articles failed feature extraction")
+        
+        logger.info(f"Feature extraction completed for {len(final_results)} articles")
+        return final_results
     
     def _get_article_content(self, article: Dict) -> Dict:
         """Extract relevant content from article object."""
@@ -768,3 +841,53 @@ Respond in JSON format:
             title = article_data.get('title', '')
             authors = article_data.get('authors', [])
             return f"{title[:50]}_{','.join(authors[:2])}"
+    
+    def _build_feature_schema(self, feature: FeatureDefinition) -> Dict[str, Any]:
+        """Build JSON schema for a single feature."""
+        if feature.type == 'boolean':
+            return {
+                "type": "string",
+                "enum": ["yes", "no"],
+                "description": feature.description
+            }
+        elif feature.type in ['score', 'number']:
+            options = feature.options or {}
+            return {
+                "type": "number",
+                "minimum": options.get('min', 1),
+                "maximum": options.get('max', 10),
+                "description": feature.description
+            }
+        else:  # text
+            return {
+                "type": "string",
+                "maxLength": 100,
+                "description": feature.description
+            }
+    
+    def _clean_value(self, value: Any, feature_type: str, options: Optional[Dict[str, Any]] = None) -> str:
+        """Clean and validate extracted values based on feature type."""
+        if feature_type == "boolean":
+            clean_val = str(value).lower().strip()
+            return clean_val if clean_val in ["yes", "no"] else "no"
+        elif feature_type in ["score", "number"]:
+            try:
+                num_val = float(value)
+                opts = options or {}
+                min_val = opts.get('min', 1)
+                max_val = opts.get('max', 10)
+                clamped = max(min_val, min(max_val, num_val))
+                return str(int(clamped) if clamped.is_integer() else clamped)
+            except (ValueError, TypeError):
+                return str(options.get('min', 1) if options else 1)
+        else:  # text
+            return str(value)[:100] if value is not None else ""
+    
+    def _get_default_value(self, feature_type: str, options: Optional[Dict[str, Any]] = None) -> str:
+        """Get default value for a feature type."""
+        if feature_type == "boolean":
+            return "no"
+        elif feature_type in ["score", "number"]:
+            return str(options.get('min', 1) if options else 1)
+        else:  # text
+            return ""

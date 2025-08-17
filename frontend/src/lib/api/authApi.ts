@@ -48,13 +48,13 @@ export const authApi = {
     async loginWithToken(token: string): Promise<AuthResponse> {
         const params = new URLSearchParams();
         params.append('token', token);
-        
+
         const response = await api.post('/api/auth/login-with-token', params, {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
         });
-        
+
         return response.data;
     },
 
@@ -64,20 +64,20 @@ export const authApi = {
     async requestLoginToken(email: string): Promise<{ message: string }> {
         const params = new URLSearchParams();
         params.append('email', email);
-        
+
         const response = await api.post('/api/auth/request-login-token', params, {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
         });
-        
+
         return response.data;
     },
 
     /**
-     * Register a new user
+     * Register a new user and automatically log them in
      */
-    async register(credentials: RegisterCredentials): Promise<any> {
+    async register(credentials: RegisterCredentials): Promise<AuthResponse> {
         const response = await api.post('/api/auth/register', credentials);
         return response.data;
     },

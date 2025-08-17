@@ -22,6 +22,7 @@ export interface EvidenceSpecificationRequest {
 export interface KeywordGenerationRequest {
   evidence_specification: string;
   session_id: string;
+  selected_sources?: string[];
 }
 
 export interface QueryCountRequest {
@@ -59,6 +60,7 @@ export interface ArticleSearchRequest {
   max_results?: number;
   offset?: number;
   session_id: string;
+  selected_sources?: string[];
 }
 
 export interface SemanticFilterRequest {

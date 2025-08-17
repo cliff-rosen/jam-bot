@@ -4,20 +4,20 @@ import { authApi, type LoginCredentials, type RegisterCredentials } from '../lib
 interface AuthContextType {
     isAuthenticated: boolean
     user: { id: string; username: string; email: string; role: string } | null
-    
+
     // Auth methods
     login: (credentials: LoginCredentials) => Promise<void>
     loginWithToken: (token: string) => Promise<void>
     requestLoginToken: (email: string) => Promise<void>
     register: (credentials: RegisterCredentials) => Promise<void>
     logout: () => void
-    
+
     // Loading states
     isLoginLoading: boolean
     isTokenLoginLoading: boolean
     isTokenRequestLoading: boolean
     isRegisterLoading: boolean
-    
+
     // Error handling
     error: string | null
     handleSessionExpired: () => void
@@ -173,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setIsLoginLoading(true)
             setError(null)
-            
+
             const authResponse = await authApi.login(credentials)
             handleAuthSuccess(authResponse)
         } catch (error: any) {
@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setIsTokenLoginLoading(true)
             setError(null)
-            
+
             const authResponse = await authApi.loginWithToken(token)
             handleAuthSuccess(authResponse)
         } catch (error: any) {
@@ -205,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setIsTokenRequestLoading(true)
             setError(null)
-            
+
             const response = await authApi.requestLoginToken(email)
             // Set the backend's message as a success message
             setError(response.message)
@@ -222,9 +222,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setIsRegisterLoading(true)
             setError(null)
-            
-            await authApi.register(credentials)
-            setError('Registration successful! Please sign in.')
+
+            const authResponse = await authApi.register(credentials)
+            // Registration now returns Token response and automatically logs user in
+            handleAuthSuccess(authResponse)
+            setError('Registration successful! Welcome!')
         } catch (error: any) {
             const errorMessage = extractErrorMessage(error, 'Registration failed. Please try again.')
             setError(errorMessage)
@@ -319,20 +321,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <AuthContext.Provider value={{
             isAuthenticated,
             user,
-            
+
             // Auth methods
             login,
             loginWithToken,
             requestLoginToken,
             register,
             logout,
-            
+
             // Loading states
             isLoginLoading,
             isTokenLoginLoading,
             isTokenRequestLoading,
             isRegisterLoading,
-            
+
             // Error handling
             error,
             handleSessionExpired,

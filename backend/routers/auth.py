@@ -19,16 +19,18 @@ router = APIRouter()
 
 @router.post(
     "/register",
-    response_model=UserCreate,
-    summary="Register a new user"
+    response_model=Token,
+    summary="Register a new user and automatically log them in"
 )
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     """
-    Register a new user with:
+    Register a new user and automatically log them in with:
     - **email**: valid email address
     - **password**: string
+    
+    Returns JWT token and session information, same as login endpoint.
     """
-    return await auth_service.create_user(db, user)
+    return await auth_service.register_and_login_user(db, user)
 
 
 @router.post(

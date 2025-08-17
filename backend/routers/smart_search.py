@@ -156,6 +156,11 @@ async def generate_keywords(
         service = SmartSearchService()
         search_query, usage = await service.generate_search_keywords(request.evidence_specification)
         
+        # Store selected sources in session if provided
+        if request.selected_sources:
+            session.selected_sources = request.selected_sources
+            db.commit()
+        
         # Update session - this is when user actually submits their evidence specification
         session_service.update_search_query_step(
             session_id=session.id,
@@ -301,12 +306,18 @@ async def execute_search(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
+        # Get selected sources from request or session
+        selected_sources = request.selected_sources
+        if not selected_sources and hasattr(session, 'selected_sources'):
+            selected_sources = session.selected_sources
+        
         # Execute search
         service = SmartSearchService()
         response = await service.search_articles(
             search_query=request.search_query,
             max_results=request.max_results,
-            offset=request.offset
+            offset=request.offset,
+            selected_sources=selected_sources
         )
         
         # Update session with search metadata

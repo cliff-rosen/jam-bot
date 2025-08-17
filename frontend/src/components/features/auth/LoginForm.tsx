@@ -3,16 +3,16 @@ import settings from '@/config/settings';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginForm() {
-    const { 
-        login, 
-        register, 
-        requestLoginToken, 
+    const {
+        login,
+        register,
+        requestLoginToken,
         isLoginLoading,
         isRegisterLoading,
-        isTokenRequestLoading, 
-        error 
+        isTokenRequestLoading,
+        error
     } = useAuth();
-    
+
     // Local state - now managed within LoginForm
     const [isRegistering, setIsRegistering] = useState(false);
     const [formData, setFormData] = useState({
@@ -35,13 +35,8 @@ export default function LoginForm() {
 
             try {
                 await register({ email: formData.email, password: formData.password });
-                setIsRegistering(false);
-                setFormData(prev => ({
-                    ...prev,
-                    password: '',
-                    confirmPassword: ''
-                }));
-                setPasswordError(null);
+                // Registration now automatically logs the user in, no need to switch modes
+                // The user will be redirected to the main app by the auth system
             } catch (error) {
                 // Error is handled by AuthContext
             }
@@ -94,8 +89,8 @@ export default function LoginForm() {
 
             {(error || passwordError || tokenSent) && (
                 <div className={`border px-4 py-3 rounded relative ${error?.includes('successful') || error?.includes('login link') || error?.includes('account with this email') || tokenSent
-                        ? 'bg-green-100 border-green-400 text-green-700'
-                        : 'bg-red-100 border-red-400 text-red-700'
+                    ? 'bg-green-100 border-green-400 text-green-700'
+                    : 'bg-red-100 border-red-400 text-red-700'
                     }`}>
                     {tokenSent && error
                         ? error  // Show the backend's message

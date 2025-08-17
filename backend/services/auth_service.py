@@ -77,6 +77,74 @@ async def create_user(db: Session, user: UserCreate):
         raise
 
 
+async def register_and_login_user(db: Session, user: UserCreate) -> Token:
+    """
+    Register a new user and automatically log them in, returning JWT token with session information
+    """
+    logger.info(f"Attempting to register and login user with email: {user.email}")
+    
+    # First create the user (this will handle duplicate email checking)
+    db_user = await create_user(db, user)
+    
+    try:
+        # Extract username from email
+        username = user.email.split('@')[0]
+        logger.debug(f"Generated username: {username}")
+
+        # Create token
+        logger.debug("Creating access token for new user")
+        token_data = {
+            "sub": db_user.email,
+            "user_id": db_user.user_id,
+            "username": username,
+            "role": db_user.role.value
+        }
+        logger.debug(f"Token data: {token_data}")
+
+        access_token = create_access_token(data=token_data)
+        
+        # Create initial session for new user
+        logger.debug("Creating initial session for new user")
+        session_service = UserSessionService(db)
+        from routers.user_session import CreateUserSessionRequest
+        session_request = CreateUserSessionRequest(
+            session_metadata={
+                "created_via": "registration",
+                "initialized_at": datetime.utcnow().isoformat()
+            }
+        )
+        session_response = session_service.create_user_session(db_user.user_id, session_request)
+        session_id = session_response.user_session.id
+        session_name = session_response.user_session.name
+        chat_id = session_response.user_session.chat_id
+        mission_id = session_response.user_session.mission_id
+        session_metadata = session_response.user_session.session_metadata or {}
+
+        logger.info(f"Successfully registered and logged in user: {user.email} with session: {session_id}")
+
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            username=username,
+            role=db_user.role,
+            session_id=session_id,
+            session_name=session_name,
+            chat_id=chat_id,
+            mission_id=mission_id,
+            session_metadata=session_metadata
+        )
+
+    except Exception as e:
+        logger.error(f"Error during post-registration login: {str(e)}")
+        logger.error(traceback.format_exc())
+        # If login fails after registration, we should probably clean up the user
+        # But for now, let's just raise the error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"User registered but login failed: {str(e)}"
+        )
+
+
 async def login_user(db: Session, email: str, password: str) -> Token:
     """
     Authenticate user and return JWT token with session information

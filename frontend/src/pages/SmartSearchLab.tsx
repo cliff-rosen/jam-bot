@@ -63,6 +63,9 @@ export default function SmartSearchLab() {
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
+  
+  // Source selection
+  const [selectedSources, setSelectedSources] = useState<string[]>(['pubmed', 'google_scholar']);
 
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -250,7 +253,7 @@ export default function SmartSearchLab() {
   };
 
   // Step 2: Generate search keywords from evidence specification
-  const handleGenerateKeywords = async () => {
+  const handleGenerateKeywords = async (sources?: string[]) => {
     if (!evidenceSpec.trim()) {
       toast({
         title: 'Error',
@@ -260,11 +263,17 @@ export default function SmartSearchLab() {
       return;
     }
 
+    // Update selected sources if provided
+    if (sources) {
+      setSelectedSources(sources);
+    }
+
     setSearchQueryLoading(true);
     try {
       const response = await smartSearchApi.generateKeywords({
         evidence_specification: evidenceSpec,
-        session_id: sessionId!
+        session_id: sessionId!,
+        selected_sources: sources || selectedSources
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
@@ -326,7 +335,8 @@ export default function SmartSearchLab() {
       const results = await smartSearchApi.executeSearch({
         search_query: editedSearchQuery,
         max_results: 50,
-        session_id: sessionId!
+        session_id: sessionId!,
+        selected_sources: selectedSources
       });
 
       if (results.articles.length === 0) {

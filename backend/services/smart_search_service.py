@@ -549,14 +549,18 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         logger.info(f"Optimized query: {final_count} results, status: {status}")
         return initial_query, initial_count, final_query, final_count, refinement_description, status
       
-    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False) -> SearchResultsResponse:
+    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False, selected_sources: Optional[List[str]] = None) -> SearchResultsResponse:
         """
         Search for articles using search query across multiple sources with deduplication
         """
+        # Default to both sources if not specified
+        if selected_sources is None:
+            selected_sources = ['pubmed', 'google_scholar']
+        
         if count_only:
             logger.info(f"Getting count for query: {search_query}")
         else:
-            logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}")
+            logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}, sources: {selected_sources}")
         
         pubmed_search_articles = []
         scholar_search_articles = []
@@ -564,114 +568,122 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         total_available = 0
         
         # Calculate how many results to get from each source
-        # Split the max_results between sources, with slight overlap for deduplication
-        pubmed_max = (max_results * 2) // 3  # Get 2/3 from PubMed
-        scholar_max = (max_results * 2) // 3  # Get 2/3 from Scholar (overlap allows for deduplication)
+        num_sources = len(selected_sources)
+        if num_sources == 2:
+            # Split the max_results between sources, with slight overlap for deduplication
+            pubmed_max = (max_results * 2) // 3  # Get 2/3 from PubMed
+            scholar_max = (max_results * 2) // 3  # Get 2/3 from Scholar (overlap allows for deduplication)
+        else:
+            # Single source gets all results
+            pubmed_max = max_results
+            scholar_max = max_results
         
-        # Search PubMed
-        try:
-            logger.info("Searching PubMed...")
-            loop = asyncio.get_event_loop()
-            
-            if count_only:
-                # For count-only mode, just get metadata with minimal results
-                pubmed_articles, metadata = await loop.run_in_executor(
-                    None, 
-                    search_pubmed,
-                    search_query,
-                    1,  # Minimal results for count-only
-                    0
-                )
-                total_available = metadata.get('total_results', 0)
-            else:
-                # Normal search mode
-                pubmed_articles, metadata = await loop.run_in_executor(
-                    None, 
-                    search_pubmed,
-                    search_query,
-                    pubmed_max,
-                    offset
-                )
-                
-                # Get total count from metadata
-                total_available = metadata.get('total_results', 0)
-                
-                for article in pubmed_articles:
-                    # Generate proper ID: pmid > doi > generated
-                    pmid = article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None
-                    doi = article.doi
-                    
-                    if pmid:
-                        article_id = f"pmid:{pmid}"
-                    elif doi:
-                        article_id = f"doi:{doi}"
-                    else:
-                        # Generate from title + authors
-                        article_id = f"{article.title[:50]}_{','.join(article.authors[:2]) if article.authors else ''}"
-                    
-                    pubmed_search_articles.append(SearchArticle(
-                        id=article_id,
-                        title=article.title,
-                        abstract=article.abstract if article.abstract else "",
-                        authors=article.authors if article.authors else [],
-                        year=article.publication_year if article.publication_year else 0,
-                        journal=article.journal if article.journal else None,
-                        doi=doi,
-                        pmid=pmid,
-                        url=article.url if article.url else None,
-                        source="pubmed"
-                    ))
-            sources_searched.append("pubmed")
-            logger.info(f"Found {len(pubmed_search_articles)} PubMed articles")
-            
-        except Exception as e:
-            logger.error(f"PubMed search failed: {e}")
-        
-        # Search Google Scholar 
-        try:
-            logger.info("Searching Google Scholar...")
-            
-            if not count_only:  # Skip Scholar for count-only mode
+        # Search PubMed if selected
+        if 'pubmed' in selected_sources:
+            try:
+                logger.info("Searching PubMed...")
                 loop = asyncio.get_event_loop()
-                scholar_articles, _ = await loop.run_in_executor(
-                    None,
-                    self.google_scholar_service.search_articles,
-                    search_query,
-                    scholar_max
-                )
                 
-                for article in scholar_articles:
-                    # Extract year from publication_info if not directly available
-                    year = article.year if hasattr(article, 'year') and article.year else 0
-                    if not year and hasattr(article, 'publication_info') and article.publication_info:
-                        # Try to extract year from publication info string
-                        import re
-                        year_match = re.search(r'\b(19|20)\d{2}\b', article.publication_info)
-                        if year_match:
-                            year = int(year_match.group())
+                if count_only:
+                    # For count-only mode, just get metadata with minimal results
+                    pubmed_articles, metadata = await loop.run_in_executor(
+                        None, 
+                        search_pubmed,
+                        search_query,
+                        1,  # Minimal results for count-only
+                        0
+                    )
+                    total_available = metadata.get('total_results', 0)
+                else:
+                    # Normal search mode
+                    pubmed_articles, metadata = await loop.run_in_executor(
+                        None, 
+                        search_pubmed,
+                        search_query,
+                        pubmed_max,
+                        offset
+                    )
                     
-                    # Generate ID for Scholar articles
-                    scholar_id = f"scholar_{article.title[:30]}_{','.join(article.authors[:2]) if article.authors else ''}"
+                    # Get total count from metadata
+                    total_available = metadata.get('total_results', 0)
                     
-                    scholar_search_articles.append(SearchArticle(
-                        id=scholar_id,
-                        title=article.title if article.title else "",
-                        abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
-                        authors=article.authors if article.authors else [],
-                        year=year,
-                        journal=None,  # Scholar doesn't provide structured journal info
-                        doi=self._extract_doi_from_text(article.link) if article.link else None,
-                        pmid=self._extract_pmid_from_url(article.link) if article.link else None,
-                        url=article.link if article.link else None,
-                        source="google_scholar"
-                    ))
+                    for article in pubmed_articles:
+                        # Generate proper ID: pmid > doi > generated
+                        pmid = article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None
+                        doi = article.doi
+                        
+                        if pmid:
+                            article_id = f"pmid:{pmid}"
+                        elif doi:
+                            article_id = f"doi:{doi}"
+                        else:
+                            # Generate from title + authors
+                            article_id = f"{article.title[:50]}_{','.join(article.authors[:2]) if article.authors else ''}"
+                        
+                        pubmed_search_articles.append(SearchArticle(
+                            id=article_id,
+                            title=article.title,
+                            abstract=article.abstract if article.abstract else "",
+                            authors=article.authors if article.authors else [],
+                            year=article.publication_year if article.publication_year else 0,
+                            journal=article.journal if article.journal else None,
+                            doi=doi,
+                            pmid=pmid,
+                            url=article.url if article.url else None,
+                            source="pubmed"
+                        ))
+                sources_searched.append("pubmed")
+                logger.info(f"Found {len(pubmed_search_articles)} PubMed articles")
                 
-                logger.info(f"Found {len(scholar_search_articles)} Google Scholar articles")
-            
-            sources_searched.append("google_scholar")
-            
-        except Exception as e:
-            logger.error(f"Google Scholar search failed: {e}")
+            except Exception as e:
+                logger.error(f"PubMed search failed: {e}")
+        
+        # Search Google Scholar if selected
+        if 'google_scholar' in selected_sources:
+            try:
+                logger.info("Searching Google Scholar...")
+                
+                if not count_only:  # Skip Scholar for count-only mode
+                    loop = asyncio.get_event_loop()
+                    scholar_articles, _ = await loop.run_in_executor(
+                        None,
+                        self.google_scholar_service.search_articles,
+                        search_query,
+                        scholar_max
+                    )
+                    
+                    for article in scholar_articles:
+                        # Extract year from publication_info if not directly available
+                        year = article.year if hasattr(article, 'year') and article.year else 0
+                        if not year and hasattr(article, 'publication_info') and article.publication_info:
+                            # Try to extract year from publication info string
+                            import re
+                            year_match = re.search(r'\b(19|20)\d{2}\b', article.publication_info)
+                            if year_match:
+                                year = int(year_match.group())
+                        
+                        # Generate ID for Scholar articles
+                        scholar_id = f"scholar_{article.title[:30]}_{','.join(article.authors[:2]) if article.authors else ''}"
+                        
+                        scholar_search_articles.append(SearchArticle(
+                            id=scholar_id,
+                            title=article.title if article.title else "",
+                            abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
+                            authors=article.authors if article.authors else [],
+                            year=year,
+                            journal=None,  # Scholar doesn't provide structured journal info
+                            doi=self._extract_doi_from_text(article.link) if article.link else None,
+                            pmid=self._extract_pmid_from_url(article.link) if article.link else None,
+                            url=article.link if article.link else None,
+                            source="google_scholar"
+                        ))
+                    
+                    logger.info(f"Found {len(scholar_search_articles)} Google Scholar articles")
+                
+                sources_searched.append("google_scholar")
+                
+            except Exception as e:
+                logger.error(f"Google Scholar search failed: {e}")
         
         # Deduplicate results if we have both sources
         if pubmed_search_articles and scholar_search_articles:

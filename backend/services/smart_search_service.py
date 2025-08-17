@@ -7,8 +7,10 @@ Service for intelligent research article search with LLM-powered refinement and 
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, AsyncGenerator, Tuple, Union, Optional
+import re
+from typing import List, Dict, Any, AsyncGenerator, Tuple, Union, Optional, Set
 from datetime import datetime
+from difflib import SequenceMatcher
 
 from schemas.features import FeatureDefinition
 from schemas.smart_search import (
@@ -34,6 +36,163 @@ class SmartSearchService:
     
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
+    
+    def _normalize_title(self, title: str) -> str:
+        """Normalize title for comparison by removing punctuation and converting to lowercase."""
+        if not title:
+            return ""
+        # Remove punctuation and extra whitespace
+        normalized = re.sub(r'[^\w\s]', '', title.lower())
+        normalized = ' '.join(normalized.split())
+        return normalized
+    
+    def _extract_pmid_from_url(self, url: str) -> Optional[str]:
+        """Extract PMID from a URL if present."""
+        if not url:
+            return None
+        # Match patterns like pubmed/12345678 or pmid=12345678
+        pmid_patterns = [
+            r'pubmed[./](\d+)',
+            r'pmid[=:](\d+)',
+            r'articles/PMC\d+.*PMID[:\s]+(\d+)'
+        ]
+        for pattern in pmid_patterns:
+            match = re.search(pattern, url, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return None
+    
+    def _extract_doi_from_text(self, text: str) -> Optional[str]:
+        """Extract DOI from text if present."""
+        if not text:
+            return None
+        # Match DOI pattern
+        doi_pattern = r'10\.\d{4,}/[-._;()/:\w]+'
+        match = re.search(doi_pattern, text)
+        return match.group(0) if match else None
+    
+    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
+        """Calculate similarity between two titles."""
+        norm1 = self._normalize_title(title1)
+        norm2 = self._normalize_title(title2)
+        if not norm1 or not norm2:
+            return 0.0
+        return SequenceMatcher(None, norm1, norm2).ratio()
+    
+    def _check_author_overlap(self, authors1: List[str], authors2: List[str]) -> bool:
+        """Check if there's significant author overlap between two author lists."""
+        if not authors1 or not authors2:
+            return False
+        
+        # Normalize author names (last name only for comparison)
+        def get_last_names(authors):
+            last_names = set()
+            for author in authors:
+                # Try to extract last name (assume it's the last word)
+                parts = author.strip().split()
+                if parts:
+                    last_names.add(parts[-1].lower())
+            return last_names
+        
+        names1 = get_last_names(authors1[:3])  # Check first 3 authors
+        names2 = get_last_names(authors2[:3])
+        
+        # If at least 2 authors match, consider it an overlap
+        return len(names1.intersection(names2)) >= min(2, min(len(names1), len(names2)))
+    
+    def _is_duplicate(self, article1: SearchArticle, article2: SearchArticle) -> bool:
+        """
+        Determine if two articles are duplicates based on various criteria.
+        Returns True if articles are likely the same paper.
+        """
+        # Check DOI match
+        if article1.doi and article2.doi:
+            if article1.doi.lower() == article2.doi.lower():
+                return True
+        
+        # Check PMID match (including extraction from URLs)
+        pmid1 = article1.pmid or self._extract_pmid_from_url(article1.url)
+        pmid2 = article2.pmid or self._extract_pmid_from_url(article2.url)
+        if pmid1 and pmid2 and pmid1 == pmid2:
+            return True
+        
+        # Check title similarity
+        title_similarity = self._calculate_title_similarity(article1.title, article2.title)
+        
+        # High title similarity (>85%) with same year
+        if title_similarity > 0.85:
+            # Verify with year if available
+            if article1.year and article2.year:
+                if abs(article1.year - article2.year) <= 1:  # Allow 1 year difference
+                    return True
+            else:
+                # No year info, check authors
+                if self._check_author_overlap(article1.authors, article2.authors):
+                    return True
+        
+        # Very high title similarity (>95%) regardless of other factors
+        if title_similarity > 0.95:
+            return True
+        
+        return False
+    
+    def _merge_duplicate_articles(self, primary: SearchArticle, secondary: SearchArticle) -> SearchArticle:
+        """
+        Merge information from duplicate articles, keeping primary as base.
+        Primary is typically PubMed, secondary is typically Google Scholar.
+        """
+        # Create a merged article based on primary
+        merged = SearchArticle(
+            id=primary.id,
+            title=primary.title,
+            abstract=primary.abstract or secondary.abstract,  # Use secondary if primary lacks abstract
+            authors=primary.authors if primary.authors else secondary.authors,
+            year=primary.year if primary.year else secondary.year,
+            journal=primary.journal or secondary.journal,
+            doi=primary.doi or self._extract_doi_from_text(secondary.url or ""),
+            pmid=primary.pmid,
+            url=primary.url or secondary.url,
+            source="pubmed,google_scholar"  # Mark as coming from both sources
+        )
+        return merged
+    
+    def _deduplicate_results(self, pubmed_articles: List[SearchArticle], 
+                            scholar_articles: List[SearchArticle]) -> List[SearchArticle]:
+        """
+        Deduplicate articles from PubMed and Google Scholar.
+        PubMed articles are kept as primary, Scholar articles are merged or added if unique.
+        """
+        deduplicated = []
+        used_scholar_indices = set()
+        
+        # First pass: Add all PubMed articles, merging with Scholar duplicates
+        for pm_article in pubmed_articles:
+            merged_with_scholar = False
+            
+            for idx, scholar_article in enumerate(scholar_articles):
+                if idx in used_scholar_indices:
+                    continue
+                    
+                if self._is_duplicate(pm_article, scholar_article):
+                    # Merge the articles
+                    merged_article = self._merge_duplicate_articles(pm_article, scholar_article)
+                    deduplicated.append(merged_article)
+                    used_scholar_indices.add(idx)
+                    merged_with_scholar = True
+                    logger.info(f"Merged duplicate: '{pm_article.title[:50]}...' from both sources")
+                    break
+            
+            if not merged_with_scholar:
+                deduplicated.append(pm_article)
+        
+        # Second pass: Add unique Scholar articles
+        for idx, scholar_article in enumerate(scholar_articles):
+            if idx not in used_scholar_indices:
+                deduplicated.append(scholar_article)
+                logger.info(f"Added unique Scholar article: '{scholar_article.title[:50]}...'")
+        
+        logger.info(f"Deduplication complete: {len(pubmed_articles)} PubMed + {len(scholar_articles)} Scholar -> {len(deduplicated)} unique")
+        return deduplicated
         
     async def create_evidence_specification(self, query: str) -> Tuple[str, LLMUsage]:
         """
@@ -392,22 +551,26 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
       
     async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False) -> SearchResultsResponse:
         """
-        Search for articles using search query across multiple sources
+        Search for articles using search query across multiple sources with deduplication
         """
         if count_only:
             logger.info(f"Getting count for query: {search_query}")
         else:
             logger.info(f"Searching with query: {search_query}, max_results: {max_results}, offset: {offset}")
         
-        all_articles = []
+        pubmed_search_articles = []
+        scholar_search_articles = []
         sources_searched = []
         total_available = 0
+        
+        # Calculate how many results to get from each source
+        # Split the max_results between sources, with slight overlap for deduplication
+        pubmed_max = (max_results * 2) // 3  # Get 2/3 from PubMed
+        scholar_max = (max_results * 2) // 3  # Get 2/3 from Scholar (overlap allows for deduplication)
         
         # Search PubMed
         try:
             logger.info("Searching PubMed...")
-            # Use search_pubmed function from pubmed_service (it's a sync function)
-            # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
             
             if count_only:
@@ -426,7 +589,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                     None, 
                     search_pubmed,
                     search_query,
-                    max_results,  # Use full max_results since Scholar is disabled
+                    pubmed_max,
                     offset
                 )
                 
@@ -434,8 +597,6 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 total_available = metadata.get('total_results', 0)
                 
                 for article in pubmed_articles:
-                    # article is now a CanonicalResearchArticle, not the raw Article class
-                    
                     # Generate proper ID: pmid > doi > generated
                     pmid = article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None
                     doi = article.doi
@@ -448,7 +609,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                         # Generate from title + authors
                         article_id = f"{article.title[:50]}_{','.join(article.authors[:2]) if article.authors else ''}"
                     
-                    all_articles.append(SearchArticle(
+                    pubmed_search_articles.append(SearchArticle(
                         id=article_id,
                         title=article.title,
                         abstract=article.abstract if article.abstract else "",
@@ -461,40 +622,72 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                         source="pubmed"
                     ))
             sources_searched.append("pubmed")
-            logger.info(f"Found {len(pubmed_articles)} PubMed articles")
+            logger.info(f"Found {len(pubmed_search_articles)} PubMed articles")
             
         except Exception as e:
             logger.error(f"PubMed search failed: {e}")
         
-        # Search Google Scholar - TEMPORARILY DISABLED
-        # try:
-        #     logger.info("Searching Google Scholar...")
-        #     # Google Scholar service is also sync, run in executor
-        #     loop = asyncio.get_event_loop()
-        #     scholar_articles, _ = await loop.run_in_executor(
-        #         None,
-        #         self.google_scholar_service.search_articles,
-        #         search_query,
-        #         max_results // 2
-        #     )
-        #     
-        #     for article in scholar_articles:
-        #         all_articles.append(SearchArticle(
-        #             title=article.title if article.title else "",
-        #             abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
-        #             authors=article.authors if article.authors else [],
-        #             year=article.year if article.year else 0,
-        #             journal=article.venue if hasattr(article, 'venue') else None,
-        #             doi=None,  # Scholar doesn't always provide DOI
-        #             pmid=None,
-        #             url=article.link if article.link else None,
-        #             source="google_scholar"
-        #         ))
-        #     sources_searched.append("google_scholar")
-        #     logger.info(f"Found {len(scholar_articles)} Google Scholar articles")
-        #     
-        # except Exception as e:
-        #     logger.error(f"Google Scholar search failed: {e}")
+        # Search Google Scholar 
+        try:
+            logger.info("Searching Google Scholar...")
+            
+            if not count_only:  # Skip Scholar for count-only mode
+                loop = asyncio.get_event_loop()
+                scholar_articles, _ = await loop.run_in_executor(
+                    None,
+                    self.google_scholar_service.search_articles,
+                    search_query,
+                    scholar_max
+                )
+                
+                for article in scholar_articles:
+                    # Extract year from publication_info if not directly available
+                    year = article.year if hasattr(article, 'year') and article.year else 0
+                    if not year and hasattr(article, 'publication_info') and article.publication_info:
+                        # Try to extract year from publication info string
+                        import re
+                        year_match = re.search(r'\b(19|20)\d{2}\b', article.publication_info)
+                        if year_match:
+                            year = int(year_match.group())
+                    
+                    # Generate ID for Scholar articles
+                    scholar_id = f"scholar_{article.title[:30]}_{','.join(article.authors[:2]) if article.authors else ''}"
+                    
+                    scholar_search_articles.append(SearchArticle(
+                        id=scholar_id,
+                        title=article.title if article.title else "",
+                        abstract=article.snippet if article.snippet else "",  # Scholar uses 'snippet' for abstract
+                        authors=article.authors if article.authors else [],
+                        year=year,
+                        journal=None,  # Scholar doesn't provide structured journal info
+                        doi=self._extract_doi_from_text(article.link) if article.link else None,
+                        pmid=self._extract_pmid_from_url(article.link) if article.link else None,
+                        url=article.link if article.link else None,
+                        source="google_scholar"
+                    ))
+                
+                logger.info(f"Found {len(scholar_search_articles)} Google Scholar articles")
+            
+            sources_searched.append("google_scholar")
+            
+        except Exception as e:
+            logger.error(f"Google Scholar search failed: {e}")
+        
+        # Deduplicate results if we have both sources
+        if pubmed_search_articles and scholar_search_articles:
+            all_articles = self._deduplicate_results(pubmed_search_articles, scholar_search_articles)
+            # Limit to max_results after deduplication
+            all_articles = all_articles[:max_results]
+        else:
+            # No deduplication needed
+            all_articles = pubmed_search_articles + scholar_search_articles
+            all_articles = all_articles[:max_results]
+        
+        # Update total_available to account for potential duplicates (estimate)
+        if len(sources_searched) > 1 and not count_only:
+            # Estimate ~20% overlap between sources
+            estimated_scholar_total = len(scholar_search_articles) * 10  # Rough estimate
+            total_available = int(total_available + (estimated_scholar_total * 0.8))
         
         # Create pagination info
         pagination = SearchPaginationInfo(

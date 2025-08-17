@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight, RefreshCw, History } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { Link } from 'react-router-dom';
 
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
@@ -25,6 +27,9 @@ import type {
 } from '@/types/smart-search';
 
 export default function SmartSearchLab() {
+  const [searchParams] = useSearchParams();
+  const resumeSessionId = searchParams.get('session');
+
   // Step management
   const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'discriminator' | 'filtering' | 'results'>('query');
 
@@ -66,6 +71,55 @@ export default function SmartSearchLab() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [filteringProgress]);
+
+  // Load existing session if session ID is provided
+  useEffect(() => {
+    const loadSession = async () => {
+      if (!resumeSessionId) return;
+
+      try {
+        const session = await smartSearchApi.getSession(resumeSessionId);
+        
+        // Restore session state
+        setSessionId(session.id);
+        setQuery(session.original_question || '');
+        setEvidenceSpec(session.refined_question || '');
+        setEditedSearchQuery(session.search_query || '');
+        
+        // Determine which step to show based on session progress
+        if (session.accepted !== undefined && session.rejected !== undefined) {
+          setStep('results');
+        } else if (session.total_filtered !== undefined) {
+          setStep('filtering');
+        } else if (session.discriminator_prompt) {
+          setStep('discriminator');
+          setEditedDiscriminator(session.discriminator_prompt);
+        } else if (session.total_available !== undefined) {
+          setStep('search-results');
+          // Would need to reconstruct search results from session data
+        } else if (session.search_query) {
+          setStep('search-query');
+        } else if (session.refined_question) {
+          setStep('refinement');
+        } else {
+          setStep('query');
+        }
+
+        toast({
+          title: 'Session Loaded',
+          description: `Resumed search session: "${session.original_question}"`
+        });
+      } catch (error) {
+        toast({
+          title: 'Failed to Load Session',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive'
+        });
+      }
+    };
+
+    loadSession();
+  }, [resumeSessionId]);
 
   // Step 1: Submit query for evidence specification
   const handleCreateEvidenceSpec = async () => {
@@ -517,16 +571,27 @@ export default function SmartSearchLab() {
               AI-powered document discovery with semantic filtering
             </p>
           </div>
-          {step !== 'query' && (
-            <Button
-              variant="outline"
-              onClick={handleReset}
-              className="dark:border-gray-600 dark:text-gray-300"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Start Over
-            </Button>
-          )}
+          <div className="flex gap-2">
+            <Link to="/search-history">
+              <Button
+                variant="outline"
+                className="dark:border-gray-600 dark:text-gray-300"
+              >
+                <History className="w-4 h-4 mr-2" />
+                Search History
+              </Button>
+            </Link>
+            {step !== 'query' && (
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                className="dark:border-gray-600 dark:text-gray-300"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Start Over
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Progress Steps */}

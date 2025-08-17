@@ -262,6 +262,22 @@ class SmartSearchApi {
   }
 
   /**
+   * Get user's search session history
+   */
+  async getUserSessions(limit: number = 50, offset: number = 0): Promise<any> {
+    const response = await api.get(`/api/lab/smart-search/sessions?limit=${limit}&offset=${offset}`);
+    return response.data;
+  }
+
+  /**
+   * Get specific search session details
+   */
+  async getSession(sessionId: string): Promise<any> {
+    const response = await api.get(`/api/lab/smart-search/sessions/${sessionId}`);
+    return response.data;
+  }
+
+  /**
    * Unified filtering method that handles both selected and all modes (streaming)
    */
   async filterUnifiedStreaming(

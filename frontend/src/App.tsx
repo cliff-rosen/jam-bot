@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import JamBotPage from './pages/JamBot';
 import LabPage from './pages/Lab';
 import SmartSearchLab from './pages/SmartSearchLab';
+import SearchHistory from './pages/SearchHistory';
 import WorkbenchPage from './pages/Workbench';
 import TokenLogin from './pages/TokenLogin';
 
@@ -46,6 +47,7 @@ function AppContent() {
             <Route path="/workbench" element={<WorkbenchPage />} />
             <Route path="/lab" element={<LabPage />} />
             <Route path="/smart-search" element={<SmartSearchLab />} />
+            <Route path="/search-history" element={<SearchHistory />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/email/auth/success" element={<EmailAuthSuccess />} />
             <Route path="*" element={<Navigate to="/" replace />} />

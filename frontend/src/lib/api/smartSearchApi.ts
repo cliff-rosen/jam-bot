@@ -270,6 +270,14 @@ class SmartSearchApi {
   }
 
   /**
+   * Get all users' search session history (admin only)
+   */
+  async getAllSessions(limit: number = 50, offset: number = 0): Promise<any> {
+    const response = await api.get(`/api/lab/smart-search/admin/sessions?limit=${limit}&offset=${offset}`);
+    return response.data;
+  }
+
+  /**
    * Get specific search session details
    */
   async getSession(sessionId: string): Promise<any> {

@@ -879,6 +879,32 @@ async def get_search_sessions(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve sessions: {str(e)}")
 
 
+@router.get("/admin/sessions")
+async def get_all_search_sessions(
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db),
+    limit: int = 50,
+    offset: int = 0
+):
+    """
+    Admin endpoint to get all users' smart search session history
+    """
+    # Check if user is admin
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        session_service = SmartSearchSessionService(db)
+        return session_service.get_all_sessions(
+            limit=limit,
+            offset=offset
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to retrieve all sessions for admin {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve sessions: {str(e)}")
+
+
 @router.get("/sessions/{session_id}")
 async def get_search_session(
     session_id: str,

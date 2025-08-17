@@ -317,6 +317,24 @@ class SmartSearchSessionService:
         except Exception as e:
             logger.error(f"Failed to get sessions for user {user_id}: {e}")
             raise
+    
+    def get_all_sessions(self, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """Get all users' search session history (admin only)"""
+        try:
+            sessions = self.db.query(SmartSearchSession).order_by(
+                SmartSearchSession.created_at.desc()
+            ).offset(offset).limit(limit).all()
+            
+            total = self.db.query(SmartSearchSession).count()
+            
+            return {
+                "sessions": [session.to_dict() for session in sessions],
+                "total": total
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get all sessions: {e}")
+            raise
 
     def reset_to_step(self, session_id: str, user_id: str, target_step: str) -> Optional[SmartSearchSession]:
         """Reset session to a specific step, clearing all data forward of that step"""

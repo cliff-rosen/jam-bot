@@ -702,7 +702,7 @@ export default function SmartSearchLab() {
       </div>
 
       <div className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
           {/* Step Components */}
           {step === 'query' && (
             <QueryInputStep

@@ -351,8 +351,8 @@ export function ResultsStep({
   return (
     <>
       {/* Workflow Summary Card */}
-      <Card className="p-6 dark:bg-gray-800 border-l-4 border-l-blue-500">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="p-4 dark:bg-gray-800 border-l-4 border-l-blue-500">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
             <FileSearch className="w-5 h-5 mr-2" />
             Search Workflow Summary
@@ -531,8 +531,8 @@ export function ResultsStep({
       </Card>
 
       {acceptedArticles.length > 0 && (
-        <Card className={`dark:bg-gray-800 ${displayMode === 'table' ? 'p-0' : 'p-6'}`}>
-          <div className={`flex items-center justify-between mb-4 ${displayMode === 'table' ? 'p-6 pb-0' : ''}`}>
+        <div className="w-full">
+          <div className={`flex items-center justify-between mb-4 ${displayMode === 'table' ? 'p-6 bg-white dark:bg-gray-800 rounded-t-lg border border-gray-200 dark:border-gray-600' : 'p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600'}`}>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
               <Check className="w-5 h-5 text-green-600 mr-2" />
               Accepted Articles ({acceptedArticles.length})
@@ -566,7 +566,7 @@ export function ResultsStep({
 
           {/* Column Management Panel - only show for table view */}
           {displayMode === 'table' && showColumns && (
-            <div className="mb-4 mx-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 space-y-4">
+            <div className="mb-4 p-4 bg-white dark:bg-gray-800 border-x border-gray-200 dark:border-gray-600 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Add Custom Columns</h4>
                 <Button
@@ -752,7 +752,7 @@ export function ResultsStep({
 
           {/* Card Compressed View */}
           {displayMode === 'card-compressed' && (
-            <div className="space-y-1">
+            <div className="space-y-1 p-6 bg-white dark:bg-gray-800 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-600">
               {acceptedArticles.map((item, idx) => (
                 <div
                   key={idx}
@@ -797,7 +797,8 @@ export function ResultsStep({
 
           {/* Card Full View */}
           {displayMode === 'card-full' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-600">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {acceptedArticles.map((item, idx) => (
                 <Card key={idx} className="p-4 hover:shadow-md transition-shadow">
                   <div className="space-y-3">
@@ -853,13 +854,14 @@ export function ResultsStep({
                   </div>
                 </Card>
               ))}
+              </div>
             </div>
           )}
 
           {/* Table View */}
           {displayMode === 'table' && (
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="w-full border border-gray-200 dark:border-gray-600 border-t-0 rounded-b-lg bg-white dark:bg-gray-800 overflow-x-auto">
+              <table className="w-full text-sm table-auto">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-600">
                       <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Title</th>
@@ -941,7 +943,7 @@ export function ResultsStep({
                 </table>
             </div>
           )}
-        </Card>
+        </div>
       )}
 
 

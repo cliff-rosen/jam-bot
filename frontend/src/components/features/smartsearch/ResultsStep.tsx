@@ -2,12 +2,17 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Search, FilterX } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Settings } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import type { FilteredArticle } from '@/types/smart-search';
+import type { FeatureDefinition } from '@/types/workbench';
+import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 interface ResultsStepProps {
   filteredArticles: FilteredArticle[];
@@ -31,8 +36,20 @@ export function ResultsStep({
   const [isRejectedOpen, setIsRejectedOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
   
-  // Column visibility for table view
+  // Column/Feature management for table view
   const [showColumns, setShowColumns] = useState(false);
+  const [showAddFeature, setShowAddFeature] = useState(false);
+  const [customFeatures, setCustomFeatures] = useState<FeatureDefinition[]>([]);
+  const [extractedFeatures, setExtractedFeatures] = useState<Record<string, Record<string, any>>>({});
+  const [isExtracting, setIsExtracting] = useState(false);
+  
+  // New feature form state
+  const [newFeature, setNewFeature] = useState<FeatureDefinition>({
+    id: '',
+    name: '',
+    description: '',
+    type: 'text'
+  });
   
   // Use all articles for display (no client-side filtering)
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
@@ -191,6 +208,116 @@ export function ResultsStep({
     a.download = `smart-search-results-${new Date().toISOString().split('T')[0]}.${extension}`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Feature management functions
+  const addCustomFeature = () => {
+    if (!newFeature.name.trim() || !newFeature.description.trim()) {
+      toast({
+        title: 'Invalid Feature',
+        description: 'Please provide both name and description',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const feature: FeatureDefinition = {
+      ...newFeature,
+      id: generatePrefixedUUID('feat')
+    };
+
+    setCustomFeatures(prev => [...prev, feature]);
+    setNewFeature({
+      id: '',
+      name: '',
+      description: '',
+      type: 'text'
+    });
+    setShowAddFeature(false);
+
+    toast({
+      title: 'Feature Added',
+      description: `Added "${feature.name}" column. Click the settings icon to extract data.`
+    });
+  };
+
+  const removeCustomFeature = (featureId: string) => {
+    setCustomFeatures(prev => prev.filter(f => f.id !== featureId));
+    setExtractedFeatures(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(articleId => {
+        delete updated[articleId][featureId];
+      });
+      return updated;
+    });
+  };
+
+  const extractFeatureForAllArticles = async (featureId: string) => {
+    const feature = customFeatures.find(f => f.id === featureId);
+    if (!feature) return;
+
+    setIsExtracting(true);
+    
+    try {
+      // TODO: Call backend API to extract feature for all articles
+      // For now, simulate with mock data
+      setTimeout(() => {
+        const mockExtractions: Record<string, any> = {};
+        acceptedArticles.forEach((item, idx) => {
+          // Create a unique ID for the article (use title + authors as fallback)
+          const uniqueId = `${item.article.title}-${item.article.authors.join(',')}`;
+          if (!extractedFeatures[uniqueId]) {
+            extractedFeatures[uniqueId] = {};
+          }
+          
+          // Mock extraction based on feature type
+          switch (feature.type) {
+            case 'boolean':
+              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: Math.random() > 0.5 };
+              break;
+            case 'score':
+              const min = feature.options?.min || 1;
+              const max = feature.options?.max || 10;
+              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: Math.floor(Math.random() * (max - min + 1)) + min };
+              break;
+            default: // text
+              mockExtractions[uniqueId] = { ...extractedFeatures[uniqueId], [featureId]: `Sample ${feature.name.toLowerCase()} ${idx + 1}` };
+          }
+        });
+        
+        setExtractedFeatures(prev => ({ ...prev, ...mockExtractions }));
+        setIsExtracting(false);
+        
+        toast({
+          title: 'Extraction Complete',
+          description: `Extracted "${feature.name}" for ${acceptedArticles.length} articles`
+        });
+      }, 2000);
+    } catch (error) {
+      setIsExtracting(false);
+      toast({
+        title: 'Extraction Failed',
+        description: 'Failed to extract feature data',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const renderFeatureValue = (articleId: string, feature: FeatureDefinition) => {
+    const value = extractedFeatures[articleId]?.[feature.id];
+    
+    if (value === undefined || value === null) {
+      return <span className="text-gray-400 text-xs">-</span>;
+    }
+    
+    switch (feature.type) {
+      case 'boolean':
+        return value ? <Check className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-red-600" />;
+      case 'score':
+        return <Badge variant="secondary" className="text-xs">{value}</Badge>;
+      default:
+        return <span className="text-sm">{value}</span>;
+    }
   };
 
   const copyAcceptedTitles = () => {
@@ -408,8 +535,54 @@ export function ResultsStep({
           
           {/* Column Controls - only show for table view */}
           {displayMode === 'table' && showColumns && (
-            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Column visibility controls will go here</p>
+            <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Custom Columns</h4>
+                <Button
+                  onClick={() => setShowAddFeature(true)}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Column
+                </Button>
+              </div>
+              
+              {customFeatures.length > 0 && (
+                <div className="space-y-2">
+                  {customFeatures.map(feature => (
+                    <div key={feature.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{feature.name}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">{feature.type}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => extractFeatureForAllArticles(feature.id)}
+                          disabled={isExtracting}
+                        >
+                          <Settings className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeCustomFeature(feature.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {customFeatures.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No custom columns added yet. Click "Add Column" to get started.
+                </p>
+              )}
             </div>
           )}
           
@@ -532,6 +705,11 @@ export function ResultsStep({
                     <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Source</th>
                     <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Confidence</th>
                     <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Link</th>
+                    {customFeatures.map(feature => (
+                      <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
+                        {feature.name}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -578,6 +756,11 @@ export function ResultsStep({
                           </a>
                         )}
                       </td>
+                      {customFeatures.map(feature => (
+                        <td key={feature.id} className="p-2 text-gray-600 dark:text-gray-400">
+                          {renderFeatureValue(`${item.article.title}-${item.article.authors.join(',')}`, feature)}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
@@ -586,6 +769,97 @@ export function ResultsStep({
           )}
         </Card>
       )}
+      
+      {/* Add Feature Dialog */}
+      <Dialog open={showAddFeature} onOpenChange={setShowAddFeature}>
+        <DialogContent className="max-w-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 dark:text-gray-100">Add Custom Column</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="feature-name" className="text-gray-900 dark:text-gray-100">Column Name</Label>
+              <Input
+                id="feature-name"
+                placeholder="e.g., Study Type, Sample Size"
+                value={newFeature.name}
+                onChange={(e) => setNewFeature(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="feature-description" className="text-gray-900 dark:text-gray-100">Description</Label>
+              <Textarea
+                id="feature-description"
+                placeholder="Describe what information you want to extract from each article..."
+                value={newFeature.description}
+                onChange={(e) => setNewFeature(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            
+            <div>
+              <Label className="text-gray-900 dark:text-gray-100">Data Type</Label>
+              <Select
+                value={newFeature.type}
+                onValueChange={(value: 'text' | 'boolean' | 'score') => 
+                  setNewFeature(prev => ({ ...prev, type: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="boolean">Yes/No</SelectItem>
+                  <SelectItem value="score">Score (1-10)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {newFeature.type === 'score' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="score-min" className="text-gray-900 dark:text-gray-100">Min Value</Label>
+                  <Input
+                    id="score-min"
+                    type="number"
+                    value={newFeature.options?.min || 1}
+                    onChange={(e) => setNewFeature(prev => ({
+                      ...prev,
+                      options: { ...prev.options, min: Number(e.target.value) }
+                    }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="score-max" className="text-gray-900 dark:text-gray-100">Max Value</Label>
+                  <Input
+                    id="score-max"
+                    type="number"
+                    value={newFeature.options?.max || 10}
+                    onChange={(e) => setNewFeature(prev => ({
+                      ...prev,
+                      options: { ...prev.options, max: Number(e.target.value) }
+                    }))}
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddFeature(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={addCustomFeature}>
+                Add Column
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {rejectedArticles.length > 0 && (
         <Collapsible open={isRejectedOpen} onOpenChange={setIsRejectedOpen}>

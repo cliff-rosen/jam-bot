@@ -83,23 +83,67 @@ export default function SmartSearchLab() {
         // Restore session state
         setSessionId(session.id);
         setQuery(session.original_question || '');
-        setEvidenceSpec(session.refined_question || '');
-        setEditedSearchQuery(session.search_query || '');
+        setEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
+        setEditedSearchQuery(session.submitted_search_query || session.generated_search_query || '');
+        
+        // Restore additional component state based on available data
+        const lastStep = session.last_step_completed;
+        
+        // Always create refinement object if we're at or past refinement step
+        if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+          setRefinement({
+            original_query: session.original_question,
+            evidence_specification: session.refined_question || '',
+            session_id: session.id
+          });
+        }
+        
+        // Always create search query generation object if we're at or past search query step
+        if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+          setSearchQueryGeneration({
+            search_query: session.generated_search_query || '',
+            evidence_specification: session.submitted_refined_question || session.refined_question || '',
+            session_id: session.id
+          });
+        }
+        
+        if (session.search_metadata) {
+          setInitialQueryCount({
+            total_count: session.search_metadata.total_available || 0,
+            sources_searched: session.search_metadata.sources_searched || []
+          });
+        }
+        
+        // Always create discriminator data if we're at discriminator step or later
+        if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
+          setDiscriminatorData({
+            discriminator_prompt: session.generated_discriminator || '',
+            evidence_specification: session.submitted_refined_question || session.refined_question || '',
+            search_query: session.submitted_search_query || session.generated_search_query || '',
+            strictness: session.filter_strictness || 'medium',
+            session_id: session.id
+          });
+          setEditedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
+        }
+        
+        if (session.filter_strictness) {
+          setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
+        }
         
         // Determine which step to show based on session progress
-        if (session.accepted !== undefined && session.rejected !== undefined) {
+        if (lastStep === 'filtering' && session.filtering_metadata?.accepted !== undefined) {
           setStep('results');
-        } else if (session.total_filtered !== undefined) {
+        } else if (lastStep === 'filtering') {
           setStep('filtering');
-        } else if (session.discriminator_prompt) {
+        } else if (lastStep === 'discriminator_generation') {
           setStep('discriminator');
-          setEditedDiscriminator(session.discriminator_prompt);
-        } else if (session.total_available !== undefined) {
-          setStep('search-results');
-          // Would need to reconstruct search results from session data
-        } else if (session.search_query) {
+        } else if (lastStep === 'search_execution') {
+          // For search-execution step, we need to reconstruct search results
+          // For now, go back to search-query step to avoid blank screen
           setStep('search-query');
-        } else if (session.refined_question) {
+        } else if (lastStep === 'search_query_generation') {
+          setStep('search-query');
+        } else if (lastStep === 'question_refinement') {
           setStep('refinement');
         } else {
           setStep('query');

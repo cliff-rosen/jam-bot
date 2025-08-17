@@ -11,20 +11,32 @@ interface SearchSession {
   id: string;
   original_question: string;
   refined_question?: string;
-  search_query?: string;
+  submitted_refined_question?: string;
+  generated_search_query?: string;
+  submitted_search_query?: string;
   created_at: string;
   updated_at: string;
-  // Search execution metadata
-  total_available?: number;
-  returned?: number;
-  sources?: string[];
+  // Search execution metadata from search_metadata
+  search_metadata?: {
+    total_available?: number;
+    total_retrieved?: number;
+    sources_searched?: string[];
+  };
+  articles_retrieved_count?: number;
+  articles_selected_count?: number;
   // Filtering metadata  
-  total_filtered?: number;
-  accepted?: number;
-  rejected?: number;
-  average_confidence?: number;
+  filtering_metadata?: {
+    total_filtered?: number;
+    accepted?: number;
+    rejected?: number;
+    average_confidence?: number;
+  };
+  generated_discriminator?: string;
+  submitted_discriminator?: string;
+  filter_strictness?: string;
   // Status
-  current_step?: string;
+  status?: string;
+  last_step_completed?: string;
 }
 
 export default function SearchHistory() {
@@ -158,39 +170,39 @@ export default function SearchHistory() {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {session.original_question}
                       </h3>
-                      {getStepBadge(session.current_step)}
+                      {getStepBadge(session.last_step_completed)}
                     </div>
 
                     {/* Evidence spec if available */}
-                    {session.refined_question && (
+                    {(session.submitted_refined_question || session.refined_question) && (
                       <div className="mb-3 pl-8">
                         <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                          "{session.refined_question}"
+                          "{session.submitted_refined_question || session.refined_question}"
                         </p>
                       </div>
                     )}
 
                     {/* Search query if available */}
-                    {session.search_query && (
+                    {(session.submitted_search_query || session.generated_search_query) && (
                       <div className="mb-3 pl-8">
                         <p className="text-xs font-mono text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                          {session.search_query}
+                          {session.submitted_search_query || session.generated_search_query}
                         </p>
                       </div>
                     )}
 
                     {/* Results summary */}
                     <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 pl-8">
-                      {session.total_available !== undefined && (
+                      {session.search_metadata?.total_available !== undefined && (
                         <div className="flex items-center gap-1">
                           <Search className="w-4 h-4" />
-                          <span>{session.total_available.toLocaleString()} articles found</span>
+                          <span>{session.search_metadata.total_available.toLocaleString()} articles found</span>
                         </div>
                       )}
-                      {session.accepted !== undefined && (
+                      {session.filtering_metadata?.accepted !== undefined && (
                         <div className="flex items-center gap-1">
                           <FileText className="w-4 h-4" />
-                          <span>{session.accepted} accepted after filtering</span>
+                          <span>{session.filtering_metadata.accepted} accepted after filtering</span>
                         </div>
                       )}
                       <div className="flex items-center gap-1">

@@ -12,7 +12,7 @@ import hashlib
 
 from schemas.canonical_types import (
     CanonicalResearchArticle, 
-    CanonicalPubMedArticle, 
+    CanonicalPubMedArticle,
     CanonicalScholarArticle
 )
 
@@ -149,66 +149,8 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     return result
 
 
-def scholar_to_research_article(scholar_article: CanonicalScholarArticle, position: Optional[int] = None) -> CanonicalResearchArticle:
-    """
-    Convert a CanonicalScholarArticle to the unified CanonicalResearchArticle format.
-    
-    Args:
-        scholar_article: Google Scholar article to convert
-        position: Position in search results (optional, defaults to article's position)
-        
-    Returns:
-        Unified research article format
-    """
-    # Use position-based ID for consistency
-    if position is not None:
-        article_id = f"scholar_{position}"
-    elif hasattr(scholar_article, 'position') and scholar_article.position:
-        article_id = f"scholar_{scholar_article.position}"
-    else:
-        # Fallback: generate from content
-        id_source = f"{scholar_article.title}{''.join(scholar_article.authors)}"
-        article_id = f"scholar_{hashlib.md5(id_source.encode()).hexdigest()[:8]}"
-    
-    # Parse journal from publication_info if available
-    journal = None
-    if scholar_article.publication_info:
-        # Publication info format: "Journal Name, Volume, Pages, Year"
-        parts = scholar_article.publication_info.split(',')
-        if parts:
-            journal = parts[0].strip()
-    
-    return CanonicalResearchArticle(
-        id=article_id,
-        source="scholar",
-        title=scholar_article.title,
-        authors=scholar_article.authors,
-        abstract=scholar_article.snippet,  # Use snippet as abstract since Scholar doesn't provide full abstracts
-        snippet=scholar_article.snippet,
-        journal=journal,
-        publication_date=None,  # Scholar doesn't provide structured dates
-        publication_year=scholar_article.year,
-        doi=None,  # Could be extracted from links if available
-        url=scholar_article.link,
-        pdf_url=scholar_article.pdf_link,
-        keywords=[],  # Scholar doesn't provide keywords directly
-        mesh_terms=[],  # Scholar doesn't have MeSH terms
-        categories=[],  # Could be inferred from content
-        citation_count=scholar_article.cited_by_count,
-        cited_by_url=scholar_article.cited_by_link,
-        related_articles_url=scholar_article.related_pages_link,
-        versions_url=scholar_article.versions_link,
-        search_position=scholar_article.position,
-        relevance_score=None,  # Will be populated by feature extraction
-        extracted_features=None,  # Will be populated by feature extraction
-        quality_scores=None,  # Will be populated by feature extraction
-        source_metadata=scholar_article.metadata,
-        indexed_at=None,
-        retrieved_at=datetime.utcnow().isoformat()
-    )
 
-
-def google_scholar_to_research_article(scholar_article: 'GoogleScholarArticle', position: Optional[int] = None) -> CanonicalResearchArticle:
+def scholar_to_research_article(scholar_article: 'GoogleScholarArticle', position: Optional[int] = None) -> CanonicalResearchArticle:
     """
     Convert a GoogleScholarArticle to the unified CanonicalResearchArticle format.
     

@@ -89,11 +89,9 @@ class GoogleScholarAdapter(SearchProvider):
             # Convert to canonical format with improved IDs
             canonical_articles = []
             for i, article in enumerate(articles, 1):
-                canonical = scholar_to_research_article(article)
                 # Use absolute position accounting for pagination
                 absolute_position = start_index + i
-                canonical.id = f"scholar_{absolute_position}"
-                canonical.search_position = absolute_position
+                canonical = scholar_to_research_article(article, position=absolute_position)
                 # Scholar provides position, so we can calculate better relevance
                 canonical.relevance_score = self._estimate_relevance_score(
                     absolute_position, 

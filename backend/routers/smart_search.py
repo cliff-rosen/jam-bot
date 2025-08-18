@@ -155,7 +155,10 @@ async def generate_keywords(
         
         # Generate search keywords
         service = SmartSearchService()
-        search_query, usage = await service.generate_search_keywords(request.evidence_specification)
+        search_query, usage = await service.generate_search_keywords(
+            request.evidence_specification,
+            selected_sources=request.selected_sources
+        )
         
         # Store selected sources in session if provided
         if request.selected_sources:

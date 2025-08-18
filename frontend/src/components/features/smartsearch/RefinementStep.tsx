@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { Search } from 'lucide-react';
 import type { SmartSearchRefinement } from '@/types/smart-search';
 
@@ -10,7 +11,7 @@ interface RefinementStepProps {
   refinement: SmartSearchRefinement;
   evidenceSpec: string;
   setEvidenceSpec: (spec: string) => void;
-  onSubmit: (selectedSources: string[]) => void;
+  onSubmit: (selectedSource: string) => void;
   loading: boolean;
 }
 
@@ -21,22 +22,10 @@ export function RefinementStep({
   onSubmit,
   loading
 }: RefinementStepProps) {
-  const [selectedSources, setSelectedSources] = useState<string[]>(['pubmed', 'google_scholar']);
-
-  const handleSourceToggle = (source: string) => {
-    setSelectedSources(prev =>
-      prev.includes(source)
-        ? prev.filter(s => s !== source)
-        : [...prev, source]
-    );
-  };
+  const [selectedSource, setSelectedSource] = useState<string>('pubmed');
 
   const handleSubmit = () => {
-    if (selectedSources.length === 0) {
-      // Ensure at least one source is selected
-      return;
-    }
-    onSubmit(selectedSources);
+    onSubmit(selectedSource);
   };
 
   return (
@@ -69,60 +58,51 @@ export function RefinementStep({
             <Textarea
               value={evidenceSpec}
               onChange={(e) => setEvidenceSpec(e.target.value)}
-              rows={8}
+              rows={12}
               className="dark:bg-gray-700 dark:text-gray-100 text-sm"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-            Select Sources to Search
+          <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
+            Select Search Source
           </label>
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="pubmed"
-                checked={selectedSources.includes('pubmed')}
-                onCheckedChange={() => handleSourceToggle('pubmed')}
-              />
-              <label
-                htmlFor="pubmed"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+          <RadioGroup value={selectedSource} onValueChange={setSelectedSource} className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <RadioGroupItem value="pubmed" id="pubmed" />
+              <Label 
+                htmlFor="pubmed" 
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
               >
-                PubMed
-              </label>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                (Biomedical literature database)
-              </span>
+                <div className="flex items-center justify-between">
+                  <span>PubMed</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Biomedical literature with structured boolean queries
+                  </span>
+                </div>
+              </Label>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="google_scholar"
-                checked={selectedSources.includes('google_scholar')}
-                onCheckedChange={() => handleSourceToggle('google_scholar')}
-              />
-              <label
-                htmlFor="google_scholar"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+            <div className="flex items-center space-x-3">
+              <RadioGroupItem value="google_scholar" id="google_scholar" />
+              <Label 
+                htmlFor="google_scholar" 
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
               >
-                Google Scholar
-              </label>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                (Broad academic search)
-              </span>
+                <div className="flex items-center justify-between">
+                  <span>Google Scholar</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Broad academic search with natural language queries
+                  </span>
+                </div>
+              </Label>
             </div>
-          </div>
-          {selectedSources.length === 0 && (
-            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-              Please select at least one source
-            </p>
-          )}
+          </RadioGroup>
         </div>
 
         <Button
           onClick={handleSubmit}
-          disabled={loading || !evidenceSpec.trim() || selectedSources.length === 0}
+          disabled={loading || !evidenceSpec.trim()}
           className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           {loading ? (

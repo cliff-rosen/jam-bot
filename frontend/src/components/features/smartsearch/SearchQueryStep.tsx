@@ -28,6 +28,7 @@ interface SearchQueryStepProps {
   setEditedSearchQuery: (query: string) => void;
   evidenceSpec: string;
   sessionId: string;
+  selectedSource: string;
   onSubmit: () => void;
   onOptimize: (evidenceSpec: string, sessionId: string) => Promise<OptimizationResult>;
   onTestCount: (query: string, sessionId: string) => Promise<{total_count: number; sources_searched: string[]}>;
@@ -40,6 +41,7 @@ export function SearchQueryStep({
   setEditedSearchQuery,
   evidenceSpec,
   sessionId,
+  selectedSource,
   onSubmit,
   onOptimize,
   onTestCount,
@@ -124,9 +126,17 @@ export function SearchQueryStep({
 
   return (
     <Card className="p-6 dark:bg-gray-800">
-      <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
-        Search Keywords
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Search Keywords
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 dark:text-gray-400">Target:</span>
+          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-900 dark:text-gray-100">
+            {selectedSource === 'google_scholar' ? 'Google Scholar' : 'PubMed'}
+          </span>
+        </div>
+      </div>
 
       {/* Evidence Specification - Always Visible */}
       <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
@@ -236,10 +246,17 @@ export function SearchQueryStep({
             onChange={(e) => handleQueryChange(e.target.value)}
             rows={3}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
-            placeholder="(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)"
+            placeholder={
+              selectedSource === 'google_scholar' 
+                ? `"machine learning" healthcare diagnosis`
+                : `(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)`
+            }
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Edit the boolean search query and test to see the result count
+            {selectedSource === 'google_scholar' 
+              ? 'Edit the natural language search query and test to see the result count'
+              : 'Edit the boolean search query and test to see the result count'
+            }
           </p>
         </div>
 

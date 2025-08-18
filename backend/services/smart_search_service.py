@@ -281,53 +281,101 @@ Respond in JSON format with the "evidence_specification" field."""
         """Legacy method - redirects to create_evidence_specification"""
         return await self.create_evidence_specification(question)
     
-    async def generate_search_keywords(self, evidence_specification: str) -> Tuple[str, LLMUsage]:
+    async def generate_search_keywords(self, evidence_specification: str, selected_sources: Optional[List[str]] = None) -> Tuple[str, LLMUsage]:
         """
         Step 3: Generate boolean search query from the evidence specification using LLM
         """
         logger.info(f"Step 3 - Generating search keywords from evidence specification...")
         
-        # Create prompt for search keyword generation
-        system_prompt = """You are a search query expert for academic databases like PubMed and Google Scholar. Your task is to convert an evidence specification into an EFFECTIVE and BALANCED search query.
+        # Determine the target source
+        target_source = selected_sources[0] if selected_sources else 'pubmed'
+        
+        # Create source-specific prompts
+        if target_source == 'google_scholar':
+            system_prompt = """You are a search query expert for Google Scholar. Your task is to convert an evidence specification into an EFFECTIVE natural language search query optimized for Google Scholar.
+
+GOOGLE SCHOLAR CHARACTERISTICS:
+- Searches full text of papers, not just abstracts
+- Uses natural language processing
+- Supports quoted phrases for exact matches
+- Limited boolean operator support
+- Works best with descriptive, natural terms
+
+CORE PRINCIPLES:
+- Target 500-2000 relevant results
+- Use clear, descriptive terms that appear in academic papers
+- Combine key concepts naturally
+- Use quoted phrases for important multi-word terms
+- Keep it relatively simple
+
+GUIDELINES:
+1. Identify the 2-3 CORE concepts from the evidence specification
+2. Use natural, descriptive language
+3. Include important quoted phrases for specific terms
+4. Use OR sparingly - only for clear alternatives
+5. Focus on terms that would appear in paper titles and throughout the text
+6. Avoid complex nested boolean logic
+
+QUERY STRUCTURE:
+- Natural format with key terms and quoted phrases
+- Simple OR for clear alternatives: term1 OR term2
+- Quoted phrases for specific concepts: "machine learning"
+- Combination of natural terms
+
+GOOD EXAMPLES:
+- "machine learning" healthcare diagnosis
+- "climate change" agriculture adaptation OR mitigation
+- "CRISPR gene editing" cancer treatment
+- diabetes neuropathy treatment therapy
+
+BAD EXAMPLES (too complex):
+- (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
+
+Respond in JSON format with a "search_query" field containing the natural language search string."""
+        else:
+            # PubMed prompt (original)
+            system_prompt = """You are a search query expert for PubMed and biomedical databases. Your task is to convert an evidence specification into an EFFECTIVE boolean search query optimized for PubMed.
+
+PUBMED CHARACTERISTICS:
+- Searches titles, abstracts, and MeSH terms
+- Excellent boolean operator support
+- Structured indexing system
+- Precise field searching capabilities
+- Works best with controlled vocabulary
 
 CORE PRINCIPLES:
 - Target 500-2000 relevant results (not too broad, not too narrow)
-- Use simple, clear keywords that researchers actually use
-- Avoid overly complex boolean logic
+- Use precise biomedical terminology
+- Leverage boolean logic effectively
 - Focus on the most important 2-3 concepts
 
 GUIDELINES:
 1. Identify the 2-3 CORE concepts from the evidence specification
-2. For each concept, use 2-4 of the most common synonyms/variants
+2. For each concept, use 2-4 of the most common medical synonyms/variants
 3. Use AND to connect different concepts
 4. Use OR only for true synonyms within the same concept
-5. Prefer individual keywords over exact phrases
-6. Use scientific terminology that appears in abstracts and titles
-7. Avoid overly broad terms (like "treatment" alone) or overly specific terms
+5. Use biomedical terminology that appears in PubMed abstracts
+6. Include MeSH terms and common abbreviations when relevant
 
 QUERY STRUCTURE:
-- Simple format: (concept1 OR synonym1) AND (concept2 OR synonym2)
+- Boolean format: (concept1 OR synonym1) AND (concept2 OR synonym2)
 - Maximum 3 AND-connected concept groups
 - 2-4 terms per OR group
-- No nested parentheses
+- Clear parentheses for grouping
 
 GOOD EXAMPLES:
 - (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
-- (CRISPR OR "gene editing") AND (cancer OR tumor) 
-- (obesity OR overweight) AND (children OR pediatric) AND (intervention OR prevention)
+- (CRISPR OR "gene editing") AND (cancer OR tumor OR neoplasm)
+- (myocardial OR cardiac) AND (infarction OR "heart attack") AND (prevention OR prophylaxis)
 
 BAD EXAMPLES (too complex):
 - (diabetes OR diabetic OR glycemic OR "blood sugar" OR hyperglycemia) AND (neuropathy OR "nerve damage" OR "peripheral nerve" OR polyneuropathy) AND (treatment OR therapy OR management OR intervention OR medication)
-
-BAD EXAMPLES (too simple):
-- diabetes treatment
-- cancer
 
 Respond in JSON format with a "search_query" field containing the boolean search string."""
 
         user_prompt = f"""Evidence specification: {evidence_specification}
 
-Generate an effective boolean search query for academic databases."""
+Generate an effective search query for {target_source.replace('_', ' ').title()}."""
 
         # Schema for search query
         response_schema = {
@@ -557,9 +605,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         """
         Search for articles using search query across multiple sources with deduplication
         """
-        # Default to both sources if not specified
+        # Default to PubMed if not specified
         if selected_sources is None:
-            selected_sources = ['pubmed', 'google_scholar']
+            selected_sources = ['pubmed']
         
         if count_only:
             logger.info(f"Getting count for query: {search_query}")
@@ -707,21 +755,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             except Exception as e:
                 logger.error(f"Google Scholar search failed: {e}")
         
-        # Deduplicate results if we have both sources
-        if pubmed_search_articles and scholar_search_articles:
-            all_articles = self._deduplicate_results(pubmed_search_articles, scholar_search_articles)
-            # Limit to max_results after deduplication
-            all_articles = all_articles[:max_results]
-        else:
-            # No deduplication needed
-            all_articles = pubmed_search_articles + scholar_search_articles
-            all_articles = all_articles[:max_results]
-        
-        # Update total_available to account for potential duplicates (estimate)
-        if len(sources_searched) > 1 and not count_only:
-            # Estimate ~20% overlap between sources
-            estimated_scholar_total = len(scholar_search_articles) * 10  # Rough estimate
-            total_available = int(total_available + (estimated_scholar_total * 0.8))
+        # Combine results from selected source(s)
+        all_articles = pubmed_search_articles + scholar_search_articles
+        all_articles = all_articles[:max_results]
         
         # Create pagination info
         pagination = SearchPaginationInfo(

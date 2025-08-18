@@ -292,46 +292,36 @@ Respond in JSON format with the "evidence_specification" field."""
         
         # Create source-specific prompts
         if target_source == 'google_scholar':
-            system_prompt = """You are a search query expert for Google Scholar. Your task is to convert an evidence specification into an EFFECTIVE natural language search query optimized for Google Scholar.
+            system_prompt = """You are a search query expert for Google Scholar. Your task is to convert an evidence specification into a SIMPLE and FOCUSED natural language search query.
 
-GOOGLE SCHOLAR CHARACTERISTICS:
-- Searches full text of papers, not just abstracts
-- Uses natural language processing
-- Supports quoted phrases for exact matches
-- Limited boolean operator support
-- Works best with descriptive, natural terms
+CRITICAL REQUIREMENTS:
+- MAXIMUM 3-5 key terms only
+- NO complex boolean logic with AND/OR
+- NO parentheses or nested expressions
+- Use simple quoted phrases for specific concepts
+- Target 200-2000 results, not millions
 
-CORE PRINCIPLES:
-- Target 500-2000 relevant results
-- Use clear, descriptive terms that appear in academic papers
-- Combine key concepts naturally
-- Use quoted phrases for important multi-word terms
-- Keep it relatively simple
-
-GUIDELINES:
-1. Identify the 2-3 CORE concepts from the evidence specification
-2. Use natural, descriptive language
-3. Include important quoted phrases for specific terms
-4. Use OR sparingly - only for clear alternatives
-5. Focus on terms that would appear in paper titles and throughout the text
-6. Avoid complex nested boolean logic
-
-QUERY STRUCTURE:
-- Natural format with key terms and quoted phrases
-- Simple OR for clear alternatives: term1 OR term2
-- Quoted phrases for specific concepts: "machine learning"
-- Combination of natural terms
+APPROACH:
+1. Identify the 1-2 MOST IMPORTANT concepts
+2. Use the most specific terms possible
+3. Add one quoted phrase for the main topic
+4. Keep it short and focused
 
 GOOD EXAMPLES:
-- "machine learning" healthcare diagnosis
-- "climate change" agriculture adaptation OR mitigation
-- "CRISPR gene editing" cancer treatment
-- diabetes neuropathy treatment therapy
+- "CRISPR gene editing" cancer
+- "machine learning" medical diagnosis
+- "quantum computing" algorithms
+- "climate change adaptation" agriculture
+- "materials science" nanomaterials synthesis
 
-BAD EXAMPLES (too complex):
-- (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
+BAD EXAMPLES (too broad/complex):
+- ("China" OR "Chinese") AND ("materials science" OR materials) AND (synthesis OR characterization)
+- (diabetes OR diabetic) AND (treatment OR therapy)
+- machine learning OR artificial intelligence OR deep learning
 
-Respond in JSON format with a "search_query" field containing the natural language search string."""
+STRICT RULE: If the evidence specification is very broad, make the query MORE specific, not less. Focus on the core scientific question.
+
+Respond in JSON format with a "search_query" field containing the simple natural language search string."""
         else:
             # PubMed prompt (original)
             system_prompt = """You are a search query expert for PubMed and biomedical databases. Your task is to convert an evidence specification into an EFFECTIVE boolean search query optimized for PubMed.

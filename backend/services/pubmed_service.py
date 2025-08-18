@@ -437,7 +437,7 @@ def get_citation_from_article(article: Article) -> str:
     return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
 
 
-def search_pubmed(
+def search_articles(
     query: str,
     max_results: int = 100,
     offset: int = 0,
@@ -544,16 +544,15 @@ def search_pubmed(
     
     return canonical_articles, metadata
 
-
 # Keep the old function for backward compatibility but have it call the new one
 def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List['CanonicalResearchArticle']:
     """
-    DEPRECATED: Use search_pubmed() instead.
+    DEPRECATED: Use search_articles() instead.
     
     This function is kept for backward compatibility.
     """
     # Just call the new unified search function
-    articles, _ = search_pubmed(
+    articles, _ = search_articles(
         query=filter_term,
         max_results=int(RETMAX),
         offset=0,

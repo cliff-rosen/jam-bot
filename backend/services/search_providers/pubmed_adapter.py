@@ -85,8 +85,8 @@ class PubMedAdapter(SearchProvider):
                 end_date = f"{params.year_high or datetime.now().year}/12/31"
             
             # Call the unified PubMed service
-            from services.pubmed_service import search_pubmed
-            articles, service_metadata = search_pubmed(
+            from services.pubmed_service import search_articles
+            articles, service_metadata = search_articles(
                 query=params.query,
                 max_results=params.num_results,
                 offset=offset,

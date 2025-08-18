@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from schemas.research_article_converters import scholar_to_research_article
+# Converter no longer needed - GoogleScholarService returns CanonicalResearchArticle directly
 
 from services.search_providers.base import (
     SearchProvider, UnifiedSearchParams, SearchResponse, 
@@ -86,18 +86,16 @@ class GoogleScholarAdapter(SearchProvider):
                 start_index=start_index
             )
             
-            # Convert to canonical format with improved IDs
-            canonical_articles = []
-            for i, article in enumerate(articles, 1):
-                # Use absolute position accounting for pagination
-                absolute_position = start_index + i
-                canonical = scholar_to_research_article(article, position=absolute_position)
-                # Scholar provides position, so we can calculate better relevance
+            # articles are already CanonicalResearchArticle objects
+            canonical_articles = articles
+            
+            # Update relevance scores for each article
+            for i, canonical in enumerate(canonical_articles):
+                absolute_position = start_index + i + 1
                 canonical.relevance_score = self._estimate_relevance_score(
                     absolute_position, 
                     len(articles) * 10  # Estimate total results
                 )
-                canonical_articles.append(canonical)
             
             # Calculate search time
             search_time = (datetime.utcnow() - start_time).total_seconds()

@@ -15,18 +15,16 @@ from schemas.features import FeatureDefinition
 from schemas.smart_search import (
     SearchPaginationInfo,
     FilteredArticle,
-    FilteringProgress,
     SearchServiceResult,
     OptimizedQueryResult
 )
 from schemas.canonical_types import CanonicalResearchArticle
-from schemas.research_article_converters import scholar_to_research_article
 from schemas.chat import ChatMessage, MessageRole
 
 from agents.prompts.base_prompt_caller import BasePromptCaller, LLMUsage
 
 from services.google_scholar_service import GoogleScholarService
-from services.pubmed_service import search_pubmed
+from services.pubmed_service import search_articles as search_pubmed_articles
 
 logger = logging.getLogger(__name__)
 
@@ -535,7 +533,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             pubmed_articles, metadata = await loop.run_in_executor(
                 None, 
-                search_pubmed,
+                search_pubmed_articles,
                 search_query,
                 results_to_fetch,
                 offset
@@ -586,10 +584,8 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             articles = []
             
             if not count_only:
-                for article in scholar_articles:
-                    # Convert GoogleScholarArticle to CanonicalResearchArticle
-                    canonical_article = scholar_to_research_article(article)
-                    articles.append(canonical_article)
+                # scholar_articles are already CanonicalResearchArticle objects, use them directly
+                articles = scholar_articles
             
             logger.info(f"Google Scholar: {len(articles)} articles returned, {total_available} total available")
             

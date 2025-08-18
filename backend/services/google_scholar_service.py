@@ -9,9 +9,12 @@ Follows the same abstraction pattern as PubMed service with a proper Article cla
 import os
 import requests
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
 import logging
+
+if TYPE_CHECKING:
+    from schemas.canonical_types import CanonicalResearchArticle
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +248,7 @@ class GoogleScholarService:
         year_high: Optional[int] = None,
         sort_by: str = "relevance",
         start_index: int = 0
-    ) -> Tuple[List[GoogleScholarArticle], Dict[str, Any]]:
+    ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
         """
         Search Google Scholar for academic articles.
         
@@ -258,7 +261,7 @@ class GoogleScholarService:
             start_index: Starting index for pagination
             
         Returns:
-            Tuple of (list of GoogleScholarArticle objects, metadata dict)
+            Tuple of (list of CanonicalResearchArticle objects, metadata dict)
         """
         if not self.api_key:
             raise ValueError("No API key available. Please set SERPAPI_KEY environment variable.")
@@ -318,20 +321,27 @@ class GoogleScholarService:
             raise Exception(f"SerpAPI error: {data['error']}")
             
         # Parse results using our Article class
-        articles = self._parse_search_results(data)
+        scholar_articles = self._parse_search_results(data)
         metadata = self._extract_search_metadata(data, query, search_time_ms)
         
+        # Convert GoogleScholarArticle objects to CanonicalResearchArticle
+        from schemas.research_article_converters import scholar_to_research_article
+        canonical_articles = []
+        for i, article in enumerate(scholar_articles):
+            canonical_article = scholar_to_research_article(article, position=start_index + i + 1)
+            canonical_articles.append(canonical_article)
+        
         # Log snippet availability for debugging
-        articles_with_snippets = sum(1 for article in articles if article.snippet)
-        logger.info(f"Found {len(articles)} articles from Google Scholar, {articles_with_snippets} with snippets")
+        articles_with_snippets = sum(1 for article in scholar_articles if article.snippet)
+        logger.info(f"Found {len(scholar_articles)} articles from Google Scholar, {articles_with_snippets} with snippets")
         
         # Debug: Log first article title to verify pagination is working
-        if articles:
-            logger.debug(f"First article: {articles[0]}")
-            if len(articles) > 1:
-                logger.debug(f"Second article: {articles[1]}")
+        if canonical_articles:
+            logger.debug(f"First article: {canonical_articles[0].title}")
+            if len(canonical_articles) > 1:
+                logger.debug(f"Second article: {canonical_articles[1].title}")
         
-        return articles, metadata
+        return canonical_articles, metadata
     
     def _parse_search_results(self, data: Dict[str, Any]) -> List[GoogleScholarArticle]:
         """Parse SerpAPI response into GoogleScholarArticle objects."""

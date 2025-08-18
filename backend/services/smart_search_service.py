@@ -10,7 +10,6 @@ import asyncio
 import re
 from typing import List, Dict, Any, AsyncGenerator, Tuple, Union, Optional, Set
 from datetime import datetime
-from difflib import SequenceMatcher
 
 from schemas.features import FeatureDefinition
 from schemas.smart_search import (
@@ -37,15 +36,6 @@ class SmartSearchService:
     def __init__(self):
         self.google_scholar_service = GoogleScholarService()
     
-    def _normalize_title(self, title: str) -> str:
-        """Normalize title for comparison by removing punctuation and converting to lowercase."""
-        if not title:
-            return ""
-        # Remove punctuation and extra whitespace
-        normalized = re.sub(r'[^\w\s]', '', title.lower())
-        normalized = ' '.join(normalized.split())
-        return normalized
-    
     def _extract_pmid_from_url(self, url: str) -> Optional[str]:
         """Extract PMID from a URL if present."""
         if not url:
@@ -62,138 +52,6 @@ class SmartSearchService:
                 return match.group(1)
         return None
     
-    def _extract_doi_from_text(self, text: str) -> Optional[str]:
-        """Extract DOI from text if present."""
-        if not text:
-            return None
-        # Match DOI pattern
-        doi_pattern = r'10\.\d{4,}/[-._;()/:\w]+'
-        match = re.search(doi_pattern, text)
-        return match.group(0) if match else None
-    
-    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
-        """Calculate similarity between two titles."""
-        norm1 = self._normalize_title(title1)
-        norm2 = self._normalize_title(title2)
-        if not norm1 or not norm2:
-            return 0.0
-        return SequenceMatcher(None, norm1, norm2).ratio()
-    
-    def _check_author_overlap(self, authors1: List[str], authors2: List[str]) -> bool:
-        """Check if there's significant author overlap between two author lists."""
-        if not authors1 or not authors2:
-            return False
-        
-        # Normalize author names (last name only for comparison)
-        def get_last_names(authors):
-            last_names = set()
-            for author in authors:
-                # Try to extract last name (assume it's the last word)
-                parts = author.strip().split()
-                if parts:
-                    last_names.add(parts[-1].lower())
-            return last_names
-        
-        names1 = get_last_names(authors1[:3])  # Check first 3 authors
-        names2 = get_last_names(authors2[:3])
-        
-        # If at least 2 authors match, consider it an overlap
-        return len(names1.intersection(names2)) >= min(2, min(len(names1), len(names2)))
-    
-    def _is_duplicate(self, article1: SearchArticle, article2: SearchArticle) -> bool:
-        """
-        Determine if two articles are duplicates based on various criteria.
-        Returns True if articles are likely the same paper.
-        """
-        # Check DOI match
-        if article1.doi and article2.doi:
-            if article1.doi.lower() == article2.doi.lower():
-                return True
-        
-        # Check PMID match (including extraction from URLs)
-        pmid1 = article1.pmid or self._extract_pmid_from_url(article1.url)
-        pmid2 = article2.pmid or self._extract_pmid_from_url(article2.url)
-        if pmid1 and pmid2 and pmid1 == pmid2:
-            return True
-        
-        # Check title similarity
-        title_similarity = self._calculate_title_similarity(article1.title, article2.title)
-        
-        # High title similarity (>85%) with same year
-        if title_similarity > 0.85:
-            # Verify with year if available
-            if article1.year and article2.year:
-                if abs(article1.year - article2.year) <= 1:  # Allow 1 year difference
-                    return True
-            else:
-                # No year info, check authors
-                if self._check_author_overlap(article1.authors, article2.authors):
-                    return True
-        
-        # Very high title similarity (>95%) regardless of other factors
-        if title_similarity > 0.95:
-            return True
-        
-        return False
-    
-    def _merge_duplicate_articles(self, primary: SearchArticle, secondary: SearchArticle) -> SearchArticle:
-        """
-        Merge information from duplicate articles, keeping primary as base.
-        Primary is typically PubMed, secondary is typically Google Scholar.
-        """
-        # Create a merged article based on primary
-        merged = SearchArticle(
-            id=primary.id,
-            title=primary.title,
-            abstract=primary.abstract or secondary.abstract,  # Use secondary if primary lacks abstract
-            authors=primary.authors if primary.authors else secondary.authors,
-            year=primary.year if primary.year else secondary.year,
-            journal=primary.journal or secondary.journal,
-            doi=primary.doi or self._extract_doi_from_text(secondary.url or ""),
-            pmid=primary.pmid,
-            url=primary.url or secondary.url,
-            source="pubmed,google_scholar"  # Mark as coming from both sources
-        )
-        return merged
-    
-    def _deduplicate_results(self, pubmed_articles: List[SearchArticle], 
-                            scholar_articles: List[SearchArticle]) -> List[SearchArticle]:
-        """
-        Deduplicate articles from PubMed and Google Scholar.
-        PubMed articles are kept as primary, Scholar articles are merged or added if unique.
-        """
-        deduplicated = []
-        used_scholar_indices = set()
-        
-        # First pass: Add all PubMed articles, merging with Scholar duplicates
-        for pm_article in pubmed_articles:
-            merged_with_scholar = False
-            
-            for idx, scholar_article in enumerate(scholar_articles):
-                if idx in used_scholar_indices:
-                    continue
-                    
-                if self._is_duplicate(pm_article, scholar_article):
-                    # Merge the articles
-                    merged_article = self._merge_duplicate_articles(pm_article, scholar_article)
-                    deduplicated.append(merged_article)
-                    used_scholar_indices.add(idx)
-                    merged_with_scholar = True
-                    logger.info(f"Merged duplicate: '{pm_article.title[:50]}...' from both sources")
-                    break
-            
-            if not merged_with_scholar:
-                deduplicated.append(pm_article)
-        
-        # Second pass: Add unique Scholar articles
-        for idx, scholar_article in enumerate(scholar_articles):
-            if idx not in used_scholar_indices:
-                deduplicated.append(scholar_article)
-                logger.info(f"Added unique Scholar article: '{scholar_article.title[:50]}...'")
-        
-        logger.info(f"Deduplication complete: {len(pubmed_articles)} PubMed + {len(scholar_articles)} Scholar -> {len(deduplicated)} unique")
-        return deduplicated
-        
     async def create_evidence_specification(self, query: str) -> Tuple[str, LLMUsage]:
         """
         Step 2: Create evidence specification from user's query using LLM

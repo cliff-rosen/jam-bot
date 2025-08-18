@@ -16,7 +16,9 @@ from schemas.smart_search import (
     SearchArticle,
     SearchPaginationInfo,
     FilteredArticle,
-    FilteringProgress
+    FilteringProgress,
+    SearchServiceResult,
+    OptimizedQueryResult
 )
 from schemas.chat import ChatMessage, MessageRole
 
@@ -463,7 +465,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 fallback_query = f"({current_query}) AND (study OR research OR analysis)"
                 return fallback_query, "Added research focus (exception fallback)"
     
-    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> Tuple[str, int, str, int, str, str]:
+    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> OptimizedQueryResult:
         """
         Generate an optimized search query by adding refinements to the current query
         Returns: (initial_query, initial_count, final_query, final_count, refinement_description, status)
@@ -495,9 +497,16 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             refinement_description += f" (Still {final_count} results - manual refinement may be needed)"
         
         logger.info(f"Optimized query: {final_count} results, status: {status}")
-        return initial_query, initial_count, final_query, final_count, refinement_description, status
+        return OptimizedQueryResult(
+            initial_query=initial_query,
+            initial_count=initial_count,
+            final_query=final_query,
+            final_count=final_count,
+            refinement_description=refinement_description,
+            status=status
+        )
       
-    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False, selected_sources: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False, selected_sources: Optional[List[str]] = None) -> SearchServiceResult:
         """
         Search for articles from a single selected source.
         """
@@ -517,7 +526,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         else:
             raise ValueError(f"Unsupported source: {source}")
     
-    async def _search_pubmed(self, search_query: str, max_results: int, offset: int, count_only: bool) -> Dict[str, Any]:
+    async def _search_pubmed(self, search_query: str, max_results: int, offset: int, count_only: bool) -> SearchServiceResult:
         """Search PubMed and return results."""
         try:
             loop = asyncio.get_event_loop()
@@ -562,27 +571,26 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             logger.info(f"PubMed: {len(articles)} articles returned, {total_available} total available")
             
-            # Return a simple object that the router can use
-            return {
-                "articles": articles,
-                "pagination": SearchPaginationInfo(
+            return SearchServiceResult(
+                articles=articles,
+                pagination=SearchPaginationInfo(
                     total_available=total_available,
                     returned=len(articles),
                     offset=offset,
                     has_more=offset + len(articles) < total_available
                 ),
-                "sources_searched": ["pubmed"]
-            }
+                sources_searched=["pubmed"]
+            )
             
         except Exception as e:
             logger.error(f"PubMed search failed: {e}")
-            return {
-                "articles": [],
-                "pagination": SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
-                "sources_searched": ["pubmed"]
-            }
+            return SearchServiceResult(
+                articles=[],
+                pagination=SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
+                sources_searched=["pubmed"]
+            )
     
-    async def _search_google_scholar(self, search_query: str, max_results: int, offset: int, count_only: bool) -> Dict[str, Any]:
+    async def _search_google_scholar(self, search_query: str, max_results: int, offset: int, count_only: bool) -> SearchServiceResult:
         """Search Google Scholar and return results."""
         try:
             loop = asyncio.get_event_loop()
@@ -625,25 +633,24 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             logger.info(f"Google Scholar: {len(articles)} articles returned, {total_available} total available")
             
-            # Return a simple object that the router can use
-            return {
-                "articles": articles,
-                "pagination": SearchPaginationInfo(
+            return SearchServiceResult(
+                articles=articles,
+                pagination=SearchPaginationInfo(
                     total_available=total_available,
                     returned=len(articles),
                     offset=offset,
                     has_more=offset + len(articles) < total_available
                 ),
-                "sources_searched": ["google_scholar"]
-            }
+                sources_searched=["google_scholar"]
+            )
             
         except Exception as e:
             logger.error(f"Google Scholar search failed: {e}")
-            return {
-                "articles": [],
-                "pagination": SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
-                "sources_searched": ["google_scholar"]
-            }
+            return SearchServiceResult(
+                articles=[],
+                pagination=SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
+                sources_searched=["google_scholar"]
+            )
     
     async def generate_semantic_discriminator(
         self, 

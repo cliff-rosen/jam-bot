@@ -364,8 +364,7 @@ async def generate_optimized_query(
         
         # Generate optimized query
         service = SmartSearchService()
-        (initial_query, initial_count, final_query, 
-         final_count, refinement_description, status) = await service.generate_optimized_search_query(
+        result = await service.generate_optimized_search_query(
             request.current_query,
             request.evidence_specification, 
             request.target_max_results,
@@ -376,7 +375,7 @@ async def generate_optimized_query(
         session_service.update_search_query_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            generated_search_query=final_query,
+            generated_search_query=result.final_query,
             submitted_search_query=None,
             submitted_refined_question=request.evidence_specification,
             prompt_tokens=0,  # Optimization doesn't use LLM tokens
@@ -386,16 +385,16 @@ async def generate_optimized_query(
         
         response = OptimizedQueryResponse(
             evidence_specification=request.evidence_specification,
-            initial_query=initial_query,
-            initial_count=initial_count,
-            final_query=final_query,
-            final_count=final_count,
-            refinement_applied=refinement_description,
-            refinement_status=status,
+            initial_query=result.initial_query,
+            initial_count=result.initial_count,
+            final_query=result.final_query,
+            final_count=result.final_count,
+            refinement_applied=result.refinement_description,
+            refinement_status=result.status,
             session_id=session.id
         )
         
-        logger.info(f"Optimized query generation completed: {final_count} results, status: {status}")
+        logger.info(f"Optimized query generation completed: {result.final_count} results, status: {result.status}")
         return response
         
     except Exception as e:
@@ -442,18 +441,18 @@ async def execute_search(
         session_service.update_search_execution_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            total_available=result["pagination"].total_available,
-            returned=result["pagination"].returned,
-            sources=result["sources_searched"],
+            total_available=result.pagination.total_available,
+            returned=result.pagination.returned,
+            sources=result.sources_searched,
             is_pagination_load=is_pagination_load,
             submitted_search_query=request.search_query
         )
         
-        logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {result['pagination'].returned} articles found, {result['pagination'].total_available} total available")
+        logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {result.pagination.returned} articles found, {result.pagination.total_available} total available")
         return SearchExecutionResponse(
-            articles=result["articles"],
-            pagination=result["pagination"],
-            sources_searched=result["sources_searched"],
+            articles=result.articles,
+            pagination=result.pagination,
+            sources_searched=result.sources_searched,
             session_id=session.id
         )
         
@@ -558,16 +557,16 @@ async def filter_articles(
                 offset=0,
                 selected_sources=selected_sources
             )
-            articles_to_filter = search_results["articles"]
+            articles_to_filter = search_results.articles
             logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
             
             # Update session with search execution (full retrieval)
             session_service.update_search_execution_step(
                 session_id=session.id,
                 user_id=current_user.user_id,
-                total_available=search_results["pagination"].total_available,
+                total_available=search_results.pagination.total_available,
                 returned=len(articles_to_filter),
-                sources=search_results["sources_searched"],
+                sources=search_results.sources_searched,
                 is_pagination_load=False,
                 submitted_search_query=request.search_query
             )

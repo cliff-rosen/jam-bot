@@ -47,3 +47,20 @@ class FilteringProgress(BaseModel):
     accepted: int
     rejected: int
     current_article: Optional[str] = None
+
+
+class SearchServiceResult(BaseModel):
+    """Result from search service methods"""
+    articles: List[SearchArticle]
+    pagination: SearchPaginationInfo
+    sources_searched: List[str]
+
+
+class OptimizedQueryResult(BaseModel):
+    """Result from generate_optimized_search_query service method"""
+    initial_query: str
+    initial_count: int
+    final_query: str
+    final_count: int
+    refinement_description: str
+    status: str  # 'optimal' | 'refined' | 'manual_needed'

@@ -5,7 +5,7 @@ API endpoints for smart search functionality in the lab.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -16,18 +16,12 @@ from pydantic import BaseModel, Field
 from models import SmartSearchSession
 from database import get_db
 
+# Import only core domain models from schemas
 from schemas.smart_search import (
-    SmartSearchRequest,
-    SmartSearchRefinementResponse,
-    SearchQueryRequest,
-    SearchQueryResponse,
-    ArticleSearchRequest,
-    SearchResultsResponse,
-    DiscriminatorGenerationRequest,
-    DiscriminatorGenerationResponse,
-    SessionResetRequest,
-    UnifiedFilterRequest,
-    ParallelFilterResponse
+    SearchArticle,
+    SearchPaginationInfo,
+    FilteredArticle,
+    FilteringProgress
 )
 from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
 
@@ -43,7 +37,107 @@ router = APIRouter(
     dependencies=[Depends(validate_token)]
 )
 
-# Query optimization schemas - defined locally in router
+# ============================================================================
+# API Request/Response Models
+# ============================================================================
+
+class SmartSearchRequest(BaseModel):
+    """Initial search request from user"""
+    query: str = Field(..., description="User's document search query")
+    max_results: int = Field(50, description="Maximum results to return")
+    session_id: Optional[str] = Field(None, description="Optional session ID to continue existing session")
+
+
+class SmartSearchRefinementResponse(BaseModel):
+    """Response from evidence specification step (Step 2)"""
+    original_query: str = Field(..., description="Original user query")
+    evidence_specification: str = Field(..., description="Evidence specification for document search")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class SearchQueryRequest(BaseModel):
+    """Request to generate search keywords from evidence specification (Step 3)"""
+    evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
+    session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
+
+
+class SearchQueryResponse(BaseModel):
+    """Response from search keyword generation (Step 3)"""
+    evidence_specification: str = Field(..., description="The evidence specification used")
+    search_query: str = Field(..., description="Boolean search query for databases")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class ArticleSearchRequest(BaseModel):
+    """Request to search with boolean query"""
+    search_query: str = Field(..., description="Boolean search query")
+    max_results: int = Field(50, description="Maximum results per source")
+    offset: int = Field(0, description="Number of results to skip (for pagination)")
+    session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
+
+
+class SearchResultsResponse(BaseModel):
+    """Response from article search"""
+    articles: List[SearchArticle]
+    pagination: SearchPaginationInfo
+    sources_searched: List[str]
+
+
+class DiscriminatorGenerationRequest(BaseModel):
+    """Request to generate semantic discriminator prompt"""
+    evidence_specification: str
+    search_query: str
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class DiscriminatorGenerationResponse(BaseModel):
+    """Response from discriminator generation"""
+    evidence_specification: str
+    search_query: str
+    strictness: str
+    discriminator_prompt: str
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class SessionResetRequest(BaseModel):
+    """Request to reset session to specific step"""
+    step: str = Field(..., description="Step to reset to: question_input, question_refinement, etc.")
+
+
+class UnifiedFilterRequest(BaseModel):
+    """Unified request for filtering articles - supports both selected and all modes"""
+    filter_mode: str = Field(..., description="Filter mode: 'selected' or 'all'")
+    
+    # Common fields
+    evidence_specification: str = Field(..., description="Evidence specification for context")
+    search_query: str = Field(..., description="Boolean search query")
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
+    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
+    session_id: str = Field(..., description="Session ID for tracking")
+    
+    # For selected mode
+    articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (required for selected mode)")
+    
+    # For all mode
+    max_results: Optional[int] = Field(500, description="Maximum results to retrieve and filter (for all mode)")
+
+
+class ParallelFilterResponse(BaseModel):
+    """Response from parallel (non-streaming) filtering"""
+    filtered_articles: List[FilteredArticle]
+    total_processed: int
+    total_accepted: int
+    total_rejected: int
+    average_confidence: float
+    duration_seconds: float
+    token_usage: Dict[str, int] = Field(..., description="Token usage statistics")
+    session_id: str
+
+
+# Query optimization schemas
 class QueryCountRequest(BaseModel):
     """Request to test search query result count"""
     search_query: str = Field(..., description="Boolean search query to test")
@@ -78,6 +172,7 @@ class OptimizedQueryResponse(BaseModel):
     refinement_applied: str = Field(..., description="Description of refinements made")
     refinement_status: str = Field(..., description="Status: 'optimal', 'refined', or 'manual_needed'")
     session_id: str = Field(..., description="Session ID for tracking")
+
 
 class FeatureExtractionRequest(BaseFeatureExtractionRequest):
     session_id: str

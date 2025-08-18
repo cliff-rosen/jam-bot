@@ -13,9 +13,7 @@ from datetime import datetime
 
 from schemas.features import FeatureDefinition
 from schemas.smart_search import (
-    SmartSearchRefinementResponse,
     SearchArticle,
-    SearchResultsResponse,
     SearchPaginationInfo,
     FilteredArticle,
     FilteringProgress

@@ -5,6 +5,7 @@
  */
 
 import { api } from './index';
+
 import type {
   SmartSearchRefinement,
   SearchQueryGeneration,

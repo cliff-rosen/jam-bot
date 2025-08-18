@@ -149,7 +149,6 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     return result
 
 
-
 def scholar_to_research_article(scholar_article: 'GoogleScholarArticle', position: Optional[int] = None) -> CanonicalResearchArticle:
     """
     Convert a GoogleScholarArticle to the unified CanonicalResearchArticle format.

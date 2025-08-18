@@ -443,15 +443,44 @@ Generate an effective search query for {target_source.replace('_', ' ').title()}
             logger.error(f"Failed to get search count: {e}")
             return 0, []
     
-    async def add_targeted_refinement(self, current_query: str, current_count: int, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
+    async def add_targeted_refinement(self, current_query: str, current_count: int, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> Tuple[str, str]:
         """
-        Add a single targeted AND refinement to the current query to reduce volume
-        with minimal Type II error risk
+        Add a single targeted refinement to the current query to reduce volume
+        with minimal Type II error risk - source-specific approach
         """
         logger.info(f"Adding targeted refinement to: {current_query[:100]}... (current: {current_count:,} → target: <{target_max})")
         
-        # Use LLM to suggest a targeted refinement
-        system_prompt = """You are a search query refinement expert. Your task is to add ONE targeted AND clause to reduce search results to the target range while maintaining relevance.
+        # Determine target source
+        target_source = selected_sources[0] if selected_sources else 'pubmed'
+        
+        # Source-specific refinement approaches
+        if target_source == 'google_scholar':
+            # Google Scholar: Use natural language additions
+            system_prompt = """You are a Google Scholar search refinement expert. Your task is to add ONE specific term or quoted phrase to a natural language query to reduce results while maintaining relevance.
+
+GOOGLE SCHOLAR REFINEMENT RULES:
+1. Add ONE specific term that narrows the scope
+2. Use quoted phrases for specific concepts: "randomized trial"
+3. NO boolean operators (AND/OR) - just add words naturally
+4. Focus on methodology, population, or time constraints
+5. Keep the refined query natural and readable
+
+GOOD REFINEMENT EXAMPLES:
+- "machine learning healthcare" → "machine learning healthcare" "clinical trial"
+- "climate change agriculture" → "climate change agriculture" adaptation
+- "materials science nanomaterials" → "materials science nanomaterials" synthesis
+
+EFFECTIVE REFINEMENT TERMS:
+- Study design: "randomized trial", "systematic review", "meta-analysis"
+- Setting: clinical, laboratory, hospital, community
+- Population: pediatric, elderly, adult, adolescent
+- Methodology: prospective, longitudinal, cross-sectional
+- Time: recent, 2020-2024, "last decade"
+
+Respond in JSON format with "refined_query" and "explanation" fields."""
+        else:
+            # PubMed: Use boolean AND refinement
+            system_prompt = """You are a search query refinement expert for PubMed. Your task is to add ONE targeted AND clause to reduce search results to the target range while maintaining relevance.
 
 CRITICAL REQUIREMENTS:
 1. The current query returns too many results and MUST be reduced to the target range
@@ -482,7 +511,17 @@ The goal is meaningful reduction in result count, not just adding more terms.
 
 Respond in JSON format with the refined query and explanation."""
 
-        user_prompt = f"""Current query: {current_query}
+        # Source-specific user prompt
+        if target_source == 'google_scholar':
+            user_prompt = f"""Current Google Scholar query: {current_query}
+Current result count: {current_count:,} results
+Target: Under {target_max} results
+
+Evidence specification: {evidence_spec}
+
+Add ONE specific term or quoted phrase to this natural language query to reduce results while maintaining relevance. Focus on the most specific aspect that will filter results effectively."""
+        else:
+            user_prompt = f"""Current PubMed query: {current_query}
 Current result count: {current_count:,} results
 Target: Under {target_max} results
 
@@ -575,7 +614,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             return initial_query, initial_count, initial_query, initial_count, "Query already optimal", "optimal"
         
         # Phase 3: Add targeted refinement to current query
-        final_query, refinement_description = await self.add_targeted_refinement(initial_query, initial_count, evidence_spec, target_max)
+        final_query, refinement_description = await self.add_targeted_refinement(initial_query, initial_count, evidence_spec, target_max, selected_sources)
         final_count, _ = await self.get_search_count(final_query, selected_sources)
         
         # Determine status

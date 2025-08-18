@@ -738,6 +738,8 @@ export default function SmartSearchLab() {
               refinement={refinement}
               evidenceSpec={evidenceSpec}
               setEvidenceSpec={setEvidenceSpec}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
               onSubmit={handleGenerateKeywords}
               loading={searchQueryLoading}
             />

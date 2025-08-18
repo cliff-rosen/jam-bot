@@ -11,6 +11,8 @@ interface RefinementStepProps {
   refinement: SmartSearchRefinement;
   evidenceSpec: string;
   setEvidenceSpec: (spec: string) => void;
+  selectedSource: string;
+  setSelectedSource: (source: string) => void;
   onSubmit: (selectedSource: string) => void;
   loading: boolean;
 }
@@ -19,10 +21,11 @@ export function RefinementStep({
   refinement,
   evidenceSpec,
   setEvidenceSpec,
+  selectedSource,
+  setSelectedSource,
   onSubmit,
   loading
 }: RefinementStepProps) {
-  const [selectedSource, setSelectedSource] = useState<string>('pubmed');
 
   const handleSubmit = () => {
     onSubmit(selectedSource);

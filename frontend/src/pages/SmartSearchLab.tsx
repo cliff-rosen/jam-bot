@@ -421,7 +421,7 @@ export default function SmartSearchLab() {
       console.log(`Processing ${articlesToProcess} articles in parallel...`);
 
       const startTime = Date.now();
-      const response = await smartSearchApi.filterUnifiedParallel(request);
+      const response = await smartSearchApi.filterArticles(request);
       const duration = Date.now() - startTime;
 
       // Set all articles at once

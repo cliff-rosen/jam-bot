@@ -38,106 +38,40 @@ router = APIRouter(
 )
 
 # ============================================================================
-# API Request/Response Models
+# API Request/Response Models (ordered by endpoint flow)
 # ============================================================================
 
-class SmartSearchRequest(BaseModel):
-    """Initial search request from user"""
+# Step 1: Create Evidence Specification
+class EvidenceSpecificationRequest(BaseModel):
+    """Request to create evidence specification from user query"""
     query: str = Field(..., description="User's document search query")
     max_results: int = Field(50, description="Maximum results to return")
     session_id: Optional[str] = Field(None, description="Optional session ID to continue existing session")
 
 
-class SmartSearchRefinementResponse(BaseModel):
-    """Response from evidence specification step (Step 2)"""
+class EvidenceSpecificationResponse(BaseModel):
+    """Response from evidence specification creation"""
     original_query: str = Field(..., description="Original user query")
     evidence_specification: str = Field(..., description="Evidence specification for document search")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-class SearchQueryRequest(BaseModel):
-    """Request to generate search keywords from evidence specification (Step 3)"""
+# Step 2: Generate Keywords
+class KeywordGenerationRequest(BaseModel):
+    """Request to generate search keywords from evidence specification"""
     evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
 
 
-class SearchQueryResponse(BaseModel):
-    """Response from search keyword generation (Step 3)"""
+class KeywordGenerationResponse(BaseModel):
+    """Response from search keyword generation"""
     evidence_specification: str = Field(..., description="The evidence specification used")
     search_query: str = Field(..., description="Boolean search query for databases")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-class ArticleSearchRequest(BaseModel):
-    """Request to search with boolean query"""
-    search_query: str = Field(..., description="Boolean search query")
-    max_results: int = Field(50, description="Maximum results per source")
-    offset: int = Field(0, description="Number of results to skip (for pagination)")
-    session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
-
-
-class SearchResultsResponse(BaseModel):
-    """Response from article search"""
-    articles: List[SearchArticle]
-    pagination: SearchPaginationInfo
-    sources_searched: List[str]
-
-
-class DiscriminatorGenerationRequest(BaseModel):
-    """Request to generate semantic discriminator prompt"""
-    evidence_specification: str
-    search_query: str
-    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
-    session_id: str = Field(..., description="Session ID for tracking")
-
-
-class DiscriminatorGenerationResponse(BaseModel):
-    """Response from discriminator generation"""
-    evidence_specification: str
-    search_query: str
-    strictness: str
-    discriminator_prompt: str
-    session_id: str = Field(..., description="Session ID for tracking")
-
-
-class SessionResetRequest(BaseModel):
-    """Request to reset session to specific step"""
-    step: str = Field(..., description="Step to reset to: question_input, question_refinement, etc.")
-
-
-class UnifiedFilterRequest(BaseModel):
-    """Unified request for filtering articles - supports both selected and all modes"""
-    filter_mode: str = Field(..., description="Filter mode: 'selected' or 'all'")
-    
-    # Common fields
-    evidence_specification: str = Field(..., description="Evidence specification for context")
-    search_query: str = Field(..., description="Boolean search query")
-    strictness: str = Field("medium", description="Filtering strictness: low, medium, high")
-    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (optional)")
-    session_id: str = Field(..., description="Session ID for tracking")
-    
-    # For selected mode
-    articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (required for selected mode)")
-    
-    # For all mode
-    max_results: Optional[int] = Field(500, description="Maximum results to retrieve and filter (for all mode)")
-
-
-class ParallelFilterResponse(BaseModel):
-    """Response from parallel (non-streaming) filtering"""
-    filtered_articles: List[FilteredArticle]
-    total_processed: int
-    total_accepted: int
-    total_rejected: int
-    average_confidence: float
-    duration_seconds: float
-    token_usage: Dict[str, int] = Field(..., description="Token usage statistics")
-    session_id: str
-
-
-# Query optimization schemas
+# Step 3: Test Query Count
 class QueryCountRequest(BaseModel):
     """Request to test search query result count"""
     search_query: str = Field(..., description="Boolean search query to test")
@@ -153,6 +87,7 @@ class QueryCountResponse(BaseModel):
     session_id: str = Field(..., description="Session ID for tracking")
 
 
+# Step 4: Generate Optimized Query
 class OptimizedQueryRequest(BaseModel):
     """Request to generate optimized search query with volume control"""
     current_query: str = Field(..., description="Current search query to refine")
@@ -174,19 +109,89 @@ class OptimizedQueryResponse(BaseModel):
     session_id: str = Field(..., description="Session ID for tracking")
 
 
+# Step 5: Execute Search
+class SearchExecutionRequest(BaseModel):
+    """Request to execute article search"""
+    search_query: str = Field(..., description="Boolean search query")
+    max_results: int = Field(50, description="Maximum results to return")
+    offset: int = Field(0, description="Number of results to skip for pagination")
+    session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search")
+
+
+class SearchExecutionResponse(BaseModel):
+    """Response from article search execution"""
+    articles: List[SearchArticle] = Field(..., description="List of search results")
+    pagination: SearchPaginationInfo = Field(..., description="Pagination information")
+    sources_searched: List[str] = Field(..., description="List of sources that were searched")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+# Step 6: Generate Discriminator
+class DiscriminatorGenerationRequest(BaseModel):
+    """Request to generate semantic discriminator"""
+    evidence_specification: str = Field(..., description="Evidence specification for context")
+    search_query: str = Field(..., description="Search query used")
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, or high")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+class DiscriminatorGenerationResponse(BaseModel):
+    """Response from discriminator generation"""
+    evidence_specification: str = Field(..., description="The evidence specification used")
+    search_query: str = Field(..., description="The search query used")
+    strictness: str = Field(..., description="The strictness level used")
+    discriminator_prompt: str = Field(..., description="Generated discriminator prompt")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+# Step 7: Filter Articles
+class ArticleFilterRequest(BaseModel):
+    """Request for article filtering (both selected and all modes)"""
+    filter_mode: str = Field(..., description="'selected' or 'all'")
+    evidence_specification: str = Field(..., description="Evidence specification for filtering")
+    search_query: str = Field(..., description="Search query for context")
+    strictness: str = Field("medium", description="Filtering strictness")
+    discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
+    session_id: str = Field(..., description="Session ID for tracking")
+    articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (for selected mode)")
+    max_results: Optional[int] = Field(None, description="Max results to retrieve (for all mode)")
+
+
+class ArticleFilterResponse(BaseModel):
+    """Response from article filtering"""
+    filtered_articles: List[FilteredArticle] = Field(..., description="Articles with filtering results")
+    total_processed: int = Field(..., description="Total articles processed")
+    total_accepted: int = Field(..., description="Number of articles accepted")
+    total_rejected: int = Field(..., description="Number of articles rejected")
+    average_confidence: float = Field(..., description="Average confidence of accepted articles")
+    duration_seconds: float = Field(..., description="Processing duration in seconds")
+    token_usage: Dict[str, int] = Field(..., description="LLM token usage statistics")
+    session_id: str = Field(..., description="Session ID for tracking")
+
+
+# Step 8: Extract Features
 class FeatureExtractionRequest(BaseFeatureExtractionRequest):
-    session_id: str
+    """Request to extract custom features from filtered articles"""
+    session_id: str = Field(..., description="Session ID for tracking")
 
 
 class FeatureExtractionResponse(BaseFeatureExtractionResponse):
-    session_id: str
+    """Response from feature extraction"""
+    session_id: str = Field(..., description="Session ID for tracking")
 
-@router.post("/create-evidence-spec", response_model=SmartSearchRefinementResponse)
+
+# Session Management
+class SessionResetRequest(BaseModel):
+    """Request to reset session to a specific step"""
+    step: str = Field(..., description="Step to reset to")
+
+@router.post("/create-evidence-spec", response_model=EvidenceSpecificationResponse)
 async def create_evidence_specification(
-    request: SmartSearchRequest,
+    request: EvidenceSpecificationRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> SmartSearchRefinementResponse:
+) -> EvidenceSpecificationResponse:
     """
     Step 2: Create evidence specification from user's query
     """
@@ -218,7 +223,7 @@ async def create_evidence_specification(
             total_tokens=usage.total_tokens
         )
         
-        response = SmartSearchRefinementResponse(
+        response = EvidenceSpecificationResponse(
             original_query=request.query,
             evidence_specification=evidence_spec,
             session_id=session.id
@@ -232,12 +237,12 @@ async def create_evidence_specification(
         raise HTTPException(status_code=500, detail=f"Evidence specification failed: {str(e)}")
 
 
-@router.post("/generate-keywords", response_model=SearchQueryResponse)
+@router.post("/generate-keywords", response_model=KeywordGenerationResponse)
 async def generate_keywords(
-    request: SearchQueryRequest,
+    request: KeywordGenerationRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> SearchQueryResponse:
+) -> KeywordGenerationResponse:
     """
     Step 3: Generate search keywords from evidence specification
     """
@@ -276,7 +281,7 @@ async def generate_keywords(
             total_tokens=usage.total_tokens
         )
         
-        response = SearchQueryResponse(
+        response = KeywordGenerationResponse(
             evidence_specification=request.evidence_specification,
             search_query=search_query,
             session_id=session.id
@@ -398,12 +403,12 @@ async def generate_optimized_query(
         raise HTTPException(status_code=500, detail=f"Optimized query generation failed: {str(e)}")
 
 
-@router.post("/execute", response_model=SearchResultsResponse)
+@router.post("/execute", response_model=SearchExecutionResponse)
 async def execute_search(
-    request: ArticleSearchRequest,
+    request: SearchExecutionRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> SearchResultsResponse:
+) -> SearchExecutionResponse:
     """
     Step 4: Execute search with boolean query
     """
@@ -425,7 +430,7 @@ async def execute_search(
         
         # Execute search
         service = SmartSearchService()
-        response = await service.search_articles(
+        result = await service.search_articles(
             search_query=request.search_query,
             max_results=request.max_results,
             offset=request.offset,
@@ -437,15 +442,20 @@ async def execute_search(
         session_service.update_search_execution_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            total_available=response.pagination.total_available,
-            returned=response.pagination.returned,
-            sources=response.sources_searched,
+            total_available=result["pagination"].total_available,
+            returned=result["pagination"].returned,
+            sources=result["sources_searched"],
             is_pagination_load=is_pagination_load,
             submitted_search_query=request.search_query
         )
         
-        logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {response.pagination.returned} articles found, {response.pagination.total_available} total available")
-        return response
+        logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {result['pagination'].returned} articles found, {result['pagination'].total_available} total available")
+        return SearchExecutionResponse(
+            articles=result["articles"],
+            pagination=result["pagination"],
+            sources_searched=result["sources_searched"],
+            session_id=session.id
+        )
         
     except Exception as e:
         logger.error(f"Search execution failed for user {current_user.user_id}: {e}", exc_info=True)
@@ -453,13 +463,13 @@ async def execute_search(
 
 
 @router.post("/generate-discriminator", response_model=DiscriminatorGenerationResponse)
-async def generate_semantic_discriminator(
+async def generate_discriminator(
     request: DiscriminatorGenerationRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """
-    Generate semantic discriminator prompt for review
+    Step 6: Generate semantic discriminator prompt for review
     """
     try:
         logger.info(f"User {current_user.user_id} generating semantic discriminator")
@@ -505,15 +515,15 @@ async def generate_semantic_discriminator(
         raise HTTPException(status_code=500, detail=f"Discriminator generation failed: {str(e)}")
 
 
-@router.post("/filter-parallel", response_model=ParallelFilterResponse)
-async def filter_parallel(
-    request: UnifiedFilterRequest,
+@router.post("/filter-articles", response_model=ArticleFilterResponse)
+async def filter_articles(
+    request: ArticleFilterRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """
-    Parallel filtering endpoint that processes all articles concurrently (non-streaming)
-    Faster for smaller article sets but returns all results at once
+    Step 7: Filter articles using semantic discriminator
+    Processes all articles concurrently for better performance
     """
     try:
         logger.info(f"User {current_user.user_id} starting parallel filtering in {request.filter_mode} mode")
@@ -529,6 +539,9 @@ async def filter_parallel(
         # Initialize smart search service
         service = SmartSearchService()
         
+        # Get selected sources from session
+        selected_sources = getattr(session, 'selected_sources', ['pubmed'])
+        
         # Determine articles to filter based on mode
         if request.filter_mode == "selected":
             if not request.articles:
@@ -542,18 +555,19 @@ async def filter_parallel(
             search_results = await service.search_articles(
                 search_query=request.search_query,
                 max_results=max_results,
-                offset=0
+                offset=0,
+                selected_sources=selected_sources
             )
-            articles_to_filter = search_results.articles
+            articles_to_filter = search_results["articles"]
             logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
             
             # Update session with search execution (full retrieval)
             session_service.update_search_execution_step(
                 session_id=session.id,
                 user_id=current_user.user_id,
-                total_available=search_results.pagination.total_available,
+                total_available=search_results["pagination"].total_available,
                 returned=len(articles_to_filter),
-                sources=search_results.sources_searched,
+                sources=search_results["sources_searched"],
                 is_pagination_load=False,
                 submitted_search_query=request.search_query
             )
@@ -618,7 +632,7 @@ async def filter_parallel(
         
         logger.info(f"Parallel filtering completed for user {current_user.user_id}: {total_accepted}/{total_processed} articles accepted in {duration.total_seconds():.2f}s")
         
-        return ParallelFilterResponse(
+        return ArticleFilterResponse(
             filtered_articles=filtered_articles,
             total_processed=total_processed,
             total_accepted=total_accepted,

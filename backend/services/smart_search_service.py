@@ -497,7 +497,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         logger.info(f"Optimized query: {final_count} results, status: {status}")
         return initial_query, initial_count, final_query, final_count, refinement_description, status
       
-    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False, selected_sources: Optional[List[str]] = None) -> SearchResultsResponse:
+    async def search_articles(self, search_query: str, max_results: int = 50, offset: int = 0, count_only: bool = False, selected_sources: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Search for articles from a single selected source.
         """
@@ -517,7 +517,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         else:
             raise ValueError(f"Unsupported source: {source}")
     
-    async def _search_pubmed(self, search_query: str, max_results: int, offset: int, count_only: bool) -> SearchResultsResponse:
+    async def _search_pubmed(self, search_query: str, max_results: int, offset: int, count_only: bool) -> Dict[str, Any]:
         """Search PubMed and return results."""
         try:
             loop = asyncio.get_event_loop()
@@ -562,26 +562,27 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             logger.info(f"PubMed: {len(articles)} articles returned, {total_available} total available")
             
-            return SearchResultsResponse(
-                articles=articles,
-                pagination=SearchPaginationInfo(
+            # Return a simple object that the router can use
+            return {
+                "articles": articles,
+                "pagination": SearchPaginationInfo(
                     total_available=total_available,
                     returned=len(articles),
                     offset=offset,
                     has_more=offset + len(articles) < total_available
                 ),
-                sources_searched=["pubmed"]
-            )
+                "sources_searched": ["pubmed"]
+            }
             
         except Exception as e:
             logger.error(f"PubMed search failed: {e}")
-            return SearchResultsResponse(
-                articles=[],
-                pagination=SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
-                sources_searched=["pubmed"]
-            )
+            return {
+                "articles": [],
+                "pagination": SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
+                "sources_searched": ["pubmed"]
+            }
     
-    async def _search_google_scholar(self, search_query: str, max_results: int, offset: int, count_only: bool) -> SearchResultsResponse:
+    async def _search_google_scholar(self, search_query: str, max_results: int, offset: int, count_only: bool) -> Dict[str, Any]:
         """Search Google Scholar and return results."""
         try:
             loop = asyncio.get_event_loop()
@@ -624,24 +625,25 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             logger.info(f"Google Scholar: {len(articles)} articles returned, {total_available} total available")
             
-            return SearchResultsResponse(
-                articles=articles,
-                pagination=SearchPaginationInfo(
+            # Return a simple object that the router can use
+            return {
+                "articles": articles,
+                "pagination": SearchPaginationInfo(
                     total_available=total_available,
                     returned=len(articles),
                     offset=offset,
                     has_more=offset + len(articles) < total_available
                 ),
-                sources_searched=["google_scholar"]
-            )
+                "sources_searched": ["google_scholar"]
+            }
             
         except Exception as e:
             logger.error(f"Google Scholar search failed: {e}")
-            return SearchResultsResponse(
-                articles=[],
-                pagination=SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
-                sources_searched=["google_scholar"]
-            )
+            return {
+                "articles": [],
+                "pagination": SearchPaginationInfo(total_available=0, returned=0, offset=0, has_more=False),
+                "sources_searched": ["google_scholar"]
+            }
     
     async def generate_semantic_discriminator(
         self, 

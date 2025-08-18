@@ -58,7 +58,7 @@ export interface OptimizedQueryResponse {
   session_id: string;
 }
 
-export interface ArticleSearchRequest {
+export interface SearchExecutionRequest {
   search_query: string;
   max_results?: number;
   offset?: number;
@@ -84,7 +84,7 @@ export interface FilterAllSearchResultsRequest {
   session_id: string;
 }
 
-export interface UnifiedFilterRequest {
+export interface ArticleFilterRequest {
   filter_mode: 'selected' | 'all';
   evidence_specification: string;
   search_query: string;
@@ -95,7 +95,7 @@ export interface UnifiedFilterRequest {
   max_results?: number;  // For all mode
 }
 
-export interface ParallelFilterResponse {
+export interface ArticleFilterResponse {
   filtered_articles: FilteredArticle[];
   total_processed: number;
   total_accepted: number;
@@ -160,9 +160,9 @@ class SmartSearchApi {
   }
 
   /**
-   * Step 4: Execute search with boolean query
+   * Step 5: Execute search with boolean query
    */
-  async executeSearch(request: ArticleSearchRequest): Promise<SearchResults> {
+  async executeSearch(request: SearchExecutionRequest): Promise<SearchResults> {
     const response = await api.post('/api/lab/smart-search/execute', request);
     return response.data;
   }
@@ -234,11 +234,11 @@ class SmartSearchApi {
 
 
   /**
-   * Unified parallel filtering method that processes all articles concurrently (non-streaming)
-   * Faster for smaller article sets but returns all results at once
+   * Step 7: Filter articles using semantic discriminator
+   * Processes all articles concurrently for better performance
    */
-  async filterUnifiedParallel(request: UnifiedFilterRequest): Promise<ParallelFilterResponse> {
-    const response = await api.post('/api/lab/smart-search/filter-parallel', request);
+  async filterArticles(request: ArticleFilterRequest): Promise<ArticleFilterResponse> {
+    const response = await api.post('/api/lab/smart-search/filter-articles', request);
     return response.data;
   }
 

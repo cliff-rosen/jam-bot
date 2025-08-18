@@ -8,20 +8,7 @@ API-specific request/response models are defined in the router.
 
 from typing import List, Optional
 from pydantic import BaseModel, Field
-
-
-class SearchArticle(BaseModel):
-    """Article from search results - core domain model"""
-    id: str = Field(..., description="Unique identifier for the article")
-    title: str
-    abstract: str
-    authors: List[str]
-    year: int
-    journal: Optional[str] = None
-    doi: Optional[str] = None
-    pmid: Optional[str] = None
-    url: Optional[str] = None
-    source: str = Field(..., description="Source of article (pubmed, google_scholar, etc)")
+from schemas.canonical_types import CanonicalResearchArticle
 
 
 class SearchPaginationInfo(BaseModel):
@@ -34,7 +21,7 @@ class SearchPaginationInfo(BaseModel):
 
 class FilteredArticle(BaseModel):
     """Article with filtering results - core domain model"""
-    article: SearchArticle
+    article: CanonicalResearchArticle
     passed: bool = Field(..., description="Whether article passed the filter")
     confidence: float = Field(..., description="Confidence score 0-1")
     reasoning: str = Field(..., description="Brief explanation of decision")
@@ -51,7 +38,7 @@ class FilteringProgress(BaseModel):
 
 class SearchServiceResult(BaseModel):
     """Result from search service methods"""
-    articles: List[SearchArticle]
+    articles: List[CanonicalResearchArticle]
     pagination: SearchPaginationInfo
     sources_searched: List[str]
 

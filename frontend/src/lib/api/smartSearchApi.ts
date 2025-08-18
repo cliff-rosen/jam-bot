@@ -6,10 +6,10 @@
  */
 
 import { api } from './index';
-import type { SearchArticle, FilteredArticle } from '@/types/smart-search';
+import type { CanonicalResearchArticle, FilteredArticle } from '@/types/smart-search';
 
 // Re-export domain types for convenience
-export type { SearchArticle, FilteredArticle } from '@/types/smart-search';
+export type { CanonicalResearchArticle, FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 
 // ============================================================================
@@ -86,7 +86,7 @@ export interface SearchExecutionRequest {
 }
 
 export interface SearchExecutionResponse {
-  articles: SearchArticle[];
+  articles: CanonicalResearchArticle[];
   pagination: {
     total_available: number;
     returned: number;
@@ -122,7 +122,7 @@ export interface ArticleFilterRequest {
   discriminator_prompt?: string;
   session_id: string;
   selected_sources: string[];
-  articles?: SearchArticle[];  // For selected mode
+  articles?: CanonicalResearchArticle[];  // For selected mode
   max_results?: number;  // For all mode
 }
 

@@ -59,6 +59,19 @@ export function ResultsStep({
   const acceptedArticles = filteredArticles.filter(fa => fa.passed);
   const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
 
+  // Helper function to extract PMID from CanonicalResearchArticle
+  const extractPmid = (article: any) => {
+    // Check if ID starts with "pmid:"
+    if (article.id && article.id.startsWith('pmid:')) {
+      return article.id.replace('pmid:', '');
+    }
+    // For backward compatibility, check if there's a pmid field
+    if (article.pmid) {
+      return article.pmid;
+    }
+    return '';
+  };
+
 
   const exportToCSV = () => {
     const csvContent = [
@@ -66,12 +79,12 @@ export function ResultsStep({
       ...filteredArticles.map(item => [
         `"${item.article.title.replace(/"/g, '""')}"`,
         `"${item.article.authors.join('; ').replace(/"/g, '""')}"`,
-        item.article.year || '',
+        item.article.publication_year || '',
         `"${(item.article.journal || '').replace(/"/g, '""')}"`,
         `"${(item.article.abstract || '').replace(/"/g, '""')}"`,
         item.article.url || '',
         item.article.doi || '',
-        item.article.pmid || '',
+        extractPmid(item.article) || '',
         item.passed ? 'Accepted' : 'Rejected',
         Math.round(item.confidence * 100) + '%',
         `"${item.reasoning.replace(/"/g, '""')}"`
@@ -91,7 +104,7 @@ export function ResultsStep({
       .map((item, index) => {
         const cleanTitle = item.article.title.replace(/[{}]/g, '');
         const authors = item.article.authors.join(' and ');
-        const year = item.article.year || new Date().getFullYear();
+        const year = item.article.publication_year || new Date().getFullYear();
         const journal = item.article.journal || '';
         const doi = item.article.doi || '';
         const url = item.article.url || '';
@@ -155,7 +168,7 @@ export function ResultsStep({
           ${acceptedArticles.map(item => `
             <div class="article accepted">
               <div class="title">${item.article.title}</div>
-              <div class="authors">${item.article.authors.join(', ')}${item.article.year ? ` (${item.article.year})` : ''}</div>
+              <div class="authors">${item.article.authors.join(', ')}${item.article.publication_year ? ` (${item.article.publication_year})` : ''}</div>
               ${item.article.journal ? `<div class="details">Journal: ${item.article.journal}</div>` : ''}
               <div class="details">
                 Source: ${item.article.source} | 
@@ -171,7 +184,7 @@ export function ResultsStep({
             ${rejectedArticles.map(item => `
               <div class="article rejected">
                 <div class="title">${item.article.title}</div>
-                <div class="authors">${item.article.authors.join(', ')}${item.article.year ? ` (${item.article.year})` : ''}</div>
+                <div class="authors">${item.article.authors.join(', ')}${item.article.publication_year ? ` (${item.article.publication_year})` : ''}</div>
                 <div class="details">
                   Source: ${item.article.source} | 
                   <span class="confidence">Confidence: ${Math.round(item.confidence * 100)}%</span>
@@ -812,7 +825,7 @@ export function ResultsStep({
                         <span className="truncate">
                           {item.article.authors.slice(0, 2).join(', ')}
                           {item.article.authors.length > 2 && ' et al.'}
-                          {item.article.year && ` (${item.article.year})`}
+                          {item.article.publication_year && ` (${item.article.publication_year})`}
                         </span>
                         <Badge variant="outline" className="text-xs shrink-0">
                           {item.article.source}
@@ -857,7 +870,7 @@ export function ResultsStep({
                         {item.article.authors.length > 3 && ' et al.'}
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>{item.article.year || 'N/A'}</span>
+                        <span>{item.article.publication_year || 'N/A'}</span>
                         <Badge variant="outline" className="text-xs">
                           {item.article.source}
                         </Badge>
@@ -943,7 +956,7 @@ export function ResultsStep({
                           </div>
                         </td>
                         <td className="p-2 text-gray-600 dark:text-gray-400">
-                          {item.article.year || 'N/A'}
+                          {item.article.publication_year || 'N/A'}
                         </td>
                         <td className="p-2 text-gray-600 dark:text-gray-400">
                           <div>
@@ -1027,7 +1040,7 @@ export function ResultsStep({
                           <span className="truncate">
                             {item.article.authors.slice(0, 2).join(', ')}
                             {item.article.authors.length > 2 && ' et al.'}
-                            {item.article.year && ` (${item.article.year})`}
+                            {item.article.publication_year && ` (${item.article.publication_year})`}
                           </span>
                           <Badge variant="outline" className="text-xs shrink-0">
                             {item.article.source}

@@ -20,14 +20,12 @@ These classes handle parsing and abstracting external API responses:
 ### 2. Domain Models (Smart Search)
 These are the primary models used in Smart Search workflows:
 
-- **`schemas.smart_search.SearchArticle`** - Core article representation for Smart Search
-  - Simple, consistent interface for all sources
-  - What users see and interact with
-  - Used throughout the 8-step Smart Search workflow
-
-- **`schemas.smart_search.FilteredArticle`** - Extends SearchArticle with filtering metadata
-  - Adds confidence scores, filtering decisions
+- **`schemas.smart_search.FilteredArticle`** - Wraps CanonicalResearchArticle with filtering metadata
+  - Adds confidence scores, filtering decisions  
   - Used after semantic filtering step
+  - Now uses CanonicalResearchArticle instead of the deprecated SearchArticle
+
+- **`schemas.smart_search.SearchPaginationInfo`** - Pagination information for search results
 
 ### 3. Canonical Types (Legacy Bridge)
 These provide unified interfaces for the workbench and cross-source features:

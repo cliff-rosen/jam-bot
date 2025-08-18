@@ -18,11 +18,11 @@ from database import get_db
 
 # Import only core domain models from schemas
 from schemas.smart_search import (
-    SearchArticle,
     SearchPaginationInfo,
     FilteredArticle,
     FilteringProgress
 )
+from schemas.canonical_types import CanonicalResearchArticle
 from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
 
 from services.auth_service import validate_token
@@ -121,7 +121,7 @@ class SearchExecutionRequest(BaseModel):
 
 class SearchExecutionResponse(BaseModel):
     """Response from article search execution"""
-    articles: List[SearchArticle] = Field(..., description="List of search results")
+    articles: List[CanonicalResearchArticle] = Field(..., description="List of search results")
     pagination: SearchPaginationInfo = Field(..., description="Pagination information")
     sources_searched: List[str] = Field(..., description="List of sources that were searched")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -155,7 +155,7 @@ class ArticleFilterRequest(BaseModel):
     discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(..., description="Sources to search (for all mode)")
-    articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (for selected mode)")
+    articles: Optional[List[CanonicalResearchArticle]] = Field(None, description="Articles to filter (for selected mode)")
     max_results: Optional[int] = Field(None, description="Max results to retrieve (for all mode)")
 
 

@@ -13,13 +13,14 @@ from datetime import datetime
 
 from schemas.features import FeatureDefinition
 from schemas.smart_search import (
-    SearchArticle,
     SearchPaginationInfo,
     FilteredArticle,
     FilteringProgress,
     SearchServiceResult,
     OptimizedQueryResult
 )
+from schemas.canonical_types import CanonicalResearchArticle
+from schemas.research_article_converters import scholar_to_research_article
 from schemas.chat import ChatMessage, MessageRole
 
 from agents.prompts.base_prompt_caller import BasePromptCaller, LLMUsage
@@ -544,30 +545,8 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             articles = []
             
             if not count_only:
-                for article in pubmed_articles:
-                    # Generate proper ID: pmid > doi > generated
-                    pmid = article.id.replace("pubmed_", "") if article.id and article.id.startswith("pubmed_") else None
-                    doi = article.doi
-                    
-                    if pmid:
-                        article_id = f"pmid:{pmid}"
-                    elif doi:
-                        article_id = f"doi:{doi}"
-                    else:
-                        article_id = f"pubmed_{article.title[:50]}_{','.join(article.authors[:2]) if article.authors else ''}"
-                    
-                    articles.append(SearchArticle(
-                        id=article_id,
-                        title=article.title,
-                        abstract=article.abstract or "",
-                        authors=article.authors or [],
-                        year=article.publication_year or 0,
-                        journal=article.journal,
-                        doi=doi,
-                        pmid=pmid,
-                        url=article.url,
-                        source="pubmed"
-                    ))
+                # pubmed_articles are already CanonicalResearchArticle objects, use them directly
+                articles = pubmed_articles
             
             logger.info(f"PubMed: {len(articles)} articles returned, {total_available} total available")
             
@@ -608,19 +587,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             if not count_only:
                 for article in scholar_articles:
-                    # Now article is a GoogleScholarArticle instance with proper attributes
-                    articles.append(SearchArticle(
-                        id=article.id,  # Use the generated ID from GoogleScholarArticle
-                        title=article.title or "",
-                        abstract=article.snippet or "",  # GoogleScholarArticle uses 'snippet' for abstract
-                        authors=article.authors or [],
-                        year=article.year or 0,
-                        journal=article.journal,  # GoogleScholarArticle extracts journal info
-                        doi=article.doi,  # GoogleScholarArticle extracts DOI
-                        pmid=self._extract_pmid_from_url(article.link) if article.link else None,
-                        url=article.link,
-                        source="google_scholar"
-                    ))
+                    # Convert GoogleScholarArticle to CanonicalResearchArticle
+                    canonical_article = scholar_to_research_article(article)
+                    articles.append(canonical_article)
             
             logger.info(f"Google Scholar: {len(articles)} articles returned, {total_available} total available")
             
@@ -670,7 +639,7 @@ You must respond in this exact JSON format:
         
         return discriminator_prompt
     
-    async def _evaluate_article(self, article: SearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
+    async def _evaluate_article(self, article: CanonicalResearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
         """
         Evaluate a single article against the discriminator
         """
@@ -751,7 +720,7 @@ Respond in JSON format:
     
     async def filter_articles_parallel(
         self,
-        articles: List[SearchArticle],
+        articles: List[CanonicalResearchArticle],
         refined_question: str,
         search_query: str,
         strictness: str = "medium",
@@ -770,7 +739,7 @@ Respond in JSON format:
         # Create semaphore to limit concurrent LLM calls (avoid rate limits)
         semaphore = asyncio.Semaphore(500)
         
-        async def evaluate_with_semaphore(article: SearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
+        async def evaluate_with_semaphore(article: CanonicalResearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
             async with semaphore:
                 return await self._evaluate_article(article, custom_discriminator)
         

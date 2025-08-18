@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, ChevronRight, ArrowLeft } from 'lucide-react';
-import type { SearchExecutionResponse, SearchArticle } from '@/lib/api/smartSearchApi';
+import type { SearchExecutionResponse, CanonicalResearchArticle } from '@/lib/api/smartSearchApi';
 
 interface SearchResultsStepProps {
   searchResults: SearchExecutionResponse;
@@ -65,7 +65,7 @@ export function SearchResultsStep({
 
       {/* Articles List */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-        {searchResults.articles.map((article: SearchArticle, index: number) => (
+        {searchResults.articles.map((article: CanonicalResearchArticle, index: number) => (
           <div
             key={index}
             className="p-3 border rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750"
@@ -79,7 +79,7 @@ export function SearchResultsStep({
                   <span className="truncate">
                     {article.authors.slice(0, 2).join(', ')}
                     {article.authors.length > 2 && ' et al.'}
-                    {article.year && ` (${article.year})`}
+                    {article.publication_year && ` (${article.publication_year})`}
                   </span>
                   <Badge variant="outline" className="text-xs">
                     {article.source}

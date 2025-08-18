@@ -6,19 +6,13 @@
  * API-specific request/response models are defined in @/lib/api/smartSearchApi.
  */
 
-// Core Domain Models
-export interface SearchArticle {
-  id: string;
-  title: string;
-  abstract: string;
-  authors: string[];
-  year: number;
-  journal?: string;
-  doi?: string;
-  pmid?: string;
-  url?: string;
-  source: string;
-}
+import { CanonicalResearchArticle } from './canonical_types';
+
+// Re-export the canonical type for convenience
+export type { CanonicalResearchArticle } from './canonical_types';
+
+// Legacy alias for backward compatibility during migration  
+export type SearchArticle = CanonicalResearchArticle;
 
 export interface SearchPaginationInfo {
   total_available: number;
@@ -28,7 +22,7 @@ export interface SearchPaginationInfo {
 }
 
 export interface FilteredArticle {
-  article: SearchArticle;
+  article: CanonicalResearchArticle;
   passed: boolean;
   confidence: number;
   reasoning: string;

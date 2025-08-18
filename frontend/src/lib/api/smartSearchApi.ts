@@ -23,13 +23,13 @@ export interface EvidenceSpecificationRequest {
 export interface KeywordGenerationRequest {
   evidence_specification: string;
   session_id: string;
-  selected_sources?: string[];
+  selected_sources: string[];
 }
 
 export interface QueryCountRequest {
   search_query: string;
   session_id: string;
-  selected_sources?: string[];
+  selected_sources: string[];
 }
 
 export interface QueryCountResponse {
@@ -44,7 +44,7 @@ export interface OptimizedQueryRequest {
   evidence_specification: string;
   target_max_results?: number;
   session_id: string;
-  selected_sources?: string[];
+  selected_sources: string[];
 }
 
 export interface OptimizedQueryResponse {
@@ -63,7 +63,7 @@ export interface SearchExecutionRequest {
   max_results?: number;
   offset?: number;
   session_id: string;
-  selected_sources?: string[];
+  selected_sources: string[];
 }
 
 export interface SemanticFilterRequest {
@@ -91,6 +91,7 @@ export interface ArticleFilterRequest {
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
   session_id: string;
+  selected_sources: string[];
   articles?: any[];  // For selected mode
   max_results?: number;  // For all mode
 }

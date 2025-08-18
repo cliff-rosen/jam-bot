@@ -413,6 +413,7 @@ export default function SmartSearchLab() {
       strictness,
       discriminator_prompt: editedDiscriminator,
       session_id: sessionId!,
+      selected_sources: [selectedSource],
       max_results: articlesToProcess
     };
 

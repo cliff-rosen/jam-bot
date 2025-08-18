@@ -61,7 +61,7 @@ class KeywordGenerationRequest(BaseModel):
     """Request to generate search keywords from evidence specification"""
     evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
+    selected_sources: List[str] = Field(..., description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
 
 
 class KeywordGenerationResponse(BaseModel):
@@ -76,7 +76,7 @@ class QueryCountRequest(BaseModel):
     """Request to test search query result count"""
     search_query: str = Field(..., description="Boolean search query to test")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search")
+    selected_sources: List[str] = Field(..., description="List of sources to search")
 
 
 class QueryCountResponse(BaseModel):
@@ -94,7 +94,7 @@ class OptimizedQueryRequest(BaseModel):
     evidence_specification: str = Field(..., description="Evidence specification for context")
     target_max_results: int = Field(250, description="Target maximum number of results")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(default=["pubmed"], description="Sources to search")
+    selected_sources: List[str] = Field(..., description="Sources to search")
 
 
 class OptimizedQueryResponse(BaseModel):
@@ -116,7 +116,7 @@ class SearchExecutionRequest(BaseModel):
     max_results: int = Field(50, description="Maximum results to return")
     offset: int = Field(0, description="Number of results to skip for pagination")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search")
+    selected_sources: List[str] = Field(..., description="List of sources to search")
 
 
 class SearchExecutionResponse(BaseModel):
@@ -154,6 +154,7 @@ class ArticleFilterRequest(BaseModel):
     strictness: str = Field("medium", description="Filtering strictness")
     discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
     session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: List[str] = Field(..., description="Sources to search (for all mode)")
     articles: Optional[List[SearchArticle]] = Field(None, description="Articles to filter (for selected mode)")
     max_results: Optional[int] = Field(None, description="Max results to retrieve (for all mode)")
 
@@ -264,10 +265,9 @@ async def generate_keywords(
             selected_sources=request.selected_sources
         )
         
-        # Store selected sources in session if provided
-        if request.selected_sources:
-            session.selected_sources = request.selected_sources
-            db.commit()
+        # Store selected sources in session
+        session.selected_sources = request.selected_sources
+        db.commit()
         
         # Update session - this is when user actually submits their evidence specification
         session_service.update_search_query_step(
@@ -315,16 +315,11 @@ async def test_query_count(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Get selected sources from request or session
-        selected_sources = request.selected_sources
-        if not selected_sources and hasattr(session, 'selected_sources'):
-            selected_sources = session.selected_sources
-        
         # Get search count
         service = SmartSearchService()
         total_count, sources_searched = await service.get_search_count(
             request.search_query,
-            selected_sources=selected_sources
+            selected_sources=request.selected_sources
         )
         
         response = QueryCountResponse(
@@ -422,18 +417,13 @@ async def execute_search(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Get selected sources from request or session
-        selected_sources = request.selected_sources
-        if not selected_sources and hasattr(session, 'selected_sources'):
-            selected_sources = session.selected_sources
-        
         # Execute search
         service = SmartSearchService()
         result = await service.search_articles(
             search_query=request.search_query,
             max_results=request.max_results,
             offset=request.offset,
-            selected_sources=selected_sources
+            selected_sources=request.selected_sources
         )
         
         # Update session with search metadata
@@ -538,9 +528,6 @@ async def filter_articles(
         # Initialize smart search service
         service = SmartSearchService()
         
-        # Get selected sources from session
-        selected_sources = getattr(session, 'selected_sources', ['pubmed'])
-        
         # Determine articles to filter based on mode
         if request.filter_mode == "selected":
             if not request.articles:
@@ -555,7 +542,7 @@ async def filter_articles(
                 search_query=request.search_query,
                 max_results=max_results,
                 offset=0,
-                selected_sources=selected_sources
+                selected_sources=request.selected_sources
             )
             articles_to_filter = search_results.articles
             logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")

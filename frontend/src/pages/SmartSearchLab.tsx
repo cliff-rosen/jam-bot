@@ -48,7 +48,7 @@ export default function SmartSearchLab() {
   const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
-  const [initialQueryCount, setInitialQueryCount] = useState<{total_count: number; sources_searched: string[]} | null>(null);
+  const [initialQueryCount, setInitialQueryCount] = useState<{ total_count: number; sources_searched: string[] } | null>(null);
 
   // Step 4: Search results
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
@@ -63,7 +63,7 @@ export default function SmartSearchLab() {
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
-  
+
   // Source selection - remember last choice in localStorage
   const [selectedSource, setSelectedSource] = useState<string>(() => {
     return localStorage.getItem('smartSearchSelectedSource') || 'pubmed';
@@ -89,16 +89,16 @@ export default function SmartSearchLab() {
 
       try {
         const session = await smartSearchApi.getSession(resumeSessionId);
-        
+
         // Restore session state
         setSessionId(session.id);
         setQuery(session.original_question || '');
         setEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
         setEditedSearchQuery(session.submitted_search_query || session.generated_search_query || '');
-        
+
         // Restore additional component state based on available data
         const lastStep = session.last_step_completed;
-        
+
         // Always create refinement object if we're at or past refinement step
         if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
           setRefinement({
@@ -107,7 +107,7 @@ export default function SmartSearchLab() {
             session_id: session.id
           });
         }
-        
+
         // Always create search query generation object if we're at or past search query step
         if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
           setSearchQueryGeneration({
@@ -116,14 +116,14 @@ export default function SmartSearchLab() {
             session_id: session.id
           });
         }
-        
+
         if (session.search_metadata) {
           setInitialQueryCount({
             total_count: session.search_metadata.total_available || 0,
             sources_searched: session.search_metadata.sources_searched || []
           });
         }
-        
+
         // Always create discriminator data if we're at discriminator step or later
         if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
           setDiscriminatorData({
@@ -135,16 +135,16 @@ export default function SmartSearchLab() {
           });
           setEditedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
         }
-        
+
         if (session.filter_strictness) {
           setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
         }
-        
+
         // Restore filtered articles if they exist
         if (session.filtered_articles && Array.isArray(session.filtered_articles)) {
           setFilteredArticles(session.filtered_articles);
         }
-        
+
         // Determine which step to show based on session progress
         if (lastStep === 'filtering' && session.filtering_metadata?.accepted !== undefined) {
           setStep('results');
@@ -225,7 +225,7 @@ export default function SmartSearchLab() {
         session_id: sessionId,
         selected_sources: [selectedSource]
       });
-      
+
       return {
         total_count: response.total_count,
         sources_searched: response.sources_searched
@@ -246,7 +246,7 @@ export default function SmartSearchLab() {
         session_id: sessionId,
         selected_sources: [selectedSource]
       });
-      
+
       return {
         initial_query: response.initial_query,
         initial_count: response.initial_count,
@@ -286,7 +286,7 @@ export default function SmartSearchLab() {
       });
       setSearchQueryGeneration(response);
       setEditedSearchQuery(response.search_query);
-      
+
       // Automatically test the generated query count
       try {
         const countResult = await handleTestQueryCount(response.search_query, sessionId!);
@@ -447,9 +447,6 @@ export default function SmartSearchLab() {
       handleFilteringError(error);
     }
   };
-
-
-  // Removed article selection helpers - no longer needed
 
   // Generate discriminator for review
   const handleGenerateDiscriminator = async () => {
@@ -799,7 +796,7 @@ export default function SmartSearchLab() {
           )}
 
           {step === 'results' && (
-            <ResultsStep 
+            <ResultsStep
               filteredArticles={filteredArticles}
               originalQuery={query}
               evidenceSpecification={evidenceSpec}

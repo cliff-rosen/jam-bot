@@ -402,3 +402,26 @@ class GoogleScholarService:
         """
         logger.warning(f"Direct article lookup not available for Google Scholar. ID: {article_id}")
         return None
+
+
+# Module-level function to match PubMed pattern
+def search_articles(
+    query: str,
+    num_results: int = 10,
+    year_low: Optional[int] = None,
+    year_high: Optional[int] = None,
+    sort_by: str = "relevance",
+    start_index: int = 0
+) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
+    """
+    Module-level search function to match PubMed's search_articles pattern.
+    """
+    service = GoogleScholarService()
+    return service.search_articles(
+        query=query,
+        num_results=num_results,
+        year_low=year_low,
+        year_high=year_high,
+        sort_by=sort_by,
+        start_index=start_index
+    )

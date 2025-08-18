@@ -23,7 +23,7 @@ from schemas.chat import ChatMessage, MessageRole
 
 from agents.prompts.base_prompt_caller import BasePromptCaller, LLMUsage
 
-from services.google_scholar_service import GoogleScholarService
+from services.google_scholar_service import search_articles as search_scholar_articles
 from services.pubmed_service import search_articles as search_pubmed_articles
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class SmartSearchService:
     """Service for smart search functionality"""
     
     def __init__(self):
-        self.google_scholar_service = GoogleScholarService()
+        pass
     
     def _extract_pmid_from_url(self, url: str) -> Optional[str]:
         """Extract PMID from a URL if present."""
@@ -575,7 +575,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             scholar_articles, metadata = await loop.run_in_executor(
                 None,
-                self.google_scholar_service.search_articles,
+                search_scholar_articles,
                 search_query,
                 results_to_fetch
             )

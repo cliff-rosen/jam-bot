@@ -2,19 +2,18 @@
 Shared Feature Schemas
 
 Common feature definition and extraction schemas used across Smart Search and Workbench.
+DEPRECATED: Use schemas.canonical_types instead.
 """
 
 from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
+# Import canonical types and provide backward compatibility aliases
+from schemas.canonical_types import CanonicalFeatureDefinition, CanonicalExtractedFeature
 
-class FeatureDefinition(BaseModel):
-    """Feature metadata - defines what features to extract"""
-    id: str = Field(..., description="Stable UUID for feature identification")
-    name: str = Field(..., description="Feature display name") 
-    description: str = Field(..., description="Feature description for LLM extraction")
-    type: Literal['boolean', 'text', 'score'] = Field(..., description="Feature data type")
-    options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
+# Backward compatibility aliases
+FeatureDefinition = CanonicalFeatureDefinition
+ExtractedFeature = CanonicalExtractedFeature
 
 
 class FeatureExtractionRequest(BaseModel):

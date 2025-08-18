@@ -16,6 +16,31 @@ from schemas.base import SchemaType
 
 # --- Registry of Canonical Schemas ---
 
+class CanonicalFeatureDefinition(BaseModel):
+    """
+    Canonical Feature Definition schema - the definitive structure for feature 
+    definitions across the entire system (Smart Search, Workbench, etc.).
+    """
+    id: str = Field(description="Stable UUID for feature identification")
+    name: str = Field(description="Feature display name") 
+    description: str = Field(description="Feature description for LLM extraction")
+    type: Literal['boolean', 'text', 'score', 'number'] = Field(description="Feature data type")
+    options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
+
+
+class CanonicalExtractedFeature(BaseModel):
+    """
+    Canonical Extracted Feature schema - the definitive structure for extracted
+    feature values across the entire system.
+    """
+    feature_id: str = Field(description="ID of the feature definition")
+    value: Any = Field(description="Extracted feature value")
+    confidence: Optional[float] = Field(None, description="Extraction confidence (0-1)")
+    extraction_method: Literal['ai', 'manual', 'computed'] = Field(description="How the feature was extracted")
+    extracted_at: str = Field(description="ISO timestamp when feature was extracted")
+    error_message: Optional[str] = Field(None, description="Error message if extraction failed")
+
+
 class CanonicalEmail(BaseModel):
     """
     Canonical Email schema - the definitive structure for email objects
@@ -169,7 +194,7 @@ class CanonicalResearchArticle(BaseModel):
     source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
     
     # Extraction and analysis results (if applicable)
-    extracted_features: Optional[Dict[str, Any]] = Field(default=None, description="Extracted research features")
+    extracted_features: Optional[Dict[str, CanonicalExtractedFeature]] = Field(default=None, description="Extracted feature data keyed by feature.id")
     quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
     
     # Timestamps

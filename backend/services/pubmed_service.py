@@ -257,175 +257,6 @@ class Article():
         return result
 
 
-def _get_date_clause(start_date: str, end_date: str, date_type: str = "publication") -> str:
-    """Build PubMed date filter clause based on date type."""
-    # Map date types to PubMed E-utilities search field tags
-    date_field_map = {
-        "completion": "DCOM",  # Date Completed
-        "publication": "DP",   # Date of Publication 
-        "entry": "EDAT",       # Entry Date (formerly Entrez Date)
-        "revised": "LR"        # Date Last Revised
-    }
-    
-    field = date_field_map.get(date_type, "DP")
-    clause = f'AND (("{start_date}"[{field}] : "{end_date}"[{field}]))'
-    return clause
-
-
-def get_article_ids(
-    search_term: str, 
-    max_results: int = 100, 
-    sort_by: str = "relevance",
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    date_type: str = "publication"
-) -> List[str]:
-    """
-    Search PubMed for article IDs with optional date filtering.
-    
-    Args:
-        search_term: Search query string
-        max_results: Maximum number of results to return
-        sort_by: Sort order ('relevance' or 'date')
-        start_date: Optional start date (YYYY-MM-DD or YYYY/MM/DD)
-        end_date: Optional end date (YYYY-MM-DD or YYYY/MM/DD)
-        date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
-        
-    Returns:
-        List of article IDs
-        
-    Raises:
-        Exception: If API call fails or returns non-200 status
-    """
-    url = PUBMED_API_SEARCH_URL
-    
-    # Build search term with optional date clause
-    if start_date and end_date:
-        full_term = f'({search_term}){_get_date_clause(start_date, end_date, date_type)}'
-    else:
-        full_term = search_term
-    
-    params = {
-        'db': 'pubmed',
-        'term': full_term,
-        'retmax': min(max_results, int(RETMAX)),
-        'retmode': 'json'
-    }
-    
-    # Map unified sort values to PubMed API sort values
-    sort_mapping = {
-        'relevance': None,  # Default, don't need to specify
-        'date': 'pub_date'  # Sort by publication date
-    }
-    
-    pubmed_sort = sort_mapping.get(sort_by)
-    if pubmed_sort:
-        params['sort'] = pubmed_sort
-    
-    headers = {
-        'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
-    }
-    
-    # Add NCBI API key if available (increases rate limit from 3 to 10 requests/second)
-    ncbi_api_key = os.getenv('NCBI_API_KEY')
-    if ncbi_api_key:
-        params['api_key'] = ncbi_api_key
-        logger.info("Using NCBI API key for increased rate limits")
-    
-    logger.info(f'Retrieving article IDs for query: {search_term}')
-    logger.debug(f'Parameters: {params}')
-    
-    # Retry logic with exponential backoff
-    max_retries = 3
-    retry_delay = 1  # Start with 1 second delay
-    
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, params, headers=headers, timeout=30)
-            break  # Success, exit retry loop
-        except requests.exceptions.RequestException as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
-                time.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
-            else:
-                logger.error(f"Request failed after {max_retries} attempts: {e}")
-                raise
-    
-    try:
-        response.raise_for_status()
-        
-        # Log the response headers and first part of content for debugging
-        logger.debug(f"Response status: {response.status_code}")
-        logger.debug(f"Response headers: {response.headers}")
-        
-        # Check if we got JSON response
-        content_type = response.headers.get('content-type', '')
-        if 'application/json' not in content_type:
-            logger.error(f"Expected JSON but got content-type: {content_type}")
-            logger.error(f"Response text (first 500 chars): {response.text[:500] if response.text else 'Empty response'}")
-            raise Exception(f"PubMed API returned non-JSON response. Content-Type: {content_type}")
-        
-        # Check if response body is empty
-        if not response.text:
-            logger.error("PubMed API returned empty response body")
-            raise Exception("PubMed API returned empty response")
-        
-        content = response.json()
-        
-        if 'esearchresult' not in content:
-            raise Exception("Invalid response format from PubMed API")
-            
-        count = int(content['esearchresult']['count'])
-        ids = content['esearchresult']['idlist']
-        
-        logger.info(f"Found {count} articles, returning {len(ids)} IDs")
-        return ids, count
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"HTTP error in PubMed search: {e}", exc_info=True)
-        raise Exception(f"PubMed API request failed: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error in PubMed search: {e}", exc_info=True)
-        raise
-
-
-def get_articles_from_ids(ids: List[str]) -> List[Article]:
-    BATCH_SIZE = 100
-    articles = []
-    batch_size = BATCH_SIZE
-    low = 0
-    high = low + batch_size
-
-    while low < len(ids):
-        logger.info(f"Processing articles {low} to {high}")
-        id_batch = ids[low: high]
-        url = PUBMED_API_FETCH_URL
-        params = {
-            'db': 'pubmed',
-            'id': ','.join(id_batch)
-        }
-        xml = ""
-        try:
-            response = requests.get(url, params)
-            response.raise_for_status()
-            xml = response.text
-        except Exception as e:
-            logger.error(f"Error fetching articles batch {low}-{high}: {e}", exc_info=True)
-            continue  # Continue with next batch instead of silent failure
-
-        root = ET.fromstring(xml)
-        
-        #FIX ME: if API returns PPubmeBookArticle (40388552) that wont be converted to Article
-        for article_node in root.findall(".//PubmedArticle"):
-            articles.append(Article.from_xml(ET.tostring(article_node)))
-
-        low += batch_size
-        high += batch_size
-
-    return articles
-
-
 def get_citation_from_article(article: Article) -> str:
     authors = article.authors
     title = article.title
@@ -434,6 +265,7 @@ def get_citation_from_article(article: Article) -> str:
     volume = article.volume
     issue = article.issue
     pages = article.pages
+    
     return f"{authors} ({year}). {title}. {journal}, {volume}({issue}), {pages}."
 
 
@@ -447,102 +279,274 @@ def search_articles(
     date_type: Optional[str] = None
 ) -> tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
     """
-    Unified PubMed search function that handles all search scenarios.
-    
-    Args:
-        query: Search query string
-        max_results: Maximum number of results to return
-        offset: Number of results to skip (for pagination)
-        sort_by: Sort order ('relevance' or 'date')
-        start_date: Optional start date (YYYY-MM-DD or YYYY/MM/DD)
-        end_date: Optional end date (YYYY-MM-DD or YYYY/MM/DD)
-        date_type: Type of date to filter on ('completion', 'publication', 'entry', 'revised')
-    
-    Returns:
-        Tuple of (articles, metadata) where:
-        - articles: List of CanonicalResearchArticle objects
-        - metadata: Dict with pagination info (total_results, offset, etc.)
+    Module-level search function to match Google Scholar pattern.
+    Creates a service instance and calls _search_articles.
     """
-    from schemas.canonical_types import CanonicalPubMedArticle
-    from schemas.research_article_converters import pubmed_to_research_article
-    
-    logger.info(f"PubMed search: query='{query}', max_results={max_results}, offset={offset}")
-    
-    # Get article IDs with total count
-    article_ids, total_count = get_article_ids(
-        search_term=query,
-        max_results=offset + max_results,  # Get enough IDs for pagination
+    service = PubMedService()
+    return service.search_articles(
+        query=query,
+        max_results=max_results,
+        offset=offset,
         sort_by=sort_by,
         start_date=start_date,
         end_date=end_date,
         date_type=date_type
     )
+
+
+class PubMedService:
+    """Service for interacting with PubMed via NCBI E-utilities API."""
     
-    logger.info(f"Found {total_count} total results, retrieved {len(article_ids)} IDs")
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize the PubMed service.
+        
+        Args:
+            api_key: NCBI API key. If not provided, will look for NCBI_API_KEY env var.
+        """
+        self.api_key = api_key or os.getenv("NCBI_API_KEY")
+        self.search_url = PUBMED_API_SEARCH_URL
+        self.fetch_url = PUBMED_API_FETCH_URL
+        
+        if self.api_key:
+            logger.info("Using NCBI API key for increased rate limits")
     
-    # Apply pagination to IDs
-    paginated_ids = article_ids[offset:offset + max_results]
-    
-    if not paginated_ids:
-        return [], {
+    def search_articles(
+        self,
+        query: str,
+        max_results: int = 100,
+        offset: int = 0,
+        sort_by: str = "relevance",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        date_type: Optional[str] = None
+    ) -> tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
+        """
+        Search PubMed articles using the class method.
+        """
+        from schemas.canonical_types import CanonicalPubMedArticle
+        from schemas.research_article_converters import pubmed_to_research_article
+        
+        logger.info(f"PubMed search: query='{query}', max_results={max_results}, offset={offset}")
+        
+        # Get article IDs with total count
+        article_ids, total_count = self._get_article_ids(
+            search_term=query,
+            max_results=offset + max_results,  # Get enough IDs for pagination
+            sort_by=sort_by,
+            start_date=start_date,
+            end_date=end_date,
+            date_type=date_type
+        )
+        
+        logger.info(f"Found {total_count} total results, retrieved {len(article_ids)} IDs")
+        
+        # Apply pagination to IDs
+        paginated_ids = article_ids[offset:offset + max_results]
+        
+        if not paginated_ids:
+            return [], {
+                "total_results": total_count,
+                "offset": offset,
+                "returned": 0
+            }
+        
+        # Get full article data for the current page
+        logger.info(f"Fetching article data for {len(paginated_ids)} articles")
+        articles = self._get_articles_from_ids(paginated_ids)
+        logger.info(f"Retrieved {len(articles)} articles")
+        
+        # Convert to canonical format
+        canonical_articles = []
+        for i, article in enumerate(articles):
+            try:
+                # Create CanonicalPubMedArticle
+                canonical_pubmed = CanonicalPubMedArticle(
+                    pmid=article.PMID,
+                    title=article.title or "[No title available]",
+                    abstract=article.abstract or "[No abstract available]",
+                    authors=article.authors.split(', ') if article.authors else [],
+                    journal=article.journal or "[Unknown journal]",
+                    publication_date=article.pub_date if article.pub_date else None,
+                    keywords=[],  # Would need to extract from XML
+                    mesh_terms=[],  # Would need to extract from XML
+                    metadata={
+                        "volume": article.volume,
+                        "issue": article.issue,
+                        "pages": article.pages,
+                        "medium": article.medium,
+                        "comp_date": article.comp_date,
+                        "date_revised": article.date_revised,
+                        "article_date": article.article_date,
+                        "entry_date": article.entry_date,
+                        "pub_date": article.pub_date
+                    }
+                )
+                
+                # Convert to CanonicalResearchArticle
+                research_article = pubmed_to_research_article(canonical_pubmed)
+                research_article.search_position = offset + i + 1
+                canonical_articles.append(research_article)
+                
+            except Exception as e:
+                logger.error(f"Error converting article {getattr(article, 'PMID', 'unknown')}: {e}")
+                logger.error(f"Article data - Title: {getattr(article, 'title', 'None')}, Abstract: {getattr(article, 'abstract', 'None')[:100] if getattr(article, 'abstract', None) else 'None'}, Journal: {getattr(article, 'journal', 'None')}")
+                continue
+        
+        # Trim to requested max_results if we got extra
+        if len(canonical_articles) > max_results:
+            canonical_articles = canonical_articles[:max_results]
+        
+        metadata = {
             "total_results": total_count,
             "offset": offset,
-            "returned": 0
+            "returned": len(canonical_articles)
         }
+        
+        return canonical_articles, metadata
     
-    # Get full article data for the current page
-    logger.info(f"Fetching article data for {len(paginated_ids)} articles")
-    articles = get_articles_from_ids(paginated_ids)
-    logger.info(f"Retrieved {len(articles)} articles")
+    def _get_date_clause(self, start_date: str, end_date: str, date_type: str = "publication") -> str:
+        """Build PubMed date filter clause based on date type."""
+        # Map date types to PubMed E-utilities search field tags
+        date_field_map = {
+            "completion": "DCOM",  # Date Completed
+            "publication": "DP",   # Date of Publication 
+            "entry": "EDAT",       # Entry Date (formerly Entrez Date)
+            "revised": "LR"        # Date Last Revised
+        }
+        
+        field = date_field_map.get(date_type, "DP")
+        clause = f'AND (("{start_date}"[{field}] : "{end_date}"[{field}]))'
+        return clause
     
-    # Convert to canonical format
-    canonical_articles = []
-    for i, article in enumerate(articles):
+    def _get_article_ids(
+        self,
+        search_term: str, 
+        max_results: int = 100, 
+        sort_by: str = "relevance",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        date_type: str = "publication"
+    ) -> tuple[List[str], int]:
+        """Search PubMed for article IDs with optional date filtering."""
+        url = self.search_url
+        
+        # Build search term with optional date clause
+        if start_date and end_date:
+            full_term = f'({search_term}){self._get_date_clause(start_date, end_date, date_type)}'
+        else:
+            full_term = search_term
+        
+        params = {
+            'db': 'pubmed',
+            'term': full_term,
+            'retmax': min(max_results, int(RETMAX)),
+            'retmode': 'json'
+        }
+        
+        # Map unified sort values to PubMed API sort values
+        sort_mapping = {
+            'relevance': None,  # Default, don't need to specify
+            'date': 'pub_date'  # Sort by publication date
+        }
+        
+        pubmed_sort = sort_mapping.get(sort_by)
+        if pubmed_sort:
+            params['sort'] = pubmed_sort
+        
+        headers = {
+            'User-Agent': 'JamBot/1.0 (Research Assistant; Contact: admin@example.com)'
+        }
+        
+        # Add NCBI API key if available
+        if self.api_key:
+            params['api_key'] = self.api_key
+        
+        logger.info(f'Retrieving article IDs for query: {search_term}')
+        logger.debug(f'Parameters: {params}')
+        
+        # Retry logic with exponential backoff
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, params, headers=headers, timeout=30)
+                break
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"Request failed after {max_retries} attempts: {e}")
+                    raise
+        
         try:
-            # Create CanonicalPubMedArticle
-            canonical_pubmed = CanonicalPubMedArticle(
-                pmid=article.PMID,
-                title=article.title or "[No title available]",
-                abstract=article.abstract or "[No abstract available]",
-                authors=article.authors.split(', ') if article.authors else [],
-                journal=article.journal or "[Unknown journal]",
-                publication_date=article.pub_date if article.pub_date else None,
-                keywords=[],  # Would need to extract from XML
-                mesh_terms=[],  # Would need to extract from XML
-                metadata={
-                    "volume": article.volume,
-                    "issue": article.issue,
-                    "pages": article.pages,
-                    "medium": article.medium,
-                    "comp_date": article.comp_date,
-                    "date_revised": article.date_revised,
-                    "article_date": article.article_date,
-                    "entry_date": article.entry_date,
-                    "pub_date": article.pub_date
-                }
-            )
+            response.raise_for_status()
             
-            # Convert to CanonicalResearchArticle
-            research_article = pubmed_to_research_article(canonical_pubmed)
-            research_article.search_position = offset + i + 1
-            canonical_articles.append(research_article)
+            content_type = response.headers.get('content-type', '')
+            if 'application/json' not in content_type:
+                logger.error(f"Expected JSON but got content-type: {content_type}")
+                raise Exception(f"PubMed API returned non-JSON response. Content-Type: {content_type}")
             
+            if not response.text:
+                logger.error("PubMed API returned empty response body")
+                raise Exception("PubMed API returned empty response")
+            
+            content = response.json()
+            
+            if 'esearchresult' not in content:
+                raise Exception("Invalid response format from PubMed API")
+                
+            count = int(content['esearchresult']['count'])
+            ids = content['esearchresult']['idlist']
+            
+            logger.info(f"Found {count} articles, returning {len(ids)} IDs")
+            return ids, count
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"HTTP error in PubMed search: {e}", exc_info=True)
+            raise Exception(f"PubMed API request failed: {str(e)}")
         except Exception as e:
-            logger.error(f"Error converting article {getattr(article, 'PMID', 'unknown')}: {e}")
-            logger.error(f"Article data - Title: {getattr(article, 'title', 'None')}, Abstract: {getattr(article, 'abstract', 'None')[:100] if getattr(article, 'abstract', None) else 'None'}, Journal: {getattr(article, 'journal', 'None')}")
-            continue
+            logger.error(f"Error in PubMed search: {e}", exc_info=True)
+            raise
     
-    # Trim to requested max_results if we got extra
-    if len(canonical_articles) > max_results:
-        canonical_articles = canonical_articles[:max_results]
-    
-    metadata = {
-        "total_results": total_count,
-        "offset": offset,
-        "returned": len(canonical_articles)
-    }
-    
-    return canonical_articles, metadata
+    def _get_articles_from_ids(self, ids: List[str]) -> List[Article]:
+        """Fetch full article data from PubMed IDs."""
+        BATCH_SIZE = 100
+        articles = []
+        batch_size = BATCH_SIZE
+        low = 0
+        high = low + batch_size
+
+        while low < len(ids):
+            logger.info(f"Processing articles {low} to {high}")
+            id_batch = ids[low: high]
+            url = self.fetch_url
+            params = {
+                'db': 'pubmed',
+                'id': ','.join(id_batch)
+            }
+            xml = ""
+            try:
+                response = requests.get(url, params)
+                response.raise_for_status()
+                xml = response.text
+            except Exception as e:
+                logger.error(f"Error fetching articles batch {low}-{high}: {e}", exc_info=True)
+                continue
+
+            root = ET.fromstring(xml)
+            
+            for article_node in root.findall(".//PubmedArticle"):
+                articles.append(Article.from_xml(ET.tostring(article_node)))
+
+            low += batch_size
+            high += batch_size
+
+        return articles
+
 
 # Keep the old function for backward compatibility but have it call the new one
 def search_articles_by_date_range(filter_term: str, start_date: str, end_date: str, date_type: str = "publication", sort_by: str = "relevance") -> List['CanonicalResearchArticle']:

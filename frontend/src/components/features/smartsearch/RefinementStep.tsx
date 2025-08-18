@@ -14,18 +14,18 @@ interface RefinementStepProps {
   loading: boolean;
 }
 
-export function RefinementStep({ 
-  refinement, 
-  evidenceSpec, 
-  setEvidenceSpec, 
-  onSubmit, 
-  loading 
+export function RefinementStep({
+  refinement,
+  evidenceSpec,
+  setEvidenceSpec,
+  onSubmit,
+  loading
 }: RefinementStepProps) {
   const [selectedSources, setSelectedSources] = useState<string[]>(['pubmed', 'google_scholar']);
 
   const handleSourceToggle = (source: string) => {
-    setSelectedSources(prev => 
-      prev.includes(source) 
+    setSelectedSources(prev =>
+      prev.includes(source)
         ? prev.filter(s => s !== source)
         : [...prev, source]
     );
@@ -69,7 +69,7 @@ export function RefinementStep({
             <Textarea
               value={evidenceSpec}
               onChange={(e) => setEvidenceSpec(e.target.value)}
-              rows={3}
+              rows={8}
               className="dark:bg-gray-700 dark:text-gray-100 text-sm"
             />
           </div>

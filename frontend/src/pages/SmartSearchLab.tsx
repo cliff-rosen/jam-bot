@@ -64,11 +64,18 @@ export default function SmartSearchLab() {
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
   
-  // Source selection
-  const [selectedSource, setSelectedSource] = useState<string>('pubmed');
+  // Source selection - remember last choice in localStorage
+  const [selectedSource, setSelectedSource] = useState<string>(() => {
+    return localStorage.getItem('smartSearchSelectedSource') || 'pubmed';
+  });
 
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Save selected source to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('smartSearchSelectedSource', selectedSource);
+  }, [selectedSource]);
 
   // Auto-scroll for messages
   useEffect(() => {

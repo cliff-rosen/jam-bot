@@ -567,7 +567,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             fallback_query = f"({current_query}) AND (study OR research OR analysis)"
             return fallback_query, "Added research focus (fallback refinement)"
     
-    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250) -> Tuple[str, int, str, int, str, str]:
+    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> Tuple[str, int, str, int, str, str]:
         """
         Generate an optimized search query by adding refinements to the current query
         Returns: (initial_query, initial_count, final_query, final_count, refinement_description, status)
@@ -576,7 +576,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         
         # Phase 1: Get current query count
         initial_query = current_query
-        initial_count, _ = await self.get_search_count(initial_query)
+        initial_count, _ = await self.get_search_count(initial_query, selected_sources)
         
         logger.info(f"Current query has {initial_count} results")
         
@@ -586,7 +586,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         
         # Phase 3: Add targeted refinement to current query
         final_query, refinement_description = await self.add_targeted_refinement(initial_query, initial_count, evidence_spec, target_max)
-        final_count, _ = await self.get_search_count(final_query)
+        final_count, _ = await self.get_search_count(final_query, selected_sources)
         
         # Determine status
         if final_count <= target_max and final_count > 0:

@@ -243,7 +243,8 @@ export default function SmartSearchLab() {
         current_query: editedSearchQuery,
         evidence_specification: evidenceSpecification,
         target_max_results: 250,
-        session_id: sessionId
+        session_id: sessionId,
+        selected_sources: [selectedSource]
       });
       
       return {

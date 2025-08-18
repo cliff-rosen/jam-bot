@@ -43,6 +43,7 @@ export interface OptimizedQueryRequest {
   evidence_specification: string;
   target_max_results?: number;
   session_id: string;
+  selected_sources?: string[];
 }
 
 export interface OptimizedQueryResponse {

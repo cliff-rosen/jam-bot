@@ -54,6 +54,7 @@ class OptimizedQueryRequest(BaseModel):
     evidence_specification: str = Field(..., description="Evidence specification for context")
     target_max_results: int = Field(250, description="Target maximum number of results")
     session_id: str = Field(..., description="Session ID for tracking")
+    selected_sources: List[str] = Field(default=["pubmed"], description="Sources to search")
 
 
 class OptimizedQueryResponse(BaseModel):
@@ -264,7 +265,8 @@ async def generate_optimized_query(
          final_count, refinement_description, status) = await service.generate_optimized_search_query(
             request.current_query,
             request.evidence_specification, 
-            request.target_max_results
+            request.target_max_results,
+            request.selected_sources
         )
         
         # Update session with optimized search query

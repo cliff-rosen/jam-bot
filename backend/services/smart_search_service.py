@@ -404,7 +404,6 @@ Generate an effective boolean search query for academic databases."""
         except Exception as e:
             logger.error(f"Failed to get search count: {e}")
             return 0, []
-        
     
     async def add_targeted_refinement(self, current_query: str, current_count: int, evidence_spec: str, target_max: int = 250) -> Tuple[str, str]:
         """

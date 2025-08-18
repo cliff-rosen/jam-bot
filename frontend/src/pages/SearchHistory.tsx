@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, RefreshCw, ChevronDown, ChevronUp, Eye, Play, Users } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, ChevronUp, Eye, Play, Users, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -151,6 +151,28 @@ export default function SearchHistory() {
   const [selectedSession, setSelectedSession] = useState<SearchSession | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this search session?')) {
+      return;
+    }
+    
+    try {
+      await smartSearchApi.deleteSession(sessionId);
+      toast({
+        title: 'Success',
+        description: 'Search session deleted successfully'
+      });
+      // Reload sessions
+      loadSessions();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete search session',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const loadSessions = async () => {
     try {
@@ -401,14 +423,28 @@ export default function SearchHistory() {
                             variant="outline"
                             size="sm"
                             onClick={() => setSelectedSession(session)}
+                            title="View details"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Link to={`/smart-search?session=${session.id}`}>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              title="Resume session"
+                            >
                               <Play className="w-4 h-4" />
                             </Button>
                           </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteSession(session.id)}
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            title="Delete session"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

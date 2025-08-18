@@ -686,6 +686,36 @@ async def get_search_session(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve session: {str(e)}")
 
 
+@router.delete("/sessions/{session_id}")
+async def delete_search_session(
+    session_id: str,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a smart search session
+    """
+    try:
+        session_service = SmartSearchSessionService(db)
+        session = session_service.get_session(session_id, current_user.user_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Delete the session
+        db.delete(session)
+        db.commit()
+        
+        logger.info(f"Session {session_id} deleted by user {current_user.user_id}")
+        return {"message": "Session deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete session {session_id} for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
+
 @router.post("/sessions/{session_id}/reset-to-step")
 async def reset_session_to_step(
     session_id: str,

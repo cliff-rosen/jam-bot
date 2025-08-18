@@ -112,7 +112,7 @@ class GoogleScholarService:
         # Debug: Log SerpAPI response structure for pagination debugging
         logger.debug(f"SerpAPI response keys: {list(data.keys())}")
         if "search_metadata" in data:
-            logger.debug(f"Search metadata: {data['search_metadata']}")
+            logger.info(f"Search metadata: {data['search_metadata']}")
         if "serpapi_pagination" in data:
             logger.debug(f"Pagination info: {data['serpapi_pagination']}")
         

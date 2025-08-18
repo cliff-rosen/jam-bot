@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Target, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react';
+import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Trash2, Copy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
@@ -167,12 +167,37 @@ export function SearchQueryStep({
                     {attempt.changeDescription}
                   </div>
                 </div>
-                <Badge 
-                  variant={attempt.count > 0 && attempt.count <= 250 ? "default" : "destructive"}
-                  className="text-xs"
-                >
-                  {attempt.count.toLocaleString()} results
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={attempt.count > 0 && attempt.count <= 250 ? "default" : "destructive"}
+                    className="text-xs"
+                  >
+                    {attempt.count.toLocaleString()} results
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    onClick={() => {
+                      setEditedSearchQuery(attempt.query);
+                      setCurrentCount(attempt.count);
+                    }}
+                    title="Use this query"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    onClick={() => {
+                      setQueryHistory(prev => prev.filter((_, i) => i !== index));
+                    }}
+                    title="Delete from history"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
               <div className="ml-8 text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
                 {attempt.query}

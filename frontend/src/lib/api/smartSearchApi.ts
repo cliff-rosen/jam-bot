@@ -223,6 +223,13 @@ class SmartSearchApi {
     return response.data;
   }
 
+  /**
+   * Delete a search session
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    await api.delete(`/api/lab/smart-search/sessions/${sessionId}`);
+  }
+
 
   /**
    * Unified parallel filtering method that processes all articles concurrently (non-streaming)

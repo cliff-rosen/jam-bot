@@ -608,24 +608,15 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             if not count_only:
                 for article in scholar_articles:
-                    # Extract year
-                    year = getattr(article, 'year', 0) or 0
-                    if not year and hasattr(article, 'publication_info') and article.publication_info:
-                        year_match = re.search(r'\b(19|20)\d{2}\b', str(article.publication_info))
-                        if year_match:
-                            year = int(year_match.group())
-                    
-                    # Generate ID
-                    article_id = f"scholar_{article.title[:30]}_{','.join(article.authors[:2]) if article.authors else ''}"
-                    
+                    # Now article is a GoogleScholarArticle instance with proper attributes
                     articles.append(SearchArticle(
-                        id=article_id,
+                        id=article.id,  # Use the generated ID from GoogleScholarArticle
                         title=article.title or "",
-                        abstract=getattr(article, 'snippet', '') or "",
+                        abstract=article.snippet or "",  # GoogleScholarArticle uses 'snippet' for abstract
                         authors=article.authors or [],
-                        year=year,
-                        journal=None,
-                        doi=self._extract_doi_from_text(article.link) if article.link else None,
+                        year=article.year or 0,
+                        journal=article.journal,  # GoogleScholarArticle extracts journal info
+                        doi=article.doi,  # GoogleScholarArticle extracts DOI
                         pmid=self._extract_pmid_from_url(article.link) if article.link else None,
                         url=article.link,
                         source="google_scholar"

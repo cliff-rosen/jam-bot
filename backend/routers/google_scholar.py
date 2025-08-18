@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from database import get_db
 from models import User
 
-from schemas.canonical_types import CanonicalScholarArticle
+from services.google_scholar_service import GoogleScholarArticle
 
 from services.auth_service import validate_token
 from services.google_scholar_service import get_google_scholar_service
@@ -34,7 +34,7 @@ class GoogleScholarSearchRequest(BaseModel):
 
 class GoogleScholarSearchResponse(BaseModel):
     """Response model for Google Scholar search."""
-    articles: list[CanonicalScholarArticle] = Field(..., description="List of academic articles")
+    articles: list[dict] = Field(..., description="List of academic articles as dictionaries")
     metadata: dict = Field(..., description="Search metadata")
     success: bool = Field(..., description="Whether the search was successful")
 
@@ -75,8 +75,11 @@ async def search_google_scholar(
             sort_by=request.sort_by
         )
         
+        # Convert GoogleScholarArticle objects to dictionaries
+        article_dicts = [article.to_dict() for article in articles]
+        
         return GoogleScholarSearchResponse(
-            articles=articles,
+            articles=article_dicts,
             metadata=search_metadata,
             success=True
         )

@@ -3,6 +3,7 @@ Google Scholar Service
 
 This service provides Google Scholar search functionality through the SerpAPI,
 allowing users to search academic literature with various filtering options.
+Follows the same abstraction pattern as PubMed service with a proper Article class.
 """
 
 import os
@@ -12,9 +13,212 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import logging
 
-from schemas.canonical_types import CanonicalScholarArticle
-
 logger = logging.getLogger(__name__)
+
+
+class GoogleScholarArticle:
+    """
+    Google Scholar specific article representation.
+    Follows the same pattern as PubMed's Article class for consistency.
+    """
+    
+    @classmethod
+    def from_serpapi_result(cls, result: Dict[str, Any], position: int = 0) -> 'GoogleScholarArticle':
+        """
+        Parse a single SerpAPI search result into a GoogleScholarArticle.
+        
+        Args:
+            result: Raw result dictionary from SerpAPI
+            position: Position in search results (for debugging)
+            
+        Returns:
+            GoogleScholarArticle instance
+        """
+        # Extract title
+        title = result.get("title", "").strip()
+        if not title:
+            raise ValueError(f"No title found for result at position {position}")
+        
+        # Extract link
+        link = result.get("link", "")
+        
+        # Extract authors - SerpAPI provides these in 'publication_info'
+        authors = []
+        publication_info = result.get("publication_info", {})
+        if publication_info and isinstance(publication_info, dict):
+            authors_str = publication_info.get("authors", "")
+            if authors_str:
+                # Authors are typically comma-separated in publication_info
+                authors = [a.strip() for a in authors_str.split(",")]
+        elif "authors" in result:  # Sometimes directly in result
+            authors_data = result["authors"]
+            if isinstance(authors_data, list):
+                authors = authors_data
+            elif isinstance(authors_data, str):
+                authors = [a.strip() for a in authors_data.split(",")]
+        
+        # Extract publication info
+        pub_info_str = ""
+        if publication_info and isinstance(publication_info, dict):
+            summary = publication_info.get("summary", "")
+            if summary:
+                pub_info_str = summary
+        elif isinstance(result.get("publication_info"), str):
+            pub_info_str = result["publication_info"]
+        
+        # Extract year from publication info
+        year = None
+        if pub_info_str:
+            year_match = re.search(r'\b(19|20)\d{2}\b', pub_info_str)
+            if year_match:
+                year = int(year_match.group())
+        
+        # Extract snippet (abstract)
+        snippet = result.get("snippet", "")
+        if not snippet:
+            # Try alternative fields
+            snippet = result.get("abstract", "") or result.get("summary", "")
+            if snippet:
+                logger.debug(f"Found abstract in alternative field for position {position}")
+        
+        if not snippet:
+            logger.warning(f"No snippet/abstract found for: {title[:50]}...")
+        
+        # Extract citation info
+        cited_by_count = None
+        cited_by_link = ""
+        inline_links = result.get("inline_links", {})
+        if inline_links:
+            cited_by_data = inline_links.get("cited_by", {})
+            if cited_by_data:
+                cited_by_link = cited_by_data.get("link", "")
+                # Try to extract count from the text (e.g., "Cited by 123")
+                cited_text = cited_by_data.get("text", "")
+                if cited_text:
+                    count_match = re.search(r'\d+', cited_text)
+                    if count_match:
+                        cited_by_count = int(count_match.group())
+        
+        # Extract related links
+        related_pages_link = ""
+        versions_link = ""
+        if inline_links:
+            related = inline_links.get("related_pages", {})
+            if related:
+                related_pages_link = related.get("link", "")
+            
+            versions = inline_links.get("versions", {})
+            if versions:
+                versions_link = versions.get("link", "")
+        
+        # Extract PDF link if available
+        pdf_link = ""
+        resources = result.get("resources", [])
+        if resources:
+            for resource in resources:
+                if resource.get("file_format") == "PDF":
+                    pdf_link = resource.get("link", "")
+                    break
+        
+        # Extract DOI if present in the result
+        doi = None
+        if link:
+            doi_match = re.search(r'10\.\d{4,}(?:\.\d+)*\/[-._;()\/:a-zA-Z0-9]+', link)
+            if doi_match:
+                doi = doi_match.group()
+        
+        # Extract journal/venue from publication info
+        journal = None
+        if pub_info_str:
+            # Try to extract journal name (usually before year)
+            parts = pub_info_str.split(',')
+            if len(parts) >= 2:
+                # Journal is often the second part after authors
+                potential_journal = parts[-2].strip() if year else parts[-1].strip()
+                # Clean up the journal name
+                potential_journal = re.sub(r'\d{4}.*$', '', potential_journal).strip()
+                if potential_journal:
+                    journal = potential_journal
+        
+        return GoogleScholarArticle(
+            title=title,
+            link=link,
+            authors=authors,
+            publication_info=pub_info_str,
+            snippet=snippet,
+            year=year,
+            journal=journal,
+            doi=doi,
+            cited_by_count=cited_by_count,
+            cited_by_link=cited_by_link,
+            related_pages_link=related_pages_link,
+            versions_link=versions_link,
+            pdf_link=pdf_link,
+            position=position
+        )
+    
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize GoogleScholarArticle with provided fields."""
+        self.title: str = kwargs.get('title', '')
+        self.link: str = kwargs.get('link', '')
+        self.authors: List[str] = kwargs.get('authors', [])
+        self.publication_info: str = kwargs.get('publication_info', '')
+        self.snippet: str = kwargs.get('snippet', '')
+        self.year: Optional[int] = kwargs.get('year')
+        self.journal: Optional[str] = kwargs.get('journal')
+        self.doi: Optional[str] = kwargs.get('doi')
+        self.cited_by_count: Optional[int] = kwargs.get('cited_by_count')
+        self.cited_by_link: str = kwargs.get('cited_by_link', '')
+        self.related_pages_link: str = kwargs.get('related_pages_link', '')
+        self.versions_link: str = kwargs.get('versions_link', '')
+        self.pdf_link: str = kwargs.get('pdf_link', '')
+        self.position: int = kwargs.get('position', 0)
+        
+        # Generate a unique ID for this article
+        self.id = self._generate_id()
+    
+    def _generate_id(self) -> str:
+        """Generate a unique ID for the article."""
+        # Use DOI if available
+        if self.doi:
+            return f"doi:{self.doi}"
+        
+        # Otherwise create ID from title and first author
+        title_part = re.sub(r'[^a-zA-Z0-9]', '', self.title[:30]).lower()
+        author_part = ""
+        if self.authors:
+            first_author = self.authors[0]
+            # Extract last name (assume it's the last word)
+            author_parts = first_author.split()
+            if author_parts:
+                author_part = author_parts[-1].lower()
+        
+        year_part = str(self.year) if self.year else "nodate"
+        
+        return f"scholar_{author_part}_{year_part}_{title_part}"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            'id': self.id,
+            'title': self.title,
+            'link': self.link,
+            'authors': self.authors,
+            'publication_info': self.publication_info,
+            'snippet': self.snippet,
+            'year': self.year,
+            'journal': self.journal,
+            'doi': self.doi,
+            'cited_by_count': self.cited_by_count,
+            'cited_by_link': self.cited_by_link,
+            'related_pages_link': self.related_pages_link,
+            'versions_link': self.versions_link,
+            'pdf_link': self.pdf_link
+        }
+    
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"GoogleScholarArticle(id={self.id}, title={self.title[:50]}..., authors={len(self.authors)} authors)"
 
 
 class GoogleScholarService:
@@ -41,32 +245,25 @@ class GoogleScholarService:
         year_high: Optional[int] = None,
         sort_by: str = "relevance",
         start_index: int = 0
-    ) -> Tuple[List[CanonicalScholarArticle], Dict[str, Any]]:
+    ) -> Tuple[List[GoogleScholarArticle], Dict[str, Any]]:
         """
         Search Google Scholar for academic articles.
         
         Args:
             query: Search query string
-            num_results: Number of results to return (1-20)
-            year_low: Filter results from this year onwards
-            year_high: Filter results up to this year
-            sort_by: Sort by 'relevance' or 'date'
-            start_index: Starting index for pagination (0-based)
+            num_results: Number of results to return (1-100)
+            year_low: Optional minimum year filter
+            year_high: Optional maximum year filter
+            sort_by: Sort by "relevance" or "date"
+            start_index: Starting index for pagination
             
         Returns:
-            Tuple of (list of articles, search metadata)
-            
-        Raises:
-            ValueError: If API key is not set or parameters are invalid
-            Exception: If API request fails
+            Tuple of (list of GoogleScholarArticle objects, metadata dict)
         """
         if not self.api_key:
-            raise ValueError("SerpAPI key not configured")
-            
-        # Validate parameters
-        if not query:
-            raise ValueError("Query is required")
-            
+            raise ValueError("No API key available. Please set SERPAPI_KEY environment variable.")
+        
+        # Ensure num_results is within bounds
         num_results = max(1, min(100, num_results))  # Clamp to 1-100
         
         # Build API parameters
@@ -120,7 +317,7 @@ class GoogleScholarService:
         if "error" in data:
             raise Exception(f"SerpAPI error: {data['error']}")
             
-        # Parse results
+        # Parse results using our Article class
         articles = self._parse_search_results(data)
         metadata = self._extract_search_metadata(data, query, search_time_ms)
         
@@ -130,289 +327,68 @@ class GoogleScholarService:
         
         # Debug: Log first article title to verify pagination is working
         if articles:
-            logger.debug(f"First article title: {articles[0].title[:50]}...")
+            logger.debug(f"First article: {articles[0]}")
             if len(articles) > 1:
-                logger.debug(f"Second article title: {articles[1].title[:50]}...")
+                logger.debug(f"Second article: {articles[1]}")
         
         return articles, metadata
     
-    def _parse_search_results(self, data: Dict[str, Any]) -> List[CanonicalScholarArticle]:
-        """Parse SerpAPI response into canonical article format."""
+    def _parse_search_results(self, data: Dict[str, Any]) -> List[GoogleScholarArticle]:
+        """Parse SerpAPI response into GoogleScholarArticle objects."""
         organic_results = data.get("organic_results", [])
         articles = []
         
         for i, result in enumerate(organic_results):
             try:
-                article = self._parse_single_result(result, i)
+                article = GoogleScholarArticle.from_serpapi_result(result, i)
                 articles.append(article)
             except Exception as e:
                 logger.warning(f"Failed to parse result {i}: {e}")
+                logger.debug(f"Problematic result: {result}")
                 continue
                 
         return articles
     
-    def _parse_single_result(self, result: Dict[str, Any], position: int) -> CanonicalScholarArticle:
-        """Parse a single search result into canonical format."""
-        # Extract snippet (used as abstract)
-        snippet = result.get("snippet", "")
-        
-        # Try alternative fields if no snippet
-        if not snippet:
-            # Some results might have abstract in different fields
-            snippet = result.get("abstract", "") or result.get("summary", "")
-            if snippet:
-                logger.info(f"Found abstract in alternative field for result {position}")
-        
-        if not snippet:
-            logger.warning(f"No snippet/abstract found for result {position}: {result.get('title', 'Unknown title')}")
-            # Log the full result to help debug what SerpAPI is returning
-            logger.debug(f"Full result structure: {list(result.keys())}")
-        
-        # Extract authors
-        authors = self._extract_authors(result)
-        
-        # Extract publication year
-        year = self._extract_year(result)
-        
-        # Extract citation information
-        cited_by_count, cited_by_link = self._extract_citation_info(result)
-        
-        # Extract related links
-        related_links = self._extract_related_links(result)
-        
-        # Extract PDF link
-        pdf_link = self._extract_pdf_link(result)
-        
-        # Get publication info as string
-        pub_info = result.get("publication_info", {})
-        if isinstance(pub_info, dict):
-            pub_info_str = self._format_publication_info(pub_info)
-        else:
-            pub_info_str = str(pub_info)
-        
-        return CanonicalScholarArticle(
-            title=result.get("title", ""),
-            link=result.get("link"),
-            authors=authors,
-            publication_info=pub_info_str,
-            snippet=snippet,
-            cited_by_count=cited_by_count,
-            cited_by_link=cited_by_link,
-            related_pages_link=related_links.get("related_pages"),
-            versions_link=related_links.get("versions"),
-            pdf_link=pdf_link,
-            year=year,
-            position=result.get("position", position + 1),
-            metadata={
-                "result_id": result.get("result_id"),
-                "type": result.get("type"),
-                "serpapi_link": result.get("serpapi_link")
-            }
-        )
-    
-    def _extract_authors(self, result: Dict[str, Any]) -> List[str]:
-        """Extract author names from result."""
-        authors = []
-        pub_info = result.get("publication_info", {})
-        
-        if isinstance(pub_info, dict) and "authors" in pub_info:
-            # Authors provided as list
-            author_list = pub_info["authors"]
-            if isinstance(author_list, list):
-                for author in author_list:
-                    if isinstance(author, dict) and "name" in author:
-                        authors.append(author["name"])
-                    elif isinstance(author, str):
-                        authors.append(author)
-        elif isinstance(pub_info, str) and " - " in pub_info:
-            # Try to extract from publication info string
-            potential_authors = pub_info.split(" - ")[0]
-            # Basic parsing - split by comma but handle "Last, First" format
-            parts = potential_authors.split(", ")
-            i = 0
-            while i < len(parts):
-                if i + 1 < len(parts) and len(parts[i + 1].split()) == 1:
-                    # Likely "Last, First" format
-                    authors.append(f"{parts[i]}, {parts[i + 1]}")
-                    i += 2
-                else:
-                    authors.append(parts[i])
-                    i += 1
-                    
-        return authors
-    
-    def _extract_year(self, result: Dict[str, Any]) -> Optional[int]:
-        """Extract publication year from result."""
-        pub_info = result.get("publication_info", {})
-        
-        # Try direct year field
-        if isinstance(pub_info, dict) and "year" in pub_info:
-            try:
-                return int(pub_info["year"])
-            except (ValueError, TypeError):
-                pass
-                
-        # Try to extract from publication info string
-        pub_str = str(pub_info) if pub_info else ""
-        snippet = result.get("snippet", "")
-        
-        # Look for 4-digit year in various places
-        for text in [pub_str, snippet]:
-            year_match = re.search(r'\b(19|20)\d{2}\b', text)
-            if year_match:
-                try:
-                    return int(year_match.group())
-                except ValueError:
-                    pass
-                    
-        return None
-    
-    def _extract_citation_info(self, result: Dict[str, Any]) -> Tuple[Optional[int], Optional[str]]:
-        """Extract citation count and link."""
-        cited_by_count = None
-        cited_by_link = None
-        
-        inline_links = result.get("inline_links", {})
-        cited_by = inline_links.get("cited_by", {})
-        
-        if cited_by:
-            cited_by_count = cited_by.get("total")
-            cited_by_link = cited_by.get("link")
-            
-        return cited_by_count, cited_by_link
-    
-    def _extract_related_links(self, result: Dict[str, Any]) -> Dict[str, Optional[str]]:
-        """Extract related pages and versions links."""
-        links = {}
-        inline_links = result.get("inline_links", {})
-        
-        if "related_pages" in inline_links:
-            links["related_pages"] = inline_links["related_pages"].get("link")
-        if "versions" in inline_links:
-            links["versions"] = inline_links["versions"].get("link")
-            
-        return links
-    
-    def _extract_pdf_link(self, result: Dict[str, Any]) -> Optional[str]:
-        """Extract direct PDF link if available."""
-        resources = result.get("resources", [])
-        
-        for resource in resources:
-            if resource.get("file_format") == "PDF":
-                return resource.get("link")
-                
-        return None
-    
-    def _format_publication_info(self, pub_info: Dict[str, Any]) -> str:
-        """Format publication info dict into string."""
-        parts = []
-        
-        # Add authors if not already extracted
-        if "authors" in pub_info and isinstance(pub_info["authors"], list):
-            author_names = []
-            for author in pub_info["authors"]:
-                if isinstance(author, dict) and "name" in author:
-                    author_names.append(author["name"])
-                elif isinstance(author, str):
-                    author_names.append(author)
-            if author_names:
-                parts.append(", ".join(author_names))
-                
-        # Add publication venue
-        if "venue" in pub_info:
-            parts.append(pub_info["venue"])
-            
-        # Add year
-        if "year" in pub_info:
-            parts.append(str(pub_info["year"]))
-            
-        return " - ".join(parts) if parts else ""
-    
-    def _extract_search_metadata(
-        self, 
-        data: Dict[str, Any], 
-        query: str, 
-        search_time_ms: int
-    ) -> Dict[str, Any]:
-        """Extract metadata about the search itself."""
+    def _extract_search_metadata(self, data: Dict[str, Any], query: str, search_time_ms: int) -> Dict[str, Any]:
+        """Extract metadata from the search response."""
+        search_info = data.get("search_information", {})
+        pagination = data.get("serpapi_pagination", {})
         search_metadata = data.get("search_metadata", {})
-        search_information = data.get("search_information", {})
         
-        # Extract total results count from multiple possible locations
-        total_results = 0
+        # Try to get total results from search information
+        total_results = search_info.get("total_results", 0)
         
-        # Try search_metadata first
-        if "total_results" in search_metadata:
-            total_results = search_metadata["total_results"]
-        # Try search_information 
-        elif "total_results" in search_information:
-            total_results = search_information["total_results"]
-        # Try the serpapi_pagination or pagination info
-        elif "serpapi_pagination" in data:
-            pagination = data["serpapi_pagination"]
-            if "total" in pagination:
-                total_results = pagination["total"]
-        # Fall back to counting organic results if no total found
-        else:
-            organic_results = data.get("organic_results", [])
-            total_results = len(organic_results)
-            logger.warning(f"Could not find total_results in SerpAPI response, using organic results count: {total_results}")
-            
-        # Parse string results if needed
-        if isinstance(total_results, str):
-            # Parse strings like "About 1,230 results"
-            numbers = re.findall(r'[\d,]+', total_results)
-            if numbers:
-                total_results = int(numbers[0].replace(',', ''))
-            else:
-                total_results = 0
-                
-        logger.info(f"Extracted total_results: {total_results} from search metadata")
-                
-        return {
+        # Parse query time
+        query_time_str = search_info.get("query_time", 0)
+        query_time_ms = int(float(query_time_str) * 1000) if query_time_str else 0
+        
+        # Build metadata dictionary
+        metadata = {
+            "query": query,
             "total_results": total_results,
-            "query_used": query,
-            "search_time": search_time_ms,
-            "results_returned": len(data.get("organic_results", [])),
-            "serpapi_data_keys": list(data.keys()),  # For debugging
+            "query_time_ms": query_time_ms,
+            "search_time_ms": search_time_ms,
+            "pagination": {
+                "current": pagination.get("current", 0),
+                "next": pagination.get("next", None),
+                "other_pages": pagination.get("other_pages", {})
+            },
+            "serpapi_search_id": search_metadata.get("id", ""),
+            "raw_query": search_metadata.get("raw_html_file", "")
         }
+        
+        return metadata
     
-    def get_article_citations(self, article_id: str) -> List[CanonicalScholarArticle]:
+    def get_article_by_id(self, article_id: str) -> Optional[GoogleScholarArticle]:
         """
-        Get articles that cite a specific article.
+        Get detailed article information by ID.
+        Note: This is a placeholder - Google Scholar doesn't provide a direct article lookup API.
         
         Args:
-            article_id: Google Scholar article ID
+            article_id: Article identifier
             
         Returns:
-            List of articles that cite the given article
+            GoogleScholarArticle or None if not found
         """
-        # This would use the "cites" parameter in the API
-        # Implementation left as future enhancement
-        raise NotImplementedError("Citation lookup not yet implemented")
-    
-    def get_related_articles(self, article_id: str) -> List[CanonicalScholarArticle]:
-        """
-        Get articles related to a specific article.
-        
-        Args:
-            article_id: Google Scholar article ID
-            
-        Returns:
-            List of related articles
-        """
-        # This would follow the related_pages_link
-        # Implementation left as future enhancement
-        raise NotImplementedError("Related articles lookup not yet implemented")
-
-
-# Create a singleton instance
-_scholar_service = None
-
-
-def get_google_scholar_service(api_key: Optional[str] = None) -> GoogleScholarService:
-    """Get or create the Google Scholar service instance."""
-    global _scholar_service
-    if _scholar_service is None:
-        _scholar_service = GoogleScholarService(api_key)
-    return _scholar_service
+        logger.warning(f"Direct article lookup not available for Google Scholar. ID: {article_id}")
+        return None

@@ -494,7 +494,8 @@ export default function SmartSearchLab() {
         search_query: editedSearchQuery,
         max_results: 50,
         offset: searchResults.articles.length,
-        session_id: sessionId!
+        session_id: sessionId!,
+        selected_sources: [selectedSource]
       });
 
       // Combine results

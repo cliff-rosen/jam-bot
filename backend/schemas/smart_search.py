@@ -26,7 +26,7 @@ class SearchQueryRequest(BaseModel):
     """Request to generate search keywords from evidence specification (Step 3)"""
     evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: Optional[List[str]] = Field(None, description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
 
 
 class SearchQueryResponse(BaseModel):
@@ -36,14 +36,13 @@ class SearchQueryResponse(BaseModel):
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-
 class ArticleSearchRequest(BaseModel):
     """Request to search with boolean query"""
     search_query: str = Field(..., description="Boolean search query")
     max_results: int = Field(50, description="Maximum results per source")
     offset: int = Field(0, description="Number of results to skip (for pagination)")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: Optional[List[str]] = Field(None, description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
 
 
 class SearchPaginationInfo(BaseModel):

@@ -276,11 +276,6 @@ Respond in JSON format with the "evidence_specification" field."""
             # Fallback: return evidence specification format with zero usage
             return f"Find articles that {query}", LLMUsage()
     
-    # Legacy method for backward compatibility
-    async def refine_research_question(self, question: str) -> Tuple[str, LLMUsage]:
-        """Legacy method - redirects to create_evidence_specification"""
-        return await self.create_evidence_specification(question)
-    
     async def generate_search_keywords(self, evidence_specification: str, selected_sources: Optional[List[str]] = None) -> Tuple[str, LLMUsage]:
         """
         Step 3: Generate boolean search query from the evidence specification using LLM
@@ -577,13 +572,25 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
                     logger.info(f"model_dump result: {response_data}")
-                    refined_query = response_data.get('refined_query', f"({current_query}) AND (study OR research)")
-                    explanation = response_data.get('explanation', "Added research focus as fallback refinement")
+                    # Source-specific fallback
+                    if target_source == 'google_scholar':
+                        default_refinement = f"{current_query} study"
+                        default_explanation = "Added 'study' to focus on research (fallback refinement)"
+                    else:
+                        default_refinement = f"({current_query}) AND (study OR research)"
+                        default_explanation = "Added research focus as fallback refinement"
+                    refined_query = response_data.get('refined_query', default_refinement)
+                    explanation = response_data.get('explanation', default_explanation)
                     logger.info(f"FALLBACK 1: Using model_dump - refined_query: {refined_query}")
                 else:
                     logger.warning(f"LLM result has no model_dump method. Using hardcoded fallback.")
-                    refined_query = f"({current_query}) AND (study OR research)"
-                    explanation = "Added research focus as fallback refinement"
+                    # Source-specific fallback
+                    if target_source == 'google_scholar':
+                        refined_query = f"{current_query} study"
+                        explanation = "Added 'study' to focus on research (fallback refinement)"
+                    else:
+                        refined_query = f"({current_query}) AND (study OR research)"
+                        explanation = "Added research focus as fallback refinement"
                     logger.info(f"FALLBACK 2: Using hardcoded fallback - refined_query: {refined_query}")
                 
             logger.info(f"FINAL: LLM suggested refinement: {refined_query}")
@@ -592,9 +599,13 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
         except Exception as e:
             logger.error(f"Failed to generate LLM refinement: {e}")
-            # Conservative fallback: add research/study filter
-            fallback_query = f"({current_query}) AND (study OR research OR analysis)"
-            return fallback_query, "Added research focus (fallback refinement)"
+            # Source-specific conservative fallback
+            if target_source == 'google_scholar':
+                fallback_query = f"{current_query} study"
+                return fallback_query, "Added 'study' to focus on research (exception fallback)"
+            else:
+                fallback_query = f"({current_query}) AND (study OR research OR analysis)"
+                return fallback_query, "Added research focus (exception fallback)"
     
     async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> Tuple[str, int, str, int, str, str]:
         """
@@ -802,8 +813,6 @@ You must respond in this exact JSON format:
 }}"""
         
         return discriminator_prompt
-    
-    # DEPRECATED - Removed filter_articles_streaming - use filter_articles_parallel instead
     
     async def _evaluate_article(self, article: SearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
         """

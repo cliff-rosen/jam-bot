@@ -25,11 +25,22 @@ from schemas.smart_search import (
     SearchResultsResponse,
     DiscriminatorGenerationRequest,
     DiscriminatorGenerationResponse,
-    SemanticFilterRequest,
     SessionResetRequest,
-    FilterAllSearchResultsRequest,
     UnifiedFilterRequest,
     ParallelFilterResponse
+)
+from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
+
+from services.auth_service import validate_token
+from services.smart_search_service import SmartSearchService
+from services.smart_search_session_service import SmartSearchSessionService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/lab/smart-search",
+    tags=["smart-search"],
+    dependencies=[Depends(validate_token)]
 )
 
 # Query optimization schemas - defined locally in router
@@ -37,7 +48,7 @@ class QueryCountRequest(BaseModel):
     """Request to test search query result count"""
     search_query: str = Field(..., description="Boolean search query to test")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: Optional[List[str]] = Field(None, description="List of sources to search")
+    selected_sources: List[str] = Field(default=["pubmed"], description="List of sources to search")
 
 
 class QueryCountResponse(BaseModel):
@@ -68,20 +79,12 @@ class OptimizedQueryResponse(BaseModel):
     refinement_status: str = Field(..., description="Status: 'optimal', 'refined', or 'manual_needed'")
     session_id: str = Field(..., description="Session ID for tracking")
 
-from services.auth_service import validate_token
-from services.smart_search_service import SmartSearchService
-from services.smart_search_session_service import SmartSearchSessionService
-from typing import List, AsyncGenerator
-from schemas.smart_search import SearchArticle
+class FeatureExtractionRequest(BaseFeatureExtractionRequest):
+    session_id: str
 
-logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/lab/smart-search",
-    tags=["smart-search"],
-    dependencies=[Depends(validate_token)]
-)
-
+class FeatureExtractionResponse(BaseFeatureExtractionResponse):
+    session_id: str
 
 @router.post("/create-evidence-spec", response_model=SmartSearchRefinementResponse)
 async def create_evidence_specification(
@@ -538,17 +541,6 @@ async def filter_parallel(
     except Exception as e:
         logger.error(f"Failed to start parallel filtering for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to start parallel filtering: {str(e)}")
-
-
-# Import shared feature schemas
-from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
-
-# Smart Search specific feature extraction models
-class FeatureExtractionRequest(BaseFeatureExtractionRequest):
-    session_id: str
-
-class FeatureExtractionResponse(BaseFeatureExtractionResponse):
-    session_id: str
 
 
 @router.post("/extract-features", response_model=FeatureExtractionResponse)

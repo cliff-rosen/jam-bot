@@ -4,10 +4,10 @@ import { Card } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Search } from 'lucide-react';
-import type { SmartSearchRefinement } from '@/types/smart-search';
+import type { EvidenceSpecificationResponse } from '@/lib/api/smartSearchApi';
 
 interface RefinementStepProps {
-  refinement: SmartSearchRefinement;
+  refinement: EvidenceSpecificationResponse;
   evidenceSpec: string;
   setEvidenceSpec: (spec: string) => void;
   selectedSource: string;

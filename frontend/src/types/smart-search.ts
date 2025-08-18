@@ -1,34 +1,12 @@
 /**
- * Types for Smart Search Lab feature
+ * Smart Search Domain Models
+ * 
+ * Core business objects for the Smart Search feature.
+ * These are shared data structures used across multiple components.
+ * API-specific request/response models are defined in @/lib/api/smartSearchApi.
  */
 
-export interface SmartSearchRefinement {
-  original_query: string;
-  evidence_specification: string;
-  session_id: string;
-}
-
-export interface SearchQueryGeneration {
-  evidence_specification: string;
-  search_query: string;
-  session_id: string;
-}
-
-export interface SearchPaginationInfo {
-  total_available: number;
-  returned: number;
-  offset: number;
-  has_more: boolean;
-}
-
-export interface SearchResults {
-  articles: SearchArticle[];
-  pagination: SearchPaginationInfo;
-  sources_searched: string[];
-}
-
-
-
+// Core Domain Models
 export interface SearchArticle {
   id: string;
   title: string;
@@ -40,6 +18,13 @@ export interface SearchArticle {
   pmid?: string;
   url?: string;
   source: string;
+}
+
+export interface SearchPaginationInfo {
+  total_available: number;
+  returned: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface FilteredArticle {

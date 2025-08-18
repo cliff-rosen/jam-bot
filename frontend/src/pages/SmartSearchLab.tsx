@@ -19,12 +19,14 @@ import { FilteringStep } from '@/components/features/smartsearch/FilteringStep';
 import { ResultsStep } from '@/components/features/smartsearch/ResultsStep';
 
 import type {
-  SmartSearchRefinement,
-  SearchQueryGeneration,
-  SearchResults,
   FilteredArticle,
   FilteringProgress
 } from '@/types/smart-search';
+import type {
+  EvidenceSpecificationResponse,
+  KeywordGenerationResponse,
+  SearchExecutionResponse
+} from '@/lib/api/smartSearchApi';
 
 export default function SmartSearchLab() {
   const [searchParams] = useSearchParams();
@@ -41,17 +43,17 @@ export default function SmartSearchLab() {
   const [queryLoading, setQueryLoading] = useState(false);
 
   // Step 2: Evidence Specification
-  const [refinement, setRefinement] = useState<SmartSearchRefinement | null>(null);
+  const [refinement, setRefinement] = useState<EvidenceSpecificationResponse | null>(null);
   const [evidenceSpec, setEvidenceSpec] = useState('');
 
   // Step 3: Search Query Generation
-  const [searchQueryGeneration, setSearchQueryGeneration] = useState<SearchQueryGeneration | null>(null);
+  const [searchQueryGeneration, setSearchQueryGeneration] = useState<KeywordGenerationResponse | null>(null);
   const [editedSearchQuery, setEditedSearchQuery] = useState('');
   const [searchQueryLoading, setSearchQueryLoading] = useState(false);
   const [initialQueryCount, setInitialQueryCount] = useState<{ total_count: number; sources_searched: string[] } | null>(null);
 
   // Step 4: Search results
-  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchExecutionResponse | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
   // Step 6: Discriminator generation and editing

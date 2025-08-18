@@ -1,31 +1,48 @@
 /**
  * Smart Search API Client
  * 
- * API functions for Smart Search functionality in the Lab.
+ * API functions and types for Smart Search functionality in the Lab.
+ * Mirrors the backend router pattern - types and implementation in same file.
  */
 
 import { api } from './index';
+import type { SearchArticle, FilteredArticle } from '@/types/smart-search';
 
-import type {
-  SmartSearchRefinement,
-  SearchQueryGeneration,
-  SearchResults,
-  FilteredArticle
-} from '@/types/smart-search';
+// Re-export domain types for convenience
+export type { SearchArticle, FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 
+// ============================================================================
+// API Request/Response Models (ordered by endpoint flow)
+// ============================================================================
+
+// Step 1: Create Evidence Specification
 export interface EvidenceSpecificationRequest {
   query: string;
   max_results?: number;
   session_id?: string;
 }
 
+export interface EvidenceSpecificationResponse {
+  original_query: string;
+  evidence_specification: string;
+  session_id: string;
+}
+
+// Step 2: Generate Keywords
 export interface KeywordGenerationRequest {
   evidence_specification: string;
   session_id: string;
   selected_sources: string[];
 }
 
+export interface KeywordGenerationResponse {
+  evidence_specification: string;
+  search_query: string;
+  session_id: string;
+}
+
+// Step 3: Test Query Count
 export interface QueryCountRequest {
   search_query: string;
   session_id: string;
@@ -39,6 +56,7 @@ export interface QueryCountResponse {
   session_id: string;
 }
 
+// Step 4: Generate Optimized Query
 export interface OptimizedQueryRequest {
   current_query: string;
   evidence_specification: string;
@@ -58,6 +76,7 @@ export interface OptimizedQueryResponse {
   session_id: string;
 }
 
+// Step 5: Execute Search
 export interface SearchExecutionRequest {
   search_query: string;
   max_results?: number;
@@ -66,24 +85,35 @@ export interface SearchExecutionRequest {
   selected_sources: string[];
 }
 
-export interface SemanticFilterRequest {
-  articles: any[];
-  evidence_specification: string;
-  search_query: string;
-  strictness?: 'low' | 'medium' | 'high';
-  discriminator_prompt?: string;
+export interface SearchExecutionResponse {
+  articles: SearchArticle[];
+  pagination: {
+    total_available: number;
+    returned: number;
+    offset: number;
+    has_more: boolean;
+  };
+  sources_searched: string[];
   session_id: string;
 }
 
-export interface FilterAllSearchResultsRequest {
-  search_query: string;
+// Step 6: Generate Discriminator
+export interface DiscriminatorGenerationRequest {
   evidence_specification: string;
-  max_results?: number;
-  strictness?: 'low' | 'medium' | 'high';
-  discriminator_prompt?: string;
+  search_query: string;
+  strictness: 'low' | 'medium' | 'high';
   session_id: string;
 }
 
+export interface DiscriminatorGenerationResponse {
+  evidence_specification: string;
+  search_query: string;
+  strictness: string;
+  discriminator_prompt: string;
+  session_id: string;
+}
+
+// Step 7: Filter Articles
 export interface ArticleFilterRequest {
   filter_mode: 'selected' | 'all';
   evidence_specification: string;
@@ -92,7 +122,7 @@ export interface ArticleFilterRequest {
   discriminator_prompt?: string;
   session_id: string;
   selected_sources: string[];
-  articles?: any[];  // For selected mode
+  articles?: SearchArticle[];  // For selected mode
   max_results?: number;  // For all mode
 }
 
@@ -111,21 +141,7 @@ export interface ArticleFilterResponse {
   session_id: string;
 }
 
-export interface DiscriminatorGenerationRequest {
-  evidence_specification: string;
-  search_query: string;
-  strictness: 'low' | 'medium' | 'high';
-  session_id: string;
-}
-
-export interface DiscriminatorGenerationResponse {
-  evidence_specification: string;
-  search_query: string;
-  strictness: string;
-  discriminator_prompt: string;
-  session_id: string;
-}
-
+// Step 8: Extract Features
 export interface FeatureExtractionRequest {
   session_id: string;
   features: FeatureDefinition[];
@@ -141,29 +157,48 @@ export interface FeatureExtractionResponse {
   };
 }
 
+// ============================================================================
+// API Client Implementation
+// ============================================================================
 
 class SmartSearchApi {
 
   /**
-   * Step 2: Create evidence specification from query
+   * Step 1: Create evidence specification from user query
    */
-  async createEvidenceSpecification(request: EvidenceSpecificationRequest): Promise<SmartSearchRefinement> {
+  async createEvidenceSpecification(request: EvidenceSpecificationRequest): Promise<EvidenceSpecificationResponse> {
     const response = await api.post('/api/lab/smart-search/create-evidence-spec', request);
     return response.data;
   }
 
   /**
-   * Step 3: Generate search keywords from evidence specification
+   * Step 2: Generate search keywords from evidence specification
    */
-  async generateKeywords(request: KeywordGenerationRequest): Promise<SearchQueryGeneration> {
+  async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
     const response = await api.post('/api/lab/smart-search/generate-keywords', request);
+    return response.data;
+  }
+
+  /**
+   * Step 3: Test search query to get result count without retrieving articles
+   */
+  async testQueryCount(request: QueryCountRequest): Promise<QueryCountResponse> {
+    const response = await api.post('/api/lab/smart-search/test-query-count', request);
+    return response.data;
+  }
+
+  /**
+   * Step 4: Generate optimized search query with volume control
+   */
+  async generateOptimizedQuery(request: OptimizedQueryRequest): Promise<OptimizedQueryResponse> {
+    const response = await api.post('/api/lab/smart-search/generate-optimized-query', request);
     return response.data;
   }
 
   /**
    * Step 5: Execute search with boolean query
    */
-  async executeSearch(request: SearchExecutionRequest): Promise<SearchResults> {
+  async executeSearch(request: SearchExecutionRequest): Promise<SearchExecutionResponse> {
     const response = await api.post('/api/lab/smart-search/execute', request);
     return response.data;
   }
@@ -177,20 +212,24 @@ class SmartSearchApi {
   }
 
   /**
-   * Test search query to get result count without retrieving articles
+   * Step 7: Filter articles using semantic discriminator
    */
-  async testQueryCount(request: QueryCountRequest): Promise<QueryCountResponse> {
-    const response = await api.post('/api/lab/smart-search/test-query-count', request);
+  async filterArticles(request: ArticleFilterRequest): Promise<ArticleFilterResponse> {
+    const response = await api.post('/api/lab/smart-search/filter-articles', request);
     return response.data;
   }
 
   /**
-   * Generate optimized search query with volume control
+   * Step 8: Extract custom AI features from filtered articles
    */
-  async generateOptimizedQuery(request: OptimizedQueryRequest): Promise<OptimizedQueryResponse> {
-    const response = await api.post('/api/lab/smart-search/generate-optimized-query', request);
+  async extractFeatures(request: FeatureExtractionRequest): Promise<FeatureExtractionResponse> {
+    const response = await api.post('/api/lab/smart-search/extract-features', request);
     return response.data;
   }
+
+  // ============================================================================
+  // Session Management
+  // ============================================================================
 
   /**
    * Reset session to a specific step
@@ -232,25 +271,6 @@ class SmartSearchApi {
   async deleteSession(sessionId: string): Promise<void> {
     await api.delete(`/api/lab/smart-search/sessions/${sessionId}`);
   }
-
-
-  /**
-   * Step 7: Filter articles using semantic discriminator
-   * Processes all articles concurrently for better performance
-   */
-  async filterArticles(request: ArticleFilterRequest): Promise<ArticleFilterResponse> {
-    const response = await api.post('/api/lab/smart-search/filter-articles', request);
-    return response.data;
-  }
-
-  /**
-   * Extract custom AI features from Smart Search filtered articles
-   */
-  async extractFeatures(request: FeatureExtractionRequest): Promise<FeatureExtractionResponse> {
-    const response = await api.post('/api/lab/smart-search/extract-features', request);
-    return response.data;
-  }
-
 }
 
 export const smartSearchApi = new SmartSearchApi();

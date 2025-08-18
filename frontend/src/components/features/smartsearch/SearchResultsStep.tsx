@@ -2,10 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, ChevronRight, ArrowLeft } from 'lucide-react';
-import type { SearchResults } from '@/types/smart-search';
+import type { SearchExecutionResponse, SearchArticle } from '@/lib/api/smartSearchApi';
 
 interface SearchResultsStepProps {
-  searchResults: SearchResults;
+  searchResults: SearchExecutionResponse;
   selectedArticles?: Set<number>;  // Keep for backward compatibility but mark optional
   onToggleArticle?: (index: number) => void;
   onSelectAll?: () => void;
@@ -65,7 +65,7 @@ export function SearchResultsStep({
 
       {/* Articles List */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-        {searchResults.articles.map((article, index) => (
+        {searchResults.articles.map((article: SearchArticle, index: number) => (
           <div
             key={index}
             className="p-3 border rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750"

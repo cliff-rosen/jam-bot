@@ -220,11 +220,11 @@ export default function SmartSearchLab() {
   };
 
   // Test query count without retrieving articles
-  const handleTestQueryCount = async (query: string, sessionId: string) => {
+  const handleTestQueryCount = async (query: string) => {
     try {
       const response = await smartSearchApi.testQueryCount({
         search_query: query,
-        session_id: sessionId,
+        session_id: sessionId!,
         selected_sources: [selectedSource]
       });
 
@@ -239,13 +239,13 @@ export default function SmartSearchLab() {
   };
 
   // Handle query optimization for volume control
-  const handleOptimizeQuery = async (evidenceSpecification: string, sessionId: string) => {
+  const handleOptimizeQuery = async (evidenceSpecification: string) => {
     try {
       const response = await smartSearchApi.generateOptimizedQuery({
         current_query: editedSearchQuery,
         evidence_specification: evidenceSpecification,
         target_max_results: 250,
-        session_id: sessionId,
+        session_id: sessionId!,
         selected_sources: [selectedSource]
       });
 
@@ -291,7 +291,7 @@ export default function SmartSearchLab() {
 
       // Automatically test the generated query count
       try {
-        const countResult = await handleTestQueryCount(response.search_query, sessionId!);
+        const countResult = await handleTestQueryCount(response.search_query);
         setInitialQueryCount(countResult);
         setStep('search-query');
 
@@ -754,7 +754,6 @@ export default function SmartSearchLab() {
               editedSearchQuery={editedSearchQuery}
               setEditedSearchQuery={setEditedSearchQuery}
               evidenceSpec={evidenceSpec}
-              sessionId={sessionId!}
               selectedSource={selectedSource}
               onSubmit={handleExecuteSearch}
               onOptimize={handleOptimizeQuery}

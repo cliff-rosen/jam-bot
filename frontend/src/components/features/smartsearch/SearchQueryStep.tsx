@@ -27,20 +27,18 @@ interface SearchQueryStepProps {
   editedSearchQuery: string;
   setEditedSearchQuery: (query: string) => void;
   evidenceSpec: string;
-  sessionId: string;
   selectedSource: string;
   onSubmit: () => void;
-  onOptimize: (evidenceSpec: string, sessionId: string) => Promise<OptimizationResult>;
-  onTestCount: (query: string, sessionId: string) => Promise<{total_count: number; sources_searched: string[]}>;
+  onOptimize: (evidenceSpec: string) => Promise<OptimizationResult>;
+  onTestCount: (query: string) => Promise<{ total_count: number; sources_searched: string[] }>;
   loading: boolean;
-  initialCount?: {total_count: number; sources_searched: string[]} | null;
+  initialCount?: { total_count: number; sources_searched: string[] } | null;
 }
 
 export function SearchQueryStep({
   editedSearchQuery,
   setEditedSearchQuery,
   evidenceSpec,
-  sessionId,
   selectedSource,
   onSubmit,
   onOptimize,
@@ -52,7 +50,7 @@ export function SearchQueryStep({
   const [currentCount, setCurrentCount] = useState<number | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  
+
   // Initialize with the generated query and count
   useEffect(() => {
     if (initialCount && editedSearchQuery && queryHistory.length === 0) {
@@ -76,12 +74,12 @@ export function SearchQueryStep({
   // Test current query count
   const handleTestQuery = async () => {
     if (!editedSearchQuery.trim()) return;
-    
+
     setIsTestingCount(true);
     try {
-      const result = await onTestCount(editedSearchQuery, sessionId);
+      const result = await onTestCount(editedSearchQuery);
       setCurrentCount(result.total_count);
-      
+
       // Add to history only if it's different from the last entry
       const lastEntry = queryHistory[queryHistory.length - 1];
       if (!lastEntry || lastEntry.query !== editedSearchQuery) {
@@ -104,10 +102,10 @@ export function SearchQueryStep({
     setIsOptimizing(true);
     const previousQuery = editedSearchQuery;
     try {
-      const result = await onOptimize(evidenceSpec, sessionId);
+      const result = await onOptimize(evidenceSpec);
       setEditedSearchQuery(result.final_query);
       setCurrentCount(result.final_count);
-      
+
       // Add optimization to history with clear explanation
       setQueryHistory(prev => [...prev, {
         query: result.final_query,
@@ -154,23 +152,21 @@ export function SearchQueryStep({
           <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Query Optimization History
           </div>
-          
+
           {queryHistory.map((attempt, index) => (
-            <div 
+            <div
               key={index}
-              className={`p-3 rounded-lg border ${
-                attempt.count > 0 && attempt.count <= 250
+              className={`p-3 rounded-lg border ${attempt.count > 0 && attempt.count <= 250
                   ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
                   : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-              }`}
+                }`}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    attempt.count > 0 && attempt.count <= 250
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${attempt.count > 0 && attempt.count <= 250
                       ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200'
                       : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200'
-                  }`}>
+                    }`}>
                     {index + 1}
                   </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -178,7 +174,7 @@ export function SearchQueryStep({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge 
+                  <Badge
                     variant={attempt.count > 0 && attempt.count <= 250 ? "default" : "destructive"}
                     className="text-xs"
                   >
@@ -220,7 +216,7 @@ export function SearchQueryStep({
               )}
               {index > 0 && queryHistory[index - 1] && (
                 <div className="ml-8 mt-2 text-xs text-gray-500 dark:text-gray-500">
-                  Result change: {attempt.count - queryHistory[index - 1].count < 0 ? '↓' : '↑'} 
+                  Result change: {attempt.count - queryHistory[index - 1].count < 0 ? '↓' : '↑'}
                   {' '}{Math.abs(attempt.count - queryHistory[index - 1].count).toLocaleString()} results
                   {attempt.count > 0 && attempt.count <= 250 && (queryHistory[index - 1].count > 250 || queryHistory[index - 1].count === 0) && (
                     <span className="ml-2 text-green-600 dark:text-green-400 font-medium">✓ Target achieved</span>
@@ -247,13 +243,13 @@ export function SearchQueryStep({
             rows={3}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
             placeholder={
-              selectedSource === 'google_scholar' 
+              selectedSource === 'google_scholar'
                 ? `"machine learning" healthcare diagnosis`
                 : `(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)`
             }
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {selectedSource === 'google_scholar' 
+            {selectedSource === 'google_scholar'
               ? 'Edit the natural language search query and test to see the result count'
               : 'Edit the boolean search query and test to see the result count'
             }
@@ -262,29 +258,26 @@ export function SearchQueryStep({
 
         {/* Current Count Display */}
         {currentCount !== null && (
-          <div className={`p-3 rounded-lg border ${
-            currentCount > 0 && currentCount <= 250
+          <div className={`p-3 rounded-lg border ${currentCount > 0 && currentCount <= 250
               ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
               : currentCount === 0
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-              : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
-          }`}>
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+            }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {currentCount > 0 && currentCount <= 250 ? (
                   <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 ) : (
-                  <AlertTriangle className={`w-4 h-4 ${
-                    currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                  }`} />
+                  <AlertTriangle className={`w-4 h-4 ${currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                    }`} />
                 )}
-                <span className={`text-sm font-medium ${
-                  currentCount > 0 && currentCount <= 250
+                <span className={`text-sm font-medium ${currentCount > 0 && currentCount <= 250
                     ? 'text-green-900 dark:text-green-100'
                     : currentCount === 0
-                    ? 'text-red-900 dark:text-red-100'
-                    : 'text-amber-900 dark:text-amber-100'
-                }`}>
+                      ? 'text-red-900 dark:text-red-100'
+                      : 'text-amber-900 dark:text-amber-100'
+                  }`}>
                   Current query will return {currentCount.toLocaleString()} results
                 </span>
               </div>
@@ -364,7 +357,7 @@ export function SearchQueryStep({
           {/* Optimization Help Text */}
           {currentCount !== null && (currentCount > 250 || currentCount === 0) && (
             <p className="text-xs text-amber-600 dark:text-amber-400 ml-1">
-              {currentCount > 250 
+              {currentCount > 250
                 ? 'The "Suggest Optimization" button will analyze the current query text above and add filters to reduce results below 250'
                 : 'The "Suggest Optimization" button will analyze the current query text above and adjust filters to find results'
               }

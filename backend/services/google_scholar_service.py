@@ -25,6 +25,16 @@ class GoogleScholarArticle:
     Follows the same pattern as PubMed's Article class for consistency.
     """
     
+    @staticmethod
+    def _safe_string_split(value: Any, delimiter: str = ",") -> List[str]:
+        """Safely split a value that might be a string or list."""
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(delimiter) if item.strip()]
+        elif isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        else:
+            return []
+    
     @classmethod
     def from_serpapi_result(cls, result: Dict[str, Any], position: int = 0) -> 'GoogleScholarArticle':
         """
@@ -49,16 +59,13 @@ class GoogleScholarArticle:
         authors = []
         publication_info = result.get("publication_info", {})
         if publication_info and isinstance(publication_info, dict):
-            authors_str = publication_info.get("authors", "")
-            if authors_str:
-                # Authors are typically comma-separated in publication_info
-                authors = [a.strip() for a in authors_str.split(",")]
+            authors_data = publication_info.get("authors", "")
+            if authors_data:
+                authors = cls._safe_string_split(authors_data, ",")
         elif "authors" in result:  # Sometimes directly in result
             authors_data = result["authors"]
-            if isinstance(authors_data, list):
-                authors = authors_data
-            elif isinstance(authors_data, str):
-                authors = [a.strip() for a in authors_data.split(",")]
+            if authors_data:
+                authors = cls._safe_string_split(authors_data, ",")
         
         # Extract publication info
         pub_info_str = ""
@@ -316,6 +323,27 @@ class GoogleScholarService:
         if "serpapi_pagination" in data:
             logger.debug(f"Pagination info: {data['serpapi_pagination']}")
         
+        # Debug: Log organic_results count vs requested
+        organic_results = data.get("organic_results", [])
+        logger.info(f"Google Scholar API returned {len(organic_results)} organic results (requested {num_results})")
+        if len(organic_results) < num_results:
+            logger.warning(f"Google Scholar returned fewer results than requested: got {len(organic_results)}, requested {num_results}")
+            
+        # Check for SerpAPI warnings or notices
+        if "search_parameters" in data:
+            actual_params = data["search_parameters"]
+            logger.debug(f"Actual search parameters used by SerpAPI: {actual_params}")
+            if actual_params.get("num") != num_results:
+                logger.warning(f"SerpAPI used different num parameter: requested {num_results}, used {actual_params.get('num')}")
+                
+        # Log any SerpAPI-specific information
+        if "search_information" in data:
+            search_info = data["search_information"]
+            if "organic_results_state" in search_info:
+                logger.info(f"Organic results state: {search_info['organic_results_state']}")
+            if "total_results" in search_info:
+                logger.info(f"Total results available: {search_info['total_results']}")
+        
         # Check for API errors
         if "error" in data:
             raise Exception(f"SerpAPI error: {data['error']}")
@@ -354,7 +382,15 @@ class GoogleScholarService:
                 articles.append(article)
             except Exception as e:
                 logger.warning(f"Failed to parse result {i}: {e}")
-                logger.debug(f"Problematic result: {result}")
+                logger.error(f"Problematic result structure: {result}")
+                # Log specific fields that might be causing issues
+                logger.error(f"  - title: {type(result.get('title', ''))} = {result.get('title', '')}")
+                logger.error(f"  - authors: {type(result.get('authors', ''))} = {result.get('authors', '')}")
+                if 'publication_info' in result:
+                    pub_info = result['publication_info']
+                    logger.error(f"  - publication_info type: {type(pub_info)}")
+                    if isinstance(pub_info, dict):
+                        logger.error(f"  - publication_info.authors: {type(pub_info.get('authors', ''))} = {pub_info.get('authors', '')}")
                 continue
                 
         return articles

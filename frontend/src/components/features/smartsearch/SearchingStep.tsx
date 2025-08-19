@@ -9,7 +9,7 @@ export function SearchingStep() {
       <div className="flex flex-col items-center justify-center py-8">
         <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
         <p className="text-gray-600 dark:text-gray-400">
-          Searching across multiple databases...
+          You can see the results in the Results step.
         </p>
       </div>
     </Card>

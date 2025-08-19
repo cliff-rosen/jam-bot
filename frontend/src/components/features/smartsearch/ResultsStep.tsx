@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Sparkles, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Table, FileText, FileSpreadsheet, BookOpen, Plus, Sparkles, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 import type { FilteredArticle } from '@/types/smart-search';
@@ -625,50 +625,7 @@ export function ResultsStep({
             </h3>
 
             <div className="flex items-center gap-2">
-              {/* Display Mode Toggle */}
-              <div className="flex border rounded-lg">
-                <Button
-                  onClick={() => setDisplayMode('table')}
-                  variant={displayMode === 'table' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="rounded-r-none border-r"
-                  title="Table view"
-                >
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setDisplayMode('card-compressed')}
-                  variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="rounded-none border-r"
-                  title="Card compressed"
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setDisplayMode('card-full')}
-                  variant={displayMode === 'card-full' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="rounded-l-none"
-                  title="Card full"
-                >
-                  <Grid className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {/* Filter Toggle - only show for table view */}
-              {displayMode === 'table' && (
-                <Button
-                  onClick={() => setShowFilters(!showFilters)}
-                  variant={showFilters ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filters
-                </Button>
-              )}
-              
+              {/* AI+ and Filter buttons - conditionally shown for table view */}
               <Button
                 onClick={() => {
                   if (displayMode === 'table') {
@@ -695,6 +652,50 @@ export function ResultsStep({
                 <Sparkles className="w-4 h-4 mr-1" />
                 AI+
               </Button>
+              
+              {/* Filter Toggle - only show for table view */}
+              {displayMode === 'table' && (
+                <Button
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant={showFilters ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Filter className="w-4 h-4" />
+                  Filters
+                </Button>
+              )}
+              
+              {/* Display Mode Toggle - always on the right */}
+              <div className="flex border rounded-lg ml-auto">
+                <Button
+                  onClick={() => setDisplayMode('table')}
+                  variant={displayMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-r-none border-r"
+                  title="Table view"
+                >
+                  <Table className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setDisplayMode('card-compressed')}
+                  variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-none border-r"
+                  title="Card compressed"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => setDisplayMode('card-full')}
+                  variant={displayMode === 'card-full' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="rounded-l-none"
+                  title="Card full"
+                >
+                  <Grid className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
 

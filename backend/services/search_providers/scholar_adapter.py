@@ -68,10 +68,10 @@ class GoogleScholarAdapter(SearchProvider):
             params = await self.validate_params(params)
             
             # Import here to avoid circular dependencies
-            from services.google_scholar_service import get_google_scholar_service
+            from services.google_scholar_service import GoogleScholarService
             
             # Get the service instance
-            service = get_google_scholar_service()
+            service = GoogleScholarService()
             
             # Calculate start index for Scholar pagination
             start_index = params.offset or 0

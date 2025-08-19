@@ -15,7 +15,7 @@ from models import User
 from services.google_scholar_service import GoogleScholarArticle
 
 from services.auth_service import validate_token
-from services.google_scholar_service import get_google_scholar_service
+from services.google_scholar_service import GoogleScholarService
 
 router = APIRouter(
     prefix="/google-scholar",
@@ -64,7 +64,7 @@ async def search_google_scholar(
     """
     try:
         # Get the service
-        service = get_google_scholar_service()
+        service = GoogleScholarService()
         
         # Perform the search
         articles, search_metadata = service.search_articles(
@@ -127,7 +127,7 @@ async def test_google_scholar_connection(
     Verifies that the SerpAPI key is configured and the service is accessible.
     """
     try:
-        service = get_google_scholar_service()
+        service = GoogleScholarService()
         
         # Check if API key is configured
         if not service.api_key:

@@ -24,6 +24,7 @@ interface ResultsStepProps {
   totalAvailable?: number;
   totalFiltered?: number;
   sessionId?: string;
+  savedCustomColumns?: FeatureDefinition[];
 }
 
 export function ResultsStep({
@@ -33,7 +34,8 @@ export function ResultsStep({
   searchQuery,
   totalAvailable,
   totalFiltered,
-  sessionId
+  sessionId,
+  savedCustomColumns
 }: ResultsStepProps) {
   const { toast } = useToast();
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
@@ -50,7 +52,7 @@ export function ResultsStep({
 
   // Column/Feature management for table view
   const [showColumns, setShowColumns] = useState(false);
-  const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
+  const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>(savedCustomColumns || []);
   const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number } | null>(null);
@@ -340,8 +342,10 @@ export function ResultsStep({
     setPendingFeatures(prev => prev.filter(f => f.id !== featureId));
   };
 
-  const removeAppliedFeature = (featureId: string) => {
-    setAppliedFeatures(prev => prev.filter(f => f.id !== featureId));
+  const removeAppliedFeature = async (featureId: string) => {
+    const updatedFeatures = appliedFeatures.filter(f => f.id !== featureId);
+    setAppliedFeatures(updatedFeatures);
+    
     // Remove the feature from all articles' extracted_features
     setLocalFilteredArticles(prev => prev.map(item => ({
       ...item,
@@ -408,9 +412,13 @@ export function ResultsStep({
       }));
 
       // Move pending features to applied features
-      setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
+      const updatedFeatures = [...appliedFeatures, ...pendingFeatures];
+      setAppliedFeatures(updatedFeatures);
       const extractedCount = pendingFeatures.length;
       setPendingFeatures([]);
+      
+      // Note: Column definitions and feature values are saved together in the extraction API call
+      // No separate API call needed here
 
       toast({
         title: 'Columns Applied Successfully!',

@@ -65,6 +65,7 @@ export default function SmartSearchLab() {
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
+  const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
 
   // Source selection - remember last choice in localStorage
   const [selectedSource, setSelectedSource] = useState<string>(() => {
@@ -124,6 +125,21 @@ export default function SmartSearchLab() {
             total_count: session.search_metadata.total_available || 0,
             sources_searched: session.search_metadata.sources_searched || []
           });
+
+          // Reconstruct searchResults state for proper display of article counts
+          if (lastStep && ['search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+            setSearchResults({
+              articles: [], // We don't store the actual articles in session, only metadata
+              pagination: {
+                total_available: session.search_metadata.total_available || 0,
+                returned: session.search_metadata.total_retrieved || 0,
+                offset: 0,
+                has_more: (session.search_metadata.total_retrieved || 0) < (session.search_metadata.total_available || 0)
+              },
+              sources_searched: session.search_metadata.sources_searched || [],
+              session_id: session.id
+            });
+          }
         }
 
         // Always create discriminator data if we're at discriminator step or later
@@ -147,24 +163,36 @@ export default function SmartSearchLab() {
           setFilteredArticles(session.filtered_articles);
         }
 
-        // Determine which step to show based on session progress
-        if (lastStep === 'filtering' && session.filtering_metadata?.accepted !== undefined) {
-          setStep('results');
-        } else if (lastStep === 'filtering') {
-          setStep('filtering');
-        } else if (lastStep === 'discriminator_generation') {
-          setStep('discriminator');
-        } else if (lastStep === 'search_execution') {
-          // For search-execution step, we need to reconstruct search results
-          // For now, go back to search-query step to avoid blank screen
-          setStep('search-query');
-        } else if (lastStep === 'search_query_generation') {
-          setStep('search-query');
-        } else if (lastStep === 'question_refinement') {
-          setStep('refinement');
-        } else {
-          setStep('query');
+        // Restore custom columns if they exist
+        if (session.filtering_metadata?.custom_columns) {
+          setSavedCustomColumns(session.filtering_metadata.custom_columns);
         }
+
+        // Map backend step to frontend step
+        const mapBackendStepToFrontend = (backendStep: string, session: any): string => {
+          switch (backendStep) {
+            case 'question_input':
+              return 'query';
+            case 'question_refinement':
+              return 'refinement';
+            case 'search_query_generation':
+              return 'search-query';
+            case 'search_execution':
+              // Only show search-results if we have metadata, otherwise fall back
+              return session.search_metadata?.total_available ? 'search-results' : 'search-query';
+            case 'discriminator_generation':
+              return 'discriminator';
+            case 'filtering':
+              // If filtering is complete (has results), show results step
+              return session.filtering_metadata?.accepted !== undefined ? 'results' : 'filtering';
+            default:
+              return 'query';
+          }
+        };
+
+        // Determine which step to show based on session progress
+        const frontendStep = mapBackendStepToFrontend(lastStep || 'question_input', session);
+        setStep(frontendStep as any);
 
         toast({
           title: 'Session Loaded',
@@ -808,8 +836,9 @@ export default function SmartSearchLab() {
               evidenceSpecification={evidenceSpec}
               searchQuery={editedSearchQuery}
               totalAvailable={searchResults?.pagination.total_available}
-              totalFiltered={Math.min(searchResults?.pagination.total_available || 0, 500)}
+              totalFiltered={searchResults?.pagination.total_available ? Math.min(searchResults.pagination.total_available, 500) : filteredArticles.length}
               sessionId={sessionId || undefined}
+              savedCustomColumns={savedCustomColumns}
             />
           )}
         </div>

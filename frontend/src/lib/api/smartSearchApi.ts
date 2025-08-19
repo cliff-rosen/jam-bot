@@ -241,6 +241,7 @@ class SmartSearchApi {
     return response.data;
   }
 
+
   /**
    * Get user's search session history
    */

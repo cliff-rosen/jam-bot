@@ -336,6 +336,67 @@ class SmartSearchSessionService:
             logger.error(f"Failed to get all sessions: {e}")
             raise
 
+
+    def update_custom_columns_and_features(self, session_id: str, user_id: str, custom_columns: List[Dict[str, Any]], extracted_features: Dict[str, Dict[str, Any]]) -> Optional[SmartSearchSession]:
+        """Update both custom column metadata and feature values atomically"""
+        try:
+            session = self.get_session(session_id, user_id)
+            if not session:
+                return None
+            
+            # Get existing column definitions to merge with new ones
+            existing_columns = []
+            if session.filtering_metadata and 'custom_columns' in session.filtering_metadata:
+                existing_columns = session.filtering_metadata['custom_columns']
+            
+            # Merge existing columns with new ones (new columns override if same ID)
+            existing_by_id = {col['id']: col for col in existing_columns}
+            for new_col in custom_columns:
+                existing_by_id[new_col['id']] = new_col
+            
+            # Initialize filtering_metadata if it doesn't exist
+            if not session.filtering_metadata:
+                session.filtering_metadata = {}
+            
+            # Update metadata with all columns (existing + new)
+            session.filtering_metadata['custom_columns'] = list(existing_by_id.values())
+            
+            # Update filtered articles with extracted features
+            if session.filtered_articles:
+                current_feature_ids = set(existing_by_id.keys())
+                updated_articles = []
+                
+                for article_data in session.filtered_articles:
+                    article_id = article_data['article']['id']
+                    
+                    # Initialize extracted_features if it doesn't exist
+                    if 'extracted_features' not in article_data['article']:
+                        article_data['article']['extracted_features'] = {}
+                    
+                    # Add new extracted features
+                    if article_id in extracted_features:
+                        article_data['article']['extracted_features'].update(extracted_features[article_id])
+                    
+                    # Clean up features that are no longer in the custom columns
+                    filtered_features = {
+                        k: v for k, v in article_data['article']['extracted_features'].items()
+                        if k in current_feature_ids
+                    }
+                    article_data['article']['extracted_features'] = filtered_features
+                    
+                    updated_articles.append(article_data)
+                
+                session.filtered_articles = updated_articles
+            
+            self.db.commit()
+            logger.info(f"Updated {len(custom_columns)} new custom columns and feature values for session {session_id}")
+            return session
+            
+        except Exception as e:
+            logger.error(f"Failed to update custom columns and features for session {session_id}: {e}")
+            self.db.rollback()
+            raise
+
     def reset_to_step(self, session_id: str, user_id: str, target_step: str) -> Optional[SmartSearchSession]:
         """Reset session to a specific step, clearing all data forward of that step"""
         try:

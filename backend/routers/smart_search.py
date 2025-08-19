@@ -7,9 +7,7 @@ API endpoints for smart search functionality in the lab.
 import logging
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -688,6 +686,26 @@ async def extract_features(
         
         duration = datetime.utcnow() - start_time
         
+        # Save both the column definitions AND the extracted feature values to the session
+        # Convert feature definitions to the format expected by update_custom_columns_and_features
+        columns_data = [
+            {
+                'id': f.id,
+                'name': f.name,
+                'description': f.description,
+                'type': f.type,
+                'options': f.options
+            } for f in feature_definitions
+        ]
+        
+        # Update both metadata and feature values atomically
+        session_service.update_custom_columns_and_features(
+            session_id=request.session_id,
+            user_id=current_user.user_id,
+            custom_columns=columns_data,
+            extracted_features=extracted_features
+        )
+        
         # Return response
         return FeatureExtractionResponse(
             session_id=request.session_id,
@@ -835,3 +853,5 @@ async def reset_session_to_step(
     except Exception as e:
         logger.error(f"Failed to reset session {session_id} to step {request.step} for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to reset session: {str(e)}")
+
+

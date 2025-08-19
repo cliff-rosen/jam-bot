@@ -35,6 +35,37 @@ class GoogleScholarArticle:
         else:
             return []
     
+    @staticmethod
+    def _extract_author_names(authors_data: Any) -> List[str]:
+        """
+        Extract author names from various SerpAPI author data formats.
+        
+        Args:
+            authors_data: Can be string, list of strings, or list of dicts
+            
+        Returns:
+            List of author names as strings
+        """
+        if isinstance(authors_data, str):
+            # Simple comma-separated string
+            return [name.strip() for name in authors_data.split(",") if name.strip()]
+        elif isinstance(authors_data, list):
+            author_names = []
+            for item in authors_data:
+                if isinstance(item, dict):
+                    # Dictionary format: {'name': 'Author Name', 'link': '...', ...}
+                    name = item.get('name', '').strip()
+                    if name:
+                        author_names.append(name)
+                elif isinstance(item, str):
+                    # Simple string format
+                    name = item.strip()
+                    if name:
+                        author_names.append(name)
+            return author_names
+        else:
+            return []
+    
     @classmethod
     def from_serpapi_result(cls, result: Dict[str, Any], position: int = 0) -> 'GoogleScholarArticle':
         """
@@ -55,17 +86,50 @@ class GoogleScholarArticle:
         # Extract link
         link = result.get("link", "")
         
-        # Extract authors - SerpAPI provides these in 'publication_info'
+        # Extract authors - SerpAPI can provide these in multiple locations
         authors = []
         publication_info = result.get("publication_info", {})
-        if publication_info and isinstance(publication_info, dict):
-            authors_data = publication_info.get("authors", "")
-            if authors_data:
-                authors = cls._safe_string_split(authors_data, ",")
-        elif "authors" in result:  # Sometimes directly in result
+        
+        # Debug logging for author extraction
+        logger.debug(f"Position {position}: Extracting authors from result")
+        logger.debug(f"  - result.keys(): {list(result.keys())}")
+        logger.debug(f"  - publication_info type: {type(publication_info)}")
+        if isinstance(publication_info, dict):
+            logger.debug(f"  - publication_info.keys(): {list(publication_info.keys())}")
+            logger.debug(f"  - publication_info.authors: {publication_info.get('authors', 'NOT_FOUND')}")
+        logger.debug(f"  - result.authors: {result.get('authors', 'NOT_FOUND')}")
+        
+        # Try multiple locations for authors, in order of preference
+        authors_data = None
+        
+        # 1. Check directly in result (most common location based on your example)
+        if "authors" in result and result["authors"]:
             authors_data = result["authors"]
-            if authors_data:
-                authors = cls._safe_string_split(authors_data, ",")
+            logger.debug(f"  - Found authors directly in result: {authors_data}")
+        
+        # 2. Check in publication_info.authors (nested structure)
+        elif publication_info and isinstance(publication_info, dict) and "authors" in publication_info:
+            authors_data = publication_info["authors"]
+            logger.debug(f"  - Found authors in publication_info: {authors_data}")
+        
+        # 3. Check if publication_info itself contains author information as a string
+        elif isinstance(publication_info, dict) and "summary" in publication_info:
+            # Sometimes authors are embedded in the summary string
+            summary = publication_info["summary"]
+            if summary and isinstance(summary, str):
+                # Look for author patterns in the summary (e.g., "Author1, Author2 - Journal")
+                parts = summary.split(" - ")
+                if len(parts) > 1:
+                    potential_authors = parts[0].strip()
+                    if potential_authors and not any(char.isdigit() for char in potential_authors):
+                        authors_data = potential_authors
+                        logger.debug(f"  - Found potential authors in publication_info.summary: {authors_data}")
+        
+        # Extract author names if we found any data
+        if authors_data:
+            authors = cls._extract_author_names(authors_data)
+        
+        logger.debug(f"  - Final extracted authors: {authors}")
         
         # Extract publication info
         pub_info_str = ""

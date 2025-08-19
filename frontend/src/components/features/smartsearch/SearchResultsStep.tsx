@@ -52,7 +52,7 @@ export function SearchResultsStep({
               Found {searchResults.pagination.total_available.toLocaleString()} total articles from {searchResults.sources_searched.join(', ')}
             </p>
             <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-              Showing {searchResults.articles.length} of {searchResults.pagination.total_available} articles
+              Showing {Math.min(searchResults.articles.length, searchResults.pagination.total_available)} of {searchResults.pagination.total_available} articles
             </p>
           </div>
           <div className="text-right">

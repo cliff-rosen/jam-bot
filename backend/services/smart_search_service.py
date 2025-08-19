@@ -516,6 +516,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         # We now only support single source searches
         source = selected_sources[0]
         
+        # Note: Google Scholar typically returns max 20 results per page via SerpAPI
+        # PubMed can return larger batches (up to 100+)
+        # We request what the user wants but may get less from some sources
         logger.info(f"Searching {source} - Query: {search_query[:100]}... (max_results={max_results}, offset={offset}, count_only={count_only})")
         
         if source == 'pubmed':
@@ -571,13 +574,19 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         """Search Google Scholar and return results."""
         try:
             loop = asyncio.get_event_loop()
-            results_to_fetch = 1 if count_only else max_results
+            # Google Scholar API via SerpAPI has a max of 20 results per page
+            # If we need more than 20, we'll need multiple requests (handled by frontend pagination)
+            results_to_fetch = 1 if count_only else min(max_results, 20)
             
             scholar_articles, metadata = await loop.run_in_executor(
                 None,
                 search_scholar_articles,
                 search_query,
-                results_to_fetch
+                results_to_fetch,
+                None,  # year_low
+                None,  # year_high
+                "relevance",  # sort_by
+                offset  # start_index - this was missing!
             )
             
             total_available = metadata.get('total_results', 0)

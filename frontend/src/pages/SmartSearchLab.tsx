@@ -343,9 +343,11 @@ export default function SmartSearchLab() {
     setStep('searching');
 
     try {
+      // Google Scholar returns max 20 per page, PubMed can do 50+
+      const initialBatchSize = selectedSource === 'google_scholar' ? 20 : 50;
       const results = await smartSearchApi.executeSearch({
         search_query: editedSearchQuery,
-        max_results: 50,
+        max_results: initialBatchSize,
         session_id: sessionId!,
         selected_sources: [selectedSource]
       });
@@ -498,9 +500,11 @@ export default function SmartSearchLab() {
 
     setSearchLoading(true);
     try {
+      // Google Scholar returns max 20 per page, PubMed can do 50+
+      const batchSize = selectedSource === 'google_scholar' ? 20 : 50;
       const moreResults = await smartSearchApi.executeSearch({
         search_query: editedSearchQuery,
-        max_results: 50,
+        max_results: batchSize,
         offset: searchResults.articles.length,
         session_id: sessionId!,
         selected_sources: [selectedSource]

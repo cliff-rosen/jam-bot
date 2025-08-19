@@ -337,8 +337,9 @@ class GoogleScholarService:
         if not self.api_key:
             raise ValueError("No API key available. Please set SERPAPI_KEY environment variable.")
         
-        # Ensure num_results is within bounds
-        num_results = max(1, min(100, num_results))  # Clamp to 1-100
+        # Ensure num_results is within Google Scholar API bounds
+        # SerpAPI Google Scholar has a hard limit of 20 results per page
+        num_results = max(1, min(20, num_results))  # Clamp to 1-20 for Google Scholar
         
         # Build API parameters
         params = {
@@ -361,6 +362,8 @@ class GoogleScholarService:
             params["scisbd"] = 1  # Sort by date
             
         logger.info(f"Searching Google Scholar for: {query} (num_results={num_results}, start_index={start_index})")
+        if num_results > 20:
+            logger.info(f"Note: Google Scholar API limit is 20 results per page. Fetching {num_results} will require multiple requests.")
         logger.debug(f"Scholar API params: {params}")
         
         # Add a unique identifier to help detect if we're getting cached results

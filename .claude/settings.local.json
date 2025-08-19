@@ -19,7 +19,8 @@
       "Bash(sed:*)",
       "Bash(curl:*)",
       "Bash(mkdir:*)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "WebSearch"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

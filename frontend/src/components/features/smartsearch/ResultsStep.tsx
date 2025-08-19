@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,12 +39,19 @@ export function ResultsStep({
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
   const [isRejectedOpen, setIsRejectedOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
+  
+  // Local copy of filtered articles that we can modify when features are extracted
+  const [localFilteredArticles, setLocalFilteredArticles] = useState<FilteredArticle[]>(filteredArticles);
+  
+  // Sync local state when props change
+  useEffect(() => {
+    setLocalFilteredArticles(filteredArticles);
+  }, [filteredArticles]);
 
   // Column/Feature management for table view
   const [showColumns, setShowColumns] = useState(false);
   const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
   const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
-  const [extractedFeatures, setExtractedFeatures] = useState<Record<string, Record<string, any>>>({});
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number } | null>(null);
   
@@ -56,8 +63,8 @@ export function ResultsStep({
   });
 
   // Use all articles for display (no client-side filtering)
-  const acceptedArticles = filteredArticles.filter(fa => fa.passed);
-  const rejectedArticles = filteredArticles.filter(fa => !fa.passed);
+  const acceptedArticles = localFilteredArticles.filter(fa => fa.passed);
+  const rejectedArticles = localFilteredArticles.filter(fa => !fa.passed);
 
   // Helper function to extract PMID from CanonicalResearchArticle
   const extractPmid = (article: any) => {
@@ -76,7 +83,7 @@ export function ResultsStep({
   const exportToCSV = () => {
     const csvContent = [
       ['Title', 'Authors', 'Year', 'Journal', 'Abstract', 'URL', 'DOI', 'PMID', 'Status', 'Confidence', 'Reasoning'].join(','),
-      ...filteredArticles.map(item => [
+      ...localFilteredArticles.map(item => [
         `"${item.article.title.replace(/"/g, '""')}"`,
         `"${item.article.authors.join('; ').replace(/"/g, '""')}"`,
         item.article.publication_year || '',
@@ -94,12 +101,12 @@ export function ResultsStep({
     downloadFile(csvContent, 'text/csv', 'csv');
     toast({
       title: 'Exported to CSV',
-      description: `Exported ${filteredArticles.length} articles to CSV file`
+      description: `Exported ${localFilteredArticles.length} articles to CSV file`
     });
   };
 
   const exportToBibTeX = () => {
-    const bibTexContent = filteredArticles
+    const bibTexContent = localFilteredArticles
       .filter(item => item.passed) // Only export accepted articles
       .map((item, index) => {
         const cleanTitle = item.article.title.replace(/[{}]/g, '');
@@ -161,7 +168,7 @@ export function ResultsStep({
             ${originalQuery ? `<p><strong>Original Query:</strong> "${originalQuery}"</p>` : ''}
             ${evidenceSpecification ? `<p><strong>Evidence Specification:</strong> "${evidenceSpecification}"</p>` : ''}
             ${searchQuery ? `<p><strong>Search Keywords:</strong> ${searchQuery}</p>` : ''}
-            <p><strong>Results:</strong> ${acceptedArticles.length} accepted, ${rejectedArticles.length} rejected (${filteredArticles.length} total filtered)</p>
+            <p><strong>Results:</strong> ${acceptedArticles.length} accepted, ${rejectedArticles.length} rejected (${localFilteredArticles.length} total filtered)</p>
           </div>
           
           <h2>Accepted Articles (${acceptedArticles.length})</h2>
@@ -263,13 +270,18 @@ export function ResultsStep({
 
   const removeAppliedFeature = (featureId: string) => {
     setAppliedFeatures(prev => prev.filter(f => f.id !== featureId));
-    setExtractedFeatures(prev => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach(articleId => {
-        delete updated[articleId][featureId];
-      });
-      return updated;
-    });
+    // Remove the feature from all articles' extracted_features
+    setLocalFilteredArticles(prev => prev.map(item => ({
+      ...item,
+      article: {
+        ...item.article,
+        extracted_features: item.article.extracted_features 
+          ? Object.fromEntries(
+              Object.entries(item.article.extracted_features).filter(([key]) => key !== featureId)
+            )
+          : undefined
+      }
+    })));
   };
 
   const submitAllPendingFeatures = async () => {
@@ -301,27 +313,32 @@ export function ResultsStep({
         features: pendingFeatures
       });
 
-      // Process the response and update state
-      const newExtractedData: Record<string, Record<string, any>> = { ...extractedFeatures };
-      
-      // For each article, add the new extracted features
-      for (const article of acceptedArticles) {
-        const articleId = article.article.id; // Use the actual article ID
-        newExtractedData[articleId] = { ...newExtractedData[articleId] || {} };
+      // Update articles directly with extracted features
+      setLocalFilteredArticles(prev => prev.map(item => {
+        const articleId = item.article.id;
+        const newFeatures = response.results[articleId];
         
-        // Add the extracted features from the API response
-        if (response.results[articleId]) {
-          Object.assign(newExtractedData[articleId], response.results[articleId]);
+        if (newFeatures) {
+          return {
+            ...item,
+            article: {
+              ...item.article,
+              extracted_features: {
+                ...item.article.extracted_features,
+                ...newFeatures
+              }
+            }
+          };
         } else {
           console.warn(`No extraction results found for article: ${articleId}`);
+          return item;
         }
-      }
+      }));
 
       // Move pending features to applied features
       setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
       const extractedCount = pendingFeatures.length;
       setPendingFeatures([]);
-      setExtractedFeatures(newExtractedData);
 
       toast({
         title: 'Columns Applied Successfully!',
@@ -346,8 +363,7 @@ export function ResultsStep({
   };
 
   const renderFeatureValue = (article: FilteredArticle, feature: FeatureDefinition) => {
-    const articleId = article.article.id; // Use the actual article ID
-    const value = extractedFeatures[articleId]?.[feature.id];
+    const value = article.article.extracted_features?.[feature.id];
 
     if (value === undefined || value === null) {
       return <span className="text-gray-400 text-xs">-</span>;
@@ -398,7 +414,7 @@ export function ResultsStep({
                 onClick={exportToCSV}
                 variant="outline"
                 size="sm"
-                disabled={filteredArticles.length === 0}
+                disabled={localFilteredArticles.length === 0}
                 title="Export as CSV"
               >
                 <FileSpreadsheet className="w-4 h-4" />
@@ -416,7 +432,7 @@ export function ResultsStep({
                 onClick={exportToPDF}
                 variant="outline"
                 size="sm"
-                disabled={filteredArticles.length === 0}
+                disabled={localFilteredArticles.length === 0}
                 title="Export as PDF"
               >
                 <FileText className="w-4 h-4" />

@@ -17,11 +17,7 @@ from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, 
 from schemas.canonical_types import CanonicalPubMedArticle, CanonicalPubMedExtraction, CanonicalScoredArticle
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
-from services.pubmed_service import (
-    get_article_ids,
-    get_articles_from_ids, 
-    Article
-)
+from services.pubmed_service import PubMedService, Article
 from agents.prompts.base_prompt_caller import BasePromptCaller
 
 
@@ -142,47 +138,43 @@ async def handle_pubmed_search(input: ToolHandlerInput) -> ToolHandlerResult:
         if not query:
             raise ValueError("search_query is required")
         
-        # Use unified search function with optional date parameters
-        article_ids, total_count = get_article_ids(
-            search_term=query,
+        # Use the new PubMedService class
+        service = PubMedService()
+        canonical_research_articles, metadata = service.search_articles(
+            query=query,
             max_results=max_results,
+            offset=0,
             sort_by=sort_order,
             start_date=start_date,
             end_date=end_date
         )
         
-        # The function now returns a list of IDs and total count
-        total_found = total_count
+        total_found = metadata["total_results"]
+        print(f"Retrieved {len(canonical_research_articles)} article details from PubMed")
         
-        # Fetch full article details
-        articles_data = get_articles_from_ids(article_ids)
-        print(f"Retrieved {len(articles_data)} article details from PubMed")
-        
-        # Convert to canonical format
+        # Convert CanonicalResearchArticle back to CanonicalPubMedArticle for compatibility
         canonical_articles = []
-        for i, article in enumerate(articles_data):
+        for i, article in enumerate(canonical_research_articles):
             try:
-                print(f"Converting article {i+1}: PMID={getattr(article, 'PMID', 'N/A')}, title={getattr(article, 'title', 'N/A')[:50]}...")
+                # Extract PMID from the research article ID
+                pmid = article.id.replace('pmid:', '') if article.id.startswith('pmid:') else article.id
+                print(f"Converting article {i+1}: PMID={pmid}, title={article.title[:50]}...")
+                
                 canonical_article = CanonicalPubMedArticle(
-                    pmid=article.PMID,
+                    pmid=pmid,
                     title=article.title,
-                    abstract=article.abstract,
-                    authors=article.authors.split(', ') if article.authors else [],
-                    journal=article.journal,
-                    publication_date=f"{article.year}-{article.comp_date}" if article.year else None,
-                    keywords=[],  # Would need to extract from XML
-                    mesh_terms=[],  # Would need to extract from XML
-                    metadata={
-                        "volume": article.volume,
-                        "issue": article.issue,
-                        "pages": article.pages,
-                        "medium": article.medium
-                    }
+                    abstract=article.abstract or "",
+                    authors=article.authors,
+                    journal=article.journal or "",
+                    publication_date=article.publication_date,
+                    keywords=article.keywords,
+                    mesh_terms=article.mesh_terms,
+                    metadata=article.source_metadata or {}
                 )
                 canonical_articles.append(canonical_article)
                 print(f"Successfully converted article {i+1}")
             except Exception as e:
-                print(f"Error converting article {i+1} PMID={getattr(article, 'PMID', 'unknown')}: {e}")
+                print(f"Error converting article {i+1}: {e}")
                 continue
         
         print(f"Final canonical_articles count: {len(canonical_articles)}")

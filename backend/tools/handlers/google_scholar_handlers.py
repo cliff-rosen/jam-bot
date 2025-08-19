@@ -9,7 +9,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, ToolHandlerResult
-from services.google_scholar_service import get_google_scholar_service
+from services.google_scholar_service import GoogleScholarService
 from tools.tool_registry import register_tool_handler
 
 
@@ -46,7 +46,7 @@ async def handle_google_scholar_search(input: ToolHandlerInput) -> ToolHandlerRe
             api_key = input.resource_configs["serpapi"].get("api_key")
         
         # Get or create service instance
-        service = get_google_scholar_service(api_key)
+        service = GoogleScholarService(api_key)
         
         # Perform search
         articles, search_metadata = service.search_articles(

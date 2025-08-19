@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Sparkles } from 'lucide-react';
+import { Check, X, ExternalLink, Filter, FileSearch, Database, Copy, ChevronDown, ChevronRight, Grid, List, Eye, FileText, FileSpreadsheet, BookOpen, Plus, Sparkles, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 import type { FilteredArticle } from '@/types/smart-search';
@@ -62,6 +62,12 @@ export function ResultsStep({
     type: 'text'
   });
 
+  // Sorting and filtering state
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(false);
+
   // Use all articles for display (no client-side filtering)
   const acceptedArticles = localFilteredArticles.filter(fa => fa.passed);
   const rejectedArticles = localFilteredArticles.filter(fa => !fa.passed);
@@ -79,6 +85,72 @@ export function ResultsStep({
     return '';
   };
 
+  // Sorting and filtering functions
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getColumnValue = (article: FilteredArticle, column: string): any => {
+    switch (column) {
+      case 'title':
+        return article.article.title;
+      case 'authors':
+        return article.article.authors.join(', ');
+      case 'year':
+        return article.article.publication_year || 0;
+      case 'journal':
+        return article.article.journal || '';
+      case 'source':
+        return article.article.source;
+      case 'confidence':
+        return article.confidence;
+      default:
+        // Custom feature column
+        const feature = appliedFeatures.find(f => f.id === column);
+        if (feature && article.article.extracted_features && article.article.extracted_features[column]) {
+          return article.article.extracted_features[column];
+        }
+        return '';
+    }
+  };
+
+  const sortedAndFilteredArticles = acceptedArticles
+    .filter(article => {
+      // Apply column filters
+      return Object.entries(columnFilters).every(([column, filterValue]) => {
+        if (!filterValue.trim()) return true;
+        const columnValue = getColumnValue(article, column);
+        return String(columnValue).toLowerCase().includes(filterValue.toLowerCase());
+      });
+    })
+    .sort((a, b) => {
+      if (!sortColumn) return 0;
+      
+      const aValue = getColumnValue(a, sortColumn);
+      const bValue = getColumnValue(b, sortColumn);
+      
+      let comparison = 0;
+      if (aValue < bValue) comparison = -1;
+      if (aValue > bValue) comparison = 1;
+      
+      return sortDirection === 'desc' ? -comparison : comparison;
+    });
+
+  const updateColumnFilter = (column: string, value: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: value
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setColumnFilters({});
+  };
 
   const exportToCSV = () => {
     const csvContent = [
@@ -545,7 +617,11 @@ export function ResultsStep({
           <div className={`flex items-center justify-between mb-4 ${displayMode === 'table' ? 'p-6 bg-white dark:bg-gray-800 rounded-t-lg border border-gray-200 dark:border-gray-600' : 'p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600'}`}>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
               <Check className="w-5 h-5 text-green-600 mr-2" />
-              Accepted Articles ({acceptedArticles.length})
+              Accepted Articles ({
+                displayMode === 'table' && Object.keys(columnFilters).some(key => columnFilters[key])
+                  ? `${sortedAndFilteredArticles.length} of ${acceptedArticles.length}`
+                  : acceptedArticles.length
+              })
             </h3>
 
             <div className="flex items-center gap-2">
@@ -579,6 +655,19 @@ export function ResultsStep({
                   <Grid className="w-4 h-4" />
                 </Button>
               </div>
+              
+              {/* Filter Toggle - only show for table view */}
+              {displayMode === 'table' && (
+                <Button
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant={showFilters ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Filter className="w-4 h-4" />
+                  Filters
+                </Button>
+              )}
               
               <Button
                 onClick={() => {
@@ -927,23 +1016,106 @@ export function ResultsStep({
             </div>
           )}
 
+          {/* Filter Panel - only show for table view */}
+          {displayMode === 'table' && showFilters && (
+            <div className="mb-0 p-4 bg-gray-50 dark:bg-gray-700 border-x border-gray-200 dark:border-gray-600 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Column Filters</h4>
+                <Button
+                  onClick={clearAllFilters}
+                  size="sm"
+                  variant="ghost"
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  Clear All
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {[
+                  { key: 'title', label: 'Title' },
+                  { key: 'authors', label: 'Authors' },
+                  { key: 'year', label: 'Year' },
+                  { key: 'journal', label: 'Journal' },
+                  { key: 'source', label: 'Source' },
+                  { key: 'confidence', label: 'Confidence' },
+                  ...appliedFeatures.map(f => ({ key: f.id, label: f.name }))
+                ].map(({ key, label }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs text-gray-600 dark:text-gray-300">{label}</Label>
+                    <Input
+                      placeholder={`Filter ${label.toLowerCase()}...`}
+                      value={columnFilters[key] || ''}
+                      onChange={(e) => updateColumnFilter(key, e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              {Object.keys(columnFilters).some(key => columnFilters[key]) && (
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Showing {sortedAndFilteredArticles.length} of {acceptedArticles.length} articles
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Table View */}
           {displayMode === 'table' && (
             <div className="w-full border border-gray-200 dark:border-gray-600 border-t-0 rounded-b-lg bg-white dark:bg-gray-800 overflow-x-auto">
               <table className="w-full text-sm table-auto">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-600">
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Title</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Authors</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Year</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Journal</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Source</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Confidence</th>
-                      <th className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">Link</th>
+                      {[
+                        { key: 'title', label: 'Title', sortable: true },
+                        { key: 'authors', label: 'Authors', sortable: true },
+                        { key: 'year', label: 'Year', sortable: true },
+                        { key: 'journal', label: 'Journal', sortable: true },
+                        { key: 'source', label: 'Source', sortable: true },
+                        { key: 'confidence', label: 'Confidence', sortable: true },
+                        { key: 'link', label: 'Link', sortable: false }
+                      ].map(({ key, label, sortable }) => (
+                        <th key={key} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
+                          {sortable ? (
+                            <button
+                              onClick={() => handleSort(key)}
+                              className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                            >
+                              <span>{label}</span>
+                              {sortColumn === key ? (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </button>
+                          ) : (
+                            <span>{label}</span>
+                          )}
+                        </th>
+                      ))}
                       {appliedFeatures.map(feature => (
                         <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
                           <div className="flex items-center justify-between">
-                            <span>{feature.name}</span>
+                            <button
+                              onClick={() => handleSort(feature.id)}
+                              className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                            >
+                              <span>{feature.name}</span>
+                              {sortColumn === feature.id ? (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -958,7 +1130,7 @@ export function ResultsStep({
                     </tr>
                   </thead>
                   <tbody>
-                    {acceptedArticles.map((item, idx) => (
+                    {sortedAndFilteredArticles.map((item, idx) => (
                       <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="p-2">
                           <div className="font-medium text-gray-900 dark:text-gray-100">

@@ -196,12 +196,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         
         // Restore AI-generated versions
         setGeneratedEvidenceSpec(session.refined_question || '');
-        setGeneratedSearchKeywords(session.generated_search_query || '');
+        setGeneratedSearchKeywords(session.generated_search_keywords || '');
         setGeneratedDiscriminator(session.generated_discriminator || '');
         
         // Restore user-submitted versions
         setSubmittedEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
-        setSubmittedSearchKeywords(session.submitted_search_query || session.generated_search_query || '');
+        setSubmittedSearchKeywords(session.submitted_search_keywords || session.generated_search_keywords || '');
         setSubmittedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
         
         // Restore additional component state based on available data
@@ -219,7 +219,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         // Always create search keywords response object if we're at or past search query step
         if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
           setSearchKeywordsResponse({
-            search_query: session.generated_search_query || '',
+            search_keywords: session.generated_search_keywords || '',
             evidence_specification: session.submitted_refined_question || session.refined_question || '',
             session_id: session.id
           });
@@ -252,7 +252,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           setDiscriminatorResponse({
             discriminator_prompt: session.generated_discriminator || '',
             evidence_specification: session.submitted_refined_question || session.refined_question || '',
-            search_query: session.submitted_search_query || session.generated_search_query || '',
+            search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
             strictness: session.filter_strictness || 'medium',
             session_id: session.id
           });
@@ -449,8 +449,8 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       });
       
       setSearchKeywordsResponse(response);
-      setGeneratedSearchKeywords(response.search_query);
-      setSubmittedSearchKeywords(response.search_query); // Initially same as generated
+      setGeneratedSearchKeywords(response.search_keywords);
+      setSubmittedSearchKeywords(response.search_keywords); // Initially same as generated
       
       return response;
     } catch (err) {
@@ -482,7 +482,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     
     try {
       const response = await smartSearchApi.testKeywordsCount({
-        search_query: keywordsToTest,
+        search_keywords: keywordsToTest,
         session_id: sessionId,
         selected_sources: [selectedSource]
       });
@@ -515,7 +515,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     
     try {
       const response = await smartSearchApi.generateOptimizedKeywords({
-        current_query: submittedSearchKeywords,
+        current_keywords: submittedSearchKeywords,
         evidence_specification: specToUse,
         target_max_results: 250,
         session_id: sessionId,
@@ -545,7 +545,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     try {
       const batchSize = maxResults || (selectedSource === 'google_scholar' ? 20 : 50);
       const results = await smartSearchApi.executeSearch({
-        search_query: submittedSearchKeywords,
+        search_keywords: submittedSearchKeywords,
         max_results: batchSize,
         offset: offset,
         session_id: sessionId,
@@ -599,7 +599,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     try {
       const response = await smartSearchApi.generateDiscriminator({
         evidence_specification: submittedEvidenceSpec,
-        search_query: submittedSearchKeywords,
+        search_keywords: submittedSearchKeywords,
         strictness: strictness,
         session_id: sessionId
       });

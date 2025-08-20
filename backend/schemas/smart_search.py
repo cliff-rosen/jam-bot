@@ -43,11 +43,11 @@ class SearchServiceResult(BaseModel):
     sources_searched: List[str]
 
 
-class OptimizedQueryResult(BaseModel):
-    """Result from generate_optimized_search_query service method"""
-    initial_query: str
+class OptimizedKeywordsResult(BaseModel):
+    """Result from generate_optimized_search_keywords service method"""
+    initial_keywords: str  # was: initial_query
     initial_count: int
-    final_query: str
+    final_keywords: str    # was: final_query
     final_count: int
     refinement_description: str
     status: str  # 'optimal' | 'refined' | 'manual_needed'

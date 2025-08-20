@@ -54,54 +54,54 @@ class EvidenceSpecificationResponse(BaseModel):
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-# Step 2: Generate Keywords
-class KeywordGenerationRequest(BaseModel):
+# Step 2: Generate Search Keywords
+class SearchKeywordsRequest(BaseModel):
     """Request to generate search keywords from evidence specification"""
     evidence_specification: str = Field(..., description="Evidence specification to convert to search terms")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(..., description="List of sources to search (e.g., ['pubmed', 'google_scholar'])")
 
 
-class KeywordGenerationResponse(BaseModel):
-    """Response from search keyword generation"""
+class SearchKeywordsResponse(BaseModel):
+    """Response from search keywords generation"""
     evidence_specification: str = Field(..., description="The evidence specification used")
-    search_query: str = Field(..., description="Boolean search query for databases")
+    search_keywords: str = Field(..., description="Boolean search keywords for databases")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-# Step 3: Test Query Count
-class QueryCountRequest(BaseModel):
-    """Request to test search query result count"""
-    search_query: str = Field(..., description="Boolean search query to test")
+# Step 3: Test Keywords Count
+class KeywordsCountRequest(BaseModel):
+    """Request to test search keywords result count"""
+    search_keywords: str = Field(..., description="Boolean search keywords to test")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(..., description="List of sources to search")
 
 
-class QueryCountResponse(BaseModel):
-    """Response with search result count"""
-    search_query: str = Field(..., description="The tested search query")
+class KeywordsCountResponse(BaseModel):
+    """Response with search keywords count"""
+    search_keywords: str = Field(..., description="The tested search keywords")
     total_count: int = Field(..., description="Total number of results found")
     sources_searched: List[str] = Field(..., description="List of sources that were searched")
     session_id: str = Field(..., description="Session ID for tracking")
 
 
-# Step 4: Generate Optimized Query
-class OptimizedQueryRequest(BaseModel):
-    """Request to generate optimized search query with volume control"""
-    current_query: str = Field(..., description="Current search query to refine")
+# Step 4: Generate Optimized Keywords
+class OptimizedKeywordsRequest(BaseModel):
+    """Request to generate optimized search keywords with volume control"""
+    current_keywords: str = Field(..., description="Current search keywords to refine")
     evidence_specification: str = Field(..., description="Evidence specification for context")
     target_max_results: int = Field(250, description="Target maximum number of results")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(..., description="Sources to search")
 
 
-class OptimizedQueryResponse(BaseModel):
-    """Response from optimized query generation"""
+class OptimizedKeywordsResponse(BaseModel):
+    """Response from optimized keywords generation"""
     evidence_specification: str = Field(..., description="The evidence specification used")
-    initial_query: str = Field(..., description="Initial broad search query")
-    initial_count: int = Field(..., description="Result count for initial query")
-    final_query: str = Field(..., description="Final optimized search query")
-    final_count: int = Field(..., description="Result count for final query")
+    initial_keywords: str = Field(..., description="Initial broad search keywords")
+    initial_count: int = Field(..., description="Result count for initial keywords")
+    final_keywords: str = Field(..., description="Final optimized search keywords")
+    final_count: int = Field(..., description="Result count for final keywords")
     refinement_applied: str = Field(..., description="Description of refinements made")
     refinement_status: str = Field(..., description="Status: 'optimal', 'refined', or 'manual_needed'")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -110,7 +110,7 @@ class OptimizedQueryResponse(BaseModel):
 # Step 5: Execute Search
 class SearchExecutionRequest(BaseModel):
     """Request to execute article search"""
-    search_query: str = Field(..., description="Boolean search query")
+    search_keywords: str = Field(..., description="Boolean search keywords")
     max_results: int = Field(50, description="Maximum results to return")
     offset: int = Field(0, description="Number of results to skip for pagination")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -129,7 +129,7 @@ class SearchExecutionResponse(BaseModel):
 class DiscriminatorGenerationRequest(BaseModel):
     """Request to generate semantic discriminator"""
     evidence_specification: str = Field(..., description="Evidence specification for context")
-    search_query: str = Field(..., description="Search query used")
+    search_keywords: str = Field(..., description="Search keywords used")
     strictness: str = Field("medium", description="Filtering strictness: low, medium, or high")
     session_id: str = Field(..., description="Session ID for tracking")
 
@@ -137,7 +137,7 @@ class DiscriminatorGenerationRequest(BaseModel):
 class DiscriminatorGenerationResponse(BaseModel):
     """Response from discriminator generation"""
     evidence_specification: str = Field(..., description="The evidence specification used")
-    search_query: str = Field(..., description="The search query used")
+    search_keywords: str = Field(..., description="The search keywords used")
     strictness: str = Field(..., description="The strictness level used")
     discriminator_prompt: str = Field(..., description="Generated discriminator prompt")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -148,7 +148,7 @@ class ArticleFilterRequest(BaseModel):
     """Request for article filtering (both selected and all modes)"""
     filter_mode: str = Field(..., description="'selected' or 'all'")
     evidence_specification: str = Field(..., description="Evidence specification for filtering")
-    search_query: str = Field(..., description="Search query for context")
+    search_keywords: str = Field(..., description="Search keywords for context")
     strictness: str = Field("medium", description="Filtering strictness")
     discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
     session_id: str = Field(..., description="Session ID for tracking")
@@ -212,11 +212,11 @@ async def create_evidence_specification(
         evidence_spec, usage = await service.create_evidence_specification(request.query)
         
         # Update session with evidence specification results
-        session_service.update_refinement_step(
+        session_service.update_evidence_spec_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            refined_question=evidence_spec,
-            submitted_refined_question=None,  # Will be set when user actually submits in next step
+            generated_evidence_spec=evidence_spec,
+            submitted_evidence_spec=None,  # Will be set when user actually submits in next step
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
             total_tokens=usage.total_tokens
@@ -236,12 +236,12 @@ async def create_evidence_specification(
         raise HTTPException(status_code=500, detail=f"Evidence specification failed: {str(e)}")
 
 
-@router.post("/generate-keywords", response_model=KeywordGenerationResponse)
+@router.post("/generate-search-keywords", response_model=SearchKeywordsResponse)
 async def generate_keywords(
-    request: KeywordGenerationRequest,
+    request: SearchKeywordsRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> KeywordGenerationResponse:
+) -> SearchKeywordsResponse:
     """
     Step 3: Generate search keywords from evidence specification
     """
@@ -258,7 +258,7 @@ async def generate_keywords(
         
         # Generate search keywords
         service = SmartSearchService()
-        search_query, usage = await service.generate_search_keywords(
+        search_keywords, usage = await service.generate_search_keywords(
             request.evidence_specification,
             selected_sources=request.selected_sources
         )
@@ -268,20 +268,20 @@ async def generate_keywords(
         db.commit()
         
         # Update session - this is when user actually submits their evidence specification
-        session_service.update_search_query_step(
+        session_service.update_search_keywords_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            generated_search_query=search_query,
-            submitted_search_query=None,  # Will be set when user actually executes search
-            submitted_refined_question=request.evidence_specification,  # What user actually submitted
+            generated_search_keywords=search_keywords,
+            submitted_search_keywords=None,  # Will be set when user actually executes search
+            submitted_evidence_spec=request.evidence_specification,  # What user actually submitted
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
             total_tokens=usage.total_tokens
         )
         
-        response = KeywordGenerationResponse(
+        response = SearchKeywordsResponse(
             evidence_specification=request.evidence_specification,
-            search_query=search_query,
+            search_keywords=search_keywords,
             session_id=session.id
         )
         
@@ -293,17 +293,17 @@ async def generate_keywords(
         raise HTTPException(status_code=500, detail=f"Search query generation failed: {str(e)}")
 
 
-@router.post("/test-query-count", response_model=QueryCountResponse)
-async def test_query_count(
-    request: QueryCountRequest,
+@router.post("/test-keywords-count", response_model=KeywordsCountResponse)
+async def test_keywords_count(
+    request: KeywordsCountRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> QueryCountResponse:
+) -> KeywordsCountResponse:
     """
-    Test search query to get result count without retrieving articles
+    Test search keywords to get result count without retrieving articles
     """
     try:
-        logger.info(f"User {current_user.user_id} testing query count: {request.search_query[:100]}...")
+        logger.info(f"User {current_user.user_id} testing keywords count: {request.search_keywords[:100]}...")
         
         # Create session service
         session_service = SmartSearchSessionService(db)
@@ -316,18 +316,18 @@ async def test_query_count(
         # Get search count
         service = SmartSearchService()
         total_count, sources_searched = await service.get_search_count(
-            request.search_query,
+            request.search_keywords,
             selected_sources=request.selected_sources
         )
         
-        response = QueryCountResponse(
-            search_query=request.search_query,
+        response = KeywordsCountResponse(
+            search_keywords=request.search_keywords,
             total_count=total_count,
             sources_searched=sources_searched,
             session_id=session.id
         )
         
-        logger.info(f"Query count test completed: {total_count} results")
+        logger.info(f"Keywords count test completed: {total_count} results")
         return response
         
     except Exception as e:
@@ -335,12 +335,12 @@ async def test_query_count(
         raise HTTPException(status_code=500, detail=f"Query count test failed: {str(e)}")
 
 
-@router.post("/generate-optimized-query", response_model=OptimizedQueryResponse)
-async def generate_optimized_query(
-    request: OptimizedQueryRequest,
+@router.post("/generate-optimized-keywords", response_model=OptimizedKeywordsResponse)
+async def generate_optimized_keywords(
+    request: OptimizedKeywordsRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-) -> OptimizedQueryResponse:
+) -> OptimizedKeywordsResponse:
     """
     Generate optimized search query with volume control
     """
@@ -355,44 +355,44 @@ async def generate_optimized_query(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Generate optimized query
+        # Generate optimized keywords
         service = SmartSearchService()
         result = await service.generate_optimized_search_query(
-            request.current_query,
+            request.current_keywords,
             request.evidence_specification, 
             request.target_max_results,
             request.selected_sources
         )
         
-        # Update session with optimized search query
-        session_service.update_search_query_step(
+        # Update session with optimized search keywords
+        session_service.update_search_keywords_step(
             session_id=session.id,
             user_id=current_user.user_id,
-            generated_search_query=result.final_query,
-            submitted_search_query=None,
-            submitted_refined_question=request.evidence_specification,
+            generated_search_keywords=result.final_keywords,
+            submitted_search_keywords=None,
+            submitted_evidence_spec=request.evidence_specification,
             prompt_tokens=0,  # Optimization doesn't use LLM tokens
             completion_tokens=0,
             total_tokens=0
         )
         
-        response = OptimizedQueryResponse(
+        response = OptimizedKeywordsResponse(
             evidence_specification=request.evidence_specification,
-            initial_query=result.initial_query,
+            initial_keywords=result.initial_keywords,
             initial_count=result.initial_count,
-            final_query=result.final_query,
+            final_keywords=result.final_keywords,
             final_count=result.final_count,
             refinement_applied=result.refinement_description,
             refinement_status=result.status,
             session_id=session.id
         )
         
-        logger.info(f"Optimized query generation completed: {result.final_count} results, status: {result.status}")
+        logger.info(f"Optimized keywords generation completed: {result.final_count} results, status: {result.status}")
         return response
         
     except Exception as e:
-        logger.error(f"Optimized query generation failed for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Optimized query generation failed: {str(e)}")
+        logger.error(f"Optimized keywords generation failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimized keywords generation failed: {str(e)}")
 
 
 @router.post("/execute", response_model=SearchExecutionResponse)
@@ -405,7 +405,7 @@ async def execute_search(
     Step 4: Execute search with boolean query
     """
     try:
-        logger.info(f"User {current_user.user_id} executing search with query: {request.search_query[:100]}...")
+        logger.info(f"User {current_user.user_id} executing search with keywords: {request.search_keywords[:100]}...")
         
         # Create session service
         session_service = SmartSearchSessionService(db)
@@ -418,7 +418,7 @@ async def execute_search(
         # Execute search
         service = SmartSearchService()
         result = await service.search_articles(
-            search_query=request.search_query,
+            search_query=request.search_keywords,
             max_results=request.max_results,
             offset=request.offset,
             selected_sources=request.selected_sources
@@ -433,7 +433,7 @@ async def execute_search(
             returned=result.pagination.returned,
             sources=result.sources_searched,
             is_pagination_load=is_pagination_load,
-            submitted_search_query=request.search_query
+            submitted_search_query=request.search_keywords
         )
         
         logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {result.pagination.returned} articles found, {result.pagination.total_available} total available")
@@ -473,7 +473,7 @@ async def generate_discriminator(
         service = SmartSearchService()
         discriminator_prompt = await service.generate_semantic_discriminator(
             refined_question=request.evidence_specification,
-            search_query=request.search_query,
+            search_query=request.search_keywords,
             strictness=request.strictness
         )
         
@@ -488,7 +488,7 @@ async def generate_discriminator(
         
         response = DiscriminatorGenerationResponse(
             evidence_specification=request.evidence_specification,
-            search_query=request.search_query,
+            search_keywords=request.search_keywords,
             strictness=request.strictness,
             discriminator_prompt=discriminator_prompt,
             session_id=session.id
@@ -537,7 +537,7 @@ async def filter_articles(
             max_results = request.max_results or 500
             logger.info(f"Executing full search with max_results={max_results}")
             search_results = await service.search_articles(
-                search_query=request.search_query,
+                search_query=request.search_keywords,
                 max_results=max_results,
                 offset=0,
                 selected_sources=request.selected_sources
@@ -553,7 +553,7 @@ async def filter_articles(
                 returned=len(articles_to_filter),
                 sources=search_results.sources_searched,
                 is_pagination_load=False,
-                submitted_search_query=request.search_query
+                submitted_search_query=request.search_keywords
             )
         else:
             raise HTTPException(status_code=400, detail="Invalid filter_mode. Must be 'selected' or 'all'")
@@ -570,7 +570,7 @@ async def filter_articles(
         filtered_articles, token_usage = await service.filter_articles_parallel(
             articles=articles_to_filter,
             refined_question=request.evidence_specification,
-            search_query=request.search_query,
+            search_query=request.search_keywords,
             strictness=request.strictness,
             custom_discriminator=request.discriminator_prompt
         )

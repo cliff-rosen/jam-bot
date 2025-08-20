@@ -20,7 +20,8 @@
       "Bash(curl:*)",
       "Bash(mkdir:*)",
       "Bash(/dev/null)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(tsc --noEmit)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

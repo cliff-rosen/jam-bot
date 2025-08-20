@@ -16,7 +16,7 @@ from schemas.smart_search import (
     SearchPaginationInfo,
     FilteredArticle,
     SearchServiceResult,
-    OptimizedQueryResult
+    OptimizedKeywordsResult
 )
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.chat import ChatMessage, MessageRole
@@ -464,7 +464,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 fallback_query = f"({current_query}) AND (study OR research OR analysis)"
                 return fallback_query, "Added research focus (exception fallback)"
     
-    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> OptimizedQueryResult:
+    async def generate_optimized_search_query(self, current_query: str, evidence_spec: str, target_max: int = 250, selected_sources: Optional[List[str]] = None) -> OptimizedKeywordsResult:
         """
         Generate an optimized search query by adding refinements to the current query
         Returns: (initial_query, initial_count, final_query, final_count, refinement_description, status)
@@ -496,7 +496,7 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             refinement_description += f" (Still {final_count} results - manual refinement may be needed)"
         
         logger.info(f"Optimized query: {final_count} results, status: {status}")
-        return OptimizedQueryResult(
+        return OptimizedKeywordsResult(
             initial_query=initial_query,
             initial_count=initial_count,
             final_query=final_query,

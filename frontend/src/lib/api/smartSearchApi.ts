@@ -38,20 +38,20 @@ export interface SearchKeywordsRequest {
 
 export interface SearchKeywordsResponse {
   evidence_specification: string;
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   session_id: string;
 }
 
 
 // Step 3: Test Keywords Count
 export interface KeywordsCountRequest {
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   session_id: string;
   selected_sources: string[];
 }
 
 export interface KeywordsCountResponse {
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   total_count: number;
   sources_searched: string[];
   session_id: string;
@@ -60,7 +60,7 @@ export interface KeywordsCountResponse {
 
 // Step 4: Generate Optimized Keywords
 export interface OptimizedKeywordsRequest {
-  current_query: string;  // TODO: rename to current_keywords when backend is updated
+  current_keywords: string;
   evidence_specification: string;
   target_max_results?: number;
   session_id: string;
@@ -69,9 +69,9 @@ export interface OptimizedKeywordsRequest {
 
 export interface OptimizedKeywordsResponse {
   evidence_specification: string;
-  initial_query: string;  // TODO: rename to initial_keywords when backend is updated
+  initial_keywords: string;
   initial_count: number;
-  final_query: string;    // TODO: rename to final_keywords when backend is updated
+  final_keywords: string;
   final_count: number;
   refinement_applied: string;
   refinement_status: 'optimal' | 'refined' | 'manual_needed';
@@ -81,7 +81,7 @@ export interface OptimizedKeywordsResponse {
 
 // Step 5: Execute Search
 export interface SearchExecutionRequest {
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   max_results?: number;
   offset?: number;
   session_id: string;
@@ -103,14 +103,14 @@ export interface SearchExecutionResponse {
 // Step 6: Generate Discriminator
 export interface DiscriminatorGenerationRequest {
   evidence_specification: string;
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   strictness: 'low' | 'medium' | 'high';
   session_id: string;
 }
 
 export interface DiscriminatorGenerationResponse {
   evidence_specification: string;
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   strictness: string;
   discriminator_prompt: string;
   session_id: string;
@@ -120,7 +120,7 @@ export interface DiscriminatorGenerationResponse {
 export interface ArticleFilterRequest {
   filter_mode: 'selected' | 'all';
   evidence_specification: string;
-  search_query: string;  // TODO: rename to search_keywords when backend is updated
+  search_keywords: string;
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
   session_id: string;
@@ -178,7 +178,7 @@ class SmartSearchApi {
    * Step 2: Generate search keywords from evidence specification
    */
   async generateSearchKeywords(request: SearchKeywordsRequest): Promise<SearchKeywordsResponse> {
-    const response = await api.post('/api/lab/smart-search/generate-keywords', request);
+    const response = await api.post('/api/lab/smart-search/generate-search-keywords', request);
     return response.data;
   }
 
@@ -186,7 +186,7 @@ class SmartSearchApi {
    * Step 3: Test search query to get result count without retrieving articles
    */
   async testKeywordsCount(request: KeywordsCountRequest): Promise<KeywordsCountResponse> {
-    const response = await api.post('/api/lab/smart-search/test-query-count', request);
+    const response = await api.post('/api/lab/smart-search/test-keywords-count', request);
     return response.data;
   }
 
@@ -194,7 +194,7 @@ class SmartSearchApi {
    * Step 4: Generate optimized search query with volume control
    */
   async generateOptimizedKeywords(request: OptimizedKeywordsRequest): Promise<OptimizedKeywordsResponse> {
-    const response = await api.post('/api/lab/smart-search/generate-optimized-query', request);
+    const response = await api.post('/api/lab/smart-search/generate-optimized-keywords', request);
     return response.data;
   }
 

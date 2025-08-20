@@ -62,7 +62,7 @@ export default function SmartSearchLab() {
 
       // Automatically test the generated query count
       try {
-        const countResult = await smartSearch.testKeywordsCount(response.search_query);
+        const countResult = await smartSearch.testKeywordsCount(response.search_keywords);
         smartSearch.updateStep('search-query');
 
         if (countResult.total_count > 250) {
@@ -146,7 +146,7 @@ export default function SmartSearchLab() {
     const request = {
       filter_mode: 'all' as const,
       evidence_specification: smartSearch.submittedEvidenceSpec,
-      search_query: smartSearch.submittedSearchKeywords,
+      search_keywords: smartSearch.submittedSearchKeywords,
       strictness: smartSearch.strictness,
       discriminator_prompt: smartSearch.submittedDiscriminator,
       session_id: smartSearch.sessionId,

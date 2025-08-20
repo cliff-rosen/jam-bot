@@ -69,18 +69,18 @@ class SmartSearchSessionService:
         # Create new session if none found or no session_id provided
         return self.create_session(user_id, original_question)
     
-    def update_refinement_step(self, session_id: str, user_id: str, 
-                              refined_question: str, submitted_refined_question: str = None,
-                              prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
-        """Update session with question refinement data"""
+    def update_evidence_spec_step(self, session_id: str, user_id: str, 
+                                 generated_evidence_spec: str, submitted_evidence_spec: str = None,
+                                 prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
+        """Update session with evidence specification data"""
         try:
             session = self.get_session(session_id, user_id)
             if not session:
                 raise ValueError(f"Session {session_id} not found")
             
-            session.refined_question = refined_question
-            if submitted_refined_question is not None:
-                session.submitted_refined_question = submitted_refined_question
+            session.refined_question = generated_evidence_spec  # DB field: refined_question = generated evidence spec
+            if submitted_evidence_spec is not None:
+                session.submitted_refined_question = submitted_evidence_spec  # DB field: submitted_refined_question = submitted evidence spec
             session.last_step_completed = "question_refinement"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -90,29 +90,29 @@ class SmartSearchSessionService:
             session.total_tokens = (session.total_tokens or 0) + total_tokens
             
             self.db.commit()
-            logger.info(f"Updated refinement step for session {session_id}")
+            logger.info(f"Updated evidence specification step for session {session_id}")
             return session
             
         except Exception as e:
-            logger.error(f"Failed to update refinement step for session {session_id}: {e}")
+            logger.error(f"Failed to update evidence specification step for session {session_id}: {e}")
             self.db.rollback()
             raise
     
-    def update_search_query_step(self, session_id: str, user_id: str,
-                                 generated_search_query: str, submitted_search_query: str = None,
-                                 submitted_refined_question: str = None,
-                                 prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
-        """Update session with search query generation data"""
+    def update_search_keywords_step(self, session_id: str, user_id: str,
+                                   generated_search_keywords: str, submitted_search_keywords: str = None,
+                                   submitted_evidence_spec: str = None,
+                                   prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> SmartSearchSession:
+        """Update session with search keywords generation data"""
         try:
             session = self.get_session(session_id, user_id)
             if not session:
                 raise ValueError(f"Session {session_id} not found")
             
-            session.generated_search_query = generated_search_query
-            if submitted_search_query is not None:
-                session.submitted_search_query = submitted_search_query
-            if submitted_refined_question is not None:
-                session.submitted_refined_question = submitted_refined_question
+            session.generated_search_query = generated_search_keywords  # DB field: generated_search_query = generated keywords
+            if submitted_search_keywords is not None:
+                session.submitted_search_query = submitted_search_keywords  # DB field: submitted_search_query = submitted keywords
+            if submitted_evidence_spec is not None:
+                session.submitted_refined_question = submitted_evidence_spec  # DB field: submitted_refined_question = submitted evidence spec
             session.last_step_completed = "search_query_generation"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -122,11 +122,11 @@ class SmartSearchSessionService:
             session.total_tokens = (session.total_tokens or 0) + total_tokens
             
             self.db.commit()
-            logger.info(f"Updated search query step for session {session_id}")
+            logger.info(f"Updated search keywords step for session {session_id}")
             return session
             
         except Exception as e:
-            logger.error(f"Failed to update search query step for session {session_id}: {e}")
+            logger.error(f"Failed to update search keywords step for session {session_id}: {e}")
             self.db.rollback()
             raise
     

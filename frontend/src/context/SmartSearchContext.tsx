@@ -14,7 +14,7 @@ import type {
 } from '@/types/smart-search';
 import type {
   EvidenceSpecificationResponse,
-  KeywordGenerationResponse,
+  SearchKeywordsResponse,
   SearchExecutionResponse,
   DiscriminatorGenerationResponse,
   FeatureExtractionResponse
@@ -31,20 +31,29 @@ interface SmartSearchState {
   step: SmartSearchStep;
   sessionId: string | null;
   
-  // STEP DATA
-  query: string;
-  evidenceSpec: string;
-  editedSearchQuery: string;
-  editedDiscriminator: string;
+  // USER INPUT
+  originalQuestion: string;                                      // User's original research question
+  
+  // AI-GENERATED VERSIONS
+  generatedEvidenceSpec: string;                                // AI-generated evidence specification
+  generatedSearchKeywords: string;                              // AI-generated boolean search query
+  generatedDiscriminator: string;                               // AI-generated semantic filter criteria
+  
+  // USER-SUBMITTED VERSIONS
+  submittedEvidenceSpec: string;                                // User's final evidence specification
+  submittedSearchKeywords: string;                              // User's final search keywords
+  submittedDiscriminator: string;                               // User's final discriminator
+  
+  // CONFIGURATION
   strictness: 'low' | 'medium' | 'high';
   selectedSource: string;
   
-  // STEP RESPONSES
-  refinement: EvidenceSpecificationResponse | null;
-  searchQueryGeneration: KeywordGenerationResponse | null;
-  initialQueryCount: { total_count: number; sources_searched: string[] } | null;
+  // API RESPONSE OBJECTS
+  evidenceSpecResponse: EvidenceSpecificationResponse | null;    // Full AI response for evidence spec
+  searchKeywordsResponse: SearchKeywordsResponse | null;         // Full AI response for keywords
+  discriminatorResponse: DiscriminatorGenerationResponse | null; // Full AI response for discriminator
+  keywordsCountResult: { total_count: number; sources_searched: string[] } | null;
   searchResults: SearchExecutionResponse | null;
-  discriminatorData: DiscriminatorGenerationResponse | null;
   
   // RESULTS DATA
   filteredArticles: FilteredArticle[];
@@ -52,10 +61,10 @@ interface SmartSearchState {
   savedCustomColumns: any[];
   
   // LOADING STATES
-  queryLoading: boolean;
-  searchQueryLoading: boolean;
-  searchLoading: boolean;
-  discriminatorLoading: boolean;
+  evidenceSpecLoading: boolean;             // Loading AI evidence specification
+  searchKeywordsLoading: boolean;           // Loading AI search keywords
+  searchExecutionLoading: boolean;          // Loading search results
+  discriminatorLoading: boolean;            // Loading AI discriminator
   
   // ERROR STATE
   error: string | null;
@@ -71,25 +80,25 @@ interface SmartSearchActions {
   resetAllState: () => void;
   
   // STEP 1: Evidence Specification
-  createEvidenceSpecification: () => Promise<EvidenceSpecificationResponse>;
-  updateQuery: (query: string) => void;
+  generateEvidenceSpecification: () => Promise<EvidenceSpecificationResponse>;
+  updateOriginalQuestion: (question: string) => void;
+  updateSubmittedEvidenceSpec: (spec: string) => void;
   
-  // STEP 2: Search Query Generation
-  generateSearchKeywords: (source?: string) => Promise<KeywordGenerationResponse>;
-  updateEvidenceSpec: (spec: string) => void;
+  // STEP 2: Search Keyword Generation  
+  generateSearchKeywords: (source?: string) => Promise<SearchKeywordsResponse>;
+  updateSubmittedSearchKeywords: (keywords: string) => void;
   updateSelectedSource: (source: string) => void;
   
   // STEP 3: Query Testing and Optimization
-  testQueryCount: (queryOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
-  generateOptimizedQuery: (evidenceSpecOverride?: string) => Promise<any>;
-  updateEditedSearchQuery: (query: string) => void;
+  testKeywordsCount: (keywordsOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
+  generateOptimizedKeywords: (evidenceSpecOverride?: string) => Promise<any>;
   
   // STEP 4: Search Execution
   executeSearch: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
   
   // STEP 5: Discriminator Generation
   generateDiscriminator: () => Promise<DiscriminatorGenerationResponse>;
-  updateEditedDiscriminator: (discriminator: string) => void;
+  updateSubmittedDiscriminator: (discriminator: string) => void;
   updateStrictness: (strictness: 'low' | 'medium' | 'high') => void;
   
   // STEP 6: Filtering
@@ -126,22 +135,31 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [step, setStep] = useState<SmartSearchStep>('query');
   const [sessionId, setSessionId] = useState<string | null>(null);
   
-  // Step data
-  const [query, setQuery] = useState('');
-  const [evidenceSpec, setEvidenceSpec] = useState('');
-  const [editedSearchQuery, setEditedSearchQuery] = useState('');
-  const [editedDiscriminator, setEditedDiscriminator] = useState('');
+  // User input
+  const [originalQuestion, setOriginalQuestion] = useState('');
+  
+  // AI-generated versions
+  const [generatedEvidenceSpec, setGeneratedEvidenceSpec] = useState('');
+  const [generatedSearchKeywords, setGeneratedSearchKeywords] = useState('');
+  const [generatedDiscriminator, setGeneratedDiscriminator] = useState('');
+  
+  // User-submitted versions
+  const [submittedEvidenceSpec, setSubmittedEvidenceSpec] = useState('');
+  const [submittedSearchKeywords, setSubmittedSearchKeywords] = useState('');
+  const [submittedDiscriminator, setSubmittedDiscriminator] = useState('');
+  
+  // Configuration
   const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
   const [selectedSource, setSelectedSource] = useState<string>(() => {
     return localStorage.getItem('smartSearchSelectedSource') || 'pubmed';
   });
   
-  // Step responses
-  const [refinement, setRefinement] = useState<EvidenceSpecificationResponse | null>(null);
-  const [searchQueryGeneration, setSearchQueryGeneration] = useState<KeywordGenerationResponse | null>(null);
-  const [initialQueryCount, setInitialQueryCount] = useState<{ total_count: number; sources_searched: string[] } | null>(null);
+  // API response objects
+  const [evidenceSpecResponse, setEvidenceSpecResponse] = useState<EvidenceSpecificationResponse | null>(null);
+  const [searchKeywordsResponse, setSearchKeywordsResponse] = useState<SearchKeywordsResponse | null>(null);
+  const [discriminatorResponse, setDiscriminatorResponse] = useState<DiscriminatorGenerationResponse | null>(null);
+  const [keywordsCountResult, setKeywordsCountResult] = useState<{ total_count: number; sources_searched: string[] } | null>(null);
   const [searchResults, setSearchResults] = useState<SearchExecutionResponse | null>(null);
-  const [discriminatorData, setDiscriminatorData] = useState<DiscriminatorGenerationResponse | null>(null);
   
   // Results data
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
@@ -149,9 +167,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
   
   // Loading states
-  const [queryLoading, setQueryLoading] = useState(false);
-  const [searchQueryLoading, setSearchQueryLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [evidenceSpecLoading, setEvidenceSpecLoading] = useState(false);
+  const [searchKeywordsLoading, setSearchKeywordsLoading] = useState(false);
+  const [searchExecutionLoading, setSearchExecutionLoading] = useState(false);
   const [discriminatorLoading, setDiscriminatorLoading] = useState(false);
   
   // Error state
@@ -174,25 +192,33 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         
         // Restore session state
         setSessionId(session.id);
-        setQuery(session.original_question || '');
-        setEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
-        setEditedSearchQuery(session.submitted_search_query || session.generated_search_query || '');
+        setOriginalQuestion(session.original_question || '');
+        
+        // Restore AI-generated versions
+        setGeneratedEvidenceSpec(session.refined_question || '');
+        setGeneratedSearchKeywords(session.generated_search_query || '');
+        setGeneratedDiscriminator(session.generated_discriminator || '');
+        
+        // Restore user-submitted versions
+        setSubmittedEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
+        setSubmittedSearchKeywords(session.submitted_search_query || session.generated_search_query || '');
+        setSubmittedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
         
         // Restore additional component state based on available data
         const lastStep = session.last_step_completed;
         
-        // Always create refinement object if we're at or past refinement step
+        // Always create evidence spec response object if we're at or past refinement step
         if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
-          setRefinement({
+          setEvidenceSpecResponse({
             original_query: session.original_question,
             evidence_specification: session.refined_question || '',
             session_id: session.id
           });
         }
         
-        // Always create search query generation object if we're at or past search query step
+        // Always create search keywords response object if we're at or past search query step
         if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
-          setSearchQueryGeneration({
+          setSearchKeywordsResponse({
             search_query: session.generated_search_query || '',
             evidence_specification: session.submitted_refined_question || session.refined_question || '',
             session_id: session.id
@@ -200,7 +226,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         }
         
         if (session.search_metadata) {
-          setInitialQueryCount({
+          setKeywordsCountResult({
             total_count: session.search_metadata.total_available || 0,
             sources_searched: session.search_metadata.sources_searched || []
           });
@@ -221,16 +247,15 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           }
         }
         
-        // Always create discriminator data if we're at discriminator step or later
+        // Always create discriminator response if we're at discriminator step or later
         if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
-          setDiscriminatorData({
+          setDiscriminatorResponse({
             discriminator_prompt: session.generated_discriminator || '',
             evidence_specification: session.submitted_refined_question || session.refined_question || '',
             search_query: session.submitted_search_query || session.generated_search_query || '',
             strictness: session.filter_strictness || 'medium',
             session_id: session.id
           });
-          setEditedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
         }
         
         if (session.filter_strictness) {
@@ -306,20 +331,23 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       const targetIndex = stepOrder.indexOf(targetStep.replace('_', '-'));
       
       if (targetIndex < stepOrder.indexOf('refinement')) {
-        setRefinement(null);
-        setEvidenceSpec('');
+        setEvidenceSpecResponse(null);
+        setGeneratedEvidenceSpec('');
+        setSubmittedEvidenceSpec('');
       }
       if (targetIndex < stepOrder.indexOf('search-query')) {
-        setSearchQueryGeneration(null);
-        setEditedSearchQuery('');
-        setInitialQueryCount(null);
+        setSearchKeywordsResponse(null);
+        setGeneratedSearchKeywords('');
+        setSubmittedSearchKeywords('');
+        setKeywordsCountResult(null);
       }
       if (targetIndex < stepOrder.indexOf('search-results')) {
         setSearchResults(null);
       }
       if (targetIndex < stepOrder.indexOf('discriminator')) {
-        setDiscriminatorData(null);
-        setEditedDiscriminator('');
+        setDiscriminatorResponse(null);
+        setGeneratedDiscriminator('');
+        setSubmittedDiscriminator('');
       }
       if (targetIndex < stepOrder.indexOf('filtering')) {
         setFilteredArticles([]);
@@ -337,15 +365,18 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const resetAllState = useCallback(() => {
     setStep('query');
     setSessionId(null);
-    setQuery('');
-    setEvidenceSpec('');
-    setEditedSearchQuery('');
-    setEditedDiscriminator('');
-    setRefinement(null);
-    setSearchQueryGeneration(null);
-    setInitialQueryCount(null);
+    setOriginalQuestion('');
+    setGeneratedEvidenceSpec('');
+    setGeneratedSearchKeywords('');
+    setGeneratedDiscriminator('');
+    setSubmittedEvidenceSpec('');
+    setSubmittedSearchKeywords('');
+    setSubmittedDiscriminator('');
+    setEvidenceSpecResponse(null);
+    setSearchKeywordsResponse(null);
+    setDiscriminatorResponse(null);
+    setKeywordsCountResult(null);
     setSearchResults(null);
-    setDiscriminatorData(null);
     setFilteredArticles([]);
     setFilteringProgress(null);
     setError(null);
@@ -356,22 +387,23 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // ================== STEP BUSINESS METHODS ==================
   
   // Step 1: Evidence Specification
-  const createEvidenceSpecification = useCallback(async (): Promise<EvidenceSpecificationResponse> => {
-    if (!query.trim()) {
-      throw new Error('Please enter your document search query');
+  const generateEvidenceSpecification = useCallback(async (): Promise<EvidenceSpecificationResponse> => {
+    if (!originalQuestion.trim()) {
+      throw new Error('Please enter your research question');
     }
     
-    setQueryLoading(true);
+    setEvidenceSpecLoading(true);
     setError(null);
     
     try {
       const response = await smartSearchApi.createEvidenceSpecification({
-        query: query,
+        query: originalQuestion,
         session_id: sessionId || undefined
       });
       
-      setRefinement(response);
-      setEvidenceSpec(response.evidence_specification);
+      setEvidenceSpecResponse(response);
+      setGeneratedEvidenceSpec(response.evidence_specification);
+      setSubmittedEvidenceSpec(response.evidence_specification); // Initially same as generated
       setSessionId(response.session_id);
       
       return response;
@@ -380,17 +412,21 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     } finally {
-      setQueryLoading(false);
+      setEvidenceSpecLoading(false);
     }
-  }, [query, sessionId]);
+  }, [originalQuestion, sessionId]);
   
-  const updateQuery = useCallback((newQuery: string) => {
-    setQuery(newQuery);
+  const updateOriginalQuestion = useCallback((question: string) => {
+    setOriginalQuestion(question);
   }, []);
   
-  // Step 2: Search Query Generation
-  const generateSearchKeywords = useCallback(async (source?: string): Promise<KeywordGenerationResponse> => {
-    if (!evidenceSpec.trim()) {
+  const updateSubmittedEvidenceSpec = useCallback((spec: string) => {
+    setSubmittedEvidenceSpec(spec);
+  }, []);
+  
+  // Step 2: Search Keyword Generation
+  const generateSearchKeywords = useCallback(async (source?: string): Promise<SearchKeywordsResponse> => {
+    if (!submittedEvidenceSpec.trim()) {
       throw new Error('Please provide an evidence specification');
     }
     if (!sessionId) {
@@ -402,18 +438,19 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setSelectedSource(source);
     }
     
-    setSearchQueryLoading(true);
+    setSearchKeywordsLoading(true);
     setError(null);
     
     try {
-      const response = await smartSearchApi.generateKeywords({
-        evidence_specification: evidenceSpec,
+      const response = await smartSearchApi.generateSearchKeywords({
+        evidence_specification: submittedEvidenceSpec,
         session_id: sessionId,
         selected_sources: [source || selectedSource]
       });
       
-      setSearchQueryGeneration(response);
-      setEditedSearchQuery(response.search_query);
+      setSearchKeywordsResponse(response);
+      setGeneratedSearchKeywords(response.search_query);
+      setSubmittedSearchKeywords(response.search_query); // Initially same as generated
       
       return response;
     } catch (err) {
@@ -421,31 +458,31 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     } finally {
-      setSearchQueryLoading(false);
+      setSearchKeywordsLoading(false);
     }
-  }, [evidenceSpec, sessionId, selectedSource]);
+  }, [submittedEvidenceSpec, sessionId, selectedSource]);
   
-  const updateEvidenceSpec = useCallback((spec: string) => {
-    setEvidenceSpec(spec);
+  const updateSubmittedSearchKeywords = useCallback((keywords: string) => {
+    setSubmittedSearchKeywords(keywords);
   }, []);
   
   const updateSelectedSource = useCallback((source: string) => {
     setSelectedSource(source);
   }, []);
   
-  // Step 3: Query Testing and Optimization
-  const testQueryCount = useCallback(async (queryOverride?: string): Promise<{ total_count: number; sources_searched: string[] }> => {
-    const queryToTest = queryOverride || editedSearchQuery;
-    if (!queryToTest.trim()) {
-      throw new Error('Search query is required');
+  // Step 3: Keywords Testing and Optimization
+  const testKeywordsCount = useCallback(async (keywordsOverride?: string): Promise<{ total_count: number; sources_searched: string[] }> => {
+    const keywordsToTest = keywordsOverride || submittedSearchKeywords;
+    if (!keywordsToTest.trim()) {
+      throw new Error('Search keywords are required');
     }
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      throw new Error('Session not found. Please start over.');
     }
     
     try {
-      const response = await smartSearchApi.testQueryCount({
-        search_query: queryToTest,
+      const response = await smartSearchApi.testKeywordsCount({
+        search_query: keywordsToTest,
         session_id: sessionId,
         selected_sources: [selectedSource]
       });
@@ -455,30 +492,30 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         sources_searched: response.sources_searched
       };
       
-      setInitialQueryCount(result);
+      setKeywordsCountResult(result);
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Query count test failed';
+      const errorMessage = err instanceof Error ? err.message : 'Keywords count test failed';
       setError(errorMessage);
       throw err;
     }
-  }, [editedSearchQuery, sessionId, selectedSource]);
+  }, [submittedSearchKeywords, sessionId, selectedSource]);
   
-  const generateOptimizedQuery = useCallback(async (evidenceSpecOverride?: string) => {
-    const specToUse = evidenceSpecOverride || evidenceSpec;
-    if (!editedSearchQuery.trim()) {
-      throw new Error('Search query is required');
+  const generateOptimizedKeywords = useCallback(async (evidenceSpecOverride?: string) => {
+    const specToUse = evidenceSpecOverride || submittedEvidenceSpec;
+    if (!submittedSearchKeywords.trim()) {
+      throw new Error('Search keywords are required');
     }
     if (!specToUse.trim()) {
       throw new Error('Evidence specification is required');
     }
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      throw new Error('Session not found. Please start over.');
     }
     
     try {
-      const response = await smartSearchApi.generateOptimizedQuery({
-        current_query: editedSearchQuery,
+      const response = await smartSearchApi.generateOptimizedKeywords({
+        current_query: submittedSearchKeywords,
         evidence_specification: specToUse,
         target_max_results: 250,
         session_id: sessionId,
@@ -487,32 +524,28 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       
       return response;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Query optimization failed';
+      const errorMessage = err instanceof Error ? err.message : 'Keywords optimization failed';
       setError(errorMessage);
       throw err;
     }
-  }, [editedSearchQuery, evidenceSpec, sessionId, selectedSource]);
-  
-  const updateEditedSearchQuery = useCallback((query: string) => {
-    setEditedSearchQuery(query);
-  }, []);
+  }, [submittedSearchKeywords, submittedEvidenceSpec, sessionId, selectedSource]);
   
   // Step 4: Search Execution
   const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
-    if (!editedSearchQuery.trim()) {
+    if (!submittedSearchKeywords.trim()) {
       throw new Error('Please provide search keywords');
     }
     if (!sessionId) {
       throw new Error('Session not found. Please start over.');
     }
     
-    setSearchLoading(true);
+    setSearchExecutionLoading(true);
     setError(null);
     
     try {
       const batchSize = maxResults || (selectedSource === 'google_scholar' ? 20 : 50);
       const results = await smartSearchApi.executeSearch({
-        search_query: editedSearchQuery,
+        search_query: submittedSearchKeywords,
         max_results: batchSize,
         offset: offset,
         session_id: sessionId,
@@ -544,17 +577,17 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     } finally {
-      setSearchLoading(false);
+      setSearchExecutionLoading(false);
     }
-  }, [editedSearchQuery, sessionId, selectedSource]);
+  }, [submittedSearchKeywords, sessionId, selectedSource]);
   
   // Step 5: Discriminator Generation
   const generateDiscriminator = useCallback(async (): Promise<DiscriminatorGenerationResponse> => {
-    if (!evidenceSpec.trim()) {
+    if (!submittedEvidenceSpec.trim()) {
       throw new Error('Evidence specification is missing. Please go back and complete the previous steps.');
     }
-    if (!editedSearchQuery.trim()) {
-      throw new Error('Search query is missing. Please go back and complete the previous steps.');
+    if (!submittedSearchKeywords.trim()) {
+      throw new Error('Search keywords are missing. Please go back and complete the previous steps.');
     }
     if (!sessionId) {
       throw new Error('Session not found. Please start over.');
@@ -565,14 +598,15 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     
     try {
       const response = await smartSearchApi.generateDiscriminator({
-        evidence_specification: evidenceSpec,
-        search_query: editedSearchQuery,
+        evidence_specification: submittedEvidenceSpec,
+        search_query: submittedSearchKeywords,
         strictness: strictness,
         session_id: sessionId
       });
       
-      setDiscriminatorData(response);
-      setEditedDiscriminator(response.discriminator_prompt);
+      setDiscriminatorResponse(response);
+      setGeneratedDiscriminator(response.discriminator_prompt);
+      setSubmittedDiscriminator(response.discriminator_prompt); // Initially same as generated
       
       return response;
     } catch (err) {
@@ -582,10 +616,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setDiscriminatorLoading(false);
     }
-  }, [evidenceSpec, editedSearchQuery, strictness, sessionId]);
+  }, [submittedEvidenceSpec, submittedSearchKeywords, strictness, sessionId]);
   
-  const updateEditedDiscriminator = useCallback((discriminator: string) => {
-    setEditedDiscriminator(discriminator);
+  const updateSubmittedDiscriminator = useCallback((discriminator: string) => {
+    setSubmittedDiscriminator(discriminator);
   }, []);
   
   const updateStrictness = useCallback((newStrictness: 'low' | 'medium' | 'high') => {
@@ -646,23 +680,26 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     // State
     step,
     sessionId,
-    query,
-    evidenceSpec,
-    editedSearchQuery,
-    editedDiscriminator,
+    originalQuestion,
+    generatedEvidenceSpec,
+    generatedSearchKeywords,
+    generatedDiscriminator,
+    submittedEvidenceSpec,
+    submittedSearchKeywords,
+    submittedDiscriminator,
     strictness,
     selectedSource,
-    refinement,
-    searchQueryGeneration,
-    initialQueryCount,
+    evidenceSpecResponse,
+    searchKeywordsResponse,
+    discriminatorResponse,
+    keywordsCountResult,
     searchResults,
-    discriminatorData,
     filteredArticles,
     filteringProgress,
     savedCustomColumns,
-    queryLoading,
-    searchQueryLoading,
-    searchLoading,
+    evidenceSpecLoading,
+    searchKeywordsLoading,
+    searchExecutionLoading,
     discriminatorLoading,
     error,
     
@@ -671,17 +708,17 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     canNavigateToStep,
     resetToStep,
     resetAllState,
-    createEvidenceSpecification,
-    updateQuery,
+    generateEvidenceSpecification,
+    updateOriginalQuestion,
+    updateSubmittedEvidenceSpec,
     generateSearchKeywords,
-    updateEvidenceSpec,
+    updateSubmittedSearchKeywords,
     updateSelectedSource,
-    testQueryCount,
-    generateOptimizedQuery,
-    updateEditedSearchQuery,
+    testKeywordsCount,
+    generateOptimizedKeywords,
     executeSearch,
     generateDiscriminator,
-    updateEditedDiscriminator,
+    updateSubmittedDiscriminator,
     updateStrictness,
     filterArticles,
     updateFilteringProgress,

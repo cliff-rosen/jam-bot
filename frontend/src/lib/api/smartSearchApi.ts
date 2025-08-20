@@ -29,56 +29,59 @@ export interface EvidenceSpecificationResponse {
   session_id: string;
 }
 
-// Step 2: Generate Keywords
-export interface KeywordGenerationRequest {
+// Step 2: Generate Search Keywords
+export interface SearchKeywordsRequest {
   evidence_specification: string;
   session_id: string;
   selected_sources: string[];
 }
 
-export interface KeywordGenerationResponse {
+export interface SearchKeywordsResponse {
   evidence_specification: string;
-  search_query: string;
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   session_id: string;
 }
 
-// Step 3: Test Query Count
-export interface QueryCountRequest {
-  search_query: string;
+
+// Step 3: Test Keywords Count
+export interface KeywordsCountRequest {
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   session_id: string;
   selected_sources: string[];
 }
 
-export interface QueryCountResponse {
-  search_query: string;
+export interface KeywordsCountResponse {
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   total_count: number;
   sources_searched: string[];
   session_id: string;
 }
 
-// Step 4: Generate Optimized Query
-export interface OptimizedQueryRequest {
-  current_query: string;
+
+// Step 4: Generate Optimized Keywords
+export interface OptimizedKeywordsRequest {
+  current_query: string;  // TODO: rename to current_keywords when backend is updated
   evidence_specification: string;
   target_max_results?: number;
   session_id: string;
   selected_sources: string[];
 }
 
-export interface OptimizedQueryResponse {
+export interface OptimizedKeywordsResponse {
   evidence_specification: string;
-  initial_query: string;
+  initial_query: string;  // TODO: rename to initial_keywords when backend is updated
   initial_count: number;
-  final_query: string;
+  final_query: string;    // TODO: rename to final_keywords when backend is updated
   final_count: number;
   refinement_applied: string;
   refinement_status: 'optimal' | 'refined' | 'manual_needed';
   session_id: string;
 }
 
+
 // Step 5: Execute Search
 export interface SearchExecutionRequest {
-  search_query: string;
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   max_results?: number;
   offset?: number;
   session_id: string;
@@ -100,14 +103,14 @@ export interface SearchExecutionResponse {
 // Step 6: Generate Discriminator
 export interface DiscriminatorGenerationRequest {
   evidence_specification: string;
-  search_query: string;
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   strictness: 'low' | 'medium' | 'high';
   session_id: string;
 }
 
 export interface DiscriminatorGenerationResponse {
   evidence_specification: string;
-  search_query: string;
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   strictness: string;
   discriminator_prompt: string;
   session_id: string;
@@ -117,7 +120,7 @@ export interface DiscriminatorGenerationResponse {
 export interface ArticleFilterRequest {
   filter_mode: 'selected' | 'all';
   evidence_specification: string;
-  search_query: string;
+  search_query: string;  // TODO: rename to search_keywords when backend is updated
   strictness?: 'low' | 'medium' | 'high';
   discriminator_prompt?: string;
   session_id: string;
@@ -174,7 +177,7 @@ class SmartSearchApi {
   /**
    * Step 2: Generate search keywords from evidence specification
    */
-  async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
+  async generateSearchKeywords(request: SearchKeywordsRequest): Promise<SearchKeywordsResponse> {
     const response = await api.post('/api/lab/smart-search/generate-keywords', request);
     return response.data;
   }
@@ -182,7 +185,7 @@ class SmartSearchApi {
   /**
    * Step 3: Test search query to get result count without retrieving articles
    */
-  async testQueryCount(request: QueryCountRequest): Promise<QueryCountResponse> {
+  async testKeywordsCount(request: KeywordsCountRequest): Promise<KeywordsCountResponse> {
     const response = await api.post('/api/lab/smart-search/test-query-count', request);
     return response.data;
   }
@@ -190,7 +193,7 @@ class SmartSearchApi {
   /**
    * Step 4: Generate optimized search query with volume control
    */
-  async generateOptimizedQuery(request: OptimizedQueryRequest): Promise<OptimizedQueryResponse> {
+  async generateOptimizedKeywords(request: OptimizedKeywordsRequest): Promise<OptimizedKeywordsResponse> {
     const response = await api.post('/api/lab/smart-search/generate-optimized-query', request);
     return response.data;
   }
@@ -272,6 +275,7 @@ class SmartSearchApi {
   async deleteSession(sessionId: string): Promise<void> {
     await api.delete(`/api/lab/smart-search/sessions/${sessionId}`);
   }
+
 }
 
 export const smartSearchApi = new SmartSearchApi();

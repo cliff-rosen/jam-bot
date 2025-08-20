@@ -28,7 +28,7 @@ export default function SmartSearchLab() {
   }, [smartSearch.filteringProgress]);
 
   // ================== UTILITY ==================
-  
+
   // Generic error handler for consistent toast messages
   const handleError = (title: string, error: unknown) => {
     toast({
@@ -43,7 +43,7 @@ export default function SmartSearchLab() {
   // Step 1: Submit query for evidence specification
   const handleCreateEvidenceSpec = async () => {
     try {
-      await smartSearch.createEvidenceSpecification();
+      await smartSearch.generateEvidenceSpecification();
       smartSearch.updateStep('refinement');
 
       toast({
@@ -55,7 +55,6 @@ export default function SmartSearchLab() {
     }
   };
 
-
   // Step 2: Generate search keywords from evidence specification
   const handleGenerateKeywords = async (source?: string) => {
     try {
@@ -63,7 +62,7 @@ export default function SmartSearchLab() {
 
       // Automatically test the generated query count
       try {
-        const countResult = await smartSearch.testQueryCount(response.search_query);
+        const countResult = await smartSearch.testKeywordsCount(response.search_query);
         smartSearch.updateStep('search-query');
 
         if (countResult.total_count > 250) {
@@ -146,10 +145,10 @@ export default function SmartSearchLab() {
 
     const request = {
       filter_mode: 'all' as const,
-      evidence_specification: smartSearch.evidenceSpec,
-      search_query: smartSearch.editedSearchQuery,
+      evidence_specification: smartSearch.submittedEvidenceSpec,
+      search_query: smartSearch.submittedSearchKeywords,
       strictness: smartSearch.strictness,
-      discriminator_prompt: smartSearch.editedDiscriminator,
+      discriminator_prompt: smartSearch.submittedDiscriminator,
       session_id: smartSearch.sessionId,
       selected_sources: [smartSearch.selectedSource],
       max_results: articlesToProcess
@@ -362,36 +361,36 @@ export default function SmartSearchLab() {
           {/* Step Components */}
           {smartSearch.step === 'query' && (
             <QueryInputStep
-              query={smartSearch.query}
-              setQuery={smartSearch.updateQuery}
+              query={smartSearch.originalQuestion}
+              setQuery={smartSearch.updateOriginalQuestion}
               onSubmit={handleCreateEvidenceSpec}
-              loading={smartSearch.queryLoading}
+              loading={smartSearch.evidenceSpecLoading}
             />
           )}
 
-          {smartSearch.step === 'refinement' && smartSearch.refinement && (
+          {smartSearch.step === 'refinement' && smartSearch.evidenceSpecResponse && (
             <RefinementStep
-              refinement={smartSearch.refinement}
-              evidenceSpec={smartSearch.evidenceSpec}
-              setEvidenceSpec={smartSearch.updateEvidenceSpec}
+              refinement={smartSearch.evidenceSpecResponse}
+              evidenceSpec={smartSearch.submittedEvidenceSpec}
+              setEvidenceSpec={smartSearch.updateSubmittedEvidenceSpec}
               selectedSource={smartSearch.selectedSource}
               setSelectedSource={smartSearch.updateSelectedSource}
               onSubmit={handleGenerateKeywords}
-              loading={smartSearch.searchQueryLoading}
+              loading={smartSearch.searchKeywordsLoading}
             />
           )}
 
-          {smartSearch.step === 'search-query' && smartSearch.searchQueryGeneration && (
+          {smartSearch.step === 'search-query' && smartSearch.searchKeywordsResponse && (
             <SearchQueryStep
-              editedSearchQuery={smartSearch.editedSearchQuery}
-              setEditedSearchQuery={smartSearch.updateEditedSearchQuery}
-              evidenceSpec={smartSearch.evidenceSpec}
+              editedSearchQuery={smartSearch.submittedSearchKeywords}
+              setEditedSearchQuery={smartSearch.updateSubmittedSearchKeywords}
+              evidenceSpec={smartSearch.submittedEvidenceSpec}
               selectedSource={smartSearch.selectedSource}
               onSubmit={handleExecuteSearch}
-              onOptimize={smartSearch.generateOptimizedQuery}
-              onTestCount={smartSearch.testQueryCount}
-              loading={smartSearch.searchLoading}
-              initialCount={smartSearch.initialQueryCount}
+              onOptimize={smartSearch.generateOptimizedKeywords}
+              onTestCount={smartSearch.testKeywordsCount}
+              loading={smartSearch.searchExecutionLoading}
+              initialCount={smartSearch.keywordsCountResult}
             />
           )}
 
@@ -404,16 +403,16 @@ export default function SmartSearchLab() {
               onLoadMore={handleLoadMoreResults}
               onGoBack={() => handleStepBack('search-query')}
               loading={smartSearch.discriminatorLoading}
-              loadingMore={smartSearch.searchLoading}
+              loadingMore={smartSearch.searchExecutionLoading}
             />
           )}
 
-          {smartSearch.step === 'discriminator' && smartSearch.discriminatorData && (
+          {smartSearch.step === 'discriminator' && smartSearch.discriminatorResponse && (
             <DiscriminatorStep
-              evidenceSpec={smartSearch.evidenceSpec}
-              searchKeywords={smartSearch.editedSearchQuery}
-              editedDiscriminator={smartSearch.editedDiscriminator}
-              setEditedDiscriminator={smartSearch.updateEditedDiscriminator}
+              evidenceSpec={smartSearch.submittedEvidenceSpec}
+              searchKeywords={smartSearch.submittedSearchKeywords}
+              editedDiscriminator={smartSearch.submittedDiscriminator}
+              setEditedDiscriminator={smartSearch.updateSubmittedDiscriminator}
               strictness={smartSearch.strictness}
               setStrictness={smartSearch.updateStrictness}
               selectedArticlesCount={smartSearch.searchResults?.pagination.total_available || 0}
@@ -436,9 +435,9 @@ export default function SmartSearchLab() {
           {smartSearch.step === 'results' && (
             <ResultsStep
               filteredArticles={smartSearch.filteredArticles}
-              originalQuery={smartSearch.query}
-              evidenceSpecification={smartSearch.evidenceSpec}
-              searchQuery={smartSearch.editedSearchQuery}
+              originalQuery={smartSearch.originalQuestion}
+              evidenceSpecification={smartSearch.submittedEvidenceSpec}
+              searchQuery={smartSearch.submittedSearchKeywords}
               totalAvailable={smartSearch.searchResults?.pagination.total_available}
               totalFiltered={smartSearch.searchResults?.pagination.total_available ? Math.min(smartSearch.searchResults.pagination.total_available, 500) : smartSearch.filteredArticles.length}
               sessionId={smartSearch.sessionId || undefined}

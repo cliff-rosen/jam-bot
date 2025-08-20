@@ -862,13 +862,13 @@ class SmartSearchSession(Base):
     # Step 1: Initial Question
     original_question = Column(Text, nullable=False)
     
-    # Step 2: Refined Question
-    refined_question = Column(Text)
-    submitted_refined_question = Column(Text)  # What user actually submitted (may be edited)
+    # Step 2: Evidence Specification (updated naming)
+    refined_question = Column(Text)  # AI-generated evidence specification (was: refined_question)
+    submitted_refined_question = Column(Text)  # User-submitted evidence specification (was: submitted_refined_question)
     
-    # Step 3: Search Query Generation
-    generated_search_query = Column(Text)
-    submitted_search_query = Column(Text)  # What user actually submitted (may be edited)
+    # Step 3: Search Keywords Generation (updated naming)
+    generated_search_query = Column(Text)  # AI-generated search keywords (was: generated_search_query)
+    submitted_search_query = Column(Text)  # User-submitted search keywords (was: submitted_search_query)
     
     # Step 4: Search Execution
     search_metadata = Column(JSON)  # Stores pagination info, sources searched, etc.

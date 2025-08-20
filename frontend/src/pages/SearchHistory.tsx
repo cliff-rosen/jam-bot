@@ -142,6 +142,8 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
 }
 
 export default function SearchHistory() {
+  const { toast } = useToast();
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<SearchSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,14 +151,12 @@ export default function SearchHistory() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showAdminView, setShowAdminView] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SearchSession | null>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleDeleteSession = async (sessionId: string) => {
     if (!confirm('Are you sure you want to delete this search session?')) {
       return;
     }
-    
+
     try {
       await smartSearchApi.deleteSession(sessionId);
       toast({
@@ -428,8 +428,8 @@ export default function SearchHistory() {
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Link to={`/smart-search?session=${session.id}`}>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               title="Resume session"
                             >

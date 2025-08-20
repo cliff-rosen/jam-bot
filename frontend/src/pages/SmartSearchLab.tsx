@@ -41,7 +41,7 @@ export default function SmartSearchLab() {
     }
 
     try {
-      await smartSearch.createEvidenceSpecification(smartSearch.query, smartSearch.sessionId || undefined);
+      await smartSearch.createEvidenceSpecification();
       smartSearch.updateStep('refinement');
 
       toast({
@@ -59,10 +59,8 @@ export default function SmartSearchLab() {
 
   // Test query count without retrieving articles
   const handleTestQueryCount = async (query: string) => {
-    if (!smartSearch.sessionId) throw new Error('No session ID');
-    
     try {
-      return await smartSearch.testQueryCount(query, smartSearch.sessionId, [smartSearch.selectedSource]);
+      return await smartSearch.testQueryCount(query);
     } catch (error) {
       console.error('Query count test failed:', error);
       throw error;
@@ -71,15 +69,8 @@ export default function SmartSearchLab() {
 
   // Handle query optimization for volume control
   const handleOptimizeQuery = async (evidenceSpecification: string) => {
-    if (!smartSearch.sessionId) throw new Error('No session ID');
-    
     try {
-      return await smartSearch.generateOptimizedQuery(
-        smartSearch.editedSearchQuery,
-        evidenceSpecification,
-        smartSearch.sessionId,
-        [smartSearch.selectedSource]
-      );
+      return await smartSearch.generateOptimizedQuery(evidenceSpecification);
     } catch (error) {
       console.error('Query optimization failed:', error);
       throw error;
@@ -97,26 +88,8 @@ export default function SmartSearchLab() {
       return;
     }
 
-    if (!smartSearch.sessionId) {
-      toast({
-        title: 'Error',
-        description: 'No session found',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Update selected source if provided
-    if (source) {
-      smartSearch.updateSelectedSource(source);
-    }
-
     try {
-      const response = await smartSearch.generateSearchKeywords(
-        smartSearch.evidenceSpec,
-        smartSearch.sessionId,
-        [source || smartSearch.selectedSource]
-      );
+      const response = await smartSearch.generateSearchKeywords(source);
 
       // Automatically test the generated query count
       try {
@@ -164,23 +137,10 @@ export default function SmartSearchLab() {
       return;
     }
 
-    if (!smartSearch.sessionId) {
-      toast({
-        title: 'Error',
-        description: 'No session found',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     smartSearch.updateStep('searching');
 
     try {
-      const results = await smartSearch.executeSearch(
-        smartSearch.editedSearchQuery,
-        smartSearch.sessionId,
-        [smartSearch.selectedSource]
-      );
+      const results = await smartSearch.executeSearch();
 
       if (results.articles.length === 0) {
         toast({
@@ -281,12 +241,7 @@ export default function SmartSearchLab() {
     if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
     try {
-      await smartSearch.generateDiscriminator(
-        smartSearch.evidenceSpec,
-        smartSearch.editedSearchQuery,
-        smartSearch.strictness,
-        smartSearch.sessionId
-      );
+      await smartSearch.generateDiscriminator();
 
       smartSearch.updateStep('discriminator');
 
@@ -318,9 +273,6 @@ export default function SmartSearchLab() {
     try {
       const batchSize = smartSearch.selectedSource === 'google_scholar' ? 20 : 50;
       const moreResults = await smartSearch.executeSearch(
-        smartSearch.editedSearchQuery,
-        smartSearch.sessionId,
-        [smartSearch.selectedSource],
         smartSearch.searchResults.articles.length,
         batchSize
       );

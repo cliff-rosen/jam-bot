@@ -71,24 +71,24 @@ interface SmartSearchActions {
   resetAllState: () => void;
   
   // STEP 1: Evidence Specification
-  createEvidenceSpecification: (query: string, sessionId?: string) => Promise<EvidenceSpecificationResponse>;
+  createEvidenceSpecification: () => Promise<EvidenceSpecificationResponse>;
   updateQuery: (query: string) => void;
   
   // STEP 2: Search Query Generation
-  generateSearchKeywords: (evidenceSpec: string, sessionId: string, selectedSources: string[]) => Promise<KeywordGenerationResponse>;
+  generateSearchKeywords: (source?: string) => Promise<KeywordGenerationResponse>;
   updateEvidenceSpec: (spec: string) => void;
   updateSelectedSource: (source: string) => void;
   
   // STEP 3: Query Testing and Optimization
-  testQueryCount: (query: string, sessionId: string, selectedSources: string[]) => Promise<{ total_count: number; sources_searched: string[] }>;
-  generateOptimizedQuery: (currentQuery: string, evidenceSpec: string, sessionId: string, selectedSources: string[]) => Promise<any>;
+  testQueryCount: (queryOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
+  generateOptimizedQuery: (evidenceSpecOverride?: string) => Promise<any>;
   updateEditedSearchQuery: (query: string) => void;
   
   // STEP 4: Search Execution
-  executeSearch: (searchQuery: string, sessionId: string, selectedSources: string[], offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
+  executeSearch: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
   
   // STEP 5: Discriminator Generation
-  generateDiscriminator: (evidenceSpec: string, searchQuery: string, strictness: string, sessionId: string) => Promise<DiscriminatorGenerationResponse>;
+  generateDiscriminator: () => Promise<DiscriminatorGenerationResponse>;
   updateEditedDiscriminator: (discriminator: string) => void;
   updateStrictness: (strictness: 'low' | 'medium' | 'high') => void;
   
@@ -356,7 +356,11 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // ================== STEP BUSINESS METHODS ==================
   
   // Step 1: Evidence Specification
-  const createEvidenceSpecification = useCallback(async (query: string, sessionId?: string): Promise<EvidenceSpecificationResponse> => {
+  const createEvidenceSpecification = useCallback(async (): Promise<EvidenceSpecificationResponse> => {
+    if (!query.trim()) {
+      throw new Error('Query is required');
+    }
+    
     setQueryLoading(true);
     setError(null);
     
@@ -378,14 +382,26 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setQueryLoading(false);
     }
-  }, []);
+  }, [query, sessionId]);
   
   const updateQuery = useCallback((newQuery: string) => {
     setQuery(newQuery);
   }, []);
   
   // Step 2: Search Query Generation
-  const generateSearchKeywords = useCallback(async (evidenceSpec: string, sessionId: string, selectedSources: string[]): Promise<KeywordGenerationResponse> => {
+  const generateSearchKeywords = useCallback(async (source?: string): Promise<KeywordGenerationResponse> => {
+    if (!evidenceSpec.trim()) {
+      throw new Error('Evidence specification is required');
+    }
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+    
+    // Update source if provided
+    if (source) {
+      setSelectedSource(source);
+    }
+    
     setSearchQueryLoading(true);
     setError(null);
     
@@ -393,7 +409,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       const response = await smartSearchApi.generateKeywords({
         evidence_specification: evidenceSpec,
         session_id: sessionId,
-        selected_sources: selectedSources
+        selected_sources: [source || selectedSource]
       });
       
       setSearchQueryGeneration(response);
@@ -407,7 +423,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setSearchQueryLoading(false);
     }
-  }, []);
+  }, [evidenceSpec, sessionId, selectedSource]);
   
   const updateEvidenceSpec = useCallback((spec: string) => {
     setEvidenceSpec(spec);
@@ -418,12 +434,20 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   }, []);
   
   // Step 3: Query Testing and Optimization
-  const testQueryCount = useCallback(async (query: string, sessionId: string, selectedSources: string[]): Promise<{ total_count: number; sources_searched: string[] }> => {
+  const testQueryCount = useCallback(async (queryOverride?: string): Promise<{ total_count: number; sources_searched: string[] }> => {
+    const queryToTest = queryOverride || editedSearchQuery;
+    if (!queryToTest.trim()) {
+      throw new Error('Search query is required');
+    }
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+    
     try {
       const response = await smartSearchApi.testQueryCount({
-        search_query: query,
+        search_query: queryToTest,
         session_id: sessionId,
-        selected_sources: selectedSources
+        selected_sources: [selectedSource]
       });
       
       const result = {
@@ -438,16 +462,27 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [editedSearchQuery, sessionId, selectedSource]);
   
-  const generateOptimizedQuery = useCallback(async (currentQuery: string, evidenceSpec: string, sessionId: string, selectedSources: string[]) => {
+  const generateOptimizedQuery = useCallback(async (evidenceSpecOverride?: string) => {
+    const specToUse = evidenceSpecOverride || evidenceSpec;
+    if (!editedSearchQuery.trim()) {
+      throw new Error('Search query is required');
+    }
+    if (!specToUse.trim()) {
+      throw new Error('Evidence specification is required');
+    }
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+    
     try {
       const response = await smartSearchApi.generateOptimizedQuery({
-        current_query: currentQuery,
-        evidence_specification: evidenceSpec,
+        current_query: editedSearchQuery,
+        evidence_specification: specToUse,
         target_max_results: 250,
         session_id: sessionId,
-        selected_sources: selectedSources
+        selected_sources: [selectedSource]
       });
       
       return response;
@@ -456,25 +491,32 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [editedSearchQuery, evidenceSpec, sessionId, selectedSource]);
   
   const updateEditedSearchQuery = useCallback((query: string) => {
     setEditedSearchQuery(query);
   }, []);
   
   // Step 4: Search Execution
-  const executeSearch = useCallback(async (searchQuery: string, sessionId: string, selectedSources: string[], offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
+  const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
+    if (!editedSearchQuery.trim()) {
+      throw new Error('Search query is required');
+    }
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+    
     setSearchLoading(true);
     setError(null);
     
     try {
-      const batchSize = maxResults || (selectedSources[0] === 'google_scholar' ? 20 : 50);
+      const batchSize = maxResults || (selectedSource === 'google_scholar' ? 20 : 50);
       const results = await smartSearchApi.executeSearch({
-        search_query: searchQuery,
+        search_query: editedSearchQuery,
         max_results: batchSize,
         offset: offset,
         session_id: sessionId,
-        selected_sources: selectedSources
+        selected_sources: [selectedSource]
       });
       
       if (offset === 0) {
@@ -504,18 +546,28 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setSearchLoading(false);
     }
-  }, []);
+  }, [editedSearchQuery, sessionId, selectedSource]);
   
   // Step 5: Discriminator Generation
-  const generateDiscriminator = useCallback(async (evidenceSpec: string, searchQuery: string, strictness: string, sessionId: string): Promise<DiscriminatorGenerationResponse> => {
+  const generateDiscriminator = useCallback(async (): Promise<DiscriminatorGenerationResponse> => {
+    if (!evidenceSpec.trim()) {
+      throw new Error('Evidence specification is required');
+    }
+    if (!editedSearchQuery.trim()) {
+      throw new Error('Search query is required');
+    }
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+    
     setDiscriminatorLoading(true);
     setError(null);
     
     try {
       const response = await smartSearchApi.generateDiscriminator({
         evidence_specification: evidenceSpec,
-        search_query: searchQuery,
-        strictness: strictness as 'low' | 'medium' | 'high',
+        search_query: editedSearchQuery,
+        strictness: strictness,
         session_id: sessionId
       });
       
@@ -530,7 +582,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setDiscriminatorLoading(false);
     }
-  }, []);
+  }, [evidenceSpec, editedSearchQuery, strictness, sessionId]);
   
   const updateEditedDiscriminator = useCallback((discriminator: string) => {
     setEditedDiscriminator(discriminator);

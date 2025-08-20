@@ -358,7 +358,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // Step 1: Evidence Specification
   const createEvidenceSpecification = useCallback(async (): Promise<EvidenceSpecificationResponse> => {
     if (!query.trim()) {
-      throw new Error('Query is required');
+      throw new Error('Please enter your document search query');
     }
     
     setQueryLoading(true);
@@ -391,10 +391,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // Step 2: Search Query Generation
   const generateSearchKeywords = useCallback(async (source?: string): Promise<KeywordGenerationResponse> => {
     if (!evidenceSpec.trim()) {
-      throw new Error('Evidence specification is required');
+      throw new Error('Please provide an evidence specification');
     }
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      throw new Error('Session not found. Please start over.');
     }
     
     // Update source if provided
@@ -500,10 +500,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // Step 4: Search Execution
   const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
     if (!editedSearchQuery.trim()) {
-      throw new Error('Search query is required');
+      throw new Error('Please provide search keywords');
     }
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      throw new Error('Session not found. Please start over.');
     }
     
     setSearchLoading(true);
@@ -551,13 +551,13 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // Step 5: Discriminator Generation
   const generateDiscriminator = useCallback(async (): Promise<DiscriminatorGenerationResponse> => {
     if (!evidenceSpec.trim()) {
-      throw new Error('Evidence specification is required');
+      throw new Error('Evidence specification is missing. Please go back and complete the previous steps.');
     }
     if (!editedSearchQuery.trim()) {
-      throw new Error('Search query is required');
+      throw new Error('Search query is missing. Please go back and complete the previous steps.');
     }
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      throw new Error('Session not found. Please start over.');
     }
     
     setDiscriminatorLoading(true);

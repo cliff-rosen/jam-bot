@@ -27,19 +27,21 @@ export default function SmartSearchLab() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [smartSearch.filteringProgress]);
 
+  // ================== UTILITY ==================
+  
+  // Generic error handler for consistent toast messages
+  const handleError = (title: string, error: unknown) => {
+    toast({
+      title,
+      description: error instanceof Error ? error.message : 'Unknown error',
+      variant: 'destructive'
+    });
+  };
+
   // ================== HANDLERS ==================
 
   // Step 1: Submit query for evidence specification
   const handleCreateEvidenceSpec = async () => {
-    if (!smartSearch.query.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter your document search query',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     try {
       await smartSearch.createEvidenceSpecification();
       smartSearch.updateStep('refinement');
@@ -49,51 +51,19 @@ export default function SmartSearchLab() {
         description: 'Review and edit the evidence specification'
       });
     } catch (error) {
-      toast({
-        title: 'Evidence Specification Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Evidence Specification Failed', error);
     }
   };
 
-  // Test query count without retrieving articles
-  const handleTestQueryCount = async (query: string) => {
-    try {
-      return await smartSearch.testQueryCount(query);
-    } catch (error) {
-      console.error('Query count test failed:', error);
-      throw error;
-    }
-  };
-
-  // Handle query optimization for volume control
-  const handleOptimizeQuery = async (evidenceSpecification: string) => {
-    try {
-      return await smartSearch.generateOptimizedQuery(evidenceSpecification);
-    } catch (error) {
-      console.error('Query optimization failed:', error);
-      throw error;
-    }
-  };
 
   // Step 2: Generate search keywords from evidence specification
   const handleGenerateKeywords = async (source?: string) => {
-    if (!smartSearch.evidenceSpec.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please provide an evidence specification',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     try {
       const response = await smartSearch.generateSearchKeywords(source);
 
       // Automatically test the generated query count
       try {
-        const countResult = await handleTestQueryCount(response.search_query);
+        const countResult = await smartSearch.testQueryCount(response.search_query);
         smartSearch.updateStep('search-query');
 
         if (countResult.total_count > 250) {
@@ -118,25 +88,12 @@ export default function SmartSearchLab() {
       }
 
     } catch (error) {
-      toast({
-        title: 'Keyword Generation Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Keyword Generation Failed', error);
     }
   };
 
   // Step 3: Execute search
   const handleExecuteSearch = async () => {
-    if (!smartSearch.editedSearchQuery.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please provide search keywords',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     smartSearch.updateStep('searching');
 
     try {
@@ -154,15 +111,10 @@ export default function SmartSearchLab() {
           title: 'Search Complete',
           description: `Found ${results.pagination.returned} articles (${results.pagination.total_available} total available) from ${results.sources_searched.join(', ')}`
         });
-        // Go to search results review step
         smartSearch.updateStep('search-results');
       }
     } catch (error) {
-      toast({
-        title: 'Search Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Search Failed', error);
       smartSearch.updateStep('refinement');
     }
   };
@@ -180,11 +132,7 @@ export default function SmartSearchLab() {
 
   // Handle filtering errors
   const handleFilteringError = (error: unknown) => {
-    toast({
-      title: 'Failed to Start Filtering',
-      description: error instanceof Error ? error.message : 'Unknown error',
-      variant: 'destructive'
-    });
+    handleError('Failed to Start Filtering', error);
   };
 
   // Step 4: Start filtering - always filter all articles
@@ -238,11 +186,8 @@ export default function SmartSearchLab() {
 
   // Generate discriminator for review
   const handleGenerateDiscriminator = async () => {
-    if (!smartSearch.searchResults || !smartSearch.sessionId) return;
-
     try {
       await smartSearch.generateDiscriminator();
-
       smartSearch.updateStep('discriminator');
 
       toast({
@@ -250,11 +195,7 @@ export default function SmartSearchLab() {
         description: 'Review and edit the semantic evaluation criteria'
       });
     } catch (error) {
-      toast({
-        title: 'Discriminator Generation Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Discriminator Generation Failed', error);
     }
   };
 
@@ -268,12 +209,10 @@ export default function SmartSearchLab() {
 
   // Load more search results
   const handleLoadMoreResults = async () => {
-    if (!smartSearch.searchResults || !smartSearch.editedSearchQuery.trim() || !smartSearch.sessionId) return;
-
     try {
       const batchSize = smartSearch.selectedSource === 'google_scholar' ? 20 : 50;
       const moreResults = await smartSearch.executeSearch(
-        smartSearch.searchResults.articles.length,
+        smartSearch.searchResults?.articles.length || 0,
         batchSize
       );
 
@@ -282,11 +221,7 @@ export default function SmartSearchLab() {
         description: `Loaded ${moreResults.articles.length} more articles`
       });
     } catch (error) {
-      toast({
-        title: 'Failed to Load More Results',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Failed to Load More Results', error);
     }
   };
 
@@ -320,11 +255,7 @@ export default function SmartSearchLab() {
       });
 
     } catch (error) {
-      toast({
-        title: 'Failed to Step Back',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
+      handleError('Failed to Step Back', error);
     }
   };
 
@@ -457,8 +388,8 @@ export default function SmartSearchLab() {
               evidenceSpec={smartSearch.evidenceSpec}
               selectedSource={smartSearch.selectedSource}
               onSubmit={handleExecuteSearch}
-              onOptimize={handleOptimizeQuery}
-              onTestCount={handleTestQueryCount}
+              onOptimize={smartSearch.generateOptimizedQuery}
+              onTestCount={smartSearch.testQueryCount}
               loading={smartSearch.searchLoading}
               initialCount={smartSearch.initialQueryCount}
             />

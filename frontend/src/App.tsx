@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/toaster';
 import { ThemeProvider } from './context/ThemeContext';
 import { JamBotProvider } from './context/JamBotContext';
 import { WorkbenchProvider } from './context/WorkbenchContext';
+import { SmartSearchProvider } from './context/SmartSearchContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // utils
@@ -76,7 +77,9 @@ function AppContent() {
     <ThemeProvider>
       <JamBotProvider>
         <WorkbenchProvider>
-          <AuthenticatedApp />
+          <SmartSearchProvider>
+            <AuthenticatedApp />
+          </SmartSearchProvider>
         </WorkbenchProvider>
       </JamBotProvider>
       <Toaster />

@@ -1,13 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { ChevronRight, RefreshCw, History } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
-import { smartSearchApi } from '@/lib/api/smartSearchApi';
+import { useSmartSearch } from '@/context/SmartSearchContext';
 
 import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';
 import { RefinementStep } from '@/components/features/smartsearch/RefinementStep';
@@ -18,201 +17,21 @@ import { DiscriminatorStep } from '@/components/features/smartsearch/Discriminat
 import { FilteringStep } from '@/components/features/smartsearch/FilteringStep';
 import { ResultsStep } from '@/components/features/smartsearch/ResultsStep';
 
-import type {
-  FilteredArticle,
-  FilteringProgress
-} from '@/types/smart-search';
-import type {
-  EvidenceSpecificationResponse,
-  KeywordGenerationResponse,
-  SearchExecutionResponse
-} from '@/lib/api/smartSearchApi';
-
 export default function SmartSearchLab() {
-  const [searchParams] = useSearchParams();
-  const resumeSessionId = searchParams.get('session');
-
-  // Step management
-  const [step, setStep] = useState<'query' | 'refinement' | 'search-query' | 'searching' | 'search-results' | 'discriminator' | 'filtering' | 'results'>('query');
-
-  // Session tracking
-  const [sessionId, setSessionId] = useState<string | null>(null);
-
-  // Step 1: Query input
-  const [query, setQuery] = useState('');
-  const [queryLoading, setQueryLoading] = useState(false);
-
-  // Step 2: Evidence Specification
-  const [refinement, setRefinement] = useState<EvidenceSpecificationResponse | null>(null);
-  const [evidenceSpec, setEvidenceSpec] = useState('');
-
-  // Step 3: Search Query Generation
-  const [searchQueryGeneration, setSearchQueryGeneration] = useState<KeywordGenerationResponse | null>(null);
-  const [editedSearchQuery, setEditedSearchQuery] = useState('');
-  const [searchQueryLoading, setSearchQueryLoading] = useState(false);
-  const [initialQueryCount, setInitialQueryCount] = useState<{ total_count: number; sources_searched: string[] } | null>(null);
-
-  // Step 4: Search results
-  const [searchResults, setSearchResults] = useState<SearchExecutionResponse | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-
-  // Step 6: Discriminator generation and editing
-  const [discriminatorData, setDiscriminatorData] = useState<any>(null);
-  const [editedDiscriminator, setEditedDiscriminator] = useState('');
-  const [discriminatorLoading, setDiscriminatorLoading] = useState(false);
-
-  // Step 7: Filtering
-  const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
-  const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
-  const [strictness, setStrictness] = useState<'low' | 'medium' | 'high'>('medium');
-  const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
-
-  // Source selection - remember last choice in localStorage
-  const [selectedSource, setSelectedSource] = useState<string>(() => {
-    return localStorage.getItem('smartSearchSelectedSource') || 'pubmed';
-  });
-
+  const smartSearch = useSmartSearch();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Save selected source to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('smartSearchSelectedSource', selectedSource);
-  }, [selectedSource]);
 
   // Auto-scroll for messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [filteringProgress]);
+  }, [smartSearch.filteringProgress]);
 
-  // Load existing session if session ID is provided
-  useEffect(() => {
-    const loadSession = async () => {
-      if (!resumeSessionId) return;
-
-      try {
-        const session = await smartSearchApi.getSession(resumeSessionId);
-
-        // Restore session state
-        setSessionId(session.id);
-        setQuery(session.original_question || '');
-        setEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
-        setEditedSearchQuery(session.submitted_search_query || session.generated_search_query || '');
-
-        // Restore additional component state based on available data
-        const lastStep = session.last_step_completed;
-
-        // Always create refinement object if we're at or past refinement step
-        if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
-          setRefinement({
-            original_query: session.original_question,
-            evidence_specification: session.refined_question || '',
-            session_id: session.id
-          });
-        }
-
-        // Always create search query generation object if we're at or past search query step
-        if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
-          setSearchQueryGeneration({
-            search_query: session.generated_search_query || '',
-            evidence_specification: session.submitted_refined_question || session.refined_question || '',
-            session_id: session.id
-          });
-        }
-
-        if (session.search_metadata) {
-          setInitialQueryCount({
-            total_count: session.search_metadata.total_available || 0,
-            sources_searched: session.search_metadata.sources_searched || []
-          });
-
-          // Reconstruct searchResults state for proper display of article counts
-          if (lastStep && ['search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
-            setSearchResults({
-              articles: [], // We don't store the actual articles in session, only metadata
-              pagination: {
-                total_available: session.search_metadata.total_available || 0,
-                returned: session.search_metadata.total_retrieved || 0,
-                offset: 0,
-                has_more: (session.search_metadata.total_retrieved || 0) < (session.search_metadata.total_available || 0)
-              },
-              sources_searched: session.search_metadata.sources_searched || [],
-              session_id: session.id
-            });
-          }
-        }
-
-        // Always create discriminator data if we're at discriminator step or later
-        if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
-          setDiscriminatorData({
-            discriminator_prompt: session.generated_discriminator || '',
-            evidence_specification: session.submitted_refined_question || session.refined_question || '',
-            search_query: session.submitted_search_query || session.generated_search_query || '',
-            strictness: session.filter_strictness || 'medium',
-            session_id: session.id
-          });
-          setEditedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
-        }
-
-        if (session.filter_strictness) {
-          setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
-        }
-
-        // Restore filtered articles if they exist
-        if (session.filtered_articles && Array.isArray(session.filtered_articles)) {
-          setFilteredArticles(session.filtered_articles);
-        }
-
-        // Restore custom columns if they exist
-        if (session.filtering_metadata?.custom_columns) {
-          setSavedCustomColumns(session.filtering_metadata.custom_columns);
-        }
-
-        // Map backend step to frontend step
-        const mapBackendStepToFrontend = (backendStep: string, session: any): string => {
-          switch (backendStep) {
-            case 'question_input':
-              return 'query';
-            case 'question_refinement':
-              return 'refinement';
-            case 'search_query_generation':
-              return 'search-query';
-            case 'search_execution':
-              // Only show search-results if we have metadata, otherwise fall back
-              return session.search_metadata?.total_available ? 'search-results' : 'search-query';
-            case 'discriminator_generation':
-              return 'discriminator';
-            case 'filtering':
-              // If filtering is complete (has results), show results step
-              return session.filtering_metadata?.accepted !== undefined ? 'results' : 'filtering';
-            default:
-              return 'query';
-          }
-        };
-
-        // Determine which step to show based on session progress
-        const frontendStep = mapBackendStepToFrontend(lastStep || 'question_input', session);
-        setStep(frontendStep as any);
-
-        toast({
-          title: 'Session Loaded',
-          description: `Resumed search session: "${session.original_question}"`
-        });
-      } catch (error) {
-        toast({
-          title: 'Failed to Load Session',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive'
-        });
-      }
-    };
-
-    loadSession();
-  }, [resumeSessionId]);
+  // ================== HANDLERS ==================
 
   // Step 1: Submit query for evidence specification
   const handleCreateEvidenceSpec = async () => {
-    if (!query.trim()) {
+    if (!smartSearch.query.trim()) {
       toast({
         title: 'Error',
         description: 'Please enter your document search query',
@@ -221,16 +40,9 @@ export default function SmartSearchLab() {
       return;
     }
 
-    setQueryLoading(true);
     try {
-      const response = await smartSearchApi.createEvidenceSpecification({
-        query: query,
-        session_id: sessionId || undefined
-      });
-      setRefinement(response);
-      setEvidenceSpec(response.evidence_specification);
-      setSessionId(response.session_id);
-      setStep('refinement');
+      await smartSearch.createEvidenceSpecification(smartSearch.query, smartSearch.sessionId || undefined);
+      smartSearch.updateStep('refinement');
 
       toast({
         title: 'Evidence Specification Created',
@@ -242,24 +54,15 @@ export default function SmartSearchLab() {
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
-    } finally {
-      setQueryLoading(false);
     }
   };
 
   // Test query count without retrieving articles
   const handleTestQueryCount = async (query: string) => {
+    if (!smartSearch.sessionId) throw new Error('No session ID');
+    
     try {
-      const response = await smartSearchApi.testQueryCount({
-        search_query: query,
-        session_id: sessionId!,
-        selected_sources: [selectedSource]
-      });
-
-      return {
-        total_count: response.total_count,
-        sources_searched: response.sources_searched
-      };
+      return await smartSearch.testQueryCount(query, smartSearch.sessionId, [smartSearch.selectedSource]);
     } catch (error) {
       console.error('Query count test failed:', error);
       throw error;
@@ -268,23 +71,15 @@ export default function SmartSearchLab() {
 
   // Handle query optimization for volume control
   const handleOptimizeQuery = async (evidenceSpecification: string) => {
+    if (!smartSearch.sessionId) throw new Error('No session ID');
+    
     try {
-      const response = await smartSearchApi.generateOptimizedQuery({
-        current_query: editedSearchQuery,
-        evidence_specification: evidenceSpecification,
-        target_max_results: 250,
-        session_id: sessionId!,
-        selected_sources: [selectedSource]
-      });
-
-      return {
-        initial_query: response.initial_query,
-        initial_count: response.initial_count,
-        final_query: response.final_query,
-        final_count: response.final_count,
-        refinement_applied: response.refinement_applied,
-        refinement_status: response.refinement_status
-      };
+      return await smartSearch.generateOptimizedQuery(
+        smartSearch.editedSearchQuery,
+        evidenceSpecification,
+        smartSearch.sessionId,
+        [smartSearch.selectedSource]
+      );
     } catch (error) {
       console.error('Query optimization failed:', error);
       throw error;
@@ -293,7 +88,7 @@ export default function SmartSearchLab() {
 
   // Step 2: Generate search keywords from evidence specification
   const handleGenerateKeywords = async (source?: string) => {
-    if (!evidenceSpec.trim()) {
+    if (!smartSearch.evidenceSpec.trim()) {
       toast({
         title: 'Error',
         description: 'Please provide an evidence specification',
@@ -302,26 +97,31 @@ export default function SmartSearchLab() {
       return;
     }
 
-    // Update selected source if provided
-    if (source) {
-      setSelectedSource(source);
+    if (!smartSearch.sessionId) {
+      toast({
+        title: 'Error',
+        description: 'No session found',
+        variant: 'destructive'
+      });
+      return;
     }
 
-    setSearchQueryLoading(true);
+    // Update selected source if provided
+    if (source) {
+      smartSearch.updateSelectedSource(source);
+    }
+
     try {
-      const response = await smartSearchApi.generateKeywords({
-        evidence_specification: evidenceSpec,
-        session_id: sessionId!,
-        selected_sources: [source || selectedSource]
-      });
-      setSearchQueryGeneration(response);
-      setEditedSearchQuery(response.search_query);
+      const response = await smartSearch.generateSearchKeywords(
+        smartSearch.evidenceSpec,
+        smartSearch.sessionId,
+        [source || smartSearch.selectedSource]
+      );
 
       // Automatically test the generated query count
       try {
         const countResult = await handleTestQueryCount(response.search_query);
-        setInitialQueryCount(countResult);
-        setStep('search-query');
+        smartSearch.updateStep('search-query');
 
         if (countResult.total_count > 250) {
           toast({
@@ -337,8 +137,7 @@ export default function SmartSearchLab() {
         }
       } catch (countError) {
         // If count test fails, still proceed to search-query step
-        setInitialQueryCount(null);
-        setStep('search-query');
+        smartSearch.updateStep('search-query');
         toast({
           title: 'Keywords Generated',
           description: 'Review and test the search keywords'
@@ -351,14 +150,12 @@ export default function SmartSearchLab() {
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
-    } finally {
-      setSearchQueryLoading(false);
     }
   };
 
   // Step 3: Execute search
   const handleExecuteSearch = async () => {
-    if (!editedSearchQuery.trim()) {
+    if (!smartSearch.editedSearchQuery.trim()) {
       toast({
         title: 'Error',
         description: 'Please provide search keywords',
@@ -367,18 +164,23 @@ export default function SmartSearchLab() {
       return;
     }
 
-    setSearchLoading(true);
-    setStep('searching');
+    if (!smartSearch.sessionId) {
+      toast({
+        title: 'Error',
+        description: 'No session found',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    smartSearch.updateStep('searching');
 
     try {
-      // Google Scholar returns max 20 per page, PubMed can do 50+
-      const initialBatchSize = selectedSource === 'google_scholar' ? 20 : 50;
-      const results = await smartSearchApi.executeSearch({
-        search_query: editedSearchQuery,
-        max_results: initialBatchSize,
-        session_id: sessionId!,
-        selected_sources: [selectedSource]
-      });
+      const results = await smartSearch.executeSearch(
+        smartSearch.editedSearchQuery,
+        smartSearch.sessionId,
+        [smartSearch.selectedSource]
+      );
 
       if (results.articles.length === 0) {
         toast({
@@ -386,15 +188,14 @@ export default function SmartSearchLab() {
           description: 'No articles found. Try different search keywords',
           variant: 'destructive'
         });
-        setStep('search-query');
+        smartSearch.updateStep('search-query');
       } else {
         toast({
           title: 'Search Complete',
           description: `Found ${results.pagination.returned} articles (${results.pagination.total_available} total available) from ${results.sources_searched.join(', ')}`
         });
         // Go to search results review step
-        setSearchResults(results);
-        setStep('search-results');
+        smartSearch.updateStep('search-results');
       }
     } catch (error) {
       toast({
@@ -402,17 +203,14 @@ export default function SmartSearchLab() {
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
-      setStep('refinement');
-    } finally {
-      setSearchLoading(false);
+      smartSearch.updateStep('refinement');
     }
   };
 
   // Initialize filtering UI state
   const initializeFilteringState = (totalCount: number) => {
-    setStep('filtering');
-    setFilteredArticles([]);
-    setFilteringProgress({
+    smartSearch.updateStep('filtering');
+    smartSearch.updateFilteringProgress({
       total: totalCount,
       processed: 0,
       accepted: 0,
@@ -431,21 +229,21 @@ export default function SmartSearchLab() {
 
   // Step 4: Start filtering - always filter all articles
   const handleStartFiltering = async () => {
-    if (!searchResults || !sessionId) return;
+    if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
     // Always filter all available search results
-    const articlesToProcess = Math.min(searchResults.pagination.total_available, 500);
+    const articlesToProcess = Math.min(smartSearch.searchResults.pagination.total_available, 500);
 
     initializeFilteringState(articlesToProcess);
 
     const request = {
       filter_mode: 'all' as const,
-      evidence_specification: evidenceSpec,
-      search_query: editedSearchQuery,
-      strictness,
-      discriminator_prompt: editedDiscriminator,
-      session_id: sessionId!,
-      selected_sources: [selectedSource],
+      evidence_specification: smartSearch.evidenceSpec,
+      search_query: smartSearch.editedSearchQuery,
+      strictness: smartSearch.strictness,
+      discriminator_prompt: smartSearch.editedDiscriminator,
+      session_id: smartSearch.sessionId,
+      selected_sources: [smartSearch.selectedSource],
       max_results: articlesToProcess
     };
 
@@ -454,14 +252,11 @@ export default function SmartSearchLab() {
       console.log(`Processing ${articlesToProcess} articles in parallel...`);
 
       const startTime = Date.now();
-      const response = await smartSearchApi.filterArticles(request);
+      const response = await smartSearch.filterArticles(request);
       const duration = Date.now() - startTime;
 
-      // Set all articles at once
-      setFilteredArticles(response.filtered_articles);
-
       // Update progress to show completion
-      setFilteringProgress({
+      smartSearch.updateFilteringProgress({
         total: response.total_processed,
         processed: response.total_processed,
         accepted: response.total_accepted,
@@ -469,7 +264,7 @@ export default function SmartSearchLab() {
       });
 
       // Complete immediately
-      setStep('results');
+      smartSearch.updateStep('results');
 
       toast({
         title: 'Filtering Complete',
@@ -483,20 +278,17 @@ export default function SmartSearchLab() {
 
   // Generate discriminator for review
   const handleGenerateDiscriminator = async () => {
-    if (!searchResults) return;
+    if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
-    setDiscriminatorLoading(true);
     try {
-      const response = await smartSearchApi.generateDiscriminator({
-        evidence_specification: evidenceSpec,
-        search_query: editedSearchQuery,
-        strictness: strictness,
-        session_id: sessionId!
-      });
+      await smartSearch.generateDiscriminator(
+        smartSearch.evidenceSpec,
+        smartSearch.editedSearchQuery,
+        smartSearch.strictness,
+        smartSearch.sessionId
+      );
 
-      setDiscriminatorData(response);
-      setEditedDiscriminator(response.discriminator_prompt);
-      setStep('discriminator');
+      smartSearch.updateStep('discriminator');
 
       toast({
         title: 'Discriminator Generated',
@@ -508,47 +300,30 @@ export default function SmartSearchLab() {
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
-    } finally {
-      setDiscriminatorLoading(false);
     }
   };
 
   // Generate discriminator - always filters all results
   const handleProceedToDiscriminator = async () => {
-    if (!searchResults) return;
+    if (!smartSearch.searchResults) return;
 
     // Generate discriminator for filtering all results
     await handleGenerateDiscriminator();
   };
 
-  // Reset to start
   // Load more search results
   const handleLoadMoreResults = async () => {
-    if (!searchResults || !editedSearchQuery.trim()) return;
+    if (!smartSearch.searchResults || !smartSearch.editedSearchQuery.trim() || !smartSearch.sessionId) return;
 
-    setSearchLoading(true);
     try {
-      // Google Scholar returns max 20 per page, PubMed can do 50+
-      const batchSize = selectedSource === 'google_scholar' ? 20 : 50;
-      const moreResults = await smartSearchApi.executeSearch({
-        search_query: editedSearchQuery,
-        max_results: batchSize,
-        offset: searchResults.articles.length,
-        session_id: sessionId!,
-        selected_sources: [selectedSource]
-      });
-
-      // Combine results
-      const combinedResults = {
-        ...moreResults,
-        articles: [...searchResults.articles, ...moreResults.articles],
-        pagination: {
-          ...moreResults.pagination,
-          returned: searchResults.articles.length + moreResults.articles.length
-        }
-      };
-
-      setSearchResults(combinedResults);
+      const batchSize = smartSearch.selectedSource === 'google_scholar' ? 20 : 50;
+      const moreResults = await smartSearch.executeSearch(
+        smartSearch.editedSearchQuery,
+        smartSearch.sessionId,
+        [smartSearch.selectedSource],
+        smartSearch.searchResults.articles.length,
+        batchSize
+      );
 
       toast({
         title: 'More Results Loaded',
@@ -560,51 +335,12 @@ export default function SmartSearchLab() {
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
-    } finally {
-      setSearchLoading(false);
     }
   };
 
   // Step navigation functions
-  const getStepAvailability = (targetStep: string): boolean => {
-    // You can only go back to steps that have been completed
-    const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
-    const currentIndex = stepOrder.indexOf(step);
-    const targetIndex = stepOrder.indexOf(targetStep);
-
-    // Can't go back to current or future steps, and can't go back if no session exists yet
-    return targetIndex < currentIndex && sessionId !== null;
-  };
-
-  const clearStateForward = (targetStep: string) => {
-    // Clear frontend state for all steps forward of the target step
-    const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
-    const targetIndex = stepOrder.indexOf(targetStep);
-
-    if (targetIndex < stepOrder.indexOf('refinement')) {
-      setRefinement(null);
-      setEvidenceSpec('');
-    }
-    if (targetIndex < stepOrder.indexOf('search-query')) {
-      setSearchQueryGeneration(null);
-      setEditedSearchQuery('');
-      setInitialQueryCount(null);
-    }
-    if (targetIndex < stepOrder.indexOf('search-results')) {
-      setSearchResults(null);
-    }
-    if (targetIndex < stepOrder.indexOf('discriminator')) {
-      setDiscriminatorData(null);
-      setEditedDiscriminator('');
-    }
-    if (targetIndex < stepOrder.indexOf('filtering')) {
-      setFilteredArticles([]);
-      setFilteringProgress(null);
-    }
-  };
-
   const handleStepBack = async (targetStep: string) => {
-    if (!sessionId || !getStepAvailability(targetStep)) return;
+    if (!smartSearch.sessionId || !smartSearch.canNavigateToStep(targetStep as any)) return;
 
     try {
       // Map frontend step names to backend step names
@@ -621,13 +357,10 @@ export default function SmartSearchLab() {
       if (!backendStep) return;
 
       // Call backend to reset session
-      await smartSearchApi.resetSessionToStep(sessionId, backendStep);
-
-      // Clear frontend state for steps forward of target
-      clearStateForward(targetStep);
+      await smartSearch.resetToStep(smartSearch.sessionId, backendStep);
 
       // Navigate to target step
-      setStep(targetStep as any);
+      smartSearch.updateStep(targetStep as any);
 
       toast({
         title: 'Stepped Back',
@@ -644,19 +377,7 @@ export default function SmartSearchLab() {
   };
 
   const handleReset = () => {
-    setStep('query');
-    setSessionId(null);
-    setQuery('');
-    setRefinement(null);
-    setEvidenceSpec('');
-    setSearchQueryGeneration(null);
-    setEditedSearchQuery('');
-    setInitialQueryCount(null);
-    setSearchResults(null);
-    setDiscriminatorData(null);
-    setEditedDiscriminator('');
-    setFilteredArticles([]);
-    setFilteringProgress(null);
+    smartSearch.resetAllState();
   };
 
   return (
@@ -682,7 +403,7 @@ export default function SmartSearchLab() {
                 Search History
               </Button>
             </Link>
-            {step !== 'query' && (
+            {smartSearch.step !== 'query' && (
               <Button
                 variant="outline"
                 onClick={handleReset}
@@ -698,147 +419,147 @@ export default function SmartSearchLab() {
         {/* Progress Steps */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <Badge
-            variant={step === 'query' ? 'default' : 'secondary'}
-            className={getStepAvailability('query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('query') ? () => handleStepBack('query') : undefined}
+            variant={smartSearch.step === 'query' ? 'default' : 'secondary'}
+            className={smartSearch.canNavigateToStep('query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('query') ? () => handleStepBack('query') : undefined}
           >
             1. Enter Search Request
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={step === 'refinement' ? 'default' : !['query'].includes(step) ? 'secondary' : 'outline'}
-            className={getStepAvailability('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('refinement') ? () => handleStepBack('refinement') : undefined}
+            variant={smartSearch.step === 'refinement' ? 'default' : !['query'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            className={smartSearch.canNavigateToStep('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('refinement') ? () => handleStepBack('refinement') : undefined}
           >
             2. Evidence Specification
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={step === 'search-query' ? 'default' : !['query', 'refinement'].includes(step) ? 'secondary' : 'outline'}
-            className={getStepAvailability('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('search-query') ? () => handleStepBack('search-query') : undefined}
+            variant={smartSearch.step === 'search-query' ? 'default' : !['query', 'refinement'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            className={smartSearch.canNavigateToStep('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('search-query') ? () => handleStepBack('search-query') : undefined}
           >
             3. Generate Keywords
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
-            className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
+            variant={smartSearch.step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            className={smartSearch.canNavigateToStep('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('search-results') ? () => handleStepBack('search-results') : undefined}
           >
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
-            className={getStepAvailability('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('search-results') ? () => handleStepBack('search-results') : undefined}
+            variant={smartSearch.step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            className={smartSearch.canNavigateToStep('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('search-results') ? () => handleStepBack('search-results') : undefined}
           >
             5. Review Results
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(step) ? 'secondary' : 'outline'}
-            className={getStepAvailability('discriminator') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={getStepAvailability('discriminator') ? () => handleStepBack('discriminator') : undefined}
+            variant={smartSearch.step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            className={smartSearch.canNavigateToStep('discriminator') ? 'cursor-pointer hover:bg-opacity-80' : ''}
+            onClick={smartSearch.canNavigateToStep('discriminator') ? () => handleStepBack('discriminator') : undefined}
           >
             6. Filter Criteria
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'filtering' ? 'default' : step === 'results' ? 'secondary' : 'outline'}>
+          <Badge variant={smartSearch.step === 'filtering' ? 'default' : smartSearch.step === 'results' ? 'secondary' : 'outline'}>
             7. Filter
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={step === 'results' ? 'default' : 'outline'}>8. Results</Badge>
+          <Badge variant={smartSearch.step === 'results' ? 'default' : 'outline'}>8. Results</Badge>
         </div>
       </div>
 
       <div className="flex-1 p-6">
         <div className="w-full space-y-6">
           {/* Step Components */}
-          {step === 'query' && (
+          {smartSearch.step === 'query' && (
             <QueryInputStep
-              query={query}
-              setQuery={setQuery}
+              query={smartSearch.query}
+              setQuery={smartSearch.updateQuery}
               onSubmit={handleCreateEvidenceSpec}
-              loading={queryLoading}
+              loading={smartSearch.queryLoading}
             />
           )}
 
-          {step === 'refinement' && refinement && (
+          {smartSearch.step === 'refinement' && smartSearch.refinement && (
             <RefinementStep
-              refinement={refinement}
-              evidenceSpec={evidenceSpec}
-              setEvidenceSpec={setEvidenceSpec}
-              selectedSource={selectedSource}
-              setSelectedSource={setSelectedSource}
+              refinement={smartSearch.refinement}
+              evidenceSpec={smartSearch.evidenceSpec}
+              setEvidenceSpec={smartSearch.updateEvidenceSpec}
+              selectedSource={smartSearch.selectedSource}
+              setSelectedSource={smartSearch.updateSelectedSource}
               onSubmit={handleGenerateKeywords}
-              loading={searchQueryLoading}
+              loading={smartSearch.searchQueryLoading}
             />
           )}
 
-          {step === 'search-query' && searchQueryGeneration && (
+          {smartSearch.step === 'search-query' && smartSearch.searchQueryGeneration && (
             <SearchQueryStep
-              editedSearchQuery={editedSearchQuery}
-              setEditedSearchQuery={setEditedSearchQuery}
-              evidenceSpec={evidenceSpec}
-              selectedSource={selectedSource}
+              editedSearchQuery={smartSearch.editedSearchQuery}
+              setEditedSearchQuery={smartSearch.updateEditedSearchQuery}
+              evidenceSpec={smartSearch.evidenceSpec}
+              selectedSource={smartSearch.selectedSource}
               onSubmit={handleExecuteSearch}
               onOptimize={handleOptimizeQuery}
               onTestCount={handleTestQueryCount}
-              loading={searchLoading}
-              initialCount={initialQueryCount}
+              loading={smartSearch.searchLoading}
+              initialCount={smartSearch.initialQueryCount}
             />
           )}
 
-          {step === 'searching' && <SearchingStep />}
+          {smartSearch.step === 'searching' && <SearchingStep />}
 
-          {step === 'search-results' && searchResults && (
+          {smartSearch.step === 'search-results' && smartSearch.searchResults && (
             <SearchResultsStep
-              searchResults={searchResults}
+              searchResults={smartSearch.searchResults}
               onSubmit={handleProceedToDiscriminator}
               onLoadMore={handleLoadMoreResults}
               onGoBack={() => handleStepBack('search-query')}
-              loading={discriminatorLoading}
-              loadingMore={searchLoading}
+              loading={smartSearch.discriminatorLoading}
+              loadingMore={smartSearch.searchLoading}
             />
           )}
 
-          {step === 'discriminator' && discriminatorData && (
+          {smartSearch.step === 'discriminator' && smartSearch.discriminatorData && (
             <DiscriminatorStep
-              evidenceSpec={evidenceSpec}
-              searchKeywords={editedSearchQuery}
-              editedDiscriminator={editedDiscriminator}
-              setEditedDiscriminator={setEditedDiscriminator}
-              strictness={strictness}
-              setStrictness={setStrictness}
-              selectedArticlesCount={searchResults?.pagination.total_available || 0}
+              evidenceSpec={smartSearch.evidenceSpec}
+              searchKeywords={smartSearch.editedSearchQuery}
+              editedDiscriminator={smartSearch.editedDiscriminator}
+              setEditedDiscriminator={smartSearch.updateEditedDiscriminator}
+              strictness={smartSearch.strictness}
+              setStrictness={smartSearch.updateStrictness}
+              selectedArticlesCount={smartSearch.searchResults?.pagination.total_available || 0}
               filterAllMode={true}  // Always filter all
-              totalAvailable={searchResults?.pagination.total_available}
+              totalAvailable={smartSearch.searchResults?.pagination.total_available}
               onSubmit={handleStartFiltering}
             />
           )}
 
-          {step === 'filtering' && filteringProgress && (
+          {smartSearch.step === 'filtering' && smartSearch.filteringProgress && (
             <>
               <FilteringStep
-                filteringProgress={filteringProgress}
-                filteredArticles={filteredArticles}
+                filteringProgress={smartSearch.filteringProgress}
+                filteredArticles={smartSearch.filteredArticles}
               />
               <div ref={messagesEndRef} />
             </>
           )}
 
-          {step === 'results' && (
+          {smartSearch.step === 'results' && (
             <ResultsStep
-              filteredArticles={filteredArticles}
-              originalQuery={query}
-              evidenceSpecification={evidenceSpec}
-              searchQuery={editedSearchQuery}
-              totalAvailable={searchResults?.pagination.total_available}
-              totalFiltered={searchResults?.pagination.total_available ? Math.min(searchResults.pagination.total_available, 500) : filteredArticles.length}
-              sessionId={sessionId || undefined}
-              savedCustomColumns={savedCustomColumns}
+              filteredArticles={smartSearch.filteredArticles}
+              originalQuery={smartSearch.query}
+              evidenceSpecification={smartSearch.evidenceSpec}
+              searchQuery={smartSearch.editedSearchQuery}
+              totalAvailable={smartSearch.searchResults?.pagination.total_available}
+              totalFiltered={smartSearch.searchResults?.pagination.total_available ? Math.min(smartSearch.searchResults.pagination.total_available, 500) : smartSearch.filteredArticles.length}
+              sessionId={smartSearch.sessionId || undefined}
+              savedCustomColumns={smartSearch.savedCustomColumns}
             />
           )}
         </div>

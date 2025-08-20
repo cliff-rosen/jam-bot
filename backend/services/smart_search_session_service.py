@@ -336,7 +336,6 @@ class SmartSearchSessionService:
             logger.error(f"Failed to get all sessions: {e}")
             raise
 
-
     def update_custom_columns_and_features(self, session_id: str, user_id: str, custom_columns: List[Dict[str, Any]], extracted_features: Dict[str, Dict[str, Any]]) -> Optional[SmartSearchSession]:
         """Update both custom column metadata and feature values atomically"""
         try:
@@ -369,12 +368,12 @@ class SmartSearchSessionService:
                 for article_data in session.filtered_articles:
                     article_id = article_data['article']['id']
                     
-                    # Initialize extracted_features if it doesn't exist
-                    if 'extracted_features' not in article_data['article']:
+                    # Initialize extracted_features if it doesn't exist or is None
+                    if 'extracted_features' not in article_data['article'] or article_data['article']['extracted_features'] is None:
                         article_data['article']['extracted_features'] = {}
                     
                     # Add new extracted features
-                    if article_id in extracted_features:
+                    if article_id in extracted_features and extracted_features[article_id] is not None:
                         article_data['article']['extracted_features'].update(extracted_features[article_id])
                     
                     # Clean up features that are no longer in the custom columns

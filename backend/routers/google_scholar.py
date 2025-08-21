@@ -4,15 +4,14 @@ Google Scholar API Router
 This module provides REST API endpoints for Google Scholar search functionality.
 """
 
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from database import get_db
 from models import User
-
-from services.google_scholar_service import GoogleScholarArticle
+from schemas.canonical_types import CanonicalResearchArticle
 
 from services.auth_service import validate_token
 from services.google_scholar_service import GoogleScholarService
@@ -26,15 +25,16 @@ router = APIRouter(
 class GoogleScholarSearchRequest(BaseModel):
     """Request model for Google Scholar search."""
     query: str = Field(..., description="Search query for academic literature")
-    num_results: Optional[int] = Field(10, ge=1, le=20, description="Number of results to return")
+    num_results: Optional[int] = Field(10, ge=1, le=500, description="Number of results to return")
     year_low: Optional[int] = Field(None, description="Filter results from this year onwards")
     year_high: Optional[int] = Field(None, description="Filter results up to this year")
     sort_by: Optional[str] = Field("relevance", pattern="^(relevance|date)$", description="Sort order")
+    start_index: Optional[int] = Field(0, ge=0, description="Starting index for pagination")
 
 
 class GoogleScholarSearchResponse(BaseModel):
     """Response model for Google Scholar search."""
-    articles: list[dict] = Field(..., description="List of academic articles as dictionaries")
+    articles: List[CanonicalResearchArticle] = Field(..., description="List of academic articles")
     metadata: dict = Field(..., description="Search metadata")
     success: bool = Field(..., description="Whether the search was successful")
 
@@ -72,14 +72,12 @@ async def search_google_scholar(
             num_results=request.num_results,
             year_low=request.year_low,
             year_high=request.year_high,
-            sort_by=request.sort_by
+            sort_by=request.sort_by,
+            start_index=request.start_index
         )
         
-        # Convert GoogleScholarArticle objects to dictionaries
-        article_dicts = [article.to_dict() for article in articles]
-        
         return GoogleScholarSearchResponse(
-            articles=article_dicts,
+            articles=articles,
             metadata=search_metadata,
             success=True
         )
@@ -93,10 +91,11 @@ async def search_google_scholar(
 @router.get("/search", response_model=GoogleScholarSearchResponse)
 async def search_google_scholar_get(
     query: str = Query(..., description="Search query"),
-    num_results: Optional[int] = Query(10, ge=1, le=20, description="Number of results"),
+    num_results: Optional[int] = Query(10, ge=1, le=500, description="Number of results"),
     year_low: Optional[int] = Query(None, description="Start year filter"),
     year_high: Optional[int] = Query(None, description="End year filter"),
     sort_by: Optional[str] = Query("relevance", pattern="^(relevance|date)$", description="Sort order"),
+    start_index: Optional[int] = Query(0, ge=0, description="Starting index for pagination"),
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
@@ -111,7 +110,8 @@ async def search_google_scholar_get(
         num_results=num_results,
         year_low=year_low,
         year_high=year_high,
-        sort_by=sort_by
+        sort_by=sort_by,
+        start_index=start_index
     )
     
     return await search_google_scholar(request, db, current_user)

@@ -524,9 +524,12 @@ async def filter_articles(
         # Initialize smart search service
         service = SmartSearchService()
         
-        # Execute search to get articles to filter (up to max_results)
-        max_results = request.max_results
-        logger.info(f"Executing search to get up to {max_results} articles for filtering")
+        # Execute search to get articles to filter (up to max_results, capped by settings)
+        from config.settings import settings
+        max_results = min(request.max_results, settings.MAX_ARTICLES_TO_FILTER)
+        max_results = min(max_results, 999) # safety line
+
+        logger.info(f"Executing search to get up to {max_results} articles for filtering (capped at {settings.MAX_ARTICLES_TO_FILTER})")
         
         search_results = await service.search_articles(
             search_query=request.search_keywords,

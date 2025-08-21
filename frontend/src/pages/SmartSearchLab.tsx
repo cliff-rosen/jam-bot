@@ -138,9 +138,9 @@ export default function SmartSearchLab() {
   const handleStartFiltering = async () => {
     if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
-    // Filter all available search results
+    // Filter all available search results (backend will cap at MAX_ARTICLES_TO_FILTER)
     const totalAvailable = smartSearch.searchResults.pagination.total_available;
-    const articlesToProcess = totalAvailable;
+    const articlesToProcess = totalAvailable; // Backend will cap this at configured limit
 
     initializeFilteringState(articlesToProcess);
 

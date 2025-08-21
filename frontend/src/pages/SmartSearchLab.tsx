@@ -138,20 +138,20 @@ export default function SmartSearchLab() {
   const handleStartFiltering = async () => {
     if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
-    // Always filter all available search results
-    const articlesToProcess = Math.min(smartSearch.searchResults.pagination.total_available, 500);
+    // Filter all available search results, capped at 500
+    const totalAvailable = smartSearch.searchResults.pagination.total_available;
+    const articlesToProcess = Math.min(totalAvailable, 500);
 
     initializeFilteringState(articlesToProcess);
 
     const request = {
-      filter_mode: 'all' as const,
       evidence_specification: smartSearch.submittedEvidenceSpec,
       search_keywords: smartSearch.submittedSearchKeywords,
       strictness: smartSearch.strictness,
       discriminator_prompt: smartSearch.submittedDiscriminator,
       session_id: smartSearch.sessionId,
       selected_sources: [smartSearch.selectedSource],
-      max_results: articlesToProcess
+      max_results: articlesToProcess  // Tell backend to fetch this many articles and filter them
     };
 
     try {

@@ -118,15 +118,13 @@ export interface DiscriminatorGenerationResponse {
 
 // Step 7: Filter Articles
 export interface ArticleFilterRequest {
-  filter_mode: 'selected' | 'all';
   evidence_specification: string;
   search_keywords: string;
   strictness?: 'low' | 'medium' | 'high';
-  discriminator_prompt?: string;
+  discriminator_prompt: string;
   session_id: string;
   selected_sources: string[];
-  articles?: CanonicalResearchArticle[];  // For selected mode
-  max_results?: number;  // For all mode
+  max_results: number;  // Maximum number of articles to retrieve and filter
 }
 
 export interface ArticleFilterResponse {

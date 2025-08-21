@@ -145,16 +145,14 @@ class DiscriminatorGenerationResponse(BaseModel):
 
 # Step 7: Filter Articles
 class ArticleFilterRequest(BaseModel):
-    """Request for article filtering (both selected and all modes)"""
-    filter_mode: str = Field(..., description="'selected' or 'all'")
+    """Request for article filtering"""
     evidence_specification: str = Field(..., description="Evidence specification for filtering")
     search_keywords: str = Field(..., description="Search keywords for context")
     strictness: str = Field("medium", description="Filtering strictness")
     discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
     session_id: str = Field(..., description="Session ID for tracking")
-    selected_sources: List[str] = Field(..., description="Sources to search (for all mode)")
-    articles: Optional[List[CanonicalResearchArticle]] = Field(None, description="Articles to filter (for selected mode)")
-    max_results: Optional[int] = Field(None, description="Max results to retrieve (for all mode)")
+    selected_sources: List[str] = Field(..., description="Sources used in search")
+    max_results: int = Field(500, description="Maximum number of articles to retrieve and filter")
 
 
 class ArticleFilterResponse(BaseModel):
@@ -513,7 +511,7 @@ async def filter_articles(
     Processes all articles concurrently for better performance
     """
     try:
-        logger.info(f"User {current_user.user_id} starting parallel filtering in {request.filter_mode} mode")
+        logger.info(f"User {current_user.user_id} starting parallel filtering of {len(request.articles) if request.articles else 0} articles")
         
         # Create session service
         session_service = SmartSearchSessionService(db)
@@ -526,43 +524,29 @@ async def filter_articles(
         # Initialize smart search service
         service = SmartSearchService()
         
-        # Determine articles to filter based on mode
-        if request.filter_mode == "selected":
-            if not request.articles:
-                raise HTTPException(status_code=400, detail="Articles required for selected mode")
-            articles_to_filter = request.articles
-            logger.info(f"Parallel filtering {len(articles_to_filter)} selected articles")
-        elif request.filter_mode == "all":
-            # Check if articles were provided in the request
-            if request.articles:
-                # Use the provided articles (already retrieved)
-                articles_to_filter = request.articles
-                logger.info(f"Using {len(articles_to_filter)} provided articles for parallel filtering")
-            else:
-                # Only execute search if no articles were provided
-                max_results = request.max_results or 500
-                logger.info(f"No articles provided, executing full search with max_results={max_results}")
-                search_results = await service.search_articles(
-                    search_query=request.search_keywords,
-                    max_results=max_results,
-                    offset=0,
-                    selected_sources=request.selected_sources
-                )
-                articles_to_filter = search_results.articles
-                logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
-            
-            # Update session with search execution (full retrieval)
-            session_service.update_search_execution_step(
-                session_id=session.id,
-                user_id=current_user.user_id,
-                total_available=search_results.pagination.total_available,
-                returned=len(articles_to_filter),
-                sources=search_results.sources_searched,
-                is_pagination_load=False,
-                submitted_search_query=request.search_keywords
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Invalid filter_mode. Must be 'selected' or 'all'")
+        # Execute search to get articles to filter (up to max_results)
+        max_results = request.max_results
+        logger.info(f"Executing search to get up to {max_results} articles for filtering")
+        
+        search_results = await service.search_articles(
+            search_query=request.search_keywords,
+            max_results=max_results,
+            offset=0,
+            selected_sources=request.selected_sources
+        )
+        articles_to_filter = search_results.articles
+        logger.info(f"Retrieved {len(articles_to_filter)} articles for filtering")
+        
+        # Update session with search execution 
+        session_service.update_search_execution_step(
+            session_id=session.id,
+            user_id=current_user.user_id,
+            total_available=search_results.pagination.total_available,
+            returned=len(articles_to_filter),
+            sources=search_results.sources_searched,
+            is_pagination_load=False,
+            submitted_search_query=request.search_keywords
+        )
         
         # Track article selection
         session_service.update_article_selection_step(

@@ -533,17 +533,23 @@ async def filter_articles(
             articles_to_filter = request.articles
             logger.info(f"Parallel filtering {len(articles_to_filter)} selected articles")
         elif request.filter_mode == "all":
-            # Execute full search to get all available articles
-            max_results = request.max_results or 500
-            logger.info(f"Executing full search with max_results={max_results}")
-            search_results = await service.search_articles(
-                search_query=request.search_keywords,
-                max_results=max_results,
-                offset=0,
-                selected_sources=request.selected_sources
-            )
-            articles_to_filter = search_results.articles
-            logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
+            # Check if articles were provided in the request
+            if request.articles:
+                # Use the provided articles (already retrieved)
+                articles_to_filter = request.articles
+                logger.info(f"Using {len(articles_to_filter)} provided articles for parallel filtering")
+            else:
+                # Only execute search if no articles were provided
+                max_results = request.max_results or 500
+                logger.info(f"No articles provided, executing full search with max_results={max_results}")
+                search_results = await service.search_articles(
+                    search_query=request.search_keywords,
+                    max_results=max_results,
+                    offset=0,
+                    selected_sources=request.selected_sources
+                )
+                articles_to_filter = search_results.articles
+                logger.info(f"Retrieved {len(articles_to_filter)} articles for parallel filtering")
             
             # Update session with search execution (full retrieval)
             session_service.update_search_execution_step(

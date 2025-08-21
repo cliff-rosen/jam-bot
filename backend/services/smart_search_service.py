@@ -795,6 +795,137 @@ Respond in JSON format:
         
         return filtered_articles, total_usage
     
+    async def execute_filtering_workflow(
+        self,
+        session_id: str,
+        user_id: str,
+        search_keywords: str,
+        evidence_specification: str,
+        discriminator_prompt: str,
+        strictness: str,
+        selected_sources: List[str],
+        max_results: int,
+        db_session
+    ) -> Dict[str, Any]:
+        """
+        Execute the COMPLETE filtering workflow including all orchestration:
+        1. Search for ALL articles up to max_results (no pagination)
+        2. Filter them using the discriminator
+        3. Calculate all statistics
+        4. Update session with all results
+        5. Return complete response data
+        
+        Returns:
+            Complete response dict ready for API return
+        """
+        from datetime import datetime
+        from config.settings import settings
+        from services.smart_search_session_service import SmartSearchSessionService
+        
+        # Initialize session service
+        session_service = SmartSearchSessionService(db_session)
+        
+        # Cap max_results by the configured limit
+        max_results = min(max_results, settings.MAX_ARTICLES_TO_FILTER)
+        
+        logger.info(f"Starting filtering workflow: searching for up to {max_results} articles to filter")
+        
+        # Execute search to get ALL articles to filter (not paginated)
+        search_results = await self.search_articles(
+            search_query=search_keywords,
+            max_results=max_results,
+            offset=0,  # Always start from beginning for filtering
+            selected_sources=selected_sources
+        )
+        
+        articles_to_filter = search_results.articles
+        logger.info(f"Retrieved {len(articles_to_filter)} articles from search (total available: {search_results.pagination.total_available})")
+        
+        # Update session with search execution
+        session_service.update_search_execution_step(
+            session_id=session_id,
+            user_id=user_id,
+            total_available=search_results.pagination.total_available,
+            returned=len(search_results.articles),
+            sources=search_results.sources_searched,
+            is_pagination_load=False,
+            submitted_search_query=search_keywords
+        )
+        
+        # Track article selection
+        session_service.update_article_selection_step(
+            session_id=session_id,
+            user_id=user_id,
+            selected_count=len(search_results.articles)
+        )
+        
+        # Execute parallel filtering
+        start_time = datetime.utcnow()
+        filtered_articles, token_usage = await self.filter_articles_parallel(
+            articles=articles_to_filter,
+            refined_question=evidence_specification,
+            search_query=search_keywords,
+            strictness=strictness,
+            custom_discriminator=discriminator_prompt
+        )
+        duration = (datetime.utcnow() - start_time).total_seconds()
+        
+        # Calculate statistics
+        total_processed = len(filtered_articles)
+        total_accepted = sum(1 for fa in filtered_articles if fa.passed)
+        total_rejected = total_processed - total_accepted
+        
+        # Calculate average confidence (only for accepted articles)
+        accepted_articles = [fa for fa in filtered_articles if fa.passed]
+        average_confidence = (
+            sum(fa.confidence for fa in accepted_articles) / len(accepted_articles)
+            if accepted_articles else 0.0
+        )
+        
+        # Convert filtered articles to dictionaries for storage
+        filtered_articles_data = []
+        for fa in filtered_articles:
+            filtered_articles_data.append({
+                "article": fa.article.dict() if hasattr(fa.article, 'dict') else fa.article,
+                "passed": fa.passed,
+                "confidence": fa.confidence,
+                "reasoning": fa.reasoning
+            })
+        
+        # Update session with filtering results
+        session_service.update_filtering_step(
+            session_id=session_id,
+            user_id=user_id,
+            total_filtered=total_processed,
+            accepted=total_accepted,
+            rejected=total_rejected,
+            average_confidence=average_confidence,
+            duration_seconds=int(duration),
+            filtered_articles=filtered_articles_data,
+            submitted_discriminator=discriminator_prompt,
+            prompt_tokens=token_usage.prompt_tokens,
+            completion_tokens=token_usage.completion_tokens,
+            total_tokens=token_usage.total_tokens
+        )
+        
+        logger.info(f"Filtering completed for user {user_id}: {total_accepted}/{total_processed} articles accepted in {duration:.2f}s")
+        
+        # Return complete response data
+        return {
+            "filtered_articles": filtered_articles,
+            "total_processed": total_processed,
+            "total_accepted": total_accepted,
+            "total_rejected": total_rejected,
+            "average_confidence": average_confidence,
+            "duration_seconds": duration,
+            "token_usage": {
+                "prompt_tokens": token_usage.prompt_tokens,
+                "completion_tokens": token_usage.completion_tokens,
+                "total_tokens": token_usage.total_tokens
+            },
+            "session_id": session_id
+        }
+    
     async def extract_features_parallel(
         self,
         articles: List[Dict[str, Any]],

@@ -508,121 +508,32 @@ async def filter_articles(
 ):
     """
     Step 7: Filter articles using semantic discriminator
-    Processes all articles concurrently for better performance
     """
     try:
-        logger.info(f"User {current_user.user_id} starting parallel filtering with max_results={request.max_results}")
+        logger.info(f"User {current_user.user_id} requesting article filtering")
         
-        # Create session service
+        # Validate session exists
         session_service = SmartSearchSessionService(db)
-        
-        # Get session
         session = session_service.get_session(request.session_id, current_user.user_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Initialize smart search service
+        # Execute complete workflow in service
         service = SmartSearchService()
-        
-        # Execute search to get articles to filter (up to max_results, capped by settings)
-        from config.settings import settings
-        max_results = min(request.max_results, settings.MAX_ARTICLES_TO_FILTER)
-        max_results = min(max_results, 999) # safety line
-
-        logger.info(f"Executing search to get up to {max_results} articles for filtering (capped at {settings.MAX_ARTICLES_TO_FILTER})")
-        
-        search_results = await service.search_articles(
-            search_query=request.search_keywords,
-            max_results=max_results,
-            offset=0,
-            selected_sources=request.selected_sources
-        )
-        articles_to_filter = search_results.articles
-        logger.info(f"Retrieved {len(articles_to_filter)} articles for filtering")
-        
-        # Update session with search execution 
-        session_service.update_search_execution_step(
-            session_id=session.id,
+        result = await service.execute_filtering_workflow(
+            session_id=request.session_id,
             user_id=current_user.user_id,
-            total_available=search_results.pagination.total_available,
-            returned=len(articles_to_filter),
-            sources=search_results.sources_searched,
-            is_pagination_load=False,
-            submitted_search_query=request.search_keywords
-        )
-        
-        # Track article selection
-        session_service.update_article_selection_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            selected_count=len(articles_to_filter)
-        )
-        
-        # Execute parallel filtering
-        start_time = datetime.utcnow()
-        filtered_articles, token_usage = await service.filter_articles_parallel(
-            articles=articles_to_filter,
-            refined_question=request.evidence_specification,
-            search_query=request.search_keywords,
+            search_keywords=request.search_keywords,
+            evidence_specification=request.evidence_specification,
+            discriminator_prompt=request.discriminator_prompt,
             strictness=request.strictness,
-            custom_discriminator=request.discriminator_prompt
-        )
-        duration = datetime.utcnow() - start_time
-        
-        # Calculate statistics
-        total_processed = len(filtered_articles)
-        total_accepted = sum(1 for fa in filtered_articles if fa.passed)
-        total_rejected = total_processed - total_accepted
-        
-        # Calculate average confidence (only for accepted articles)
-        accepted_articles = [fa for fa in filtered_articles if fa.passed]
-        average_confidence = (
-            sum(fa.confidence for fa in accepted_articles) / len(accepted_articles)
-            if accepted_articles else 0.0
+            selected_sources=request.selected_sources,
+            max_results=request.max_results,
+            db_session=db
         )
         
-        # Convert filtered articles to dictionaries for storage
-        filtered_articles_data = []
-        for fa in filtered_articles:
-            filtered_articles_data.append({
-                "article": fa.article.dict() if hasattr(fa.article, 'dict') else fa.article,
-                "passed": fa.passed,
-                "confidence": fa.confidence,
-                "reasoning": fa.reasoning
-            })
-        
-        # Update session with filtering results
-        session_service.update_filtering_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            total_filtered=total_processed,
-            accepted=total_accepted,
-            rejected=total_rejected,
-            average_confidence=average_confidence,
-            duration_seconds=int(duration.total_seconds()),
-            filtered_articles=filtered_articles_data,
-            submitted_discriminator=request.discriminator_prompt,
-            prompt_tokens=token_usage.prompt_tokens,
-            completion_tokens=token_usage.completion_tokens,
-            total_tokens=token_usage.total_tokens
-        )
-        
-        logger.info(f"Parallel filtering completed for user {current_user.user_id}: {total_accepted}/{total_processed} articles accepted in {duration.total_seconds():.2f}s")
-        
-        return ArticleFilterResponse(
-            filtered_articles=filtered_articles,
-            total_processed=total_processed,
-            total_accepted=total_accepted,
-            total_rejected=total_rejected,
-            average_confidence=average_confidence,
-            duration_seconds=duration.total_seconds(),
-            token_usage={
-                "prompt_tokens": token_usage.prompt_tokens,
-                "completion_tokens": token_usage.completion_tokens,
-                "total_tokens": token_usage.total_tokens
-            },
-            session_id=session.id
-        )
+        # Return response directly from service result
+        return ArticleFilterResponse(**result)
         
     except Exception as e:
         logger.error(f"Failed to start parallel filtering for user {current_user.user_id}: {e}", exc_info=True)

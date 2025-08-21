@@ -349,6 +349,7 @@ class GoogleScholarService:
         all_articles = []
         total_api_calls = 0
         current_start_index = start_index
+        total_available = 0  # Track the actual total from the API
         
         logger.info(f"Starting Google Scholar search for {target_results} results (will require ~{(target_results + batch_size - 1) // batch_size} API calls at {batch_size} results per call)")
         
@@ -371,6 +372,10 @@ class GoogleScholarService:
                 total_api_calls += 1
                 logger.info(f"API call {total_api_calls}: Retrieved {len(batch_articles)} articles (start_index={current_start_index})")
                 
+                # Capture total available results from the first API call
+                if total_api_calls == 1:
+                    total_available = batch_metadata.get("total_results", 0)
+                
                 # If no results returned, we've hit the end of available results
                 if not batch_articles:
                     logger.info(f"No more results available. Got {len(all_articles)} total articles.")
@@ -390,7 +395,8 @@ class GoogleScholarService:
         
         # Build final metadata
         final_metadata = {
-            "total_results": len(all_articles),
+            "total_results": total_available,  # Use actual total from API, not count returned
+            "returned_results": len(all_articles),  # Add actual count returned
             "requested_results": target_results,
             "api_calls_made": total_api_calls,
             "source": "google_scholar"

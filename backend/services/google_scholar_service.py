@@ -322,10 +322,11 @@ class GoogleScholarService:
     ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
         """
         Search Google Scholar for academic articles.
+        Will make multiple API calls to get the requested number of results.
         
         Args:
             query: Search query string
-            num_results: Number of results to return (1-100)
+            num_results: Number of results to return (up to 500)
             year_low: Optional minimum year filter
             year_high: Optional maximum year filter
             sort_by: Sort by "relevance" or "date"
@@ -337,9 +338,77 @@ class GoogleScholarService:
         if not self.api_key:
             raise ValueError("No API key available. Please set SERPAPI_KEY environment variable.")
         
-        # Ensure num_results is within Google Scholar API bounds
-        # SerpAPI Google Scholar has a hard limit of 20 results per page
-        num_results = max(1, min(20, num_results))  # Clamp to 1-20 for Google Scholar
+        # Google Scholar API limit is 20 results per call
+        batch_size = 20
+        target_results = num_results
+        all_articles = []
+        total_api_calls = 0
+        current_start_index = start_index
+        
+        logger.info(f"Starting Google Scholar search for {target_results} results (will require {(target_results + batch_size - 1) // batch_size} API calls)")
+        
+        while len(all_articles) < target_results:
+            # Calculate how many results to request in this batch
+            remaining = target_results - len(all_articles)
+            current_batch_size = min(batch_size, remaining)
+            
+            try:
+                # Make single API call for this batch
+                batch_articles, batch_metadata = self._search_single_batch(
+                    query=query,
+                    num_results=current_batch_size,
+                    year_low=year_low,
+                    year_high=year_high,
+                    sort_by=sort_by,
+                    start_index=current_start_index
+                )
+                
+                total_api_calls += 1
+                logger.info(f"API call {total_api_calls}: Retrieved {len(batch_articles)} articles (start_index={current_start_index})")
+                
+                # If no results returned, we've hit the end of available results
+                if not batch_articles:
+                    logger.info(f"No more results available. Got {len(all_articles)} total articles.")
+                    break
+                
+                all_articles.extend(batch_articles)
+                current_start_index += current_batch_size
+                
+                # Small delay between requests to be respectful to the API
+                if len(all_articles) < target_results:
+                    import time
+                    time.sleep(0.5)
+                    
+            except Exception as e:
+                logger.error(f"Google Scholar API call {total_api_calls + 1} failed at start_index={current_start_index}: {e}")
+                raise RuntimeError(f"Google Scholar search failed during pagination (call {total_api_calls + 1}): {str(e)}")
+        
+        # Build final metadata
+        final_metadata = {
+            "total_results": len(all_articles),
+            "requested_results": target_results,
+            "api_calls_made": total_api_calls,
+            "source": "google_scholar"
+        }
+        
+        logger.info(f"Google Scholar search completed: {len(all_articles)} articles retrieved in {total_api_calls} API calls")
+        return all_articles, final_metadata
+
+    def _search_single_batch(
+        self,
+        query: str,
+        num_results: int,
+        year_low: Optional[int] = None,
+        year_high: Optional[int] = None,
+        sort_by: str = "relevance",
+        start_index: int = 0
+    ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
+        """
+        Make a single API call to Google Scholar (max 20 results).
+        This is the original search_articles logic broken out for pagination.
+        """
+        # Ensure this batch is within API bounds
+        num_results = max(1, min(20, num_results))
         
         # Build API parameters
         params = {

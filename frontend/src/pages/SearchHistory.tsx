@@ -12,10 +12,10 @@ interface SearchSession {
   id: string;
   user_id?: string;
   original_question: string;
-  refined_question?: string;
-  submitted_refined_question?: string;
-  generated_search_query?: string;
-  submitted_search_query?: string;
+  generated_evidence_spec?: string;
+  submitted_evidence_spec?: string;
+  generated_search_keywords?: string;
+  submitted_search_keywords?: string;
   created_at: string;
   updated_at: string;
   // Search execution metadata from search_metadata
@@ -91,17 +91,17 @@ function SessionSummaryModal({ session, isOpen, onClose }: SessionSummaryModalPr
             <p className="text-gray-700 dark:text-gray-300">{session.original_question}</p>
           </div>
 
-          {session.submitted_refined_question && (
+          {session.submitted_evidence_spec && (
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Evidence Specification</h3>
-              <p className="text-gray-700 dark:text-gray-300">{session.submitted_refined_question}</p>
+              <p className="text-gray-700 dark:text-gray-300">{session.submitted_evidence_spec}</p>
             </div>
           )}
 
-          {session.submitted_search_query && (
+          {session.submitted_search_keywords && (
             <div>
               <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Search Query</h3>
-              <p className="font-mono text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded">{session.submitted_search_query}</p>
+              <p className="font-mono text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded">{session.submitted_search_keywords}</p>
             </div>
           )}
 
@@ -393,9 +393,9 @@ export default function SearchHistory() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                         <div className="max-w-md">
                           <div className="font-medium truncate">{session.original_question}</div>
-                          {(session.submitted_refined_question || session.refined_question) && (
+                          {(session.submitted_evidence_spec || session.generated_evidence_spec) && (
                             <div className="text-xs text-gray-500 dark:text-gray-300 mt-1 truncate">
-                              "{session.submitted_refined_question || session.refined_question}"
+                              "{session.submitted_evidence_spec || session.generated_evidence_spec}"
                             </div>
                           )}
                         </div>

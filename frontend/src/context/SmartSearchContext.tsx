@@ -195,12 +195,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         setOriginalQuestion(session.original_question || '');
         
         // Restore AI-generated versions
-        setGeneratedEvidenceSpec(session.refined_question || '');
+        setGeneratedEvidenceSpec(session.generated_evidence_spec || '');
         setGeneratedSearchKeywords(session.generated_search_keywords || '');
         setGeneratedDiscriminator(session.generated_discriminator || '');
         
         // Restore user-submitted versions
-        setSubmittedEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
+        setSubmittedEvidenceSpec(session.submitted_evidence_spec || session.generated_evidence_spec || '');
         setSubmittedSearchKeywords(session.submitted_search_keywords || session.generated_search_keywords || '');
         setSubmittedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
         
@@ -211,7 +211,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
           setEvidenceSpecResponse({
             original_query: session.original_question,
-            evidence_specification: session.refined_question || '',
+            evidence_specification: session.generated_evidence_spec || '',
             session_id: session.id
           });
         }
@@ -220,7 +220,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
           setSearchKeywordsResponse({
             search_keywords: session.generated_search_keywords || '',
-            evidence_specification: session.submitted_refined_question || session.refined_question || '',
+            evidence_specification: session.submitted_evidence_spec || session.generated_evidence_spec || '',
             session_id: session.id
           });
         }
@@ -251,7 +251,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
           setDiscriminatorResponse({
             discriminator_prompt: session.generated_discriminator || '',
-            evidence_specification: session.submitted_refined_question || session.refined_question || '',
+            evidence_specification: session.submitted_evidence_spec || session.generated_evidence_spec || '',
             search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
             strictness: session.filter_strictness || 'medium',
             session_id: session.id
@@ -334,12 +334,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setOriginalQuestion(session.original_question || '');
       
       // Restore AI-generated versions
-      setGeneratedEvidenceSpec(session.refined_question || '');
+      setGeneratedEvidenceSpec(session.generated_evidence_spec || '');
       setGeneratedSearchKeywords(session.generated_search_keywords || '');
       setGeneratedDiscriminator(session.generated_discriminator || '');
       
       // Restore user-submitted versions
-      setSubmittedEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
+      setSubmittedEvidenceSpec(session.submitted_evidence_spec || session.generated_evidence_spec || '');
       setSubmittedSearchKeywords(session.submitted_search_keywords || session.generated_search_keywords || '');
       setSubmittedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
       
@@ -353,7 +353,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
         setEvidenceSpecResponse({
           original_query: session.original_question,
-          evidence_specification: session.refined_question || '',
+          evidence_specification: session.generated_evidence_spec || '',
           session_id: session.id
         });
       } else {
@@ -362,7 +362,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       
       if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
         setSearchKeywordsResponse({
-          evidence_specification: session.submitted_refined_question || '',
+          evidence_specification: session.submitted_evidence_spec || '',
           search_keywords: session.generated_search_keywords || '',
           session_id: session.id
         });
@@ -373,7 +373,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       
       if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
         setDiscriminatorResponse({
-          evidence_specification: session.submitted_refined_question || '',
+          evidence_specification: session.submitted_evidence_spec || '',
           search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
           strictness: session.filter_strictness || 'medium',
           discriminator_prompt: session.generated_discriminator || '',

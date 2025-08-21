@@ -21,7 +21,8 @@
       "Bash(mkdir:*)",
       "Bash(/dev/null)",
       "WebSearch",
-      "Bash(tsc --noEmit)"
+      "Bash(tsc --noEmit)",
+      "Bash(source .env)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

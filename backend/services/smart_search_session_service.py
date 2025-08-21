@@ -78,9 +78,9 @@ class SmartSearchSessionService:
             if not session:
                 raise ValueError(f"Session {session_id} not found")
             
-            session.refined_question = generated_evidence_spec  # DB field: refined_question = generated evidence spec
+            session.generated_evidence_spec = generated_evidence_spec
             if submitted_evidence_spec is not None:
-                session.submitted_refined_question = submitted_evidence_spec  # DB field: submitted_refined_question = submitted evidence spec
+                session.submitted_evidence_spec = submitted_evidence_spec
             session.last_step_completed = "question_refinement"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -108,11 +108,11 @@ class SmartSearchSessionService:
             if not session:
                 raise ValueError(f"Session {session_id} not found")
             
-            session.generated_search_query = generated_search_keywords  # DB field: generated_search_query = generated keywords
+            session.generated_search_keywords = generated_search_keywords
             if submitted_search_keywords is not None:
-                session.submitted_search_query = submitted_search_keywords  # DB field: submitted_search_query = submitted keywords
+                session.submitted_search_keywords = submitted_search_keywords
             if submitted_evidence_spec is not None:
-                session.submitted_refined_question = submitted_evidence_spec  # DB field: submitted_refined_question = submitted evidence spec
+                session.submitted_evidence_spec = submitted_evidence_spec
             session.last_step_completed = "search_query_generation"
             session.total_api_calls = (session.total_api_calls or 0) + 1
             
@@ -163,9 +163,9 @@ class SmartSearchSessionService:
             session.articles_retrieved_count = total_retrieved
             session.last_step_completed = "search_execution"
             
-            # Update submitted_search_query with actual executed query (only on initial search)
+            # Update submitted_search_keywords with actual executed query (only on initial search)
             if not is_pagination_load and submitted_search_query:
-                session.submitted_search_query = submitted_search_query
+                session.submitted_search_keywords = submitted_search_query
             
             self.db.commit()
             logger.info(f"Updated search execution step for session {session_id} - {'pagination load' if is_pagination_load else 'initial search'}")
@@ -422,13 +422,13 @@ class SmartSearchSessionService:
             # Clear all data forward of the target step
             if target_index < step_hierarchy.index("question_refinement"):
                 # Reset to question input - clear everything except original question
-                session.refined_question = None
-                session.submitted_refined_question = None
+                session.generated_evidence_spec = None
+                session.submitted_evidence_spec = None
                 
             if target_index < step_hierarchy.index("search_query_generation"):
-                # Clear search query data
-                session.generated_search_query = None
-                session.submitted_search_query = None
+                # Clear search keywords data
+                session.generated_search_keywords = None
+                session.submitted_search_keywords = None
                 
             if target_index < step_hierarchy.index("search_execution"):
                 # Clear search execution data

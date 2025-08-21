@@ -862,13 +862,13 @@ class SmartSearchSession(Base):
     # Step 1: Initial Question
     original_question = Column(Text, nullable=False)
     
-    # Step 2: Evidence Specification (updated naming)
-    refined_question = Column(Text)  # AI-generated evidence specification (was: refined_question)
-    submitted_refined_question = Column(Text)  # User-submitted evidence specification (was: submitted_refined_question)
+    # Step 2: Evidence Specification
+    generated_evidence_spec = Column(Text)  # AI-generated evidence specification
+    submitted_evidence_spec = Column(Text)  # User-submitted evidence specification
     
-    # Step 3: Search Keywords Generation (updated naming)
-    generated_search_query = Column(Text)  # AI-generated search keywords (was: generated_search_query)
-    submitted_search_query = Column(Text)  # User-submitted search keywords (was: submitted_search_query)
+    # Step 3: Search Keywords Generation
+    generated_search_keywords = Column(Text)  # AI-generated search keywords
+    submitted_search_keywords = Column(Text)  # User-submitted search keywords
     
     # Step 4: Search Execution
     search_metadata = Column(JSON)  # Stores pagination info, sources searched, etc.
@@ -907,10 +907,10 @@ class SmartSearchSession(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "original_question": self.original_question,
-            "refined_question": self.refined_question,
-            "submitted_refined_question": self.submitted_refined_question,
-            "generated_search_query": self.generated_search_query,
-            "submitted_search_query": self.submitted_search_query,
+            "generated_evidence_spec": self.generated_evidence_spec,
+            "submitted_evidence_spec": self.submitted_evidence_spec,
+            "generated_search_keywords": self.generated_search_keywords,
+            "submitted_search_keywords": self.submitted_search_keywords,
             "search_metadata": self.search_metadata,
             "articles_retrieved_count": self.articles_retrieved_count,
             "articles_selected_count": self.articles_selected_count,

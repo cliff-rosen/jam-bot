@@ -511,7 +511,7 @@ async def filter_articles(
     Processes all articles concurrently for better performance
     """
     try:
-        logger.info(f"User {current_user.user_id} starting parallel filtering of {len(request.articles) if request.articles else 0} articles")
+        logger.info(f"User {current_user.user_id} starting parallel filtering with max_results={request.max_results}")
         
         # Create session service
         session_service = SmartSearchSessionService(db)

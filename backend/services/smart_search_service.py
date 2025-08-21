@@ -574,9 +574,8 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         """Search Google Scholar and return results."""
         try:
             loop = asyncio.get_event_loop()
-            # Google Scholar API via SerpAPI has a max of 20 results per page
-            # If we need more than 20, we'll need multiple requests (handled by frontend pagination)
-            results_to_fetch = 1 if count_only else min(max_results, 20)
+            # Google Scholar service handles pagination internally to get the requested number of results
+            results_to_fetch = 1 if count_only else max_results
             
             scholar_articles, metadata = await loop.run_in_executor(
                 None,

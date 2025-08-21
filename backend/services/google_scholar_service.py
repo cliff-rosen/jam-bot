@@ -370,11 +370,12 @@ class GoogleScholarService:
                 )
                 
                 total_api_calls += 1
-                logger.info(f"API call {total_api_calls}: Retrieved {len(batch_articles)} articles (start_index={current_start_index})")
+                logger.info(f"API call {total_api_calls}: Requested {current_batch_size} articles starting at index {current_start_index}, got {len(batch_articles)} articles back")
                 
                 # Capture total available results from the first API call
                 if total_api_calls == 1:
                     total_available = batch_metadata.get("total_results", 0)
+                    logger.info(f"Total available results from API: {total_available}")
                 
                 # If no results returned, we've hit the end of available results
                 if not batch_articles:
@@ -382,7 +383,20 @@ class GoogleScholarService:
                     break
                 
                 all_articles.extend(batch_articles)
+                
+                # Check if we've reached the total available before incrementing
+                if total_available > 0 and len(all_articles) >= total_available:
+                    logger.info(f"Retrieved all available results. Got {len(all_articles)} out of {total_available} total available")
+                    break
+                
+                # Always increment by the batch size we requested (not what we got back)
+                # This ensures consistent pagination regardless of API behavior
                 current_start_index += current_batch_size
+                
+                # Check if next request would be beyond available results
+                if total_available > 0 and current_start_index >= total_available:
+                    logger.info(f"Next request would exceed available results. Total available: {total_available}, next start index would be: {current_start_index}")
+                    break
                 
                 # Small delay between requests to be respectful to the API
                 if len(all_articles) < target_results:

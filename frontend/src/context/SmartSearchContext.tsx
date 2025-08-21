@@ -326,33 +326,93 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     try {
       await smartSearchApi.resetSessionToStep(sessionId, targetStep);
       
+      // Reload session to get the restored state
+      const session = await smartSearchApi.getSession(sessionId);
+      
+      // Restore session state
+      setSessionId(session.id);
+      setOriginalQuestion(session.original_question || '');
+      
+      // Restore AI-generated versions
+      setGeneratedEvidenceSpec(session.refined_question || '');
+      setGeneratedSearchKeywords(session.generated_search_keywords || '');
+      setGeneratedDiscriminator(session.generated_discriminator || '');
+      
+      // Restore user-submitted versions
+      setSubmittedEvidenceSpec(session.submitted_refined_question || session.refined_question || '');
+      setSubmittedSearchKeywords(session.submitted_search_keywords || session.generated_search_keywords || '');
+      setSubmittedDiscriminator(session.submitted_discriminator || session.generated_discriminator || '');
+      
       // Clear frontend state for steps forward of target
       const stepOrder = ['query', 'refinement', 'search-query', 'search-results', 'discriminator', 'filtering', 'results'];
       const targetIndex = stepOrder.indexOf(targetStep.replace('_', '-'));
       
-      if (targetIndex < stepOrder.indexOf('refinement')) {
+      // Restore response objects based on what step we're at
+      const lastStep = session.last_step_completed;
+      
+      if (lastStep && ['question_refinement', 'search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+        setEvidenceSpecResponse({
+          original_query: session.original_question,
+          evidence_specification: session.refined_question || '',
+          session_id: session.id
+        });
+      } else {
         setEvidenceSpecResponse(null);
-        setGeneratedEvidenceSpec('');
-        setSubmittedEvidenceSpec('');
       }
-      if (targetIndex < stepOrder.indexOf('search-query')) {
+      
+      if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+        setSearchKeywordsResponse({
+          evidence_specification: session.submitted_refined_question || '',
+          search_keywords: session.generated_search_keywords || '',
+          session_id: session.id
+        });
+      } else {
         setSearchKeywordsResponse(null);
-        setGeneratedSearchKeywords('');
-        setSubmittedSearchKeywords('');
         setKeywordsCountResult(null);
       }
+      
+      if (lastStep && ['discriminator_generation', 'filtering'].includes(lastStep)) {
+        setDiscriminatorResponse({
+          evidence_specification: session.submitted_refined_question || '',
+          search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
+          strictness: session.filter_strictness || 'medium',
+          discriminator_prompt: session.generated_discriminator || '',
+          session_id: session.id
+        });
+      } else {
+        setDiscriminatorResponse(null);
+      }
+      
+      // Clear data for steps beyond the reset point
       if (targetIndex < stepOrder.indexOf('search-results')) {
         setSearchResults(null);
+      } else if (targetStep === 'search_execution' || targetStep === 'search-results') {
+        // Need to restore search results when going back to search-results step
+        if (session.submitted_search_keywords || session.generated_search_keywords) {
+          try {
+            const searchResponse = await smartSearchApi.executeSearch({
+              search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
+              max_results: 50,
+              offset: 0,
+              session_id: session.id,
+              selected_sources: session.selected_sources || ['pubmed']
+            });
+            setSearchResults(searchResponse);
+          } catch (error) {
+            console.error('Failed to restore search results:', error);
+            setSearchResults(null);
+          }
+        }
       }
-      if (targetIndex < stepOrder.indexOf('discriminator')) {
-        setDiscriminatorResponse(null);
-        setGeneratedDiscriminator('');
-        setSubmittedDiscriminator('');
-      }
+      
       if (targetIndex < stepOrder.indexOf('filtering')) {
         setFilteredArticles([]);
         setFilteringProgress(null);
       }
+      
+      // Update the current step to match the target
+      const frontendStep = targetStep.replace('_', '-').replace('question-refinement', 'refinement').replace('search-query-generation', 'search-query').replace('search-execution', 'search-results').replace('discriminator-generation', 'discriminator') as SmartSearchStep;
+      setStep(frontendStep);
       
       setError(null);
     } catch (err) {

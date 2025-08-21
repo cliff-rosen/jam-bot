@@ -138,9 +138,9 @@ export default function SmartSearchLab() {
   const handleStartFiltering = async () => {
     if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
-    // Filter all available search results, capped at 500
+    // Filter all available search results
     const totalAvailable = smartSearch.searchResults.pagination.total_available;
-    const articlesToProcess = Math.min(totalAvailable, 500);
+    const articlesToProcess = totalAvailable;
 
     initializeFilteringState(articlesToProcess);
 
@@ -439,7 +439,7 @@ export default function SmartSearchLab() {
               evidenceSpecification={smartSearch.submittedEvidenceSpec}
               searchQuery={smartSearch.submittedSearchKeywords}
               totalAvailable={smartSearch.searchResults?.pagination.total_available}
-              totalFiltered={smartSearch.searchResults?.pagination.total_available ? Math.min(smartSearch.searchResults.pagination.total_available, 500) : smartSearch.filteredArticles.length}
+              totalFiltered={smartSearch.searchResults?.pagination.total_available || smartSearch.filteredArticles.length}
               sessionId={smartSearch.sessionId || undefined}
               savedCustomColumns={smartSearch.savedCustomColumns}
             />

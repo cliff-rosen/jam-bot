@@ -152,7 +152,7 @@ class ArticleFilterRequest(BaseModel):
     discriminator_prompt: str = Field(..., description="Discriminator prompt for filtering")
     session_id: str = Field(..., description="Session ID for tracking")
     selected_sources: List[str] = Field(..., description="Sources used in search")
-    max_results: int = Field(500, description="Maximum number of articles to retrieve and filter")
+    max_results: int = Field(..., description="Number of articles to retrieve and filter")
 
 
 class ArticleFilterResponse(BaseModel):

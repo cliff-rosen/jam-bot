@@ -21,8 +21,13 @@ https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=38004229&
 """
 PUBMED_API_SEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 PUBMED_API_FETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-RETMAX = "10000"
-FILTER_TERM = "(melanocortin) OR (natriuretic) OR (Dry eye) OR (Ulcerative colitis) OR (Crohn’s disease) OR (Retinopathy) OR (Retinal disease)"
+# RETMAX moved to settings.py - use settings.PUBMED_MAX_RESULTS_PER_CALL
+FILTER_TERM = "(melanocortin) OR (natriuretic) OR (Dry eye) OR (Ulcerative colitis) OR (Crohn's disease) OR (Retinopathy) OR (Retinal disease)"
+
+def _get_pubmed_max_results() -> int:
+    """Helper function to get PubMed max results from settings."""
+    from config.settings import settings
+    return settings.PUBMED_MAX_RESULTS_PER_CALL
 
 class Article():
     """
@@ -311,6 +316,11 @@ class PubMedService:
         if self.api_key:
             logger.info("Using NCBI API key for increased rate limits")
     
+    def _get_max_results_per_call(self) -> int:
+        """Get the maximum number of results this provider can return per API call."""
+        from config.settings import settings
+        return settings.PUBMED_MAX_RESULTS_PER_CALL
+    
     def search_articles(
         self,
         query: str,
@@ -440,7 +450,7 @@ class PubMedService:
         params = {
             'db': 'pubmed',
             'term': full_term,
-            'retmax': min(max_results, int(RETMAX)),
+            'retmax': min(max_results, self._get_max_results_per_call()),
             'retmode': 'json'
         }
         
@@ -558,7 +568,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     # Just call the new unified search function
     articles, _ = search_articles(
         query=filter_term,
-        max_results=int(RETMAX),
+        max_results=_get_pubmed_max_results(),
         offset=0,
         sort_by=sort_by,
         start_date=start_date,
@@ -592,7 +602,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     # Get article IDs - function now throws exception on error
     article_ids, total_count = get_article_ids(
         search_term=filter_term,
-        max_results=int(RETMAX),
+        max_results=_get_pubmed_max_results(),
         sort_by=sort_by,
         start_date=start_date,
         end_date=end_date,

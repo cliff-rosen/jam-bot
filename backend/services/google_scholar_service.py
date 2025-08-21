@@ -311,6 +311,11 @@ class GoogleScholarService:
         
         self.base_url = "https://serpapi.com/search"
     
+    def _get_max_results_per_call(self) -> int:
+        """Get the maximum number of results this provider can return per API call."""
+        from config.settings import settings
+        return settings.GOOGLE_SCHOLAR_MAX_RESULTS_PER_CALL
+    
     def search_articles(
         self,
         query: str,
@@ -338,14 +343,14 @@ class GoogleScholarService:
         if not self.api_key:
             raise ValueError("No API key available. Please set SERPAPI_KEY environment variable.")
         
-        # Google Scholar API limit is 20 results per call
-        batch_size = 20
+        # Google Scholar API limit per call (from provider documentation)
+        batch_size = self._get_max_results_per_call()
         target_results = num_results
         all_articles = []
         total_api_calls = 0
         current_start_index = start_index
         
-        logger.info(f"Starting Google Scholar search for {target_results} results (will require {(target_results + batch_size - 1) // batch_size} API calls)")
+        logger.info(f"Starting Google Scholar search for {target_results} results (will require ~{(target_results + batch_size - 1) // batch_size} API calls at {batch_size} results per call)")
         
         while len(all_articles) < target_results:
             # Calculate how many results to request in this batch
@@ -404,11 +409,12 @@ class GoogleScholarService:
         start_index: int = 0
     ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
         """
-        Make a single API call to Google Scholar (max 20 results).
+        Make a single API call to Google Scholar.
         This is the original search_articles logic broken out for pagination.
         """
         # Ensure this batch is within API bounds
-        num_results = max(1, min(20, num_results))
+        max_per_call = self._get_max_results_per_call()
+        num_results = max(1, min(max_per_call, num_results))
         
         # Build API parameters
         params = {
@@ -430,9 +436,7 @@ class GoogleScholarService:
         if sort_by == "date":
             params["scisbd"] = 1  # Sort by date
             
-        logger.info(f"Searching Google Scholar for: {query} (num_results={num_results}, start_index={start_index})")
-        if num_results > 20:
-            logger.info(f"Note: Google Scholar API limit is 20 results per page. Fetching {num_results} will require multiple requests.")
+        logger.debug(f"Single batch search: query='{query}' num_results={num_results} start_index={start_index}")
         logger.debug(f"Scholar API params: {params}")
         
         # Add a unique identifier to help detect if we're getting cached results

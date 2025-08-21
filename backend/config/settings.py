@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     
     # SerpAPI settings
     SERPAPI_KEY: str = os.getenv("SERPAPI_KEY")
+    
+    # Search Provider Limits
+    GOOGLE_SCHOLAR_MAX_RESULTS_PER_CALL: int = int(os.getenv("GOOGLE_SCHOLAR_MAX_RESULTS_PER_CALL", "20"))
+    PUBMED_MAX_RESULTS_PER_CALL: int = int(os.getenv("PUBMED_MAX_RESULTS_PER_CALL", "10000"))
 
     # Email/SMTP settings
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")

@@ -140,6 +140,7 @@ export interface ArticleFilterResponse {
     total_tokens: number;
   };
   session_id: string;
+  search_limitation_note?: string;  // Optional note about search limitations
 }
 
 // Step 8: Extract Features

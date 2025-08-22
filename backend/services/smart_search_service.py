@@ -840,6 +840,11 @@ Respond in JSON format:
         articles_to_filter = search_results.articles
         logger.info(f"Retrieved {len(articles_to_filter)} articles from search (total available: {search_results.pagination.total_available})")
         
+        # Check for Google Scholar discrepancy message
+        discrepancy_message = None
+        if hasattr(search_results, 'metadata') and search_results.metadata:
+            discrepancy_message = search_results.metadata.get('discrepancy_message')
+        
         # Update session with search execution
         session_service.update_search_execution_step(
             session_id=session_id,
@@ -917,8 +922,8 @@ Respond in JSON format:
         
         logger.info(f"Filtering completed for user {user_id}: {total_accepted}/{total_processed} articles accepted in {duration:.2f}s")
         
-        # Return complete response data
-        return {
+        # Build response data
+        response_data = {
             "filtered_articles": filtered_articles,
             "total_processed": total_processed,
             "total_accepted": total_accepted,
@@ -932,6 +937,14 @@ Respond in JSON format:
             },
             "session_id": session_id
         }
+        
+        # Add discrepancy message if present
+        if discrepancy_message:
+            response_data["search_limitation_note"] = discrepancy_message
+            logger.info(f"Adding search limitation note to response: {discrepancy_message}")
+        
+        # Return complete response data
+        return response_data
     
     async def extract_features_parallel(
         self,

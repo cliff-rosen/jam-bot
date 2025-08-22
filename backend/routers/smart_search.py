@@ -165,6 +165,7 @@ class ArticleFilterResponse(BaseModel):
     duration_seconds: float = Field(..., description="Processing duration in seconds")
     token_usage: Dict[str, int] = Field(..., description="LLM token usage statistics")
     session_id: str = Field(..., description="Session ID for tracking")
+    search_limitation_note: Optional[str] = Field(None, description="Note about search limitations if applicable")
 
 
 # Step 8: Extract Features

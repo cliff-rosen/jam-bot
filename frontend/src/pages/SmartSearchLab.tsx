@@ -173,9 +173,14 @@ export default function SmartSearchLab() {
       // Complete immediately
       smartSearch.updateStep('results');
 
+      // Show toast with limitation note if present
+      const description = `Processed ${response.total_processed} articles in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} accepted, ${response.total_rejected} rejected`;
+      
       toast({
         title: 'Filtering Complete',
-        description: `Processed ${response.total_processed} articles in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} accepted, ${response.total_rejected} rejected`
+        description: response.search_limitation_note 
+          ? `${description}\n\n${response.search_limitation_note}`
+          : description
       });
 
     } catch (error) {
@@ -442,6 +447,7 @@ export default function SmartSearchLab() {
               totalFiltered={smartSearch.searchResults?.pagination.total_available || smartSearch.filteredArticles.length}
               sessionId={smartSearch.sessionId || undefined}
               savedCustomColumns={smartSearch.savedCustomColumns}
+              searchLimitationNote={smartSearch.searchLimitationNote}
             />
           )}
         </div>

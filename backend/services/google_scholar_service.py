@@ -410,15 +410,28 @@ class GoogleScholarService:
                 break
         
         # Build final metadata
+        initially_reported = total_available  # What the first API call said was available
+        actually_retrieved = len(all_articles)  # What we actually got
+        
+        # Check if Google Scholar gave us fewer than initially promised
+        discrepancy_message = None
+        if initially_reported > 0 and actually_retrieved < min(initially_reported, target_results):
+            discrepancy_message = (
+                f"Note: Google Scholar initially reported {initially_reported} results available, "
+                f"but due to API limitations, only {actually_retrieved} articles could be retrieved."
+            )
+            logger.warning(discrepancy_message)
+        
         final_metadata = {
-            "total_results": total_available,  # Use actual total from API, not count returned
-            "returned_results": len(all_articles),  # Add actual count returned
+            "total_results": initially_reported,  # What was initially reported
+            "returned_results": actually_retrieved,  # What we actually got
             "requested_results": target_results,
             "api_calls_made": total_api_calls,
-            "source": "google_scholar"
+            "source": "google_scholar",
+            "discrepancy_message": discrepancy_message  # Add message for user
         }
         
-        logger.info(f"Google Scholar search completed: {len(all_articles)} articles retrieved in {total_api_calls} API calls")
+        logger.info(f"Google Scholar search completed: {actually_retrieved} articles retrieved in {total_api_calls} API calls")
         return all_articles, final_metadata
 
     def _search_single_batch(

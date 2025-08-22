@@ -404,8 +404,10 @@ class GoogleScholarService:
                     time.sleep(0.5)
                     
             except Exception as e:
-                logger.error(f"Google Scholar API call {total_api_calls + 1} failed at start_index={current_start_index}: {e}")
-                raise RuntimeError(f"Google Scholar search failed during pagination (call {total_api_calls + 1}): {str(e)}")
+                logger.warning(f"Google Scholar API call {total_api_calls + 1} failed at start_index={current_start_index}: {e}")
+                # Don't throw away articles we've already retrieved - just stop pagination
+                logger.info(f"Stopping pagination. Retrieved {len(all_articles)} articles before error.")
+                break
         
         # Build final metadata
         final_metadata = {

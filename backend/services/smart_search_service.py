@@ -712,7 +712,7 @@ Respond in JSON format:
             return filtered_article, llm_usage
             
         except Exception as e:
-            logger.error(f"Failed to evaluate article: {e}")
+            logger.error(f"Failed to evaluate article '{article.title[:50]}...': {e}", exc_info=True)
             # Default to not passing with low confidence, zero usage
             filtered_article = FilteredArticle(
                 article=article,
@@ -859,15 +859,23 @@ Respond in JSON format:
         )
         
         # Execute parallel filtering
+        logger.info(f"About to start filtering with {len(articles_to_filter)} articles")
         start_time = datetime.utcnow()
-        filtered_articles, token_usage = await self.filter_articles_parallel(
-            articles=articles_to_filter,
-            refined_question=evidence_specification,
-            search_query=search_keywords,
-            strictness=strictness,
-            custom_discriminator=discriminator_prompt
-        )
-        duration = (datetime.utcnow() - start_time).total_seconds()
+        try:
+            filtered_articles, token_usage = await self.filter_articles_parallel(
+                articles=articles_to_filter,
+                refined_question=evidence_specification,
+                search_query=search_keywords,
+                strictness=strictness,
+                custom_discriminator=discriminator_prompt
+            )
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            logger.info(f"Filtering completed successfully in {duration:.2f} seconds")
+        except Exception as e:
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            logger.error(f"Filtering failed after {duration:.2f} seconds: {e}", exc_info=True)
+            # Default to empty results if filtering fails
+            filtered_articles, token_usage = [], LLMUsage()
         
         # Calculate statistics
         total_processed = len(filtered_articles)

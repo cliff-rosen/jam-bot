@@ -928,6 +928,8 @@ Respond in JSON format:
             "total_processed": total_processed,
             "total_accepted": total_accepted,
             "total_rejected": total_rejected,
+            "total_available": search_results.pagination.total_available,  # What API initially reported
+            "total_retrieved": len(articles_to_filter),  # What we actually got to filter
             "average_confidence": average_confidence,
             "duration_seconds": duration,
             "token_usage": {

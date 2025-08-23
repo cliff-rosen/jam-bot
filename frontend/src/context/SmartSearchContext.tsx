@@ -59,6 +59,7 @@ interface SmartSearchState {
   filteredArticles: FilteredArticle[];
   filteringProgress: FilteringProgress | null;
   searchLimitationNote: string | null;
+  totalRetrieved: number | null;
   savedCustomColumns: any[];
   
   // LOADING STATES
@@ -166,6 +167,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
   const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
   const [searchLimitationNote, setSearchLimitationNote] = useState<string | null>(null);
+  const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
   
   // Loading states
@@ -696,6 +698,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       const response = await smartSearchApi.filterArticles(request);
       setFilteredArticles(response.filtered_articles);
       
+      // Store the retrieved count
+      setTotalRetrieved(response.total_retrieved);
+      
       // Store the limitation note if present
       if (response.search_limitation_note) {
         setSearchLimitationNote(response.search_limitation_note);
@@ -764,6 +769,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     filteredArticles,
     filteringProgress,
     searchLimitationNote,
+    totalRetrieved,
     savedCustomColumns,
     evidenceSpecLoading,
     searchKeywordsLoading,

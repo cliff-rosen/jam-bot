@@ -22,6 +22,7 @@ interface ResultsStepProps {
   evidenceSpecification?: string;
   searchQuery?: string;
   totalAvailable?: number;
+  totalRetrieved?: number | null;
   totalFiltered?: number;
   sessionId?: string;
   savedCustomColumns?: FeatureDefinition[];
@@ -34,6 +35,7 @@ export function ResultsStep({
   evidenceSpecification,
   searchQuery,
   totalAvailable,
+  totalRetrieved,
   totalFiltered,
   sessionId,
   savedCustomColumns,
@@ -524,7 +526,37 @@ export function ResultsStep({
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Database className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{totalAvailable?.toLocaleString()}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <FileSearch className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-purple-800 dark:text-purple-200">{totalRetrieved || totalFiltered}</p>
+                <p className="text-sm text-purple-600 dark:text-purple-400">Retrieved</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <p className="text-lg font-bold text-blue-800 dark:text-blue-200">{totalFiltered}</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">Filtered</p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
             <div className="flex items-center">
               <Check className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
@@ -541,26 +573,6 @@ export function ResultsStep({
               <div>
                 <p className="text-lg font-bold text-red-800 dark:text-red-200">{rejectedArticles.length}</p>
                 <p className="text-sm text-red-600 dark:text-red-400">Rejected</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-              <div>
-                <p className="text-lg font-bold text-blue-800 dark:text-blue-200">{totalFiltered}</p>
-                <p className="text-sm text-blue-600 dark:text-blue-400">Filtered</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Database className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
-              <div>
-                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">{totalAvailable?.toLocaleString()}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
               </div>
             </div>
           </div>

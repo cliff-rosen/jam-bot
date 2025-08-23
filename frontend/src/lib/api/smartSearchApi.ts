@@ -132,6 +132,8 @@ export interface ArticleFilterResponse {
   total_processed: number;
   total_accepted: number;
   total_rejected: number;
+  total_available: number;  // Total articles initially reported as available
+  total_retrieved: number;  // Total articles actually retrieved for filtering
   average_confidence: number;
   duration_seconds: number;
   token_usage: {

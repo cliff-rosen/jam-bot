@@ -161,6 +161,8 @@ class ArticleFilterResponse(BaseModel):
     total_processed: int = Field(..., description="Total articles processed")
     total_accepted: int = Field(..., description="Number of articles accepted")
     total_rejected: int = Field(..., description="Number of articles rejected")
+    total_available: int = Field(..., description="Total articles initially reported as available")
+    total_retrieved: int = Field(..., description="Total articles actually retrieved for filtering")
     average_confidence: float = Field(..., description="Average confidence of accepted articles")
     duration_seconds: float = Field(..., description="Processing duration in seconds")
     token_usage: Dict[str, int] = Field(..., description="LLM token usage statistics")

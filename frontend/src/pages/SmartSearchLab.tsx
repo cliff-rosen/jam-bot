@@ -444,7 +444,8 @@ export default function SmartSearchLab() {
               evidenceSpecification={smartSearch.submittedEvidenceSpec}
               searchQuery={smartSearch.submittedSearchKeywords}
               totalAvailable={smartSearch.searchResults?.pagination.total_available}
-              totalFiltered={smartSearch.searchResults?.pagination.total_available || smartSearch.filteredArticles.length}
+              totalRetrieved={smartSearch.totalRetrieved}
+              totalFiltered={smartSearch.totalRetrieved || smartSearch.filteredArticles.length}
               sessionId={smartSearch.sessionId || undefined}
               savedCustomColumns={smartSearch.savedCustomColumns}
               searchLimitationNote={smartSearch.searchLimitationNote}

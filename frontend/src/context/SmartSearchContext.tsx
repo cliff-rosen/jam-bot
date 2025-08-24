@@ -222,11 +222,14 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         
         // Always create search keywords response object if we're at or past search query step
         if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+          const keywords = session.submitted_search_keywords || session.generated_search_keywords || '';
           setSearchKeywordsResponse({
-            search_keywords: session.generated_search_keywords || '',
+            search_keywords: keywords,
             evidence_specification: session.submitted_evidence_spec || session.generated_evidence_spec || '',
             session_id: session.id
           });
+          // IMPORTANT: Also set the submitted keywords so SearchQueryStep doesn't crash
+          setSubmittedSearchKeywords(keywords);
         }
         
         if (session.search_metadata) {
@@ -365,11 +368,14 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       }
       
       if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
+        const keywords = session.submitted_search_keywords || session.generated_search_keywords || '';
         setSearchKeywordsResponse({
           evidence_specification: session.submitted_evidence_spec || '',
-          search_keywords: session.generated_search_keywords || '',
+          search_keywords: keywords,
           session_id: session.id
         });
+        // IMPORTANT: Also set the submitted keywords so SearchQueryStep doesn't crash
+        setSubmittedSearchKeywords(keywords);
       } else {
         setSearchKeywordsResponse(null);
         setKeywordsCountResult(null);

@@ -300,7 +300,7 @@ Generate an effective search query for {target_source.replace('_', ' ').title()}
         Add a single targeted refinement to the current query to reduce volume
         with minimal Type II error risk - source-specific approach
         """
-        logger.info(f"Adding targeted refinement to: {current_query[:100]}... (current: {current_count:,} → target: <{target_max})")
+        logger.info(f"Adding targeted refinement to: {current_query[:100]}... (current: {current_count:,} -> target: <{target_max})")
         
         # Determine target source
         target_source = selected_sources[0] if selected_sources else 'pubmed'
@@ -497,9 +497,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         
         logger.info(f"Optimized query: {final_count} results, status: {status}")
         return OptimizedKeywordsResult(
-            initial_query=initial_query,
+            initial_keywords=initial_query,
             initial_count=initial_count,
-            final_query=final_query,
+            final_keywords=final_query,
             final_count=final_count,
             refinement_description=refinement_description,
             status=status

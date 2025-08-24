@@ -73,7 +73,7 @@ export function SearchQueryStep({
 
   // Test current query count
   const handleTestQuery = async () => {
-    if (!editedSearchQuery.trim()) return;
+    if (!editedSearchQuery?.trim()) return;
 
     setIsTestingCount(true);
     try {
@@ -238,7 +238,7 @@ export function SearchQueryStep({
             Current Search Query
           </label>
           <Textarea
-            value={editedSearchQuery}
+            value={editedSearchQuery || ''}
             onChange={(e) => handleQueryChange(e.target.value)}
             rows={3}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
@@ -306,7 +306,7 @@ export function SearchQueryStep({
           <div className="flex items-center gap-3">
             <Button
               onClick={handleTestQuery}
-              disabled={isTestingCount || !editedSearchQuery.trim()}
+              disabled={isTestingCount || !editedSearchQuery?.trim()}
               variant="outline"
               className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
             >
@@ -368,7 +368,7 @@ export function SearchQueryStep({
           <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
             <Button
               onClick={onSubmit}
-              disabled={loading || !editedSearchQuery.trim()}
+              disabled={loading || !editedSearchQuery?.trim()}
               className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
             >
               {loading ? (

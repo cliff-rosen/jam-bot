@@ -59,30 +59,31 @@ export default function SmartSearchLab() {
   const handleGenerateKeywords = async (source?: string) => {
     try {
       const response = await smartSearch.generateSearchKeywords(source);
+      
+      // Move to next step
+      smartSearch.updateStep('search-query');
 
-      // Automatically test the generated query count
-      try {
-        const countResult = await smartSearch.testKeywordsCount(response.search_keywords);
-        smartSearch.updateStep('search-query');
-
-        if (countResult.total_count > 250) {
+      // Show appropriate feedback based on whether count testing succeeded
+      if (response.count_result) {
+        const { total_count } = response.count_result;
+        if (total_count > 250) {
           toast({
-            title: 'Keywords Generated',
-            description: `Query generated ${countResult.total_count.toLocaleString()} results. Consider optimizing for better performance.`,
+            title: 'Keywords Generated & Tested',
+            description: `Query generated ${total_count.toLocaleString()} results. Consider optimizing for better performance.`,
             variant: 'default'
           });
         } else {
           toast({
-            title: 'Keywords Generated',
-            description: `Query generated ${countResult.total_count.toLocaleString()} results. Ready to search!`
+            title: 'Keywords Generated & Tested',
+            description: `Query generated ${total_count.toLocaleString()} results. Ready to search!`
           });
         }
-      } catch (countError) {
-        // If count test fails, still proceed to search-query step
-        smartSearch.updateStep('search-query');
+      } else {
+        // Count testing failed, but keywords were generated
         toast({
           title: 'Keywords Generated',
-          description: 'Review and test the search keywords'
+          description: 'Keywords created successfully. Please test the query manually.',
+          variant: 'default'
         });
       }
 

@@ -110,7 +110,7 @@ export function RefinementStep({
           {loading ? (
             <>
               <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Generating...
+              Generating & Testing...
             </>
           ) : (
             <>

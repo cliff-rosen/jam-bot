@@ -15,10 +15,14 @@ import type {
 import type {
   EvidenceSpecificationResponse,
   SearchKeywordsResponse,
+  SearchKeywordsWithCountResponse,
   SearchExecutionResponse,
   DiscriminatorGenerationResponse,
   FeatureExtractionResponse
 } from '@/lib/api/smartSearchApi';
+
+// Re-export for use in components
+export type { SearchKeywordsWithCountResponse };
 
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
@@ -87,7 +91,7 @@ interface SmartSearchActions {
   updateSubmittedEvidenceSpec: (spec: string) => void;
   
   // STEP 2: Search Keyword Generation  
-  generateSearchKeywords: (source?: string) => Promise<SearchKeywordsResponse>;
+  generateSearchKeywords: (source?: string) => Promise<SearchKeywordsWithCountResponse>;
   updateSubmittedSearchKeywords: (keywords: string) => void;
   updateSelectedSource: (source: string) => void;
   
@@ -494,8 +498,8 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setSubmittedEvidenceSpec(spec);
   }, []);
   
-  // Step 2: Search Keyword Generation
-  const generateSearchKeywords = useCallback(async (source?: string): Promise<SearchKeywordsResponse> => {
+  // Step 2: Search Keyword Generation with automatic count testing
+  const generateSearchKeywords = useCallback(async (source?: string): Promise<SearchKeywordsWithCountResponse> => {
     if (!submittedEvidenceSpec.trim()) {
       throw new Error('Please provide an evidence specification');
     }
@@ -522,7 +526,31 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setGeneratedSearchKeywords(response.search_keywords);
       setSubmittedSearchKeywords(response.search_keywords); // Initially same as generated
       
-      return response;
+      // Automatically test the generated keywords count
+      try {
+        const countResponse = await smartSearchApi.testKeywordsCount({
+          search_keywords: response.search_keywords,
+          session_id: sessionId,
+          selected_sources: [source || selectedSource]
+        });
+        
+        const countResult = {
+          total_count: countResponse.total_count,
+          sources_searched: countResponse.sources_searched
+        };
+        
+        setKeywordsCountResult(countResult);
+        
+        return {
+          ...response,
+          count_result: countResult
+        };
+      } catch (countErr) {
+        // If count test fails, still return the successful keyword generation
+        console.warn('Count test failed after keyword generation:', countErr);
+        return response;
+      }
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Keyword generation failed';
       setError(errorMessage);

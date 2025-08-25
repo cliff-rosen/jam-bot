@@ -42,6 +42,14 @@ export interface SearchKeywordsResponse {
   session_id: string;
 }
 
+// Extended response that includes automatic count testing result
+export interface SearchKeywordsWithCountResponse extends SearchKeywordsResponse {
+  count_result?: {
+    total_count: number;
+    sources_searched: string[];
+  };
+}
+
 
 // Step 3: Test Keywords Count
 export interface KeywordsCountRequest {

@@ -19,9 +19,30 @@ export const MarkdownModal: React.FC<MarkdownModalProps> = ({
 }) => {
     if (!isOpen) return null;
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(content);
-        // Could add a toast notification here in the future
+    const copyToClipboard = async () => {
+        try {
+            // Try using the modern clipboard API
+            await navigator.clipboard.writeText(content);
+            // Could add a toast notification here for success
+        } catch (err) {
+            // Fallback method for older browsers or when clipboard API fails
+            const textArea = document.createElement('textarea');
+            textArea.value = content;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+            } catch (fallbackErr) {
+                console.error('Failed to copy:', err, fallbackErr);
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
     };
 
     return (

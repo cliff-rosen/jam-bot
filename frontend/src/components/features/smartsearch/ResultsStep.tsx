@@ -463,13 +463,48 @@ export function ResultsStep({
     }
   };
 
-  const copyAcceptedTitles = () => {
+  const copyAcceptedTitles = async () => {
     const titles = acceptedArticles.map(item => item.article.title).join('\n');
-    navigator.clipboard.writeText(titles);
-    toast({
-      title: 'Copied to Clipboard',
-      description: `Copied ${acceptedArticles.length} accepted article titles`
-    });
+    
+    try {
+      // Try using the modern clipboard API
+      await navigator.clipboard.writeText(titles);
+      toast({
+        title: 'Copied to Clipboard',
+        description: `Copied ${acceptedArticles.length} accepted article titles`
+      });
+    } catch (err) {
+      // Fallback method for older browsers or when clipboard API fails
+      const textArea = document.createElement('textarea');
+      textArea.value = titles;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          toast({
+            title: 'Copied to Clipboard',
+            description: `Copied ${acceptedArticles.length} accepted article titles`
+          });
+        } else {
+          throw new Error('Copy command failed');
+        }
+      } catch (fallbackErr) {
+        console.error('Failed to copy:', err, fallbackErr);
+        toast({
+          title: 'Copy Failed',
+          description: 'Unable to copy to clipboard. Please try selecting and copying manually.',
+          variant: 'destructive'
+        });
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
   };
 
   return (

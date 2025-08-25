@@ -104,9 +104,6 @@ Respond in JSON format with the "evidence_specification" field."""
             
             # DEBUG: Log what we actually got back
             logger.info(f"LLM result type: {type(result)}")
-            # Sanitize Unicode characters for Windows logging
-            result_str = str(result).encode('ascii', 'replace').decode('ascii')
-            logger.info(f"LLM result: {result_str}")
             
             # Extract result and usage from LLMResponse
             llm_usage = result.usage
@@ -115,18 +112,22 @@ Respond in JSON format with the "evidence_specification" field."""
             # Extract evidence_specification from the Pydantic model instance
             if hasattr(llm_result, 'evidence_specification'):
                 evidence_spec = llm_result.evidence_specification
-                logger.info(f"Successfully extracted evidence_specification: {evidence_spec}")
+                # Sanitize for logging
+                evidence_spec_safe = evidence_spec.encode('ascii', 'replace').decode('ascii')
+                logger.info(f"Successfully extracted evidence_specification: {evidence_spec_safe[:200]}...")
             else:
-                logger.error(f"Result does not have 'evidence_specification' attribute. Type: {type(llm_result)}, value: {llm_result}")
+                logger.error(f"Result does not have 'evidence_specification' attribute. Type: {type(llm_result)}")
                 # Try model_dump as fallback
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
-                    logger.info(f"model_dump fallback: {response_data}")
+                    logger.info(f"Using model_dump fallback")
                     evidence_spec = response_data.get('evidence_specification', f"Find articles that {query}")
                 else:
                     evidence_spec = f"Find articles that {query}"  # Final fallback
                 
-            logger.info(f"Final evidence specification: {evidence_spec[:100]}...")
+            # Sanitize for logging
+            evidence_spec_safe = evidence_spec.encode('ascii', 'replace').decode('ascii')
+            logger.info(f"Final evidence specification: {evidence_spec_safe[:100]}...")
             logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
             return evidence_spec, llm_usage
             
@@ -257,18 +258,22 @@ Generate an effective search query for {target_source.replace('_', ' ').title()}
             # Extract search_query from the Pydantic model instance
             if hasattr(llm_result, 'search_query'):
                 search_query = llm_result.search_query
-                logger.info(f"Successfully extracted search_query: {search_query}")
+                # Sanitize for logging
+                search_query_safe = search_query.encode('ascii', 'replace').decode('ascii')
+                logger.info(f"Successfully extracted search_query: {search_query_safe[:200]}...")
             else:
-                logger.error(f"Result does not have 'search_query' attribute. Type: {type(llm_result)}, value: {llm_result}")
+                logger.error(f"Result does not have 'search_query' attribute. Type: {type(llm_result)}")
                 # Try model_dump as fallback
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
-                    logger.info(f"model_dump fallback: {response_data}")
+                    logger.info(f"Using model_dump fallback")
                     search_query = response_data.get('search_query', evidence_specification)
                 else:
                     search_query = evidence_specification  # Final fallback
             
-            logger.info(f"Generated search query: {search_query}")
+            # Sanitize for logging
+            search_query_safe = search_query.encode('ascii', 'replace').decode('ascii')
+            logger.info(f"Generated search query: {search_query_safe[:200]}...")
             logger.info(f"Token usage - Prompt: {llm_usage.prompt_tokens}, Completion: {llm_usage.completion_tokens}, Total: {llm_usage.total_tokens}")
             return search_query, llm_usage
             
@@ -418,23 +423,19 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             # DEBUG: Log what we actually got back
             logger.info(f"LLM result type: {type(llm_result)}")
-            # Sanitize Unicode characters for Windows logging
-            llm_result_str = str(llm_result).encode('ascii', 'replace').decode('ascii')
-            logger.info(f"LLM result: {llm_result_str}")
-            logger.info(f"LLM result attributes: {dir(llm_result) if hasattr(llm_result, '__dict__') else 'No attributes'}")
             
             if hasattr(llm_result, 'refined_query'):
                 refined_query = llm_result.refined_query
                 explanation = llm_result.explanation if hasattr(llm_result, 'explanation') else "LLM-generated refinement"
-                logger.info(f"SUCCESS: Using direct attributes - refined_query: {refined_query}")
+                # Sanitize for logging
+                refined_query_safe = refined_query.encode('ascii', 'replace').decode('ascii')
+                logger.info(f"SUCCESS: Using direct attributes - refined_query: {refined_query_safe[:100]}...")
             else:
                 logger.warning(f"LLM result does not have 'refined_query' attribute. Trying model_dump...")
                 # Fallback to model_dump
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
-                    # Sanitize Unicode characters for Windows logging
-                    response_data_str = str(response_data).encode('ascii', 'replace').decode('ascii')
-                    logger.info(f"model_dump result: {response_data_str}")
+                    logger.info(f"Using model_dump fallback")
                     # Source-specific fallback
                     if target_source == 'google_scholar':
                         default_refinement = f"{current_query} study"
@@ -444,7 +445,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                         default_explanation = "Added research focus as fallback refinement"
                     refined_query = response_data.get('refined_query', default_refinement)
                     explanation = response_data.get('explanation', default_explanation)
-                    logger.info(f"FALLBACK 1: Using model_dump - refined_query: {refined_query}")
+                    # Sanitize for logging
+                    refined_query_safe = refined_query.encode('ascii', 'replace').decode('ascii')
+                    logger.info(f"FALLBACK 1: Using model_dump - refined_query: {refined_query_safe[:100]}...")
                 else:
                     logger.warning(f"LLM result has no model_dump method. Using hardcoded fallback.")
                     # Source-specific fallback
@@ -454,10 +457,15 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                     else:
                         refined_query = f"({current_query}) AND (study OR research)"
                         explanation = "Added research focus as fallback refinement"
-                    logger.info(f"FALLBACK 2: Using hardcoded fallback - refined_query: {refined_query}")
+                    # Sanitize for logging
+                    refined_query_safe = refined_query.encode('ascii', 'replace').decode('ascii')
+                    logger.info(f"FALLBACK 2: Using hardcoded fallback - refined_query: {refined_query_safe[:100]}...")
                 
-            logger.info(f"FINAL: LLM suggested refinement: {refined_query}")
-            logger.info(f"FINAL: Explanation: {explanation}")
+            # Sanitize for logging
+            refined_query_safe = refined_query.encode('ascii', 'replace').decode('ascii')
+            explanation_safe = explanation.encode('ascii', 'replace').decode('ascii')
+            logger.info(f"FINAL: LLM suggested refinement: {refined_query_safe[:100]}...")
+            logger.info(f"FINAL: Explanation: {explanation_safe[:200]}...")
             return refined_query, explanation
             
         except Exception as e:

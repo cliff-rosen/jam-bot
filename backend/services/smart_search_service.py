@@ -104,7 +104,9 @@ Respond in JSON format with the "evidence_specification" field."""
             
             # DEBUG: Log what we actually got back
             logger.info(f"LLM result type: {type(result)}")
-            logger.info(f"LLM result: {result}")
+            # Sanitize Unicode characters for Windows logging
+            result_str = str(result).encode('ascii', 'replace').decode('ascii')
+            logger.info(f"LLM result: {result_str}")
             
             # Extract result and usage from LLMResponse
             llm_usage = result.usage
@@ -416,7 +418,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
             
             # DEBUG: Log what we actually got back
             logger.info(f"LLM result type: {type(llm_result)}")
-            logger.info(f"LLM result: {llm_result}")
+            # Sanitize Unicode characters for Windows logging
+            llm_result_str = str(llm_result).encode('ascii', 'replace').decode('ascii')
+            logger.info(f"LLM result: {llm_result_str}")
             logger.info(f"LLM result attributes: {dir(llm_result) if hasattr(llm_result, '__dict__') else 'No attributes'}")
             
             if hasattr(llm_result, 'refined_query'):
@@ -428,7 +432,9 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
                 # Fallback to model_dump
                 if hasattr(llm_result, 'model_dump'):
                     response_data = llm_result.model_dump()
-                    logger.info(f"model_dump result: {response_data}")
+                    # Sanitize Unicode characters for Windows logging
+                    response_data_str = str(response_data).encode('ascii', 'replace').decode('ascii')
+                    logger.info(f"model_dump result: {response_data_str}")
                     # Source-specific fallback
                     if target_source == 'google_scholar':
                         default_refinement = f"{current_query} study"

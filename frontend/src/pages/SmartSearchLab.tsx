@@ -16,6 +16,7 @@ import { SearchResultsStep } from '@/components/features/smartsearch/SearchResul
 import { DiscriminatorStep } from '@/components/features/smartsearch/DiscriminatorStep';
 import { FilteringStep } from '@/components/features/smartsearch/FilteringStep';
 import { ResultsStep } from '@/components/features/smartsearch/ResultsStep';
+import { ProgressSummary } from '@/components/features/smartsearch/ProgressSummary';
 
 export default function SmartSearchLab() {
   const smartSearch = useSmartSearch();
@@ -375,61 +376,110 @@ export default function SmartSearchLab() {
           )}
 
           {smartSearch.step === 'refinement' && smartSearch.evidenceSpecResponse && (
-            <RefinementStep
-              refinement={smartSearch.evidenceSpecResponse}
-              evidenceSpec={smartSearch.submittedEvidenceSpec}
-              setEvidenceSpec={smartSearch.updateSubmittedEvidenceSpec}
-              selectedSource={smartSearch.selectedSource}
-              setSelectedSource={smartSearch.updateSelectedSource}
-              onSubmit={handleGenerateKeywords}
-              loading={smartSearch.searchKeywordsLoading}
-            />
+            <>
+              <ProgressSummary
+                lastCompletedStep="query"
+                stepData={{ originalQuery: smartSearch.originalQuestion }}
+              />
+              <RefinementStep
+                refinement={smartSearch.evidenceSpecResponse}
+                evidenceSpec={smartSearch.submittedEvidenceSpec}
+                setEvidenceSpec={smartSearch.updateSubmittedEvidenceSpec}
+                selectedSource={smartSearch.selectedSource}
+                setSelectedSource={smartSearch.updateSelectedSource}
+                onSubmit={handleGenerateKeywords}
+                loading={smartSearch.searchKeywordsLoading}
+              />
+            </>
           )}
 
           {smartSearch.step === 'search-query' && smartSearch.searchKeywordsResponse && (
-            <SearchQueryStep
-              editedSearchQuery={smartSearch.submittedSearchKeywords}
-              setEditedSearchQuery={smartSearch.updateSubmittedSearchKeywords}
-              evidenceSpec={smartSearch.submittedEvidenceSpec}
-              selectedSource={smartSearch.selectedSource}
-              onSubmit={handleExecuteSearch}
-              onOptimize={smartSearch.generateOptimizedKeywords}
-              onTestCount={smartSearch.testKeywordsCount}
-              loading={smartSearch.searchExecutionLoading}
-              initialCount={smartSearch.keywordsCountResult}
-            />
+            <>
+              <ProgressSummary
+                lastCompletedStep="evidence"
+                stepData={{ 
+                  originalQuery: smartSearch.originalQuestion,
+                  evidenceSpec: smartSearch.submittedEvidenceSpec
+                }}
+              />
+              <SearchQueryStep
+                editedSearchQuery={smartSearch.submittedSearchKeywords}
+                setEditedSearchQuery={smartSearch.updateSubmittedSearchKeywords}
+                evidenceSpec={smartSearch.submittedEvidenceSpec}
+                selectedSource={smartSearch.selectedSource}
+                onSubmit={handleExecuteSearch}
+                onOptimize={smartSearch.generateOptimizedKeywords}
+                onTestCount={smartSearch.testKeywordsCount}
+                loading={smartSearch.searchExecutionLoading}
+                initialCount={smartSearch.keywordsCountResult}
+              />
+            </>
           )}
 
           {smartSearch.step === 'searching' && <SearchingStep />}
 
           {smartSearch.step === 'search-results' && smartSearch.searchResults && (
-            <SearchResultsStep
-              searchResults={smartSearch.searchResults}
-              onSubmit={handleProceedToDiscriminator}
-              onLoadMore={handleLoadMoreResults}
-              onGoBack={() => handleStepBack('search-query')}
-              loading={smartSearch.discriminatorLoading}
-              loadingMore={smartSearch.searchExecutionLoading}
-            />
+            <>
+              <ProgressSummary
+                lastCompletedStep="keywords"
+                stepData={{ 
+                  originalQuery: smartSearch.originalQuestion,
+                  evidenceSpec: smartSearch.submittedEvidenceSpec,
+                  searchKeywords: smartSearch.submittedSearchKeywords
+                }}
+              />
+              <SearchResultsStep
+                searchResults={smartSearch.searchResults}
+                onSubmit={handleProceedToDiscriminator}
+                onLoadMore={handleLoadMoreResults}
+                onGoBack={() => handleStepBack('search-query')}
+                loading={smartSearch.discriminatorLoading}
+                loadingMore={smartSearch.searchExecutionLoading}
+              />
+            </>
           )}
 
           {smartSearch.step === 'discriminator' && smartSearch.discriminatorResponse && (
-            <DiscriminatorStep
-              evidenceSpec={smartSearch.submittedEvidenceSpec}
-              searchKeywords={smartSearch.submittedSearchKeywords}
-              editedDiscriminator={smartSearch.submittedDiscriminator}
-              setEditedDiscriminator={smartSearch.updateSubmittedDiscriminator}
-              strictness={smartSearch.strictness}
-              setStrictness={smartSearch.updateStrictness}
-              selectedArticlesCount={smartSearch.searchResults?.pagination.total_available || 0}
-              filterAllMode={true}  // Always filter all
-              totalAvailable={smartSearch.searchResults?.pagination.total_available}
-              onSubmit={handleStartFiltering}
-            />
+            <>
+              <ProgressSummary
+                lastCompletedStep="search"
+                stepData={{ 
+                  originalQuery: smartSearch.originalQuestion,
+                  evidenceSpec: smartSearch.submittedEvidenceSpec,
+                  searchKeywords: smartSearch.submittedSearchKeywords,
+                  articlesFound: smartSearch.searchResults?.pagination.returned,
+                  totalAvailable: smartSearch.searchResults?.pagination.total_available
+                }}
+              />
+              <DiscriminatorStep
+                evidenceSpec={smartSearch.submittedEvidenceSpec}
+                searchKeywords={smartSearch.submittedSearchKeywords}
+                editedDiscriminator={smartSearch.submittedDiscriminator}
+                setEditedDiscriminator={smartSearch.updateSubmittedDiscriminator}
+                strictness={smartSearch.strictness}
+                setStrictness={smartSearch.updateStrictness}
+                selectedArticlesCount={smartSearch.searchResults?.pagination.total_available || 0}
+                filterAllMode={true}  // Always filter all
+                totalAvailable={smartSearch.searchResults?.pagination.total_available}
+                onSubmit={handleStartFiltering}
+              />
+            </>
           )}
 
           {smartSearch.step === 'filtering' && smartSearch.filteringProgress && (
             <>
+              <ProgressSummary
+                lastCompletedStep="discriminator"
+                stepData={{ 
+                  originalQuery: smartSearch.originalQuestion,
+                  evidenceSpec: smartSearch.submittedEvidenceSpec,
+                  searchKeywords: smartSearch.submittedSearchKeywords,
+                  articlesFound: smartSearch.searchResults?.pagination.returned,
+                  totalAvailable: smartSearch.searchResults?.pagination.total_available,
+                  discriminator: smartSearch.submittedDiscriminator,
+                  strictness: smartSearch.strictness
+                }}
+              />
               <FilteringStep
                 filteringProgress={smartSearch.filteringProgress}
                 filteredArticles={smartSearch.filteredArticles}
@@ -439,18 +489,32 @@ export default function SmartSearchLab() {
           )}
 
           {smartSearch.step === 'results' && (
-            <ResultsStep
-              filteredArticles={smartSearch.filteredArticles}
-              originalQuery={smartSearch.originalQuestion}
-              evidenceSpecification={smartSearch.submittedEvidenceSpec}
-              searchQuery={smartSearch.submittedSearchKeywords}
-              totalAvailable={smartSearch.searchResults?.pagination.total_available}
-              totalRetrieved={smartSearch.totalRetrieved}
-              totalFiltered={smartSearch.totalRetrieved || smartSearch.filteredArticles.length}
-              sessionId={smartSearch.sessionId || undefined}
-              savedCustomColumns={smartSearch.savedCustomColumns}
-              searchLimitationNote={smartSearch.searchLimitationNote}
-            />
+            <>
+              <ProgressSummary
+                lastCompletedStep="discriminator"
+                stepData={{ 
+                  originalQuery: smartSearch.originalQuestion,
+                  evidenceSpec: smartSearch.submittedEvidenceSpec,
+                  searchKeywords: smartSearch.submittedSearchKeywords,
+                  articlesFound: smartSearch.totalRetrieved || smartSearch.filteredArticles.length,
+                  totalAvailable: smartSearch.searchResults?.pagination.total_available,
+                  discriminator: smartSearch.submittedDiscriminator,
+                  strictness: smartSearch.strictness
+                }}
+              />
+              <ResultsStep
+                filteredArticles={smartSearch.filteredArticles}
+                originalQuery={smartSearch.originalQuestion}
+                evidenceSpecification={smartSearch.submittedEvidenceSpec}
+                searchQuery={smartSearch.submittedSearchKeywords}
+                totalAvailable={smartSearch.searchResults?.pagination.total_available}
+                totalRetrieved={smartSearch.totalRetrieved}
+                totalFiltered={smartSearch.totalRetrieved || smartSearch.filteredArticles.length}
+                sessionId={smartSearch.sessionId || undefined}
+                savedCustomColumns={smartSearch.savedCustomColumns}
+                searchLimitationNote={smartSearch.searchLimitationNote}
+              />
+            </>
           )}
         </div>
       </div>

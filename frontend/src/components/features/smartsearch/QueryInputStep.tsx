@@ -24,23 +24,25 @@ export function QueryInputStep({ query, setQuery, onSubmit, loading }: QueryInpu
           rows={4}
           className="dark:bg-gray-700 dark:text-gray-100"
         />
-        <Button
-          onClick={onSubmit}
-          disabled={loading || !query.trim()}
-          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Creating Evidence Specification...
-            </>
-          ) : (
-            <>
-              <Search className="w-4 h-4 mr-2" />
-              Create Evidence Specification
-            </>
-          )}
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            onClick={onSubmit}
+            disabled={loading || !query.trim()}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Creating Evidence Specification...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Create Evidence Specification
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Card>
   );

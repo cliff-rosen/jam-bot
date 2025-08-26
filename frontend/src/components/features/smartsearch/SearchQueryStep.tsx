@@ -365,11 +365,11 @@ export function SearchQueryStep({
           )}
 
           {/* Search Button - Separate Row */}
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-end">
             <Button
               onClick={onSubmit}
               disabled={loading || !editedSearchQuery?.trim()}
-              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
             >
               {loading ? (
                 <>

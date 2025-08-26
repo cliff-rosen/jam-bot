@@ -36,12 +36,6 @@ export function RefinementStep({
         Review Evidence Specification
       </h2>
 
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-        <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Step Completed:</h3>
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          ✓ Evidence specification created from your query
-        </p>
-      </div>
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -102,23 +96,25 @@ export function RefinementStep({
           </RadioGroup>
         </div>
 
-        <Button
-          onClick={handleSubmit}
-          disabled={loading || !evidenceSpec.trim()}
-          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              Generating & Testing...
-            </>
-          ) : (
-            <>
-              <Search className="w-4 h-4 mr-2" />
-              Generate Keywords
-            </>
-          )}
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !evidenceSpec.trim()}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Generating & Testing...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Generate Keywords
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Card>
   );

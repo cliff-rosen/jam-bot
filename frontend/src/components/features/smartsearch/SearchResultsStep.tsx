@@ -153,23 +153,25 @@ export function SearchResultsStep({
           </div>
 
           {/* Proceed Button */}
-          <Button
-            onClick={handleProceed}
-            disabled={loading}
-            className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                Processing...
-              </>
-            ) : (
-              <>
-                Generate Filter Criteria
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleProceed}
+              disabled={loading}
+              className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Generate Filter Criteria
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

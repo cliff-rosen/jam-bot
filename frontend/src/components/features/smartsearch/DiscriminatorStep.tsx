@@ -162,6 +162,17 @@ export function DiscriminatorStep({
                 {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
               </p>
             </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end mt-6">
+              <Button
+                onClick={onSubmit}
+                className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Start AI Filtering
+              </Button>
+            </div>
           </div>
         )}
       </div>

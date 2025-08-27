@@ -60,7 +60,7 @@ export default function SmartSearchLab() {
   const handleGenerateKeywords = async (source?: string) => {
     try {
       const response = await smartSearch.generateSearchKeywords(source);
-      
+
       // Move to next step
       smartSearch.updateStep('search-query');
 
@@ -177,10 +177,10 @@ export default function SmartSearchLab() {
 
       // Show toast with limitation note if present
       const description = `Processed ${response.total_processed} articles in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} accepted, ${response.total_rejected} rejected`;
-      
+
       toast({
         title: 'Filtering Complete',
-        description: response.search_limitation_note 
+        description: response.search_limitation_note
           ? `${description}\n\n${response.search_limitation_note}`
           : description
       });
@@ -397,7 +397,7 @@ export default function SmartSearchLab() {
             <>
               <ProgressSummary
                 lastCompletedStep="evidence"
-                stepData={{ 
+                stepData={{
                   originalQuery: smartSearch.originalQuestion,
                   evidenceSpec: smartSearch.submittedEvidenceSpec
                 }}
@@ -422,7 +422,7 @@ export default function SmartSearchLab() {
             <>
               <ProgressSummary
                 lastCompletedStep="keywords"
-                stepData={{ 
+                stepData={{
                   originalQuery: smartSearch.originalQuestion,
                   evidenceSpec: smartSearch.submittedEvidenceSpec,
                   searchKeywords: smartSearch.submittedSearchKeywords
@@ -443,7 +443,7 @@ export default function SmartSearchLab() {
             <>
               <ProgressSummary
                 lastCompletedStep="search"
-                stepData={{ 
+                stepData={{
                   originalQuery: smartSearch.originalQuestion,
                   evidenceSpec: smartSearch.submittedEvidenceSpec,
                   searchKeywords: smartSearch.submittedSearchKeywords,
@@ -459,7 +459,6 @@ export default function SmartSearchLab() {
                 strictness={smartSearch.strictness}
                 setStrictness={smartSearch.updateStrictness}
                 selectedArticlesCount={smartSearch.searchResults?.pagination.total_available || 0}
-                filterAllMode={true}  // Always filter all
                 totalAvailable={smartSearch.searchResults?.pagination.total_available}
                 onSubmit={handleStartFiltering}
               />
@@ -470,7 +469,7 @@ export default function SmartSearchLab() {
             <>
               <ProgressSummary
                 lastCompletedStep="discriminator"
-                stepData={{ 
+                stepData={{
                   originalQuery: smartSearch.originalQuestion,
                   evidenceSpec: smartSearch.submittedEvidenceSpec,
                   searchKeywords: smartSearch.submittedSearchKeywords,
@@ -492,7 +491,7 @@ export default function SmartSearchLab() {
             <>
               <ProgressSummary
                 lastCompletedStep="discriminator"
-                stepData={{ 
+                stepData={{
                   originalQuery: smartSearch.originalQuestion,
                   evidenceSpec: smartSearch.submittedEvidenceSpec,
                   searchKeywords: smartSearch.submittedSearchKeywords,

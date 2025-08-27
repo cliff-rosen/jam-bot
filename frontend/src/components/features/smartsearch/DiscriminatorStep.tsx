@@ -12,7 +12,6 @@ interface DiscriminatorStepProps {
   strictness: 'low' | 'medium' | 'high';
   setStrictness: (strictness: 'low' | 'medium' | 'high') => void;
   selectedArticlesCount: number;
-  filterAllMode?: boolean;
   totalAvailable?: number;
   onSubmit: () => void;
 }
@@ -24,23 +23,18 @@ export function DiscriminatorStep({
   setEditedDiscriminator,
   strictness,
   setStrictness,
-  selectedArticlesCount,
-  filterAllMode = false,
-  totalAvailable = 0,
   onSubmit
 }: DiscriminatorStepProps) {
 
   const [showDetails, setShowDetails] = useState(false);
 
-  // Determine which count and text to show
-  const articlesToProcess = filterAllMode ? Math.min(totalAvailable, 500) : selectedArticlesCount;
 
   return (
     <Card className="p-6 dark:bg-gray-800">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         Create Filter Criteria
       </h2>
-      
+
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
         An AI filter has been prepared to evaluate your search results based on the semantics of your evidence specification and will filter articles for relevance to your research question.
       </p>
@@ -113,7 +107,7 @@ export function DiscriminatorStep({
                   {strictness === 'high' && 'Strict - only accepts directly relevant articles'}
                 </p>
               </div>
-              
+
               {/* Filter Evaluation Criteria - Second in Advanced Options */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">

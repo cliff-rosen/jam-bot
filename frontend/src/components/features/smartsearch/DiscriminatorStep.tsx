@@ -36,7 +36,7 @@ export function DiscriminatorStep({
       </h2>
 
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-        An AI filter has been prepared to evaluate your search results based on the semantics of your evidence specification and will filter articles for relevance to your research question.
+        An AI filter has been prepared to evaluate your search results based on your evidence specification and will filter articles for relevance to your research question. Click "Start Filtering" below or optionally review the Advanced Options for finer control.
       </p>
 
       <div className="space-y-6">

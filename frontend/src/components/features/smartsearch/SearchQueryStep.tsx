@@ -84,7 +84,7 @@ export function SearchQueryStep({
     try {
       const result = await onTestCount(editedSearchQuery);
       setCurrentCount(result.total_count);
-      
+
       // Add to history
       setQueryHistory(prev => [...prev, {
         query: editedSearchQuery.trim(),
@@ -102,20 +102,20 @@ export function SearchQueryStep({
   // Optimize query using AI
   const handleOptimize = async () => {
     if (!editedSearchQuery?.trim()) return;
-    
+
     setIsOptimizing(true);
     const previousQuery = editedSearchQuery;
     try {
       const result = await onOptimize(evidenceSpec);
-      
+
       // Check if we got a valid result
       if (!result || !result.final_keywords) {
         throw new Error('Invalid optimization result received');
       }
-      
+
       setEditedSearchQuery(result.final_keywords);
       setCurrentCount(result.final_count);
-      
+
       // Add optimization to history
       setQueryHistory(prev => [...prev, {
         query: result.final_keywords?.trim() || '',
@@ -127,7 +127,7 @@ export function SearchQueryStep({
       }]);
     } catch (error) {
       console.error('Optimization failed:', error);
-      
+
       // Add failed optimization attempt to history for transparency
       setQueryHistory(prev => [...prev, {
         query: previousQuery,
@@ -176,15 +176,15 @@ export function SearchQueryStep({
                 <div key={index} className="grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {attempt.changeDescription === "Generated from evidence specification" ? "System" :
-                     attempt.changeDescription === "AI optimization applied" ? "AI" : 
-                     "User"}
+                      attempt.changeDescription === "AI optimization applied" ? "AI" :
+                        "User"}
                   </div>
                   <div className="flex items-center">
-                    <Badge 
+                    <Badge
                       variant={
-                        attempt.count === 0 ? "destructive" : 
-                        attempt.count > 0 && attempt.count <= 250 ? "default" : 
-                        attempt.count <= 500 ? "secondary" : "destructive"
+                        attempt.count === 0 ? "destructive" :
+                          attempt.count > 0 && attempt.count <= 250 ? "default" :
+                            attempt.count <= 500 ? "secondary" : "destructive"
                       }
                       className="text-xs w-full justify-center"
                     >
@@ -239,7 +239,7 @@ export function SearchQueryStep({
           <Textarea
             value={editedSearchQuery || ''}
             onChange={(e) => handleQueryChange(e.target.value)}
-            rows={3}
+            rows={8}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
             placeholder={
               selectedSource === 'google_scholar'
@@ -257,8 +257,7 @@ export function SearchQueryStep({
 
         {/* Current Count Display */}
         {currentCount !== null && (
-          <div className={`p-4 rounded-lg border ${
-            currentCount === 0
+          <div className={`p-4 rounded-lg border ${currentCount === 0
               ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
               : currentCount > 0 && currentCount <= 250
                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
@@ -277,15 +276,14 @@ export function SearchQueryStep({
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               )}
               <div className="flex-1">
-                <div className={`text-sm font-medium mb-1 ${
-                  currentCount === 0
+                <div className={`text-sm font-medium mb-1 ${currentCount === 0
                     ? 'text-red-900 dark:text-red-100'
                     : currentCount > 0 && currentCount <= 250
                       ? 'text-green-900 dark:text-green-100'
                       : currentCount <= 500
                         ? 'text-blue-900 dark:text-blue-100'
                         : 'text-amber-900 dark:text-amber-100'
-                }`}>
+                  }`}>
                   {currentCount === 0 ? (
                     'Query too restrictive - no results found'
                   ) : currentCount > 0 && currentCount <= 250 ? (
@@ -296,15 +294,14 @@ export function SearchQueryStep({
                     `Large result set - only first 500 articles will be processed`
                   )}
                 </div>
-                <div className={`text-xs ${
-                  currentCount === 0
+                <div className={`text-xs ${currentCount === 0
                     ? 'text-red-700 dark:text-red-300'
                     : currentCount > 0 && currentCount <= 250
                       ? 'text-green-700 dark:text-green-300'
                       : currentCount <= 500
                         ? 'text-blue-700 dark:text-blue-300'
                         : 'text-amber-700 dark:text-amber-300'
-                }`}>
+                  }`}>
                   {currentCount === 0 ? (
                     'Broaden your search terms or remove restrictive filters'
                   ) : currentCount > 0 && currentCount <= 250 ? (
@@ -342,7 +339,7 @@ export function SearchQueryStep({
                 </>
               )}
             </Button>
-            
+
             <Button
               onClick={handleOptimize}
               disabled={isOptimizing || !editedSearchQuery?.trim()}

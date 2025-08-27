@@ -38,65 +38,44 @@ export function RefinementStep({
 
 
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Original Query
-            </label>
-            <div className="p-3 bg-gray-100 dark:bg-gray-900 rounded-md text-sm text-gray-900 dark:text-gray-100">
-              {refinement.original_query}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              Evidence Specification
-            </label>
-            <Textarea
-              value={evidenceSpec}
-              onChange={(e) => setEvidenceSpec(e.target.value)}
-              rows={12}
-              className="dark:bg-gray-700 dark:text-gray-100 text-sm"
-            />
-          </div>
-        </div>
-
         <div>
-          <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
-            Select Search Source
+          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+            Evidence Specification
           </label>
-          <RadioGroup value={selectedSource} onValueChange={setSelectedSource} className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="pubmed" id="pubmed" />
-              <Label 
-                htmlFor="pubmed" 
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span>PubMed</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Biomedical literature with structured boolean queries
-                  </span>
-                </div>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="google_scholar" id="google_scholar" />
-              <Label 
-                htmlFor="google_scholar" 
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span>Google Scholar</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Broad academic search with natural language queries
-                  </span>
-                </div>
-              </Label>
-            </div>
-          </RadioGroup>
+          <Textarea
+            value={evidenceSpec}
+            onChange={(e) => setEvidenceSpec(e.target.value)}
+            rows={12}
+            className="dark:bg-gray-700 dark:text-gray-100 text-sm w-full"
+          />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Source:
+            </label>
+            <RadioGroup value={selectedSource} onValueChange={setSelectedSource} className="flex gap-3">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="pubmed" id="pubmed" />
+                <Label 
+                  htmlFor="pubmed" 
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  PubMed
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="google_scholar" id="google_scholar" />
+                <Label 
+                  htmlFor="google_scholar" 
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Google Scholar
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
           <Button
             onClick={handleSubmit}
             disabled={loading || !evidenceSpec.trim()}

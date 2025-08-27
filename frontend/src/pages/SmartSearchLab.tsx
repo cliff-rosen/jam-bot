@@ -399,7 +399,8 @@ export default function SmartSearchLab() {
                 lastCompletedStep="evidence"
                 stepData={{
                   originalQuery: smartSearch.originalQuestion,
-                  evidenceSpec: smartSearch.submittedEvidenceSpec
+                  evidenceSpec: smartSearch.submittedEvidenceSpec,
+                  selectedSource: smartSearch.selectedSource
                 }}
               />
               <SearchQueryStep

@@ -11,6 +11,7 @@ interface ProgressSummaryProps {
     totalAvailable?: number;
     discriminator?: string;
     strictness?: 'low' | 'medium' | 'high';
+    selectedSource?: string;
   };
 }
 
@@ -24,10 +25,8 @@ export function ProgressSummary({ lastCompletedStep, stepData }: ProgressSummary
         };
       case 'evidence':
         return {
-          label: 'Evidence Specification Created',
-          content: stepData.evidenceSpec && stepData.evidenceSpec.length > 150
-            ? stepData.evidenceSpec.substring(0, 150) + '...'
-            : stepData.evidenceSpec
+          label: `Evidence Specification Created (Target: ${stepData.selectedSource === 'google_scholar' ? 'Google Scholar' : 'PubMed'})`,
+          content: stepData.evidenceSpec
         };
       case 'keywords':
         return {

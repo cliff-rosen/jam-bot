@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Trash2, Copy } from 'lucide-react';
+import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
@@ -71,25 +71,27 @@ export function SearchQueryStep({
     setCurrentCount(null);
   };
 
-  // Test current query count
+  // Check if query is already in history
+  const isQueryInHistory = (query: string) => {
+    return queryHistory.some(attempt => attempt.query === query);
+  };
+
+  // Test current query count and add to history
   const handleTestQuery = async () => {
-    if (!editedSearchQuery?.trim()) return;
+    if (!editedSearchQuery?.trim() || isQueryInHistory(editedSearchQuery)) return;
 
     setIsTestingCount(true);
     try {
       const result = await onTestCount(editedSearchQuery);
       setCurrentCount(result.total_count);
-
-      // Add to history only if it's different from the last entry
-      const lastEntry = queryHistory[queryHistory.length - 1];
-      if (!lastEntry || lastEntry.query !== editedSearchQuery) {
-        setQueryHistory(prev => [...prev, {
-          query: editedSearchQuery,
-          count: result.total_count,
-          changeDescription: "Manual edit and test",
-          timestamp: new Date()
-        }]);
-      }
+      
+      // Add to history
+      setQueryHistory(prev => [...prev, {
+        query: editedSearchQuery,
+        count: result.total_count,
+        changeDescription: "Tested query",
+        timestamp: new Date()
+      }]);
     } catch (error) {
       console.error('Query count test failed:', error);
     } finally {
@@ -97,20 +99,22 @@ export function SearchQueryStep({
     }
   };
 
-  // Optimize query to reduce volume
+  // Optimize query using AI
   const handleOptimize = async () => {
+    if (!editedSearchQuery?.trim()) return;
+    
     setIsOptimizing(true);
     const previousQuery = editedSearchQuery;
     try {
       const result = await onOptimize(evidenceSpec);
       setEditedSearchQuery(result.final_query);
       setCurrentCount(result.final_count);
-
-      // Add optimization to history with clear explanation
+      
+      // Add optimization to history
       setQueryHistory(prev => [...prev, {
         query: result.final_query,
         count: result.final_count,
-        changeDescription: `Suggested optimization applied`,
+        changeDescription: "AI optimization applied",
         refinementDetails: result.refinement_applied,
         previousQuery: previousQuery,
         timestamp: new Date()
@@ -122,112 +126,67 @@ export function SearchQueryStep({
     }
   };
 
+  // Copy query to textarea
+  const handleCopyFromHistory = (query: string) => {
+    setEditedSearchQuery(query);
+    setCurrentCount(null);
+  };
+
   return (
     <Card className="p-6 dark:bg-gray-800 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-          Search Keywords
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Target:</span>
-          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-900 dark:text-gray-100">
-            {selectedSource === 'google_scholar' ? 'Google Scholar' : 'PubMed'}
-          </span>
-        </div>
-      </div>
+      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        Search Keywords
+      </h2>
 
-      {/* Evidence Specification - Always Visible */}
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-        <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-          Evidence Specification
-        </div>
-        <div className="text-sm text-blue-700 dark:text-blue-300">
-          {evidenceSpec}
-        </div>
-      </div>
-
-      {/* Query History - Always Visible */}
+      {/* Query History */}
       {queryHistory.length > 0 && (
-        <div className="mb-6 space-y-3">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Query Optimization History
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            Query History
+          </h3>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {queryHistory.map((attempt, index) => (
+              <div key={index} className="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {attempt.changeDescription}
+                    </span>
+                    <Badge 
+                      variant={
+                        attempt.count === 0 ? "destructive" : 
+                        attempt.count > 0 && attempt.count <= 250 ? "default" : 
+                        attempt.count <= 500 ? "secondary" : "destructive"
+                      }
+                      className="text-xs flex-shrink-0"
+                    >
+                      {attempt.count === 0 ? (
+                        "0 results"
+                      ) : attempt.count > 0 && attempt.count <= 250 ? (
+                        <>✅ {attempt.count.toLocaleString()}</>
+                      ) : attempt.count <= 500 ? (
+                        <>⚠️ {attempt.count.toLocaleString()}</>
+                      ) : (
+                        <>⚠️ {attempt.count.toLocaleString()}</>
+                      )}
+                    </Badge>
+                  </div>
+                  <div className="text-xs font-mono text-gray-600 dark:text-gray-400 truncate">
+                    {attempt.query.length > 60 ? `${attempt.query.substring(0, 60)}...` : attempt.query}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 ml-2"
+                  onClick={() => handleCopyFromHistory(attempt.query)}
+                  title="Copy to current query"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
           </div>
-
-          {queryHistory.map((attempt, index) => (
-            <div
-              key={index}
-              className={`p-3 rounded-lg border ${attempt.count > 0 && attempt.count <= 250
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-                }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${attempt.count > 0 && attempt.count <= 250
-                      ? 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200'
-                      : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200'
-                    }`}>
-                    {index + 1}
-                  </div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {attempt.changeDescription}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={attempt.count > 0 && attempt.count <= 250 ? "default" : "destructive"}
-                    className="text-xs"
-                  >
-                    {attempt.count.toLocaleString()} results
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                    onClick={() => {
-                      setEditedSearchQuery(attempt.query);
-                      setCurrentCount(attempt.count);
-                    }}
-                    title="Use this query"
-                  >
-                    <Copy className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    onClick={() => {
-                      setQueryHistory(prev => prev.filter((_, i) => i !== index));
-                    }}
-                    title="Delete from history"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-              <div className="ml-8 text-xs font-mono text-gray-600 dark:text-gray-400 break-all">
-                {attempt.query}
-              </div>
-              {attempt.refinementDetails && (
-                <div className="ml-8 mt-2 p-2 bg-blue-50 dark:bg-blue-900/10 rounded text-xs text-blue-700 dark:text-blue-300">
-                  <span className="font-medium">What changed: </span>
-                  {attempt.refinementDetails}
-                </div>
-              )}
-              {index > 0 && queryHistory[index - 1] && (
-                <div className="ml-8 mt-2 text-xs text-gray-500 dark:text-gray-500">
-                  Result change: {attempt.count - queryHistory[index - 1].count < 0 ? '↓' : '↑'}
-                  {' '}{Math.abs(attempt.count - queryHistory[index - 1].count).toLocaleString()} results
-                  {attempt.count > 0 && attempt.count <= 250 && (queryHistory[index - 1].count > 250 || queryHistory[index - 1].count === 0) && (
-                    <span className="ml-2 text-green-600 dark:text-green-400 font-medium">✓ Target achieved</span>
-                  )}
-                  {attempt.count === 0 && (
-                    <span className="ml-2 text-red-600 dark:text-red-400 font-medium">⚠ Too restrictive - no results</span>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       )}
 
@@ -250,15 +209,16 @@ export function SearchQueryStep({
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {selectedSource === 'google_scholar'
-              ? 'Edit the natural language search query and test to see the result count'
-              : 'Edit the boolean search query and test to see the result count'
+              ? 'Edit the natural language search query'
+              : 'Edit the boolean search query'
             }
           </p>
         </div>
 
         {/* Current Count Display */}
         {currentCount !== null && (
-          <div className={`p-3 rounded-lg border ${currentCount > 0 && currentCount <= 250
+          <div className={`p-3 rounded-lg border ${
+            currentCount > 0 && currentCount <= 250
               ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
               : currentCount === 0
                 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
@@ -269,15 +229,17 @@ export function SearchQueryStep({
                 {currentCount > 0 && currentCount <= 250 ? (
                   <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 ) : (
-                  <AlertTriangle className={`w-4 h-4 ${currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                    }`} />
+                  <AlertTriangle className={`w-4 h-4 ${
+                    currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                  }`} />
                 )}
-                <span className={`text-sm font-medium ${currentCount > 0 && currentCount <= 250
+                <span className={`text-sm font-medium ${
+                  currentCount > 0 && currentCount <= 250
                     ? 'text-green-900 dark:text-green-100'
                     : currentCount === 0
                       ? 'text-red-900 dark:text-red-100'
                       : 'text-amber-900 dark:text-amber-100'
-                  }`}>
+                }`}>
                   Current query will return {currentCount.toLocaleString()} results
                 </span>
               </div>
@@ -287,27 +249,17 @@ export function SearchQueryStep({
                 </Badge>
               )}
             </div>
-            {currentCount > 250 && (
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
-                Consider optimizing to reduce the result set for better filtering performance
-              </p>
-            )}
-            {currentCount === 0 && (
-              <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                Query is too restrictive. Try removing some filters or using broader terms
-              </p>
-            )}
           </div>
         )}
 
-        {/* Action Buttons - Test and Optimize Section */}
-        <div className="space-y-3">
-          {/* Test Count and Optimization Row */}
-          <div className="flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Button
               onClick={handleTestQuery}
-              disabled={isTestingCount || !editedSearchQuery?.trim()}
+              disabled={isTestingCount || !editedSearchQuery?.trim() || isQueryInHistory(editedSearchQuery)}
               variant="outline"
+              size="sm"
               className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
             >
               {isTestingCount ? (
@@ -322,68 +274,45 @@ export function SearchQueryStep({
                 </>
               )}
             </Button>
-
-            {currentCount !== null && (currentCount > 250 || currentCount === 0) && (
-              <>
-                <span className="text-xs text-gray-500">or</span>
-                <Button
-                  onClick={handleOptimize}
-                  disabled={isOptimizing}
-                  variant="outline"
-                  className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"
-                >
-                  {isOptimizing ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full" />
-                      Optimizing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Suggest Optimization
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-
-            {currentCount === null && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 italic">
-                Test the query to see result count
-              </span>
-            )}
-          </div>
-
-          {/* Optimization Help Text */}
-          {currentCount !== null && (currentCount > 250 || currentCount === 0) && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 ml-1">
-              {currentCount > 250
-                ? 'The "Suggest Optimization" button will analyze the current query text above and add filters to reduce results below 250'
-                : 'The "Suggest Optimization" button will analyze the current query text above and adjust filters to find results'
-              }
-            </p>
-          )}
-
-          {/* Search Button - Separate Row */}
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+            
             <Button
-              onClick={onSubmit}
-              disabled={loading || !editedSearchQuery?.trim()}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              onClick={handleOptimize}
+              disabled={isOptimizing || !editedSearchQuery?.trim()}
+              variant="outline"
+              size="sm"
+              className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"
             >
-              {loading ? (
+              {isOptimizing ? (
                 <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Searching...
+                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full" />
+                  Optimizing...
                 </>
               ) : (
                 <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Articles with Current Query
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  AI Optimize
                 </>
               )}
             </Button>
           </div>
+
+          <Button
+            onClick={onSubmit}
+            disabled={loading || !editedSearchQuery?.trim()}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Search with Current Query
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </Card>

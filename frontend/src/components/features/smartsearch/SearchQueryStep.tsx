@@ -123,7 +123,7 @@ export function SearchQueryStep({
   };
 
   return (
-    <Card className="p-6 dark:bg-gray-800">
+    <Card className="p-6 dark:bg-gray-800 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
           Search Keywords

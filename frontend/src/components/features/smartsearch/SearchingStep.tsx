@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 
 export function SearchingStep() {
   return (
-    <Card className="p-6 dark:bg-gray-800">
+    <Card className="p-6 dark:bg-gray-800 max-w-4xl mx-auto">
       <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         Searching Articles...
       </h2>

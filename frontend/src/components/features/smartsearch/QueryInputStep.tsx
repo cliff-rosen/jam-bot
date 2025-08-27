@@ -21,7 +21,7 @@ export function QueryInputStep({ query, setQuery, onSubmit, loading }: QueryInpu
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g., Find articles that discuss CRISPR gene editing applications in cancer treatment"
-          rows={4}
+          rows={10}
           className="dark:bg-gray-700 dark:text-gray-100"
         />
         <div className="flex justify-end">

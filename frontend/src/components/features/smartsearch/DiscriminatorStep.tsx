@@ -89,7 +89,7 @@ export function DiscriminatorStep({
 
           {showDetails && (
             <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
-              {/* Filter Strictness */}
+              {/* Filter Strictness - First in Advanced Options */}
               <div>
                 <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
                   Filter Strictness
@@ -114,7 +114,7 @@ export function DiscriminatorStep({
                 </p>
               </div>
               
-              {/* Filter Evaluation Criteria */}
+              {/* Filter Evaluation Criteria - Second in Advanced Options */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                   Filter Evaluation Criteria

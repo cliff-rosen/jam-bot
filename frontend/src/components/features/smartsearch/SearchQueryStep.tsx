@@ -217,37 +217,65 @@ export function SearchQueryStep({
 
         {/* Current Count Display */}
         {currentCount !== null && (
-          <div className={`p-3 rounded-lg border ${
-            currentCount > 0 && currentCount <= 250
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-              : currentCount === 0
-                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+          <div className={`p-4 rounded-lg border ${
+            currentCount === 0
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+              : currentCount > 0 && currentCount <= 250
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                : currentCount <= 500
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                  : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
             }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {currentCount > 0 && currentCount <= 250 ? (
-                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                ) : (
-                  <AlertTriangle className={`w-4 h-4 ${
-                    currentCount === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                  }`} />
-                )}
-                <span className={`text-sm font-medium ${
-                  currentCount > 0 && currentCount <= 250
-                    ? 'text-green-900 dark:text-green-100'
-                    : currentCount === 0
-                      ? 'text-red-900 dark:text-red-100'
-                      : 'text-amber-900 dark:text-amber-100'
-                }`}>
-                  Current query will return {currentCount.toLocaleString()} results
-                </span>
-              </div>
-              {(currentCount > 250 || currentCount === 0) && (
-                <Badge variant="destructive" className="text-xs">
-                  Target: 1-250
-                </Badge>
+            <div className="flex items-start gap-3">
+              {currentCount === 0 ? (
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              ) : currentCount > 0 && currentCount <= 250 ? (
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              ) : currentCount <= 500 ? (
+                <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               )}
+              <div className="flex-1">
+                <div className={`text-sm font-medium mb-1 ${
+                  currentCount === 0
+                    ? 'text-red-900 dark:text-red-100'
+                    : currentCount > 0 && currentCount <= 250
+                      ? 'text-green-900 dark:text-green-100'
+                      : currentCount <= 500
+                        ? 'text-blue-900 dark:text-blue-100'
+                        : 'text-amber-900 dark:text-amber-100'
+                }`}>
+                  {currentCount === 0 ? (
+                    'Query too restrictive - no results found'
+                  ) : currentCount > 0 && currentCount <= 250 ? (
+                    `Optimal range - all ${currentCount.toLocaleString()} articles will be processed`
+                  ) : currentCount <= 500 ? (
+                    `Good range - all ${currentCount.toLocaleString()} articles will be processed`
+                  ) : (
+                    `Large result set - only first 500 articles will be processed`
+                  )}
+                </div>
+                <div className={`text-xs ${
+                  currentCount === 0
+                    ? 'text-red-700 dark:text-red-300'
+                    : currentCount > 0 && currentCount <= 250
+                      ? 'text-green-700 dark:text-green-300'
+                      : currentCount <= 500
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-amber-700 dark:text-amber-300'
+                }`}>
+                  {currentCount === 0 ? (
+                    'Broaden your search terms or remove restrictive filters'
+                  ) : currentCount > 0 && currentCount <= 250 ? (
+                    'Perfect size for comprehensive filtering'
+                  ) : currentCount <= 500 ? (
+                    'Good size for thorough analysis'
+                  ) : (
+                    'Consider refining your query for better relevance and faster processing'
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -299,7 +327,11 @@ export function SearchQueryStep({
           <Button
             onClick={onSubmit}
             disabled={loading || !editedSearchQuery?.trim()}
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className={
+              currentCount === 0
+                ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            }
           >
             {loading ? (
               <>
@@ -309,7 +341,7 @@ export function SearchQueryStep({
             ) : (
               <>
                 <Search className="w-4 h-4 mr-2" />
-                Search with Current Query
+                {currentCount === 0 ? 'Search Anyway' : 'Search with Current Query'}
               </>
             )}
           </Button>

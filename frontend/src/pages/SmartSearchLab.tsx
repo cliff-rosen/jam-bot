@@ -382,7 +382,6 @@ export default function SmartSearchLab() {
                 stepData={{ originalQuery: smartSearch.originalQuestion }}
               />
               <RefinementStep
-                refinement={smartSearch.evidenceSpecResponse}
                 evidenceSpec={smartSearch.submittedEvidenceSpec}
                 setEvidenceSpec={smartSearch.updateSubmittedEvidenceSpec}
                 selectedSource={smartSearch.selectedSource}

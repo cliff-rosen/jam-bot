@@ -4,10 +4,8 @@ import { Card } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Search } from 'lucide-react';
-import type { EvidenceSpecificationResponse } from '@/lib/api/smartSearchApi';
 
 interface RefinementStepProps {
-  refinement: EvidenceSpecificationResponse;
   evidenceSpec: string;
   setEvidenceSpec: (spec: string) => void;
   selectedSource: string;
@@ -17,7 +15,6 @@ interface RefinementStepProps {
 }
 
 export function RefinementStep({
-  refinement,
   evidenceSpec,
   setEvidenceSpec,
   selectedSource,
@@ -58,8 +55,8 @@ export function RefinementStep({
             <RadioGroup value={selectedSource} onValueChange={setSelectedSource} className="flex gap-3">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="pubmed" id="pubmed" />
-                <Label 
-                  htmlFor="pubmed" 
+                <Label
+                  htmlFor="pubmed"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
                 >
                   PubMed
@@ -67,8 +64,8 @@ export function RefinementStep({
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="google_scholar" id="google_scholar" />
-                <Label 
-                  htmlFor="google_scholar" 
+                <Label
+                  htmlFor="google_scholar"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
                 >
                   Google Scholar

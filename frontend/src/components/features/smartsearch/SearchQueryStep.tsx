@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy } from 'lucide-react';
+import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
@@ -53,16 +53,16 @@ export function SearchQueryStep({
 
   // Initialize with the generated query and count
   useEffect(() => {
-    if (initialCount && editedSearchQuery && queryHistory.length === 0) {
+    if (initialCount && editedSearchQuery?.trim() && queryHistory.length === 0) {
       setQueryHistory([{
-        query: editedSearchQuery,
-        count: initialCount.total_count,
+        query: editedSearchQuery.trim(),
+        count: initialCount.total_count || 0,
         changeDescription: "Generated from evidence specification",
         timestamp: new Date()
       }]);
       setCurrentCount(initialCount.total_count);
     }
-  }, [initialCount, editedSearchQuery]);
+  }, [initialCount, editedSearchQuery, queryHistory.length]);
 
   // Clear current count when query is edited
   const handleQueryChange = (newQuery: string) => {
@@ -87,7 +87,7 @@ export function SearchQueryStep({
       
       // Add to history
       setQueryHistory(prev => [...prev, {
-        query: editedSearchQuery,
+        query: editedSearchQuery.trim(),
         count: result.total_count,
         changeDescription: "Tested query",
         timestamp: new Date()
@@ -112,8 +112,8 @@ export function SearchQueryStep({
       
       // Add optimization to history
       setQueryHistory(prev => [...prev, {
-        query: result.final_query,
-        count: result.final_count,
+        query: result.final_query?.trim() || '',
+        count: result.final_count || 0,
         changeDescription: "AI optimization applied",
         refinementDetails: result.refinement_applied,
         previousQuery: previousQuery,
@@ -126,10 +126,15 @@ export function SearchQueryStep({
     }
   };
 
-  // Copy query to textarea
-  const handleCopyFromHistory = (query: string) => {
+  // Copy query to textarea and load its count
+  const handleCopyFromHistory = (query: string, count: number) => {
     setEditedSearchQuery(query);
-    setCurrentCount(null);
+    setCurrentCount(count);
+  };
+
+  // Delete query from history
+  const handleDeleteFromHistory = (index: number) => {
+    setQueryHistory(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -144,24 +149,32 @@ export function SearchQueryStep({
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
             Query History
           </h3>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {queryHistory.map((attempt, index) => (
-              <div key={index} className="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {attempt.changeDescription}
-                    </span>
+          <div className="max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-[80px_100px_1fr_60px] gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <div>Source</div>
+              <div>Count</div>
+              <div>Query</div>
+              <div></div>
+            </div>
+            <div className="space-y-1 mt-2">
+              {queryHistory.map((attempt, index) => (
+                <div key={index} className="grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {attempt.changeDescription === "Generated from evidence specification" ? "System" :
+                     attempt.changeDescription === "AI optimization applied" ? "AI" : 
+                     "User"}
+                  </div>
+                  <div className="flex items-center">
                     <Badge 
                       variant={
                         attempt.count === 0 ? "destructive" : 
                         attempt.count > 0 && attempt.count <= 250 ? "default" : 
                         attempt.count <= 500 ? "secondary" : "destructive"
                       }
-                      className="text-xs flex-shrink-0"
+                      className="text-xs w-full justify-center"
                     >
                       {attempt.count === 0 ? (
-                        "0 results"
+                        "0"
                       ) : attempt.count > 0 && attempt.count <= 250 ? (
                         <>✅ {attempt.count.toLocaleString()}</>
                       ) : attempt.count <= 500 ? (
@@ -172,20 +185,32 @@ export function SearchQueryStep({
                     </Badge>
                   </div>
                   <div className="text-xs font-mono text-gray-600 dark:text-gray-400 truncate">
-                    {attempt.query.length > 60 ? `${attempt.query.substring(0, 60)}...` : attempt.query}
+                    {attempt.query && attempt.query.length > 80 ? `${attempt.query.substring(0, 80)}...` : (attempt.query || '')}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                      onClick={() => handleCopyFromHistory(attempt.query || '', attempt.count || 0)}
+                      title="Load this query"
+                      disabled={!attempt.query}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                      onClick={() => handleDeleteFromHistory(index)}
+                      title="Delete from history"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 ml-2"
-                  onClick={() => handleCopyFromHistory(attempt.query)}
-                  title="Copy to current query"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}

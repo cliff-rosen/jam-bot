@@ -491,17 +491,18 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         
         logger.info(f"Current query has {initial_count} results")
         
-        # Phase 2: Check if refinement is needed
-        if initial_count <= target_max:
-            return initial_query, initial_count, initial_query, initial_count, "Query already optimal", "optimal"
+        # Phase 2: Always attempt optimization when explicitly requested
+        # (removed early return for "already optimal" queries)
         
         # Phase 3: Add targeted refinement to current query
         final_query, refinement_description = await self.add_targeted_refinement(initial_query, initial_count, evidence_spec, target_max, selected_sources)
         final_count, _ = await self.get_search_count(final_query, selected_sources)
         
         # Determine status
-        if final_count <= target_max and final_count > 0:
-            status = "refined"
+        if initial_count <= target_max and final_count <= target_max and final_count > 0:
+            status = "refined"  # Successfully refined an already good query
+        elif initial_count > target_max and final_count <= target_max and final_count > 0:
+            status = "refined"  # Successfully optimized large query
         elif final_count == 0:
             status = "manual_needed"
             refinement_description += " (Refinement too restrictive - no results found)"

@@ -6,9 +6,9 @@ import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy, Trash2 } fr
 import { useState, useEffect } from 'react';
 
 interface OptimizationResult {
-  initial_query: string;
+  initial_keywords: string;
   initial_count: number;
-  final_query: string;
+  final_keywords: string;
   final_count: number;
   refinement_applied: string;
   refinement_status: 'optimal' | 'refined' | 'manual_needed';
@@ -107,20 +107,35 @@ export function SearchQueryStep({
     const previousQuery = editedSearchQuery;
     try {
       const result = await onOptimize(evidenceSpec);
-      setEditedSearchQuery(result.final_query);
+      
+      // Check if we got a valid result
+      if (!result || !result.final_keywords) {
+        throw new Error('Invalid optimization result received');
+      }
+      
+      setEditedSearchQuery(result.final_keywords);
       setCurrentCount(result.final_count);
       
       // Add optimization to history
       setQueryHistory(prev => [...prev, {
-        query: result.final_query?.trim() || '',
+        query: result.final_keywords?.trim() || '',
         count: result.final_count || 0,
         changeDescription: "AI optimization applied",
-        refinementDetails: result.refinement_applied,
+        refinementDetails: result.refinement_applied || 'Query optimized',
         previousQuery: previousQuery,
         timestamp: new Date()
       }]);
     } catch (error) {
       console.error('Optimization failed:', error);
+      
+      // Add failed optimization attempt to history for transparency
+      setQueryHistory(prev => [...prev, {
+        query: previousQuery,
+        count: currentCount || 0,
+        changeDescription: "AI optimization failed",
+        refinementDetails: 'Optimization service error - query unchanged',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsOptimizing(false);
     }

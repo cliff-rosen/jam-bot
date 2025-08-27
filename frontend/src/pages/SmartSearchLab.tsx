@@ -333,23 +333,18 @@ export default function SmartSearchLab() {
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
             variant={smartSearch.step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
-            className={smartSearch.canNavigateToStep('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={smartSearch.canNavigateToStep('search-results') ? () => handleStepBack('search-results') : undefined}
           >
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
             variant={smartSearch.step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
-            className={smartSearch.canNavigateToStep('search-results') ? 'cursor-pointer hover:bg-opacity-80' : ''}
-            onClick={smartSearch.canNavigateToStep('search-results') ? () => handleStepBack('search-results') : undefined}
           >
             5. Review Results
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
             variant={smartSearch.step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
-            className={smartSearch.canNavigateToStep('discriminator') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={smartSearch.canNavigateToStep('discriminator') ? () => handleStepBack('discriminator') : undefined}
           >
             6. Filter Criteria
@@ -359,7 +354,9 @@ export default function SmartSearchLab() {
             7. Filter
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={smartSearch.step === 'results' ? 'default' : 'outline'}>8. Results</Badge>
+          <Badge variant={smartSearch.step === 'results' ? 'default' : 'outline'}>
+            8. Results
+          </Badge>
         </div>
       </div>
 

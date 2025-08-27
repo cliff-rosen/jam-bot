@@ -39,10 +39,7 @@ export function ProgressSummary({ lastCompletedStep, stepData }: ProgressSummary
       case 'search':
         return {
           label: 'Articles Found',
-          content: `${stepData.articlesFound?.toLocaleString()} articles retrieved${stepData.totalAvailable && stepData.totalAvailable > (stepData.articlesFound || 0)
-              ? ` of ${stepData.totalAvailable.toLocaleString()} available`
-              : ''
-            }`
+          content: `${stepData.totalAvailable?.toLocaleString()} articles available`
         };
       case 'discriminator':
         return {

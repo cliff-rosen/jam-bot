@@ -145,14 +145,17 @@ class CanonicalResearchArticle(BaseModel):
     Unified canonical schema for research articles from any source (PubMed, Google Scholar, etc).
     This provides a consistent interface for the research workbench regardless of the data source.
     """
-    model_config = ConfigDict(extra='allow')  # TODO: Change back to 'forbid' after fixing article normalization pipeline
-    # Some sessions contain articles with legacy field names (year instead of publication_year, pmid instead of id)
-    # These should be properly normalized before storage in the filtering workflow
+    model_config = ConfigDict(extra='forbid')
     
     # Core identification fields
     id: str = Field(description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
     source: str = Field(description="Data source (e.g., 'pubmed', 'google_scholar')")
     title: str = Field(description="Article title")
+    
+    # Legacy fields for backward compatibility with existing session data
+    # TODO: Remove these once all sessions are migrated to proper field names
+    year: Optional[int] = Field(default=None, description="DEPRECATED: Use publication_year instead")
+    pmid: Optional[str] = Field(default=None, description="DEPRECATED: Use id instead for PubMed articles")
     
     # Core metadata
     authors: List[str] = Field(default=[], description="List of author names")

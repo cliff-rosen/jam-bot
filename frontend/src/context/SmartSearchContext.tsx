@@ -371,6 +371,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         setEvidenceSpecResponse(null);
       }
       
+      // Check if we should restore search keywords response (if user has progressed past keyword generation)
       if (lastStep && ['search_query_generation', 'search_execution', 'discriminator_generation', 'filtering'].includes(lastStep)) {
         const keywords = session.submitted_search_keywords || session.generated_search_keywords || '';
         setSearchKeywordsResponse({
@@ -380,6 +381,14 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         });
         // IMPORTANT: Also set the submitted keywords so SearchQueryStep doesn't crash
         setSubmittedSearchKeywords(keywords);
+        
+        // Restore keywordsCountResult from search_metadata if available
+        if (session.search_metadata) {
+          setKeywordsCountResult({
+            total_count: session.search_metadata.total_available || 0,
+            sources_searched: session.search_metadata.sources_searched || []
+          });
+        }
       } else {
         setSearchKeywordsResponse(null);
         setKeywordsCountResult(null);

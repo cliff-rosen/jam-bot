@@ -35,3 +35,63 @@ export interface FilteringProgress {
   rejected: number;
   current_article?: string;
 }
+
+// More flexible version for session storage
+export interface FilteredArticleForSession {
+  article: Record<string, any>; // Flexible schema for session storage
+  passed: boolean;
+  confidence: number;
+  reasoning: string;
+}
+
+// ============================================================================
+// Session Management Types (matching backend schemas)
+// ============================================================================
+
+export interface SmartSearchSession {
+  id: string;
+  user_id: string;
+  created_at: string | null;
+  updated_at: string | null;
+  original_question: string;
+  generated_evidence_spec: string | null;
+  submitted_evidence_spec: string | null;
+  generated_search_keywords: string | null;
+  submitted_search_keywords: string | null;
+  search_metadata: {
+    total_available?: number;
+    total_retrieved?: number;
+    sources_searched?: string[];
+    [key: string]: any;
+  } | null;
+  articles_retrieved_count: number;
+  articles_selected_count: number;
+  generated_discriminator: string | null;
+  submitted_discriminator: string | null;
+  filter_strictness: 'low' | 'medium' | 'high' | null;
+  filtering_metadata: {
+    accepted?: number;
+    rejected?: number;
+    total_processed?: number;
+    custom_columns?: any[];
+    [key: string]: any;
+  } | null;
+  filtered_articles: FilteredArticleForSession[] | null;
+  status: string;
+  last_step_completed: string | null;
+  session_duration_seconds: number | null;
+  total_api_calls: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface SessionListResponse {
+  sessions: SmartSearchSession[];
+  total: number;
+}
+
+export interface SessionResetResponse {
+  message: string;
+  session: SmartSearchSession;
+}

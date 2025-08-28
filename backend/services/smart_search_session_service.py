@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 from models import SmartSearchSession
+from schemas.smart_search import SessionListResponse, SmartSearchSessionDict
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +299,7 @@ class SmartSearchSessionService:
             self.db.rollback()
             raise
     
-    def get_user_sessions(self, user_id: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    def get_user_sessions(self, user_id: str, limit: int = 50, offset: int = 0) -> SessionListResponse:
         """Get user's search session history"""
         try:
             sessions = self.db.query(SmartSearchSession).filter(
@@ -309,16 +310,16 @@ class SmartSearchSessionService:
                 SmartSearchSession.user_id == user_id
             ).count()
             
-            return {
-                "sessions": [session.to_dict() for session in sessions],
-                "total": total
-            }
+            return SessionListResponse(
+                sessions=[SmartSearchSessionDict(**session.to_dict()) for session in sessions],
+                total=total
+            )
             
         except Exception as e:
             logger.error(f"Failed to get sessions for user {user_id}: {e}")
             raise
     
-    def get_all_sessions(self, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    def get_all_sessions(self, limit: int = 50, offset: int = 0) -> SessionListResponse:
         """Get all users' search session history (admin only)"""
         try:
             sessions = self.db.query(SmartSearchSession).order_by(
@@ -327,10 +328,10 @@ class SmartSearchSessionService:
             
             total = self.db.query(SmartSearchSession).count()
             
-            return {
-                "sessions": [session.to_dict() for session in sessions],
-                "total": total
-            }
+            return SessionListResponse(
+                sessions=[SmartSearchSessionDict(**session.to_dict()) for session in sessions],
+                total=total
+            )
             
         except Exception as e:
             logger.error(f"Failed to get all sessions: {e}")

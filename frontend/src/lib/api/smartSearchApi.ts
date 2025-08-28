@@ -6,7 +6,13 @@
  */
 
 import { api } from './index';
-import type { CanonicalResearchArticle, FilteredArticle } from '@/types/smart-search';
+import type { 
+  CanonicalResearchArticle, 
+  FilteredArticle, 
+  SmartSearchSession,
+  SessionListResponse,
+  SessionResetResponse 
+} from '@/types/smart-search';
 
 // Re-export domain types for convenience
 export type { CanonicalResearchArticle, FilteredArticle } from '@/types/smart-search';
@@ -246,18 +252,17 @@ class SmartSearchApi {
   /**
    * Reset session to a specific step
    */
-  async resetSessionToStep(sessionId: string, step: string): Promise<any> {
+  async resetSessionToStep(sessionId: string, step: string): Promise<SessionResetResponse> {
     const response = await api.post(`/api/lab/smart-search/sessions/${sessionId}/reset-to-step`, {
       step
     });
     return response.data;
   }
 
-
   /**
    * Get user's search session history
    */
-  async getUserSessions(limit: number = 50, offset: number = 0): Promise<any> {
+  async getUserSessions(limit: number = 50, offset: number = 0): Promise<SessionListResponse> {
     const response = await api.get(`/api/lab/smart-search/sessions?limit=${limit}&offset=${offset}`);
     return response.data;
   }
@@ -265,7 +270,7 @@ class SmartSearchApi {
   /**
    * Get all users' search session history (admin only)
    */
-  async getAllSessions(limit: number = 50, offset: number = 0): Promise<any> {
+  async getAllSessions(limit: number = 50, offset: number = 0): Promise<SessionListResponse> {
     const response = await api.get(`/api/lab/smart-search/admin/sessions?limit=${limit}&offset=${offset}`);
     return response.data;
   }
@@ -273,7 +278,7 @@ class SmartSearchApi {
   /**
    * Get specific search session details
    */
-  async getSession(sessionId: string): Promise<any> {
+  async getSession(sessionId: string): Promise<SmartSearchSession> {
     const response = await api.get(`/api/lab/smart-search/sessions/${sessionId}`);
     return response.data;
   }

@@ -25,6 +25,7 @@ import type {
 export type { SearchKeywordsWithCountResponse };
 
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
+import type { SmartSearchSession } from '@/types/smart-search';
 
 // ================== STATE INTERFACE ==================
 
@@ -273,9 +274,16 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
         }
         
-        // Restore filtered articles if they exist
+        // Restore filtered articles if they exist (convert from session format)
         if (session.filtered_articles && Array.isArray(session.filtered_articles)) {
-          setFilteredArticles(session.filtered_articles);
+          // Convert FilteredArticleForSession[] to FilteredArticle[]
+          const convertedArticles: FilteredArticle[] = session.filtered_articles.map(sessionArticle => ({
+            article: sessionArticle.article as any, // Type assertion for compatibility
+            passed: sessionArticle.passed,
+            confidence: sessionArticle.confidence,
+            reasoning: sessionArticle.reasoning
+          }));
+          setFilteredArticles(convertedArticles);
         }
         
         // Restore custom columns if they exist
@@ -284,7 +292,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         }
         
         // Map backend step to frontend step
-        const mapBackendStepToFrontend = (backendStep: string, session: any): SmartSearchStep => {
+        const mapBackendStepToFrontend = (backendStep: string, session: SmartSearchSession): SmartSearchStep => {
           switch (backendStep) {
             case 'question_input':
               return 'query';
@@ -335,10 +343,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   
   const resetToStep = useCallback(async (sessionId: string, targetStep: string) => {
     try {
-      await smartSearchApi.resetSessionToStep(sessionId, targetStep);
+      const resetResponse = await smartSearchApi.resetSessionToStep(sessionId, targetStep);
       
-      // Reload session to get the restored state
-      const session = await smartSearchApi.getSession(sessionId);
+      // Use the session from the reset response instead of making another API call
+      const session = resetResponse.session;
       
       // Restore session state
       setSessionId(session.id);
@@ -418,7 +426,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
               max_results: 50,
               offset: 0,
               session_id: session.id,
-              selected_sources: session.selected_sources || ['pubmed']
+              selected_sources: session.search_metadata?.sources_searched || ['pubmed']
             });
             setSearchResults(searchResponse);
           } catch (error) {

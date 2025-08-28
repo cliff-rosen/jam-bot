@@ -18,7 +18,10 @@ from database import get_db
 from schemas.smart_search import (
     SearchPaginationInfo,
     FilteredArticle,
-    FilteringProgress
+    FilteringProgress,
+    SmartSearchSessionDict,
+    SessionListResponse,
+    SessionResetResponse
 )
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
@@ -629,13 +632,13 @@ async def extract_features(
         raise HTTPException(status_code=500, detail=f"Failed to extract features: {str(e)}")
 
 
-@router.get("/sessions")
+@router.get("/sessions", response_model=SessionListResponse)
 async def get_search_sessions(
     current_user = Depends(validate_token),
     db: Session = Depends(get_db),
     limit: int = 50,
     offset: int = 0
-):
+) -> SessionListResponse:
     """
     Get user's smart search session history
     """
@@ -652,13 +655,13 @@ async def get_search_sessions(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve sessions: {str(e)}")
 
 
-@router.get("/admin/sessions")
+@router.get("/admin/sessions", response_model=SessionListResponse)
 async def get_all_search_sessions(
     current_user = Depends(validate_token),
     db: Session = Depends(get_db),
     limit: int = 50,
     offset: int = 0
-):
+) -> SessionListResponse:
     """
     Admin endpoint to get all users' smart search session history
     """
@@ -678,12 +681,12 @@ async def get_all_search_sessions(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve sessions: {str(e)}")
 
 
-@router.get("/sessions/{session_id}")
+@router.get("/sessions/{session_id}", response_model=SmartSearchSessionDict)
 async def get_search_session(
     session_id: str,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-):
+) -> SmartSearchSessionDict:
     """
     Get specific smart search session details
     """
@@ -694,7 +697,7 @@ async def get_search_session(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        return session.to_dict()
+        return SmartSearchSessionDict(**session.to_dict())
         
     except HTTPException:
         raise
@@ -733,13 +736,13 @@ async def delete_search_session(
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
 
 
-@router.post("/sessions/{session_id}/reset-to-step")
+@router.post("/sessions/{session_id}/reset-to-step", response_model=SessionResetResponse)
 async def reset_session_to_step(
     session_id: str,
     request: SessionResetRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
-):
+) -> SessionResetResponse:
     """
     Reset session to a specific step, clearing all data forward of that step
     """
@@ -753,7 +756,10 @@ async def reset_session_to_step(
             raise HTTPException(status_code=404, detail="Session not found")
         
         logger.info(f"Session {session_id} reset to step {request.step} for user {current_user.user_id}")
-        return {"message": f"Session reset to step {request.step}", "session": session.to_dict()}
+        return SessionResetResponse(
+            message=f"Session reset to step {request.step}",
+            session=SmartSearchSessionDict(**session.to_dict())
+        )
         
     except HTTPException:
         raise

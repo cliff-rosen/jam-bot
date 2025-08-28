@@ -7,39 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
 import { useAuth } from '@/context/AuthContext';
+import type { SmartSearchSession } from '@/types/smart-search';
 
-interface SearchSession {
-  id: string;
-  user_id?: string;
-  original_question: string;
-  generated_evidence_spec?: string;
-  submitted_evidence_spec?: string;
-  generated_search_keywords?: string;
-  submitted_search_keywords?: string;
-  created_at: string;
-  updated_at: string;
-  // Search execution metadata from search_metadata
-  search_metadata?: {
-    total_available?: number;
-    total_retrieved?: number;
-    sources_searched?: string[];
-  };
-  articles_retrieved_count?: number;
-  articles_selected_count?: number;
-  // Filtering metadata  
-  filtering_metadata?: {
-    total_filtered?: number;
-    accepted?: number;
-    rejected?: number;
-    average_confidence?: number;
-  };
-  generated_discriminator?: string;
-  submitted_discriminator?: string;
-  filter_strictness?: string;
-  // Status
-  status?: string;
-  last_step_completed?: string;
-}
+// Type alias for clarity
+type SearchSession = SmartSearchSession;
 
 type SortField = 'created_at' | 'status' | 'found' | 'accepted';
 type SortDirection = 'asc' | 'desc';
@@ -50,7 +21,8 @@ interface SessionSummaryModalProps {
   onClose: () => void;
 }
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -60,7 +32,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const getStepBadge = (step?: string) => {
+const getStepBadge = (step?: string | null) => {
   const stepMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     'question_input': { label: 'Started', variant: 'outline' },
     'question_refinement': { label: 'Evidence Spec', variant: 'outline' },
@@ -192,8 +164,8 @@ export default function SearchHistory() {
 
         switch (sortField) {
           case 'created_at':
-            aValue = new Date(a.created_at);
-            bValue = new Date(b.created_at);
+            aValue = new Date(a.created_at || '');
+            bValue = new Date(b.created_at || '');
             break;
           case 'status':
             aValue = a.last_step_completed || '';

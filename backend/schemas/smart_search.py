@@ -6,8 +6,8 @@ These are shared data structures used across multiple services.
 API-specific request/response models are defined in the router.
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, ConfigDict
 from schemas.canonical_types import CanonicalResearchArticle
 
 
@@ -22,6 +22,16 @@ class SearchPaginationInfo(BaseModel):
 class FilteredArticle(BaseModel):
     """Article with filtering results - core domain model"""
     article: CanonicalResearchArticle
+    passed: bool = Field(..., description="Whether article passed the filter")
+    confidence: float = Field(..., description="Confidence score 0-1")
+    reasoning: str = Field(..., description="Brief explanation of decision")
+
+
+class FilteredArticleForSession(BaseModel):
+    """More permissive version for session storage/retrieval"""
+    model_config = ConfigDict(extra='allow')
+    
+    article: Dict[str, Any] = Field(..., description="Article data (flexible schema for session storage)")
     passed: bool = Field(..., description="Whether article passed the filter")
     confidence: float = Field(..., description="Confidence score 0-1")
     reasoning: str = Field(..., description="Brief explanation of decision")
@@ -51,3 +61,47 @@ class OptimizedKeywordsResult(BaseModel):
     final_count: int
     refinement_description: str
     status: str  # 'optimal' | 'refined' | 'manual_needed'
+
+
+# ============================================================================
+# Session Management Schemas
+# ============================================================================
+
+class SmartSearchSessionDict(BaseModel):
+    """Complete session representation as returned by SmartSearchSession.to_dict()"""
+    id: str
+    user_id: str
+    created_at: Optional[str]
+    updated_at: Optional[str]
+    original_question: str
+    generated_evidence_spec: Optional[str]
+    submitted_evidence_spec: Optional[str]
+    generated_search_keywords: Optional[str]
+    submitted_search_keywords: Optional[str]
+    search_metadata: Optional[dict]
+    articles_retrieved_count: int
+    articles_selected_count: int
+    generated_discriminator: Optional[str]
+    submitted_discriminator: Optional[str]
+    filter_strictness: Optional[str]
+    filtering_metadata: Optional[dict]
+    filtered_articles: Optional[List[FilteredArticleForSession]]
+    status: str
+    last_step_completed: Optional[str]
+    session_duration_seconds: Optional[int]
+    total_api_calls: int
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    total_tokens: int
+
+
+class SessionListResponse(BaseModel):
+    """Response for session list endpoints"""
+    sessions: List[SmartSearchSessionDict]
+    total: int
+
+
+class SessionResetResponse(BaseModel):
+    """Response for session reset endpoint"""
+    message: str
+    session: SmartSearchSessionDict

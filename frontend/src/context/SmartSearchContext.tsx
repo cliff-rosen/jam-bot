@@ -274,16 +274,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           setStrictness(session.filter_strictness as 'low' | 'medium' | 'high');
         }
         
-        // Restore filtered articles if they exist (convert from session format)
+        // Restore filtered articles if they exist
         if (session.filtered_articles && Array.isArray(session.filtered_articles)) {
-          // Convert FilteredArticleForSession[] to FilteredArticle[]
-          const convertedArticles: FilteredArticle[] = session.filtered_articles.map(sessionArticle => ({
-            article: sessionArticle.article as any, // Type assertion for compatibility
-            passed: sessionArticle.passed,
-            confidence: sessionArticle.confidence,
-            reasoning: sessionArticle.reasoning
-          }));
-          setFilteredArticles(convertedArticles);
+          setFilteredArticles(session.filtered_articles);
         }
         
         // Restore custom columns if they exist

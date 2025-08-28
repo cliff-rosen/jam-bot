@@ -36,13 +36,6 @@ export interface FilteringProgress {
   current_article?: string;
 }
 
-// More flexible version for session storage
-export interface FilteredArticleForSession {
-  article: Record<string, any>; // Flexible schema for session storage
-  passed: boolean;
-  confidence: number;
-  reasoning: string;
-}
 
 // ============================================================================
 // Session Management Types (matching backend schemas)
@@ -76,7 +69,7 @@ export interface SmartSearchSession {
     custom_columns?: any[];
     [key: string]: any;
   } | null;
-  filtered_articles: FilteredArticleForSession[] | null;
+  filtered_articles: FilteredArticle[] | null;
   status: string;
   last_step_completed: string | null;
   session_duration_seconds: number | null;

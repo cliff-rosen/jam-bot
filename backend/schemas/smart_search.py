@@ -27,14 +27,6 @@ class FilteredArticle(BaseModel):
     reasoning: str = Field(..., description="Brief explanation of decision")
 
 
-class FilteredArticleForSession(BaseModel):
-    """More permissive version for session storage/retrieval"""
-    model_config = ConfigDict(extra='allow')
-    
-    article: Dict[str, Any] = Field(..., description="Article data (flexible schema for session storage)")
-    passed: bool = Field(..., description="Whether article passed the filter")
-    confidence: float = Field(..., description="Confidence score 0-1")
-    reasoning: str = Field(..., description="Brief explanation of decision")
 
 
 class FilteringProgress(BaseModel):
@@ -85,7 +77,7 @@ class SmartSearchSessionDict(BaseModel):
     submitted_discriminator: Optional[str]
     filter_strictness: Optional[str]
     filtering_metadata: Optional[dict]
-    filtered_articles: Optional[List[FilteredArticleForSession]]
+    filtered_articles: Optional[List[FilteredArticle]]
     status: str
     last_step_completed: Optional[str]
     session_duration_seconds: Optional[int]

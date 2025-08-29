@@ -153,15 +153,18 @@ class SmartSearchSessionService:
                 pagination_loads = 1
                 total_retrieved = returned
             
-            search_metadata = {
+            # Update existing metadata while preserving other fields like search_keyword_history
+            existing_metadata.update({
                 "total_available": total_available,
                 "total_retrieved": total_retrieved,
                 "sources_searched": sources,
                 "last_search_timestamp": datetime.utcnow().isoformat(),
                 "pagination_loads": pagination_loads
-            }
+            })
             
-            session.search_metadata = search_metadata
+            session.search_metadata = existing_metadata
+            # Flag the JSON column as modified so SQLAlchemy detects the change
+            flag_modified(session, 'search_metadata')
             session.articles_retrieved_count = total_retrieved
             session.last_step_completed = "search_execution"
             

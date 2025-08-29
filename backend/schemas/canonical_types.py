@@ -9,10 +9,11 @@ This ensures consistency, maintainability, and type safety across the entire
 codebase.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from typing import Dict, Optional, List, Any, Union, Literal
 from datetime import datetime
 from schemas.base import SchemaType
+import hashlib
 
 # --- Registry of Canonical Schemas ---
 
@@ -147,8 +148,8 @@ class CanonicalResearchArticle(BaseModel):
     """
     model_config = ConfigDict(extra='forbid')
     
-    # Core identification fields
-    id: str = Field(description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
+    # Core identification fields  
+    id: Optional[str] = Field(default=None, description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
     source: str = Field(description="Data source (e.g., 'pubmed', 'google_scholar')")
     title: str = Field(description="Article title")
     
@@ -205,6 +206,15 @@ class CanonicalResearchArticle(BaseModel):
     # Timestamps
     indexed_at: Optional[str] = Field(default=None, description="When article was indexed by source")
     retrieved_at: Optional[str] = Field(default=None, description="When article was retrieved")
+
+    @model_validator(mode='after')
+    def generate_id_if_missing(self) -> 'CanonicalResearchArticle':
+        """Generate an ID if missing, for backward compatibility with legacy session data."""
+        if not self.id:
+            # Generate a consistent ID based on title and source
+            content = f"{self.title}|{self.source}"
+            self.id = hashlib.md5(content.encode()).hexdigest()[:16]
+        return self
 
 class CanonicalNewsletter(BaseModel):
     """

@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+from sqlalchemy.orm.attributes import flag_modified
 
 from models import SmartSearchSession
 from schemas.smart_search import SessionListResponse, SmartSearchSessionDict
@@ -461,5 +462,31 @@ class SmartSearchSessionService:
             
         except Exception as e:
             logger.error(f"Failed to reset session {session_id} to step {target_step}: {e}")
+            self.db.rollback()
+            raise
+    
+    def update_search_keyword_history(self, session_id: str, user_id: str, search_keyword_history: List[Dict[str, Any]]) -> Optional[SmartSearchSession]:
+        """Update the search keyword history for a session"""
+        try:
+            session = self.get_session(session_id, user_id)
+            if not session:
+                return None
+            
+            # Get existing metadata or initialize
+            existing_metadata = session.search_metadata or {}
+            
+            # Update with new search keyword history
+            existing_metadata["search_keyword_history"] = search_keyword_history
+            session.search_metadata = existing_metadata
+            
+            # Flag the JSON column as modified so SQLAlchemy detects the change
+            flag_modified(session, 'search_metadata')
+            
+            self.db.commit()
+            logger.info(f"Updated search keyword history for session {session_id} with {len(search_keyword_history)} items")
+            return session
+            
+        except Exception as e:
+            logger.error(f"Failed to update search keyword history for session {session_id}: {e}")
             self.db.rollback()
             raise

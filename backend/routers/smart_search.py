@@ -793,27 +793,19 @@ async def update_search_keyword_history(
     is resumed later.
     """
     try:
-        # Get the session and verify ownership
-        session_service = SmartSearchSessionService(db)
-        session = session_service.get_session(session_id, current_user.user_id)
-        
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Update search_metadata with the keyword history
-        existing_metadata = session.search_metadata or {}
-        
         # Convert history items to dict for JSON storage
         history_dicts = [item.dict() for item in request.search_keyword_history]
         
-        # Update the metadata with the new history
-        existing_metadata["search_keyword_history"] = history_dicts
-        session.search_metadata = existing_metadata
+        # Use service to update search keyword history
+        session_service = SmartSearchSessionService(db)
+        session = session_service.update_search_keyword_history(
+            session_id=session_id,
+            user_id=current_user.user_id,
+            search_keyword_history=history_dicts
+        )
         
-        # Save to database
-        db.commit()
-        
-        logger.info(f"Updated search keyword history for session {session_id} with {len(history_dicts)} items")
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
         
         return {
             "message": "Search keyword history updated successfully",

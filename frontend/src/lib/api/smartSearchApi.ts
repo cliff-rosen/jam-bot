@@ -18,6 +18,14 @@ import type {
 export type { CanonicalResearchArticle, FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 
+// Import the type from the domain types
+import type { SearchKeywordHistoryItem as DomainSearchKeywordHistoryItem } from '@/types/smart-search';
+
+// Backend expects ISO string for timestamp
+export interface SearchKeywordHistoryItem extends Omit<DomainSearchKeywordHistoryItem, 'timestamp'> {
+  timestamp: string;  // ISO format for backend
+}
+
 // ============================================================================
 // API Request/Response Models (ordered by endpoint flow)
 // ============================================================================
@@ -288,6 +296,15 @@ class SmartSearchApi {
    */
   async deleteSession(sessionId: string): Promise<void> {
     await api.delete(`/api/lab/smart-search/sessions/${sessionId}`);
+  }
+
+  /**
+   * Update search keyword history for a session
+   */
+  async updateSearchKeywordHistory(sessionId: string, history: SearchKeywordHistoryItem[]): Promise<void> {
+    await api.put(`/api/lab/smart-search/sessions/${sessionId}/search-keyword-history`, {
+      search_keyword_history: history
+    });
   }
 
 }

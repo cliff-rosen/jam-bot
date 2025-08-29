@@ -21,7 +21,8 @@ from schemas.smart_search import (
     FilteringProgress,
     SmartSearchSessionDict,
     SessionListResponse,
-    SessionResetResponse
+    SessionResetResponse,
+    SearchKeywordHistoryItem
 )
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.features import FeatureDefinition, FeatureExtractionRequest as BaseFeatureExtractionRequest, FeatureExtractionResponse as BaseFeatureExtractionResponse
@@ -188,6 +189,11 @@ class FeatureExtractionResponse(BaseFeatureExtractionResponse):
 class SessionResetRequest(BaseModel):
     """Request to reset session to a specific step"""
     step: str = Field(..., description="Step to reset to")
+
+
+class UpdateSearchKeywordHistoryRequest(BaseModel):
+    """Request to update search keyword history"""
+    search_keyword_history: List[SearchKeywordHistoryItem] = Field(..., description="Search keyword history to persist")
 
 @router.post("/create-evidence-spec", response_model=EvidenceSpecificationResponse)
 async def create_evidence_specification(
@@ -766,5 +772,63 @@ async def reset_session_to_step(
     except Exception as e:
         logger.error(f"Failed to reset session {session_id} to step {request.step} for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to reset session: {str(e)}")
+
+
+# ============================================================================
+# Search Keyword History Management
+# ============================================================================
+
+@router.put("/sessions/{session_id}/search-keyword-history")
+async def update_search_keyword_history(
+    session_id: str,
+    request: UpdateSearchKeywordHistoryRequest,
+    current_user: Dict[str, Any] = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the search keyword history for a session.
+    
+    This endpoint persists the client-side query history when the user
+    submits a search, allowing the history to be restored when the session
+    is resumed later.
+    """
+    try:
+        # Get the session and verify ownership
+        session_service = SmartSearchSessionService(db)
+        session = session_service.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Verify session belongs to current user
+        if session.user_id != current_user.get("user_id"):
+            raise HTTPException(status_code=403, detail="Not authorized to update this session")
+        
+        # Update search_metadata with the keyword history
+        existing_metadata = session.search_metadata or {}
+        
+        # Convert history items to dict for JSON storage
+        history_dicts = [item.dict() for item in request.search_keyword_history]
+        
+        # Update the metadata with the new history
+        existing_metadata["search_keyword_history"] = history_dicts
+        session.search_metadata = existing_metadata
+        
+        # Save to database
+        db.commit()
+        
+        logger.info(f"Updated search keyword history for session {session_id} with {len(history_dicts)} items")
+        
+        return {
+            "message": "Search keyword history updated successfully",
+            "history_count": len(history_dicts)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update search keyword history for session {session_id}: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update search keyword history: {str(e)}")
 
 

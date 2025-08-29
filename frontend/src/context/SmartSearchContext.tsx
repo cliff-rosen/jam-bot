@@ -11,7 +11,8 @@ import { useSearchParams } from 'react-router-dom';
 import type {
   FilteredArticle,
   FilteringProgress,
-  SmartSearchStep
+  SmartSearchStep,
+  SearchKeywordHistoryItem
 } from '@/types/smart-search';
 import {
   mapBackendToFrontend,
@@ -72,15 +73,8 @@ interface SmartSearchState {
   totalRetrieved: number | null;
   savedCustomColumns: any[];
 
-  // QUERY HISTORY (for SearchQueryStep)
-  queryHistory: Array<{
-    query: string;
-    count: number;
-    changeDescription?: string;
-    refinementDetails?: string;
-    previousQuery?: string;
-    timestamp: Date;
-  }>;
+  // SEARCH KEYWORD HISTORY (for SearchQueryStep)
+  searchKeywordHistory: SearchKeywordHistoryItem[];
 
   // LOADING STATES
   evidenceSpecLoading: boolean;             // Loading AI evidence specification
@@ -114,7 +108,7 @@ interface SmartSearchActions {
   // STEP 3: Query Testing and Optimization
   testKeywordsCount: (keywordsOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
   generateOptimizedKeywords: (evidenceSpecOverride?: string) => Promise<any>;
-  updateQueryHistory: (history: SmartSearchState['queryHistory']) => void;
+  updateSearchKeywordHistory: (history: SearchKeywordHistoryItem[]) => void;
 
   // STEP 4: Search Execution
   executeSearch: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
@@ -191,8 +185,8 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
 
-  // Query history for SearchQueryStep
-  const [queryHistory, setQueryHistory] = useState<SmartSearchState['queryHistory']>([]);
+  // Search keyword history for SearchQueryStep
+  const [searchKeywordHistory, setSearchKeywordHistory] = useState<SearchKeywordHistoryItem[]>([]);
 
   // Loading states
   const [evidenceSpecLoading, setEvidenceSpecLoading] = useState(false);
@@ -209,6 +203,44 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   useEffect(() => {
     localStorage.setItem('smartSearchSelectedSource', selectedSource);
   }, [selectedSource]);
+
+  // ================== SEARCH KEYWORD HISTORY HELPERS ==================
+  
+  const reconstructSearchKeywordHistory = useCallback((session: any): SearchKeywordHistoryItem[] => {
+    const history: SearchKeywordHistoryItem[] = [];
+    
+    // Check if we have stored history in search_metadata
+    if (session.search_metadata?.search_keyword_history) {
+      // Use the stored history directly
+      return session.search_metadata.search_keyword_history.map((item: any) => ({
+        ...item,
+        timestamp: new Date(item.timestamp)
+      }));
+    }
+    
+    // Fallback: reconstruct from basic fields for backward compatibility
+    if (session.generated_search_keywords?.trim()) {
+      history.push({
+        query: session.generated_search_keywords.trim(),
+        count: session.search_metadata?.total_available || 0,
+        changeType: 'system_generated',
+        timestamp: new Date(session.created_at || Date.now())
+      });
+    }
+    
+    // Add submitted keywords if they exist and are different from generated
+    if (session.submitted_search_keywords?.trim() && 
+        session.submitted_search_keywords.trim() !== session.generated_search_keywords?.trim()) {
+      history.push({
+        query: session.submitted_search_keywords.trim(),
+        count: session.search_metadata?.total_available || 0,
+        changeType: 'user_edited',
+        timestamp: new Date(session.updated_at || Date.now())
+      });
+    }
+    
+    return history;
+  }, []);
 
   // Load existing session if session ID is provided in URL
   useEffect(() => {
@@ -315,6 +347,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           frontendStep = session.filtering_metadata?.accepted !== undefined ? 'results' : 'filtering';
         }
 
+        // Reconstruct search keyword history from session data if we're at or past search-query step
+        if (isBackendStepAtOrAfter(lastStep || 'question_input', 'search-query')) {
+          const reconstructedHistory = reconstructSearchKeywordHistory(session);
+          setSearchKeywordHistory(reconstructedHistory);
+        }
+
         setStep(frontendStep);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load session';
@@ -324,7 +362,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     };
 
     loadSession();
-  }, [resumeSessionId]);
+  }, [resumeSessionId, reconstructSearchKeywordHistory]);
 
   // ================== WORKFLOW MANAGEMENT ==================
 
@@ -410,10 +448,16 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       }
 
       // Clear data for steps beyond the reset point
-      // Clear query history if stepping back before search-query
+      // Handle search keyword history based on where we're stepping back to
       if (isStepBefore(frontendStep, 'search-query')) {
-        setQueryHistory([]);
+        // Stepping back before search-query step - clear all search keyword history
+        setSearchKeywordHistory([]);
+      } else if (frontendStep === 'search-query') {
+        // Stepping back TO search-query step - reconstruct base history without optimization attempts
+        const reconstructedHistory = reconstructSearchKeywordHistory(session);
+        setSearchKeywordHistory(reconstructedHistory);
       }
+      // If stepping to later steps, preserve existing search keyword history (user's optimization attempts)
 
       if (isStepBefore(frontendStep, 'search-results')) {
         setSearchResults(null);
@@ -450,7 +494,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [reconstructSearchKeywordHistory]);
 
   const resetAllState = useCallback(() => {
     setStep('query');
@@ -469,7 +513,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setSearchResults(null);
     setFilteredArticles([]);
     setFilteringProgress(null);
-    setQueryHistory([]);
+    setSearchKeywordHistory([]);
     setError(null);
   }, []);
 
@@ -645,8 +689,8 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     }
   }, [submittedSearchKeywords, submittedEvidenceSpec, sessionId, selectedSource]);
 
-  const updateQueryHistory = useCallback((history: SmartSearchState['queryHistory']) => {
-    setQueryHistory(history);
+  const updateSearchKeywordHistory = useCallback((history: SearchKeywordHistoryItem[]) => {
+    setSearchKeywordHistory(history);
   }, []);
 
   // Step 4: Search Execution
@@ -662,6 +706,22 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setError(null);
 
     try {
+      // Sync search keyword history to backend before executing search (only for initial search)
+      if (offset === 0 && searchKeywordHistory.length > 0) {
+        try {
+          // Convert Date to ISO string for backend
+          const historyForBackend = searchKeywordHistory.map(item => ({
+            ...item,
+            changeType: item.changeType,
+            timestamp: item.timestamp.toISOString()
+          }));
+          await smartSearchApi.updateSearchKeywordHistory(sessionId, historyForBackend);
+        } catch (historyError) {
+          // Log error but don't fail the search
+          console.error('Failed to sync query history:', historyError);
+        }
+      }
+
       const batchSize = maxResults || (selectedSource === 'google_scholar' ? 20 : 50);
       const results = await smartSearchApi.executeSearch({
         search_keywords: submittedSearchKeywords,
@@ -698,7 +758,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     } finally {
       setSearchExecutionLoading(false);
     }
-  }, [submittedSearchKeywords, sessionId, selectedSource]);
+  }, [submittedSearchKeywords, sessionId, selectedSource, searchKeywordHistory]);
 
   // Step 5: Discriminator Generation
   const generateDiscriminator = useCallback(async (): Promise<DiscriminatorGenerationResponse> => {
@@ -826,7 +886,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     searchLimitationNote,
     totalRetrieved,
     savedCustomColumns,
-    queryHistory,
+    searchKeywordHistory,
     evidenceSpecLoading,
     searchKeywordsLoading,
     searchExecutionLoading,
@@ -846,7 +906,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     updateSelectedSource,
     testKeywordsCount,
     generateOptimizedKeywords,
-    updateQueryHistory,
+    updateSearchKeywordHistory,
     executeSearch,
     generateDiscriminator,
     updateSubmittedDiscriminator,

@@ -7,6 +7,7 @@ API-specific request/response models are defined in the router.
 """
 
 from typing import List, Optional, Dict, Any, Literal
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.canonical_types import CanonicalResearchArticle
 
@@ -19,6 +20,17 @@ BackendStepName = Literal[
     'discriminator_generation',
     'filtering'
 ]
+
+# Search keyword history tracking
+ChangeType = Literal['system_generated', 'ai_optimized', 'user_edited']
+
+class SearchKeywordHistoryItem(BaseModel):
+    """Single search keyword history entry"""
+    query: str = Field(..., description="The search query string")
+    count: int = Field(..., description="Number of results returned")
+    change_type: ChangeType = Field(..., description="How this query was created")
+    refinement_details: Optional[str] = Field(None, description="Details for AI optimization")
+    timestamp: str = Field(..., description="ISO timestamp when query was tested")
 
 
 class SearchPaginationInfo(BaseModel):

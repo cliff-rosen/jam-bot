@@ -38,6 +38,18 @@ export interface FilteringProgress {
 
 
 // ============================================================================
+// Search Keyword History
+// ============================================================================
+
+export interface SearchKeywordHistoryItem {
+  query: string;
+  count: number;
+  changeType: 'system_generated' | 'ai_optimized' | 'user_edited';
+  refinementDetails?: string;
+  timestamp: Date;  // Date object in frontend, converted to ISO string for backend
+}
+
+// ============================================================================
 // Step Definitions - Single Source of Truth with Numeric Ordering
 // ============================================================================
 

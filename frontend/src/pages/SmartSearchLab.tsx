@@ -406,15 +406,7 @@ export default function SmartSearchLab() {
                 }}
               />
               <SearchQueryStep
-                editedSearchQuery={smartSearch.submittedSearchKeywords}
-                setEditedSearchQuery={smartSearch.updateSubmittedSearchKeywords}
-                evidenceSpec={smartSearch.submittedEvidenceSpec}
-                selectedSource={smartSearch.selectedSource}
                 onSubmit={handleExecuteSearch}
-                onOptimize={smartSearch.generateOptimizedKeywords}
-                onTestCount={smartSearch.testKeywordsCount}
-                loading={smartSearch.searchExecutionLoading}
-                initialCount={smartSearch.keywordsCountResult}
               />
             </>
           )}

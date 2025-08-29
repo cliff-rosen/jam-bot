@@ -6,60 +6,46 @@ import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy, Trash2 } fr
 import { useState, useEffect } from 'react';
 import { useSmartSearch } from '@/context/SmartSearchContext';
 
-interface OptimizationResult {
-  initial_keywords: string;
-  initial_count: number;
-  final_keywords: string;
-  final_count: number;
-  refinement_applied: string;
-  refinement_status: 'optimal' | 'refined' | 'manual_needed';
-}
-
-
 interface SearchQueryStepProps {
-  editedSearchQuery: string;
-  setEditedSearchQuery: (query: string) => void;
-  evidenceSpec: string;
-  selectedSource: string;
-  onSubmit: () => void;
-  onOptimize: (evidenceSpec: string) => Promise<OptimizationResult>;
-  onTestCount: (query: string) => Promise<{ total_count: number; sources_searched: string[] }>;
-  loading: boolean;
-  initialCount?: { total_count: number; sources_searched: string[] } | null;
+  onSubmit: () => void;  // Keep this as prop since it's page-specific logic
 }
 
-export function SearchQueryStep({
-  editedSearchQuery,
-  setEditedSearchQuery,
-  evidenceSpec,
-  selectedSource,
-  onSubmit,
-  onOptimize,
-  onTestCount,
-  loading,
-  initialCount
-}: SearchQueryStepProps) {
+export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   const smartSearch = useSmartSearch();
   const [currentCount, setCurrentCount] = useState<number | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
 
-  // Use query history from context
-  const queryHistory = smartSearch.queryHistory;
-  const setQueryHistory = smartSearch.updateQueryHistory;
+  // Get all needed values from context
+  const editedSearchQuery = smartSearch.submittedSearchKeywords;
+  const setEditedSearchQuery = smartSearch.updateSubmittedSearchKeywords;
+  const evidenceSpec = smartSearch.submittedEvidenceSpec;
+  const selectedSource = smartSearch.selectedSource;
+  const loading = smartSearch.searchExecutionLoading;
+  const initialCount = smartSearch.keywordsCountResult;
+  const searchKeywordHistory = smartSearch.searchKeywordHistory;
+  const setSearchKeywordHistory = smartSearch.updateSearchKeywordHistory;
 
   // Initialize with the generated query and count
   useEffect(() => {
-    if (initialCount && editedSearchQuery?.trim() && queryHistory.length === 0) {
-      setQueryHistory([{
-        query: editedSearchQuery.trim(),
-        count: initialCount.total_count || 0,
-        changeDescription: "Generated from evidence specification",
-        timestamp: new Date()
-      }]);
-      setCurrentCount(initialCount.total_count);
+    if (initialCount && editedSearchQuery?.trim()) {
+      // Check if this query already exists in history (from session reconstruction)
+      const existingQuery = searchKeywordHistory.find(h => h.query === editedSearchQuery.trim());
+      
+      if (!existingQuery && searchKeywordHistory.length === 0) {
+        // Only add if history is empty (new session, not loaded from existing session)
+        setSearchKeywordHistory([{
+          query: editedSearchQuery.trim(),
+          count: initialCount.total_count || 0,
+          changeType: "system_generated",
+          timestamp: new Date()
+        }]);
+      }
+      
+      // Set current count from initialCount or existing query
+      setCurrentCount(existingQuery?.count || initialCount.total_count);
     }
-  }, [initialCount, editedSearchQuery, queryHistory.length, setQueryHistory]);
+  }, [initialCount, editedSearchQuery, searchKeywordHistory, setSearchKeywordHistory]);
 
   // Clear current count when query is edited
   const handleQueryChange = (newQuery: string) => {
@@ -70,7 +56,7 @@ export function SearchQueryStep({
 
   // Check if query is already in history
   const isQueryInHistory = (query: string) => {
-    return queryHistory.some(attempt => attempt.query === query);
+    return searchKeywordHistory.some(attempt => attempt.query === query);
   };
 
   // Test current query count and add to history
@@ -79,14 +65,14 @@ export function SearchQueryStep({
 
     setIsTestingCount(true);
     try {
-      const result = await onTestCount(editedSearchQuery);
+      const result = await smartSearch.testKeywordsCount(editedSearchQuery);
       setCurrentCount(result.total_count);
 
       // Add to history
-      setQueryHistory([...queryHistory, {
+      setSearchKeywordHistory([...searchKeywordHistory, {
         query: editedSearchQuery.trim(),
         count: result.total_count,
-        changeDescription: "Tested query",
+        changeType: "user_edited",
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -101,9 +87,8 @@ export function SearchQueryStep({
     if (!editedSearchQuery?.trim()) return;
 
     setIsOptimizing(true);
-    const previousQuery = editedSearchQuery;
     try {
-      const result = await onOptimize(evidenceSpec);
+      const result = await smartSearch.generateOptimizedKeywords(evidenceSpec);
 
       // Check if we got a valid result
       if (!result || !result.final_keywords) {
@@ -114,25 +99,17 @@ export function SearchQueryStep({
       setCurrentCount(result.final_count);
 
       // Add optimization to history
-      setQueryHistory([...queryHistory, {
+      setSearchKeywordHistory([...searchKeywordHistory, {
         query: result.final_keywords?.trim() || '',
         count: result.final_count || 0,
-        changeDescription: "AI optimization applied",
+        changeType: "ai_optimized",
         refinementDetails: result.refinement_applied || 'Query optimized',
-        previousQuery: previousQuery,
         timestamp: new Date()
       }]);
     } catch (error) {
       console.error('Optimization failed:', error);
 
-      // Add failed optimization attempt to history for transparency
-      setQueryHistory([...queryHistory, {
-        query: previousQuery,
-        count: currentCount || 0,
-        changeDescription: "AI optimization failed",
-        refinementDetails: 'Optimization service error - query unchanged',
-        timestamp: new Date()
-      }]);
+      // Don't add failed attempts to history
     } finally {
       setIsOptimizing(false);
     }
@@ -146,7 +123,7 @@ export function SearchQueryStep({
 
   // Delete query from history
   const handleDeleteFromHistory = (index: number) => {
-    setQueryHistory(queryHistory.filter((_, i) => i !== index));
+    setSearchKeywordHistory(searchKeywordHistory.filter((_, i) => i !== index));
   };
 
   return (
@@ -155,11 +132,11 @@ export function SearchQueryStep({
         Search Keywords
       </h2>
 
-      {/* Query History */}
-      {queryHistory.length > 0 && (
+      {/* Search Keyword History */}
+      {searchKeywordHistory.length > 0 && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Query History
+            Search Keyword History
           </h3>
           <div className="max-h-48 overflow-y-auto">
             <div className="grid grid-cols-[80px_100px_1fr_60px] gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 border-b border-gray-200 dark:border-gray-700">
@@ -169,11 +146,11 @@ export function SearchQueryStep({
               <div></div>
             </div>
             <div className="space-y-1 mt-2">
-              {queryHistory.map((attempt, index) => (
+              {searchKeywordHistory.map((attempt, index) => (
                 <div key={index} className="grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {attempt.changeDescription === "Generated from evidence specification" ? "System" :
-                      attempt.changeDescription === "AI optimization applied" ? "AI" :
+                    {attempt.changeType === "system_generated" ? "System" :
+                      attempt.changeType === "ai_optimized" ? "AI" :
                         "User"}
                   </div>
                   <div className="flex items-center">

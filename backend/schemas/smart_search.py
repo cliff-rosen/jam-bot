@@ -6,9 +6,19 @@ These are shared data structures used across multiple services.
 API-specific request/response models are defined in the router.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.canonical_types import CanonicalResearchArticle
+
+# Backend step names - single source of truth
+BackendStepName = Literal[
+    'question_input',
+    'question_refinement', 
+    'search_query_generation',
+    'search_execution',
+    'discriminator_generation',
+    'filtering'
+]
 
 
 class SearchPaginationInfo(BaseModel):
@@ -79,7 +89,7 @@ class SmartSearchSessionDict(BaseModel):
     filtering_metadata: Optional[dict]
     filtered_articles: Optional[List[FilteredArticle]]
     status: str
-    last_step_completed: Optional[str]
+    last_step_completed: Optional[BackendStepName]
     session_duration_seconds: Optional[int]
     total_api_calls: int
     total_prompt_tokens: int

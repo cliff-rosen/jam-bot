@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
 import { useSmartSearch } from '@/context/SmartSearchContext';
+import { mapFrontendToBackend, isStepAtOrAfter } from '@/types/smart-search';
 
 import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';
 import { RefinementStep } from '@/components/features/smartsearch/RefinementStep';
@@ -236,18 +237,8 @@ export default function SmartSearchLab() {
     if (!smartSearch.sessionId || !smartSearch.canNavigateToStep(targetStep as any)) return;
 
     try {
-      // Map frontend step names to backend step names
-      const stepMapping: Record<string, string> = {
-        'query': 'question_input',
-        'refinement': 'question_refinement',
-        'search-query': 'search_query_generation',
-        'search-results': 'search_execution',
-        'discriminator': 'discriminator_generation',
-        'filtering': 'filtering'
-      };
-
-      const backendStep = stepMapping[targetStep];
-      if (!backendStep) return;
+      // Get backend step name using centralized mapping
+      const backendStep = mapFrontendToBackend(targetStep as any);
 
       // Call backend to reset session
       await smartSearch.resetToStep(smartSearch.sessionId, backendStep);
@@ -270,10 +261,10 @@ export default function SmartSearchLab() {
     // Simply navigate to the search-query step without resetting
     // This preserves query history and all current state
     smartSearch.updateStep('search-query');
-    
+
     // The current query should already be in submittedSearchKeywords
     // and the history should be preserved
-    
+
     toast({
       title: 'Adjust Keywords',
       description: 'Edit your search keywords and test again',
@@ -331,7 +322,7 @@ export default function SmartSearchLab() {
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'refinement' ? 'default' : !['query'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            variant={smartSearch.step === 'refinement' ? 'default' : isStepAtOrAfter(smartSearch.step, 'refinement') ? 'secondary' : 'outline'}
             className={smartSearch.canNavigateToStep('refinement') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={smartSearch.canNavigateToStep('refinement') ? () => handleStepBack('refinement') : undefined}
           >
@@ -339,7 +330,7 @@ export default function SmartSearchLab() {
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'search-query' ? 'default' : !['query', 'refinement'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            variant={smartSearch.step === 'search-query' ? 'default' : isStepAtOrAfter(smartSearch.step, 'search-query') ? 'secondary' : 'outline'}
             className={smartSearch.canNavigateToStep('search-query') ? 'cursor-pointer hover:bg-opacity-80' : ''}
             onClick={smartSearch.canNavigateToStep('search-query') ? () => handleStepBack('search-query') : undefined}
           >
@@ -347,19 +338,19 @@ export default function SmartSearchLab() {
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'searching' ? 'default' : ['search-results', 'discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            variant={smartSearch.step === 'searching' ? 'default' : isStepAtOrAfter(smartSearch.step, 'search-results') ? 'secondary' : 'outline'}
           >
             4. Search
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'search-results' ? 'default' : ['discriminator', 'filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            variant={smartSearch.step === 'search-results' ? 'default' : isStepAtOrAfter(smartSearch.step, 'discriminator') ? 'secondary' : 'outline'}
           >
             5. Review Results
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'discriminator' ? 'default' : ['filtering', 'results'].includes(smartSearch.step) ? 'secondary' : 'outline'}
+            variant={smartSearch.step === 'discriminator' ? 'default' : isStepAtOrAfter(smartSearch.step, 'filtering') ? 'secondary' : 'outline'}
             onClick={smartSearch.canNavigateToStep('discriminator') ? () => handleStepBack('discriminator') : undefined}
           >
             6. Filter Criteria

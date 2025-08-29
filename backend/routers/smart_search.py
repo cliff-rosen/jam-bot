@@ -795,14 +795,10 @@ async def update_search_keyword_history(
     try:
         # Get the session and verify ownership
         session_service = SmartSearchSessionService(db)
-        session = session_service.get_session(session_id)
+        session = session_service.get_session(session_id, current_user.get("user_id"))
         
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Verify session belongs to current user
-        if session.user_id != current_user.get("user_id"):
-            raise HTTPException(status_code=403, detail="Not authorized to update this session")
         
         # Update search_metadata with the keyword history
         existing_metadata = session.search_metadata or {}

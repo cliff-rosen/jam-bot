@@ -351,7 +351,7 @@ export default function SmartSearchLab() {
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge variant={smartSearch.step === 'results' ? 'default' : 'outline'}>
-            6. Results
+            6. Filtered Results
           </Badge>
         </div>
       </div>

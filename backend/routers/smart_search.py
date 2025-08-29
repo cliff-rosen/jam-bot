@@ -417,41 +417,23 @@ async def execute_search(
     try:
         logger.info(f"User {current_user.user_id} executing search with keywords: {request.search_keywords[:100]}...")
         
-        # Create session service
-        session_service = SmartSearchSessionService(db)
-        
-        # Get session
-        session = session_service.get_session(request.session_id, current_user.user_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Execute search
+        # Execute search and update session - orchestration handled by service
         service = SmartSearchService()
-        result = await service.search_articles(
-            search_query=request.search_keywords,
+        result = await service.execute_search_with_session(
+            session_id=request.session_id,
+            user_id=current_user.user_id,
+            search_keywords=request.search_keywords,
             max_results=request.max_results,
             offset=request.offset,
-            selected_sources=request.selected_sources
+            selected_sources=request.selected_sources,
+            db_session=db
         )
         
-        # Update session with search metadata
-        is_pagination_load = request.offset > 0
-        session_service.update_search_execution_step(
-            session_id=session.id,
-            user_id=current_user.user_id,
-            total_available=result.pagination.total_available,
-            returned=result.pagination.returned,
-            sources=result.sources_searched,
-            is_pagination_load=is_pagination_load,
-            submitted_search_query=request.search_keywords
-        )
-        
-        logger.info(f"Search completed for user {current_user.user_id}, session {session.id}: {result.pagination.returned} articles found, {result.pagination.total_available} total available")
         return SearchExecutionResponse(
             articles=result.articles,
             pagination=result.pagination,
             sources_searched=result.sources_searched,
-            session_id=session.id
+            session_id=request.session_id
         )
         
     except Exception as e:

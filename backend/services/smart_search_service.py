@@ -1179,3 +1179,48 @@ Respond in JSON format:
             return str(options.get('min', 1) if options else 1)
         else:  # text
             return ""
+    
+    async def execute_search_with_session(self, session_id: str, user_id: str, 
+                                        search_keywords: str, max_results: int = 50, 
+                                        offset: int = 0, selected_sources: List[str] = None,
+                                        db_session = None) -> SearchServiceResult:
+        """
+        Execute search and update session state - orchestrates the complete search workflow
+        """
+        from services.smart_search_session_service import SmartSearchSessionService
+        
+        try:
+            logger.info(f"Executing search for session {session_id}, user {user_id}, keywords: {search_keywords[:100]}...")
+            
+            # Validate session exists
+            session_service = SmartSearchSessionService(db_session)
+            session = session_service.get_session(session_id, user_id)
+            if not session:
+                raise ValueError(f"Session {session_id} not found for user {user_id}")
+            
+            # Execute the search
+            result = await self.search_articles(
+                search_query=search_keywords,
+                max_results=max_results,
+                offset=offset,
+                selected_sources=selected_sources or ['pubmed']
+            )
+            
+            # Update session with search metadata
+            is_pagination_load = offset > 0
+            session_service.update_search_execution_step(
+                session_id=session_id,
+                user_id=user_id,
+                total_available=result.pagination.total_available,
+                returned=result.pagination.returned,
+                sources=result.sources_searched,
+                is_pagination_load=is_pagination_load,
+                submitted_search_query=search_keywords
+            )
+            
+            logger.info(f"Search completed for session {session_id}: {result.pagination.returned} articles found, {result.pagination.total_available} total available")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Search execution with session failed: {e}", exc_info=True)
+            raise

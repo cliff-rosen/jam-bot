@@ -338,30 +338,20 @@ export default function SmartSearchLab() {
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
-            variant={smartSearch.step === 'searching' ? 'default' : isStepAtOrAfter(smartSearch.step, 'search-results') ? 'secondary' : 'outline'}
-          >
-            4. Search
-          </Badge>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge
             variant={smartSearch.step === 'search-results' ? 'default' : isStepAtOrAfter(smartSearch.step, 'discriminator') ? 'secondary' : 'outline'}
           >
-            5. Review Results
+            4. Search Results
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge
             variant={smartSearch.step === 'discriminator' ? 'default' : isStepAtOrAfter(smartSearch.step, 'filtering') ? 'secondary' : 'outline'}
             onClick={smartSearch.canNavigateToStep('discriminator') ? () => handleStepBack('discriminator') : undefined}
           >
-            6. Filter Criteria
-          </Badge>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-          <Badge variant={smartSearch.step === 'filtering' ? 'default' : smartSearch.step === 'results' ? 'secondary' : 'outline'}>
-            7. Filter
+            5. Filter Criteria
           </Badge>
           <ChevronRight className="w-4 h-4 text-gray-400" />
           <Badge variant={smartSearch.step === 'results' ? 'default' : 'outline'}>
-            8. Results
+            6. Results
           </Badge>
         </div>
       </div>

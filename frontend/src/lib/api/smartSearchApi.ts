@@ -21,9 +21,11 @@ import type { FeatureDefinition } from '@/types/workbench';
 // Import the type from the domain types
 import type { SearchKeywordHistoryItem as DomainSearchKeywordHistoryItem } from '@/types/smart-search';
 
-// Backend expects ISO string for timestamp
-export interface SearchKeywordHistoryItem extends Omit<DomainSearchKeywordHistoryItem, 'timestamp'> {
+// Backend expects ISO string for timestamp and snake_case field names
+export interface SearchKeywordHistoryItem extends Omit<DomainSearchKeywordHistoryItem, 'timestamp' | 'changeType' | 'refinementDetails'> {
   timestamp: string;  // ISO format for backend
+  change_type: 'system_generated' | 'ai_optimized' | 'user_edited';  // snake_case for backend
+  refinement_details?: string;  // snake_case for backend
 }
 
 // ============================================================================

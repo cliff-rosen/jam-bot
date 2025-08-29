@@ -709,10 +709,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       // Sync search keyword history to backend before executing search (only for initial search)
       if (offset === 0 && searchKeywordHistory.length > 0) {
         try {
-          // Convert Date to ISO string for backend
+          // Convert Date to ISO string and changeType to snake_case for backend
           const historyForBackend = searchKeywordHistory.map(item => ({
-            ...item,
-            changeType: item.changeType,
+            query: item.query,
+            count: item.count,
+            change_type: item.changeType,  // Convert to snake_case for backend
+            refinement_details: item.refinementDetails,
             timestamp: item.timestamp.toISOString()
           }));
           await smartSearchApi.updateSearchKeywordHistory(sessionId, historyForBackend);

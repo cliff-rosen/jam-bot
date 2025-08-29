@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useSmartSearch } from '@/context/SmartSearchContext';
 
 interface OptimizationResult {
   initial_keywords: string;
@@ -14,14 +15,6 @@ interface OptimizationResult {
   refinement_status: 'optimal' | 'refined' | 'manual_needed';
 }
 
-interface QueryAttempt {
-  query: string;
-  count: number;
-  changeDescription?: string;
-  refinementDetails?: string;
-  previousQuery?: string;
-  timestamp: Date;
-}
 
 interface SearchQueryStepProps {
   editedSearchQuery: string;
@@ -46,10 +39,14 @@ export function SearchQueryStep({
   loading,
   initialCount
 }: SearchQueryStepProps) {
-  const [queryHistory, setQueryHistory] = useState<QueryAttempt[]>([]);
+  const smartSearch = useSmartSearch();
   const [currentCount, setCurrentCount] = useState<number | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+
+  // Use query history from context
+  const queryHistory = smartSearch.queryHistory;
+  const setQueryHistory = smartSearch.updateQueryHistory;
 
   // Initialize with the generated query and count
   useEffect(() => {
@@ -62,7 +59,7 @@ export function SearchQueryStep({
       }]);
       setCurrentCount(initialCount.total_count);
     }
-  }, [initialCount, editedSearchQuery, queryHistory.length]);
+  }, [initialCount, editedSearchQuery, queryHistory.length, setQueryHistory]);
 
   // Clear current count when query is edited
   const handleQueryChange = (newQuery: string) => {
@@ -86,7 +83,7 @@ export function SearchQueryStep({
       setCurrentCount(result.total_count);
 
       // Add to history
-      setQueryHistory(prev => [...prev, {
+      setQueryHistory([...queryHistory, {
         query: editedSearchQuery.trim(),
         count: result.total_count,
         changeDescription: "Tested query",
@@ -117,7 +114,7 @@ export function SearchQueryStep({
       setCurrentCount(result.final_count);
 
       // Add optimization to history
-      setQueryHistory(prev => [...prev, {
+      setQueryHistory([...queryHistory, {
         query: result.final_keywords?.trim() || '',
         count: result.final_count || 0,
         changeDescription: "AI optimization applied",
@@ -129,7 +126,7 @@ export function SearchQueryStep({
       console.error('Optimization failed:', error);
 
       // Add failed optimization attempt to history for transparency
-      setQueryHistory(prev => [...prev, {
+      setQueryHistory([...queryHistory, {
         query: previousQuery,
         count: currentCount || 0,
         changeDescription: "AI optimization failed",
@@ -149,7 +146,7 @@ export function SearchQueryStep({
 
   // Delete query from history
   const handleDeleteFromHistory = (index: number) => {
-    setQueryHistory(prev => prev.filter((_, i) => i !== index));
+    setQueryHistory(queryHistory.filter((_, i) => i !== index));
   };
 
   return (

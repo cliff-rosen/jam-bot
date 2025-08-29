@@ -67,6 +67,16 @@ interface SmartSearchState {
   totalRetrieved: number | null;
   savedCustomColumns: any[];
   
+  // QUERY HISTORY (for SearchQueryStep)
+  queryHistory: Array<{
+    query: string;
+    count: number;
+    changeDescription?: string;
+    refinementDetails?: string;
+    previousQuery?: string;
+    timestamp: Date;
+  }>;
+  
   // LOADING STATES
   evidenceSpecLoading: boolean;             // Loading AI evidence specification
   searchKeywordsLoading: boolean;           // Loading AI search keywords
@@ -99,6 +109,7 @@ interface SmartSearchActions {
   // STEP 3: Query Testing and Optimization
   testKeywordsCount: (keywordsOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
   generateOptimizedKeywords: (evidenceSpecOverride?: string) => Promise<any>;
+  updateQueryHistory: (history: SmartSearchState['queryHistory']) => void;
   
   // STEP 4: Search Execution
   executeSearch: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
@@ -174,6 +185,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [searchLimitationNote, setSearchLimitationNote] = useState<string | null>(null);
   const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
+  
+  // Query history for SearchQueryStep
+  const [queryHistory, setQueryHistory] = useState<SmartSearchState['queryHistory']>([]);
   
   // Loading states
   const [evidenceSpecLoading, setEvidenceSpecLoading] = useState(false);
@@ -408,6 +422,11 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       }
       
       // Clear data for steps beyond the reset point
+      // Clear query history if stepping back before search-query
+      if (targetIndex < stepOrder.indexOf('search-query')) {
+        setQueryHistory([]);
+      }
+      
       if (targetIndex < stepOrder.indexOf('search-results')) {
         setSearchResults(null);
       } else if (targetStep === 'search_execution' || targetStep === 'search-results') {
@@ -463,6 +482,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setSearchResults(null);
     setFilteredArticles([]);
     setFilteringProgress(null);
+    setQueryHistory([]);
     setError(null);
   }, []);
   
@@ -637,6 +657,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       throw err;
     }
   }, [submittedSearchKeywords, submittedEvidenceSpec, sessionId, selectedSource]);
+  
+  const updateQueryHistory = useCallback((history: SmartSearchState['queryHistory']) => {
+    setQueryHistory(history);
+  }, []);
   
   // Step 4: Search Execution
   const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
@@ -815,6 +839,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     searchLimitationNote,
     totalRetrieved,
     savedCustomColumns,
+    queryHistory,
     evidenceSpecLoading,
     searchKeywordsLoading,
     searchExecutionLoading,
@@ -834,6 +859,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     updateSelectedSource,
     testKeywordsCount,
     generateOptimizedKeywords,
+    updateQueryHistory,
     executeSearch,
     generateDiscriminator,
     updateSubmittedDiscriminator,

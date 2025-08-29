@@ -265,6 +265,21 @@ export default function SmartSearchLab() {
     }
   };
 
+  // Navigate to adjust keywords without resetting session state
+  const handleAdjustKeywords = () => {
+    // Simply navigate to the search-query step without resetting
+    // This preserves query history and all current state
+    smartSearch.updateStep('search-query');
+    
+    // The current query should already be in submittedSearchKeywords
+    // and the history should be preserved
+    
+    toast({
+      title: 'Adjust Keywords',
+      description: 'Edit your search keywords and test again',
+    });
+  };
+
   const handleReset = () => {
     smartSearch.resetAllState();
   };
@@ -429,7 +444,7 @@ export default function SmartSearchLab() {
                 searchResults={smartSearch.searchResults}
                 onSubmit={handleProceedToDiscriminator}
                 onLoadMore={handleLoadMoreResults}
-                onGoBack={() => handleStepBack('search-query')}
+                onGoBack={handleAdjustKeywords}
                 loading={smartSearch.discriminatorLoading}
                 loadingMore={smartSearch.searchExecutionLoading}
               />

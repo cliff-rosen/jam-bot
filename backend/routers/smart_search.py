@@ -782,7 +782,7 @@ async def reset_session_to_step(
 async def update_search_keyword_history(
     session_id: str,
     request: UpdateSearchKeywordHistoryRequest,
-    current_user: Dict[str, Any] = Depends(validate_token),
+    current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ):
     """
@@ -795,7 +795,7 @@ async def update_search_keyword_history(
     try:
         # Get the session and verify ownership
         session_service = SmartSearchSessionService(db)
-        session = session_service.get_session(session_id, current_user.get("user_id"))
+        session = session_service.get_session(session_id, current_user.user_id)
         
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")

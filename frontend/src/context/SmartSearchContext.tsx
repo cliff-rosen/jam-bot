@@ -28,8 +28,6 @@ import type {
   FeatureExtractionResponse
 } from '@/lib/api/smartSearchApi';
 
-// Re-export for use in components
-export type { SearchKeywordsWithCountResponse };
 
 import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
@@ -119,7 +117,7 @@ interface SmartSearchActions {
   updateStrictness: (strictness: 'low' | 'medium' | 'high') => void;
 
   // STEP 6: Filtering
-  filterArticles: (request: any) => Promise<any>;
+  filterArticles: () => Promise<any>;
   updateFilteringProgress: (progress: FilteringProgress | null) => void;
 
   // STEP 7: Feature Extraction
@@ -808,10 +806,39 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   }, []);
 
   // Step 6: Filtering
-  const filterArticles = useCallback(async (request: any) => {
+  const filterArticles = useCallback(async () => {
+    if (!submittedEvidenceSpec.trim()) {
+      throw new Error('Evidence specification is missing');
+    }
+    if (!submittedSearchKeywords.trim()) {
+      throw new Error('Search keywords are missing');
+    }
+    if (!submittedDiscriminator.trim()) {
+      throw new Error('Discriminator is missing');
+    }
+    if (!sessionId) {
+      throw new Error('Session not found');
+    }
+    if (!searchResults) {
+      throw new Error('No search results to filter');
+    }
+
     setError(null);
 
     try {
+      const totalAvailable = searchResults.pagination.total_available;
+      const articlesToProcess = totalAvailable; // Backend will cap this at configured limit
+      
+      const request = {
+        evidence_specification: submittedEvidenceSpec,
+        search_keywords: submittedSearchKeywords,
+        strictness: strictness,
+        discriminator_prompt: submittedDiscriminator,
+        session_id: sessionId,
+        selected_sources: [selectedSource],
+        max_results: articlesToProcess
+      };
+
       const response = await smartSearchApi.filterArticles(request);
       setFilteredArticles(response.filtered_articles);
 
@@ -829,7 +856,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [submittedEvidenceSpec, submittedSearchKeywords, submittedDiscriminator, strictness, sessionId, selectedSource, searchResults]);
 
   const updateFilteringProgress = useCallback((progress: FilteringProgress | null) => {
     setFilteringProgress(progress);

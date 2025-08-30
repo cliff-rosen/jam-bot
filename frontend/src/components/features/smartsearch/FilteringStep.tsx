@@ -1,12 +1,12 @@
 import { Card } from '@/components/ui/card';
-import type { FilteringProgress, FilteredArticle } from '@/types/smart-search';
+import { useSmartSearch } from '@/context/SmartSearchContext';
 
-interface FilteringStepProps {
-  filteringProgress: FilteringProgress;
-  filteredArticles: FilteredArticle[];
-}
-
-export function FilteringStep({ filteringProgress }: FilteringStepProps) {
+export function FilteringStep() {
+  const { filteringProgress } = useSmartSearch();
+  
+  if (!filteringProgress) {
+    return null;
+  }
   return (
     <div className="space-y-6">
       {/* Progress Card */}

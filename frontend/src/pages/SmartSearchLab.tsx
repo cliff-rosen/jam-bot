@@ -22,14 +22,7 @@ import { ProgressSummary } from '@/components/features/smartsearch/ProgressSumma
 export default function SmartSearchLab() {
   const smartSearch = useSmartSearch();
   const { toast } = useToast();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll for messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [smartSearch.filteringProgress]);
-
-  // ================== UTILITY ==================
 
   // Generic error handler for consistent toast messages
   const handleError = (title: string, error: unknown) => {
@@ -147,22 +140,12 @@ export default function SmartSearchLab() {
 
     initializeFilteringState(articlesToProcess);
 
-    const request = {
-      evidence_specification: smartSearch.submittedEvidenceSpec,
-      search_keywords: smartSearch.submittedSearchKeywords,
-      strictness: smartSearch.strictness,
-      discriminator_prompt: smartSearch.submittedDiscriminator,
-      session_id: smartSearch.sessionId,
-      selected_sources: [smartSearch.selectedSource],
-      max_results: articlesToProcess  // Tell backend to fetch this many articles and filter them
-    };
-
     try {
       // Always use parallel processing - it's much faster
       console.log(`Processing ${articlesToProcess} articles in parallel...`);
 
       const startTime = Date.now();
-      const response = await smartSearch.filterArticles(request);
+      const response = await smartSearch.filterArticles();
       const duration = Date.now() - startTime;
 
       // Update progress to show completion
@@ -464,28 +447,12 @@ export default function SmartSearchLab() {
                   strictness: smartSearch.strictness
                 }}
               />
-              <FilteringStep
-                filteringProgress={smartSearch.filteringProgress}
-                filteredArticles={smartSearch.filteredArticles}
-              />
-              <div ref={messagesEndRef} />
+              <FilteringStep />
             </>
           )}
 
           {smartSearch.step === 'results' && (
             <>
-              <ProgressSummary
-                lastCompletedStep="discriminator"
-                stepData={{
-                  originalQuery: smartSearch.originalQuestion,
-                  evidenceSpec: smartSearch.submittedEvidenceSpec,
-                  searchKeywords: smartSearch.submittedSearchKeywords,
-                  articlesFound: smartSearch.totalRetrieved || smartSearch.filteredArticles.length,
-                  totalAvailable: smartSearch.searchResults?.pagination.total_available,
-                  discriminator: smartSearch.submittedDiscriminator,
-                  strictness: smartSearch.strictness
-                }}
-              />
               <ResultsStep
                 filteredArticles={smartSearch.filteredArticles}
                 originalQuery={smartSearch.originalQuestion}

@@ -65,16 +65,8 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
     setIsTestingCount(true);
     try {
-      const result = await smartSearch.testKeywordsCount(editedSearchQuery);
+      const result = await smartSearch.testAndAddToHistory(editedSearchQuery);
       setCurrentCount(result.total_count);
-
-      // Add to history
-      setSearchKeywordHistory([...searchKeywordHistory, {
-        query: editedSearchQuery.trim(),
-        count: result.total_count,
-        changeType: "user_edited",
-        timestamp: new Date()
-      }]);
     } catch (error) {
       console.error('Query count test failed:', error);
     } finally {
@@ -88,28 +80,18 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
     setIsOptimizing(true);
     try {
-      const result = await smartSearch.generateOptimizedKeywords(evidenceSpec);
-
-      // Check if we got a valid result
-      if (!result || !result.final_keywords) {
-        throw new Error('Invalid optimization result received');
+      await smartSearch.optimizeAndAddToHistory();
+      
+      // Update local state to reflect the optimized query
+      setEditedSearchQuery(smartSearch.submittedSearchKeywords);
+      
+      // Get the latest history item to show the count
+      const latestHistoryItem = smartSearch.searchKeywordHistory[smartSearch.searchKeywordHistory.length - 1];
+      if (latestHistoryItem) {
+        setCurrentCount(latestHistoryItem.count);
       }
-
-      setEditedSearchQuery(result.final_keywords);
-      setCurrentCount(result.final_count);
-
-      // Add optimization to history
-      setSearchKeywordHistory([...searchKeywordHistory, {
-        query: result.final_keywords?.trim() || '',
-        count: result.final_count || 0,
-        changeType: "ai_optimized",
-        refinementDetails: result.refinement_applied || 'Query optimized',
-        timestamp: new Date()
-      }]);
     } catch (error) {
       console.error('Optimization failed:', error);
-
-      // Don't add failed attempts to history
     } finally {
       setIsOptimizing(false);
     }

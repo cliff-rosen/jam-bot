@@ -104,7 +104,9 @@ interface SmartSearchActions {
 
   // STEP 3: Query Testing and Optimization
   testKeywordsCount: (keywordsOverride?: string) => Promise<{ total_count: number; sources_searched: string[] }>;
+  testAndAddToHistory: (query: string) => Promise<{ total_count: number; sources_searched: string[] }>;
   generateOptimizedKeywords: (evidenceSpecOverride?: string) => Promise<any>;
+  optimizeAndAddToHistory: () => Promise<void>;
   updateSearchKeywordHistory: (history: SearchKeywordHistoryItem[]) => void;
 
   // STEP 4: Search Execution
@@ -689,6 +691,66 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setSearchKeywordHistory(history);
   }, []);
 
+  const testAndAddToHistory = useCallback(async (query: string): Promise<{ total_count: number; sources_searched: string[] }> => {
+    if (!query.trim()) {
+      throw new Error('Query is required');
+    }
+
+    // Check if query is already in history
+    const isQueryInHistory = searchKeywordHistory.some(item => item.query === query.trim());
+    if (isQueryInHistory) {
+      throw new Error('Query is already in history');
+    }
+
+    try {
+      const result = await testKeywordsCount(query);
+      
+      // Add to history
+      const newHistoryItem: SearchKeywordHistoryItem = {
+        query: query.trim(),
+        count: result.total_count,
+        changeType: "user_edited",
+        timestamp: new Date()
+      };
+      
+      setSearchKeywordHistory([...searchKeywordHistory, newHistoryItem]);
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  }, [searchKeywordHistory, testKeywordsCount]);
+
+  const optimizeAndAddToHistory = useCallback(async (): Promise<void> => {
+    if (!submittedSearchKeywords?.trim()) {
+      throw new Error('Current search keywords are required');
+    }
+
+    try {
+      const result = await generateOptimizedKeywords(submittedEvidenceSpec);
+
+      // Check if we got a valid result
+      if (!result || !result.final_keywords) {
+        throw new Error('Invalid optimization result received');
+      }
+
+      // Update the submitted keywords with optimized version
+      setSubmittedSearchKeywords(result.final_keywords);
+
+      // Add optimization to history
+      const newHistoryItem: SearchKeywordHistoryItem = {
+        query: result.final_keywords.trim(),
+        count: result.final_count || 0,
+        changeType: "ai_optimized",
+        refinementDetails: result.refinement_applied || 'Query optimized',
+        timestamp: new Date()
+      };
+      
+      setSearchKeywordHistory([...searchKeywordHistory, newHistoryItem]);
+    } catch (err) {
+      throw err;
+    }
+  }, [submittedSearchKeywords, submittedEvidenceSpec, generateOptimizedKeywords, searchKeywordHistory]);
+
   // Step 4: Search Execution
   const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
     if (!submittedSearchKeywords.trim()) {
@@ -932,7 +994,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     updateSubmittedSearchKeywords,
     updateSelectedSource,
     testKeywordsCount,
+    testAndAddToHistory,
     generateOptimizedKeywords,
+    optimizeAndAddToHistory,
     updateSearchKeywordHistory,
     executeSearch,
     generateDiscriminator,

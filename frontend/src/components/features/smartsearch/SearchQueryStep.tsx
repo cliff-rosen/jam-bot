@@ -298,7 +298,7 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
             <Button
               onClick={handleOptimize}
-              disabled={isOptimizing || !editedSearchQuery?.trim()}
+              disabled={isOptimizing || !editedSearchQuery?.trim() || !currentQueryInHistory}
               variant="outline"
               size="sm"
               className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400"

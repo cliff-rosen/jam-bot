@@ -176,7 +176,6 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
 
   // Results data
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
-  const [filteringInProgress, setFilteringInProgress] = useState(false);
   const [searchLimitationNote, setSearchLimitationNote] = useState<string | null>(null);
   const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
@@ -189,6 +188,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [searchKeywordsLoading, setSearchKeywordsLoading] = useState(false);
   const [searchExecutionLoading, setSearchExecutionLoading] = useState(false);
   const [discriminatorLoading, setDiscriminatorLoading] = useState(false);
+  const [filteringInProgress, setFilteringInProgress] = useState(false);
 
   // Error state
   const [error, setError] = useState<string | null>(null);
@@ -201,10 +201,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   }, [selectedSource]);
 
   // ================== SEARCH KEYWORD HISTORY HELPERS ==================
-  
+
   const reconstructSearchKeywordHistory = useCallback((session: any): SearchKeywordHistoryItem[] => {
     const history: SearchKeywordHistoryItem[] = [];
-    
+
     // Check if we have stored history in search_metadata
     if (session.search_metadata?.search_keyword_history) {
       // Use the stored history directly
@@ -213,7 +213,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         timestamp: new Date(item.timestamp)
       }));
     }
-    
+
     // Fallback: reconstruct from basic fields for backward compatibility
     if (session.generated_search_keywords?.trim()) {
       history.push({
@@ -223,10 +223,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         timestamp: new Date(session.created_at || Date.now())
       });
     }
-    
+
     // Add submitted keywords if they exist and are different from generated
-    if (session.submitted_search_keywords?.trim() && 
-        session.submitted_search_keywords.trim() !== session.generated_search_keywords?.trim()) {
+    if (session.submitted_search_keywords?.trim() &&
+      session.submitted_search_keywords.trim() !== session.generated_search_keywords?.trim()) {
       history.push({
         query: session.submitted_search_keywords.trim(),
         count: session.search_metadata?.total_available || 0,
@@ -234,7 +234,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         timestamp: new Date(session.updated_at || Date.now())
       });
     }
-    
+
     return history;
   }, []);
 
@@ -518,6 +518,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   // ================== STEP BUSINESS METHODS ==================
 
   // Step 1: Evidence Specification
+  const updateOriginalQuestion = useCallback((question: string) => {
+    setOriginalQuestion(question);
+  }, []);
+
   const generateEvidenceSpecification = useCallback(async (): Promise<EvidenceSpecificationResponse> => {
     if (!originalQuestion.trim()) {
       throw new Error('Please enter your research question');
@@ -546,10 +550,6 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setEvidenceSpecLoading(false);
     }
   }, [originalQuestion, sessionId]);
-
-  const updateOriginalQuestion = useCallback((question: string) => {
-    setOriginalQuestion(question);
-  }, []);
 
   const updateSubmittedEvidenceSpec = useCallback((spec: string) => {
     setSubmittedEvidenceSpec(spec);
@@ -827,7 +827,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     try {
       const totalAvailable = searchResults.pagination.total_available;
       const articlesToProcess = totalAvailable; // Backend will cap this at configured limit
-      
+
       const request = {
         evidence_specification: submittedEvidenceSpec,
         search_keywords: submittedSearchKeywords,

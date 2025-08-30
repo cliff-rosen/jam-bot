@@ -1,4 +1,3 @@
-import { useRef, useEffect } from 'react';
 import { ChevronRight, RefreshCw, History } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
 import { useSmartSearch } from '@/context/SmartSearchContext';
+
 import { mapFrontendToBackend, isStepAtOrAfter } from '@/types/smart-search';
 
 import { QueryInputStep } from '@/components/features/smartsearch/QueryInputStep';

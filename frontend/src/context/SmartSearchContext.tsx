@@ -820,6 +820,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     }
   }, [submittedSearchKeywords, sessionId, selectedSource, searchKeywordHistory]);
 
+
   // Step 5: Discriminator Generation
   const generateDiscriminator = useCallback(async (): Promise<DiscriminatorGenerationResponse> => {
     if (!submittedEvidenceSpec.trim()) {

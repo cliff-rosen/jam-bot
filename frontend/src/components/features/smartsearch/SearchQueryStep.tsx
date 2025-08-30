@@ -12,7 +12,6 @@ interface SearchQueryStepProps {
 
 export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   const smartSearch = useSmartSearch();
-  const [currentCount, setCurrentCount] = useState<number | null>(null);
   const [isTestingCount, setIsTestingCount] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
 
@@ -25,6 +24,11 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   const initialCount = smartSearch.keywordsCountResult;
   const searchKeywordHistory = smartSearch.searchKeywordHistory;
   const setSearchKeywordHistory = smartSearch.updateSearchKeywordHistory;
+
+  // Derive current count from search history based on current query
+  const currentCount = editedSearchQuery?.trim() 
+    ? searchKeywordHistory.find(h => h.query === editedSearchQuery.trim())?.count || null
+    : null;
 
   // Initialize with the generated query and count
   useEffect(() => {
@@ -41,23 +45,24 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
           timestamp: new Date()
         }]);
       }
-      
-      // Set current count from initialCount or existing query
-      setCurrentCount(existingQuery?.count || initialCount.total_count);
     }
   }, [initialCount, editedSearchQuery, searchKeywordHistory, setSearchKeywordHistory]);
 
-  // Clear current count when query is edited
+  // No need to clear count - it's derived from history automatically
   const handleQueryChange = (newQuery: string) => {
     setEditedSearchQuery(newQuery);
-    // Clear the current count since the query has changed
-    setCurrentCount(null);
   };
 
-  // Check if query is already in history
-  const isQueryInHistory = (query: string) => {
-    return searchKeywordHistory.some(attempt => attempt.query === query);
+  // Check if query is already in history and get the matching item
+  const getQueryFromHistory = (query: string) => {
+    return searchKeywordHistory.find(attempt => attempt.query === query.trim());
   };
+  
+  const isQueryInHistory = (query: string) => {
+    return !!getQueryFromHistory(query);
+  };
+  
+  const currentQueryInHistory = editedSearchQuery?.trim() ? getQueryFromHistory(editedSearchQuery) : null;
 
   // Test current query count and add to history
   const handleTestQuery = async () => {
@@ -65,8 +70,7 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
     setIsTestingCount(true);
     try {
-      const result = await smartSearch.testAndAddToHistory(editedSearchQuery);
-      setCurrentCount(result.total_count);
+      await smartSearch.testAndAddToHistory(editedSearchQuery);
     } catch (error) {
       console.error('Query count test failed:', error);
     } finally {
@@ -76,20 +80,9 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
   // Optimize query using AI
   const handleOptimize = async () => {
-    if (!editedSearchQuery?.trim()) return;
-
     setIsOptimizing(true);
     try {
       await smartSearch.optimizeAndAddToHistory();
-      
-      // Update local state to reflect the optimized query
-      setEditedSearchQuery(smartSearch.submittedSearchKeywords);
-      
-      // Get the latest history item to show the count
-      const latestHistoryItem = smartSearch.searchKeywordHistory[smartSearch.searchKeywordHistory.length - 1];
-      if (latestHistoryItem) {
-        setCurrentCount(latestHistoryItem.count);
-      }
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
@@ -97,10 +90,10 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
     }
   };
 
-  // Copy query to textarea and load its count
+  // Copy query to textarea
   const handleCopyFromHistory = (query: string, count: number) => {
     setEditedSearchQuery(query);
-    setCurrentCount(count);
+    // Count is automatically derived from history
   };
 
   // Delete query from history
@@ -128,8 +121,14 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
               <div></div>
             </div>
             <div className="space-y-1 mt-2">
-              {searchKeywordHistory.map((attempt, index) => (
-                <div key={index} className="grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 hover:bg-white dark:hover:bg-gray-800 rounded border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+              {searchKeywordHistory.map((attempt, index) => {
+                const isCurrentQuery = attempt.query === editedSearchQuery?.trim();
+                return (
+                <div key={index} className={`grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 rounded border ${
+                  isCurrentQuery 
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                    : 'hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+                }`}>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {attempt.changeType === "system_generated" ? "System" :
                       attempt.changeType === "ai_optimized" ? "AI" :
@@ -180,7 +179,8 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -278,7 +278,7 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleTestQuery}
-              disabled={isTestingCount || !editedSearchQuery?.trim() || isQueryInHistory(editedSearchQuery)}
+              disabled={isTestingCount || !editedSearchQuery?.trim() || !!currentQueryInHistory}
               variant="outline"
               size="sm"
               className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400"
@@ -319,7 +319,7 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
 
           <Button
             onClick={onSubmit}
-            disabled={loading || !editedSearchQuery?.trim()}
+            disabled={loading || !editedSearchQuery?.trim() || !currentQueryInHistory}
             className={
               currentCount === 0
                 ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"

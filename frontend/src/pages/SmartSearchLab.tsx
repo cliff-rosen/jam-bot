@@ -114,52 +114,21 @@ export default function SmartSearchLab() {
     }
   };
 
-  // Initialize filtering UI state
-  const initializeFilteringState = (totalCount: number) => {
-    smartSearch.updateStep('filtering');
-    smartSearch.updateFilteringProgress({
-      total: totalCount,
-      processed: 0,
-      accepted: 0,
-      rejected: 0
-    });
-  };
-
-  // Handle filtering errors
-  const handleFilteringError = (error: unknown) => {
-    handleError('Failed to Start Filtering', error);
-  };
-
   // Step 4: Start filtering - always filter all articles
   const handleStartFiltering = async () => {
     if (!smartSearch.searchResults || !smartSearch.sessionId) return;
 
-    // Filter all available search results (backend will cap at MAX_ARTICLES_TO_FILTER)
-    const totalAvailable = smartSearch.searchResults.pagination.total_available;
-    const articlesToProcess = totalAvailable; // Backend will cap this at configured limit
-
-    initializeFilteringState(articlesToProcess);
+    smartSearch.updateStep('filtering');
 
     try {
-      // Always use parallel processing - it's much faster
-      console.log(`Processing ${articlesToProcess} articles in parallel...`);
-
       const startTime = Date.now();
       const response = await smartSearch.filterArticles();
       const duration = Date.now() - startTime;
 
-      // Update progress to show completion
-      smartSearch.updateFilteringProgress({
-        total: response.total_processed,
-        processed: response.total_processed,
-        accepted: response.total_accepted,
-        rejected: response.total_rejected
-      });
-
       // Complete immediately
       smartSearch.updateStep('results');
 
-      // Show toast with limitation note if present
+      // Show toast with results
       const description = `Processed ${response.total_processed} articles in ${(duration / 1000).toFixed(1)}s: ${response.total_accepted} accepted, ${response.total_rejected} rejected`;
 
       toast({
@@ -170,7 +139,7 @@ export default function SmartSearchLab() {
       });
 
     } catch (error) {
-      handleFilteringError(error);
+      handleError('Failed to Start Filtering', error);
     }
   };
 
@@ -433,7 +402,7 @@ export default function SmartSearchLab() {
             </>
           )}
 
-          {smartSearch.step === 'filtering' && smartSearch.filteringProgress && (
+          {smartSearch.step === 'filtering' && (
             <>
               <ProgressSummary
                 lastCompletedStep="discriminator"

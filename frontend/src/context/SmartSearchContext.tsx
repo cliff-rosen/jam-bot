@@ -10,7 +10,6 @@ import { useSearchParams } from 'react-router-dom';
 
 import type {
   FilteredArticle,
-  FilteringProgress,
   SmartSearchStep,
   SearchKeywordHistoryItem
 } from '@/types/smart-search';
@@ -66,7 +65,7 @@ interface SmartSearchState {
 
   // RESULTS DATA
   filteredArticles: FilteredArticle[];
-  filteringProgress: FilteringProgress | null;
+  filteringInProgress: boolean;
   searchLimitationNote: string | null;
   totalRetrieved: number | null;
   savedCustomColumns: any[];
@@ -118,7 +117,6 @@ interface SmartSearchActions {
 
   // STEP 6: Filtering
   filterArticles: () => Promise<any>;
-  updateFilteringProgress: (progress: FilteringProgress | null) => void;
 
   // STEP 7: Feature Extraction
   extractFeatures: (sessionId: string, features: any[]) => Promise<FeatureExtractionResponse>;
@@ -178,7 +176,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
 
   // Results data
   const [filteredArticles, setFilteredArticles] = useState<FilteredArticle[]>([]);
-  const [filteringProgress, setFilteringProgress] = useState<FilteringProgress | null>(null);
+  const [filteringInProgress, setFilteringInProgress] = useState(false);
   const [searchLimitationNote, setSearchLimitationNote] = useState<string | null>(null);
   const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
@@ -480,7 +478,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
 
       if (isStepBefore(frontendStep, 'filtering')) {
         setFilteredArticles([]);
-        setFilteringProgress(null);
+        setFilteringInProgress(false);
       }
 
       // Update the current step to match the target
@@ -510,7 +508,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setKeywordsCountResult(null);
     setSearchResults(null);
     setFilteredArticles([]);
-    setFilteringProgress(null);
+    setFilteringInProgress(false);
     setSearchKeywordHistory([]);
     setError(null);
   }, []);
@@ -824,6 +822,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     }
 
     setError(null);
+    setFilteringInProgress(true);
 
     try {
       const totalAvailable = searchResults.pagination.total_available;
@@ -855,12 +854,11 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       const errorMessage = err instanceof Error ? err.message : 'Article filtering failed';
       setError(errorMessage);
       throw err;
+    } finally {
+      setFilteringInProgress(false);
     }
   }, [submittedEvidenceSpec, submittedSearchKeywords, submittedDiscriminator, strictness, sessionId, selectedSource, searchResults]);
 
-  const updateFilteringProgress = useCallback((progress: FilteringProgress | null) => {
-    setFilteringProgress(progress);
-  }, []);
 
   // Step 7: Feature Extraction
   const extractFeatures = useCallback(async (sessionId: string, features: any[]): Promise<FeatureExtractionResponse> => {
@@ -911,7 +909,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     keywordsCountResult,
     searchResults,
     filteredArticles,
-    filteringProgress,
+    filteringInProgress,
     searchLimitationNote,
     totalRetrieved,
     savedCustomColumns,
@@ -941,7 +939,6 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     updateSubmittedDiscriminator,
     updateStrictness,
     filterArticles,
-    updateFilteringProgress,
     extractFeatures,
     updateSavedCustomColumns,
     clearError,

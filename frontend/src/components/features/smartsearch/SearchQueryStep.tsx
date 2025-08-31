@@ -18,35 +18,16 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   // Get all needed values from context
   const editedSearchQuery = smartSearch.submittedSearchKeywords;
   const setEditedSearchQuery = smartSearch.updateSubmittedSearchKeywords;
-  const evidenceSpec = smartSearch.submittedEvidenceSpec;
   const selectedSource = smartSearch.selectedSource;
   const loading = smartSearch.searchExecutionLoading;
-  const initialCount = smartSearch.keywordsCountResult;
   const searchKeywordHistory = smartSearch.searchKeywordHistory;
   const setSearchKeywordHistory = smartSearch.updateSearchKeywordHistory;
 
   // Derive current count from search history based on current query
-  const currentCount = editedSearchQuery?.trim() 
+  const currentCount = editedSearchQuery?.trim()
     ? searchKeywordHistory.find(h => h.query === editedSearchQuery.trim())?.count || null
     : null;
 
-  // Initialize with the generated query and count
-  useEffect(() => {
-    if (initialCount && editedSearchQuery?.trim()) {
-      // Check if this query already exists in history (from session reconstruction)
-      const existingQuery = searchKeywordHistory.find(h => h.query === editedSearchQuery.trim());
-      
-      if (!existingQuery && searchKeywordHistory.length === 0) {
-        // Only add if history is empty (new session, not loaded from existing session)
-        setSearchKeywordHistory([{
-          query: editedSearchQuery.trim(),
-          count: initialCount.total_count || 0,
-          changeType: "system_generated",
-          timestamp: new Date()
-        }]);
-      }
-    }
-  }, [initialCount, editedSearchQuery, searchKeywordHistory, setSearchKeywordHistory]);
 
   // No need to clear count - it's derived from history automatically
   const handleQueryChange = (newQuery: string) => {
@@ -57,11 +38,11 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   const getQueryFromHistory = (query: string) => {
     return searchKeywordHistory.find(attempt => attempt.query === query.trim());
   };
-  
+
   const isQueryInHistory = (query: string) => {
     return !!getQueryFromHistory(query);
   };
-  
+
   const currentQueryInHistory = editedSearchQuery?.trim() ? getQueryFromHistory(editedSearchQuery) : null;
 
   // Test current query count and add to history
@@ -124,61 +105,60 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
               {searchKeywordHistory.map((attempt, index) => {
                 const isCurrentQuery = attempt.query === editedSearchQuery?.trim();
                 return (
-                <div key={index} className={`grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 rounded border ${
-                  isCurrentQuery 
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
-                    : 'hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-                }`}>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {attempt.changeType === "system_generated" ? "System" :
-                      attempt.changeType === "ai_optimized" ? "AI" :
-                        "User"}
+                  <div key={index} className={`grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 rounded border ${isCurrentQuery
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                      : 'hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+                    }`}>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {attempt.changeType === "system_generated" ? "System" :
+                        attempt.changeType === "ai_optimized" ? "AI" :
+                          "User"}
+                    </div>
+                    <div className="flex items-center">
+                      <Badge
+                        variant={
+                          attempt.count === 0 ? "destructive" :
+                            attempt.count > 0 && attempt.count <= 250 ? "default" :
+                              attempt.count <= 500 ? "secondary" : "destructive"
+                        }
+                        className="text-xs w-full justify-center"
+                      >
+                        {attempt.count === 0 ? (
+                          "0"
+                        ) : attempt.count > 0 && attempt.count <= 250 ? (
+                          <>✅ {attempt.count.toLocaleString()}</>
+                        ) : attempt.count <= 500 ? (
+                          <>⚠️ {attempt.count.toLocaleString()}</>
+                        ) : (
+                          <>⚠️ {attempt.count.toLocaleString()}</>
+                        )}
+                      </Badge>
+                    </div>
+                    <div className="text-xs font-mono text-gray-600 dark:text-gray-400 truncate">
+                      {attempt.query && attempt.query.length > 80 ? `${attempt.query.substring(0, 80)}...` : (attempt.query || '')}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                        onClick={() => handleCopyFromHistory(attempt.query || '', attempt.count || 0)}
+                        title="Load this query"
+                        disabled={!attempt.query}
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                        onClick={() => handleDeleteFromHistory(index)}
+                        title="Delete from history"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Badge
-                      variant={
-                        attempt.count === 0 ? "destructive" :
-                          attempt.count > 0 && attempt.count <= 250 ? "default" :
-                            attempt.count <= 500 ? "secondary" : "destructive"
-                      }
-                      className="text-xs w-full justify-center"
-                    >
-                      {attempt.count === 0 ? (
-                        "0"
-                      ) : attempt.count > 0 && attempt.count <= 250 ? (
-                        <>✅ {attempt.count.toLocaleString()}</>
-                      ) : attempt.count <= 500 ? (
-                        <>⚠️ {attempt.count.toLocaleString()}</>
-                      ) : (
-                        <>⚠️ {attempt.count.toLocaleString()}</>
-                      )}
-                    </Badge>
-                  </div>
-                  <div className="text-xs font-mono text-gray-600 dark:text-gray-400 truncate">
-                    {attempt.query && attempt.query.length > 80 ? `${attempt.query.substring(0, 80)}...` : (attempt.query || '')}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                      onClick={() => handleCopyFromHistory(attempt.query || '', attempt.count || 0)}
-                      title="Load this query"
-                      disabled={!attempt.query}
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                      onClick={() => handleDeleteFromHistory(index)}
-                      title="Delete from history"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
                 );
               })}
             </div>
@@ -214,12 +194,12 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
         {/* Current Count Display */}
         {currentCount !== null && (
           <div className={`p-4 rounded-lg border ${currentCount === 0
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-              : currentCount > 0 && currentCount <= 250
-                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-                : currentCount <= 500
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
-                  : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+            : currentCount > 0 && currentCount <= 250
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+              : currentCount <= 500
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
             }`}>
             <div className="flex items-start gap-3">
               {currentCount === 0 ? (
@@ -233,12 +213,12 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
               )}
               <div className="flex-1">
                 <div className={`text-sm font-medium mb-1 ${currentCount === 0
-                    ? 'text-red-900 dark:text-red-100'
-                    : currentCount > 0 && currentCount <= 250
-                      ? 'text-green-900 dark:text-green-100'
-                      : currentCount <= 500
-                        ? 'text-blue-900 dark:text-blue-100'
-                        : 'text-amber-900 dark:text-amber-100'
+                  ? 'text-red-900 dark:text-red-100'
+                  : currentCount > 0 && currentCount <= 250
+                    ? 'text-green-900 dark:text-green-100'
+                    : currentCount <= 500
+                      ? 'text-blue-900 dark:text-blue-100'
+                      : 'text-amber-900 dark:text-amber-100'
                   }`}>
                   {currentCount === 0 ? (
                     'Query too restrictive - no results found'
@@ -251,12 +231,12 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
                   )}
                 </div>
                 <div className={`text-xs ${currentCount === 0
-                    ? 'text-red-700 dark:text-red-300'
-                    : currentCount > 0 && currentCount <= 250
-                      ? 'text-green-700 dark:text-green-300'
-                      : currentCount <= 500
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-amber-700 dark:text-amber-300'
+                  ? 'text-red-700 dark:text-red-300'
+                  : currentCount > 0 && currentCount <= 250
+                    ? 'text-green-700 dark:text-green-300'
+                    : currentCount <= 500
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-amber-700 dark:text-amber-300'
                   }`}>
                   {currentCount === 0 ? (
                     'Broaden your search terms or remove restrictive filters'

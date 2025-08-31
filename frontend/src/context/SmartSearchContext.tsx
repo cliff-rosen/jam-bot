@@ -600,6 +600,16 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
 
         setKeywordsCountResult(countResult);
 
+        // Automatically add generated query to search history
+        const newHistoryItem: SearchKeywordHistoryItem = {
+          query: response.search_keywords.trim(),
+          count: countResponse.total_count,
+          changeType: "system_generated",
+          timestamp: new Date()
+        };
+        
+        setSearchKeywordHistory([newHistoryItem]);
+
         return {
           ...response,
           count_result: countResult

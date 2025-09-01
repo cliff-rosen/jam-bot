@@ -33,11 +33,11 @@ export function SearchResultsStep({
   };
 
   return (
-    <Card className="p-6 dark:bg-gray-800 flex flex-col h-[calc(100vh-280px)] max-w-4xl mx-auto">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+    <Card className="p-6 dark:bg-gray-800 flex flex-col max-h-[calc(100vh-200px)] max-w-4xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 flex-shrink-0">
         Review Search Results
       </h2>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex-shrink-0">
         Preview your search results. If they look relevant, proceed to filtering. If not, go back to adjust your keywords.
       </p>
 
@@ -64,7 +64,7 @@ export function SearchResultsStep({
       </div>
 
       {/* Articles List */}
-      <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+      <div className="flex-1 overflow-y-auto space-y-2 mb-4 min-h-0">
         {searchResults.articles.map((article: CanonicalResearchArticle, index: number) => (
           <div
             key={index}
@@ -103,7 +103,7 @@ export function SearchResultsStep({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex-shrink-0 space-y-3 border-t pt-4 border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 space-y-4 border-t pt-5 mt-auto border-gray-200 dark:border-gray-700">
         {/* Load More Button */}
         {searchResults.pagination.has_more && (
           <Button
@@ -126,7 +126,7 @@ export function SearchResultsStep({
         )}
 
         {/* Action Buttons Row */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           {/* Go Back Button */}
           {onGoBack && (
             <Button

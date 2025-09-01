@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Target, AlertTriangle, CheckCircle, Sparkles, Copy, Trash2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSmartSearch } from '@/context/SmartSearchContext';
 
 interface SearchQueryStepProps {
@@ -27,7 +27,6 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   const currentCount = editedSearchQuery?.trim()
     ? searchKeywordHistory.find(h => h.query === editedSearchQuery.trim())?.count || null
     : null;
-
 
   // No need to clear count - it's derived from history automatically
   const handleQueryChange = (newQuery: string) => {
@@ -72,9 +71,8 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
   };
 
   // Copy query to textarea
-  const handleCopyFromHistory = (query: string, count: number) => {
+  const handleCopyFromHistory = (query: string) => {
     setEditedSearchQuery(query);
-    // Count is automatically derived from history
   };
 
   // Delete query from history
@@ -106,8 +104,8 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
                 const isCurrentQuery = attempt.query === editedSearchQuery?.trim();
                 return (
                   <div key={index} className={`grid grid-cols-[80px_100px_1fr_60px] gap-3 items-center p-2 rounded border ${isCurrentQuery
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
-                      : 'hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                    : 'hover:bg-white dark:hover:bg-gray-800 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
                     }`}>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {attempt.changeType === "system_generated" ? "System" :
@@ -142,7 +140,7 @@ export function SearchQueryStep({ onSubmit }: SearchQueryStepProps) {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                        onClick={() => handleCopyFromHistory(attempt.query || '', attempt.count || 0)}
+                        onClick={() => handleCopyFromHistory(attempt.query || '')}
                         title="Load this query"
                         disabled={!attempt.query}
                       >

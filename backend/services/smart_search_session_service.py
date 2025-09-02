@@ -431,13 +431,18 @@ class SmartSearchSessionService:
                 session.submitted_evidence_spec = None
                 
             if target_index < step_hierarchy.index("search_query_generation"):
-                # Clear search keywords data
+                # Clear search keywords data and history
                 session.generated_search_keywords = None
                 session.submitted_search_keywords = None
+                session.search_metadata = None  # Clear all search metadata including history
                 
             if target_index < step_hierarchy.index("search_execution"):
-                # Clear search execution data
-                session.search_metadata = None
+                # Clear search execution data but preserve search keyword history
+                if session.search_metadata and "search_keyword_history" in session.search_metadata:
+                    # Preserve the search keyword history when stepping back from search results
+                    search_keyword_history = session.search_metadata.get("search_keyword_history", [])
+                    session.search_metadata = {"search_keyword_history": search_keyword_history}
+                # Note: if search_metadata is None, it stays None (already cleared above)
                 session.articles_retrieved_count = 0
                 
             if target_index < step_hierarchy.index("article_selection"):

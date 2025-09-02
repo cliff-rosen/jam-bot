@@ -202,43 +202,6 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     localStorage.setItem('smartSearchSelectedSource', selectedSource);
   }, [selectedSource]);
 
-  // ================== SEARCH KEYWORD HISTORY HELPERS ==================
-
-  const reconstructSearchKeywordHistory = useCallback((session: any): SearchKeywordHistoryItem[] => {
-    const history: SearchKeywordHistoryItem[] = [];
-
-    // Check if we have stored history in search_metadata
-    if (session.search_metadata?.search_keyword_history) {
-      // Use the stored history directly
-      return session.search_metadata.search_keyword_history.map((item: any) => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
-      }));
-    }
-
-    // Fallback: reconstruct from basic fields for backward compatibility
-    if (session.generated_search_keywords?.trim()) {
-      history.push({
-        query: session.generated_search_keywords.trim(),
-        count: session.search_metadata?.total_available || 0,
-        changeType: 'system_generated',
-        timestamp: new Date(session.created_at || Date.now())
-      });
-    }
-
-    // Add submitted keywords if they exist and are different from generated
-    if (session.submitted_search_keywords?.trim() &&
-      session.submitted_search_keywords.trim() !== session.generated_search_keywords?.trim()) {
-      history.push({
-        query: session.submitted_search_keywords.trim(),
-        count: session.search_metadata?.total_available || 0,
-        changeType: 'user_edited',
-        timestamp: new Date(session.updated_at || Date.now())
-      });
-    }
-
-    return history;
-  }, []);
 
   // Load existing session if session ID is provided in URL
   useEffect(() => {
@@ -345,10 +308,18 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
           frontendStep = session.filtering_metadata?.accepted !== undefined ? 'results' : 'filtering';
         }
 
-        // Reconstruct search keyword history from session data if we're at or past search-query step
+        // Restore search keyword history from session data if we're at or past search-query step
         if (isBackendStepAtOrAfter(lastStep || 'question_input', 'search-query')) {
-          const reconstructedHistory = reconstructSearchKeywordHistory(session);
-          setSearchKeywordHistory(reconstructedHistory);
+          // Extract search keyword history directly from backend
+          if (session.search_metadata?.search_keyword_history) {
+            const history = session.search_metadata.search_keyword_history.map((item: any) => ({
+              ...item,
+              timestamp: new Date(item.timestamp)
+            }));
+            setSearchKeywordHistory(history);
+          } else {
+            setSearchKeywordHistory([]);
+          }
         }
 
         setStep(frontendStep);
@@ -360,7 +331,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     };
 
     loadSession();
-  }, [resumeSessionId, reconstructSearchKeywordHistory]);
+  }, [resumeSessionId]);
 
   // ================== WORKFLOW MANAGEMENT ==================
 
@@ -450,12 +421,18 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       if (isStepBefore(frontendStep, 'search-query')) {
         // Stepping back before search-query step - clear all search keyword history
         setSearchKeywordHistory([]);
-      } else if (frontendStep === 'search-query') {
-        // Stepping back TO search-query step - reconstruct base history without optimization attempts
-        const reconstructedHistory = reconstructSearchKeywordHistory(session);
-        setSearchKeywordHistory(reconstructedHistory);
+      } else if (frontendStep === 'search-query' || isBackendStepAtOrAfter(lastStep || 'question_input', 'search-query')) {
+        // Restore search keyword history directly from backend (it's preserved now)
+        if (session.search_metadata?.search_keyword_history) {
+          const history = session.search_metadata.search_keyword_history.map((item: any) => ({
+            ...item,
+            timestamp: new Date(item.timestamp)
+          }));
+          setSearchKeywordHistory(history);
+        } else {
+          setSearchKeywordHistory([]);
+        }
       }
-      // If stepping to later steps, preserve existing search keyword history (user's optimization attempts)
 
       if (isStepBefore(frontendStep, 'search-results')) {
         setSearchResults(null);
@@ -492,7 +469,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       setError(errorMessage);
       throw err;
     }
-  }, [reconstructSearchKeywordHistory]);
+  }, []);
 
   const resetAllState = useCallback(() => {
     setStep('query');

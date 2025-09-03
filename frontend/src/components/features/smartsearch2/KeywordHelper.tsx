@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Check, X } from 'lucide-react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
+import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 
 interface KeywordHelperProps {
     onComplete: () => void;
@@ -12,13 +13,15 @@ interface KeywordHelperProps {
 
 export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [researchQuestion, setResearchQuestion] = useState('');
+    const [evidenceSpec, setEvidenceSpec] = useState('');
     const [generatedKeywords, setGeneratedKeywords] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [step, setStep] = useState<'question' | 'evidence' | 'keywords'>('question');
     const [error, setError] = useState<string | null>(null);
 
     const { selectedSource, updateSearchQuery } = useSmartSearch2();
 
-    const handleGenerateKeywords = async () => {
+    const handleGenerateEvidenceSpec = async () => {
         if (!researchQuestion.trim()) {
             setError('Please enter a research question');
             return;
@@ -28,32 +31,44 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // For SmartSearch2, we'll use a simple approach
-            // Generate basic keywords based on the research question
-            const keywords = generateBasicKeywords(researchQuestion, selectedSource);
-            setGeneratedKeywords(keywords);
+            // Use the same backend logic as main SmartSearch
+            const response = await smartSearch2Api.createEvidenceSpecification({
+                query: researchQuestion
+            });
+
+            setEvidenceSpec(response.evidence_specification);
+            setStep('evidence');
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate evidence specification';
             setError(errorMessage);
         } finally {
             setIsGenerating(false);
         }
     };
 
-    const generateBasicKeywords = (question: string, source: 'pubmed' | 'google_scholar'): string => {
-        // Simple keyword generation for SmartSearch2
-        // Extract key terms and create appropriate query format
-        const words = question.toLowerCase()
-            .replace(/[^\w\s]/g, '')
-            .split(/\s+/)
-            .filter(word => word.length > 3 && !['what', 'how', 'when', 'where', 'why', 'the', 'and', 'or', 'but'].includes(word));
+    const handleGenerateKeywords = async () => {
+        if (!evidenceSpec.trim()) {
+            setError('Evidence specification is required');
+            return;
+        }
 
-        if (source === 'pubmed') {
-            // Boolean query format for PubMed
-            return words.map(word => `(${word}[Title/Abstract])`).join(' AND ');
-        } else {
-            // Natural language for Google Scholar
-            return words.join(' ');
+        setIsGenerating(true);
+        setError(null);
+
+        try {
+            // Use the same backend logic as main SmartSearch
+            const response = await smartSearch2Api.generateKeywords({
+                evidence_specification: evidenceSpec,
+                source: selectedSource
+            });
+
+            setGeneratedKeywords(response.search_keywords);
+            setStep('keywords');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
+            setError(errorMessage);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -77,58 +92,95 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                     AI Keyword Helper
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400">
-                    Describe your research question and I'll generate optimized search keywords for {selectedSource === 'pubmed' ? 'PubMed' : 'Google Scholar'}.
+                    Generate optimized search keywords for {selectedSource === 'pubmed' ? 'PubMed' : 'Google Scholar'} using AI-powered analysis.
                 </p>
             </div>
 
-            {/* Research Question Input */}
-            <div>
-                <Label htmlFor="research-question" className="text-base font-semibold mb-2 block">
-                    Research Question
-                </Label>
-                <Textarea
-                    id="research-question"
-                    value={researchQuestion}
-                    onChange={(e) => setResearchQuestion(e.target.value)}
-                    rows={4}
-                    className="dark:bg-gray-700 dark:text-gray-100"
-                    placeholder={getPlaceholderText()}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Describe what you're looking for in natural language
-                </p>
-            </div>
+            {/* Step 1: Research Question */}
+            {step === 'question' && (
+                <>
+                    <div>
+                        <Label htmlFor="research-question" className="text-base font-semibold mb-2 block">
+                            Research Question
+                        </Label>
+                        <Textarea
+                            id="research-question"
+                            value={researchQuestion}
+                            onChange={(e) => setResearchQuestion(e.target.value)}
+                            rows={4}
+                            className="dark:bg-gray-700 dark:text-gray-100"
+                            placeholder={getPlaceholderText()}
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Describe what you're looking for in natural language
+                        </p>
+                    </div>
 
-            {/* Generate Button */}
-            <div className="flex justify-center">
-                <Button
-                    onClick={handleGenerateKeywords}
-                    disabled={!researchQuestion.trim() || isGenerating}
-                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                >
-                    {isGenerating ? (
-                        <>
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                            Generating Keywords...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            Generate Keywords
-                        </>
-                    )}
-                </Button>
-            </div>
-
-            {/* Error Display */}
-            {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
-                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                </div>
+                    <div className="flex justify-center">
+                        <Button
+                            onClick={handleGenerateEvidenceSpec}
+                            disabled={!researchQuestion.trim() || isGenerating}
+                            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                                    Generating Evidence Specification...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Generate Evidence Specification
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </>
             )}
 
-            {/* Generated Keywords Display */}
-            {generatedKeywords && (
+            {/* Step 2: Evidence Specification */}
+            {step === 'evidence' && (
+                <>
+                    <div>
+                        <Label className="text-base font-semibold mb-2 block">
+                            Evidence Specification
+                        </Label>
+                        <Textarea
+                            value={evidenceSpec}
+                            onChange={(e) => setEvidenceSpec(e.target.value)}
+                            rows={6}
+                            className="dark:bg-gray-700 dark:text-gray-100"
+                            placeholder="Evidence specification will appear here..."
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Review and edit the evidence specification if needed
+                        </p>
+                    </div>
+
+                    <div className="flex justify-center">
+                        <Button
+                            onClick={handleGenerateKeywords}
+                            disabled={!evidenceSpec.trim() || isGenerating}
+                            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                                    Generating Keywords...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Generate Keywords
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </>
+            )}
+
+            {/* Step 3: Generated Keywords */}
+            {step === 'keywords' && (
                 <div className="space-y-4">
                     <div>
                         <Label className="text-base font-semibold mb-2 block">
@@ -146,7 +198,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         </p>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex justify-end gap-3">
                         <Button
                             variant="outline"
@@ -163,6 +214,13 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             Use These Keywords
                         </Button>
                     </div>
+                </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
             )}
         </div>

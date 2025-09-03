@@ -26,6 +26,26 @@ export interface DirectSearchResponse {
     query: string;
 }
 
+export interface EvidenceSpecRequest {
+    query: string;
+}
+
+export interface EvidenceSpecResponse {
+    original_query: string;
+    evidence_specification: string;
+}
+
+export interface KeywordGenerationRequest {
+    evidence_specification: string;
+    source: 'pubmed' | 'google_scholar';
+}
+
+export interface KeywordGenerationResponse {
+    evidence_specification: string;
+    search_keywords: string;
+    source: string;
+}
+
 // ============================================================================
 // API Client Implementation
 // ============================================================================
@@ -56,6 +76,22 @@ class SmartSearch2Api {
         });
 
         const response = await api.get(`/api/smart-search-2/search?${params}`);
+        return response.data;
+    }
+
+    /**
+     * Generate evidence specification from research question
+     */
+    async createEvidenceSpecification(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
+        const response = await api.post('/api/smart-search-2/evidence-specification', request);
+        return response.data;
+    }
+
+    /**
+     * Generate search keywords from evidence specification
+     */
+    async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
+        const response = await api.post('/api/smart-search-2/generate-keywords', request);
         return response.data;
     }
 }

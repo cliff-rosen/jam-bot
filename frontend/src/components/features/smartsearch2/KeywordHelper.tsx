@@ -3,21 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Check, X } from 'lucide-react';
-import { useSmartSearch } from '@/context/SmartSearchContext';
+import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 
 interface KeywordHelperProps {
-    onComplete: (keywords: string) => void;
+    onComplete: () => void;
     onCancel: () => void;
-    selectedSource: 'pubmed' | 'google_scholar';
 }
 
-export function KeywordHelper({ onComplete, onCancel, selectedSource }: KeywordHelperProps) {
+export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [researchQuestion, setResearchQuestion] = useState('');
     const [generatedKeywords, setGeneratedKeywords] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const { generateSearchKeywords, updateOriginalQuestion, generateEvidenceSpecification } = useSmartSearch();
+    const { selectedSource, updateSearchQuery } = useSmartSearch2();
 
     const handleGenerateKeywords = async () => {
         if (!researchQuestion.trim()) {
@@ -29,15 +28,10 @@ export function KeywordHelper({ onComplete, onCancel, selectedSource }: KeywordH
         setError(null);
 
         try {
-            // Set the research question in context
-            updateOriginalQuestion(researchQuestion);
-
-            // Create evidence specification first (this creates the session)
-            await generateEvidenceSpecification();
-
-            // Generate search keywords
-            const response = await generateSearchKeywords(selectedSource);
-            setGeneratedKeywords(response.search_keywords);
+            // For SmartSearch2, we'll use a simple approach
+            // Generate basic keywords based on the research question
+            const keywords = generateBasicKeywords(researchQuestion, selectedSource);
+            setGeneratedKeywords(keywords);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
             setError(errorMessage);
@@ -46,9 +40,27 @@ export function KeywordHelper({ onComplete, onCancel, selectedSource }: KeywordH
         }
     };
 
+    const generateBasicKeywords = (question: string, source: 'pubmed' | 'google_scholar'): string => {
+        // Simple keyword generation for SmartSearch2
+        // Extract key terms and create appropriate query format
+        const words = question.toLowerCase()
+            .replace(/[^\w\s]/g, '')
+            .split(/\s+/)
+            .filter(word => word.length > 3 && !['what', 'how', 'when', 'where', 'why', 'the', 'and', 'or', 'but'].includes(word));
+
+        if (source === 'pubmed') {
+            // Boolean query format for PubMed
+            return words.map(word => `(${word}[Title/Abstract])`).join(' AND ');
+        } else {
+            // Natural language for Google Scholar
+            return words.join(' ');
+        }
+    };
+
     const handleUseKeywords = () => {
         if (generatedKeywords.trim()) {
-            onComplete(generatedKeywords);
+            updateSearchQuery(generatedKeywords);
+            onComplete();
         }
     };
 

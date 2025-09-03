@@ -1,57 +1,37 @@
 import { useState } from 'react';
-import { SmartSearchProvider, useSmartSearch } from '@/context/SmartSearchContext';
+import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
 import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-// Main content component that uses SmartSearchContext
+// Main content component that uses SmartSearch2Context
 function SmartSearch2Content() {
   const [showKeywordHelper, setShowKeywordHelper] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSource, setSelectedSource] = useState<'pubmed' | 'google_scholar'>('pubmed');
-  const [hasSearched, setHasSearched] = useState(false);
 
   const {
-    executeSearch,
+    selectedSource,
+    searchQuery,
     searchResults,
-    searchExecutionLoading,
+    isSearching,
+    hasSearched,
     error,
-    clearError,
-    resetAllState,
-    updateOriginalQuestion,
-    generateEvidenceSpecification
-  } = useSmartSearch();
+    executeSearch,
+    resetSearch,
+    clearError
+  } = useSmartSearch2();
 
-  const handleSearch = async (query: string, source: 'pubmed' | 'google_scholar') => {
-    setSearchQuery(query);
-    setSelectedSource(source);
-    setHasSearched(true);
-    clearError();
-
-    try {
-      // Set the original question (required for evidence spec generation)
-      updateOriginalQuestion(query);
-
-      // Create evidence specification (this creates the session)
-      await generateEvidenceSpecification();
-
-      // Execute the search
-      await executeSearch(0, source === 'google_scholar' ? 20 : 50);
-    } catch (err) {
-      console.error('Search failed:', err);
-    }
+  const handleSearch = async () => {
+    await executeSearch();
   };
 
   const handleNewSearch = () => {
-    setSearchQuery('');
-    setHasSearched(false);
     setShowKeywordHelper(false);
-    resetAllState();
+    resetSearch();
   };
 
-  const handleKeywordHelperComplete = (keywords: string) => {
-    setSearchQuery(keywords);
+  const handleKeywordHelperComplete = () => {
+    // The KeywordHelper will update the context directly
     setShowKeywordHelper(false);
   };
 
@@ -105,13 +85,10 @@ function SmartSearch2Content() {
                 <KeywordHelper
                   onComplete={handleKeywordHelperComplete}
                   onCancel={() => setShowKeywordHelper(false)}
-                  selectedSource={selectedSource}
                 />
               </Card>
             ) : (
               <SearchForm
-                initialQuery={searchQuery}
-                initialSource={selectedSource}
                 onSearch={handleSearch}
                 onToggleKeywordHelper={() => setShowKeywordHelper(true)}
               />
@@ -148,7 +125,7 @@ function SmartSearch2Content() {
 
             {/* Results Display */}
             <Card className="p-6">
-              {searchExecutionLoading ? (
+              {isSearching ? (
                 <div className="text-center py-12">
                   <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
                   <p className="text-gray-600 dark:text-gray-400">Searching...</p>
@@ -194,11 +171,11 @@ function SmartSearch2Content() {
   );
 }
 
-// Main component that provides the SmartSearchContext
+// Main component that provides the SmartSearch2Context
 export default function SmartSearch2() {
   return (
-    <SmartSearchProvider>
+    <SmartSearch2Provider>
       <SmartSearch2Content />
-    </SmartSearchProvider>
+    </SmartSearch2Provider>
   );
 }

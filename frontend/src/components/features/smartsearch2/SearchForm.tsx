@@ -5,41 +5,40 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Search, Sparkles } from 'lucide-react';
-import { useSmartSearch } from '@/context/SmartSearchContext';
+import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 
 interface SearchFormProps {
-  initialQuery?: string;
-  initialSource?: 'pubmed' | 'google_scholar';
-  onSearch: (query: string, source: 'pubmed' | 'google_scholar') => void;
+  onSearch: () => void;
   onToggleKeywordHelper: () => void;
 }
 
 export function SearchForm({
-  initialQuery = '',
-  initialSource = 'pubmed',
   onSearch,
   onToggleKeywordHelper
 }: SearchFormProps) {
-  const [query, setQuery] = useState(initialQuery);
-  const [source, setSource] = useState<'pubmed' | 'google_scholar'>(initialSource);
   const [isSearching, setIsSearching] = useState(false);
 
-  const { updateSelectedSource, updateSubmittedSearchKeywords } = useSmartSearch();
+  const {
+    selectedSource,
+    searchQuery,
+    updateSelectedSource,
+    updateSearchQuery
+  } = useSmartSearch2();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
-      await onSearch(query, source);
+      await onSearch();
     } finally {
       setIsSearching(false);
     }
   };
 
   const getPlaceholderText = () => {
-    return source === 'google_scholar'
+    return selectedSource === 'google_scholar'
       ? '"machine learning" healthcare diagnosis'
       : '(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)';
   };
@@ -53,10 +52,9 @@ export function SearchForm({
             Select Source
           </Label>
           <RadioGroup
-            value={source}
+            value={selectedSource}
             onValueChange={(value) => {
               const newSource = value as 'pubmed' | 'google_scholar';
-              setSource(newSource);
               updateSelectedSource(newSource);
             }}
             className="flex gap-6"
@@ -101,18 +99,17 @@ export function SearchForm({
           </div>
           <Textarea
             id="query"
-            value={query}
+            value={searchQuery}
             onChange={(e) => {
               const newQuery = e.target.value;
-              setQuery(newQuery);
-              updateSubmittedSearchKeywords(newQuery);
+              updateSearchQuery(newQuery);
             }}
             rows={6}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
             placeholder={getPlaceholderText()}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {source === 'google_scholar'
+            {selectedSource === 'google_scholar'
               ? 'Enter natural language search terms'
               : 'Enter boolean search query with AND, OR, NOT operators'
             }
@@ -123,7 +120,7 @@ export function SearchForm({
         <div className="flex justify-end">
           <Button
             type="submit"
-            disabled={!query.trim() || isSearching}
+            disabled={!searchQuery.trim() || isSearching}
             className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             {isSearching ? (

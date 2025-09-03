@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -18,7 +17,7 @@ export function KeywordHelper({ onComplete, onCancel, selectedSource }: KeywordH
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const { generateSearchKeywords, updateOriginalQuestion, updateSubmittedEvidenceSpec } = useSmartSearch();
+    const { generateSearchKeywords, updateOriginalQuestion, generateEvidenceSpecification } = useSmartSearch();
 
     const handleGenerateKeywords = async () => {
         if (!researchQuestion.trim()) {
@@ -33,9 +32,8 @@ export function KeywordHelper({ onComplete, onCancel, selectedSource }: KeywordH
             // Set the research question in context
             updateOriginalQuestion(researchQuestion);
 
-            // Generate evidence specification first (this is required for keyword generation)
-            // For SmartSearch2, we'll use the research question as a simple evidence spec
-            updateSubmittedEvidenceSpec(researchQuestion);
+            // Create evidence specification first (this creates the session)
+            await generateEvidenceSpecification();
 
             // Generate search keywords
             const response = await generateSearchKeywords(selectedSource);

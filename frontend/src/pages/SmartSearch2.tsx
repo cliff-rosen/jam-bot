@@ -20,9 +20,9 @@ function SmartSearch2Content() {
     clearError,
     resetAllState,
     updateOriginalQuestion,
-    updateSubmittedEvidenceSpec,
     updateSubmittedSearchKeywords,
-    updateSelectedSource
+    updateSelectedSource,
+    generateEvidenceSpecification
   } = useSmartSearch();
 
   const handleSearch = async (query: string, source: 'pubmed' | 'google_scholar') => {
@@ -32,12 +32,16 @@ function SmartSearch2Content() {
     clearError();
 
     try {
-      // For SmartSearch2, we need to set up the context properly
-      // First, set the original question and evidence spec
+      // For SmartSearch2, we need to create a session first
+      // Set the original question
       updateOriginalQuestion(query);
-      updateSubmittedEvidenceSpec(query);
-      updateSubmittedSearchKeywords(query);
       updateSelectedSource(source);
+
+      // Create evidence specification (this creates the session)
+      await generateEvidenceSpecification();
+
+      // Set the search keywords to the original query for direct search
+      updateSubmittedSearchKeywords(query);
 
       // Then execute the search
       await executeSearch(0, source === 'google_scholar' ? 20 : 50);

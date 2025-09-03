@@ -643,18 +643,13 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         """
         logger.info(f"Step 5 - Generating semantic discriminator with strictness: {strictness}")
         
-        discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converting to keywords using LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
+        discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converted to keywords using an LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
 
 Research Question: {refined_question}
 
 Search Query Used: {search_query}
 
-You must respond in this exact JSON format:
-{{
-    "decision": "Yes" or "No",
-    "confidence": 0.0 to 1.0,
-    "reasoning": "1-2 sentence explanation of your decision"
-}}"""
+"""
         
         return discriminator_prompt
     

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
 import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
+import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
@@ -18,7 +19,8 @@ function SmartSearch2Content() {
     error,
     executeSearch,
     resetSearch,
-    clearError
+    clearError,
+    updateSearchQuery
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -111,68 +113,17 @@ function SmartSearch2Content() {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Search Results Header */}
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                      Search Results
-                    </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Query: "{searchQuery}" in {selectedSource === 'pubmed' ? 'PubMed' : 'Google Scholar'}
-                    </p>
-                    {searchResults && (
-                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                        Found {searchResults.pagination?.total_available || 0} articles
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-
-              {/* Results Display */}
-              <Card className="p-6">
-                {isSearching ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400">Searching...</p>
-                  </div>
-                ) : searchResults && searchResults.articles && searchResults.articles.length > 0 ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Articles Found ({searchResults.articles.length})
-                    </h3>
-                    <div className="space-y-3">
-                      {searchResults.articles.slice(0, 10).map((article, index) => (
-                        <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                            {article.title || 'Untitled'}
-                          </h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {article.authors?.slice(0, 3).join(', ')}
-                            {article.authors && article.authors.length > 3 && ' et al.'}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-500">
-                            {article.journal} • {article.publication_date}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    {searchResults.articles.length > 10 && (
-                      <p className="text-sm text-gray-500 dark:text-gray-500 text-center">
-                        Showing first 10 of {searchResults.articles.length} results
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <p>No results found</p>
-                    <p className="text-sm mt-2">Try adjusting your search terms</p>
-                  </div>
-                )}
-              </Card>
-            </div>
+            searchResults && (
+              <SearchResults
+                articles={searchResults.articles}
+                pagination={searchResults.pagination}
+                query={searchQuery}
+                source={selectedSource}
+                isSearching={isSearching}
+                onQueryUpdate={updateSearchQuery}
+                onSearch={handleSearch}
+              />
+            )
           )}
         </div>
       </div>

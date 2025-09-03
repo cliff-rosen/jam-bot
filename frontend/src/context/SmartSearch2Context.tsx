@@ -6,8 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { smartSearchApi } from '@/lib/api/smartSearchApi';
-import type { SearchExecutionResponse } from '@/lib/api/smartSearchApi';
+import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
+import type { DirectSearchResponse } from '@/lib/api/smartSearch2Api';
 
 // ================== STATE INTERFACE ==================
 
@@ -17,8 +17,7 @@ interface SmartSearch2State {
     searchQuery: string;
 
     // SEARCH EXECUTION
-    sessionId: string | null;
-    searchResults: SearchExecutionResponse | null;
+    searchResults: DirectSearchResponse | null;
     isSearching: boolean;
 
     // UI STATE
@@ -58,8 +57,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
     const [selectedSource, setSelectedSource] = useState<'pubmed' | 'google_scholar'>('pubmed');
     const [searchQuery, setSearchQuery] = useState('');
-    const [sessionId, setSessionId] = useState<string | null>(null);
-    const [searchResults, setSearchResults] = useState<SearchExecutionResponse | null>(null);
+    const [searchResults, setSearchResults] = useState<DirectSearchResponse | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -85,21 +83,12 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setHasSearched(true);
 
         try {
-            // Create evidence specification (this creates the session)
-            const evidenceResponse = await smartSearchApi.createEvidenceSpecification({
+            // Execute direct search using SmartSearch2 API (no session required)
+            const results = await smartSearch2Api.search({
                 query: searchQuery,
-                session_id: sessionId || undefined
-            });
-
-            setSessionId(evidenceResponse.session_id);
-
-            // Execute search with the user's query as search keywords
-            const results = await smartSearchApi.executeSearch({
-                search_keywords: searchQuery,
+                source: selectedSource,
                 max_results: selectedSource === 'google_scholar' ? 20 : 50,
-                offset: 0,
-                session_id: evidenceResponse.session_id,
-                selected_sources: [selectedSource]
+                offset: 0
             });
 
             setSearchResults(results);
@@ -110,13 +99,12 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         } finally {
             setIsSearching(false);
         }
-    }, [searchQuery, selectedSource, sessionId]);
+    }, [searchQuery, selectedSource]);
 
     const resetSearch = useCallback(() => {
         setSearchQuery('');
         setSearchResults(null);
         setHasSearched(false);
-        setSessionId(null);
         setError(null);
     }, []);
 
@@ -130,7 +118,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // State
         selectedSource,
         searchQuery,
-        sessionId,
         searchResults,
         isSearching,
         hasSearched,

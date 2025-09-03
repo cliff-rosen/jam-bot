@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Search, Sparkles } from 'lucide-react';
+import { useSmartSearch } from '@/context/SmartSearchContext';
 
 interface SearchFormProps {
   initialQuery?: string;
@@ -23,10 +24,12 @@ export function SearchForm({
   const [source, setSource] = useState<'pubmed' | 'google_scholar'>(initialSource);
   const [isSearching, setIsSearching] = useState(false);
 
+  const { updateSelectedSource, updateSubmittedSearchKeywords } = useSmartSearch();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    
+
     setIsSearching(true);
     try {
       await onSearch(query, source);
@@ -51,13 +54,17 @@ export function SearchForm({
           </Label>
           <RadioGroup
             value={source}
-            onValueChange={(value) => setSource(value as 'pubmed' | 'google_scholar')}
+            onValueChange={(value) => {
+              const newSource = value as 'pubmed' | 'google_scholar';
+              setSource(newSource);
+              updateSelectedSource(newSource);
+            }}
             className="flex gap-6"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="pubmed" id="pubmed" />
-              <Label 
-                htmlFor="pubmed" 
+              <Label
+                htmlFor="pubmed"
                 className="cursor-pointer font-normal"
               >
                 PubMed
@@ -65,8 +72,8 @@ export function SearchForm({
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="google_scholar" id="google_scholar" />
-              <Label 
-                htmlFor="google_scholar" 
+              <Label
+                htmlFor="google_scholar"
                 className="cursor-pointer font-normal"
               >
                 Google Scholar
@@ -95,7 +102,11 @@ export function SearchForm({
           <Textarea
             id="query"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              const newQuery = e.target.value;
+              setQuery(newQuery);
+              updateSubmittedSearchKeywords(newQuery);
+            }}
             rows={6}
             className="dark:bg-gray-700 dark:text-gray-100 text-sm font-mono"
             placeholder={getPlaceholderText()}

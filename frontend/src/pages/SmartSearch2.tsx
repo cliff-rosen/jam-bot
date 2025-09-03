@@ -20,8 +20,6 @@ function SmartSearch2Content() {
     clearError,
     resetAllState,
     updateOriginalQuestion,
-    updateSubmittedSearchKeywords,
-    updateSelectedSource,
     generateEvidenceSpecification
   } = useSmartSearch();
 
@@ -32,18 +30,13 @@ function SmartSearch2Content() {
     clearError();
 
     try {
-      // For SmartSearch2, we need to create a session first
-      // Set the original question
+      // Set the original question (required for evidence spec generation)
       updateOriginalQuestion(query);
-      updateSelectedSource(source);
 
       // Create evidence specification (this creates the session)
       await generateEvidenceSpecification();
 
-      // Set the search keywords to the original query for direct search
-      updateSubmittedSearchKeywords(query);
-
-      // Then execute the search
+      // Execute the search
       await executeSearch(0, source === 'google_scholar' ? 20 : 50);
     } catch (err) {
       console.error('Search failed:', err);

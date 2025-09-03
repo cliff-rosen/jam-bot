@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
     ExternalLink,
     Edit,
@@ -16,14 +16,9 @@ import {
     Table,
     Plus,
     Sparkles,
-    ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    ChevronDown,
-    ChevronRight,
-    Filter,
-    X,
-    Check
+    X
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -66,7 +61,7 @@ export function SearchResults({
     const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
     const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
     const [isExtracting, setIsExtracting] = useState(false);
-    const [extractedData, setExtractedData] = useState<Record<string, Record<string, any>>>({});
+    const [extractedData] = useState<Record<string, Record<string, any>>>({});
 
     const [newFeature, setNewFeature] = useState<FeatureDefinition>({
         id: '',
@@ -75,11 +70,9 @@ export function SearchResults({
         type: 'text'
     });
 
-    // Sorting and filtering
+    // Sorting
     const [sortColumn, setSortColumn] = useState<string>('');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
-    const [showFilters, setShowFilters] = useState(false);
 
     // Update edited query when prop changes
     useEffect(() => {
@@ -403,7 +396,7 @@ export function SearchResults({
                                     value={editedQuery}
                                     onChange={(e) => setEditedQuery(e.target.value)}
                                     rows={3}
-                                    className="flex-1 font-mono text-sm"
+                                    className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                 />
                                 <div className="flex flex-col gap-2">
                                     <Button
@@ -506,7 +499,7 @@ export function SearchResults({
                                         value={newFeature.name}
                                         onChange={(e) => setNewFeature({ ...newFeature, name: e.target.value })}
                                         placeholder="e.g., Study Type"
-                                        className="mt-1"
+                                        className="mt-1 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                     />
                                 </div>
                                 <div>
@@ -515,7 +508,7 @@ export function SearchResults({
                                         value={newFeature.type}
                                         onValueChange={(value: any) => setNewFeature({ ...newFeature, type: value })}
                                     >
-                                        <SelectTrigger className="mt-1">
+                                        <SelectTrigger className="mt-1 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -531,7 +524,7 @@ export function SearchResults({
                                         value={newFeature.description}
                                         onChange={(e) => setNewFeature({ ...newFeature, description: e.target.value })}
                                         placeholder="What should be extracted from each article?"
-                                        className="mt-1"
+                                        className="mt-1 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                     />
                                 </div>
                             </div>

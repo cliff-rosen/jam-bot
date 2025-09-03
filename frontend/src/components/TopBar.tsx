@@ -52,6 +52,10 @@ export default function TopBar() {
                         <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
                         Smart Search
                     </NavLink>
+                    <NavLink to="/smart-search-2" className={getLinkClass('/smart-search-2')}>
+                        <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+                        Smart Search 2
+                    </NavLink>
                     <NavLink to="/lab" className={getLinkClass('/lab')}>
                         <BeakerIcon className="h-5 w-5 mr-2" />
                         Lab

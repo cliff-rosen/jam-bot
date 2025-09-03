@@ -20,6 +20,7 @@ import Profile from './pages/Profile';
 import JamBotPage from './pages/JamBot';
 import LabPage from './pages/Lab';
 import SmartSearchLab from './pages/SmartSearchLab';
+import SmartSearch2 from './pages/SmartSearch2';
 import SearchHistory from './pages/SearchHistory';
 import WorkbenchPage from './pages/Workbench';
 import TokenLogin from './pages/TokenLogin';
@@ -48,6 +49,7 @@ function AppContent() {
             <Route path="/workbench" element={<WorkbenchPage />} />
             <Route path="/lab" element={<LabPage />} />
             <Route path="/smart-search" element={<SmartSearchLab />} />
+            <Route path="/smart-search-2" element={<SmartSearch2 />} />
             <Route path="/search-history" element={<SearchHistory />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/email/auth/success" element={<EmailAuthSuccess />} />

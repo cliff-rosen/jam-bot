@@ -60,18 +60,18 @@ class SmartSearchService:
         # Create prompt for evidence specification
         system_prompt = """Convert the user's search request into a clear document specification.
 
-RULES:
-1. Always start with "Find articles that..."
-2. Keep it simple and direct
-3. Focus on what documents are needed, not research questions
-4. Use the user's own terms when possible
+        RULES:
+        1. Always start with "Find articles that..."
+        2. Keep it simple and direct
+        3. Focus on what documents are needed, not research questions
+        4. Use the user's own terms when possible
 
-EXAMPLES:
-"effects of exercise on health" → "Find articles that examine the health effects of physical exercise"
-"How does AI help doctors?" → "Find articles that discuss AI applications in clinical practice"  
-"cannabis and motivation" → "Find articles that examine cannabis effects on motivation"
+        EXAMPLES:
+        "effects of exercise on health" → "Find articles that examine the health effects of physical exercise"
+        "How does AI help doctors?" → "Find articles that discuss AI applications in clinical practice"  
+        "cannabis and motivation" → "Find articles that examine cannabis effects on motivation"
 
-Respond in JSON format with the "evidence_specification" field."""
+        Respond in JSON format with the "evidence_specification" field."""
 
         # Object schema with refined_query field for BasePromptCaller
         response_schema = {
@@ -149,78 +149,78 @@ Respond in JSON format with the "evidence_specification" field."""
         if target_source == 'google_scholar':
             system_prompt = """You are a search query expert for Google Scholar. Your task is to convert an evidence specification into a SIMPLE and FOCUSED natural language search query.
 
-CRITICAL REQUIREMENTS:
-- MAXIMUM 3-5 key terms only
-- NO complex boolean logic with AND/OR
-- NO parentheses or nested expressions
-- Use simple quoted phrases for specific concepts
-- Target 200-2000 results, not millions
+            CRITICAL REQUIREMENTS:
+            - MAXIMUM 3-5 key terms only
+            - NO complex boolean logic with AND/OR
+            - NO parentheses or nested expressions
+            - Use simple quoted phrases for specific concepts
+            - Target 200-2000 results, not millions
 
-APPROACH:
-1. Identify the 1-2 MOST IMPORTANT concepts
-2. Use the most specific terms possible
-3. Add one quoted phrase for the main topic
-4. Keep it short and focused
+            APPROACH:
+            1. Identify the 1-2 MOST IMPORTANT concepts
+            2. Use the most specific terms possible
+            3. Add one quoted phrase for the main topic
+            4. Keep it short and focused
 
-GOOD EXAMPLES:
-- "CRISPR gene editing" cancer
-- "machine learning" medical diagnosis
-- "quantum computing" algorithms
-- "climate change adaptation" agriculture
-- "materials science" nanomaterials synthesis
+            GOOD EXAMPLES:
+            - "CRISPR gene editing" cancer
+            - "machine learning" medical diagnosis
+            - "quantum computing" algorithms
+            - "climate change adaptation" agriculture
+            - "materials science" nanomaterials synthesis
 
-BAD EXAMPLES (too broad/complex):
-- ("China" OR "Chinese") AND ("materials science" OR materials) AND (synthesis OR characterization)
-- (diabetes OR diabetic) AND (treatment OR therapy)
-- machine learning OR artificial intelligence OR deep learning
+            BAD EXAMPLES (too broad/complex):
+            - ("China" OR "Chinese") AND ("materials science" OR materials) AND (synthesis OR characterization)
+            - (diabetes OR diabetic) AND (treatment OR therapy)
+            - machine learning OR artificial intelligence OR deep learning
 
-STRICT RULE: If the evidence specification is very broad, make the query MORE specific, not less. Focus on the core scientific question.
+            STRICT RULE: If the evidence specification is very broad, make the query MORE specific, not less. Focus on the core scientific question.
 
-Respond in JSON format with a "search_query" field containing the simple natural language search string."""
+            Respond in JSON format with a "search_query" field containing the simple natural language search string."""
         else:
             # PubMed prompt (original)
             system_prompt = """You are a search query expert for PubMed and biomedical databases. Your task is to convert an evidence specification into an EFFECTIVE boolean search query optimized for PubMed.
 
-PUBMED CHARACTERISTICS:
-- Searches titles, abstracts, and MeSH terms
-- Excellent boolean operator support
-- Structured indexing system
-- Precise field searching capabilities
-- Works best with controlled vocabulary
+            PUBMED CHARACTERISTICS:
+            - Searches titles, abstracts, and MeSH terms
+            - Excellent boolean operator support
+            - Structured indexing system
+            - Precise field searching capabilities
+            - Works best with controlled vocabulary
 
-CORE PRINCIPLES:
-- Target 500-2000 relevant results (not too broad, not too narrow)
-- Use precise biomedical terminology
-- Leverage boolean logic effectively
-- Focus on the most important 2-3 concepts
+            CORE PRINCIPLES:
+            - Target 500-2000 relevant results (not too broad, not too narrow)
+            - Use precise biomedical terminology
+            - Leverage boolean logic effectively
+            - Focus on the most important 2-3 concepts
 
-GUIDELINES:
-1. Identify the 2-3 CORE concepts from the evidence specification
-2. For each concept, use 2-4 of the most common medical synonyms/variants
-3. Use AND to connect different concepts
-4. Use OR only for true synonyms within the same concept
-5. Use biomedical terminology that appears in PubMed abstracts
-6. Include MeSH terms and common abbreviations when relevant
+            GUIDELINES:
+            1. Identify the 2-3 CORE concepts from the evidence specification
+            2. For each concept, use 2-4 of the most common medical synonyms/variants
+            3. Use AND to connect different concepts
+            4. Use OR only for true synonyms within the same concept
+            5. Use biomedical terminology that appears in PubMed abstracts
+            6. Include MeSH terms and common abbreviations when relevant
 
-QUERY STRUCTURE:
-- Boolean format: (concept1 OR synonym1) AND (concept2 OR synonym2)
-- Maximum 3 AND-connected concept groups
-- 2-4 terms per OR group
-- Clear parentheses for grouping
+            QUERY STRUCTURE:
+            - Boolean format: (concept1 OR synonym1) AND (concept2 OR synonym2)
+            - Maximum 3 AND-connected concept groups
+            - 2-4 terms per OR group
+            - Clear parentheses for grouping
 
-GOOD EXAMPLES:
-- (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
-- (CRISPR OR "gene editing") AND (cancer OR tumor OR neoplasm)
-- (myocardial OR cardiac) AND (infarction OR "heart attack") AND (prevention OR prophylaxis)
+            GOOD EXAMPLES:
+            - (diabetes OR diabetic) AND (neuropathy OR "nerve damage") AND (treatment OR therapy)
+            - (CRISPR OR "gene editing") AND (cancer OR tumor OR neoplasm)
+            - (myocardial OR cardiac) AND (infarction OR "heart attack") AND (prevention OR prophylaxis)
 
-BAD EXAMPLES (too complex):
-- (diabetes OR diabetic OR glycemic OR "blood sugar" OR hyperglycemia) AND (neuropathy OR "nerve damage" OR "peripheral nerve" OR polyneuropathy) AND (treatment OR therapy OR management OR intervention OR medication)
+            BAD EXAMPLES (too complex):
+            - (diabetes OR diabetic OR glycemic OR "blood sugar" OR hyperglycemia) AND (neuropathy OR "nerve damage" OR "peripheral nerve" OR polyneuropathy) AND (treatment OR therapy OR management OR intervention OR medication)
 
-Respond in JSON format with a "search_query" field containing the boolean search string."""
+            Respond in JSON format with a "search_query" field containing the boolean search string."""
 
         user_prompt = f"""Evidence specification: {evidence_specification}
 
-Generate an effective search query for {target_source.replace('_', ' ').title()}."""
+        Generate an effective search query for {target_source.replace('_', ' ').title()}."""
 
         # Schema for search query
         response_schema = {
@@ -317,76 +317,76 @@ Generate an effective search query for {target_source.replace('_', ' ').title()}
             # Google Scholar: Use natural language additions
             system_prompt = """You are a Google Scholar search refinement expert. Your task is to add ONE specific term or quoted phrase to a natural language query to reduce results while maintaining relevance.
 
-GOOGLE SCHOLAR REFINEMENT RULES:
-1. Add ONE specific term that narrows the scope
-2. Use quoted phrases for specific concepts: "randomized trial"
-3. NO boolean operators (AND/OR) - just add words naturally
-4. Focus on methodology, population, or time constraints
-5. Keep the refined query natural and readable
+                               GOOGLE SCHOLAR REFINEMENT RULES:
+                               1. Add ONE specific term that narrows the scope
+                               2. Use quoted phrases for specific concepts: "randomized trial"
+                               3. NO boolean operators (AND/OR) - just add words naturally
+                               4. Focus on methodology, population, or time constraints
+                               5. Keep the refined query natural and readable
 
-GOOD REFINEMENT EXAMPLES:
-- "machine learning healthcare" → "machine learning healthcare" "clinical trial"
-- "climate change agriculture" → "climate change agriculture" adaptation
-- "materials science nanomaterials" → "materials science nanomaterials" synthesis
+                               GOOD REFINEMENT EXAMPLES:
+                               - "machine learning healthcare" → "machine learning healthcare" "clinical trial"
+                               - "climate change agriculture" → "climate change agriculture" adaptation
+                               - "materials science nanomaterials" → "materials science nanomaterials" synthesis
 
-EFFECTIVE REFINEMENT TERMS:
-- Study design: "randomized trial", "systematic review", "meta-analysis"
-- Setting: clinical, laboratory, hospital, community
-- Population: pediatric, elderly, adult, adolescent
-- Methodology: prospective, longitudinal, cross-sectional
-- Time: recent, 2020-2024, "last decade"
+                               EFFECTIVE REFINEMENT TERMS:
+                               - Study design: "randomized trial", "systematic review", "meta-analysis"
+                               - Setting: clinical, laboratory, hospital, community
+                               - Population: pediatric, elderly, adult, adolescent
+                               - Methodology: prospective, longitudinal, cross-sectional
+                               - Time: recent, 2020-2024, "last decade"
 
-Respond in JSON format with "refined_query" and "explanation" fields."""
+                               Respond in JSON format with "refined_query" and "explanation" fields."""
         else:
             # PubMed: Use boolean AND refinement
             system_prompt = """You are a search query refinement expert for PubMed. Your task is to add ONE targeted AND clause to reduce search results to the target range while maintaining relevance.
 
-CRITICAL REQUIREMENTS:
-1. The current query returns too many results and MUST be reduced to the target range
-2. Add ONE specific AND clause - NOT a broad OR clause with many alternatives
-3. Choose the MOST RESTRICTIVE reasonable filter from the evidence specification that will not produce excessive type II errors
-4. Prefer single terms or small 2-3 term OR groups, NOT large OR lists
-5. Focus on the most specific, distinctive aspect that will actually filter results.
+                               CRITICAL REQUIREMENTS:
+                               1. The current query returns too many results and MUST be reduced to the target range
+                               2. Add ONE specific AND clause - NOT a broad OR clause with many alternatives
+                               3. Choose the MOST RESTRICTIVE reasonable filter from the evidence specification that will not produce excessive type II errors
+                               4. Prefer single terms or small 2-3 term OR groups, NOT large OR lists
+                               5. Focus on the most specific, distinctive aspect that will actually filter results.
 
-EFFECTIVE STRATEGIES (choose ONE):
-- Study design: AND "randomized controlled trial" OR AND longitudinal OR AND "systematic review"
-- Population: AND adolescent OR AND "young adult" OR AND "college student" 
-- Setting: AND clinical OR AND laboratory OR AND workplace
-- Outcome type: AND cognitive OR AND behavioral OR AND neuroimaging
-- Timeframe: AND chronic OR AND acute OR AND "long-term"
+                               EFFECTIVE STRATEGIES (choose ONE):
+                               - Study design: AND "randomized controlled trial" OR AND longitudinal OR AND "systematic review"
+                               - Population: AND adolescent OR AND "young adult" OR AND "college student" 
+                               - Setting: AND clinical OR AND laboratory OR AND workplace
+                               - Outcome type: AND cognitive OR AND behavioral OR AND neuroimaging
+                               - Timeframe: AND chronic OR AND acute OR AND "long-term"
 
-BAD EXAMPLES (too broad, won't reduce results):
-❌ AND (study OR research OR analysis OR investigation OR trial OR experiment)
-❌ AND (human OR participant OR subject OR patient OR control OR experimental)
-❌ AND (outcome OR result OR effect OR impact OR change OR difference)
+                               BAD EXAMPLES (too broad, won't reduce results):
+                               ❌ AND (study OR research OR analysis OR investigation OR trial OR experiment)
+                               ❌ AND (human OR participant OR subject OR patient OR control OR experimental)
+                               ❌ AND (outcome OR result OR effect OR impact OR change OR difference)
 
-GOOD EXAMPLES (specific, will actually filter):
-✅ AND "randomized controlled trial"
-✅ AND adolescent  
-✅ AND cognitive
-✅ AND (fMRI OR neuroimaging)
+                               GOOD EXAMPLES (specific, will actually filter):
+                               ✅ AND "randomized controlled trial"
+                               ✅ AND adolescent  
+                               ✅ AND cognitive
+                               ✅ AND (fMRI OR neuroimaging)
 
-The goal is meaningful reduction in result count, not just adding more terms.
+                               The goal is meaningful reduction in result count, not just adding more terms.
 
-Respond in JSON format with the refined query and explanation."""
+                               Respond in JSON format with the refined query and explanation."""
 
         # Source-specific user prompt
         if target_source == 'google_scholar':
             user_prompt = f"""Current Google Scholar query: {current_query}
-Current result count: {current_count:,} results
-Target: Under {target_max} results
+            Current result count: {current_count:,} results
+            Target: Under {target_max} results
 
-Evidence specification: {evidence_spec}
+            Evidence specification: {evidence_spec}
 
-Add ONE specific term or quoted phrase to this natural language query to reduce results while maintaining relevance. Focus on the most specific aspect that will filter results effectively."""
+            Add ONE specific term or quoted phrase to this natural language query to reduce results while maintaining relevance. Focus on the most specific aspect that will filter results effectively."""
         else:
             user_prompt = f"""Current PubMed query: {current_query}
-Current result count: {current_count:,} results
-Target: Under {target_max} results
+            Current result count: {current_count:,} results
+            Target: Under {target_max} results
 
-Evidence specification: {evidence_spec}
+            Evidence specification: {evidence_spec}
 
-Add ONE conservative AND clause to reduce results while minimizing risk of excluding relevant articles. The current query returns {current_count:,} results, so we need to reduce this to under {target_max}."""
+            Add ONE conservative AND clause to reduce results while minimizing risk of excluding relevant articles. The current query returns {current_count:,} results, so we need to reduce this to under {target_max}."""
 
         # Schema for refinement response
         response_schema = {
@@ -645,11 +645,11 @@ Add ONE conservative AND clause to reduce results while minimizing risk of exclu
         
         discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converted to keywords using an LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
 
-Research Question: {refined_question}
+        Research Question: {refined_question}
 
-Search Query Used: {search_query}
+        Search Query Used: {search_query}
 
-"""
+        """
         
         return discriminator_prompt
     
@@ -659,20 +659,20 @@ Search Query Used: {search_query}
         """
         # Prepare article text for evaluation
         article_text = f"""Title: {article.title}
-Abstract: {article.abstract or "No abstract available"}"""
+                        Abstract: {article.abstract or "No abstract available"}"""
         
         # Create evaluation prompt
         eval_prompt = f"""{discriminator}
 
-Article to evaluate:
-{article_text}
+        Article to evaluate:
+        {article_text}
 
-Respond in JSON format:
-{{
-    "decision": "Yes" or "No",
-    "confidence": 0.0 to 1.0,
-    "reasoning": "Brief explanation"
-}}"""
+        Respond in JSON format:
+        {{
+            "decision": "Yes" or "No",
+            "confidence": 0.0 to 1.0,
+            "reasoning": "Brief explanation"
+        }}"""
         
         # Create prompt caller for structured response
         response_schema = {

@@ -364,122 +364,105 @@ export function SearchResults({
     );
 
     return (
-        <div className="space-y-6">
-            {/* Search Header with Query Editing */}
+        <div className="space-y-3">
+            {/* Search Query */}
             <Card className="p-4">
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                                Search Results
-                            </h2>
-                            <div className="flex items-center gap-4 text-sm">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Source: <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
-                                </span>
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Total Available: <strong className="text-gray-900 dark:text-white">{pagination.total_available.toLocaleString()}</strong>
-                                </span>
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Retrieved: <strong className="text-gray-900 dark:text-white">{articles.length.toLocaleString()}</strong>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Query Display/Edit */}
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium">Search Query</Label>
-                        {isEditingQuery ? (
-                            <div className="flex gap-2">
-                                <Textarea
-                                    value={editedQuery}
-                                    onChange={(e) => setEditedQuery(e.target.value)}
-                                    rows={3}
-                                    className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                />
-                                <div className="flex flex-col gap-2">
-                                    <Button
-                                        onClick={handleQueryEdit}
-                                        disabled={isSearching || !editedQuery.trim()}
-                                        size="sm"
-                                        className="whitespace-nowrap"
-                                    >
-                                        {isSearching ? (
-                                            <>
-                                                <div className="animate-spin mr-2 h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                                Searching...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Search className="w-3 h-3 mr-2" />
-                                                Search
-                                            </>
-                                        )}
-                                    </Button>
-                                    <Button
-                                        onClick={handleCancelEdit}
-                                        variant="outline"
-                                        size="sm"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex items-start gap-2">
-                                <div className="flex-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border">
-                                    <code className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                                        {query}
-                                    </code>
-                                </div>
+                <div className="space-y-3">
+                    <Label className="text-base font-semibold text-gray-900 dark:text-white">Search Query</Label>
+                    {isEditingQuery ? (
+                        <div className="flex gap-2">
+                            <Textarea
+                                value={editedQuery}
+                                onChange={(e) => setEditedQuery(e.target.value)}
+                                rows={3}
+                                className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                            />
+                            <div className="flex flex-col gap-2">
                                 <Button
                                     onClick={handleQueryEdit}
+                                    disabled={isSearching || !editedQuery.trim()}
+                                    size="sm"
+                                    className="whitespace-nowrap"
+                                >
+                                    {isSearching ? (
+                                        <>
+                                            <div className="animate-spin mr-2 h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                                            Searching...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Search className="w-3 h-3 mr-2" />
+                                            Search
+                                        </>
+                                    )}
+                                </Button>
+                                <Button
+                                    onClick={handleCancelEdit}
                                     variant="outline"
                                     size="sm"
-                                    className="flex-shrink-0"
                                 >
-                                    <Edit className="w-3 h-3 mr-2" />
-                                    Edit
+                                    Cancel
                                 </Button>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-start gap-2">
+                            <div className="flex-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border">
+                                <code className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                                    {query}
+                                </code>
+                            </div>
+                            <Button
+                                onClick={handleQueryEdit}
+                                variant="outline"
+                                size="sm"
+                                className="flex-shrink-0"
+                            >
+                                <Edit className="w-3 h-3 mr-2" />
+                                Edit
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </Card>
 
-            {/* View Controls and AI Columns */}
-            <Card className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                        <Label className="text-sm font-medium">View:</Label>
-                        <div className="flex items-center gap-1">
-                            <Button
-                                variant={displayMode === 'table' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setDisplayMode('table')}
-                            >
-                                <Table className="w-4 h-4" />
-                            </Button>
-                            <Button
-                                variant={displayMode === 'card-compressed' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setDisplayMode('card-compressed')}
-                            >
-                                <List className="w-4 h-4" />
-                            </Button>
-                            <Button
-                                variant={displayMode === 'card-full' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setDisplayMode('card-full')}
-                            >
-                                <Grid className="w-4 h-4" />
-                            </Button>
-                        </div>
+            {/* Compact Controls Bar */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                {/* Left: Source and Counts */}
+                <div className="flex items-center gap-4 text-sm">
+                    <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
+                    <span className="text-gray-600 dark:text-gray-400">
+                        {pagination.total_available.toLocaleString()} total • {articles.length.toLocaleString()} retrieved
+                    </span>
+                </div>
+                
+                {/* Right: View Controls and AI Columns */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant={displayMode === 'table' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setDisplayMode('table')}
+                        >
+                            <Table className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setDisplayMode('card-compressed')}
+                        >
+                            <List className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant={displayMode === 'card-full' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setDisplayMode('card-full')}
+                        >
+                            <Grid className="w-4 h-4" />
+                        </Button>
                     </div>
-
                     <Button
-                        variant="outline"
+                        variant={showColumns ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setShowColumns(!showColumns)}
                     >
@@ -487,11 +470,13 @@ export function SearchResults({
                         AI Columns
                     </Button>
                 </div>
+            </div>
 
-                {/* AI Columns Panel */}
-                <Collapsible open={showColumns} onOpenChange={setShowColumns}>
-                    <CollapsibleContent>
-                        <div className="border-t pt-4 space-y-4">
+            {/* AI Columns Panel */}
+            <Collapsible open={showColumns} onOpenChange={setShowColumns}>
+                <CollapsibleContent>
+                    <Card className="p-4">
+                        <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div>
                                     <Label className="text-sm">Feature Name</Label>
@@ -580,12 +565,12 @@ export function SearchResults({
                                 </div>
                             )}
                         </div>
-                    </CollapsibleContent>
-                </Collapsible>
-            </Card>
+                    </Card>
+                </CollapsibleContent>
+            </Collapsible>
 
             {/* Results Display */}
-            <Card className="p-6">
+            <Card className="p-4">
                 {isSearching ? (
                     <div className="text-center py-12">
                         <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
@@ -593,38 +578,18 @@ export function SearchResults({
                     </div>
                 ) : articles.length > 0 ? (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                Retrieved Articles ({articles.length.toLocaleString()})
-                            </h3>
-                            {pagination.has_more && onLoadMore && (
-                                <Button
-                                    onClick={onLoadMore}
-                                    variant="outline"
-                                    size="sm"
-                                >
-                                    Load More
-                                </Button>
-                            )}
-                        </div>
-
                         {displayMode === 'table' && renderTableView()}
                         {displayMode === 'card-compressed' && renderCardView(true)}
                         {displayMode === 'card-full' && renderCardView(false)}
 
-                        {pagination.has_more && (
+                        {pagination.has_more && onLoadMore && (
                             <div className="text-center pt-4 border-t">
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                                    Showing {articles.length.toLocaleString()} of {pagination.total_available.toLocaleString()} total articles
-                                </p>
-                                {onLoadMore && (
-                                    <Button
-                                        onClick={onLoadMore}
-                                        variant="outline"
-                                    >
-                                        Load More Articles
-                                    </Button>
-                                )}
+                                <Button
+                                    onClick={onLoadMore}
+                                    variant="outline"
+                                >
+                                    Load More Articles
+                                </Button>
                             </div>
                         )}
                     </div>

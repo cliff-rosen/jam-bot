@@ -17,14 +17,14 @@ function SmartSearch2Content() {
     isSearching,
     hasSearched,
     error,
-    executeSearch,
+    search,
     resetSearch,
     clearError,
     updateSearchQuery
   } = useSmartSearch2();
 
   const handleSearch = async () => {
-    await executeSearch();
+    await search();
   };
 
   const handleNewSearch = () => {

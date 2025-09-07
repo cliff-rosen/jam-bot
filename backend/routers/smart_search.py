@@ -196,7 +196,7 @@ class UpdateSearchKeywordHistoryRequest(BaseModel):
     search_keyword_history: List[SearchKeywordHistoryItem] = Field(..., description="Search keyword history to persist")
 
 @router.post("/evidence-spec", response_model=EvidenceSpecificationResponse)
-async def create_evidence_specification(
+async def create_evidence_spec(
     request: EvidenceSpecificationRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
@@ -246,7 +246,7 @@ async def create_evidence_specification(
         raise HTTPException(status_code=500, detail=f"Evidence specification failed: {str(e)}")
 
 
-@router.post("/generate-search-keywords", response_model=SearchKeywordsResponse)
+@router.post("/generate-keywords", response_model=SearchKeywordsResponse)
 async def generate_keywords(
     request: SearchKeywordsRequest,
     current_user = Depends(validate_token),

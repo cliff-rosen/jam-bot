@@ -110,7 +110,7 @@ interface SmartSearchActions {
   updateSearchKeywordHistory: (history: SearchKeywordHistoryItem[]) => void;
 
   // STEP 4: Search Execution
-  executeSearch: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
+  search: (offset?: number, maxResults?: number) => Promise<SearchExecutionResponse>;
 
   // STEP 5: Discriminator Generation
   generateDiscriminator: () => Promise<DiscriminatorGenerationResponse>;
@@ -510,7 +510,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setError(null);
 
     try {
-      const response = await smartSearchApi.createEvidenceSpecification({
+      const response = await smartSearchApi.createEvidenceSpec({
         query: originalQuestion,
         session_id: sessionId || undefined
       });
@@ -739,7 +739,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   }, [submittedSearchKeywords, submittedEvidenceSpec, generateOptimizedKeywords, searchKeywordHistory]);
 
   // Step 4: Search Execution
-  const executeSearch = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
+  const search = useCallback(async (offset = 0, maxResults?: number): Promise<SearchExecutionResponse> => {
     if (!submittedSearchKeywords.trim()) {
       throw new Error('Please provide search keywords');
     }
@@ -986,7 +986,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     generateOptimizedKeywords,
     optimizeAndAddToHistory,
     updateSearchKeywordHistory,
-    executeSearch,
+    search,
     generateDiscriminator,
     updateSubmittedDiscriminator,
     updateStrictness,

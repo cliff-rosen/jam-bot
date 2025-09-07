@@ -33,7 +33,7 @@ interface SmartSearch2Actions {
     updateSearchQuery: (query: string) => void;
 
     // SEARCH EXECUTION
-    executeSearch: () => Promise<void>;
+    search: () => Promise<void>;
     resetSearch: () => void;
 
     // ERROR HANDLING
@@ -72,7 +72,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setSearchQuery(query);
     }, []);
 
-    const executeSearch = useCallback(async () => {
+    const search = useCallback(async () => {
         if (!searchQuery.trim()) {
             setError('Please enter a search query');
             return;
@@ -126,7 +126,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // Actions
         updateSelectedSource,
         updateSearchQuery,
-        executeSearch,
+        search,
         resetSearch,
         clearError,
     };

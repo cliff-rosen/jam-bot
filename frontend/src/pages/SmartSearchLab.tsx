@@ -92,7 +92,7 @@ export default function SmartSearchLab() {
     smartSearch.updateStep('searching');
 
     try {
-      const results = await smartSearch.executeSearch();
+      const results = await smartSearch.search();
 
       if (results.articles.length === 0) {
         toast({
@@ -170,7 +170,7 @@ export default function SmartSearchLab() {
   const handleLoadMoreResults = async () => {
     try {
       const batchSize = smartSearch.selectedSource === 'google_scholar' ? 20 : 50;
-      const moreResults = await smartSearch.executeSearch(
+      const moreResults = await smartSearch.search(
         smartSearch.searchResults?.articles.length || 0,
         batchSize
       );

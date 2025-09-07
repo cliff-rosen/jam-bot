@@ -440,7 +440,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
         // Need to restore search results when going back to search-results step
         if (session.submitted_search_keywords || session.generated_search_keywords) {
           try {
-            const searchResponse = await smartSearchApi.executeSearch({
+            const searchResponse = await smartSearchApi.search({
               search_keywords: session.submitted_search_keywords || session.generated_search_keywords || '',
               max_results: 50,
               offset: 0,
@@ -770,7 +770,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
       }
 
       const batchSize = maxResults || (selectedSource === 'google_scholar' ? 20 : 50);
-      const results = await smartSearchApi.executeSearch({
+      const results = await smartSearchApi.search({
         search_keywords: submittedSearchKeywords,
         max_results: batchSize,
         offset: offset,

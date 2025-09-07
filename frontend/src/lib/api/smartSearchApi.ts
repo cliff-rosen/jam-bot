@@ -226,8 +226,8 @@ class SmartSearchApi {
   /**
    * Step 5: Execute search with boolean query
    */
-  async executeSearch(request: SearchExecutionRequest): Promise<SearchExecutionResponse> {
-    const response = await api.post('/api/lab/smart-search/execute', request);
+  async search(request: SearchExecutionRequest): Promise<SearchExecutionResponse> {
+    const response = await api.post('/api/lab/smart-search/search', request);
     return response.data;
   }
 

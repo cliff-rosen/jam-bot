@@ -59,25 +59,6 @@ class SmartSearch2Api {
         return response.data;
     }
 
-    /**
-     * Direct search using GET method (for simple queries)
-     */
-    async searchGet(
-        query: string,
-        source: 'pubmed' | 'google_scholar',
-        maxResults: number = 50,
-        offset: number = 0
-    ): Promise<DirectSearchResponse> {
-        const params = new URLSearchParams({
-            query,
-            source,
-            max_results: maxResults.toString(),
-            offset: offset.toString()
-        });
-
-        const response = await api.get(`/api/smart-search-2/search?${params}`);
-        return response.data;
-    }
 
     /**
      * Generate evidence specification from research question

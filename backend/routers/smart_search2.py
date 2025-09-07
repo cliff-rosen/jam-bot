@@ -68,7 +68,7 @@ class KeywordGenerationResponse(BaseModel):
 # ============================================================================
 
 @router.post("/search", response_model=DirectSearchResponse)
-async def direct_search(
+async def search(
     request: DirectSearchRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
@@ -119,30 +119,6 @@ async def direct_search(
     except Exception as e:
         logger.error(f"Direct search failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-
-
-@router.get("/search", response_model=DirectSearchResponse)
-async def direct_search_get(
-    query: str = Query(..., description="Search query"),
-    source: str = Query(..., description="Search source: 'pubmed' or 'google_scholar'"),
-    max_results: int = Query(50, ge=1, le=100, description="Maximum results to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination"),
-    current_user = Depends(validate_token),
-    db: Session = Depends(get_db)
-) -> DirectSearchResponse:
-    """
-    Direct search (GET method) - same as POST but using query parameters
-    
-    Useful for simple searches or browser testing.
-    """
-    request = DirectSearchRequest(
-        query=query,
-        source=source,
-        max_results=max_results,
-        offset=offset
-    )
-    
-    return await direct_search(request, current_user, db)
 
 
 @router.post("/evidence-spec", response_model=EvidenceSpecResponse)

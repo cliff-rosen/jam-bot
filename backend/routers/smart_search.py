@@ -405,8 +405,8 @@ async def generate_optimized_keywords(
         raise HTTPException(status_code=500, detail=f"Optimized keywords generation failed: {str(e)}")
 
 
-@router.post("/execute", response_model=SearchExecutionResponse)
-async def execute_search(
+@router.post("/search", response_model=SearchExecutionResponse)
+async def search(
     request: SearchExecutionRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)

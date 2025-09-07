@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
-import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 
 interface KeywordHelperProps {
     onComplete: () => void;
@@ -20,7 +19,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [step, setStep] = useState<'question' | 'evidence' | 'keywords'>('question');
     const [error, setError] = useState<string | null>(null);
 
-    const { selectedSource, updateSearchQuery } = useSmartSearch2();
+    const { selectedSource, updateSearchQuery, createEvidenceSpec, generateKeywords } = useSmartSearch2();
 
     const handleGenerateEvidenceSpec = async () => {
         if (!researchQuestion.trim()) {
@@ -32,10 +31,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // Use the same backend logic as main SmartSearch
-            const response = await smartSearch2Api.createEvidenceSpec({
-                query: researchQuestion
-            });
+            // Use context method
+            const response = await createEvidenceSpec(researchQuestion);
 
             setEvidenceSpec(response.evidence_specification);
             setStep('evidence');
@@ -57,11 +54,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // Use the same backend logic as main SmartSearch
-            const response = await smartSearch2Api.generateKeywords({
-                evidence_specification: evidenceSpec,
-                source: selectedSource
-            });
+            // Use context method
+            const response = await generateKeywords(evidenceSpec, selectedSource);
 
             setGeneratedKeywords(response.search_keywords);
             setStep('keywords');

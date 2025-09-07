@@ -32,6 +32,10 @@ interface SmartSearch2Actions {
     updateSelectedSource: (source: 'pubmed' | 'google_scholar') => void;
     updateSearchQuery: (query: string) => void;
 
+    // AI HELPER METHODS
+    createEvidenceSpec: (query: string) => Promise<{ original_query: string; evidence_specification: string; }>;
+    generateKeywords: (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => Promise<{ evidence_specification: string; search_keywords: string; source: string; }>;
+
     // SEARCH EXECUTION
     search: () => Promise<void>;
     resetSearch: () => void;
@@ -108,6 +112,31 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
     }, []);
 
+    const createEvidenceSpec = useCallback(async (query: string) => {
+        try {
+            const response = await smartSearch2Api.createEvidenceSpec({ query });
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate evidence specification';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
+    const generateKeywords = useCallback(async (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => {
+        try {
+            const response = await smartSearch2Api.generateKeywords({
+                evidence_specification: evidenceSpec,
+                source
+            });
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -126,6 +155,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // Actions
         updateSelectedSource,
         updateSearchQuery,
+        createEvidenceSpec,
+        generateKeywords,
         search,
         resetSearch,
         clearError,

@@ -53,7 +53,7 @@ export default function SmartSearchLab() {
   // Step 2: Generate search keywords from evidence specification
   const handleGenerateKeywords = async (source?: string) => {
     try {
-      const response = await smartSearch.generateSearchKeywords(source);
+      const response = await smartSearch.generateKeywords(source);
 
       // Move to next step
       smartSearch.updateStep('search-query');

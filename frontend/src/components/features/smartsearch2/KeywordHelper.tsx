@@ -33,7 +33,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
 
         try {
             // Use the same backend logic as main SmartSearch
-            const response = await smartSearch2Api.createEvidenceSpecification({
+            const response = await smartSearch2Api.createEvidenceSpec({
                 query: researchQuestion
             });
 

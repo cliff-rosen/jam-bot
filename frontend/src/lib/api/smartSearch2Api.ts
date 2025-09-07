@@ -82,8 +82,8 @@ class SmartSearch2Api {
     /**
      * Generate evidence specification from research question
      */
-    async createEvidenceSpecification(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
-        const response = await api.post('/api/smart-search-2/evidence-specification', request);
+    async createEvidenceSpec(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
+        const response = await api.post('/api/smart-search-2/evidence-spec', request);
         return response.data;
     }
 

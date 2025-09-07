@@ -98,7 +98,7 @@ interface SmartSearchActions {
   updateSubmittedEvidenceSpec: (spec: string) => void;
 
   // STEP 2: Search Keyword Generation  
-  generateSearchKeywords: (source?: string) => Promise<SearchKeywordsWithCountResponse>;
+  generateKeywords: (source?: string) => Promise<SearchKeywordsWithCountResponse>;
   updateSubmittedSearchKeywords: (keywords: string) => void;
   updateSelectedSource: (source: string) => void;
 
@@ -535,7 +535,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   }, []);
 
   // Step 2: Search Keyword Generation with automatic count testing
-  const generateSearchKeywords = useCallback(async (source?: string): Promise<SearchKeywordsWithCountResponse> => {
+  const generateKeywords = useCallback(async (source?: string): Promise<SearchKeywordsWithCountResponse> => {
     if (!submittedEvidenceSpec.trim()) {
       throw new Error('Please provide an evidence specification');
     }
@@ -552,7 +552,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     setError(null);
 
     try {
-      const response = await smartSearchApi.generateSearchKeywords({
+      const response = await smartSearchApi.generateKeywords({
         evidence_specification: submittedEvidenceSpec,
         session_id: sessionId,
         selected_sources: [source || selectedSource]
@@ -978,7 +978,7 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     generateEvidenceSpecification,
     updateOriginalQuestion,
     updateSubmittedEvidenceSpec,
-    generateSearchKeywords,
+    generateKeywords,
     updateSubmittedSearchKeywords,
     updateSelectedSource,
     testKeywordsCount,

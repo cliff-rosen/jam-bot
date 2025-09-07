@@ -195,7 +195,7 @@ class UpdateSearchKeywordHistoryRequest(BaseModel):
     """Request to update search keyword history"""
     search_keyword_history: List[SearchKeywordHistoryItem] = Field(..., description="Search keyword history to persist")
 
-@router.post("/create-evidence-spec", response_model=EvidenceSpecificationResponse)
+@router.post("/evidence-spec", response_model=EvidenceSpecificationResponse)
 async def create_evidence_specification(
     request: EvidenceSpecificationRequest,
     current_user = Depends(validate_token),

@@ -195,14 +195,14 @@ class SmartSearchApi {
    * Step 1: Create evidence specification from user query
    */
   async createEvidenceSpecification(request: EvidenceSpecificationRequest): Promise<EvidenceSpecificationResponse> {
-    const response = await api.post('/api/lab/smart-search/create-evidence-spec', request);
+    const response = await api.post('/api/lab/smart-search/evidence-spec', request);
     return response.data;
   }
 
   /**
    * Step 2: Generate search keywords from evidence specification
    */
-  async generateSearchKeywords(request: SearchKeywordsRequest): Promise<SearchKeywordsResponse> {
+  async generateKeywords(request: SearchKeywordsRequest): Promise<SearchKeywordsResponse> {
     const response = await api.post('/api/lab/smart-search/generate-search-keywords', request);
     return response.data;
   }

@@ -145,8 +145,8 @@ async def direct_search_get(
     return await direct_search(request, current_user, db)
 
 
-@router.post("/evidence-specification", response_model=EvidenceSpecResponse)
-async def create_evidence_specification(
+@router.post("/evidence-spec", response_model=EvidenceSpecResponse)
+async def create_evidence_spec(
     request: EvidenceSpecRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
@@ -188,7 +188,7 @@ async def create_evidence_specification(
 
 
 @router.post("/generate-keywords", response_model=KeywordGenerationResponse)
-async def generate_search_keywords(
+async def generate_keywords(
     request: KeywordGenerationRequest,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)

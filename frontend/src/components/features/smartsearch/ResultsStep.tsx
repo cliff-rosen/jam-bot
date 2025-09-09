@@ -402,7 +402,6 @@ export function ResultsStep({
         variant: 'destructive'
       });
     } finally {
-      setIsExtracting(false);
       setExtractionProgress(null);
     }
   };

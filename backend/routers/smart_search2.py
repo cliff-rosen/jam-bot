@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from database import get_db
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.smart_search import SearchPaginationInfo
-from types.workbench import FeatureDefinition
+from schemas.workbench import FeatureDefinition
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
 

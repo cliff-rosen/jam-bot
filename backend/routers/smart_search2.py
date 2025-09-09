@@ -64,6 +64,16 @@ class KeywordGenerationResponse(BaseModel):
     search_keywords: str = Field(..., description="Generated search keywords")
     source: str = Field(..., description="Target source")
 
+class FeatureExtractionRequest(BaseModel):
+    """Request for feature extraction from articles"""
+    articles: List[CanonicalResearchArticle] = Field(..., description="Articles to extract features from")
+    features: List[FeatureDefinition] = Field(..., description="Feature definitions to extract")
+
+class FeatureExtractionResponse(BaseModel):
+    """Response from feature extraction"""
+    results: dict = Field(..., description="Extracted features: article_id -> feature_name -> value")
+    extraction_metadata: dict = Field(..., description="Metadata about the extraction process")
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
@@ -212,3 +222,77 @@ async def generate_keywords(
     except Exception as e:
         logger.error(f"Keyword generation failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Keyword generation failed: {str(e)}")
+
+
+@router.post("/extract-features", response_model=FeatureExtractionResponse)
+async def extract_features(
+    request: FeatureExtractionRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> FeatureExtractionResponse:
+    """
+    Extract AI features from articles without session management.
+    
+    This endpoint allows direct feature extraction from a list of articles
+    using custom AI features - perfect for SmartSearch2's session-less approach.
+    
+    Args:
+        request: Feature extraction request with articles and feature definitions
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        FeatureExtractionResponse with extracted feature data
+        
+    Raises:
+        HTTPException: If extraction fails
+    """
+    try:
+        logger.info(f"User {current_user.user_id} extracting {len(request.features)} features from {len(request.articles)} articles")
+        
+        if not request.features:
+            raise HTTPException(status_code=400, detail="At least one feature definition is required")
+        
+        if not request.articles:
+            raise HTTPException(status_code=400, detail="At least one article is required")
+        
+        # Convert articles to dict format expected by the service
+        articles_dict = []
+        for article in request.articles:
+            article_dict = {
+                'id': article.id,
+                'title': article.title,
+                'abstract': article.abstract or "",
+                'authors': article.authors,
+                'journal': article.journal,
+                'publication_date': article.publication_date.isoformat() if article.publication_date else None,
+                'url': article.url
+            }
+            articles_dict.append(article_dict)
+        
+        # Use SmartSearchService to extract features
+        service = SmartSearchService()
+        results = await service.extract_features_parallel(
+            articles=articles_dict,
+            features=request.features
+        )
+        
+        # Calculate metadata
+        extraction_metadata = {
+            'total_articles': len(request.articles),
+            'features_extracted': len(request.features),
+            'successful_extractions': len(results)
+        }
+        
+        logger.info(f"Feature extraction completed for user {current_user.user_id}: {len(results)} successful extractions")
+        
+        return FeatureExtractionResponse(
+            results=results,
+            extraction_metadata=extraction_metadata
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Feature extraction failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Feature extraction failed: {str(e)}")

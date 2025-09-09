@@ -1,14 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
 import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
 import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
+import type { FeatureDefinition } from '@/types/workbench';
+import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 // Main content component that uses SmartSearch2Context
 function SmartSearch2Content() {
   const [showKeywordHelper, setShowKeywordHelper] = useState(false);
+  const { toast } = useToast();
+  
+  // SearchResults UI state
+  const [isEditingQuery, setIsEditingQuery] = useState(false);
+  const [editedQuery, setEditedQuery] = useState('');
+  const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const {
     selectedSource,
@@ -17,10 +28,17 @@ function SmartSearch2Content() {
     isSearching,
     hasSearched,
     error,
+    appliedFeatures,
+    pendingFeatures,
+    extractedData,
+    isExtracting,
     search,
     resetSearch,
     clearError,
-    updateSearchQuery
+    updateSearchQuery,
+    addPendingFeature,
+    removePendingFeature,
+    extractFeatures
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -36,6 +54,88 @@ function SmartSearch2Content() {
     // The KeywordHelper will update the context directly
     setShowKeywordHelper(false);
   };
+
+  // Feature extraction handlers
+  const handleAddFeature = (newFeature: Omit<FeatureDefinition, 'id'>) => {
+    if (!newFeature.name.trim() || !newFeature.description.trim()) {
+      toast({
+        title: 'Invalid Feature',
+        description: 'Please provide both name and description',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const feature: FeatureDefinition = {
+      ...newFeature,
+      id: generatePrefixedUUID('feat')
+    };
+
+    addPendingFeature(feature);
+  };
+
+  const handleExtractFeatures = async () => {
+    if (pendingFeatures.length === 0) {
+      toast({
+        title: 'No Features',
+        description: 'Add some features to extract first',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      const response = await extractFeatures();
+      toast({
+        title: 'Feature Extraction Complete',
+        description: `Successfully extracted ${response.extraction_metadata.features_extracted} features from ${response.extraction_metadata.successful_extractions} articles`,
+        variant: 'default'
+      });
+    } catch (error) {
+      toast({
+        title: 'Extraction Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // SearchResults handlers
+  const handleQueryEdit = () => {
+    if (isEditingQuery) {
+      if (editedQuery.trim() !== searchQuery.trim()) {
+        updateSearchQuery(editedQuery.trim());
+        handleSearch();
+      }
+      setIsEditingQuery(false);
+    } else {
+      setEditedQuery(searchQuery);
+      setIsEditingQuery(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedQuery(searchQuery);
+    setIsEditingQuery(false);
+  };
+
+  const handleEditedQueryChange = (value: string) => {
+    setEditedQuery(value);
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Update editedQuery when searchQuery changes
+  useEffect(() => {
+    setEditedQuery(searchQuery);
+  }, [searchQuery]);
 
   return (
     <div className="flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -122,6 +222,24 @@ function SmartSearch2Content() {
                 isSearching={isSearching}
                 onQueryUpdate={updateSearchQuery}
                 onSearch={handleSearch}
+                appliedFeatures={appliedFeatures}
+                pendingFeatures={pendingFeatures}
+                extractedData={extractedData}
+                isExtracting={isExtracting}
+                onAddFeature={handleAddFeature}
+                onRemovePendingFeature={removePendingFeature}
+                onExtractFeatures={handleExtractFeatures}
+                // UI state and handlers
+                isEditingQuery={isEditingQuery}
+                editedQuery={editedQuery}
+                displayMode={displayMode}
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onQueryEdit={handleQueryEdit}
+                onCancelEdit={handleCancelEdit}
+                onEditedQueryChange={handleEditedQueryChange}
+                onDisplayModeChange={setDisplayMode}
+                onSort={handleSort}
               />
             )
           )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,12 +20,9 @@ import {
     ArrowDown,
     X
 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-
 import type { CanonicalResearchArticle } from '@/types/canonical_types';
 import type { SearchPaginationInfo } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
-import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 
 interface SearchResultsProps {
@@ -37,6 +34,27 @@ interface SearchResultsProps {
     onQueryUpdate: (newQuery: string) => void;
     onSearch: () => void;
     onLoadMore?: () => void;
+    
+    // Feature extraction props
+    appliedFeatures: FeatureDefinition[];
+    pendingFeatures: FeatureDefinition[];
+    extractedData: Record<string, Record<string, any>>;
+    isExtracting: boolean;
+    onAddFeature: (feature: Omit<FeatureDefinition, 'id'>) => void;
+    onRemovePendingFeature: (featureId: string) => void;
+    onExtractFeatures: () => void;
+    
+    // UI state (now managed by parent)
+    isEditingQuery: boolean;
+    editedQuery: string;
+    displayMode: 'table' | 'card-compressed' | 'card-full';
+    sortColumn: string;
+    sortDirection: 'asc' | 'desc';
+    onQueryEdit: () => void;
+    onCancelEdit: () => void;
+    onEditedQueryChange: (value: string) => void;
+    onDisplayModeChange: (mode: 'table' | 'card-compressed' | 'card-full') => void;
+    onSort: (column: string) => void;
 }
 
 export function SearchResults({
@@ -45,24 +63,27 @@ export function SearchResults({
     query,
     source,
     isSearching,
-    onQueryUpdate,
-    onSearch,
-    onLoadMore
+    onLoadMore,
+    appliedFeatures,
+    pendingFeatures,
+    extractedData,
+    isExtracting,
+    onAddFeature,
+    onRemovePendingFeature,
+    onExtractFeatures,
+    isEditingQuery,
+    editedQuery,
+    displayMode,
+    sortColumn,
+    sortDirection,
+    onQueryEdit,
+    onCancelEdit,
+    onEditedQueryChange,
+    onSort
 }: SearchResultsProps) {
-    const { toast } = useToast();
-
-    // UI State
-    const [isEditingQuery, setIsEditingQuery] = useState(false);
-    const [editedQuery, setEditedQuery] = useState(query);
-    const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
 
     // AI Columns State
     const [showColumns, setShowColumns] = useState(false);
-    const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
-    const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
-    const [isExtracting, setIsExtracting] = useState(false);
-    const [extractedData] = useState<Record<string, Record<string, any>>>({});
-
     const [newFeature, setNewFeature] = useState<FeatureDefinition>({
         id: '',
         name: '',
@@ -70,49 +91,19 @@ export function SearchResults({
         type: 'text'
     });
 
-    // Sorting
-    const [sortColumn, setSortColumn] = useState<string>('');
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
-    // Update edited query when prop changes
-    useEffect(() => {
-        setEditedQuery(query);
-    }, [query]);
-
-    const handleQueryEdit = () => {
-        if (isEditingQuery) {
-            if (editedQuery.trim() !== query.trim()) {
-                onQueryUpdate(editedQuery.trim());
-                onSearch();
-            }
-            setIsEditingQuery(false);
-        } else {
-            setIsEditingQuery(true);
-        }
-    };
-
-    const handleCancelEdit = () => {
-        setEditedQuery(query);
-        setIsEditingQuery(false);
-    };
 
     // AI Columns functionality
     const handleAddFeature = () => {
         if (!newFeature.name.trim() || !newFeature.description.trim()) {
-            toast({
-                title: 'Invalid Feature',
-                description: 'Please provide both name and description',
-                variant: 'destructive'
-            });
             return;
         }
 
-        const feature: FeatureDefinition = {
-            ...newFeature,
-            id: generatePrefixedUUID('feat')
-        };
+        onAddFeature({
+            name: newFeature.name,
+            description: newFeature.description,
+            type: newFeature.type
+        });
 
-        setPendingFeatures([...pendingFeatures, feature]);
         setNewFeature({
             id: '',
             name: '',
@@ -121,54 +112,6 @@ export function SearchResults({
         });
     };
 
-    const handleRemovePendingFeature = (featureId: string) => {
-        setPendingFeatures(pendingFeatures.filter(f => f.id !== featureId));
-    };
-
-    const handleExtractFeatures = async () => {
-        if (pendingFeatures.length === 0) {
-            toast({
-                title: 'No Features',
-                description: 'Add some features to extract first',
-                variant: 'destructive'
-            });
-            return;
-        }
-
-        setIsExtracting(true);
-        try {
-            // Since SmartSearch2 doesn't have sessions, we'll need to implement a simpler extraction
-            // For now, we'll simulate the extraction with mock data
-            toast({
-                title: 'Feature Extraction',
-                description: 'AI column extraction is not yet implemented for SmartSearch2',
-                variant: 'default'
-            });
-
-            // Move pending features to applied
-            setAppliedFeatures([...appliedFeatures, ...pendingFeatures]);
-            setPendingFeatures([]);
-
-        } catch (error) {
-            toast({
-                title: 'Extraction Failed',
-                description: error instanceof Error ? error.message : 'Unknown error',
-                variant: 'destructive'
-            });
-        } finally {
-            setIsExtracting(false);
-        }
-    };
-
-    // Sorting functionality
-    const handleSort = (column: string) => {
-        if (sortColumn === column) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(column);
-            setSortDirection('asc');
-        }
-    };
 
     const getSortedArticles = () => {
         if (!sortColumn) return articles;
@@ -212,7 +155,7 @@ export function SearchResults({
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
                             <button
-                                onClick={() => handleSort('title')}
+                                onClick={() => onSort('title')}
                                 className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Title
@@ -223,7 +166,7 @@ export function SearchResults({
                         </th>
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
                             <button
-                                onClick={() => handleSort('authors')}
+                                onClick={() => onSort('authors')}
                                 className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Authors
@@ -234,7 +177,7 @@ export function SearchResults({
                         </th>
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
                             <button
-                                onClick={() => handleSort('year')}
+                                onClick={() => onSort('year')}
                                 className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Year
@@ -245,7 +188,7 @@ export function SearchResults({
                         </th>
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
                             <button
-                                onClick={() => handleSort('journal')}
+                                onClick={() => onSort('journal')}
                                 className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Journal
@@ -373,13 +316,13 @@ export function SearchResults({
                         <div className="flex gap-2">
                             <Textarea
                                 value={editedQuery}
-                                onChange={(e) => setEditedQuery(e.target.value)}
+                                onChange={(e) => onEditedQueryChange(e.target.value)}
                                 rows={3}
                                 className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                             />
                             <div className="flex flex-col gap-2">
                                 <Button
-                                    onClick={handleQueryEdit}
+                                    onClick={onQueryEdit}
                                     disabled={isSearching || !editedQuery.trim()}
                                     size="sm"
                                     className="whitespace-nowrap"
@@ -397,7 +340,7 @@ export function SearchResults({
                                     )}
                                 </Button>
                                 <Button
-                                    onClick={handleCancelEdit}
+                                    onClick={onCancelEdit}
                                     variant="outline"
                                     size="sm"
                                 >
@@ -413,7 +356,7 @@ export function SearchResults({
                                 </code>
                             </div>
                             <Button
-                                onClick={handleQueryEdit}
+                                onClick={onQueryEdit}
                                 variant="outline"
                                 size="sm"
                                 className="flex-shrink-0"
@@ -526,7 +469,7 @@ export function SearchResults({
 
                                 {pendingFeatures.length > 0 && (
                                     <Button
-                                        onClick={handleExtractFeatures}
+                                        onClick={onExtractFeatures}
                                         disabled={isExtracting}
                                         size="sm"
                                         className="bg-blue-600 hover:bg-blue-700"
@@ -554,7 +497,7 @@ export function SearchResults({
                                             <Badge key={feature.id} variant="secondary" className="flex items-center gap-1">
                                                 {feature.name}
                                                 <button
-                                                    onClick={() => handleRemovePendingFeature(feature.id)}
+                                                    onClick={() => onRemovePendingFeature(feature.id)}
                                                     className="ml-1 hover:text-red-600"
                                                 >
                                                     <X className="w-3 h-3" />

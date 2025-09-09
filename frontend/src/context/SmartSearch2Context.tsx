@@ -7,7 +7,8 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
-import type { DirectSearchResponse } from '@/lib/api/smartSearch2Api';
+import type { DirectSearchResponse, FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
+import type { FeatureDefinition } from '@/types/workbench';
 
 // ================== STATE INTERFACE ==================
 
@@ -19,6 +20,12 @@ interface SmartSearch2State {
     // SEARCH EXECUTION
     searchResults: DirectSearchResponse | null;
     isSearching: boolean;
+
+    // FEATURE EXTRACTION
+    appliedFeatures: FeatureDefinition[];
+    pendingFeatures: FeatureDefinition[];
+    extractedData: Record<string, Record<string, any>>;
+    isExtracting: boolean;
 
     // UI STATE
     hasSearched: boolean;
@@ -39,6 +46,11 @@ interface SmartSearch2Actions {
     // SEARCH EXECUTION
     search: () => Promise<void>;
     resetSearch: () => void;
+
+    // FEATURE EXTRACTION
+    addPendingFeature: (feature: FeatureDefinition) => void;
+    removePendingFeature: (featureId: string) => void;
+    extractFeatures: () => Promise<FeatureExtractionResponse>;
 
     // ERROR HANDLING
     clearError: () => void;
@@ -65,6 +77,12 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Feature extraction state
+    const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
+    const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
+    const [extractedData, setExtractedData] = useState<Record<string, Record<string, any>>>({});
+    const [isExtracting, setIsExtracting] = useState(false);
 
     // ================== ACTIONS ==================
 
@@ -110,6 +128,11 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setSearchResults(null);
         setHasSearched(false);
         setError(null);
+        // Clear feature extraction state
+        setAppliedFeatures([]);
+        setPendingFeatures([]);
+        setExtractedData({});
+        setIsExtracting(false);
     }, []);
 
     const createEvidenceSpec = useCallback(async (query: string) => {
@@ -137,6 +160,45 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
+    const addPendingFeature = useCallback((feature: FeatureDefinition) => {
+        setPendingFeatures(prev => [...prev, feature]);
+    }, []);
+
+    const removePendingFeature = useCallback((featureId: string) => {
+        setPendingFeatures(prev => prev.filter(f => f.id !== featureId));
+    }, []);
+
+    const extractFeatures = useCallback(async (): Promise<FeatureExtractionResponse> => {
+        if (!searchResults?.articles.length) {
+            throw new Error('No articles available for feature extraction');
+        }
+
+        if (pendingFeatures.length === 0) {
+            throw new Error('No features selected for extraction');
+        }
+
+        setIsExtracting(true);
+        try {
+            const response = await smartSearch2Api.extractFeatures({
+                articles: searchResults.articles,
+                features: pendingFeatures
+            });
+
+            // Move pending features to applied and store extracted data
+            setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
+            setPendingFeatures([]);
+            setExtractedData(response.results);
+
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to extract features';
+            setError(errorMessage);
+            throw err;
+        } finally {
+            setIsExtracting(false);
+        }
+    }, [searchResults?.articles, pendingFeatures]);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -151,6 +213,10 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         isSearching,
         hasSearched,
         error,
+        appliedFeatures,
+        pendingFeatures,
+        extractedData,
+        isExtracting,
 
         // Actions
         updateSelectedSource,
@@ -159,6 +225,9 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         generateKeywords,
         search,
         resetSearch,
+        addPendingFeature,
+        removePendingFeature,
+        extractFeatures,
         clearError,
     };
 

@@ -7,6 +7,11 @@
 import { api } from './index';
 import type { CanonicalResearchArticle } from '@/types/canonical_types';
 import type { SearchPaginationInfo } from '@/types/smart-search';
+import type { FeatureDefinition } from '@/types/workbench';
+import type { 
+    FeatureExtractionRequest as BaseFeatureExtractionRequest, 
+    FeatureExtractionResponse as BaseFeatureExtractionResponse 
+} from './smartSearchApi';
 
 // ============================================================================
 // API Request/Response Models
@@ -46,6 +51,15 @@ export interface KeywordGenerationResponse {
     source: string;
 }
 
+// SmartSearch2-specific types (no session_id required)
+export interface FeatureExtractionRequest extends Omit<BaseFeatureExtractionRequest, 'session_id'> {
+    articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly
+}
+
+export interface FeatureExtractionResponse extends Omit<BaseFeatureExtractionResponse, 'session_id'> {
+    // Inherits results and extraction_metadata from base type
+}
+
 // ============================================================================
 // API Client Implementation
 // ============================================================================
@@ -73,6 +87,14 @@ class SmartSearch2Api {
      */
     async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
         const response = await api.post('/api/smart-search-2/generate-keywords', request);
+        return response.data;
+    }
+
+    /**
+     * Extract AI features from articles
+     */
+    async extractFeatures(request: FeatureExtractionRequest): Promise<FeatureExtractionResponse> {
+        const response = await api.post('/api/smart-search-2/extract-features', request);
         return response.data;
     }
 }

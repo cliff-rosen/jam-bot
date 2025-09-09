@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSmartSearch } from '@/context/SmartSearchContext';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,6 @@ import { useToast } from '@/components/ui/use-toast';
 import type { FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
-import { smartSearchApi } from '@/lib/api/smartSearchApi';
 
 interface ResultsStepProps {
   filteredArticles: FilteredArticle[];
@@ -38,29 +38,35 @@ export function ResultsStep({
   totalRetrieved,
   totalFiltered,
   sessionId,
-  savedCustomColumns,
   searchLimitationNote
 }: ResultsStepProps) {
   const { toast } = useToast();
+  const {
+    appliedFeatures,
+    pendingFeatures,
+    isExtracting,
+    addPendingFeature,
+    removePendingFeature,
+    removeAppliedFeature,
+    extractFeatures: contextExtractFeatures
+  } = useSmartSearch();
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
   const [isRejectedOpen, setIsRejectedOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
-  
+
   // Local copy of filtered articles that we can modify when features are extracted
   const [localFilteredArticles, setLocalFilteredArticles] = useState<FilteredArticle[]>(filteredArticles);
-  
+
   // Sync local state when props change
   useEffect(() => {
     setLocalFilteredArticles(filteredArticles);
   }, [filteredArticles]);
 
+
   // Column/Feature management for table view
   const [showColumns, setShowColumns] = useState(false);
-  const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>(savedCustomColumns || []);
-  const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
-  const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number } | null>(null);
-  
+
   const [newFeature, setNewFeature] = useState<FeatureDefinition>({
     id: '',
     name: '',
@@ -136,14 +142,14 @@ export function ResultsStep({
     })
     .sort((a, b) => {
       if (!sortColumn) return 0;
-      
+
       const aValue = getColumnValue(a, sortColumn);
       const bValue = getColumnValue(b, sortColumn);
-      
+
       let comparison = 0;
       if (aValue < bValue) comparison = -1;
       if (aValue > bValue) comparison = 1;
-      
+
       return sortDirection === 'desc' ? -comparison : comparison;
     });
 
@@ -328,7 +334,7 @@ export function ResultsStep({
       id: generatePrefixedUUID('feat')
     };
 
-    setPendingFeatures(prev => [...prev, feature]);
+    addPendingFeature(feature);
     setNewFeature({
       id: '',
       name: '',
@@ -342,27 +348,9 @@ export function ResultsStep({
     });
   };
 
-  const removePendingFeature = (featureId: string) => {
-    setPendingFeatures(prev => prev.filter(f => f.id !== featureId));
-  };
+  // removePendingFeature is now from context
 
-  const removeAppliedFeature = async (featureId: string) => {
-    const updatedFeatures = appliedFeatures.filter(f => f.id !== featureId);
-    setAppliedFeatures(updatedFeatures);
-    
-    // Remove the feature from all articles' extracted_features
-    setLocalFilteredArticles(prev => prev.map(item => ({
-      ...item,
-      article: {
-        ...item.article,
-        extracted_features: item.article.extracted_features 
-          ? Object.fromEntries(
-              Object.entries(item.article.extracted_features).filter(([key]) => key !== featureId)
-            )
-          : undefined
-      }
-    })));
-  };
+  // removeAppliedFeature is now from context
 
   const submitAllPendingFeatures = async () => {
     if (pendingFeatures.length === 0) {
@@ -383,44 +371,17 @@ export function ResultsStep({
       return;
     }
 
-    setIsExtracting(true);
     setExtractionProgress({ current: 0, total: pendingFeatures.length * acceptedArticles.length });
 
     try {
-      // Call the backend API to extract features
-      const response = await smartSearchApi.extractFeatures({
-        session_id: sessionId,
-        features: pendingFeatures
-      });
+      // Use context's extractFeatures method
+      const response = await contextExtractFeatures();
 
-      // Update articles directly with extracted features
-      setLocalFilteredArticles(prev => prev.map(item => {
-        const articleId = item.article.id;
-        const newFeatures = response.results[articleId];
-        
-        if (newFeatures) {
-          return {
-            ...item,
-            article: {
-              ...item.article,
-              extracted_features: {
-                ...item.article.extracted_features,
-                ...newFeatures
-              }
-            }
-          };
-        } else {
-          console.warn(`No extraction results found for article: ${articleId}`);
-          return item;
-        }
-      }));
+      // Update local filtered articles with the updated data from context
+      setLocalFilteredArticles(filteredArticles);
 
-      // Move pending features to applied features
-      const updatedFeatures = [...appliedFeatures, ...pendingFeatures];
-      setAppliedFeatures(updatedFeatures);
       const extractedCount = pendingFeatures.length;
-      setPendingFeatures([]);
-      
+
       // Note: Column definitions and feature values are saved together in the extraction API call
       // No separate API call needed here
 
@@ -465,7 +426,7 @@ export function ResultsStep({
 
   const copyAcceptedTitles = async () => {
     const titles = acceptedArticles.map(item => item.article.title).join('\n');
-    
+
     try {
       // Try using the modern clipboard API
       await navigator.clipboard.writeText(titles);
@@ -483,7 +444,7 @@ export function ResultsStep({
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
-      
+
       try {
         const successful = document.execCommand('copy');
         if (successful) {
@@ -716,14 +677,14 @@ export function ResultsStep({
                 variant="outline"
                 size="sm"
                 disabled={displayMode !== 'table'}
-                className={displayMode === 'table' 
-                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0" 
+                className={displayMode === 'table'
+                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
                   : "opacity-50 cursor-not-allowed"}
               >
                 <Sparkles className="w-4 h-4 mr-1" />
                 AI+
               </Button>
-              
+
               {/* Filter Toggle - only show for table view */}
               {displayMode === 'table' && (
                 <Button
@@ -736,7 +697,7 @@ export function ResultsStep({
                   Filters
                 </Button>
               )}
-              
+
               {/* Display Mode Toggle - always on the right */}
               <div className="flex border rounded-lg ml-auto">
                 <Button
@@ -888,7 +849,7 @@ export function ResultsStep({
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="text-center mb-4">
                     <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
                       Processing {acceptedArticles.length} articles with {pendingFeatures.length} custom column{pendingFeatures.length !== 1 ? 's' : ''}
@@ -897,17 +858,17 @@ export function ResultsStep({
                       This may take a few moments...
                     </div>
                   </div>
-                  
+
                   <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-blue-600 to-purple-600 h-full rounded-full transition-all duration-700 ease-out"
-                      style={{ 
+                      style={{
                         width: extractionProgress ? `${(extractionProgress.current / extractionProgress.total) * 100}%` : '30%',
                         animation: extractionProgress ? 'none' : 'pulse 2s infinite'
                       }}
                     />
                   </div>
-                  
+
                   {extractionProgress && (
                     <div className="flex justify-between mt-2 text-xs text-blue-600 dark:text-blue-400">
                       <span>Progress</span>
@@ -1029,61 +990,61 @@ export function ResultsStep({
           {displayMode === 'card-full' && (
             <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-600">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {acceptedArticles.map((item, idx) => (
-                <Card key={idx} className="p-4 hover:shadow-md transition-shadow">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 leading-tight flex-1">
-                        {item.article.title}
-                      </h4>
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        {Math.round(item.confidence * 100)}%
-                      </Badge>
-                    </div>
-
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      <div className="font-medium mb-1">
-                        {item.article.authors.slice(0, 3).join(', ')}
-                        {item.article.authors.length > 3 && ' et al.'}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>{item.article.publication_year || 'N/A'}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {item.article.source}
+                {acceptedArticles.map((item, idx) => (
+                  <Card key={idx} className="p-4 hover:shadow-md transition-shadow">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 leading-tight flex-1">
+                          {item.article.title}
+                        </h4>
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {Math.round(item.confidence * 100)}%
                         </Badge>
                       </div>
-                    </div>
 
-                    {item.article.journal && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate">
-                        {item.article.journal}
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="font-medium mb-1">
+                          {item.article.authors.slice(0, 3).join(', ')}
+                          {item.article.authors.length > 3 && ' et al.'}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>{item.article.publication_year || 'N/A'}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {item.article.source}
+                          </Badge>
+                        </div>
                       </div>
-                    )}
 
-                    {item.article.abstract && (
-                      <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">
-                        {item.article.abstract}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Confidence: {Math.round(item.confidence * 100)}%
-                      </div>
-                      {item.article.url && (
-                        <a
-                          href={item.article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
+                      {item.article.journal && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate">
+                          {item.article.journal}
+                        </div>
                       )}
+
+                      {item.article.abstract && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">
+                          {item.article.abstract}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Confidence: {Math.round(item.confidence * 100)}%
+                        </div>
+                        {item.article.url && (
+                          <a
+                            href={item.article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                ))}
               </div>
             </div>
           )}
@@ -1102,7 +1063,7 @@ export function ResultsStep({
                   Clear All
                 </Button>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {[
                   { key: 'title', label: 'Title' },
@@ -1124,7 +1085,7 @@ export function ResultsStep({
                   </div>
                 ))}
               </div>
-              
+
               {Object.keys(columnFilters).some(key => columnFilters[key]) && (
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   Showing {sortedAndFilteredArticles.length} of {acceptedArticles.length} articles
@@ -1137,123 +1098,123 @@ export function ResultsStep({
           {displayMode === 'table' && (
             <div className="w-full border border-gray-200 dark:border-gray-600 border-t-0 rounded-b-lg bg-white dark:bg-gray-800 overflow-x-auto">
               <table className="w-full text-sm table-auto">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-600">
-                      {[
-                        { key: 'title', label: 'Title', sortable: true },
-                        { key: 'authors', label: 'Authors', sortable: true },
-                        { key: 'year', label: 'Year', sortable: true },
-                        { key: 'journal', label: 'Journal', sortable: true },
-                        { key: 'source', label: 'Source', sortable: true },
-                        { key: 'confidence', label: 'Confidence', sortable: true },
-                        { key: 'link', label: 'Link', sortable: false }
-                      ].map(({ key, label, sortable }) => (
-                        <th key={key} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
-                          {sortable ? (
-                            <button
-                              onClick={() => handleSort(key)}
-                              className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                            >
-                              <span>{label}</span>
-                              {sortColumn === key ? (
-                                sortDirection === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3" />
-                                ) : (
-                                  <ArrowDown className="w-3 h-3" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
-                              )}
-                            </button>
-                          ) : (
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-600">
+                    {[
+                      { key: 'title', label: 'Title', sortable: true },
+                      { key: 'authors', label: 'Authors', sortable: true },
+                      { key: 'year', label: 'Year', sortable: true },
+                      { key: 'journal', label: 'Journal', sortable: true },
+                      { key: 'source', label: 'Source', sortable: true },
+                      { key: 'confidence', label: 'Confidence', sortable: true },
+                      { key: 'link', label: 'Link', sortable: false }
+                    ].map(({ key, label, sortable }) => (
+                      <th key={key} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
+                        {sortable ? (
+                          <button
+                            onClick={() => handleSort(key)}
+                            className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                          >
                             <span>{label}</span>
-                          )}
-                        </th>
-                      ))}
-                      {appliedFeatures.map(feature => (
-                        <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
-                          <div className="flex items-center justify-between">
-                            <button
-                              onClick={() => handleSort(feature.id)}
-                              className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                            >
-                              <span>{feature.name}</span>
-                              {sortColumn === feature.id ? (
-                                sortDirection === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3" />
-                                ) : (
-                                  <ArrowDown className="w-3 h-3" />
-                                )
+                            {sortColumn === key ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="w-3 h-3" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
-                              )}
-                            </button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => removeAppliedFeature(feature.id)}
-                              className="ml-2 h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </th>
+                                <ArrowDown className="w-3 h-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-40" />
+                            )}
+                          </button>
+                        ) : (
+                          <span>{label}</span>
+                        )}
+                      </th>
+                    ))}
+                    {appliedFeatures.map(feature => (
+                      <th key={feature.id} className="text-left p-2 font-medium text-gray-600 dark:text-gray-300">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => handleSort(feature.id)}
+                            className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                          >
+                            <span>{feature.name}</span>
+                            {sortColumn === feature.id ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="w-3 h-3" />
+                              ) : (
+                                <ArrowDown className="w-3 h-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-40" />
+                            )}
+                          </button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeAppliedFeature(feature.id)}
+                            className="ml-2 h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAndFilteredArticles.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="p-2">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {item.article.title}
+                        </div>
+                      </td>
+                      <td className="p-2 text-gray-600 dark:text-gray-400">
+                        <div>
+                          {item.article.authors.slice(0, 2).join(', ')}
+                          {item.article.authors.length > 2 && ' et al.'}
+                        </div>
+                      </td>
+                      <td className="p-2 text-gray-600 dark:text-gray-400">
+                        {item.article.publication_year || 'N/A'}
+                      </td>
+                      <td className="p-2 text-gray-600 dark:text-gray-400">
+                        <div>
+                          {item.article.journal || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <Badge variant="outline" className="text-xs">
+                          {item.article.source}
+                        </Badge>
+                      </td>
+                      <td className="p-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round(item.confidence * 100)}%
+                        </Badge>
+                      </td>
+                      <td className="p-2">
+                        {item.article.url && (
+                          <a
+                            href={item.article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </td>
+                      {appliedFeatures.map(feature => (
+                        <td key={feature.id} className="p-2 text-gray-600 dark:text-gray-400">
+                          {renderFeatureValue(item, feature)}
+                        </td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {sortedAndFilteredArticles.map((item, idx) => (
-                      <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="p-2">
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
-                            {item.article.title}
-                          </div>
-                        </td>
-                        <td className="p-2 text-gray-600 dark:text-gray-400">
-                          <div>
-                            {item.article.authors.slice(0, 2).join(', ')}
-                            {item.article.authors.length > 2 && ' et al.'}
-                          </div>
-                        </td>
-                        <td className="p-2 text-gray-600 dark:text-gray-400">
-                          {item.article.publication_year || 'N/A'}
-                        </td>
-                        <td className="p-2 text-gray-600 dark:text-gray-400">
-                          <div>
-                            {item.article.journal || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="p-2">
-                          <Badge variant="outline" className="text-xs">
-                            {item.article.source}
-                          </Badge>
-                        </td>
-                        <td className="p-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {Math.round(item.confidence * 100)}%
-                          </Badge>
-                        </td>
-                        <td className="p-2">
-                          {item.article.url && (
-                            <a
-                              href={item.article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          )}
-                        </td>
-                        {appliedFeatures.map(feature => (
-                          <td key={feature.id} className="p-2 text-gray-600 dark:text-gray-400">
-                            {renderFeatureValue(item, feature)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

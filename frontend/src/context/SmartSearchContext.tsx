@@ -13,6 +13,7 @@ import type {
   SmartSearchStep,
   SearchKeywordHistoryItem
 } from '@/types/smart-search';
+import type { FeatureDefinition } from '@/types/workbench';
 import {
   mapBackendToFrontend,
   isStepBefore,
@@ -73,6 +74,12 @@ interface SmartSearchState {
   // SEARCH KEYWORD HISTORY (for SearchQueryStep)
   searchKeywordHistory: SearchKeywordHistoryItem[];
 
+  // FEATURE EXTRACTION
+  appliedFeatures: FeatureDefinition[];
+  pendingFeatures: FeatureDefinition[];
+  extractedData: Record<string, Record<string, any>>; // article_id -> feature_id -> value
+  isExtracting: boolean;
+
   // LOADING STATES
   evidenceSpecLoading: boolean;             // Loading AI evidence specification
   searchKeywordsLoading: boolean;           // Loading AI search keywords
@@ -121,7 +128,10 @@ interface SmartSearchActions {
   filterArticles: () => Promise<any>;
 
   // STEP 7: Feature Extraction
-  extractFeatures: (sessionId: string, features: any[]) => Promise<FeatureExtractionResponse>;
+  addPendingFeature: (feature: FeatureDefinition) => void;
+  removePendingFeature: (featureId: string) => void;
+  removeAppliedFeature: (featureId: string) => void;
+  extractFeatures: () => Promise<FeatureExtractionResponse>;
   updateSavedCustomColumns: (columns: any[]) => void;
 
   // UTILITY
@@ -182,6 +192,12 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [totalRetrieved, setTotalRetrieved] = useState<number | null>(null);
   const [savedCustomColumns, setSavedCustomColumns] = useState<any[]>([]);
 
+  // Feature extraction state
+  const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
+  const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
+  const [extractedData, setExtractedData] = useState<Record<string, Record<string, any>>>({});
+  const [isExtracting, setIsExtracting] = useState(false);
+
   // Search keyword history for SearchQueryStep
   const [searchKeywordHistory, setSearchKeywordHistory] = useState<SearchKeywordHistoryItem[]>([]);
 
@@ -196,6 +212,13 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
   const [error, setError] = useState<string | null>(null);
 
   // ================== EFFECTS ==================
+
+  // Sync appliedFeatures with savedCustomColumns when they change
+  useEffect(() => {
+    if (savedCustomColumns && savedCustomColumns.length > 0) {
+      setAppliedFeatures(savedCustomColumns);
+    }
+  }, [savedCustomColumns]);
 
   // Save selected source to localStorage when it changes
   useEffect(() => {
@@ -911,22 +934,92 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
 
 
   // Step 7: Feature Extraction
-  const extractFeatures = useCallback(async (sessionId: string, features: any[]): Promise<FeatureExtractionResponse> => {
+  const addPendingFeature = useCallback((feature: FeatureDefinition) => {
+    setPendingFeatures(prev => [...prev, feature]);
+  }, []);
+
+  const removePendingFeature = useCallback((featureId: string) => {
+    setPendingFeatures(prev => prev.filter(f => f.id !== featureId));
+  }, []);
+
+  const removeAppliedFeature = useCallback((featureId: string) => {
+    setAppliedFeatures(prev => prev.filter(f => f.id !== featureId));
+    // Remove from extracted data
+    setExtractedData(prev => {
+      const newData = { ...prev };
+      Object.keys(newData).forEach(articleId => {
+        if (newData[articleId][featureId]) {
+          delete newData[articleId][featureId];
+        }
+      });
+      return newData;
+    });
+    // Remove from filtered articles' extracted_features
+    setFilteredArticles(prev => prev.map(item => ({
+      ...item,
+      article: {
+        ...item.article,
+        extracted_features: item.article.extracted_features 
+          ? Object.fromEntries(
+              Object.entries(item.article.extracted_features).filter(([key]) => key !== featureId)
+            )
+          : undefined
+      }
+    })));
+  }, []);
+
+  const extractFeatures = useCallback(async (): Promise<FeatureExtractionResponse> => {
+    if (!sessionId) {
+      throw new Error('No session ID available');
+    }
+
+    if (pendingFeatures.length === 0) {
+      throw new Error('No features selected for extraction');
+    }
+
     setError(null);
+    setIsExtracting(true);
 
     try {
       const response = await smartSearchApi.extractFeatures({
         session_id: sessionId,
-        features: features
+        features: pendingFeatures
       });
+
+      // Move pending features to applied
+      setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
+      setPendingFeatures([]);
+      
+      // Store extracted data
+      setExtractedData(response.results);
+      
+      // Update filtered articles with extracted features
+      setFilteredArticles(prev => prev.map(item => {
+        const articleFeatures = response.results[item.article.id];
+        if (articleFeatures) {
+          return {
+            ...item,
+            article: {
+              ...item.article,
+              extracted_features: {
+                ...(item.article.extracted_features || {}),
+                ...articleFeatures
+              }
+            }
+          };
+        }
+        return item;
+      }));
 
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Feature extraction failed';
       setError(errorMessage);
       throw err;
+    } finally {
+      setIsExtracting(false);
     }
-  }, []);
+  }, [sessionId, pendingFeatures]);
 
   const updateSavedCustomColumns = useCallback((columns: any[]) => {
     setSavedCustomColumns(columns);
@@ -964,6 +1057,10 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     totalRetrieved,
     savedCustomColumns,
     searchKeywordHistory,
+    appliedFeatures,
+    pendingFeatures,
+    extractedData,
+    isExtracting,
     evidenceSpecLoading,
     searchKeywordsLoading,
     searchExecutionLoading,
@@ -991,6 +1088,9 @@ export function SmartSearchProvider({ children }: SmartSearchProviderProps) {
     updateSubmittedDiscriminator,
     updateStrictness,
     filterArticles,
+    addPendingFeature,
+    removePendingFeature,
+    removeAppliedFeature,
     extractFeatures,
     updateSavedCustomColumns,
     clearError,

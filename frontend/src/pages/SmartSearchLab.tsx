@@ -431,7 +431,6 @@ export default function SmartSearchLab() {
                 totalRetrieved={smartSearch.totalRetrieved}
                 totalFiltered={smartSearch.totalRetrieved || smartSearch.filteredArticles.length}
                 sessionId={smartSearch.sessionId || undefined}
-                savedCustomColumns={smartSearch.savedCustomColumns}
                 searchLimitationNote={smartSearch.searchLimitationNote}
               />
             </>

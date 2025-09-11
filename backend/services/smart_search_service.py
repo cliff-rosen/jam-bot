@@ -22,7 +22,7 @@ from schemas.canonical_types import CanonicalResearchArticle
 from schemas.chat import ChatMessage, MessageRole
 
 from agents.prompts.base_prompt_caller import BasePromptCaller, LLMUsage
-from config.llm_models import get_model_capabilities, supports_reasoning_effort
+from config.llm_models import get_task_config, supports_reasoning_effort
 
 from services.google_scholar_service import search_articles as search_scholar_articles
 from services.pubmed_service import search_articles as search_pubmed_articles
@@ -83,15 +83,15 @@ class SmartSearchService:
             "required": ["evidence_specification"]
         }
         
-        # Use GPT-5-mini for evidence spec generation
-        model_name = "gpt-5-mini"
+        # Get model config for evidence specification
+        task_config = get_task_config("smart_search", "evidence_spec")
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
             system_message=system_prompt,
-            model=model_name,
-            temperature=0.3,
-            reasoning_effort="medium" if supports_reasoning_effort(model_name) else None
+            model=task_config["model"],
+            temperature=task_config["temperature"],
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
         try:
@@ -238,15 +238,15 @@ class SmartSearchService:
             "required": ["search_query"]
         }
         
-        # Use GPT-5-mini for keyword generation
-        model_name = "gpt-5-mini"
+        # Get model config for keyword generation
+        task_config = get_task_config("smart_search", "keyword_generation")
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
             system_message=system_prompt,
-            model=model_name,
-            temperature=0.2,
-            reasoning_effort="low" if supports_reasoning_effort(model_name) else None
+            model=task_config["model"],
+            temperature=task_config["temperature"],
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
         try:
@@ -411,15 +411,15 @@ class SmartSearchService:
             "required": ["refined_query", "explanation"]
         }
         
-        # Use GPT-5-mini for keyword optimization
-        model_name = "gpt-5-mini"
+        # Get model config for keyword optimization
+        task_config = get_task_config("smart_search", "keyword_optimization")
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
             system_message=system_prompt,
-            model=model_name,
-            temperature=0.3,
-            reasoning_effort="medium" if supports_reasoning_effort(model_name) else None
+            model=task_config["model"],
+            temperature=task_config["temperature"],
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
         try:
@@ -704,20 +704,15 @@ class SmartSearchService:
             "required": ["decision", "confidence", "reasoning"]
         }
         
-        # Use GPT-5 for discriminator task with high reasoning effort for better accuracy
-        model_name = "gpt-5"  # Use full GPT-5 for critical filtering decisions
-        
-        # Determine reasoning effort based on model support
-        reasoning_effort = None
-        if supports_reasoning_effort(model_name):
-            reasoning_effort = "high"  # Use high effort for article evaluation
+        # Get model config for discriminator (filtering)
+        task_config = get_task_config("smart_search", "discriminator")
         
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
             system_message="You are a research article evaluator. Evaluate articles based on the given criteria.",
-            model=model_name,
-            temperature=0.1,  # Low temperature for consistent evaluation
-            reasoning_effort=reasoning_effort
+            model=task_config["model"],
+            temperature=task_config["temperature"],
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
         try:

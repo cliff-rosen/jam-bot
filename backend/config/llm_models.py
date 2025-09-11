@@ -21,7 +21,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     # GPT-5 Series - Latest generation with advanced reasoning support
     "gpt-5": ModelCapabilities(
         supports_reasoning_effort=True,
-        reasoning_effort_levels=["low", "medium", "high"],
+        reasoning_effort_levels=["minimal", "low", "medium", "high"],
         max_tokens=128000,
         supports_vision=True,
         supports_function_calling=True,
@@ -29,7 +29,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     ),
     "gpt-5-mini": ModelCapabilities(
         supports_reasoning_effort=True,
-        reasoning_effort_levels=["low", "medium"],
+        reasoning_effort_levels=["minimal", "low", "medium", "high"],
         max_tokens=64000,
         supports_vision=True,
         supports_function_calling=True,
@@ -37,7 +37,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     ),
     "gpt-5-nano": ModelCapabilities(
         supports_reasoning_effort=True,
-        reasoning_effort_levels=["low", "medium"],
+        reasoning_effort_levels=["minimal", "low", "medium", "high"],
         max_tokens=32000,
         supports_vision=False,
         supports_function_calling=True,
@@ -52,6 +52,69 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
         supports_function_calling=True,
         supports_structured_outputs=True
     ),
+}
+
+
+# Task-specific model configurations for smart search
+TASK_CONFIGS = {
+    "smart_search": {
+        "evidence_spec": {
+            "model": "gpt-5-mini",
+            "temperature": 0.3,
+            "reasoning_effort": "medium",
+            "description": "Generate structured evidence specifications"
+        },
+        "keyword_generation": {
+            "model": "gpt-5-mini",
+            "temperature": 0.2,
+            "reasoning_effort": "low",
+            "description": "Generate precise boolean search queries"
+        },
+        "keyword_optimization": {
+            "model": "gpt-5-mini",
+            "temperature": 0.3,
+            "reasoning_effort": "medium",
+            "description": "Optimize search queries for result volume"
+        },
+        "discriminator": {
+            "model": "gpt-5",  # Use more powerful model for filtering accuracy
+            "temperature": 0.1,
+            "reasoning_effort": "high",
+            "description": "Semantic filtering of search results"
+        },
+        "feature_extraction": {
+            "model": "gpt-5-mini",
+            "temperature": 0.0,
+            "reasoning_effort": "minimal",
+            "description": "Extract structured features from articles"
+        }
+    },
+    
+    # General extraction tasks
+    "extraction": {
+        "default": {
+            "model": "gpt-5-mini",
+            "temperature": 0.0,
+            "reasoning_effort": "low",
+            "description": "General data extraction tasks"
+        },
+        "complex": {
+            "model": "gpt-5",
+            "temperature": 0.0,
+            "reasoning_effort": "high",
+            "description": "Complex extraction requiring deeper understanding"
+        }
+    },
+    
+    # Default fallback
+    "default": {
+        "general": {
+            "model": "gpt-5-mini",
+            "temperature": 0.0,
+            "reasoning_effort": "medium",
+            "description": "Default configuration for unspecified tasks"
+        }
+    }
 }
 
 
@@ -107,3 +170,24 @@ def get_valid_reasoning_efforts(model_name: str) -> Optional[List[str]]:
         return None
     except ValueError:
         return None
+
+
+def get_task_config(category: str, task: str = None) -> dict:
+    """
+    Get model configuration for a specific category and task.
+    
+    Args:
+        category: The category of task (e.g., 'smart_search', 'extraction')
+        task: The specific task within the category (optional)
+    
+    Returns:
+        Dictionary with model configuration including reasoning effort
+    """
+    if category in TASK_CONFIGS:
+        if task and task in TASK_CONFIGS[category]:
+            return TASK_CONFIGS[category][task]
+        elif "default" in TASK_CONFIGS[category]:
+            return TASK_CONFIGS[category]["default"]
+    
+    # Return default configuration if category or task not found
+    return TASK_CONFIGS["default"]["general"]

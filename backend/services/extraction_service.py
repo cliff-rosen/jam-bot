@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from typing import Union
 
 from agents.prompts.base_prompt_caller import BasePromptCaller
+from config.llm_models import get_model_config
 
 from schemas.entity_extraction import (
     EntityRelationshipAnalysis, 
@@ -66,12 +67,17 @@ Given a source item and field instructions, extract the requested information ac
 
 Please extract the required information and return it in the specified schema format."""
         
+        # Get model config for extraction
+        model_config = get_model_config("extraction", "default")
+        
         # Initialize the base class with the JSON schema directly
         # BasePromptCaller will handle the conversion to Pydantic model
         super().__init__(
             response_model=result_schema,  # Pass JSON schema directly
             system_message=system_message,
-            messages_placeholder=False  # We don't need conversation history for extraction
+            messages_placeholder=False,  # We don't need conversation history for extraction
+            model=model_config["model"],
+            temperature=model_config["temperature"]
         )
     
     async def invoke_extraction(

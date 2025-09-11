@@ -7,10 +7,21 @@ import httpx
 from schemas.chat import ChatMessage
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
+from config.llm_models import get_model_capabilities, supports_reasoning_effort, get_valid_reasoning_efforts
 import json
 
-#DEFAULT_MODEL = "gpt-4o"
-DEFAULT_MODEL = "gpt-5-mini"
+# Available OpenAI models (as of January 2025)
+AVAILABLE_MODELS = {
+    # GPT-5 Series (Latest generation models)
+    "gpt-5": "gpt-5",                          # Full GPT-5 model
+    "gpt-5-mini": "gpt-5-mini",                # Cost-efficient GPT-5 variant
+    "gpt-5-nano": "gpt-5-nano",                # Smallest GPT-5 variant
+    
+    # GPT-4.1 Series
+    "gpt-4.1": "gpt-4.1",                      # Enhanced GPT-4 model
+}
+
+DEFAULT_MODEL = "gpt-5-mini"  # Default to the cost-effective GPT-5 mini model
 
 
 # Shared OpenAI client with higher connection limits for parallel processing
@@ -43,6 +54,7 @@ class LLMResponse(BaseModel):
     result: Any  # The parsed result
     usage: LLMUsage
 
+
 class BasePromptCaller:
     """Base class for creating and using prompt callers"""
     
@@ -50,7 +62,10 @@ class BasePromptCaller:
         self,
         response_model: Union[Type[BaseModel], Dict[str, Any]],
         system_message: Optional[str] = None,
-        messages_placeholder: bool = True
+        messages_placeholder: bool = True,
+        model: Optional[str] = None,
+        temperature: float = 0.0,
+        reasoning_effort: Optional[str] = None
     ):
         """
         Initialize a prompt caller.
@@ -59,6 +74,9 @@ class BasePromptCaller:
             response_model: Either a Pydantic model class or a JSON schema dict
             system_message: The system message to use in the prompt (optional)
             messages_placeholder: Whether to include a messages placeholder in the prompt
+            model: The OpenAI model to use (optional, defaults to DEFAULT_MODEL)
+            temperature: The temperature for the model (optional, defaults to 0.0)
+            reasoning_effort: The reasoning effort level for models that support it (optional)
         """
         # Handle both Pydantic models and JSON schemas
         if isinstance(response_model, dict):
@@ -75,6 +93,28 @@ class BasePromptCaller:
         self.parser = PydanticOutputParser(pydantic_object=self.response_model)
         self.system_message = system_message
         self.messages_placeholder = messages_placeholder
+        
+        # Set and validate model
+        if model:
+            if model not in AVAILABLE_MODELS:
+                raise ValueError(f"Model {model} not available. Choose from: {list(AVAILABLE_MODELS.keys())}")
+            self.model = AVAILABLE_MODELS[model]
+        else:
+            self.model = DEFAULT_MODEL
+            
+        self.temperature = temperature
+        
+        # Handle reasoning effort parameter
+        self.reasoning_effort = None
+        if reasoning_effort:
+            if supports_reasoning_effort(self.model):
+                valid_efforts = get_valid_reasoning_efforts(self.model)
+                if reasoning_effort in valid_efforts:
+                    self.reasoning_effort = reasoning_effort
+                else:
+                    raise ValueError(f"Invalid reasoning effort '{reasoning_effort}' for model {self.model}. Valid options: {valid_efforts}")
+            else:
+                print(f"Warning: Model {self.model} does not support reasoning effort parameter. Ignoring.")
         
         # Use shared OpenAI client with higher connection limits
         self.client = get_shared_openai_client()
@@ -186,6 +226,9 @@ class BasePromptCaller:
         messages: List[ChatMessage] = None,
         log_prompt: bool = True,
         return_usage: bool = False,
+        model: Optional[str] = None,
+        temperature: Optional[float] = None,
+        reasoning_effort: Optional[str] = None,
         **kwargs: Dict[str, Any]
     ) -> Union[BaseModel, LLMResponse]:
         """
@@ -195,6 +238,9 @@ class BasePromptCaller:
             messages: List of conversation messages (optional)
             log_prompt: Whether to log the prompt messages
             return_usage: Whether to return usage information along with result
+            model: Override the model for this call (optional)
+            temperature: Override the temperature for this call (optional)
+            reasoning_effort: Override the reasoning effort for this call (optional)
             **kwargs: Additional variables to format into the prompt
             
         Returns:
@@ -222,18 +268,47 @@ class BasePromptCaller:
         # Get schema
         schema = self.get_schema()
         
-        # Call OpenAI
-        response = await self.client.chat.completions.create(
-            model=DEFAULT_MODEL,
-            messages=formatted_messages,
-            response_format={
+        # Determine which model and temperature to use
+        use_model = self.model
+        if model:
+            if model not in AVAILABLE_MODELS:
+                raise ValueError(f"Model {model} not available. Choose from: {list(AVAILABLE_MODELS.keys())}")
+            use_model = AVAILABLE_MODELS[model]
+        
+        use_temperature = temperature if temperature is not None else self.temperature
+        
+        # Determine reasoning effort to use
+        use_reasoning_effort = None
+        if reasoning_effort or self.reasoning_effort:
+            # Check if the model supports reasoning effort
+            if supports_reasoning_effort(use_model):
+                valid_efforts = get_valid_reasoning_efforts(use_model)
+                effort_to_use = reasoning_effort if reasoning_effort else self.reasoning_effort
+                if effort_to_use in valid_efforts:
+                    use_reasoning_effort = effort_to_use
+                else:
+                    print(f"Warning: Invalid reasoning effort '{effort_to_use}' for model {use_model}. Valid options: {valid_efforts}")
+        
+        # Build API call parameters
+        api_params = {
+            "model": use_model,
+            "messages": formatted_messages,
+            "temperature": use_temperature,
+            "response_format": {
                 "type": "json_schema",
                 "json_schema": {
                     "schema": schema,
                     "name": self.get_response_model_name()
                 }
             }
-        )
+        }
+        
+        # Add reasoning effort if supported and valid
+        if use_reasoning_effort:
+            api_params["reasoning_effort"] = use_reasoning_effort
+        
+        # Call OpenAI
+        response = await self.client.chat.completions.create(**api_params)
         
         # Parse response
         response_text = response.choices[0].message.content

@@ -60,25 +60,25 @@ TASK_CONFIGS = {
     "smart_search": {
         "evidence_spec": {
             "model": "gpt-5-mini",
-            "temperature": 0.3,
+            "temperature": 0.0,
             "reasoning_effort": "medium",
             "description": "Generate structured evidence specifications"
         },
         "keyword_generation": {
             "model": "gpt-5-mini",
-            "temperature": 0.2,
+            "temperature": 0.0,
             "reasoning_effort": "low",
             "description": "Generate precise boolean search queries"
         },
         "keyword_optimization": {
             "model": "gpt-5-mini",
-            "temperature": 0.3,
+            "temperature": 0.0,
             "reasoning_effort": "medium",
             "description": "Optimize search queries for result volume"
         },
         "discriminator": {
             "model": "gpt-5",  # Use more powerful model for filtering accuracy
-            "temperature": 0.1,
+            "temperature": 0.0,
             "reasoning_effort": "high",
             "description": "Semantic filtering of search results"
         },

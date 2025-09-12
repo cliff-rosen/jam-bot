@@ -77,8 +77,8 @@ Please extract the required information and return it in the specified schema fo
             system_message=system_message,
             messages_placeholder=False,  # We don't need conversation history for extraction
             model=model_config["model"],
-            temperature=model_config["temperature"],
-            reasoning_effort=model_config["reasoning_effort"]
+            temperature=model_config.get("temperature", 0.0),
+            reasoning_effort=model_config.get("reasoning_effort") if supports_reasoning_effort(model_config["model"]) else None
         )
     
     async def invoke_extraction(

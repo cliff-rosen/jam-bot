@@ -90,7 +90,7 @@ class SmartSearchService:
             response_model=response_schema,
             system_message=system_prompt,
             model=task_config["model"],
-            temperature=task_config["temperature"],
+            temperature=task_config.get("temperature", 0.0),
             reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
@@ -245,7 +245,7 @@ class SmartSearchService:
             response_model=response_schema,
             system_message=system_prompt,
             model=task_config["model"],
-            temperature=task_config["temperature"],
+            temperature=task_config.get("temperature", 0.0),
             reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
@@ -418,7 +418,7 @@ class SmartSearchService:
             response_model=response_schema,
             system_message=system_prompt,
             model=task_config["model"],
-            temperature=task_config["temperature"],
+            temperature=task_config.get("temperature", 0.0),
             reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         

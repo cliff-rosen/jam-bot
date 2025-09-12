@@ -10,6 +10,7 @@ class ModelCapabilities(BaseModel):
     """Capabilities and parameters supported by a model"""
     supports_reasoning_effort: bool = False
     reasoning_effort_levels: Optional[List[str]] = None
+    supports_temperature: bool = True  # Models with reasoning effort don't support temperature
     max_tokens: Optional[int] = None
     supports_vision: bool = False
     supports_function_calling: bool = True
@@ -22,6 +23,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     "gpt-5": ModelCapabilities(
         supports_reasoning_effort=True,
         reasoning_effort_levels=["minimal", "low", "medium", "high"],
+        supports_temperature=False,  # Reasoning models don't support temperature
         max_tokens=128000,
         supports_vision=True,
         supports_function_calling=True,
@@ -30,6 +32,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     "gpt-5-mini": ModelCapabilities(
         supports_reasoning_effort=True,
         reasoning_effort_levels=["minimal", "low", "medium", "high"],
+        supports_temperature=False,  # Reasoning models don't support temperature
         max_tokens=64000,
         supports_vision=True,
         supports_function_calling=True,
@@ -38,6 +41,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
     "gpt-5-nano": ModelCapabilities(
         supports_reasoning_effort=True,
         reasoning_effort_levels=["minimal", "low", "medium", "high"],
+        supports_temperature=False,  # Reasoning models don't support temperature
         max_tokens=32000,
         supports_vision=False,
         supports_function_calling=True,
@@ -59,32 +63,27 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
 TASK_CONFIGS = {
     "smart_search": {
         "evidence_spec": {
-            "model": "gpt-5-mini",
-            "temperature": 0.0,
-            "reasoning_effort": "medium",
+            "model": "gpt-4.1",
+            "reasoning_effort": "minimal",
             "description": "Generate structured evidence specifications"
         },
         "keyword_generation": {
-            "model": "gpt-5-mini",
-            "temperature": 0.0,
+            "model": "gpt-4.1",
             "reasoning_effort": "low",
             "description": "Generate precise boolean search queries"
         },
         "keyword_optimization": {
             "model": "gpt-5-mini",
-            "temperature": 0.0,
             "reasoning_effort": "medium",
             "description": "Optimize search queries for result volume"
         },
         "discriminator": {
             "model": "gpt-5",  # Use more powerful model for filtering accuracy
-            "temperature": 0.0,
             "reasoning_effort": "high",
             "description": "Semantic filtering of search results"
         },
         "feature_extraction": {
             "model": "gpt-5-mini",
-            "temperature": 0.0,
             "reasoning_effort": "minimal",
             "description": "Extract structured features from articles"
         }
@@ -94,13 +93,11 @@ TASK_CONFIGS = {
     "extraction": {
         "default": {
             "model": "gpt-5-mini",
-            "temperature": 0.0,
             "reasoning_effort": "low",
             "description": "General data extraction tasks"
         },
         "complex": {
             "model": "gpt-5",
-            "temperature": 0.0,
             "reasoning_effort": "high",
             "description": "Complex extraction requiring deeper understanding"
         }
@@ -110,7 +107,6 @@ TASK_CONFIGS = {
     "default": {
         "general": {
             "model": "gpt-5-mini",
-            "temperature": 0.0,
             "reasoning_effort": "medium",
             "description": "Default configuration for unspecified tasks"
         }
@@ -151,6 +147,23 @@ def supports_reasoning_effort(model_name: str) -> bool:
         return capabilities.supports_reasoning_effort
     except ValueError:
         return False
+
+
+def supports_temperature(model_name: str) -> bool:
+    """
+    Check if a model supports the temperature parameter.
+    
+    Args:
+        model_name: The name of the model
+        
+    Returns:
+        True if the model supports temperature, False otherwise
+    """
+    try:
+        capabilities = get_model_capabilities(model_name)
+        return capabilities.supports_temperature
+    except ValueError:
+        return True  # Default to True for unknown models
 
 
 def get_valid_reasoning_efforts(model_name: str) -> Optional[List[str]]:

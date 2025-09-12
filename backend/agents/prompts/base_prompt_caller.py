@@ -7,7 +7,7 @@ import httpx
 from schemas.chat import ChatMessage
 from utils.message_formatter import format_langchain_messages, format_messages_for_openai
 from utils.prompt_logger import log_prompt_messages
-from config.llm_models import get_model_capabilities, supports_reasoning_effort, get_valid_reasoning_efforts
+from config.llm_models import get_model_capabilities, supports_reasoning_effort, supports_temperature, get_valid_reasoning_efforts
 import json
 
 # Available OpenAI models (as of January 2025)
@@ -293,7 +293,6 @@ class BasePromptCaller:
         api_params = {
             "model": use_model,
             "messages": formatted_messages,
-            "temperature": use_temperature,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -306,6 +305,13 @@ class BasePromptCaller:
         # Add reasoning effort if supported and valid
         if use_reasoning_effort:
             api_params["reasoning_effort"] = use_reasoning_effort
+        
+        # Add temperature only if the model supports it
+        if supports_temperature(use_model):
+            api_params["temperature"] = use_temperature
+        elif use_temperature != 0.0:
+            # Only warn if user tried to set a non-zero temperature
+            print(f"Note: Temperature parameter not supported for model {use_model} with reasoning_effort")
         
         # Call OpenAI
         response = await self.client.chat.completions.create(**api_params)

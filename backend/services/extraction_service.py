@@ -47,25 +47,25 @@ class ExtractionPromptCaller(BasePromptCaller):
         # Define the system message template
         system_message = """You are an extraction function that processes data according to specific instructions.
 
-## Your Task
-Given a source item and field instructions, extract the requested information according to the schema.
+        ## Your Task
+        Given a source item and field instructions, extract the requested information according to the schema.
 
-## Guidelines
-- Follow field-specific instructions precisely
-- Use exact output format specified in schema
-- Return null/default for missing information
-- Maintain data types as specified in the schema (string, number, boolean, array, object)
+        ## Guidelines
+        - Follow field-specific instructions precisely
+        - Use exact output format specified in schema
+        - Return null/default for missing information
+        - Maintain data types as specified in the schema (string, number, boolean, array, object)
 
-## Schema
-{result_schema}
+        ## Schema
+        {result_schema}
 
-## Field Instructions
-{extraction_instructions}
+        ## Field Instructions
+        {extraction_instructions}
 
-## Source Item
-{source_item}
+        ## Source Item
+        {source_item}
 
-Please extract the required information and return it in the specified schema format."""
+        Please extract the required information and return it in the specified schema format."""
         
         # Get model config for extraction
         model_config = get_task_config("extraction", "default")

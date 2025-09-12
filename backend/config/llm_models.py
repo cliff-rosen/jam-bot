@@ -93,7 +93,7 @@ TASK_CONFIGS = {
     "extraction": {
         "default": {
             "model": "gpt-5-mini",
-            "reasoning_effort": "low",
+            "reasoning_effort": "medium",
             "description": "General data extraction tasks"
         },
         "complex": {

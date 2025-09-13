@@ -63,7 +63,7 @@ MODEL_CONFIGS: Dict[str, ModelCapabilities] = {
 TASK_CONFIGS = {
     "smart_search": {
         "evidence_spec": {
-            "model": "gpt-4.1",
+            "model": "gpt-5-mini",
             "reasoning_effort": "minimal",
             "description": "Generate structured evidence specifications"
         },

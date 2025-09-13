@@ -47,7 +47,6 @@ router = APIRouter(
 class EvidenceSpecificationRequest(BaseModel):
     """Request to create evidence specification from user query"""
     query: str = Field(..., description="User's document search query")
-    max_results: int = Field(50, description="Maximum results to return")
     session_id: Optional[str] = Field(None, description="Optional session ID to continue existing session")
 
 

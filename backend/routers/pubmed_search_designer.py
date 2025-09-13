@@ -130,29 +130,28 @@ async def test_search_phrase(
     try:
         logger.info(f"Testing search phrase for user {current_user.email}: {request.search_phrase}")
 
-        # Get estimated count for the search phrase
-        estimated_count = search_pubmed_count(request.search_phrase)
+        # Execute the search to get actual PubMed IDs that would be returned
+        from services.pubmed_service import PubMedService
+        pubmed_service = PubMedService()
 
-        # Test coverage by searching for each specific PMID with the search phrase
-        covered_ids = []
-        not_covered_ids = []
+        # Get the IDs that the search phrase would return
+        search_result_ids, total_count = pubmed_service._get_article_ids(
+            request.search_phrase,
+            max_results=10000  # Get a large number to ensure we capture all matches
+        )
 
-        for pmid in request.pubmed_ids:
-            try:
-                # Create a search that combines the original phrase with the specific PMID
-                combined_search = f"({request.search_phrase}) AND {pmid}[PMID]"
+        logger.debug(f"Search '{request.search_phrase}' returned {len(search_result_ids)} IDs")
+        logger.debug(f"Target PMIDs: {request.pubmed_ids}")
 
-                # If this returns > 0, the PMID would be covered by the original search
-                coverage_count = search_pubmed_count(combined_search)
+        # Convert search results to set for fast lookup
+        search_result_set = set(search_result_ids)
 
-                if coverage_count > 0:
-                    covered_ids.append(pmid)
-                else:
-                    not_covered_ids.append(pmid)
+        # Check which of our target PMIDs are covered by the search
+        covered_ids = [pmid for pmid in request.pubmed_ids if pmid in search_result_set]
+        not_covered_ids = [pmid for pmid in request.pubmed_ids if pmid not in search_result_set]
 
-            except Exception as e:
-                logger.error(f"Error testing coverage for PMID {pmid}: {e}")
-                not_covered_ids.append(pmid)  # Assume not covered on error
+        logger.debug(f"Covered IDs: {covered_ids}")
+        logger.debug(f"Not covered IDs: {not_covered_ids}")
 
         # Calculate coverage percentage
         total_ids = len(request.pubmed_ids)
@@ -162,7 +161,7 @@ async def test_search_phrase(
         logger.info(f"Search coverage: {coverage_count}/{total_ids} ({coverage_percentage}%)")
 
         return TestSearchResponse(
-            estimated_count=estimated_count,
+            estimated_count=total_count,
             coverage_count=coverage_count,
             coverage_percentage=coverage_percentage,
             covered_ids=covered_ids,

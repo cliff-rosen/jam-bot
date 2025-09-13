@@ -125,7 +125,7 @@ export default function PubMedSearchDesigner() {
     try {
       const response = await api.post('/api/pubmed/test-search', {
         search_phrase: currentSearchPhrase.trim(),
-        pubmed_ids: articles.map(a => a.id)
+        pubmed_ids: articles.map(a => extractPubMedId(a.id))
       });
 
       const newSearchPhrase: SearchPhrase = {
@@ -142,7 +142,7 @@ export default function PubMedSearchDesigner() {
       if (response.data.covered_ids) {
         setArticles(articles.map(article => ({
           ...article,
-          is_covered: response.data.covered_ids.includes(article.id)
+          is_covered: response.data.covered_ids.includes(extractPubMedId(article.id))
         })));
       }
 

@@ -35,6 +35,18 @@ export default function PubMedSearchDesigner() {
   const [isFetchingArticles, setIsFetchingArticles] = useState(false);
   const { toast } = useToast();
 
+  // Extract PubMed ID from article ID (handles different formats)
+  const extractPubMedId = (articleId: string): string => {
+    if (articleId.startsWith('pubmed_')) {
+      return articleId.replace('pubmed_', '');
+    }
+    if (articleId.startsWith('pmid:')) {
+      return articleId.replace('pmid:', '');
+    }
+    // If it's already just the numeric ID
+    return articleId;
+  };
+
   const handleFetchArticles = async () => {
     if (!inputPubmedIds.trim()) return;
 
@@ -53,9 +65,9 @@ export default function PubMedSearchDesigner() {
       return;
     }
 
-    // Check for duplicates
-    const existingIds = articles.map(a => a.id);
-    const newIds = idList.filter(id => !existingIds.includes(id));
+    // Check for duplicates (normalize IDs for comparison)
+    const existingIds = articles.map(a => extractPubMedId(a.id));
+    const newIds = idList.filter(id => !existingIds.includes(extractPubMedId(id)));
 
     if (newIds.length === 0) {
       toast({
@@ -98,6 +110,12 @@ export default function PubMedSearchDesigner() {
     if (searchPhrases.length > 0) {
       retestAllSearchPhrases();
     }
+  };
+
+  const handleClearAllArticles = () => {
+    setArticles([]);
+    // Clear search phrases since they're no longer relevant
+    setSearchPhrases([]);
   };
 
   const testSearchPhrase = async () => {
@@ -206,7 +224,7 @@ export default function PubMedSearchDesigner() {
               </Button>
             </div>
 
-            <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
+            <div className="space-y-1 mt-4">
               {articles.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500 dark:text-gray-400">
@@ -217,39 +235,38 @@ export default function PubMedSearchDesigner() {
                 articles.map((article) => (
                   <div
                     key={article.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
                   >
-                    <div className="flex items-center gap-2 flex-1">
-                      {article.is_covered !== undefined && (
-                        article.is_covered ? (
-                          <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <XCircleIcon className="h-5 w-5 text-red-500" />
-                        )
-                      )}
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900 dark:text-gray-100">PMID: {article.id}</div>
-                        <div className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
-                          {article.title}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-300">
-                          {article.authors.slice(0, 3).join(', ')}
-                          {article.authors.length > 3 && ' et al.'}
-                          {article.publication_year && ` (${article.publication_year})`}
-                        </div>
-                        {article.journal && (
-                          <div className="text-xs text-gray-600 dark:text-gray-300 italic">
-                            {article.journal}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    {article.is_covered !== undefined && (
+                      article.is_covered ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      ) : (
+                        <XCircleIcon className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      )
+                    )}
+                    <span className="font-mono text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
+                      {extractPubMedId(article.id)}
+                    </span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
+                      {article.title}
+                    </span>
+                    <a
+                      href={`https://pubmed.ncbi.nlm.nih.gov/${extractPubMedId(article.id)}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex-shrink-0"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveArticle(article.id)}
+                      className="h-6 w-6 p-0 flex-shrink-0"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="h-3 w-3" />
                     </Button>
                   </div>
                 ))
@@ -257,22 +274,32 @@ export default function PubMedSearchDesigner() {
             </div>
 
             {articles.length > 0 && (
-              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Total Articles: {articles.length}
-                {searchPhrases.length > 0 && (
-                  <span className="ml-2">
-                    | Covered: {articles.filter(a => a.is_covered).length}
-                  </span>
-                )}
+              <div className="mt-4 flex justify-between items-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Articles: {articles.length}
+                  {searchPhrases.length > 0 && (
+                    <span className="ml-2">
+                      | Covered: {articles.filter(a => a.is_covered).length}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearAllArticles}
+                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Clear All
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Search Phrase Builder Section */}
-        <Card>
+        <Card className="dark:bg-gray-800">
           <CardHeader>
-            <CardTitle>Search Phrase Builder</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Search Phrase Builder</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -281,6 +308,7 @@ export default function PubMedSearchDesigner() {
                 value={currentSearchPhrase}
                 onChange={(e) => setCurrentSearchPhrase(e.target.value)}
                 rows={3}
+                className="dark:bg-gray-700 dark:text-gray-100"
               />
 
               <Button
@@ -340,9 +368,9 @@ export default function PubMedSearchDesigner() {
 
       {/* Summary Section */}
       {searchPhrases.length > 0 && articles.length > 0 && (
-        <Card className="mt-6">
+        <Card className="mt-6 dark:bg-gray-800">
           <CardHeader>
-            <CardTitle>Coverage Summary</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Coverage Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

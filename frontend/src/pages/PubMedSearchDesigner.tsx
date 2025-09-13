@@ -1,0 +1,387 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { TrashIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+
+interface PubMedArticle {
+  id: string;
+  source: string;
+  title: string;
+  authors: string[];
+  journal?: string;
+  publication_year?: number;
+  abstract?: string;
+  is_covered?: boolean;
+}
+
+interface SearchPhrase {
+  id: string;
+  phrase: string;
+  estimated_count?: number;
+  coverage_count?: number;
+  coverage_percentage?: number;
+}
+
+export default function PubMedSearchDesigner() {
+  const [articles, setArticles] = useState<PubMedArticle[]>([]);
+  const [inputPubmedIds, setInputPubmedIds] = useState('');
+  const [searchPhrases, setSearchPhrases] = useState<SearchPhrase[]>([]);
+  const [currentSearchPhrase, setCurrentSearchPhrase] = useState('');
+  const [isTestingSearch, setIsTestingSearch] = useState(false);
+  const [isFetchingArticles, setIsFetchingArticles] = useState(false);
+  const { toast } = useToast();
+
+  const handleFetchArticles = async () => {
+    if (!inputPubmedIds.trim()) return;
+
+    // Parse IDs from input (comma, space, tab, or newline separated)
+    const idList = inputPubmedIds
+      .split(/[,\s\t\n]+/)
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
+
+    if (idList.length === 0) {
+      toast({
+        title: 'No IDs found',
+        description: 'Please enter valid PubMed IDs',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check for duplicates
+    const existingIds = articles.map(a => a.id);
+    const newIds = idList.filter(id => !existingIds.includes(id));
+
+    if (newIds.length === 0) {
+      toast({
+        title: 'All IDs already added',
+        description: 'These PubMed IDs have already been added',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsFetchingArticles(true);
+    try {
+      const response = await api.post('/api/pubmed/fetch-articles', {
+        pubmed_ids: newIds
+      });
+
+      const newArticles = response.data.articles || [];
+      setArticles([...articles, ...newArticles]);
+      setInputPubmedIds('');
+
+      toast({
+        title: 'Success',
+        description: `Fetched ${newArticles.length} articles`,
+      });
+    } catch (error) {
+      console.error('Failed to fetch articles:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch PubMed articles',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFetchingArticles(false);
+    }
+  };
+
+  const handleRemoveArticle = (id: string) => {
+    setArticles(articles.filter(article => article.id !== id));
+    // Re-test search phrases if any exist
+    if (searchPhrases.length > 0) {
+      retestAllSearchPhrases();
+    }
+  };
+
+  const testSearchPhrase = async () => {
+    if (!currentSearchPhrase.trim()) return;
+
+    setIsTestingSearch(true);
+    try {
+      const response = await api.post('/api/pubmed/test-search', {
+        search_phrase: currentSearchPhrase.trim(),
+        pubmed_ids: articles.map(a => a.id)
+      });
+
+      const newSearchPhrase: SearchPhrase = {
+        id: Date.now().toString(),
+        phrase: currentSearchPhrase.trim(),
+        estimated_count: response.data.estimated_count,
+        coverage_count: response.data.coverage_count,
+        coverage_percentage: response.data.coverage_percentage
+      };
+
+      setSearchPhrases([...searchPhrases, newSearchPhrase]);
+
+      // Update coverage status for articles
+      if (response.data.covered_ids) {
+        setArticles(articles.map(article => ({
+          ...article,
+          is_covered: response.data.covered_ids.includes(article.id)
+        })));
+      }
+
+      setCurrentSearchPhrase('');
+
+      toast({
+        title: 'Search Tested',
+        description: `Found ${response.data.estimated_count} results. Covers ${response.data.coverage_count} of your PubMed IDs (${response.data.coverage_percentage}%)`,
+      });
+    } catch (error) {
+      console.error('Failed to test search phrase:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to test search phrase',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTestingSearch(false);
+    }
+  };
+
+  const retestAllSearchPhrases = async () => {
+    // Re-test all search phrases against current articles
+    const updatedPhrases = [];
+    for (const phrase of searchPhrases) {
+      try {
+        const response = await api.post('/api/pubmed/test-search', {
+          search_phrase: phrase.phrase,
+          pubmed_ids: articles.map(a => a.id)
+        });
+        updatedPhrases.push({
+          ...phrase,
+          coverage_count: response.data.coverage_count,
+          coverage_percentage: response.data.coverage_percentage
+        });
+      } catch (error) {
+        console.error(`Failed to retest phrase: ${phrase.phrase}`, error);
+        updatedPhrases.push(phrase);
+      }
+    }
+    setSearchPhrases(updatedPhrases);
+  };
+
+  const removeSearchPhrase = (id: string) => {
+    setSearchPhrases(searchPhrases.filter(phrase => phrase.id !== id));
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">PubMed Search Designer</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          Design and test PubMed search phrases to ensure coverage of your target articles
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* PubMed IDs Section */}
+        <Card className="dark:bg-gray-800">
+          <CardHeader>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Target PubMed Articles</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Textarea
+                placeholder="Enter PubMed IDs (comma, space, or line separated)\nExample: 35184731, 35184732, 35184733"
+                value={inputPubmedIds}
+                onChange={(e) => setInputPubmedIds(e.target.value)}
+                rows={3}
+                className="dark:bg-gray-700 dark:text-gray-100"
+              />
+              <Button
+                onClick={handleFetchArticles}
+                disabled={!inputPubmedIds.trim() || isFetchingArticles}
+                className="w-full"
+              >
+                <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                {isFetchingArticles ? 'Fetching...' : 'Fetch Article Metadata'}
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
+              {articles.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No articles added yet. Enter PubMed IDs above to fetch articles.
+                  </p>
+                </div>
+              ) : (
+                articles.map((article) => (
+                  <div
+                    key={article.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      {article.is_covered !== undefined && (
+                        article.is_covered ? (
+                          <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircleIcon className="h-5 w-5 text-red-500" />
+                        )
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">PMID: {article.id}</div>
+                        <div className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
+                          {article.title}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                          {article.authors.slice(0, 3).join(', ')}
+                          {article.authors.length > 3 && ' et al.'}
+                          {article.publication_year && ` (${article.publication_year})`}
+                        </div>
+                        {article.journal && (
+                          <div className="text-xs text-gray-600 dark:text-gray-300 italic">
+                            {article.journal}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveArticle(article.id)}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {articles.length > 0 && (
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                Total Articles: {articles.length}
+                {searchPhrases.length > 0 && (
+                  <span className="ml-2">
+                    | Covered: {articles.filter(a => a.is_covered).length}
+                  </span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Search Phrase Builder Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Search Phrase Builder</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Textarea
+                placeholder="Enter your PubMed search phrase (e.g., 'diabetes AND metformin')"
+                value={currentSearchPhrase}
+                onChange={(e) => setCurrentSearchPhrase(e.target.value)}
+                rows={3}
+              />
+
+              <Button
+                onClick={testSearchPhrase}
+                disabled={!currentSearchPhrase.trim() || isTestingSearch}
+                className="w-full"
+              >
+                <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                {isTestingSearch ? 'Testing...' : 'Test Search Phrase'}
+              </Button>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {searchPhrases.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400">
+                      No search phrases tested yet. Enter a phrase above to test coverage.
+                    </p>
+                  </div>
+                ) : (
+                  searchPhrases.map((phrase) => (
+                    <div
+                      key={phrase.id}
+                      className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 font-mono text-sm break-all text-gray-900 dark:text-gray-100">
+                          {phrase.phrase}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSearchPhrase(phrase.id)}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Badge variant="secondary">
+                          ~{phrase.estimated_count?.toLocaleString()} results
+                        </Badge>
+                        {articles.length > 0 && (
+                          <Badge
+                            variant={phrase.coverage_percentage === 100 ? "default" : "outline"}
+                          >
+                            {phrase.coverage_count}/{articles.length} covered ({phrase.coverage_percentage}%)
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Summary Section */}
+      {searchPhrases.length > 0 && articles.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Coverage Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {articles.length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Target Articles
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {articles.filter(a => a.is_covered).length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Articles Covered
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {articles.filter(a => !a.is_covered).length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Articles Not Covered
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {Math.round((articles.filter(a => a.is_covered).length / articles.length) * 100)}%
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Overall Coverage
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

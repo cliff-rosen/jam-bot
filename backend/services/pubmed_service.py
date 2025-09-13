@@ -578,20 +578,49 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     return articles
 
 
+def fetch_articles_by_ids(pubmed_ids: List[str]) -> List[Article]:
+    """
+    Fetch PubMed articles by their PMID.
+
+    Args:
+        pubmed_ids: List of PubMed IDs to fetch
+
+    Returns:
+        List of Article objects
+    """
+    service = PubMedService()
+    return service._get_articles_from_ids(pubmed_ids)
+
+
+def search_pubmed_count(search_term: str) -> int:
+    """
+    Get the count of results for a PubMed search without fetching articles.
+
+    Args:
+        search_term: PubMed search query
+
+    Returns:
+        Number of results found
+    """
+    service = PubMedService()
+    _, count = service._get_article_ids(search_term, max_results=1)  # Only get count, not actual results
+    return count
+
+
     """
     OLD IMPLEMENTATION - kept for reference only.
     Search for PubMed articles within a specified date range and return canonical articles.
-    
+
     Args:
         filter_term: Search query string
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
         date_type: Type of date to filter on ("publication", "completion", "entry", "revised")
         sort_by: Sort order ('relevance' or 'date')
-        
+
     Returns:
         List of CanonicalPubMedArticle objects
-        
+
     Raises:
         Exception: If API calls fail or data processing fails
     """

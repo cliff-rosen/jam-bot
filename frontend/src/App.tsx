@@ -24,6 +24,7 @@ import SmartSearch2 from './pages/SmartSearch2';
 import SearchHistory from './pages/SearchHistory';
 import WorkbenchPage from './pages/Workbench';
 import TokenLogin from './pages/TokenLogin';
+import PubMedSearchDesigner from './pages/PubMedSearchDesigner';
 
 // Inner component that uses auth context
 function AppContent() {
@@ -49,6 +50,7 @@ function AppContent() {
             <Route path="/workbench" element={<WorkbenchPage />} />
             <Route path="/lab" element={<LabPage />} />
             <Route path="/smart-search" element={<SmartSearchLab />} />
+            <Route path="/pubmed-search-designer" element={<PubMedSearchDesigner />} />
             <Route path="/smart-search-2" element={<SmartSearch2 />} />
             <Route path="/search-history" element={<SearchHistory />} />
             <Route path="/profile" element={<Profile />} />

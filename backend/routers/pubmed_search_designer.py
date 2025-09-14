@@ -186,29 +186,6 @@ async def test_search_phrase(
         )
 
 
-@router.post("/count-search", response_model=SearchCountResponse)
-async def count_search_results(
-    request: SearchCountRequest,
-    current_user=Depends(validate_token)
-):
-    """
-    Get estimated result count for a PubMed search phrase.
-    """
-    try:
-        logger.info(f"Counting search results for user {current_user.email}: {request.search_phrase}")
-
-        count = search_pubmed_count(request.search_phrase)
-
-        return SearchCountResponse(count=count)
-
-    except Exception as e:
-        logger.error(f"Error counting search results: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to count search results: {str(e)}"
-        )
-
-
 @router.post("/analyze-mismatch", response_model=AnalyzeMismatchResponse)
 async def analyze_search_mismatch(
     request: AnalyzeMismatchRequest,
@@ -232,20 +209,20 @@ async def analyze_search_mismatch(
         task_config = get_task_config("smart_search", "discriminator")
 
         # Construct prompt for analysis
-        prompt_content = f"""You are a PubMed search expert. Analyze why the following article would NOT be found by the given search phrase.
+        prompt_content = f"""Analyze why the following article would NOT be found by the given search phrase.
 
-Article Title: {request.title}
-Article Abstract: {request.abstract or 'Not available'}
+            Article Title: {request.title}
+            Article Abstract: {request.abstract or 'Not available'}
 
-Search Phrase: {request.search_phrase}
+            Search Phrase: {request.search_phrase}
 
-Please analyze:
-1. Which terms in the search phrase are likely NOT present in the article
-2. Which Boolean operators (AND, OR, NOT) might be excluding this article
-3. Whether field restrictions like [Title] or [MeSH] are too narrow
+            Please analyze:
+            1. Which terms in the search phrase are likely NOT present in the article
+            2. Which Boolean operators (AND, OR, NOT) might be excluding this article
+            3. Whether field restrictions like [Title] or [MeSH] are too narrow
 
-Provide a clear, concise explanation of why this search phrase doesn't match this article.
-Then suggest 2-3 modified search phrases that would capture this article while maintaining the search intent."""
+            Provide a clear, concise explanation of why this search phrase doesn't match this article.
+            Then suggest 2-3 modified search phrases that would capture this article while maintaining the search intent."""
 
         # Define response schema for structured output
         response_schema = {

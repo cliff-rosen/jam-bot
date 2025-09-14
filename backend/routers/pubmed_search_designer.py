@@ -14,6 +14,7 @@ import logging
 
 from schemas.canonical_types import CanonicalResearchArticle
 from schemas.research_article_converters import legacy_article_to_canonical_pubmed, pubmed_to_research_article
+
 from services.pubmed_service import fetch_articles_by_ids, search_pubmed_count
 from services.auth_service import validate_token
 
@@ -208,22 +209,6 @@ async def analyze_search_mismatch(
         # Get task config - we can use discriminator config as it's for analysis
         task_config = get_task_config("smart_search", "discriminator")
 
-        # Construct prompt for analysis
-        prompt_content = f"""Analyze why the following article would NOT be found by the given search phrase.
-
-            Article Title: {request.title}
-            Article Abstract: {request.abstract or 'Not available'}
-
-            Search Phrase: {request.search_phrase}
-
-            Please analyze:
-            1. Which terms in the search phrase are likely NOT present in the article
-            2. Which Boolean operators (AND, OR, NOT) might be excluding this article
-            3. Whether field restrictions like [Title] or [MeSH] are too narrow
-
-            Provide a clear, concise explanation of why this search phrase doesn't match this article.
-            Then suggest 2-3 modified search phrases that would capture this article while maintaining the search intent."""
-
         # Define response schema for structured output
         response_schema = {
             "type": "object",
@@ -240,12 +225,28 @@ async def analyze_search_mismatch(
 
         # Create prompt caller with schema
         prompt_caller = BasePromptCaller(
-            response_model=response_schema,
             system_message="You are a PubMed search expert who helps users understand why their searches may not find certain articles.",
+            response_model=response_schema,
             model=task_config["model"],
             temperature=task_config.get("temperature", 0.0),
             reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
+
+        # Construct prompt for analysis
+        prompt_content = f"""Analyze why the following article would NOT be found by the given search phrase.
+
+            Article Title: {request.title}
+            Article Abstract: {request.abstract or 'Not available'}
+
+            Search Phrase: {request.search_phrase}
+
+            Please analyze:
+            1. Which terms in the search phrase are likely NOT present in the article
+            2. Which Boolean operators (AND, OR, NOT) might be excluding this article
+            3. Whether field restrictions like [Title] or [MeSH] are too narrow
+
+            Provide a clear, concise explanation of why this search phrase doesn't match this article.
+            Then suggest 2-3 modified search phrases that would capture this article while maintaining the search intent."""
 
         # Create message
         user_message = ChatMessage(

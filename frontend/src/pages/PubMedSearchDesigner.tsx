@@ -176,7 +176,7 @@ export default function PubMedSearchDesigner() {
       try {
         const response = await api.post('/api/pubmed/test-search', {
           search_phrase: phrase.phrase,
-          pubmed_ids: articles.map(a => a.id)
+          pubmed_ids: articles.map(a => extractPubMedId(a.id))
         });
         updatedPhrases.push({
           ...phrase,

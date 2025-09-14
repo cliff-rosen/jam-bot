@@ -209,14 +209,14 @@ function SmartSearch2Content() {
                 <SearchForm
                   onSearch={handleSearch}
                   onToggleKeywordHelper={() => setShowKeywordHelper(true)}
+                  isSearching={isSearching}
                 />
               )}
             </div>
           ) : (
-            searchResults && (
-              <SearchResults
-                articles={searchResults.articles}
-                pagination={searchResults.pagination}
+            <SearchResults
+              articles={searchResults?.articles || []}
+              pagination={searchResults?.pagination || null}
                 query={searchQuery}
                 source={selectedSource}
                 isSearching={isSearching}
@@ -241,7 +241,6 @@ function SmartSearch2Content() {
                 onDisplayModeChange={setDisplayMode}
                 onSort={handleSort}
               />
-            )
           )}
         </div>
       </div>

@@ -27,7 +27,7 @@ import type { FeatureDefinition } from '@/types/workbench';
 
 interface SearchResultsProps {
     articles: CanonicalResearchArticle[];
-    pagination: SearchPaginationInfo;
+    pagination: SearchPaginationInfo | null;
     query: string;
     source: 'pubmed' | 'google_scholar';
     isSearching: boolean;
@@ -375,7 +375,7 @@ export function SearchResults({
                 <div className="flex items-center gap-4 text-sm">
                     <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
                     <span className="text-gray-600 dark:text-gray-400">
-                        {pagination.total_available.toLocaleString()} total • {articles.length.toLocaleString()} retrieved
+                        {pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}{articles.length.toLocaleString()} retrieved
                     </span>
                 </div>
                 
@@ -525,7 +525,7 @@ export function SearchResults({
                         {displayMode === 'card-compressed' && renderCardView(true)}
                         {displayMode === 'card-full' && renderCardView(false)}
 
-                        {pagination.has_more && onLoadMore && (
+                        {pagination?.has_more && onLoadMore && (
                             <div className="text-center pt-4 border-t">
                                 <Button
                                     onClick={onLoadMore}

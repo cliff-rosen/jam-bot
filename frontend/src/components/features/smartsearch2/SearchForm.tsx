@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,14 +9,14 @@ import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 interface SearchFormProps {
   onSearch: () => void;
   onToggleKeywordHelper: () => void;
+  isSearching: boolean;
 }
 
 export function SearchForm({
   onSearch,
-  onToggleKeywordHelper
+  onToggleKeywordHelper,
+  isSearching
 }: SearchFormProps) {
-  const [isSearching, setIsSearching] = useState(false);
-
   const {
     selectedSource,
     searchQuery,
@@ -29,12 +28,7 @@ export function SearchForm({
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    setIsSearching(true);
-    try {
-      await onSearch();
-    } finally {
-      setIsSearching(false);
-    }
+    await onSearch();
   };
 
   const getPlaceholderText = () => {

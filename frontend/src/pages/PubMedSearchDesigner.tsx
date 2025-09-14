@@ -33,6 +33,8 @@ export default function PubMedSearchDesigner() {
   const [currentSearchPhrase, setCurrentSearchPhrase] = useState('');
   const [isTestingSearch, setIsTestingSearch] = useState(false);
   const [isFetchingArticles, setIsFetchingArticles] = useState(false);
+  const [analyzingArticleId, setAnalyzingArticleId] = useState<string | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<Record<string, { analysis: string; suggestions: string[] }>>({});
   const { toast } = useToast();
 
   // Extract PubMed ID from article ID (handles different formats)
@@ -192,6 +194,45 @@ export default function PubMedSearchDesigner() {
     setSearchPhrases(searchPhrases.filter(phrase => phrase.id !== id));
   };
 
+  const analyzeWhyNotMatched = async (article: PubMedArticle) => {
+    // Only analyze if we have search phrases and this article is not covered
+    if (searchPhrases.length === 0 || article.is_covered !== false) return;
+
+    const lastSearchPhrase = searchPhrases[searchPhrases.length - 1];
+
+    setAnalyzingArticleId(article.id);
+    try {
+      const response = await api.post('/api/pubmed/analyze-mismatch', {
+        pubmed_id: extractPubMedId(article.id),
+        search_phrase: lastSearchPhrase.phrase,
+        title: article.title,
+        abstract: article.abstract
+      });
+
+      setAnalysisResults(prev => ({
+        ...prev,
+        [article.id]: {
+          analysis: response.data.analysis,
+          suggestions: response.data.suggestions || []
+        }
+      }));
+
+      toast({
+        title: 'Analysis Complete',
+        description: 'See why this article wasn\'t matched below',
+      });
+    } catch (error) {
+      console.error('Failed to analyze mismatch:', error);
+      toast({
+        title: 'Analysis Failed',
+        description: 'Could not analyze why this article wasn\'t matched',
+        variant: 'destructive',
+      });
+    } finally {
+      setAnalyzingArticleId(null);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-6">
@@ -235,41 +276,73 @@ export default function PubMedSearchDesigner() {
                 </div>
               ) : (
                 articles.map((article) => (
-                  <div
-                    key={article.id}
-                    className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
-                  >
-                    {article.is_covered !== undefined && (
-                      article.is_covered ? (
-                        <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
-                      ) : (
-                        <XCircleIcon className="h-4 w-4 text-red-500 flex-shrink-0" />
-                      )
+                  <div key={article.id}>
+                    <div className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                      {article.is_covered !== undefined && (
+                        article.is_covered ? (
+                          <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <XCircleIcon className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        )
+                      )}
+                      <span className="font-mono text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
+                        {extractPubMedId(article.id)}
+                      </span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
+                        {article.title}
+                      </span>
+                      {article.is_covered === false && searchPhrases.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => analyzeWhyNotMatched(article)}
+                          disabled={analyzingArticleId === article.id}
+                          className="h-6 px-2 text-xs flex-shrink-0 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                          title="Analyze why this article wasn't matched"
+                        >
+                          {analyzingArticleId === article.id ? (
+                            <div className="animate-spin h-3 w-3 border-2 border-orange-600 border-t-transparent rounded-full" />
+                          ) : (
+                            'Why?'
+                          )}
+                        </Button>
+                      )}
+                      <a
+                        href={`https://pubmed.ncbi.nlm.nih.gov/${extractPubMedId(article.id)}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex-shrink-0"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveArticle(article.id)}
+                        className="h-6 w-6 p-0 flex-shrink-0"
+                      >
+                        <TrashIcon className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    {analysisResults[article.id] && (
+                      <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg ml-7">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 mb-2">
+                          <strong>Why not matched:</strong> {analysisResults[article.id].analysis}
+                        </div>
+                        {analysisResults[article.id].suggestions.length > 0 && (
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            <strong>Suggested modifications:</strong>
+                            <ul className="list-disc list-inside mt-1">
+                              {analysisResults[article.id].suggestions.map((suggestion, idx) => (
+                                <li key={idx} className="text-xs">{suggestion}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     )}
-                    <span className="font-mono text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
-                      {extractPubMedId(article.id)}
-                    </span>
-                    <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
-                      {article.title}
-                    </span>
-                    <a
-                      href={`https://pubmed.ncbi.nlm.nih.gov/${extractPubMedId(article.id)}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex-shrink-0"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveArticle(article.id)}
-                      className="h-6 w-6 p-0 flex-shrink-0"
-                    >
-                      <TrashIcon className="h-3 w-3" />
-                    </Button>
                   </div>
                 ))
               )}

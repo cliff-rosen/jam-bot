@@ -46,6 +46,16 @@ class SearchCountRequest(BaseModel):
 class SearchCountResponse(BaseModel):
     count: int = Field(description="Estimated result count")
 
+class AnalyzeMismatchRequest(BaseModel):
+    pubmed_id: str = Field(description="PubMed ID of the article that wasn't matched")
+    search_phrase: str = Field(description="The search phrase that didn't match the article")
+    title: str = Field(description="Article title")
+    abstract: Optional[str] = Field(None, description="Article abstract")
+
+class AnalyzeMismatchResponse(BaseModel):
+    analysis: str = Field(description="LLM analysis of why the search didn't match")
+    suggestions: List[str] = Field(default=[], description="Suggested search modifications")
+
 
 @router.post("/fetch-articles", response_model=FetchArticlesResponse)
 async def fetch_pubmed_articles(
@@ -196,4 +206,112 @@ async def count_search_results(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to count search results: {str(e)}"
+        )
+
+
+@router.post("/analyze-mismatch", response_model=AnalyzeMismatchResponse)
+async def analyze_search_mismatch(
+    request: AnalyzeMismatchRequest,
+    current_user=Depends(validate_token)
+):
+    """
+    Analyze why a PubMed article doesn't match a search phrase using LLM.
+
+    This helps users understand which parts of their search phrase are too restrictive
+    or missing terms that would capture the target article.
+    """
+    try:
+        logger.info(f"Analyzing mismatch for PMID {request.pubmed_id} and search '{request.search_phrase}'")
+
+        from agents.prompts.base_prompt_caller import BasePromptCaller
+        from schemas.chat import ChatMessage, MessageRole
+        from datetime import datetime
+
+        # Construct prompt for analysis
+        prompt_content = f"""You are a PubMed search expert. Analyze why the following article would NOT be found by the given search phrase.
+
+Article Title: {request.title}
+Article Abstract: {request.abstract or 'Not available'}
+
+Search Phrase: {request.search_phrase}
+
+Please analyze:
+1. Which terms in the search phrase are likely NOT present in the article
+2. Which Boolean operators (AND, OR, NOT) might be excluding this article
+3. Whether field restrictions like [Title] or [MeSH] are too narrow
+
+Provide a clear, concise explanation of why this search phrase doesn't match this article.
+Then suggest 2-3 modified search phrases that would capture this article while maintaining the search intent."""
+
+        # Define response schema for structured output
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "analysis": {"type": "string"},
+                "suggestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 3
+                }
+            },
+            "required": ["analysis", "suggestions"]
+        }
+
+        # Create prompt caller with schema
+        prompt_caller = BasePromptCaller(
+            user_id=current_user.user_id,
+            response_schema=response_schema,
+            model_override="claude-3-5-sonnet-20241022",  # Use a good model for analysis
+            temperature=0.3
+        )
+
+        # Create message
+        user_message = ChatMessage(
+            id="temp_id",
+            chat_id="temp_chat",
+            role=MessageRole.USER,
+            content=prompt_content,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        # Call LLM
+        result = await prompt_caller.invoke(
+            messages=[user_message],
+            return_usage=True
+        )
+
+        # Extract result
+        llm_response = result.result
+
+        # Extract structured data from response
+        analysis = ""
+        suggestions = []
+
+        if hasattr(llm_response, 'analysis'):
+            # Direct attribute access
+            analysis = llm_response.analysis
+            suggestions = llm_response.suggestions if hasattr(llm_response, 'suggestions') else []
+        elif hasattr(llm_response, 'model_dump'):
+            # Use model_dump for Pydantic models
+            response_data = llm_response.model_dump()
+            analysis = response_data.get('analysis', '')
+            suggestions = response_data.get('suggestions', [])
+        else:
+            # Fallback to string parsing
+            logger.warning("Structured output not available, falling back to string parsing")
+            analysis = str(llm_response)
+
+        logger.info(f"Analysis complete for PMID {request.pubmed_id}")
+
+        return AnalyzeMismatchResponse(
+            analysis=analysis,
+            suggestions=suggestions[:3]  # Limit to 3 suggestions
+        )
+
+    except Exception as e:
+        logger.error(f"Error analyzing search mismatch: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze search mismatch: {str(e)}"
         )

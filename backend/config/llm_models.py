@@ -78,7 +78,7 @@ TASK_CONFIGS = {
             "description": "Optimize search queries for result volume"
         },
         "discriminator": {
-            "model": "gpt-5",  # Use more powerful model for filtering accuracy
+            "model": "gpt-4.1",  # Use more powerful model for filtering accuracy
             "reasoning_effort": "high",
             "description": "Semantic filtering of search results"
         },

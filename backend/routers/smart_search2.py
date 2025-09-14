@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from database import get_db
+
 from schemas.canonical_types import CanonicalResearchArticle
-from schemas.smart_search import SearchPaginationInfo
+from schemas.smart_search import SearchPaginationInfo, FilteredArticle
 from schemas.workbench import FeatureDefinition
+
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
 
@@ -73,6 +75,24 @@ class FeatureExtractionResponse(BaseModel):
     """Response from feature extraction"""
     results: dict = Field(..., description="Extracted features: article_id -> feature_name -> value")
     extraction_metadata: dict = Field(..., description="Metadata about the extraction process")
+
+class ArticleFilterRequest(BaseModel):
+    """Request for filtering articles using semantic discriminator"""
+    articles: List[CanonicalResearchArticle] = Field(..., description="Articles to filter")
+    evidence_specification: str = Field(..., description="Evidence specification for filtering")
+    search_keywords: str = Field(..., description="Search keywords for context")
+    strictness: str = Field("medium", description="Filtering strictness: low, medium, or high")
+    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (auto-generated if not provided)")
+
+class ArticleFilterResponse(BaseModel):
+    """Response from article filtering"""
+    filtered_articles: List[FilteredArticle] = Field(..., description="Articles with filtering results")
+    total_processed: int = Field(..., description="Total articles processed")
+    total_accepted: int = Field(..., description="Number of articles accepted")
+    total_rejected: int = Field(..., description="Number of articles rejected")
+    average_confidence: float = Field(..., description="Average confidence of accepted articles")
+    duration_seconds: float = Field(..., description="Processing duration in seconds")
+    token_usage: dict = Field(..., description="LLM token usage statistics")
 
 # ============================================================================
 # API Endpoints
@@ -296,3 +316,129 @@ async def extract_features(
     except Exception as e:
         logger.error(f"Feature extraction failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Feature extraction failed: {str(e)}")
+
+
+@router.post("/filter-articles", response_model=ArticleFilterResponse)
+async def filter_articles(
+    request: ArticleFilterRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> ArticleFilterResponse:
+    """
+    Filter articles using semantic discriminator without session management.
+
+    This endpoint allows direct filtering of a list of articles against an
+    evidence specification using AI-powered semantic discrimination.
+
+    Args:
+        request: Filter request with articles and criteria
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        ArticleFilterResponse with filtering results for each article
+
+    Raises:
+        HTTPException: If filtering fails
+    """
+    try:
+        import time
+        start_time = time.time()
+
+        logger.info(f"User {current_user.user_id} filtering {len(request.articles)} articles")
+
+        # Validate strictness level
+        if request.strictness not in ['low', 'medium', 'high']:
+            raise HTTPException(status_code=400, detail="Strictness must be 'low', 'medium', or 'high'")
+
+        if not request.articles:
+            raise HTTPException(status_code=400, detail="At least one article is required")
+
+        # Generate discriminator prompt if not provided
+        discriminator_prompt = request.discriminator_prompt
+        if not discriminator_prompt:
+            logger.info("Generating discriminator prompt from evidence specification")
+            service = SmartSearchService()
+            discriminator_prompt, usage = await service.generate_discriminator_prompt(
+                evidence_specification=request.evidence_specification,
+                strictness=request.strictness
+            )
+            logger.info(f"Generated discriminator prompt, tokens used: {usage.total_tokens}")
+
+        # Convert articles to format expected by the service
+        articles_for_filtering = []
+        for article in request.articles:
+            articles_for_filtering.append({
+                'id': article.id,
+                'title': article.title,
+                'abstract': article.abstract or "",
+                'authors': article.authors,
+                'journal': article.journal,
+                'publication_year': article.publication_year,
+                'url': article.url
+            })
+
+        # Use SmartSearchService to filter articles
+        service = SmartSearchService()
+
+        # Filter articles using the discriminator
+        filter_results = await service.filter_articles_with_discriminator(
+            articles=articles_for_filtering,
+            evidence_specification=request.evidence_specification,
+            discriminator_prompt=discriminator_prompt,
+            strictness=request.strictness
+        )
+
+        # Convert results to FilteredArticle format
+        filtered_articles = []
+        total_accepted = 0
+        total_confidence = 0.0
+        token_usage = {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
+
+        for i, result in enumerate(filter_results):
+            # Get the original canonical article
+            original_article = request.articles[i]
+
+            # Create FilteredArticle
+            filtered_article = FilteredArticle(
+                article=original_article,
+                passed=result['passed'],
+                confidence=result['confidence'],
+                reasoning=result['reasoning']
+            )
+            filtered_articles.append(filtered_article)
+
+            if result['passed']:
+                total_accepted += 1
+                total_confidence += result['confidence']
+
+            # Aggregate token usage if available
+            if 'token_usage' in result:
+                token_usage['prompt_tokens'] += result['token_usage'].get('prompt_tokens', 0)
+                token_usage['completion_tokens'] += result['token_usage'].get('completion_tokens', 0)
+                token_usage['total_tokens'] += result['token_usage'].get('total_tokens', 0)
+
+        # Calculate statistics
+        total_processed = len(request.articles)
+        total_rejected = total_processed - total_accepted
+        average_confidence = (total_confidence / total_accepted) if total_accepted > 0 else 0.0
+        duration_seconds = time.time() - start_time
+
+        logger.info(f"Filtering completed for user {current_user.user_id}: "
+                   f"{total_accepted}/{total_processed} accepted in {duration_seconds:.1f}s")
+
+        return ArticleFilterResponse(
+            filtered_articles=filtered_articles,
+            total_processed=total_processed,
+            total_accepted=total_accepted,
+            total_rejected=total_rejected,
+            average_confidence=round(average_confidence, 3),
+            duration_seconds=round(duration_seconds, 2),
+            token_usage=token_usage
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Article filtering failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Article filtering failed: {str(e)}")

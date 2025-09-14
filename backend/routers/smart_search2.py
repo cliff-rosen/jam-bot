@@ -365,63 +365,37 @@ async def filter_articles(
             )
             logger.info(f"Generated discriminator prompt, tokens used: {usage.total_tokens}")
 
-        # Convert articles to format expected by the service
-        articles_for_filtering = []
-        for article in request.articles:
-            articles_for_filtering.append({
-                'id': article.id,
-                'title': article.title,
-                'abstract': article.abstract or "",
-                'authors': article.authors,
-                'journal': article.journal,
-                'publication_year': article.publication_year,
-                'url': article.url
-            })
-
         # Use SmartSearchService to filter articles
         service = SmartSearchService()
 
-        # Filter articles using the discriminator
-        filter_results = await service.filter_articles_with_discriminator(
-            articles=articles_for_filtering,
-            evidence_specification=request.evidence_specification,
-            discriminator_prompt=discriminator_prompt,
-            strictness=request.strictness
+        # Filter articles using the parallel filtering method
+        filtered_articles, usage = await service.filter_articles_parallel(
+            articles=request.articles,  # Pass the CanonicalResearchArticle objects directly
+            refined_question=request.evidence_specification,
+            search_query=request.search_keywords,
+            strictness=request.strictness,
+            custom_discriminator=discriminator_prompt
         )
 
-        # Convert results to FilteredArticle format
-        filtered_articles = []
-        total_accepted = 0
-        total_confidence = 0.0
-        token_usage = {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
-
-        for i, result in enumerate(filter_results):
-            # Get the original canonical article
-            original_article = request.articles[i]
-
-            # Create FilteredArticle
-            filtered_article = FilteredArticle(
-                article=original_article,
-                passed=result['passed'],
-                confidence=result['confidence'],
-                reasoning=result['reasoning']
-            )
-            filtered_articles.append(filtered_article)
-
-            if result['passed']:
-                total_accepted += 1
-                total_confidence += result['confidence']
-
-            # Aggregate token usage if available
-            if 'token_usage' in result:
-                token_usage['prompt_tokens'] += result['token_usage'].get('prompt_tokens', 0)
-                token_usage['completion_tokens'] += result['token_usage'].get('completion_tokens', 0)
-                token_usage['total_tokens'] += result['token_usage'].get('total_tokens', 0)
-
         # Calculate statistics
-        total_processed = len(request.articles)
+        total_processed = len(filtered_articles)
+        total_accepted = sum(1 for fa in filtered_articles if fa.passed)
         total_rejected = total_processed - total_accepted
-        average_confidence = (total_confidence / total_accepted) if total_accepted > 0 else 0.0
+
+        # Calculate average confidence (only for accepted articles)
+        accepted_articles = [fa for fa in filtered_articles if fa.passed]
+        average_confidence = (
+            sum(fa.confidence for fa in accepted_articles) / len(accepted_articles)
+            if accepted_articles else 0.0
+        )
+
+        # Build token usage from LLMUsage object
+        token_usage = {
+            'prompt_tokens': usage.prompt_tokens,
+            'completion_tokens': usage.completion_tokens,
+            'total_tokens': usage.total_tokens
+        }
+
         duration_seconds = time.time() - start_time
 
         logger.info(f"Filtering completed for user {current_user.user_id}: "

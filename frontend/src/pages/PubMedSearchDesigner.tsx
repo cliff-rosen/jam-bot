@@ -35,6 +35,7 @@ export default function PubMedSearchDesigner() {
   const [isFetchingArticles, setIsFetchingArticles] = useState(false);
   const [analyzingArticleId, setAnalyzingArticleId] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<string, { analysis: string; suggestions: string[] }>>({});
+  const [collapsedAnalyses, setCollapsedAnalyses] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   // Extract PubMed ID from article ID (handles different formats)
@@ -217,6 +218,12 @@ export default function PubMedSearchDesigner() {
         }
       }));
 
+      // Ensure the analysis is visible when first created
+      setCollapsedAnalyses(prev => ({
+        ...prev,
+        [article.id]: false
+      }));
+
       toast({
         title: 'Analysis Complete',
         description: 'See why this article wasn\'t matched below',
@@ -231,6 +238,13 @@ export default function PubMedSearchDesigner() {
     } finally {
       setAnalyzingArticleId(null);
     }
+  };
+
+  const toggleAnalysisCollapsed = (articleId: string) => {
+    setCollapsedAnalyses(prev => ({
+      ...prev,
+      [articleId]: !prev[articleId]
+    }));
   };
 
   return (
@@ -326,8 +340,21 @@ export default function PubMedSearchDesigner() {
                         <TrashIcon className="h-3 w-3" />
                       </Button>
                     </div>
-                    {analysisResults[article.id] && (
+                    {analysisResults[article.id] && !collapsedAnalyses[article.id] && (
                       <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg ml-7">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            Analysis Result
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAnalysisCollapsed(article.id)}
+                            className="h-6 px-2 text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            Hide
+                          </Button>
+                        </div>
                         <div className="text-sm text-gray-900 dark:text-gray-100 mb-2">
                           <strong>Why not matched:</strong> {analysisResults[article.id].analysis}
                         </div>

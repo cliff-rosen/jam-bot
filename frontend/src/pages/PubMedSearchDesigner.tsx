@@ -128,6 +128,8 @@ export default function PubMedSearchDesigner() {
         pubmed_ids: articles.map(a => extractPubMedId(a.id))
       });
 
+      console.log('Test search response:', response.data);
+
       const newSearchPhrase: SearchPhrase = {
         id: Date.now().toString(),
         phrase: currentSearchPhrase.trim(),
@@ -150,7 +152,7 @@ export default function PubMedSearchDesigner() {
 
       toast({
         title: 'Search Tested',
-        description: `Found ${response.data.estimated_count} results. Covers ${response.data.coverage_count} of your PubMed IDs (${response.data.coverage_percentage}%)`,
+        description: `Found ${response.data.estimated_count?.toLocaleString()} results. Covers ${response.data.coverage_count} of your PubMed IDs (${response.data.coverage_percentage}%)`,
       });
     } catch (error) {
       console.error('Failed to test search phrase:', error);
@@ -320,7 +322,7 @@ export default function PubMedSearchDesigner() {
                 {isTestingSearch ? 'Testing...' : 'Test Search Phrase'}
               </Button>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2">
                 {searchPhrases.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 dark:text-gray-400">
@@ -347,7 +349,9 @@ export default function PubMedSearchDesigner() {
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Badge variant="secondary">
-                          ~{phrase.estimated_count?.toLocaleString()} results
+                          {phrase.estimated_count !== undefined
+                            ? `${phrase.estimated_count.toLocaleString()} results`
+                            : 'Count not available'}
                         </Badge>
                         {articles.length > 0 && (
                           <Badge

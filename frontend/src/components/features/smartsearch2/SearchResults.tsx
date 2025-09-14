@@ -34,7 +34,7 @@ interface SearchResultsProps {
     onQueryUpdate: (newQuery: string) => void;
     onSearch: () => void;
     onLoadMore?: () => void;
-    
+
     // Feature extraction props
     appliedFeatures: FeatureDefinition[];
     pendingFeatures: FeatureDefinition[];
@@ -43,7 +43,7 @@ interface SearchResultsProps {
     onAddFeature: (feature: Omit<FeatureDefinition, 'id'>) => void;
     onRemovePendingFeature: (featureId: string) => void;
     onExtractFeatures: () => void;
-    
+
     // UI state (now managed by parent)
     isEditingQuery: boolean;
     editedQuery: string;
@@ -79,6 +79,7 @@ export function SearchResults({
     onQueryEdit,
     onCancelEdit,
     onEditedQueryChange,
+    onDisplayModeChange,
     onSort
 }: SearchResultsProps) {
 
@@ -111,7 +112,6 @@ export function SearchResults({
             type: 'text'
         });
     };
-
 
     const getSortedArticles = () => {
         if (!sortColumn) return articles;
@@ -378,28 +378,28 @@ export function SearchResults({
                         {pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}{articles.length.toLocaleString()} retrieved
                     </span>
                 </div>
-                
+
                 {/* Right: View Controls and AI Columns */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
                         <Button
                             variant={displayMode === 'table' ? 'default' : 'ghost'}
                             size="sm"
-                            onClick={() => setDisplayMode('table')}
+                            onClick={() => onDisplayModeChange('table')}
                         >
                             <Table className="w-4 h-4" />
                         </Button>
                         <Button
                             variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
                             size="sm"
-                            onClick={() => setDisplayMode('card-compressed')}
+                            onClick={() => onDisplayModeChange('card-compressed')}
                         >
                             <List className="w-4 h-4" />
                         </Button>
                         <Button
                             variant={displayMode === 'card-full' ? 'default' : 'ghost'}
                             size="sm"
-                            onClick={() => setDisplayMode('card-full')}
+                            onClick={() => onDisplayModeChange('card-full')}
                         >
                             <Grid className="w-4 h-4" />
                         </Button>

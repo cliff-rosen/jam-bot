@@ -225,7 +225,11 @@ async def analyze_search_mismatch(
 
         from agents.prompts.base_prompt_caller import BasePromptCaller
         from schemas.chat import ChatMessage, MessageRole
+        from config.llm_models import get_task_config, supports_reasoning_effort
         from datetime import datetime
+
+        # Get task config - we can use discriminator config as it's for analysis
+        task_config = get_task_config("smart_search", "discriminator")
 
         # Construct prompt for analysis
         prompt_content = f"""You are a PubMed search expert. Analyze why the following article would NOT be found by the given search phrase.
@@ -259,10 +263,11 @@ Then suggest 2-3 modified search phrases that would capture this article while m
 
         # Create prompt caller with schema
         prompt_caller = BasePromptCaller(
-            user_id=current_user.user_id,
-            response_schema=response_schema,
-            model_override="claude-3-5-sonnet-20241022",  # Use a good model for analysis
-            temperature=0.3
+            response_model=response_schema,
+            system_message="You are a PubMed search expert who helps users understand why their searches may not find certain articles.",
+            model=task_config["model"],
+            temperature=task_config.get("temperature", 0.0),
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
 
         # Create message

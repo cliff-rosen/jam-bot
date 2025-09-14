@@ -80,7 +80,6 @@ class ArticleFilterRequest(BaseModel):
     """Request for filtering articles using semantic discriminator"""
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles to filter")
     evidence_specification: str = Field(..., description="Evidence specification for filtering")
-    search_keywords: str = Field(..., description="Search keywords for context")
     strictness: str = Field("medium", description="Filtering strictness: low, medium, or high")
     discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (auto-generated if not provided)")
 
@@ -371,9 +370,6 @@ async def filter_articles(
         # Filter articles using the parallel filtering method
         filtered_articles, usage = await service.filter_articles_parallel(
             articles=request.articles,  # Pass the CanonicalResearchArticle objects directly
-            refined_question=request.evidence_specification,
-            search_query=request.search_keywords,
-            strictness=request.strictness,
             custom_discriminator=discriminator_prompt
         )
 

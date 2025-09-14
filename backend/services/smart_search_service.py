@@ -760,17 +760,21 @@ class SmartSearchService:
     async def filter_articles_parallel(
         self,
         articles: List[CanonicalResearchArticle],
-        refined_question: str,
-        search_query: str,
-        strictness: str = "medium",
-        custom_discriminator: str = None
+        custom_discriminator: str
     ) -> Tuple[List[FilteredArticle], LLMUsage]:
         """
         Filter articles in parallel using async concurrency
         Returns all filtered articles and aggregated token usage
+
+        Args:
+            articles: List of articles to filter
+            custom_discriminator: The discriminator prompt to use for filtering
+
+        Returns:
+            Tuple of (filtered articles list, aggregated token usage)
         """
         logger.info(f"Starting parallel filtering of {len(articles)} articles")
-        
+
         # Discriminator is required
         if not custom_discriminator:
             raise ValueError("Discriminator prompt is required for filtering")
@@ -904,9 +908,6 @@ class SmartSearchService:
         try:
             filtered_articles, token_usage = await self.filter_articles_parallel(
                 articles=articles_to_filter,
-                refined_question=evidence_specification,
-                search_query=search_keywords,
-                strictness=strictness,
                 custom_discriminator=discriminator_prompt
             )
             duration = (datetime.utcnow() - start_time).total_seconds()

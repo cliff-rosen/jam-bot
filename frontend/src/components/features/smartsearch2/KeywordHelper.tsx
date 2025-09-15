@@ -13,7 +13,7 @@ interface KeywordHelperProps {
 
 export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     // UI flow state (local to component)
-    const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'keywords'>('question');
+    const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'expressions' | 'keywords'>('question');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
@@ -25,6 +25,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         researchQuestion,
         evidenceSpec,
         extractedConcepts,
+        expandedExpressions,
         generatedKeywords,
         conversationHistory,
         completenessScore,
@@ -34,10 +35,13 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         updateSearchQuery,
         refineEvidenceSpec,
         extractConcepts,
+        expandConcepts,
+        testKeywordCombination,
         generateKeywords,
         setResearchQuestion,
         setEvidenceSpec,
         setExtractedConcepts,
+        setExpandedExpressions,
         setGeneratedKeywords,
         setConversationHistory,
         setCompletenessScore,
@@ -119,7 +123,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         }
     };
 
-    const handleGenerateKeywords = async () => {
+    const handleExpandExpressions = async () => {
         if (extractedConcepts.length === 0) {
             setError('Extracted concepts are required');
             return;
@@ -129,10 +133,37 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // Use context method with extracted concepts
-            const response = await generateKeywords(extractedConcepts, selectedSource, 200);
+            const response = await expandConcepts(extractedConcepts, selectedSource);
+            // Mark all expressions as selected by default
+            const expressionsWithSelection = response.expansions.map(exp => ({ ...exp, selected: true }));
+            setExpandedExpressions(expressionsWithSelection);
+            setStep('expressions');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to expand expressions';
+            setError(errorMessage);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
-            setGeneratedKeywords(response.search_keywords);
+    const handleGenerateKeywords = async () => {
+        const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
+
+        if (selectedExpressions.length === 0) {
+            setError('Please select at least one expression');
+            return;
+        }
+
+        setIsGenerating(true);
+        setError(null);
+
+        try {
+            const response = await testKeywordCombination(
+                selectedExpressions.map(exp => exp.expression),
+                selectedSource
+            );
+
+            setGeneratedKeywords(response.combined_query);
             setStep('keywords');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
@@ -158,14 +189,15 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const steps = [
         { id: 'question', title: 'Research Question', description: 'Describe what you\'re looking for' },
         { id: 'evidence', title: 'Evidence Specification', description: 'Review the AI-generated specification' },
-        { id: 'concepts', title: 'Key Concepts', description: 'Extract searchable concepts' },
-        { id: 'keywords', title: 'Search Keywords', description: 'Get optimized search terms' }
+        { id: 'concepts', title: 'Key Concepts', description: 'Edit and refine concepts' },
+        { id: 'expressions', title: 'Boolean Expressions', description: 'Expand and select expressions' },
+        { id: 'keywords', title: 'Search Keywords', description: 'Final optimized query' }
     ];
 
     const currentStepIndex = steps.findIndex(s => s.id === step);
     const canGoBack = currentStepIndex > 0;
 
-    const goToStep = (stepId: 'question' | 'evidence' | 'concepts' | 'keywords') => {
+    const goToStep = (stepId: 'question' | 'evidence' | 'concepts' | 'expressions' | 'keywords') => {
         setStep(stepId);
         setError(null);
     };
@@ -176,6 +208,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         } else if (step === 'evidence') {
             handleExtractConcepts();
         } else if (step === 'concepts') {
+            handleExpandExpressions();
+        } else if (step === 'expressions') {
             handleGenerateKeywords();
         }
     };
@@ -185,8 +219,10 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
             setStep('question');
         } else if (step === 'concepts') {
             setStep('evidence');
-        } else if (step === 'keywords') {
+        } else if (step === 'expressions') {
             setStep('concepts');
+        } else if (step === 'keywords') {
+            setStep('expressions');
         }
         setError(null);
     };

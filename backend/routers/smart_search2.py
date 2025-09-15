@@ -6,7 +6,7 @@ Optimized for simple, direct search functionality.
 """
 
 import logging
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -51,6 +51,27 @@ class KeywordGenerationRequest(BaseModel):
     concepts: List[str] = Field(..., description="Extracted concepts to generate keywords from")
     source: str = Field(..., description="Target source: 'pubmed' or 'google_scholar'")
     target_result_count: int = Field(200, description="Target number of results to aim for")
+
+class ConceptExpansionRequest(BaseModel):
+    """Request for expanding concepts to Boolean expressions"""
+    concepts: List[str] = Field(..., description="Concepts to expand")
+    source: str = Field(..., description="Target source: 'pubmed' or 'google_scholar'")
+
+class ConceptExpansionResponse(BaseModel):
+    """Response from concept expansion"""
+    expansions: List[Dict[str, Any]] = Field(..., description="List of {concept, expression, count}")
+    source: str = Field(..., description="Source")
+
+class KeywordCombinationRequest(BaseModel):
+    """Request for testing keyword combinations"""
+    expressions: List[str] = Field(..., description="Boolean expressions to combine with AND")
+    source: str = Field(..., description="Target source: 'pubmed' or 'google_scholar'")
+
+class KeywordCombinationResponse(BaseModel):
+    """Response from keyword combination testing"""
+    combined_query: str = Field(..., description="Final combined Boolean query")
+    estimated_results: int = Field(..., description="Estimated number of results")
+    source: str = Field(..., description="Source")
 
 class KeywordGenerationResponse(BaseModel):
     """Response from keyword generation"""
@@ -244,6 +265,109 @@ async def extract_concepts(
     except Exception as e:
         logger.error(f"Concept extraction failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Concept extraction failed: {str(e)}")
+
+
+@router.post("/expand-concepts", response_model=ConceptExpansionResponse)
+async def expand_concepts(
+    request: ConceptExpansionRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> ConceptExpansionResponse:
+    """
+    Expand concepts to Boolean expressions with result counts.
+
+    Takes a list of concepts and expands each one into a comprehensive
+    Boolean OR expression with synonyms, then tests each for result counts.
+
+    Args:
+        request: Concept expansion request
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        ConceptExpansionResponse with expansions and counts
+
+    Raises:
+        HTTPException: If expansion fails
+    """
+    try:
+        logger.info(f"User {current_user.user_id} expanding {len(request.concepts)} concepts for {request.source}")
+
+        if not request.concepts:
+            raise HTTPException(status_code=400, detail="At least one concept is required")
+
+        if request.source not in ['pubmed', 'google_scholar']:
+            raise HTTPException(status_code=400, detail="Source must be 'pubmed' or 'google_scholar'")
+
+        # Use SmartSearchService to expand concepts
+        service = SmartSearchService()
+        expansions = await service.expand_concepts_with_counts(
+            concepts=request.concepts,
+            source=request.source
+        )
+
+        logger.info(f"Concept expansion completed for user {current_user.user_id}: {len(expansions)} expansions")
+
+        return ConceptExpansionResponse(
+            expansions=expansions,
+            source=request.source
+        )
+
+    except Exception as e:
+        logger.error(f"Concept expansion failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Concept expansion failed: {str(e)}")
+
+
+@router.post("/test-keyword-combination", response_model=KeywordCombinationResponse)
+async def test_keyword_combination(
+    request: KeywordCombinationRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> KeywordCombinationResponse:
+    """
+    Test a combination of Boolean expressions with AND logic.
+
+    Takes multiple Boolean expressions and combines them with AND,
+    then tests the result count.
+
+    Args:
+        request: Keyword combination request
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        KeywordCombinationResponse with combined query and count
+
+    Raises:
+        HTTPException: If testing fails
+    """
+    try:
+        logger.info(f"User {current_user.user_id} testing combination of {len(request.expressions)} expressions")
+
+        if not request.expressions:
+            raise HTTPException(status_code=400, detail="At least one expression is required")
+
+        if request.source not in ['pubmed', 'google_scholar']:
+            raise HTTPException(status_code=400, detail="Source must be 'pubmed' or 'google_scholar'")
+
+        # Use SmartSearchService to test combination
+        service = SmartSearchService()
+        result = await service.test_expression_combination(
+            expressions=request.expressions,
+            source=request.source
+        )
+
+        logger.info(f"Combination test completed for user {current_user.user_id}: {result['estimated_results']} estimated results")
+
+        return KeywordCombinationResponse(
+            combined_query=result['combined_query'],
+            estimated_results=result['estimated_results'],
+            source=request.source
+        )
+
+    except Exception as e:
+        logger.error(f"Keyword combination test failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Keyword combination test failed: {str(e)}")
 
 
 @router.post("/generate-keywords", response_model=KeywordGenerationResponse)

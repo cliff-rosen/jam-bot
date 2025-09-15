@@ -31,6 +31,7 @@ interface SmartSearch2State {
     researchQuestion: string;
     evidenceSpec: string;
     extractedConcepts: string[];
+    expandedExpressions: Array<{ concept: string; expression: string; count: number; selected?: boolean }>;
     generatedKeywords: string;
 
     // CONVERSATIONAL REFINEMENT STATE (persistent data)
@@ -60,6 +61,15 @@ interface SmartSearch2Actions {
         reasoning?: string;
     }>;
     extractConcepts: (evidenceSpecification: string) => Promise<{ concepts: string[]; evidence_specification: string; }>;
+    expandConcepts: (concepts: string[], source: 'pubmed' | 'google_scholar') => Promise<{
+        expansions: Array<{ concept: string; expression: string; count: number; }>;
+        source: string;
+    }>;
+    testKeywordCombination: (expressions: string[], source: 'pubmed' | 'google_scholar') => Promise<{
+        combined_query: string;
+        estimated_results: number;
+        source: string;
+    }>;
     generateKeywords: (concepts: string[], source: 'pubmed' | 'google_scholar', targetResultCount?: number) => Promise<{
         concepts: string[];
         search_keywords: string;
@@ -73,6 +83,7 @@ interface SmartSearch2Actions {
     setResearchQuestion: (question: string) => void;
     setEvidenceSpec: (spec: string) => void;
     setExtractedConcepts: (concepts: string[]) => void;
+    setExpandedExpressions: (expressions: Array<{ concept: string; expression: string; count: number; selected?: boolean }>) => void;
     setGeneratedKeywords: (keywords: string) => void;
     setConversationHistory: (history: Array<{ question: string; answer: string }>) => void;
     setCompletenessScore: (score: number) => void;
@@ -118,6 +129,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [researchQuestion, setResearchQuestion] = useState('');
     const [evidenceSpec, setEvidenceSpec] = useState('');
     const [extractedConcepts, setExtractedConcepts] = useState<string[]>([]);
+    const [expandedExpressions, setExpandedExpressions] = useState<Array<{ concept: string; expression: string; count: number; selected?: boolean }>>([]);
     const [generatedKeywords, setGeneratedKeywords] = useState('');
 
     // Conversational refinement state (persistent data)
@@ -186,6 +198,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setResearchQuestion('');
         setEvidenceSpec('');
         setExtractedConcepts([]);
+        setExpandedExpressions([]);
         setGeneratedKeywords('');
         setConversationHistory([]);
         setCompletenessScore(0);
@@ -217,6 +230,34 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             return response;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to extract concepts';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
+    const expandConcepts = useCallback(async (concepts: string[], source: 'pubmed' | 'google_scholar') => {
+        try {
+            const response = await smartSearch2Api.expandConcepts({
+                concepts,
+                source
+            });
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to expand concepts';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
+    const testKeywordCombination = useCallback(async (expressions: string[], source: 'pubmed' | 'google_scholar') => {
+        try {
+            const response = await smartSearch2Api.testKeywordCombination({
+                expressions,
+                source
+            });
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to test keyword combination';
             setError(errorMessage);
             throw err;
         }
@@ -303,6 +344,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         researchQuestion,
         evidenceSpec,
         extractedConcepts,
+        expandedExpressions,
         generatedKeywords,
         conversationHistory,
         completenessScore,
@@ -313,6 +355,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         updateSearchQuery,
         refineEvidenceSpec,
         extractConcepts,
+        expandConcepts,
+        testKeywordCombination,
         generateKeywords,
         search,
         resetSearch,
@@ -325,6 +369,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setResearchQuestion,
         setEvidenceSpec,
         setExtractedConcepts,
+        setExpandedExpressions,
         setGeneratedKeywords,
         setConversationHistory,
         setCompletenessScore,

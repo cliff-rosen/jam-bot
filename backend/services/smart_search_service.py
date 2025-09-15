@@ -1185,6 +1185,82 @@ class SmartSearchService:
             'strategy': 'OR of all concepts (fallback)'
         }
 
+    async def expand_concepts_with_counts(
+        self,
+        concepts: List[str],
+        source: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Expand each concept to Boolean expression and get result counts.
+        """
+        logger.info(f"Expanding {len(concepts)} concepts with counts for {source}")
+
+        expansions = []
+        for concept in concepts:
+            try:
+                # Expand concept to Boolean expression
+                expression = await self._expand_concept_to_boolean(concept, source)
+
+                # Get result count
+                if source == 'pubmed':
+                    count = await self._test_pubmed_query_count(expression)
+                else:
+                    count = await self._estimate_scholar_count(expression)
+
+                expansions.append({
+                    'concept': concept,
+                    'expression': expression,
+                    'count': count
+                })
+
+                logger.info(f"Expanded '{concept}' to '{expression[:100]}...' ({count} results)")
+
+            except Exception as e:
+                logger.error(f"Failed to expand concept '{concept}': {e}")
+                # Add fallback entry
+                expansions.append({
+                    'concept': concept,
+                    'expression': f"({concept})",
+                    'count': 0
+                })
+
+        return expansions
+
+    async def test_expression_combination(
+        self,
+        expressions: List[str],
+        source: str
+    ) -> Dict[str, Any]:
+        """
+        Test combining multiple Boolean expressions with AND.
+        """
+        logger.info(f"Testing combination of {len(expressions)} expressions for {source}")
+
+        if len(expressions) == 1:
+            combined_query = expressions[0]
+        else:
+            # Combine with AND, ensuring each expression is properly parenthesized
+            formatted_expressions = []
+            for expr in expressions:
+                if expr.strip().startswith('(') and expr.strip().endswith(')'):
+                    formatted_expressions.append(expr.strip())
+                else:
+                    formatted_expressions.append(f"({expr.strip()})")
+            combined_query = " AND ".join(formatted_expressions)
+
+        # Test the combined query
+        if source == 'pubmed':
+            estimated_results = await self._test_pubmed_query_count(combined_query)
+        else:
+            estimated_results = await self._estimate_scholar_count(combined_query)
+
+        logger.info(f"Combined query: {combined_query[:200]}... ({estimated_results} estimated results)")
+
+        return {
+            'combined_query': combined_query,
+            'estimated_results': estimated_results
+        }
+
     async def execute_filtering_workflow(
         self,
         session_id: str,

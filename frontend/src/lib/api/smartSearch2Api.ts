@@ -60,6 +60,31 @@ export interface KeywordGenerationRequest {
     target_result_count?: number;
 }
 
+export interface ConceptExpansionRequest {
+    concepts: string[];
+    source: 'pubmed' | 'google_scholar';
+}
+
+export interface ConceptExpansionResponse {
+    expansions: Array<{
+        concept: string;
+        expression: string;
+        count: number;
+    }>;
+    source: string;
+}
+
+export interface KeywordCombinationRequest {
+    expressions: string[];
+    source: 'pubmed' | 'google_scholar';
+}
+
+export interface KeywordCombinationResponse {
+    combined_query: string;
+    estimated_results: number;
+    source: string;
+}
+
 export interface KeywordGenerationResponse {
     concepts: string[];
     search_keywords: string;
@@ -105,6 +130,22 @@ class SmartSearch2Api {
      */
     async extractConcepts(request: ConceptExtractionRequest): Promise<ConceptExtractionResponse> {
         const response = await api.post('/api/smart-search-2/extract-concepts', request);
+        return response.data;
+    }
+
+    /**
+     * Expand concepts to Boolean expressions with counts
+     */
+    async expandConcepts(request: ConceptExpansionRequest): Promise<ConceptExpansionResponse> {
+        const response = await api.post('/api/smart-search-2/expand-concepts', request);
+        return response.data;
+    }
+
+    /**
+     * Test combination of Boolean expressions
+     */
+    async testKeywordCombination(request: KeywordCombinationRequest): Promise<KeywordCombinationResponse> {
+        const response = await api.post('/api/smart-search-2/test-keyword-combination', request);
         return response.data;
     }
 

@@ -95,10 +95,10 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
 
             // Merge articles with coverage information
             const articlesWithCoverage = articles.map(article => {
-                const pmid = article.id.replace('PMID:', '');
+                const normalizedId = extractPubMedId(article.id);
                 return {
                     ...article,
-                    is_covered: data.covered_ids?.includes(pmid) || false
+                    is_covered: data.covered_ids?.includes(normalizedId) || false
                 };
             });
             setFullArticles(articlesWithCoverage);
@@ -113,8 +113,18 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
         }
     };
 
-    const extractPubMedId = (id: string) => {
-        return id.replace('PMID:', '').replace('pmid:', '');
+    const extractPubMedId = (articleId: string): string => {
+        if (articleId.startsWith('pubmed_')) {
+            return articleId.replace('pubmed_', '');
+        }
+        if (articleId.startsWith('pmid:')) {
+            return articleId.replace('pmid:', '');
+        }
+        if (articleId.startsWith('PMID:')) {
+            return articleId.replace('PMID:', '');
+        }
+        // If it's already just the numeric ID
+        return articleId;
     };
 
     return (

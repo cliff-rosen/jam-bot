@@ -1128,7 +1128,6 @@ class SmartSearchService:
             logger.warning(f"Failed to test PubMed query count: {e}")
             return 1000  # Conservative fallback
 
-
     async def _find_optimal_combination(
         self,
         concept_expansions: Dict[str, str],

@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import type { DirectSearchResponse, FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
 import type { FeatureDefinition } from '@/types/workbench';
+import { api } from '@/lib/api';
 
 // ================== STATE INTERFACE ==================
 
@@ -101,6 +102,15 @@ interface SmartSearch2Actions {
 
     // ERROR HANDLING
     clearError: () => void;
+
+    // COVERAGE TESTING
+    testCoverage: (query: string, targetPmids: string[]) => Promise<{
+        found_articles: Array<{ pmid: string; title: string; }>;
+        missing_articles: string[];
+        coverage_percentage: number;
+        total_target: number;
+        total_found: number;
+    }>;
 }
 
 // ================== CONTEXT ==================
@@ -325,6 +335,20 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
     }, []);
 
+    const testCoverage = useCallback(async (query: string, targetPmids: string[]) => {
+        try {
+            const response = await api.post('/api/pubmed/test-search', {
+                search_phrase: query,
+                pubmed_ids: targetPmids
+            });
+            return response.data;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to test coverage';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
     // ================== CONTEXT VALUE ==================
 
     const contextValue: SmartSearch2ContextType = {
@@ -364,6 +388,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         removePendingFeature,
         extractFeatures,
         clearError,
+        testCoverage,
 
         // Research journey actions
         setResearchQuestion,

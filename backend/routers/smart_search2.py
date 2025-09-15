@@ -48,14 +48,18 @@ class DirectSearchResponse(BaseModel):
 
 class KeywordGenerationRequest(BaseModel):
     """Request for keyword generation"""
-    evidence_specification: str = Field(..., description="Evidence specification to generate keywords from")
+    concepts: List[str] = Field(..., description="Extracted concepts to generate keywords from")
     source: str = Field(..., description="Target source: 'pubmed' or 'google_scholar'")
+    target_result_count: int = Field(200, description="Target number of results to aim for")
 
 class KeywordGenerationResponse(BaseModel):
     """Response from keyword generation"""
-    evidence_specification: str = Field(..., description="Input evidence specification")
-    search_keywords: str = Field(..., description="Generated search keywords")
+    concepts: List[str] = Field(..., description="Input concepts")
+    search_keywords: str = Field(..., description="Generated optimized search keywords")
     source: str = Field(..., description="Target source")
+    estimated_results: int = Field(..., description="Estimated number of results")
+    concept_counts: Dict[str, int] = Field(..., description="Individual concept result counts")
+    optimization_strategy: str = Field(..., description="Description of the optimization approach used")
 
 class FeatureExtractionRequest(BaseModel):
     """Request for feature extraction from articles"""
@@ -266,25 +270,32 @@ async def generate_keywords(
         HTTPException: If generation fails
     """
     try:
-        logger.info(f"User {current_user.user_id} keyword generation for source: {request.source}")
-        
+        logger.info(f"User {current_user.user_id} generating optimized keywords from {len(request.concepts)} concepts for {request.source}")
+
         # Validate source
         if request.source not in ['pubmed', 'google_scholar']:
             raise HTTPException(status_code=400, detail="Source must be 'pubmed' or 'google_scholar'")
-        
-        # Use SmartSearchService to generate keywords
+
+        if not request.concepts:
+            raise HTTPException(status_code=400, detail="At least one concept is required")
+
+        # Use SmartSearchService to generate optimized keywords
         service = SmartSearchService()
-        search_keywords, usage = await service.generate_search_keywords(
-            evidence_specification=request.evidence_specification,
-            selected_sources=[request.source]
+        result = await service.generate_optimized_keywords(
+            concepts=request.concepts,
+            source=request.source,
+            target_result_count=request.target_result_count
         )
-        
-        logger.info(f"Keywords generated for user {current_user.user_id}, tokens used: {usage.total_tokens}")
-        
+
+        logger.info(f"Optimized keywords generated for user {current_user.user_id}: {result['estimated_results']} estimated results")
+
         return KeywordGenerationResponse(
-            evidence_specification=request.evidence_specification,
-            search_keywords=search_keywords,
-            source=request.source
+            concepts=request.concepts,
+            search_keywords=result['search_keywords'],
+            source=request.source,
+            estimated_results=result['estimated_results'],
+            concept_counts=result['concept_counts'],
+            optimization_strategy=result['optimization_strategy']
         )
         
     except Exception as e:

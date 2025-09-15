@@ -997,6 +997,194 @@ class SmartSearchService:
             logger.error(f"Concept extraction failed: {e}")
             raise
 
+    async def generate_optimized_keywords(
+        self,
+        concepts: List[str],
+        source: str,
+        target_result_count: int = 200
+    ) -> Dict[str, Any]:
+        """
+        Generate optimized Boolean search from concepts using strategic combination.
+
+        Process:
+        1. For each concept, generate generous Boolean OR with synonyms
+        2. Test each concept OR to get result counts
+        3. Find optimal combination that yields ~target_result_count
+        """
+        logger.info(f"Generating optimized keywords from {len(concepts)} concepts for {source}")
+
+        try:
+            # Step 1: Generate generous Boolean OR for each concept
+            concept_expansions = {}
+            concept_counts = {}
+
+            for concept in concepts:
+                # Generate synonyms and Boolean OR for this concept
+                expansion = await self._expand_concept_to_boolean(concept, source)
+                concept_expansions[concept] = expansion
+
+                # Test the count for this concept expansion
+                if source == 'pubmed':
+                    count = await self._test_pubmed_query_count(expansion)
+                else:
+                    # For Google Scholar, we'll estimate based on complexity
+                    count = await self._estimate_scholar_count(expansion)
+
+                concept_counts[concept] = count
+                logger.info(f"Concept '{concept}' expanded to: {expansion[:100]}... ({count} results)")
+
+            # Step 2: Find optimal combination strategy
+            optimization_result = await self._find_optimal_combination(
+                concept_expansions, concept_counts, target_result_count
+            )
+
+            return {
+                'search_keywords': optimization_result['query'],
+                'estimated_results': optimization_result['estimated_count'],
+                'concept_counts': concept_counts,
+                'optimization_strategy': optimization_result['strategy']
+            }
+
+        except Exception as e:
+            logger.error(f"Optimized keyword generation failed: {e}")
+            raise
+
+    async def _expand_concept_to_boolean(self, concept: str, source: str) -> str:
+        """Expand a single concept into a generous Boolean OR with synonyms."""
+
+        # Create prompt for concept expansion
+        system_prompt = f"""Generate a comprehensive Boolean search expression for {source} that captures all relevant studies for this biomedical concept.
+
+        Create a generous OR expression with:
+        - The main term
+        - Common synonyms and variations
+        - Related terms and abbreviations
+        - Alternative spellings
+
+        For PubMed: Use proper Boolean syntax with OR and quoted phrases
+        For Google Scholar: Use simpler OR syntax
+
+        Examples:
+        - "diabetes" → (diabetes OR "diabetes mellitus" OR diabetic OR "type 2 diabetes" OR T2DM)
+        - "mice" → (mice OR mouse OR murine OR "laboratory mice" OR "transgenic mice")
+
+        Respond in JSON format."""
+
+        # Response schema for BasePromptCaller
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "boolean_expression": {"type": "string"}
+            },
+            "required": ["boolean_expression"]
+        }
+
+        # Get model config
+        task_config = get_task_config("smart_search", "keyword_generation")
+
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message=system_prompt,
+            model=task_config["model"],
+            temperature=task_config.get("temperature", 0.0),
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
+        )
+
+        try:
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat",
+                role=MessageRole.USER,
+                content=f"Concept: {concept}\n\nGenerate a comprehensive Boolean OR expression for {source}.",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            result = await prompt_caller.invoke(
+                messages=[user_message],
+                return_usage=True
+            )
+
+            # Extract result
+            llm_response = result.result
+            if hasattr(llm_response, 'model_dump'):
+                response_data = llm_response.model_dump()
+            elif hasattr(llm_response, 'dict'):
+                response_data = llm_response.dict()
+            else:
+                response_data = llm_response
+
+            return response_data.get('boolean_expression', concept)
+
+        except Exception as e:
+            logger.error(f"Concept expansion failed for '{concept}': {e}")
+            # Fallback to simple parentheses
+            return f"({concept})"
+
+    async def _test_pubmed_query_count(self, query: str) -> int:
+        """Test a PubMed query to get result count."""
+        try:
+            from services.pubmed_service import PubMedService
+            pubmed_service = PubMedService()
+            _, count = pubmed_service._get_article_ids(query, max_results=1)
+            return count
+        except Exception as e:
+            logger.warning(f"Failed to test PubMed query count: {e}")
+            return 1000  # Conservative fallback
+
+    async def _estimate_scholar_count(self, query: str) -> int:
+        """Estimate Google Scholar count based on query complexity."""
+        # Simple heuristic based on number of OR terms
+        or_terms = query.count(' OR ') + 1
+        base_estimate = 5000  # Base estimate per concept
+        complexity_factor = max(0.5, 1.0 - (or_terms * 0.1))  # More ORs = more specific = fewer results
+        return int(base_estimate * complexity_factor)
+
+    async def _find_optimal_combination(
+        self,
+        concept_expansions: Dict[str, str],
+        concept_counts: Dict[str, int],
+        target_count: int
+    ) -> Dict[str, Any]:
+        """Find the optimal combination of concepts to reach target result count."""
+
+        concepts = list(concept_expansions.keys())
+        sorted_concepts = sorted(concepts, key=lambda c: concept_counts[c])
+
+        # Strategy 1: Try the two smallest concepts first
+        if len(concepts) >= 2:
+            concept1, concept2 = sorted_concepts[0], sorted_concepts[1]
+            query = f"({concept_expansions[concept1]}) AND ({concept_expansions[concept2]})"
+
+            # Estimate combined count (rough heuristic)
+            estimated_count = min(concept_counts[concept1], concept_counts[concept2]) // 2
+
+            if estimated_count <= target_count * 1.5:  # Within reasonable range
+                return {
+                    'query': query,
+                    'estimated_count': estimated_count,
+                    'strategy': f'Combined two smallest concepts: "{concept1}" AND "{concept2}"'
+                }
+
+        # Strategy 2: Use single smallest concept if combination is too restrictive
+        if len(concepts) >= 1:
+            smallest_concept = sorted_concepts[0]
+            query = concept_expansions[smallest_concept]
+            estimated_count = concept_counts[smallest_concept]
+
+            return {
+                'query': query,
+                'estimated_count': estimated_count,
+                'strategy': f'Single most specific concept: "{smallest_concept}"'
+            }
+
+        # Fallback
+        return {
+            'query': ' OR '.join(f"({exp})" for exp in concept_expansions.values()),
+            'estimated_count': sum(concept_counts.values()),
+            'strategy': 'OR of all concepts (fallback)'
+        }
+
     async def execute_filtering_workflow(
         self,
         session_id: str,

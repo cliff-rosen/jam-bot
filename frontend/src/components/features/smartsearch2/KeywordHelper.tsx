@@ -120,8 +120,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     };
 
     const handleGenerateKeywords = async () => {
-        if (!evidenceSpec.trim()) {
-            setError('Evidence specification is required');
+        if (extractedConcepts.length === 0) {
+            setError('Extracted concepts are required');
             return;
         }
 
@@ -129,8 +129,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // Use context method
-            const response = await generateKeywords(evidenceSpec, selectedSource);
+            // Use context method with extracted concepts
+            const response = await generateKeywords(extractedConcepts, selectedSource, 200);
 
             setGeneratedKeywords(response.search_keywords);
             setStep('keywords');

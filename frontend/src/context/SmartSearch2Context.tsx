@@ -60,7 +60,14 @@ interface SmartSearch2Actions {
         reasoning?: string;
     }>;
     extractConcepts: (evidenceSpecification: string) => Promise<{ concepts: string[]; evidence_specification: string; }>;
-    generateKeywords: (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => Promise<{ evidence_specification: string; search_keywords: string; source: string; }>;
+    generateKeywords: (concepts: string[], source: 'pubmed' | 'google_scholar', targetResultCount?: number) => Promise<{
+        concepts: string[];
+        search_keywords: string;
+        source: string;
+        estimated_results: number;
+        concept_counts: Record<string, number>;
+        optimization_strategy: string;
+    }>;
 
     // RESEARCH JOURNEY MANAGEMENT
     setResearchQuestion: (question: string) => void;
@@ -215,11 +222,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
-    const generateKeywords = useCallback(async (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => {
+    const generateKeywords = useCallback(async (
+        concepts: string[],
+        source: 'pubmed' | 'google_scholar',
+        targetResultCount: number = 200
+    ) => {
         try {
             const response = await smartSearch2Api.generateKeywords({
-                evidence_specification: evidenceSpec,
-                source
+                concepts,
+                source,
+                target_result_count: targetResultCount
             });
             return response;
         } catch (err) {

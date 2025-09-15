@@ -55,14 +55,18 @@ export interface ConceptExtractionResponse {
 }
 
 export interface KeywordGenerationRequest {
-    evidence_specification: string;
+    concepts: string[];
     source: 'pubmed' | 'google_scholar';
+    target_result_count?: number;
 }
 
 export interface KeywordGenerationResponse {
-    evidence_specification: string;
+    concepts: string[];
     search_keywords: string;
     source: string;
+    estimated_results: number;
+    concept_counts: Record<string, number>;
+    optimization_strategy: string;
 }
 
 // SmartSearch2-specific types (no session_id required)
@@ -105,7 +109,7 @@ class SmartSearch2Api {
     }
 
     /**
-     * Generate search keywords from evidence specification
+     * Generate optimized search keywords from extracted concepts
      */
     async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
         const response = await api.post('/api/smart-search-2/generate-keywords', request);

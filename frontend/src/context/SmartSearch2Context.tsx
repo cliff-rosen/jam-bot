@@ -40,7 +40,14 @@ interface SmartSearch2Actions {
     updateSearchQuery: (query: string) => void;
 
     // AI HELPER METHODS
-    createEvidenceSpec: (query: string) => Promise<{ original_query: string; evidence_specification: string; }>;
+    refineEvidenceSpec: (userDescription: string, conversationHistory?: Array<{ question: string; answer: string }>) => Promise<{
+        is_complete: boolean;
+        evidence_specification: string | null;
+        clarification_questions: string[] | null;
+        completeness_score: number;
+        missing_elements: string[];
+        reasoning?: string;
+    }>;
     generateKeywords: (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => Promise<{ evidence_specification: string; search_keywords: string; source: string; }>;
 
     // SEARCH EXECUTION
@@ -221,7 +228,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // Actions
         updateSelectedSource,
         updateSearchQuery,
-        createEvidenceSpec,
+        refineEvidenceSpec,
         generateKeywords,
         search,
         resetSearch,

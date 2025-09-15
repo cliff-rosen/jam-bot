@@ -19,10 +19,17 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [step, setStep] = useState<'question' | 'evidence' | 'keywords'>('question');
     const [error, setError] = useState<string | null>(null);
 
-    const { selectedSource, updateSearchQuery, createEvidenceSpec, generateKeywords } = useSmartSearch2();
+    // For conversational refinement
+    const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
+    const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
+    const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+    const [completenessScore, setCompletenessScore] = useState(0);
+    const [missingElements, setMissingElements] = useState<string[]>([]);
+
+    const { selectedSource, updateSearchQuery, refineEvidenceSpec, generateKeywords } = useSmartSearch2();
 
     const handleGenerateEvidenceSpec = async () => {
-        if (!researchQuestion.trim()) {
+        if (!researchQuestion.trim() && conversationHistory.length === 0) {
             setError('Please enter a research question');
             return;
         }
@@ -31,13 +38,44 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            // Use context method
-            const response = await createEvidenceSpec(researchQuestion);
+            // Build conversation context with answers
+            const updatedHistory = [...conversationHistory];
 
-            setEvidenceSpec(response.evidence_specification);
-            setStep('evidence');
+            // If we have clarification questions, add the user's answers to conversation history
+            if (clarificationQuestions.length > 0) {
+                clarificationQuestions.forEach((question, index) => {
+                    if (userAnswers[index]) {
+                        updatedHistory.push({
+                            question,
+                            answer: userAnswers[index]
+                        });
+                    }
+                });
+                setConversationHistory(updatedHistory);
+            }
+
+            // Use conversational refinement
+            const response = await refineEvidenceSpec(
+                researchQuestion,
+                updatedHistory.length > 0 ? updatedHistory : undefined
+            );
+
+            setCompletenessScore(response.completeness_score);
+            setMissingElements(response.missing_elements || []);
+
+            if (response.is_complete && response.evidence_specification) {
+                // Evidence spec is complete
+                setEvidenceSpec(response.evidence_specification);
+                setClarificationQuestions([]);
+                setUserAnswers({});
+                setStep('evidence');
+            } else if (response.clarification_questions) {
+                // Need more information
+                setClarificationQuestions(response.clarification_questions);
+                setUserAnswers({});
+            }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to generate evidence specification';
+            const errorMessage = err instanceof Error ? err.message : 'Failed to refine evidence specification';
             setError(errorMessage);
         } finally {
             setIsGenerating(false);
@@ -111,6 +149,20 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
     };
 
+    const handleReset = () => {
+        // Reset all state to start fresh
+        setResearchQuestion('');
+        setEvidenceSpec('');
+        setGeneratedKeywords('');
+        setConversationHistory([]);
+        setClarificationQuestions([]);
+        setUserAnswers({});
+        setCompletenessScore(0);
+        setMissingElements([]);
+        setError(null);
+        setStep('question');
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -176,29 +228,74 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         <div>
                             <Badge variant="outline" className="mb-3">Step 1 of 3</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                Enter Your Research Question
+                                {clarificationQuestions.length > 0 ? 'Answer Clarification Questions' : 'Enter Your Research Question'}
                             </h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Describe what you're looking for in natural language. The AI will analyze your question to create an evidence specification.
+                                {clarificationQuestions.length > 0
+                                    ? `Please answer these questions to help refine your search (Completeness: ${Math.round(completenessScore * 100)}%)`
+                                    : 'Describe what you\'re looking for in natural language. The AI will analyze your question to create an evidence specification.'}
                             </p>
                         </div>
 
-                        <div>
-                            <Label htmlFor="research-question" className="text-sm font-medium mb-2 block">
-                                Research Question
-                            </Label>
-                            <Textarea
-                                id="research-question"
-                                value={researchQuestion}
-                                onChange={(e) => setResearchQuestion(e.target.value)}
-                                rows={4}
-                                className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                placeholder={getPlaceholderText()}
-                            />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                Be specific about what you want to find - this helps the AI generate better keywords
-                            </p>
-                        </div>
+                        {/* Show initial question input or clarification questions */}
+                        {clarificationQuestions.length === 0 ? (
+                            <div>
+                                <Label htmlFor="research-question" className="text-sm font-medium mb-2 block">
+                                    Research Question
+                                </Label>
+                                <Textarea
+                                    id="research-question"
+                                    value={researchQuestion}
+                                    onChange={(e) => setResearchQuestion(e.target.value)}
+                                    rows={4}
+                                    className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                                    placeholder={getPlaceholderText()}
+                                    disabled={isGenerating}
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    Be specific about what you want to find - this helps the AI generate better keywords
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {/* Show original question */}
+                                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Your research question:</p>
+                                    <p className="text-sm text-gray-900 dark:text-gray-100">{researchQuestion}</p>
+                                </div>
+
+                                {/* Show clarification questions */}
+                                {clarificationQuestions.map((question, index) => (
+                                    <div key={index}>
+                                        <Label className="text-sm font-medium mb-2 block">
+                                            {question}
+                                        </Label>
+                                        <Textarea
+                                            value={userAnswers[index] || ''}
+                                            onChange={(e) => setUserAnswers(prev => ({ ...prev, [index]: e.target.value }))}
+                                            rows={3}
+                                            className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                                            placeholder="Type your answer here..."
+                                            disabled={isGenerating}
+                                        />
+                                    </div>
+                                ))}
+
+                                {/* Show missing elements if any */}
+                                {missingElements.length > 0 && (
+                                    <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md">
+                                        <p className="text-xs font-medium text-amber-800 dark:text-amber-400 mb-1">Missing elements:</p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {missingElements.map((element, index) => (
+                                                <Badge key={index} variant="secondary" className="text-xs">
+                                                    {element}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -265,7 +362,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
 
             {/* Navigation Buttons */}
             <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-2">
                     {canGoBack && (
                         <Button
                             onClick={handleBack}
@@ -274,6 +371,16 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         >
                             <ChevronLeft className="w-4 h-4 mr-2" />
                             Back
+                        </Button>
+                    )}
+                    {clarificationQuestions.length > 0 && (
+                        <Button
+                            onClick={handleReset}
+                            variant="ghost"
+                            disabled={isGenerating}
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                        >
+                            Start Over
                         </Button>
                     )}
                 </div>
@@ -311,7 +418,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                 onClick={handleNext}
                                 disabled={
                                     isGenerating ||
-                                    (step === 'question' && !researchQuestion.trim()) ||
+                                    (step === 'question' && !researchQuestion.trim() && clarificationQuestions.length === 0) ||
+                                    (step === 'question' && clarificationQuestions.length > 0 && Object.keys(userAnswers).length === 0) ||
                                     (step === 'evidence' && !evidenceSpec.trim())
                                 }
                                 className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
@@ -326,7 +434,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                         {step === 'question' && (
                                             <>
                                                 <Sparkles className="w-4 h-4 mr-2" />
-                                                Generate Evidence Spec
+                                                {clarificationQuestions.length > 0 ? 'Continue Refining' : 'Generate Evidence Spec'}
                                             </>
                                         )}
                                         {step === 'evidence' && (

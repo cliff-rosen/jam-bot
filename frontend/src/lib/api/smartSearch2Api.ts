@@ -32,12 +32,17 @@ export interface DirectSearchResponse {
 }
 
 export interface EvidenceSpecRequest {
-    query: string;
+    user_description: string;
+    conversation_history?: Array<{ question: string; answer: string }>;
 }
 
 export interface EvidenceSpecResponse {
-    original_query: string;
-    evidence_specification: string;
+    is_complete: boolean;
+    evidence_specification: string | null;
+    clarification_questions: string[] | null;
+    completeness_score: number;
+    missing_elements: string[];
+    reasoning?: string;
 }
 
 export interface KeywordGenerationRequest {
@@ -75,9 +80,9 @@ class SmartSearch2Api {
 
 
     /**
-     * Generate evidence specification from research question
+     * Refine evidence specification from user description (conversational)
      */
-    async createEvidenceSpec(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
+    async refineEvidenceSpec(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
         const response = await api.post('/api/smart-search-2/evidence-spec', request);
         return response.data;
     }

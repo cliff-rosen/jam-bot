@@ -90,7 +90,7 @@ function SmartSearch2Content() {
       const response = await extractFeatures();
       toast({
         title: 'Feature Extraction Complete',
-        description: `Successfully extracted ${response.extraction_metadata.features_extracted} features from ${response.extraction_metadata.successful_extractions} articles`,
+        description: `Successfully extracted ${response.extraction_metadata.features_extracted} features from ${response.extraction_metadata.total_articles} articles`,
         variant: 'default'
       });
     } catch (error) {

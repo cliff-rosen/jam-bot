@@ -80,7 +80,7 @@ export function QuestionStep({
                             </Label>
                             <Textarea
                                 value={userAnswers[index] || ''}
-                                onChange={(e) => setUserAnswers((prev: Record<number, string>) => ({ ...prev, [index]: e.target.value }))}
+                                onChange={(e) => setUserAnswers({ ...userAnswers, [index]: e.target.value })}
                                 rows={3}
                                 className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                 placeholder="Type your answer here..."

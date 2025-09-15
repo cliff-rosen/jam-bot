@@ -107,10 +107,21 @@ interface SmartSearch2Actions {
     testCoverage: (query: string, targetPmids: string[]) => Promise<{
         found_articles: Array<{ pmid: string; title: string; }>;
         missing_articles: string[];
+        covered_ids: string[];
         coverage_percentage: number;
+        coverage_count: number;
         total_target: number;
         total_found: number;
+        estimated_count?: number;
     }>;
+    fetchArticles: (pmids: string[]) => Promise<Array<{
+        id: string;
+        title: string;
+        abstract?: string;
+        authors?: string[];
+        journal?: string;
+        year?: number;
+    }>>;
 }
 
 // ================== CONTEXT ==================
@@ -349,6 +360,19 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
+    const fetchArticles = useCallback(async (pmids: string[]) => {
+        try {
+            const response = await api.post('/api/pubmed/fetch-articles', {
+                pubmed_ids: pmids
+            });
+            return response.data.articles || [];
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch articles';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
     // ================== CONTEXT VALUE ==================
 
     const contextValue: SmartSearch2ContextType = {
@@ -389,6 +413,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         extractFeatures,
         clearError,
         testCoverage,
+        fetchArticles,
 
         // Research journey actions
         setResearchQuestion,

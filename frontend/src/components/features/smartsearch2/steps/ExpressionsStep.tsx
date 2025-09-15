@@ -54,9 +54,14 @@ export function ExpressionsStep({
         const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
         if (selectedExpressions.length > 0) {
             try {
+                // Log what we're sending
                 console.log('Testing combination:', {
                     selectedCount: selectedExpressions.length,
-                    expressions: selectedExpressions.map(exp => exp.expression),
+                    expressions: selectedExpressions.map(exp => ({
+                        concept: exp.concept,
+                        expression: exp.expression,
+                        individualCount: exp.count
+                    })),
                     source: selectedSource
                 });
 
@@ -65,12 +70,28 @@ export function ExpressionsStep({
                     selectedSource
                 );
 
-                console.log('Test response:', response);
+                console.log('Test response:', {
+                    combined_query: response.combined_query,
+                    estimated_results: response.estimated_results,
+                    source: response.source
+                });
+
+                // Log the Boolean logic check
+                console.log('BOOLEAN LOGIC CHECK:', {
+                    individualCounts: selectedExpressions.map(exp => `${exp.concept}: ${exp.count}`),
+                    combinedCount: response.estimated_results,
+                    isLogicallyCorrect: response.estimated_results <= Math.min(...selectedExpressions.map(exp => exp.count)),
+                    message: response.estimated_results > Math.min(...selectedExpressions.map(exp => exp.count))
+                        ? '⚠️ WARNING: Combined count is higher than smallest individual count - Boolean AND logic may be incorrect!'
+                        : '✓ Boolean AND logic appears correct'
+                });
+
                 setGeneratedKeywords(response.combined_query);
                 setEstimatedResults(response.estimated_results);
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'Failed to test combination';
                 setError(errorMessage);
+                console.error('Test combination error:', err);
             }
         }
     };

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X } from 'lucide-react';
+import { X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 
 interface CoverageTestModalProps {
@@ -11,21 +11,44 @@ interface CoverageTestModalProps {
     onClose: () => void;
 }
 
+interface Article {
+    pmid: string;
+    title: string;
+    abstract?: string;
+    authors?: string[];
+    journal?: string;
+    year?: number;
+}
+
 interface CoverageResult {
-    totalArticles: number;
-    foundArticles: number;
-    foundPmids: string[];
-    missingPmids: string[];
-    coveragePercentage: number;
+    found_articles: Article[];
+    missing_articles: string[];
+    covered_ids: string[];
+    coverage_percentage: number;
+    coverage_count: number;
+    total_target: number;
+    estimated_count?: number;
+}
+
+interface FullArticle {
+    id: string;
+    title: string;
+    abstract?: string;
+    authors?: string[];
+    journal?: string;
+    year?: number;
+    is_covered?: boolean;
 }
 
 export function CoverageTestModal({ query, source, onClose }: CoverageTestModalProps) {
     const [targetPmids, setTargetPmids] = useState('');
     const [isTesting, setIsTesting] = useState(false);
     const [coverageResult, setCoverageResult] = useState<CoverageResult | null>(null);
+    const [fullArticles, setFullArticles] = useState<FullArticle[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [isLoadingArticles, setIsLoadingArticles] = useState(false);
 
-    const { testCoverage } = useSmartSearch2();
+    const { testCoverage, fetchArticles } = useSmartSearch2();
 
     const handleTestCoverage = async () => {
         if (!targetPmids.trim()) {
@@ -50,20 +73,35 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
         setCoverageResult(null);
 
         try {
+            // First fetch full article details
+            setIsLoadingArticles(true);
+            const articles = await fetchArticles(pmids);
+
             // Call the coverage testing through context
             const data = await testCoverage(query, pmids);
 
-            // Transform the response to match our interface
-            const foundPmids = data.found_articles?.map((article: any) => article.pmid) || [];
-            const missingPmids = pmids.filter(pmid => !foundPmids.includes(pmid));
-
+            // Process the response to include all necessary data
             setCoverageResult({
-                totalArticles: pmids.length,
-                foundArticles: foundPmids.length,
-                foundPmids,
-                missingPmids,
-                coveragePercentage: Math.round((foundPmids.length / pmids.length) * 100)
+                found_articles: data.found_articles || [],
+                missing_articles: data.missing_articles || pmids.filter(pmid =>
+                    !data.covered_ids?.includes(pmid)
+                ),
+                covered_ids: data.covered_ids || [],
+                coverage_percentage: data.coverage_percentage || 0,
+                coverage_count: data.coverage_count || 0,
+                total_target: pmids.length,
+                estimated_count: data.estimated_count
             });
+
+            // Merge articles with coverage information
+            const articlesWithCoverage = articles.map(article => {
+                const pmid = article.id.replace('PMID:', '');
+                return {
+                    ...article,
+                    is_covered: data.covered_ids?.includes(pmid) || false
+                };
+            });
+            setFullArticles(articlesWithCoverage);
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to test coverage';
@@ -71,7 +109,12 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
             console.error('Coverage test failed:', err);
         } finally {
             setIsTesting(false);
+            setIsLoadingArticles(false);
         }
+    };
+
+    const extractPubMedId = (id: string) => {
+        return id.replace('PMID:', '').replace('pmid:', '');
     };
 
     return (
@@ -127,13 +170,13 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
                     <div>
                         <Button
                             onClick={handleTestCoverage}
-                            disabled={isTesting || !targetPmids.trim()}
+                            disabled={isTesting || isLoadingArticles || !targetPmids.trim()}
                             className="w-full"
                         >
-                            {isTesting ? (
+                            {isTesting || isLoadingArticles ? (
                                 <>
                                     <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                                    Testing Coverage...
+                                    {isLoadingArticles ? 'Loading Articles...' : 'Testing Coverage...'}
                                 </>
                             ) : (
                                 'Test Query Coverage'
@@ -149,49 +192,122 @@ export function CoverageTestModal({ query, source, onClose }: CoverageTestModalP
                     )}
 
                     {/* Results Display */}
-                    {coverageResult && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-                            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-3">
-                                Coverage Test Results
-                            </h3>
+                    {(coverageResult || isLoadingArticles) && (
+                        <>
+                            {/* Summary Stats */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
+                                <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-3">
+                                    Coverage Test Results
+                                </h3>
 
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-blue-800 dark:text-blue-200">Coverage:</span>
-                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                        {coverageResult.coveragePercentage}% ({coverageResult.foundArticles}/{coverageResult.totalArticles} articles)
-                                    </span>
-                                </div>
-
-                                {coverageResult.foundPmids.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">
-                                            ✓ Found ({coverageResult.foundPmids.length}):
-                                        </p>
-                                        <p className="text-xs text-green-600 dark:text-green-400 font-mono">
-                                            {coverageResult.foundPmids.join(', ')}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {coverageResult.missingPmids.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">
-                                            ✗ Missing ({coverageResult.missingPmids.length}):
-                                        </p>
-                                        <p className="text-xs text-red-600 dark:text-red-400 font-mono">
-                                            {coverageResult.missingPmids.join(', ')}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {coverageResult.coveragePercentage < 100 && (
-                                    <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
-                                        💡 Consider adding more search terms or adjusting your Boolean expressions to improve coverage
+                                {coverageResult && (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400">Coverage</p>
+                                            <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                                                {coverageResult.coverage_percentage}%
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400">Found</p>
+                                            <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                                                {coverageResult.coverage_count}/{coverageResult.total_target}
+                                            </p>
+                                        </div>
+                                        {coverageResult.estimated_count !== undefined && (
+                                            <div>
+                                                <p className="text-xs text-blue-600 dark:text-blue-400">Total Results</p>
+                                                <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                                                    {coverageResult.estimated_count.toLocaleString()}
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400">Missing</p>
+                                            <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                                                {coverageResult.missing_articles.length}
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        </div>
+
+                            {/* Articles List - Search Designer Style */}
+                            {isLoadingArticles ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                                    <span className="ml-3 text-gray-600 dark:text-gray-400">Loading articles...</span>
+                                </div>
+                            ) : fullArticles.length > 0 ? (
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                        Target Articles ({fullArticles.length})
+                                    </h4>
+                                    <div className="space-y-1">
+                                        {fullArticles.map((article) => (
+                                            <div
+                                                key={article.id}
+                                                className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+                                            >
+                                                {article.is_covered !== undefined && (
+                                                    article.is_covered ? (
+                                                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                                    ) : (
+                                                        <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                                                    )
+                                                )}
+                                                <span className="font-mono text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                                    {extractPubMedId(article.id)}
+                                                </span>
+                                                <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
+                                                    {article.title}
+                                                </span>
+                                                <a
+                                                    href={`https://pubmed.ncbi.nlm.nih.gov/${extractPubMedId(article.id)}/`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex-shrink-0"
+                                                >
+                                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Coverage Summary */}
+                                    {coverageResult && (
+                                        <div className="mt-4 flex justify-between items-center">
+                                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                                                Total Articles: {fullArticles.length}
+                                                <span className="ml-2">
+                                                    | Covered: {fullArticles.filter(a => a.is_covered).length}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null}
+
+                            {/* Suggestions */}
+                            {coverageResult && coverageResult.coverage_percentage < 100 && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md p-4">
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                                                Improve Coverage
+                                            </p>
+                                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                                                Your query is missing {coverageResult.missing_articles.length} target article(s).
+                                                Consider adjusting your Boolean expressions or adding more search terms to improve coverage.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 

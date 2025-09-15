@@ -12,26 +12,41 @@ interface KeywordHelperProps {
 }
 
 export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
-    const [researchQuestion, setResearchQuestion] = useState('');
-    const [evidenceSpec, setEvidenceSpec] = useState('');
-    const [extractedConcepts, setExtractedConcepts] = useState<string[]>([]);
-    const [generatedKeywords, setGeneratedKeywords] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
+    // UI flow state (local to component)
     const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'keywords'>('question');
+    const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // For conversational refinement
-    const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
     const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
-    const [completenessScore, setCompletenessScore] = useState(0);
-    const [missingElements, setMissingElements] = useState<string[]>([]);
 
-    const { selectedSource, updateSearchQuery, refineEvidenceSpec, extractConcepts, generateKeywords } = useSmartSearch2();
+    const {
+        // Research data from context (persistent)
+        selectedSource,
+        researchQuestion,
+        evidenceSpec,
+        extractedConcepts,
+        generatedKeywords,
+        conversationHistory,
+        completenessScore,
+        missingElements,
+
+        // Actions from context
+        updateSearchQuery,
+        refineEvidenceSpec,
+        extractConcepts,
+        generateKeywords,
+        setResearchQuestion,
+        setEvidenceSpec,
+        setExtractedConcepts,
+        setGeneratedKeywords,
+        setConversationHistory,
+        setCompletenessScore,
+        setMissingElements,
+        resetResearchJourney,
+    } = useSmartSearch2();
 
     const handleGenerateEvidenceSpec = async () => {
         if (!researchQuestion.trim() && conversationHistory.length === 0) {
-            setError('Please enter a research question');
             return;
         }
 
@@ -177,16 +192,12 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     };
 
     const handleReset = () => {
-        // Reset all state to start fresh
-        setResearchQuestion('');
-        setEvidenceSpec('');
-        setExtractedConcepts([]);
-        setGeneratedKeywords('');
-        setConversationHistory([]);
+        // Reset research data in context
+        resetResearchJourney();
+
+        // Reset local UI state
         setClarificationQuestions([]);
         setUserAnswers({});
-        setCompletenessScore(0);
-        setMissingElements([]);
         setError(null);
         setStep('question');
     };

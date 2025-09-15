@@ -27,6 +27,17 @@ interface SmartSearch2State {
     extractedData: Record<string, Record<string, any>>;
     isExtracting: boolean;
 
+    // RESEARCH JOURNEY STATE (persistent data)
+    researchQuestion: string;
+    evidenceSpec: string;
+    extractedConcepts: string[];
+    generatedKeywords: string;
+
+    // CONVERSATIONAL REFINEMENT STATE (persistent data)
+    conversationHistory: Array<{ question: string; answer: string }>;
+    completenessScore: number;
+    missingElements: string[];
+
     // UI STATE
     hasSearched: boolean;
     error: string | null;
@@ -50,6 +61,16 @@ interface SmartSearch2Actions {
     }>;
     extractConcepts: (evidenceSpecification: string) => Promise<{ concepts: string[]; evidence_specification: string; }>;
     generateKeywords: (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => Promise<{ evidence_specification: string; search_keywords: string; source: string; }>;
+
+    // RESEARCH JOURNEY MANAGEMENT
+    setResearchQuestion: (question: string) => void;
+    setEvidenceSpec: (spec: string) => void;
+    setExtractedConcepts: (concepts: string[]) => void;
+    setGeneratedKeywords: (keywords: string) => void;
+    setConversationHistory: (history: Array<{ question: string; answer: string }>) => void;
+    setCompletenessScore: (score: number) => void;
+    setMissingElements: (elements: string[]) => void;
+    resetResearchJourney: () => void;
 
     // SEARCH EXECUTION
     search: () => Promise<void>;
@@ -85,6 +106,17 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Research journey state (persistent data)
+    const [researchQuestion, setResearchQuestion] = useState('');
+    const [evidenceSpec, setEvidenceSpec] = useState('');
+    const [extractedConcepts, setExtractedConcepts] = useState<string[]>([]);
+    const [generatedKeywords, setGeneratedKeywords] = useState('');
+
+    // Conversational refinement state (persistent data)
+    const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
+    const [completenessScore, setCompletenessScore] = useState(0);
+    const [missingElements, setMissingElements] = useState<string[]>([]);
 
     // Feature extraction state
     const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
@@ -141,6 +173,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setPendingFeatures([]);
         setExtractedData({});
         setIsExtracting(false);
+    }, []);
+
+    const resetResearchJourney = useCallback(() => {
+        setResearchQuestion('');
+        setEvidenceSpec('');
+        setExtractedConcepts([]);
+        setGeneratedKeywords('');
+        setConversationHistory([]);
+        setCompletenessScore(0);
+        setMissingElements([]);
     }, []);
 
     const refineEvidenceSpec = useCallback(async (
@@ -245,6 +287,15 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         extractedData,
         isExtracting,
 
+        // Research journey state
+        researchQuestion,
+        evidenceSpec,
+        extractedConcepts,
+        generatedKeywords,
+        conversationHistory,
+        completenessScore,
+        missingElements,
+
         // Actions
         updateSelectedSource,
         updateSearchQuery,
@@ -257,6 +308,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         removePendingFeature,
         extractFeatures,
         clearError,
+
+        // Research journey actions
+        setResearchQuestion,
+        setEvidenceSpec,
+        setExtractedConcepts,
+        setGeneratedKeywords,
+        setConversationHistory,
+        setCompletenessScore,
+        setMissingElements,
+        resetResearchJourney,
     };
 
     return (

@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
-import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
-import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
+
+import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
+
+import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
+import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 
 // Main content component that uses SmartSearch2Context
 function SmartSearch2Content() {
   const [showKeywordHelper, setShowKeywordHelper] = useState(false);
   const { toast } = useToast();
-  
+
   // SearchResults UI state
   const [isEditingQuery, setIsEditingQuery] = useState(false);
   const [editedQuery, setEditedQuery] = useState('');
@@ -217,30 +219,30 @@ function SmartSearch2Content() {
             <SearchResults
               articles={searchResults?.articles || []}
               pagination={searchResults?.pagination || null}
-                query={searchQuery}
-                source={selectedSource}
-                isSearching={isSearching}
-                onQueryUpdate={updateSearchQuery}
-                onSearch={handleSearch}
-                appliedFeatures={appliedFeatures}
-                pendingFeatures={pendingFeatures}
-                extractedData={extractedData}
-                isExtracting={isExtracting}
-                onAddFeature={handleAddFeature}
-                onRemovePendingFeature={removePendingFeature}
-                onExtractFeatures={handleExtractFeatures}
-                // UI state and handlers
-                isEditingQuery={isEditingQuery}
-                editedQuery={editedQuery}
-                displayMode={displayMode}
-                sortColumn={sortColumn}
-                sortDirection={sortDirection}
-                onQueryEdit={handleQueryEdit}
-                onCancelEdit={handleCancelEdit}
-                onEditedQueryChange={handleEditedQueryChange}
-                onDisplayModeChange={setDisplayMode}
-                onSort={handleSort}
-              />
+              query={searchQuery}
+              source={selectedSource}
+              isSearching={isSearching}
+              onQueryUpdate={updateSearchQuery}
+              onSearch={handleSearch}
+              appliedFeatures={appliedFeatures}
+              pendingFeatures={pendingFeatures}
+              extractedData={extractedData}
+              isExtracting={isExtracting}
+              onAddFeature={handleAddFeature}
+              onRemovePendingFeature={removePendingFeature}
+              onExtractFeatures={handleExtractFeatures}
+              // UI state and handlers
+              isEditingQuery={isEditingQuery}
+              editedQuery={editedQuery}
+              displayMode={displayMode}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onQueryEdit={handleQueryEdit}
+              onCancelEdit={handleCancelEdit}
+              onEditedQueryChange={handleEditedQueryChange}
+              onDisplayModeChange={setDisplayMode}
+              onSort={handleSort}
+            />
           )}
         </div>
       </div>

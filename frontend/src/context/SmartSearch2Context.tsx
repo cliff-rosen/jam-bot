@@ -48,6 +48,7 @@ interface SmartSearch2Actions {
         missing_elements: string[];
         reasoning?: string;
     }>;
+    extractConcepts: (evidenceSpecification: string) => Promise<{ concepts: string[]; evidence_specification: string; }>;
     generateKeywords: (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => Promise<{ evidence_specification: string; search_keywords: string; source: string; }>;
 
     // SEARCH EXECUTION
@@ -159,6 +160,19 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
+    const extractConcepts = useCallback(async (evidenceSpecification: string) => {
+        try {
+            const response = await smartSearch2Api.extractConcepts({
+                evidence_specification: evidenceSpecification
+            });
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to extract concepts';
+            setError(errorMessage);
+            throw err;
+        }
+    }, []);
+
     const generateKeywords = useCallback(async (evidenceSpec: string, source: 'pubmed' | 'google_scholar') => {
         try {
             const response = await smartSearch2Api.generateKeywords({
@@ -235,6 +249,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         updateSelectedSource,
         updateSearchQuery,
         refineEvidenceSpec,
+        extractConcepts,
         generateKeywords,
         search,
         resetSearch,

@@ -97,6 +97,15 @@ class EvidenceSpecResponse(BaseModel):
     completeness_score: float = Field(..., description="How complete the spec is (0-1)")
     missing_elements: List[str] = Field(default=[], description="What elements are missing")
 
+class ConceptExtractionRequest(BaseModel):
+    """Request for concept extraction from evidence specification"""
+    evidence_specification: str = Field(..., description="Evidence specification to extract concepts from")
+
+class ConceptExtractionResponse(BaseModel):
+    """Response from concept extraction"""
+    concepts: List[str] = Field(..., description="Extracted searchable concepts")
+    evidence_specification: str = Field(..., description="Input evidence specification")
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
@@ -187,6 +196,50 @@ async def create_evidence_spec(
     except Exception as e:
         logger.error(f"Evidence specification refinement failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Evidence specification refinement failed: {str(e)}")
+
+
+@router.post("/extract-concepts", response_model=ConceptExtractionResponse)
+async def extract_concepts(
+    request: ConceptExtractionRequest,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+) -> ConceptExtractionResponse:
+    """
+    Extract key searchable concepts from evidence specification.
+
+    This endpoint takes a complete evidence specification and extracts
+    the key biomedical concepts that can be used to build search queries.
+
+    Args:
+        request: Concept extraction request
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        ConceptExtractionResponse with extracted concepts
+
+    Raises:
+        HTTPException: If extraction fails
+    """
+    try:
+        logger.info(f"User {current_user.user_id} extracting concepts from evidence spec")
+
+        # Use SmartSearchService to extract concepts
+        service = SmartSearchService()
+        concepts, usage = await service.extract_search_concepts(
+            evidence_specification=request.evidence_specification
+        )
+
+        logger.info(f"Concept extraction completed for user {current_user.user_id}: {len(concepts)} concepts")
+
+        return ConceptExtractionResponse(
+            concepts=concepts,
+            evidence_specification=request.evidence_specification
+        )
+
+    except Exception as e:
+        logger.error(f"Concept extraction failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Concept extraction failed: {str(e)}")
 
 
 @router.post("/generate-keywords", response_model=KeywordGenerationResponse)

@@ -45,6 +45,15 @@ export interface EvidenceSpecResponse {
     reasoning?: string;
 }
 
+export interface ConceptExtractionRequest {
+    evidence_specification: string;
+}
+
+export interface ConceptExtractionResponse {
+    concepts: string[];
+    evidence_specification: string;
+}
+
 export interface KeywordGenerationRequest {
     evidence_specification: string;
     source: 'pubmed' | 'google_scholar';
@@ -84,6 +93,14 @@ class SmartSearch2Api {
      */
     async refineEvidenceSpec(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
         const response = await api.post('/api/smart-search-2/evidence-spec', request);
+        return response.data;
+    }
+
+    /**
+     * Extract key concepts from evidence specification
+     */
+    async extractConcepts(request: ConceptExtractionRequest): Promise<ConceptExtractionResponse> {
+        const response = await api.post('/api/smart-search-2/extract-concepts', request);
         return response.data;
     }
 

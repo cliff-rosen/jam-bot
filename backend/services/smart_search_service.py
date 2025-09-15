@@ -852,24 +852,24 @@ class SmartSearchService:
                 context += f"A{i}: {exchange.get('answer', '')}\n"
 
         # Create prompt for evidence specification refinement
-            system_prompt = f"""You are helping a researcher create a clear evidence specification for a systematic literature search.
+        system_prompt = """You are helping a researcher create a clear evidence specification for a systematic literature search.
 
-            Evaluate if the description provides enough detail to create an effective search strategy. A complete evidence specification should clearly define:
+        Evaluate if the description provides enough detail to create an effective search strategy. A complete evidence specification should clearly define:
 
-            1. **Population**: Who or what is being studied (patients, animals, materials, etc.)
-            2. **Intervention/Exposure**: What is being done, given, tested, or measured
-            3. **Outcomes**: What effects, results, or measures are being studied
-            4. **Context**: Any important constraints (study types, comparison groups, time periods, settings)
+        1. **Population**: Who or what is being studied (patients, animals, materials, etc.)
+        2. **Intervention/Exposure**: What is being done, given, tested, or measured
+        3. **Outcomes**: What effects, results, or measures are being studied
+        4. **Context**: Any important constraints (study types, comparison groups, time periods, settings)
 
-            **Completeness Threshold**: Score ≥0.8 = complete enough for search
+        **Completeness Threshold**: Score ≥0.8 = complete enough for search
 
-            **Output Format for Complete Specifications**:
-            "Studies that [action] in [population] to [measure/assess outcome]..."
+        **Output Format for Complete Specifications**:
+        "Studies that [action] in [population] to [measure/assess outcome]..."
 
-            If complete (≥0.8), provide a clean evidence specification in the standard format.
-            If incomplete (<0.8), ask 1-2 focused questions to get the most critical missing information.
+        If complete (≥0.8), provide a clean evidence specification in the standard format.
+        If incomplete (<0.8), ask 1-2 focused questions to get the most critical missing information.
 
-            Respond in JSON format."""
+        Respond in JSON format."""
 
         # Response schema for BasePromptCaller
         response_schema = {
@@ -926,7 +926,77 @@ class SmartSearchService:
         except Exception as e:
             logger.error(f"Evidence specification refinement failed: {e}")
             raise
-    
+
+    async def extract_search_concepts(self, evidence_specification: str) -> Tuple[List[str], LLMUsage]:
+        """
+        Extract key searchable concepts from evidence specification.
+        """
+        logger.info(f"Extracting concepts from evidence specification: {evidence_specification[:100]}...")
+
+        # Create prompt for concept extraction
+        system_prompt = """Extract 2-4 key biomedical concepts from this evidence specification that would be good for a literature search.
+
+        Return only the most important, specific terms that define what studies they're looking for.
+        Focus on: organisms, interventions, diseases, outcomes, or study types.
+
+        Examples:
+        - "Studies that examine cancer treatment in mice" → ["cancer", "treatment", "mice"]
+        - "Studies that evaluate insulin therapy in diabetes patients" → ["insulin therapy", "diabetes", "patients"]
+
+        Respond in JSON format with the "concepts" field."""
+
+        # Response schema for BasePromptCaller
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "concepts": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["concepts"]
+        }
+
+        # Get model config for concept extraction
+        task_config = get_task_config("smart_search", "evidence_spec")
+
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message=system_prompt,
+            model=task_config["model"],
+            temperature=task_config.get("temperature", 0.0),
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
+        )
+
+        try:
+            # Get LLM response
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat",
+                role=MessageRole.USER,
+                content=f"Evidence specification: {evidence_specification}\n\nPlease extract the key searchable concepts.",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            result = await prompt_caller.invoke(
+                messages=[user_message],
+                return_usage=True
+            )
+
+            # Extract result following the working pattern
+            llm_response = result.result
+            if hasattr(llm_response, 'model_dump'):
+                response_data = llm_response.model_dump()
+            elif hasattr(llm_response, 'dict'):
+                response_data = llm_response.dict()
+            else:
+                response_data = llm_response
+
+            concepts = response_data.get('concepts', [])
+            logger.info(f"Concept extraction complete: {len(concepts)} concepts extracted")
+            return concepts, result.usage
+
+        except Exception as e:
+            logger.error(f"Concept extraction failed: {e}")
+            raise
+
     async def execute_filtering_workflow(
         self,
         session_id: str,

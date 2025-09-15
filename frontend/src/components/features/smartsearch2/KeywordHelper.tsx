@@ -14,9 +14,10 @@ interface KeywordHelperProps {
 export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [researchQuestion, setResearchQuestion] = useState('');
     const [evidenceSpec, setEvidenceSpec] = useState('');
+    const [extractedConcepts, setExtractedConcepts] = useState<string[]>([]);
     const [generatedKeywords, setGeneratedKeywords] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [step, setStep] = useState<'question' | 'evidence' | 'keywords'>('question');
+    const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'keywords'>('question');
     const [error, setError] = useState<string | null>(null);
 
     // For conversational refinement
@@ -26,7 +27,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [completenessScore, setCompletenessScore] = useState(0);
     const [missingElements, setMissingElements] = useState<string[]>([]);
 
-    const { selectedSource, updateSearchQuery, refineEvidenceSpec, generateKeywords } = useSmartSearch2();
+    const { selectedSource, updateSearchQuery, refineEvidenceSpec, extractConcepts, generateKeywords } = useSmartSearch2();
 
     const handleGenerateEvidenceSpec = async () => {
         if (!researchQuestion.trim() && conversationHistory.length === 0) {
@@ -82,6 +83,27 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         }
     };
 
+    const handleExtractConcepts = async () => {
+        if (!evidenceSpec.trim()) {
+            setError('Evidence specification is required');
+            return;
+        }
+
+        setIsGenerating(true);
+        setError(null);
+
+        try {
+            const response = await extractConcepts(evidenceSpec);
+            setExtractedConcepts(response.concepts);
+            setStep('concepts');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to extract concepts';
+            setError(errorMessage);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleGenerateKeywords = async () => {
         if (!evidenceSpec.trim()) {
             setError('Evidence specification is required');
@@ -121,13 +143,14 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const steps = [
         { id: 'question', title: 'Research Question', description: 'Describe what you\'re looking for' },
         { id: 'evidence', title: 'Evidence Specification', description: 'Review the AI-generated specification' },
+        { id: 'concepts', title: 'Key Concepts', description: 'Extract searchable concepts' },
         { id: 'keywords', title: 'Search Keywords', description: 'Get optimized search terms' }
     ];
 
     const currentStepIndex = steps.findIndex(s => s.id === step);
     const canGoBack = currentStepIndex > 0;
 
-    const goToStep = (stepId: 'question' | 'evidence' | 'keywords') => {
+    const goToStep = (stepId: 'question' | 'evidence' | 'concepts' | 'keywords') => {
         setStep(stepId);
         setError(null);
     };
@@ -136,6 +159,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         if (step === 'question') {
             handleGenerateEvidenceSpec();
         } else if (step === 'evidence') {
+            handleExtractConcepts();
+        } else if (step === 'concepts') {
             handleGenerateKeywords();
         }
     };
@@ -143,8 +168,10 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const handleBack = () => {
         if (step === 'evidence') {
             setStep('question');
-        } else if (step === 'keywords') {
+        } else if (step === 'concepts') {
             setStep('evidence');
+        } else if (step === 'keywords') {
+            setStep('concepts');
         }
         setError(null);
     };
@@ -153,6 +180,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         // Reset all state to start fresh
         setResearchQuestion('');
         setEvidenceSpec('');
+        setExtractedConcepts([]);
         setGeneratedKeywords('');
         setConversationHistory([]);
         setClarificationQuestions([]);
@@ -226,7 +254,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                 {step === 'question' && (
                     <div className="space-y-4">
                         <div>
-                            <Badge variant="outline" className="mb-3">Step 1 of 3</Badge>
+                            <Badge variant="outline" className="mb-3">Step 1 of 4</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                                 {clarificationQuestions.length > 0 ? 'Answer Clarification Questions' : 'Enter Your Research Question'}
                             </h3>
@@ -302,7 +330,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                 {step === 'evidence' && (
                     <div className="space-y-4">
                         <div>
-                            <Badge variant="outline" className="mb-3">Step 2 of 3</Badge>
+                            <Badge variant="outline" className="mb-3">Step 2 of 4</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                                 Review Evidence Specification
                             </h3>
@@ -329,10 +357,48 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                     </div>
                 )}
 
+                {step === 'concepts' && (
+                    <div className="space-y-4">
+                        <div>
+                            <Badge variant="outline" className="mb-3">Step 3 of 4</Badge>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                Extracted Key Concepts
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                The AI has identified the key biomedical concepts from your evidence specification. These will be used to build the search query.
+                            </p>
+                        </div>
+
+                        <div>
+                            <Label className="text-sm font-medium mb-2 block">
+                                Key Concepts
+                            </Label>
+                            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 min-h-[120px]">
+                                {extractedConcepts.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {extractedConcepts.map((concept, index) => (
+                                            <Badge key={index} variant="secondary" className="text-sm px-3 py-1">
+                                                {concept}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+                                        Extracted concepts will appear here...
+                                    </p>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                These concepts represent the core searchable terms identified from your evidence specification
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {step === 'keywords' && (
                     <div className="space-y-4">
                         <div>
-                            <Badge variant="outline" className="mb-3">Step 3 of 3</Badge>
+                            <Badge variant="outline" className="mb-3">Step 4 of 4</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                                 Generated Search Keywords
                             </h3>
@@ -420,7 +486,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                     isGenerating ||
                                     (step === 'question' && !researchQuestion.trim() && clarificationQuestions.length === 0) ||
                                     (step === 'question' && clarificationQuestions.length > 0 && Object.keys(userAnswers).length === 0) ||
-                                    (step === 'evidence' && !evidenceSpec.trim())
+                                    (step === 'evidence' && !evidenceSpec.trim()) ||
+                                    (step === 'concepts' && extractedConcepts.length === 0)
                                 }
                                 className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                             >
@@ -438,6 +505,12 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                             </>
                                         )}
                                         {step === 'evidence' && (
+                                            <>
+                                                <Sparkles className="w-4 h-4 mr-2" />
+                                                Extract Concepts
+                                            </>
+                                        )}
+                                        {step === 'concepts' && (
                                             <>
                                                 <Sparkles className="w-4 h-4 mr-2" />
                                                 Generate Keywords

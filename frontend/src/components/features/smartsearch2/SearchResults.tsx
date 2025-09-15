@@ -18,7 +18,9 @@ import {
     Sparkles,
     ArrowUp,
     ArrowDown,
-    X
+    X,
+    Filter,
+    BookOpen
 } from 'lucide-react';
 import type { CanonicalResearchArticle } from '@/types/canonical_types';
 import type { SearchPaginationInfo } from '@/types/smart-search';
@@ -43,6 +45,13 @@ interface SearchResultsProps {
     onAddFeature: (feature: Omit<FeatureDefinition, 'id'>) => void;
     onRemovePendingFeature: (featureId: string) => void;
     onExtractFeatures: () => void;
+
+    // New functionality props
+    evidenceSpec?: string;
+    onFilter?: () => void;
+    onAddGoogleScholar?: () => void;
+    isFiltering?: boolean;
+    isAddingScholar?: boolean;
 
     // UI state (now managed by parent)
     isEditingQuery: boolean;
@@ -71,6 +80,11 @@ export function SearchResults({
     onAddFeature,
     onRemovePendingFeature,
     onExtractFeatures,
+    evidenceSpec,
+    onFilter,
+    onAddGoogleScholar,
+    isFiltering,
+    isAddingScholar,
     isEditingQuery,
     editedQuery,
     displayMode,
@@ -308,16 +322,16 @@ export function SearchResults({
 
     return (
         <div className="space-y-3">
-            {/* Search Query */}
-            <Card className="p-4">
-                <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-900 dark:text-white">Search Query</Label>
-                    {isEditingQuery ? (
+            {/* Compact Query Display (only when editing) */}
+            {isEditingQuery && (
+                <Card className="p-4">
+                    <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-900 dark:text-white">Edit Search Query</Label>
                         <div className="flex gap-2">
                             <Textarea
                                 value={editedQuery}
                                 onChange={(e) => onEditedQueryChange(e.target.value)}
-                                rows={3}
+                                rows={2}
                                 className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                             />
                             <div className="flex flex-col gap-2">
@@ -348,70 +362,120 @@ export function SearchResults({
                                 </Button>
                             </div>
                         </div>
-                    ) : (
-                        <div className="flex items-start gap-2">
-                            <div className="flex-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border">
-                                <code className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                                    {query}
-                                </code>
-                            </div>
-                            <Button
-                                onClick={onQueryEdit}
-                                variant="outline"
-                                size="sm"
-                                className="flex-shrink-0"
-                            >
-                                <Edit className="w-3 h-3 mr-2" />
-                                Edit
-                            </Button>
+                    </div>
+                </Card>
+            )}
+
+            {/* Enhanced Controls Bar with Query, Actions, and View Controls */}
+            <div className="flex flex-col gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                {/* Top Row: Query Display */}
+                {!isEditingQuery && (
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">Query:</Label>
+                        <div className="flex-1 px-2 py-1 bg-white dark:bg-gray-700 rounded border text-xs font-mono text-gray-900 dark:text-gray-100 truncate">
+                            {query}
                         </div>
-                    )}
-                </div>
-            </Card>
-
-            {/* Compact Controls Bar */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Left: Source and Counts */}
-                <div className="flex items-center gap-4 text-sm">
-                    <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
-                    <span className="text-gray-600 dark:text-gray-400">
-                        {pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}{articles.length.toLocaleString()} retrieved
-                    </span>
-                </div>
-
-                {/* Right: View Controls and AI Columns */}
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
                         <Button
-                            variant={displayMode === 'table' ? 'default' : 'ghost'}
+                            onClick={onQueryEdit}
+                            variant="ghost"
                             size="sm"
-                            onClick={() => onDisplayModeChange('table')}
+                            className="flex-shrink-0"
                         >
-                            <Table className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => onDisplayModeChange('card-compressed')}
-                        >
-                            <List className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            variant={displayMode === 'card-full' ? 'default' : 'ghost'}
-                            size="sm"
-                            onClick={() => onDisplayModeChange('card-full')}
-                        >
-                            <Grid className="w-4 h-4" />
+                            <Edit className="w-3 h-3" />
                         </Button>
                     </div>
-                    <Button
-                        variant={showColumns ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setShowColumns(!showColumns)}
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        AI Columns
-                    </Button>
+                )}
+
+                {/* Bottom Row: Source, Actions, and Controls */}
+                <div className="flex items-center justify-between">
+                    {/* Left: Source and Counts */}
+                    <div className="flex items-center gap-4 text-sm">
+                        <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
+                        <span className="text-gray-600 dark:text-gray-400">
+                            {pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}{articles.length.toLocaleString()} retrieved
+                        </span>
+                    </div>
+
+                    {/* Center: Action Buttons */}
+                    <div className="flex items-center gap-2">
+                        {onFilter && (
+                            <Button
+                                onClick={onFilter}
+                                disabled={isFiltering}
+                                variant="outline"
+                                size="sm"
+                                title={evidenceSpec ? "Filter using existing evidence specification" : "Filter results (evidence spec required)"}
+                            >
+                                {isFiltering ? (
+                                    <>
+                                        <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
+                                        Filtering...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Filter className="w-3 h-3 mr-2" />
+                                        Filter
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                        {onAddGoogleScholar && source === 'pubmed' && (
+                            <Button
+                                onClick={onAddGoogleScholar}
+                                disabled={isAddingScholar}
+                                variant="outline"
+                                size="sm"
+                                title="Add Google Scholar results to enrich current results"
+                            >
+                                {isAddingScholar ? (
+                                    <>
+                                        <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
+                                        Adding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <BookOpen className="w-3 h-3 mr-2" />
+                                        + Scholar
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Right: View Controls and AI Columns */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant={displayMode === 'table' ? 'default' : 'ghost'}
+                                size="sm"
+                                onClick={() => onDisplayModeChange('table')}
+                            >
+                                <Table className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
+                                size="sm"
+                                onClick={() => onDisplayModeChange('card-compressed')}
+                            >
+                                <List className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant={displayMode === 'card-full' ? 'default' : 'ghost'}
+                                size="sm"
+                                onClick={() => onDisplayModeChange('card-full')}
+                            >
+                                <Grid className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <Button
+                            variant={showColumns ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setShowColumns(!showColumns)}
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            AI Columns
+                        </Button>
+                    </div>
                 </div>
             </div>
 

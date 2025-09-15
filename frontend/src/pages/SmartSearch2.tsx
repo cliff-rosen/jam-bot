@@ -23,6 +23,10 @@ function SmartSearch2Content() {
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Filter and enrichment state
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [isAddingScholar, setIsAddingScholar] = useState(false);
+
   const {
     selectedSource,
     searchQuery,
@@ -34,6 +38,7 @@ function SmartSearch2Content() {
     pendingFeatures,
     extractedData,
     isExtracting,
+    evidenceSpec,
     search,
     resetSearch,
     clearError,
@@ -134,6 +139,62 @@ function SmartSearch2Content() {
     }
   };
 
+  // Filter and enrichment handlers
+  const handleFilter = async () => {
+    if (!evidenceSpec) {
+      toast({
+        title: 'Evidence Specification Required',
+        description: 'Please use the keyword helper to create an evidence specification first, or enter one manually.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsFiltering(true);
+    try {
+      // TODO: Implement filtering logic using smartSearch2Api
+      // This would call the same filtering functionality as regular smart search
+      toast({
+        title: 'Filtering Implementation',
+        description: 'Filter functionality will be implemented to use the evidence specification to filter current results.',
+        variant: 'default'
+      });
+    } catch (error) {
+      toast({
+        title: 'Filtering Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsFiltering(false);
+    }
+  };
+
+  const handleAddGoogleScholar = async () => {
+    if (selectedSource !== 'pubmed') {
+      return; // Should not happen as button is conditionally rendered
+    }
+
+    setIsAddingScholar(true);
+    try {
+      // TODO: Implement Google Scholar enrichment
+      // This would search Google Scholar with the same query and merge results
+      toast({
+        title: 'Google Scholar Integration',
+        description: 'Google Scholar enrichment will search the same query on Scholar and merge unique results.',
+        variant: 'default'
+      });
+    } catch (error) {
+      toast({
+        title: 'Scholar Addition Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsAddingScholar(false);
+    }
+  };
+
   // Update editedQuery when searchQuery changes
   useEffect(() => {
     setEditedQuery(searchQuery);
@@ -231,6 +292,12 @@ function SmartSearch2Content() {
               onAddFeature={handleAddFeature}
               onRemovePendingFeature={removePendingFeature}
               onExtractFeatures={handleExtractFeatures}
+              // New functionality props
+              evidenceSpec={evidenceSpec}
+              onFilter={handleFilter}
+              onAddGoogleScholar={handleAddGoogleScholar}
+              isFiltering={isFiltering}
+              isAddingScholar={isAddingScholar}
               // UI state and handlers
               isEditingQuery={isEditingQuery}
               editedQuery={editedQuery}

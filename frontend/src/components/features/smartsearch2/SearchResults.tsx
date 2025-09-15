@@ -414,7 +414,7 @@ export function SearchResults({
                                 ) : (
                                     <>
                                         <Filter className="w-3 h-3 mr-2" />
-                                        Filter
+                                        AI Filter
                                     </>
                                 )}
                             </Button>

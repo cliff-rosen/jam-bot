@@ -542,11 +542,12 @@ async def filter_articles(
         if not discriminator_prompt:
             logger.info("Generating discriminator prompt from evidence specification")
             service = SmartSearchService()
-            discriminator_prompt, usage = await service.generate_discriminator_prompt(
-                evidence_specification=request.evidence_specification,
-                strictness=request.strictness
+            discriminator_prompt = await service.generate_semantic_discriminator(
+                refined_question=request.evidence_specification,
+                search_query="",  # Not needed for SmartSearch2 discriminator generation
+                strictness=request.strictness or "medium"
             )
-            logger.info(f"Generated discriminator prompt, tokens used: {usage.total_tokens}")
+            logger.info("Generated discriminator prompt successfully")
 
         # Use SmartSearchService to filter articles
         service = SmartSearchService()

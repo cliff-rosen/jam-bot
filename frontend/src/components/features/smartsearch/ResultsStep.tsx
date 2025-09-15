@@ -663,7 +663,8 @@ export function ResultsStep({
                     setShowColumns(!showColumns);
                     // Reset form when opening
                     if (!showColumns) {
-                      setPendingFeatures([]);
+                      // Clear all pending features
+                      pendingFeatures.forEach(feature => removePendingFeature(feature.id));
                       setNewFeature({
                         id: '',
                         name: '',

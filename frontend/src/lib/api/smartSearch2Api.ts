@@ -6,11 +6,11 @@
 
 import { api } from './index';
 import type { CanonicalResearchArticle } from '@/types/canonical_types';
-import type { SearchPaginationInfo } from '@/types/smart-search';
+import type { SearchPaginationInfo, FilteredArticle } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
-import type { 
-    FeatureExtractionRequest as BaseFeatureExtractionRequest, 
-    FeatureExtractionResponse as BaseFeatureExtractionResponse 
+import type {
+    FeatureExtractionRequest as BaseFeatureExtractionRequest,
+    FeatureExtractionResponse as BaseFeatureExtractionResponse
 } from './smartSearchApi';
 
 // ============================================================================
@@ -103,18 +103,7 @@ export interface ArticleFilterRequest {
 }
 
 export interface ArticleFilterResponse {
-    filtered_articles: Array<{
-        id: string;
-        title: string;
-        abstract?: string;
-        authors?: string[];
-        journal?: string;
-        publication_year?: number;
-        url?: string;
-        relevance_reasoning: string;
-        relevance_score: number;
-        meets_criteria: boolean;
-    }>;
+    filtered_articles: FilteredArticle[];
     total_processed: number;
     total_accepted: number;
     total_rejected: number;
@@ -124,6 +113,7 @@ export interface ArticleFilterResponse {
 // SmartSearch2-specific types (no session_id required)
 export interface FeatureExtractionRequest extends Omit<BaseFeatureExtractionRequest, 'session_id'> {
     articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly
+    features: FeatureDefinition[];
 }
 
 export interface FeatureExtractionResponse extends Omit<BaseFeatureExtractionResponse, 'session_id'> {

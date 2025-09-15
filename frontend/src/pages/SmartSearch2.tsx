@@ -8,7 +8,7 @@ import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Con
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
-import { SearchForm, KeywordHelper } from '@/components/features/smartsearch2';
+import { SearchForm, KeywordHelper, FilterModal } from '@/components/features/smartsearch2';
 import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 
 // Main content component that uses SmartSearch2Context
@@ -25,6 +25,10 @@ function SmartSearch2Content() {
 
   // Enrichment state
   const [isAddingScholar, setIsAddingScholar] = useState(false);
+
+  // Filter criteria modal state
+  const [showFilterCriteriaModal, setShowFilterCriteriaModal] = useState(false);
+  const [filterCriteria, setFilterCriteria] = useState('');
 
   const {
     selectedSource,
@@ -143,53 +147,34 @@ function SmartSearch2Content() {
 
   // Filter and enrichment handlers
   const handleFilter = async () => {
-    if (!evidenceSpec) {
-      // Prompt user to enter evidence specification if not available
-      const userEvidenceSpec = window.prompt(
-        'Evidence Specification Required\n\nPlease enter an evidence specification describing what types of articles you want to filter for:\n\nExample: "Studies examining the effectiveness of meditation on anxiety levels in adults, including randomized controlled trials and meta-analyses published in the last 10 years."'
-      );
+    // Always show the filter modal for user confirmation/editing
+    const initialCriteria = evidenceSpec || '';
+    setFilterCriteria(initialCriteria);
+    setShowFilterCriteriaModal(true);
+  };
 
-      if (!userEvidenceSpec?.trim()) {
-        toast({
-          title: 'Filtering Cancelled',
-          description: 'Evidence specification is required for filtering.',
-          variant: 'destructive'
-        });
-        return;
-      }
+  const handleFilterConfirm = async (confirmedFilterCriteria: string) => {
+    setShowFilterCriteriaModal(false);
 
-      // Use the user-provided evidence spec for this filtering operation
-      try {
-        await filterArticles(userEvidenceSpec.trim());
-        toast({
-          title: 'Filtering Complete',
-          description: `Filtered ${searchResults?.articles.length || 0} articles using custom evidence specification.`,
-          variant: 'default'
-        });
-      } catch (error) {
-        toast({
-          title: 'Filtering Failed',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive'
-        });
-      }
-    } else {
-      // Use the existing evidence spec from keyword helper workflow
-      try {
-        await filterArticles();
-        toast({
-          title: 'Filtering Complete',
-          description: `Filtered ${searchResults?.articles.length || 0} articles using existing evidence specification.`,
-          variant: 'default'
-        });
-      } catch (error) {
-        toast({
-          title: 'Filtering Failed',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive'
-        });
-      }
+    try {
+      await filterArticles(confirmedFilterCriteria);
+      toast({
+        title: 'Filtering Complete',
+        description: `Filtered ${searchResults?.articles.length || 0} articles using AI filter.`,
+        variant: 'default'
+      });
+    } catch (error) {
+      toast({
+        title: 'Filtering Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
     }
+  };
+
+  const handleFilterCancel = () => {
+    setShowFilterCriteriaModal(false);
+    setFilterCriteria('');
   };
 
   const handleAddGoogleScholar = async () => {
@@ -300,7 +285,7 @@ function SmartSearch2Content() {
             </div>
           ) : (
             <SearchResults
-              articles={filteredArticles?.filtered_articles || searchResults?.articles || []}
+              articles={filteredArticles?.filtered_articles.map(fa => fa.article) || searchResults?.articles || []}
               pagination={searchResults?.pagination || null}
               query={searchQuery}
               source={selectedSource}
@@ -335,6 +320,14 @@ function SmartSearch2Content() {
           )}
         </div>
       </div>
+
+      {/* Filter Modal */}
+      <FilterModal
+        isOpen={showFilterCriteriaModal}
+        onClose={handleFilterCancel}
+        onConfirm={handleFilterConfirm}
+        initialValue={filterCriteria}
+      />
     </div>
   );
 }

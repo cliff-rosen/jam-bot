@@ -79,7 +79,7 @@ TASK_CONFIGS = {
         },
         "discriminator": {
             "model": "gpt-4.1",  # Use more powerful model for filtering accuracy
-            "reasoning_effort": "high",
+            "temperature": 0.0,  # Fixed temperature for consistent filtering
             "description": "Semantic filtering of search results"
         },
         "feature_extraction": {

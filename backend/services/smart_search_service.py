@@ -872,31 +872,31 @@ class SmartSearchService:
         # Create the prompt
         prompt_content = f"""You are helping a researcher create a clear evidence specification for a systematic literature search.
 
-User's description: "{user_description}"{context}
+        User's description: "{user_description}"{context}
 
-Evaluate if this description is complete enough to create a good search strategy. A complete evidence specification should clearly define:
+        Evaluate if this description is complete enough to create a good search strategy. A complete evidence specification should clearly define:
 
-1. **Population/Subject**: Who or what is being studied (patients, animals, materials, etc.)
-2. **Intervention/Exposure**: What is being done, given, or measured
-3. **Outcomes**: What results/effects are being measured
-4. **Study context**: Any important constraints (study types, time periods, settings)
+        1. **Population/Subject**: Who or what is being studied (patients, animals, materials, etc.)
+        2. **Intervention/Exposure**: What is being done, given, or measured
+        3. **Outcomes**: What results/effects are being measured
+        4. **Study context**: Any important constraints (study types, time periods, settings)
 
-If the description is complete and specific enough, provide a clean evidence specification.
+        If the description is complete and specific enough, provide a clean evidence specification.
 
-If it's incomplete or ambiguous, ask 1-2 focused clarification questions to get the missing information.
+        If it's incomplete or ambiguous, ask 1-2 focused clarification questions to get the missing information.
 
-Examples:
-- "cancer treatment" → ASK: "What type of cancer? What kind of treatment? What outcomes are you interested in?"
-- "effects of exercise on diabetes patients" → COMPLETE: Clear population (diabetes patients), intervention (exercise), outcome (effects)
+        Examples:
+        - "cancer treatment" → ASK: "What type of cancer? What kind of treatment? What outcomes are you interested in?"
+        - "effects of exercise on diabetes patients" → COMPLETE: Clear population (diabetes patients), intervention (exercise), outcome (effects)
 
-Respond in JSON format:
-{{
-    "is_complete": true/false,
-    "evidence_specification": "clean specification if complete, otherwise null",
-    "clarification_questions": ["question1", "question2"] if incomplete, otherwise null,
-    "completeness_score": 0.0-1.0,
-    "missing_elements": ["element1", "element2"] if any missing
-}}"""
+        Respond in JSON format:
+        {{
+            "is_complete": true/false,
+            "evidence_specification": "clean specification if complete, otherwise null",
+            "clarification_questions": ["question1", "question2"] if incomplete, otherwise null,
+            "completeness_score": 0.0-1.0,
+            "missing_elements": ["element1", "element2"] if any missing
+        }}"""
 
         # Define response schema
         response_schema = {

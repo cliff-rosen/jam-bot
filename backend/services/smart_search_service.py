@@ -894,17 +894,17 @@ class SmartSearchService:
         If complete (≥0.8), provide a clean evidence specification in the standard format.
         If incomplete (<0.8), ask 1-2 focused questions to get the most critical missing information.
 
-        Respond in JSON format with reasoning (max 200 chars):
+        Respond in valid JSON format with reasoning (max 200 chars):
         {{
-            "is_complete": true/false,
+            "is_complete": true,
             "evidence_specification": "clean specification if complete, otherwise null",
-            "clarification_questions": ["question1", "question2"] if incomplete, otherwise null,
-            "completeness_score": 0.0-1.0,
-            "missing_elements": ["Population", "Intervention", "Outcomes", "Context"] (only list what's missing),
+            "clarification_questions": ["question1", "question2"],
+            "completeness_score": 0.9,
+            "missing_elements": ["Population"],
             "reasoning": "Brief explanation of score and decision"
         }}"""
 
-        # Define response schema
+        # Define response schema (simplified - OpenAI doesn't support oneOf at top level)
         response_schema = {
             "type": "object",
             "properties": {
@@ -926,27 +926,7 @@ class SmartSearchService:
                 "reasoning": {"type": "string", "maxLength": 200}
             },
             "required": ["is_complete", "completeness_score", "missing_elements", "reasoning"],
-            "oneOf": [
-                {
-                    "properties": {
-                        "is_complete": {"const": true},
-                        "evidence_specification": {"type": "string"},
-                        "clarification_questions": {"const": null}
-                    }
-                },
-                {
-                    "properties": {
-                        "is_complete": {"const": false},
-                        "evidence_specification": {"const": null},
-                        "clarification_questions": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "minItems": 1,
-                            "maxItems": 3
-                        }
-                    }
-                }
-            ]
+            "additionalProperties": False
         }
 
         # Create prompt caller

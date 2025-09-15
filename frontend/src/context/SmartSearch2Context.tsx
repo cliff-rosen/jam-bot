@@ -142,12 +142,18 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setIsExtracting(false);
     }, []);
 
-    const createEvidenceSpec = useCallback(async (query: string) => {
+    const refineEvidenceSpec = useCallback(async (
+        userDescription: string,
+        conversationHistory?: Array<{ question: string; answer: string }>
+    ) => {
         try {
-            const response = await smartSearch2Api.createEvidenceSpec({ query });
+            const response = await smartSearch2Api.refineEvidenceSpec({
+                user_description: userDescription,
+                conversation_history: conversationHistory
+            });
             return response;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to generate evidence specification';
+            const errorMessage = err instanceof Error ? err.message : 'Failed to refine evidence specification';
             setError(errorMessage);
             throw err;
         }

@@ -46,7 +46,6 @@ class DirectSearchResponse(BaseModel):
     source: str = Field(..., description="Source that was searched")
     query: str = Field(..., description="Query that was executed")
 
-
 class KeywordGenerationRequest(BaseModel):
     """Request for keyword generation"""
     evidence_specification: str = Field(..., description="Evidence specification to generate keywords from")

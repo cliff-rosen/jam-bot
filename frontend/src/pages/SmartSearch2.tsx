@@ -51,7 +51,8 @@ function SmartSearch2Content() {
     addPendingFeature,
     removePendingFeature,
     extractFeatures,
-    filterArticles
+    filterArticles,
+    clearFilter
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -157,13 +158,17 @@ function SmartSearch2Content() {
     setShowFilterCriteriaModal(false);
 
     try {
-      await filterArticles(confirmedFilterCriteria);
+      console.log('handleFilterConfirm: Starting filter with criteria:', confirmedFilterCriteria);
+      const response = await filterArticles(confirmedFilterCriteria);
+      console.log('handleFilterConfirm: Filter completed with response:', response);
+
       toast({
         title: 'Filtering Complete',
-        description: `Filtered ${searchResults?.articles.length || 0} articles using AI filter.`,
+        description: `Filtered ${response.total_processed} articles. ${response.total_accepted} accepted, ${response.total_rejected} rejected.`,
         variant: 'default'
       });
     } catch (error) {
+      console.error('handleFilterConfirm: Filtering failed:', error);
       toast({
         title: 'Filtering Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -175,6 +180,10 @@ function SmartSearch2Content() {
   const handleFilterCancel = () => {
     setShowFilterCriteriaModal(false);
     setFilterCriteria('');
+  };
+
+  const handleClearFilter = () => {
+    clearFilter();
   };
 
   const handleAddGoogleScholar = async () => {
@@ -305,6 +314,9 @@ function SmartSearch2Content() {
               onAddGoogleScholar={handleAddGoogleScholar}
               isFiltering={isFiltering}
               isAddingScholar={isAddingScholar}
+              // Filter state
+              filteredArticles={filteredArticles}
+              onClearFilter={handleClearFilter}
               // UI state and handlers
               isEditingQuery={isEditingQuery}
               editedQuery={editedQuery}

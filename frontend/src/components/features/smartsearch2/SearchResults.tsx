@@ -53,6 +53,10 @@ interface SearchResultsProps {
     isFiltering?: boolean;
     isAddingScholar?: boolean;
 
+    // Filter state
+    filteredArticles?: any; // ArticleFilterResponse | null
+    onClearFilter?: () => void;
+
     // UI state (now managed by parent)
     isEditingQuery: boolean;
     editedQuery: string;
@@ -85,6 +89,8 @@ export function SearchResults({
     onAddGoogleScholar,
     isFiltering,
     isAddingScholar,
+    filteredArticles,
+    onClearFilter,
     isEditingQuery,
     editedQuery,
     displayMode,
@@ -391,8 +397,31 @@ export function SearchResults({
                     {/* Left: Source and Counts */}
                     <div className="flex items-center gap-4 text-sm">
                         <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
+                        {filteredArticles && (
+                            <div className="flex items-center gap-2">
+                                <Badge variant="default" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    <Filter className="w-3 h-3 mr-1" />
+                                    Filtered
+                                </Badge>
+                                {onClearFilter && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={onClearFilter}
+                                        className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                        <X className="w-3 h-3 mr-1" />
+                                        Clear Filter
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                         <span className="text-gray-600 dark:text-gray-400">
-                            {pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}{articles.length.toLocaleString()} retrieved
+                            {filteredArticles ? (
+                                `${filteredArticles.total_accepted}/${filteredArticles.total_processed} articles (${Math.round((filteredArticles.total_accepted / filteredArticles.total_processed) * 100)}% passed)`
+                            ) : (
+                                `${pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}${articles.length.toLocaleString()} retrieved`
+                            )}
                         </span>
                     </div>
 
@@ -582,6 +611,16 @@ export function SearchResults({
                     <div className="text-center py-12">
                         <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
                         <p className="text-gray-600 dark:text-gray-400">Searching...</p>
+                    </div>
+                ) : isFiltering ? (
+                    <div className="text-center py-12">
+                        <div className="animate-spin mx-auto h-8 w-8 border-4 border-orange-600 border-t-transparent rounded-full mb-4" />
+                        <div className="space-y-2">
+                            <p className="text-lg font-medium text-gray-900 dark:text-gray-100">AI Filtering in Progress</p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                Evaluating {articles.length} articles against your criteria...
+                            </p>
+                        </div>
                     </div>
                 ) : articles.length > 0 ? (
                     <div className="space-y-4">

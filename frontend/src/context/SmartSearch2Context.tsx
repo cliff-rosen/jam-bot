@@ -101,6 +101,7 @@ interface SmartSearch2Actions {
 
     // ARTICLE FILTERING
     filterArticles: (evidenceSpec?: string, strictness?: 'low' | 'medium' | 'high') => Promise<ArticleFilterResponse>;
+    clearFilter: () => void;
 
     // FEATURE EXTRACTION
     addPendingFeature: (feature: FeatureDefinition) => void;
@@ -405,10 +406,23 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
 
         try {
+            console.log('Starting article filtering...', {
+                evidenceSpec: finalEvidenceSpec,
+                articleCount: searchResults.articles.length,
+                strictness: strictness
+            });
+
             const response = await smartSearch2Api.filterArticles({
                 evidence_specification: finalEvidenceSpec,
                 articles: searchResults.articles,
                 strictness: strictness
+            });
+
+            console.log('Filtering response received:', {
+                totalProcessed: response.total_processed,
+                totalAccepted: response.total_accepted,
+                totalRejected: response.total_rejected,
+                filteredArticles: response.filtered_articles.length
             });
 
             setFilteredArticles(response);
@@ -421,6 +435,10 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             setIsFiltering(false);
         }
     }, [evidenceSpec, searchResults?.articles]);
+
+    const clearFilter = useCallback(() => {
+        setFilteredArticles(null);
+    }, []);
 
     // ================== CONTEXT VALUE ==================
 
@@ -460,6 +478,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         search,
         resetSearch,
         filterArticles,
+        clearFilter,
         addPendingFeature,
         removePendingFeature,
         extractFeatures,

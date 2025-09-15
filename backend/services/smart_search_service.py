@@ -874,28 +874,34 @@ class SmartSearchService:
 
         User's description: "{user_description}"{context}
 
-        Evaluate if this description is complete enough to create a good search strategy. A complete evidence specification should clearly define:
+        Evaluate if this description provides enough detail to create an effective search strategy. A complete evidence specification should clearly define:
 
-        1. **Population/Subject**: Who or what is being studied (patients, animals, materials, etc.)
-        2. **Intervention/Exposure**: What is being done, given, or measured
-        3. **Outcomes**: What results/effects are being measured
-        4. **Study context**: Any important constraints (study types, time periods, settings)
+        1. **Population**: Who or what is being studied (patients, animals, materials, etc.)
+        2. **Intervention/Exposure**: What is being done, given, tested, or measured
+        3. **Outcomes**: What effects, results, or measures are being studied
+        4. **Context**: Any important constraints (study types, comparison groups, time periods, settings)
 
-        If the description is complete and specific enough, provide a clean evidence specification.
+        **Completeness Threshold**: Score ≥0.8 = complete enough for search
 
-        If it's incomplete or ambiguous, ask 1-2 focused clarification questions to get the missing information.
+        **Output Format for Complete Specifications**:
+        "Studies that [action] in [population] to [measure/assess outcome]..."
 
-        Examples:
-        - "cancer treatment" → ASK: "What type of cancer? What kind of treatment? What outcomes are you interested in?"
-        - "effects of exercise on diabetes patients" → COMPLETE: Clear population (diabetes patients), intervention (exercise), outcome (effects)
+        **Examples with scores**:
+        - "cancer treatment" → Score: 0.3 (missing population specifics, treatment type, outcomes)
+        - "effects of exercise on diabetes patients" → Score: 0.7 (good but missing outcome specifics)
+        - "Studies that evaluate metformin treatment in type 2 diabetes patients to assess glycemic control" → Score: 0.9 (very clear)
 
-        Respond in JSON format:
+        If complete (≥0.8), provide a clean evidence specification in the standard format.
+        If incomplete (<0.8), ask 1-2 focused questions to get the most critical missing information.
+
+        Respond in JSON format with reasoning (max 200 chars):
         {{
             "is_complete": true/false,
             "evidence_specification": "clean specification if complete, otherwise null",
             "clarification_questions": ["question1", "question2"] if incomplete, otherwise null,
             "completeness_score": 0.0-1.0,
-            "missing_elements": ["element1", "element2"] if any missing
+            "missing_elements": ["Population", "Intervention", "Outcomes", "Context"] (only list what's missing),
+            "reasoning": "Brief explanation of score and decision"
         }}"""
 
         # Define response schema
@@ -912,10 +918,35 @@ class SmartSearchService:
                 "completeness_score": {"type": "number", "minimum": 0, "maximum": 1},
                 "missing_elements": {
                     "type": "array",
-                    "items": {"type": "string"}
-                }
+                    "items": {
+                        "type": "string",
+                        "enum": ["Population", "Intervention", "Outcomes", "Context"]
+                    }
+                },
+                "reasoning": {"type": "string", "maxLength": 200}
             },
-            "required": ["is_complete", "completeness_score", "missing_elements"]
+            "required": ["is_complete", "completeness_score", "missing_elements", "reasoning"],
+            "oneOf": [
+                {
+                    "properties": {
+                        "is_complete": {"const": true},
+                        "evidence_specification": {"type": "string"},
+                        "clarification_questions": {"const": null}
+                    }
+                },
+                {
+                    "properties": {
+                        "is_complete": {"const": false},
+                        "evidence_specification": {"const": null},
+                        "clarification_questions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                            "maxItems": 3
+                        }
+                    }
+                }
+            ]
         }
 
         # Create prompt caller

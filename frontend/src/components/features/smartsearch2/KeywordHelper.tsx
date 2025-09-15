@@ -515,16 +515,25 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             {expandedExpressions.filter(exp => exp.selected).length > 0 && (
                                 <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                     <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                        Test Selected Combination
+                                        Combined Search Query
                                     </h4>
                                     <div className="space-y-3">
                                         <div>
                                             <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                                                Combined Query Preview
+                                                Query {generatedKeywords && '(Tested)'}
                                             </Label>
-                                            <div className="text-sm font-mono p-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100">
-                                                {expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ')}
-                                            </div>
+                                            <Textarea
+                                                value={generatedKeywords || expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ')}
+                                                onChange={(e) => setGeneratedKeywords(e.target.value)}
+                                                rows={3}
+                                                className="text-sm font-mono dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                                                placeholder="Combined query will appear here..."
+                                            />
+                                            {generatedKeywords && (
+                                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                                    ✓ Query tested and optimized
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="flex items-center gap-3">
@@ -561,28 +570,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                                     <>Test Combination</>
                                                 )}
                                             </Button>
-
-                                            {generatedKeywords && (
-                                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                    Query ready for testing
-                                                </div>
-                                            )}
                                         </div>
-
-                                        {generatedKeywords && (
-                                            <div>
-                                                <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                                                    Final Search Query
-                                                </Label>
-                                                <Textarea
-                                                    value={generatedKeywords}
-                                                    onChange={(e) => setGeneratedKeywords(e.target.value)}
-                                                    rows={3}
-                                                    className="text-sm font-mono dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                                    placeholder="Final search query will appear here..."
-                                                />
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}

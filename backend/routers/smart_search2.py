@@ -6,7 +6,7 @@ Optimized for simple, direct search functionality.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -46,14 +46,6 @@ class DirectSearchResponse(BaseModel):
     source: str = Field(..., description="Source that was searched")
     query: str = Field(..., description="Query that was executed")
 
-class EvidenceSpecRequest(BaseModel):
-    """Request for evidence specification generation"""
-    query: str = Field(..., description="User's research question")
-
-class EvidenceSpecResponse(BaseModel):
-    """Response from evidence specification generation"""
-    original_query: str = Field(..., description="Original user query")
-    evidence_specification: str = Field(..., description="Generated evidence specification")
 
 class KeywordGenerationRequest(BaseModel):
     """Request for keyword generation"""
@@ -92,6 +84,19 @@ class ArticleFilterResponse(BaseModel):
     average_confidence: float = Field(..., description="Average confidence of accepted articles")
     duration_seconds: float = Field(..., description="Processing duration in seconds")
     token_usage: dict = Field(..., description="LLM token usage statistics")
+
+class EvidenceSpecRequest(BaseModel):
+    """Request for evidence specification refinement"""
+    user_description: str = Field(..., description="User's description of what they want to find")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(None, description="Previous Q&A history")
+
+class EvidenceSpecResponse(BaseModel):
+    """Response from evidence specification refinement"""
+    is_complete: bool = Field(..., description="Whether the evidence spec is ready to use")
+    evidence_specification: Optional[str] = Field(None, description="Clean evidence spec if complete")
+    clarification_questions: Optional[List[str]] = Field(None, description="Questions to ask user if incomplete")
+    completeness_score: float = Field(..., description="How complete the spec is (0-1)")
+    missing_elements: List[str] = Field(default=[], description="What elements are missing")
 
 # ============================================================================
 # API Endpoints
@@ -158,39 +163,31 @@ async def create_evidence_spec(
     db: Session = Depends(get_db)
 ) -> EvidenceSpecResponse:
     """
-    Generate evidence specification from user's research question.
-    
-    This is a simplified version of the evidence specification generation
-    that doesn't require session management - perfect for SmartSearch2.
-    
-    Args:
-        request: Evidence specification request
-        current_user: Authenticated user
-        db: Database session
-        
-    Returns:
-        EvidenceSpecResponse with generated specification
-        
-    Raises:
-        HTTPException: If generation fails
+    Refine user's description into a clean evidence specification.
+
+    Takes a natural language description and either:
+    1. Returns a clean evidence specification if complete, or
+    2. Returns clarification questions to build up the specification
+
+    Supports conversational refinement through conversation_history.
     """
     try:
-        logger.info(f"User {current_user.user_id} evidence spec generation: '{request.query[:100]}...'")
-        
-        # Use SmartSearchService to generate evidence specification
+        logger.info(f"User {current_user.user_id} refining evidence spec: '{request.user_description[:100]}...'")
+
+        # Use SmartSearchService to refine the evidence specification
         service = SmartSearchService()
-        evidence_spec, usage = await service.create_evidence_specification(request.query)
-        
-        logger.info(f"Evidence spec generated for user {current_user.user_id}, tokens used: {usage.total_tokens}")
-        
-        return EvidenceSpecResponse(
-            original_query=request.query,
-            evidence_specification=evidence_spec
+        result = await service.refine_evidence_specification(
+            user_description=request.user_description,
+            conversation_history=request.conversation_history or []
         )
-        
+
+        logger.info(f"Evidence spec refinement completed for user {current_user.user_id}, complete: {result['is_complete']}")
+
+        return EvidenceSpecResponse(**result)
+
     except Exception as e:
-        logger.error(f"Evidence specification generation failed for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Evidence specification generation failed: {str(e)}")
+        logger.error(f"Evidence specification refinement failed for user {current_user.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Evidence specification refinement failed: {str(e)}")
 
 
 @router.post("/generate-keywords", response_model=KeywordGenerationResponse)
@@ -412,3 +409,4 @@ async def filter_articles(
     except Exception as e:
         logger.error(f"Article filtering failed for user {current_user.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Article filtering failed: {str(e)}")
+

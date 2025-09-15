@@ -832,6 +832,134 @@ class SmartSearchService:
         logger.info(f"Parallel filtering results: {accepted_count} accepted, {rejected_count} rejected")
         
         return filtered_articles, total_usage
+
+    async def refine_evidence_specification(
+        self,
+        user_description: str,
+        conversation_history: List[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Refine user's description into a clean evidence specification.
+
+        Args:
+            user_description: User's natural language description
+            conversation_history: Previous Q&A pairs [{"question": "...", "answer": "..."}]
+
+        Returns:
+            Dictionary with:
+            - is_complete: bool
+            - evidence_specification: str (if complete)
+            - clarification_questions: List[str] (if incomplete)
+            - completeness_score: float (0-1)
+            - missing_elements: List[str]
+        """
+        from agents.prompts.base_prompt_caller import BasePromptCaller
+        from schemas.chat import ChatMessage, MessageRole
+        from config.llm_models import get_task_config, supports_reasoning_effort
+        from datetime import datetime
+
+        # Get task config for evidence specification refinement
+        task_config = get_task_config("smart_search", "evidence_spec")
+
+        # Build conversation context
+        context = ""
+        if conversation_history:
+            context = "\n\nPrevious conversation:\n"
+            for i, exchange in enumerate(conversation_history, 1):
+                context += f"Q{i}: {exchange.get('question', '')}\n"
+                context += f"A{i}: {exchange.get('answer', '')}\n"
+
+        # Create the prompt
+        prompt_content = f"""You are helping a researcher create a clear evidence specification for a systematic literature search.
+
+User's description: "{user_description}"{context}
+
+Evaluate if this description is complete enough to create a good search strategy. A complete evidence specification should clearly define:
+
+1. **Population/Subject**: Who or what is being studied (patients, animals, materials, etc.)
+2. **Intervention/Exposure**: What is being done, given, or measured
+3. **Outcomes**: What results/effects are being measured
+4. **Study context**: Any important constraints (study types, time periods, settings)
+
+If the description is complete and specific enough, provide a clean evidence specification.
+
+If it's incomplete or ambiguous, ask 1-2 focused clarification questions to get the missing information.
+
+Examples:
+- "cancer treatment" → ASK: "What type of cancer? What kind of treatment? What outcomes are you interested in?"
+- "effects of exercise on diabetes patients" → COMPLETE: Clear population (diabetes patients), intervention (exercise), outcome (effects)
+
+Respond in JSON format:
+{{
+    "is_complete": true/false,
+    "evidence_specification": "clean specification if complete, otherwise null",
+    "clarification_questions": ["question1", "question2"] if incomplete, otherwise null,
+    "completeness_score": 0.0-1.0,
+    "missing_elements": ["element1", "element2"] if any missing
+}}"""
+
+        # Define response schema
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "is_complete": {"type": "boolean"},
+                "evidence_specification": {"type": ["string", "null"]},
+                "clarification_questions": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                    "maxItems": 3
+                },
+                "completeness_score": {"type": "number", "minimum": 0, "maximum": 1},
+                "missing_elements": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                }
+            },
+            "required": ["is_complete", "completeness_score", "missing_elements"]
+        }
+
+        # Create prompt caller
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message="You are an expert in systematic literature review methodology who helps researchers define clear evidence specifications.",
+            model=task_config["model"],
+            temperature=task_config.get("temperature", 0.1),
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
+        )
+
+        # Create message
+        user_message = ChatMessage(
+            id="temp_id",
+            chat_id="temp_chat",
+            role=MessageRole.USER,
+            content=prompt_content,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        # Call LLM
+        result = await prompt_caller.invoke(
+            messages=[user_message],
+            return_usage=True
+        )
+
+        # Extract result
+        llm_response = result.result
+
+        # Parse response based on type
+        if hasattr(llm_response, 'model_dump'):
+            # Pydantic model
+            response_data = llm_response.model_dump()
+        elif hasattr(llm_response, 'dict'):
+            # Dict-like object
+            response_data = llm_response.dict()
+        else:
+            # Fallback - assume it's a dict
+            response_data = llm_response
+
+        logger.info(f"Evidence spec refinement complete: {response_data.get('is_complete', False)}")
+
+        return response_data
     
     async def execute_filtering_workflow(
         self,

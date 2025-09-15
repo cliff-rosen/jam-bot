@@ -1023,12 +1023,8 @@ class SmartSearchService:
                 expansion = await self._expand_concept_to_boolean(concept, source)
                 concept_expansions[concept] = expansion
 
-                # Test the count for this concept expansion
-                if source == 'pubmed':
-                    count = await self._test_pubmed_query_count(expansion)
-                else:
-                    # For Google Scholar, we'll estimate based on complexity
-                    count = await self._estimate_scholar_count(expansion)
+                # Test the count for this concept expansion - always use PubMed for accurate counts
+                count = await self._test_pubmed_query_count(expansion)
 
                 concept_counts[concept] = count
                 logger.info(f"Concept '{concept}' expanded to: {expansion[:100]}... ({count} results)")
@@ -1132,29 +1128,6 @@ class SmartSearchService:
             logger.warning(f"Failed to test PubMed query count: {e}")
             return 1000  # Conservative fallback
 
-    async def _estimate_scholar_count(self, query: str) -> int:
-        """Estimate Google Scholar count based on query complexity."""
-        logger.info(f"Estimating Scholar count for query: {query}")
-
-        # Count AND and OR terms to determine complexity
-        and_terms = query.count(' AND ') + 1  # Number of concepts being ANDed
-        or_terms_total = query.count(' OR ')  # Total OR terms across all concepts
-
-        # Base estimate per individual concept
-        base_estimate = 5000
-
-        # AND terms should dramatically reduce results (exponential decay)
-        and_factor = 0.6 ** (and_terms - 1)  # Each additional AND reduces by 40%
-
-        # OR terms within concepts increase specificity slightly
-        or_factor = max(0.7, 1.0 - (or_terms_total * 0.05))  # Small reduction for more ORs
-
-        final_estimate = int(base_estimate * and_factor * or_factor)
-
-        logger.info(f"Scholar estimation: {and_terms} AND terms, {or_terms_total} OR terms -> {final_estimate} results")
-        logger.info(f"Factors: base={base_estimate}, and_factor={and_factor:.3f}, or_factor={or_factor:.3f}")
-
-        return final_estimate
 
     async def _find_optimal_combination(
         self,
@@ -1217,11 +1190,9 @@ class SmartSearchService:
                 # Expand concept to Boolean expression
                 expression = await self._expand_concept_to_boolean(concept, source)
 
-                # Get result count
-                if source == 'pubmed':
-                    count = await self._test_pubmed_query_count(expression)
-                else:
-                    count = await self._estimate_scholar_count(expression)
+                # Get result count - always use PubMed for accurate Boolean testing
+                # Even for Google Scholar concepts, we test against PubMed for real counts
+                count = await self._test_pubmed_query_count(expression)
 
                 expansions.append({
                     'concept': concept,
@@ -1267,11 +1238,9 @@ class SmartSearchService:
 
         logger.info(f"Combined query before testing: {combined_query}")
 
-        # Test the combined query
-        if source == 'pubmed':
-            estimated_results = await self._test_pubmed_query_count(combined_query)
-        else:
-            estimated_results = await self._estimate_scholar_count(combined_query)
+        # Test the combined query - always use PubMed to get real counts
+        # Even for Google Scholar, we test against PubMed to get accurate Boolean logic results
+        estimated_results = await self._test_pubmed_query_count(combined_query)
 
         logger.info(f"Combined query: {combined_query[:200]}... ({estimated_results} estimated results)")
         logger.info(f"LOGIC CHECK: {len(expressions)} expressions ANDed together = {estimated_results} results")

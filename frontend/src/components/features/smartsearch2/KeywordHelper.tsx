@@ -13,7 +13,7 @@ interface KeywordHelperProps {
 
 export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     // UI flow state (local to component)
-    const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'expressions' | 'keywords'>('question');
+    const [step, setStep] = useState<'question' | 'evidence' | 'concepts' | 'expressions'>('question');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
@@ -37,7 +37,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         extractConcepts,
         expandConcepts,
         testKeywordCombination,
-        generateKeywords,
         setResearchQuestion,
         setEvidenceSpec,
         setExtractedConcepts,
@@ -164,7 +163,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
             );
 
             setGeneratedKeywords(response.combined_query);
-            setStep('keywords');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
             setError(errorMessage);
@@ -190,14 +188,13 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         { id: 'question', title: 'Research Question', description: 'Describe what you\'re looking for' },
         { id: 'evidence', title: 'Evidence Specification', description: 'Review the AI-generated specification' },
         { id: 'concepts', title: 'Key Concepts', description: 'Edit and refine concepts' },
-        { id: 'expressions', title: 'Boolean Expressions', description: 'Expand and select expressions' },
-        { id: 'keywords', title: 'Search Keywords', description: 'Final optimized query' }
+        { id: 'expressions', title: 'Boolean Expressions', description: 'Test and accept search query' }
     ];
 
     const currentStepIndex = steps.findIndex(s => s.id === step);
     const canGoBack = currentStepIndex > 0;
 
-    const goToStep = (stepId: 'question' | 'evidence' | 'concepts' | 'expressions' | 'keywords') => {
+    const goToStep = (stepId: 'question' | 'evidence' | 'concepts' | 'expressions') => {
         setStep(stepId);
         setError(null);
     };
@@ -221,8 +218,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
             setStep('evidence');
         } else if (step === 'expressions') {
             setStep('concepts');
-        } else if (step === 'keywords') {
-            setStep('expressions');
         }
         setError(null);
     };
@@ -409,10 +404,10 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         <div>
                             <Badge variant="outline" className="mb-3">Step 3 of 4</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                Extracted Key Concepts
+                                Edit Key Concepts
                             </h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                The AI has identified the key biomedical concepts from your evidence specification. These will be used to build the search query.
+                                Review and edit the key concepts. You can modify, add, or remove concepts before expanding them to Boolean expressions.
                             </p>
                         </div>
 
@@ -420,53 +415,180 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             <Label className="text-sm font-medium mb-2 block">
                                 Key Concepts
                             </Label>
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 min-h-[120px]">
-                                {extractedConcepts.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {extractedConcepts.map((concept, index) => (
-                                            <Badge key={index} variant="secondary" className="text-sm px-3 py-1">
-                                                {concept}
-                                            </Badge>
-                                        ))}
+                            <div className="space-y-2">
+                                {extractedConcepts.map((concept, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={concept}
+                                            onChange={(e) => {
+                                                const newConcepts = [...extractedConcepts];
+                                                newConcepts[index] = e.target.value;
+                                                setExtractedConcepts(newConcepts);
+                                            }}
+                                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
+                                            placeholder="Enter concept..."
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newConcepts = extractedConcepts.filter((_, i) => i !== index);
+                                                setExtractedConcepts(newConcepts);
+                                            }}
+                                            className="px-3 py-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                            title="Remove concept"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                ) : (
-                                    <p className="text-gray-500 dark:text-gray-400 text-sm italic">
-                                        Extracted concepts will appear here...
-                                    </p>
-                                )}
+                                ))}
+
+                                <button
+                                    onClick={() => {
+                                        setExtractedConcepts([...extractedConcepts, '']);
+                                    }}
+                                    className="w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                                >
+                                    + Add Concept
+                                </button>
                             </div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                These concepts represent the core searchable terms identified from your evidence specification
+                                These concepts will be expanded into comprehensive Boolean search expressions
                             </p>
                         </div>
                     </div>
                 )}
 
-                {step === 'keywords' && (
+                {step === 'expressions' && (
                     <div className="space-y-4">
                         <div>
                             <Badge variant="outline" className="mb-3">Step 4 of 4</Badge>
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                Generated Search Keywords
+                                Test & Accept Search Query
                             </h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Your optimized search keywords are ready! These are tailored for {selectedSource === 'pubmed' ? 'PubMed' : 'Google Scholar'} and can be edited if needed.
+                                Select expressions and test their combination. When you find a combination you like, accept it to use for your search.
                             </p>
                         </div>
 
                         <div>
-                            <Label className="text-sm font-medium mb-2 block">
-                                Search Keywords
+                            <Label className="text-sm font-medium mb-3 block">
+                                Boolean Expressions ({expandedExpressions.filter(exp => exp.selected).length} selected)
                             </Label>
-                            <Textarea
-                                value={generatedKeywords}
-                                onChange={(e) => setGeneratedKeywords(e.target.value)}
-                                rows={6}
-                                className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 text-sm font-mono"
-                                placeholder="Generated keywords will appear here..."
-                            />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                These keywords are optimized for {selectedSource === 'pubmed' ? 'PubMed boolean search' : 'Google Scholar natural language search'}
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {expandedExpressions.map((expression, index) => (
+                                    <div key={index} className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                        <input
+                                            type="checkbox"
+                                            id={`expression-${index}`}
+                                            checked={expression.selected || false}
+                                            onChange={(e) => {
+                                                const newExpressions = [...expandedExpressions];
+                                                newExpressions[index] = { ...expression, selected: e.target.checked };
+                                                setExpandedExpressions(newExpressions);
+                                            }}
+                                            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <label htmlFor={`expression-${index}`} className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 cursor-pointer">
+                                                {expression.concept}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={expression.expression}
+                                                onChange={(e) => {
+                                                    const newExpressions = [...expandedExpressions];
+                                                    newExpressions[index] = { ...expression, expression: e.target.value };
+                                                    setExpandedExpressions(newExpressions);
+                                                }}
+                                                className="w-full text-sm font-mono px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100"
+                                                placeholder="Boolean expression..."
+                                            />
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                Estimated results: {expression.count.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Test Combination Section */}
+                            {expandedExpressions.filter(exp => exp.selected).length > 0 && (
+                                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                        Test Selected Combination
+                                    </h4>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
+                                                Combined Query Preview
+                                            </Label>
+                                            <div className="text-sm font-mono p-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100">
+                                                {expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ')}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <Button
+                                                onClick={async () => {
+                                                    const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
+                                                    if (selectedExpressions.length > 0) {
+                                                        setIsGenerating(true);
+                                                        setError(null);
+                                                        try {
+                                                            const response = await testKeywordCombination(
+                                                                selectedExpressions.map(exp => exp.expression),
+                                                                selectedSource
+                                                            );
+                                                            setGeneratedKeywords(response.combined_query);
+                                                        } catch (err) {
+                                                            const errorMessage = err instanceof Error ? err.message : 'Failed to test combination';
+                                                            setError(errorMessage);
+                                                        } finally {
+                                                            setIsGenerating(false);
+                                                        }
+                                                    }
+                                                }}
+                                                disabled={isGenerating || expandedExpressions.filter(exp => exp.selected).length === 0}
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                {isGenerating ? (
+                                                    <>
+                                                        <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
+                                                        Testing...
+                                                    </>
+                                                ) : (
+                                                    <>Test Combination</>
+                                                )}
+                                            </Button>
+
+                                            {generatedKeywords && (
+                                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                                    Query ready for testing
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {generatedKeywords && (
+                                            <div>
+                                                <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
+                                                    Final Search Query
+                                                </Label>
+                                                <Textarea
+                                                    value={generatedKeywords}
+                                                    onChange={(e) => setGeneratedKeywords(e.target.value)}
+                                                    rows={3}
+                                                    className="text-sm font-mono dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                                                    placeholder="Final search query will appear here..."
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                                Selected expressions will be combined with AND. Test the combination to see the final search query.
                             </p>
                         </div>
                     </div>
@@ -499,7 +621,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {step === 'keywords' ? (
+                    {step === 'expressions' && generatedKeywords ? (
                         <>
                             <Button
                                 variant="outline"
@@ -515,7 +637,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                 className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
                             >
                                 <Check className="w-4 h-4 mr-2" />
-                                Use These Keywords
+                                Accept & Use Query
                             </Button>
                         </>
                     ) : (
@@ -527,46 +649,48 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                onClick={handleNext}
-                                disabled={
-                                    isGenerating ||
-                                    (step === 'question' && !researchQuestion.trim() && clarificationQuestions.length === 0) ||
-                                    (step === 'question' && clarificationQuestions.length > 0 && Object.keys(userAnswers).length === 0) ||
-                                    (step === 'evidence' && !evidenceSpec.trim()) ||
-                                    (step === 'concepts' && extractedConcepts.length === 0)
-                                }
-                                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                                        {step === 'question' ? 'Generating...' : 'Processing...'}
-                                    </>
-                                ) : (
-                                    <>
-                                        {step === 'question' && (
-                                            <>
-                                                <Sparkles className="w-4 h-4 mr-2" />
-                                                {clarificationQuestions.length > 0 ? 'Continue Refining' : 'Generate Evidence Spec'}
-                                            </>
-                                        )}
-                                        {step === 'evidence' && (
-                                            <>
-                                                <Sparkles className="w-4 h-4 mr-2" />
-                                                Extract Concepts
-                                            </>
-                                        )}
-                                        {step === 'concepts' && (
-                                            <>
-                                                <Sparkles className="w-4 h-4 mr-2" />
-                                                Generate Keywords
-                                            </>
-                                        )}
-                                        <ChevronRight className="w-4 h-4 ml-2" />
-                                    </>
-                                )}
-                            </Button>
+                            {step !== 'expressions' && (
+                                <Button
+                                    onClick={handleNext}
+                                    disabled={
+                                        isGenerating ||
+                                        (step === 'question' && !researchQuestion.trim() && clarificationQuestions.length === 0) ||
+                                        (step === 'question' && clarificationQuestions.length > 0 && Object.keys(userAnswers).length === 0) ||
+                                        (step === 'evidence' && !evidenceSpec.trim()) ||
+                                        (step === 'concepts' && extractedConcepts.length === 0)
+                                    }
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                >
+                                    {isGenerating ? (
+                                        <>
+                                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                                            {step === 'question' ? 'Generating...' : 'Processing...'}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {step === 'question' && (
+                                                <>
+                                                    <Sparkles className="w-4 h-4 mr-2" />
+                                                    {clarificationQuestions.length > 0 ? 'Continue Refining' : 'Generate Evidence Spec'}
+                                                </>
+                                            )}
+                                            {step === 'evidence' && (
+                                                <>
+                                                    <Sparkles className="w-4 h-4 mr-2" />
+                                                    Extract Concepts
+                                                </>
+                                            )}
+                                            {step === 'concepts' && (
+                                                <>
+                                                    <Sparkles className="w-4 h-4 mr-2" />
+                                                    Expand Expressions
+                                                </>
+                                            )}
+                                            <ChevronRight className="w-4 h-4 ml-2" />
+                                        </>
+                                    )}
+                                </Button>
+                            )}
                         </>
                     )}
                 </div>

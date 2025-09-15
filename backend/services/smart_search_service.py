@@ -1134,11 +1134,27 @@ class SmartSearchService:
 
     async def _estimate_scholar_count(self, query: str) -> int:
         """Estimate Google Scholar count based on query complexity."""
-        # Simple heuristic based on number of OR terms
-        or_terms = query.count(' OR ') + 1
-        base_estimate = 5000  # Base estimate per concept
-        complexity_factor = max(0.5, 1.0 - (or_terms * 0.1))  # More ORs = more specific = fewer results
-        return int(base_estimate * complexity_factor)
+        logger.info(f"Estimating Scholar count for query: {query}")
+
+        # Count AND and OR terms to determine complexity
+        and_terms = query.count(' AND ') + 1  # Number of concepts being ANDed
+        or_terms_total = query.count(' OR ')  # Total OR terms across all concepts
+
+        # Base estimate per individual concept
+        base_estimate = 5000
+
+        # AND terms should dramatically reduce results (exponential decay)
+        and_factor = 0.6 ** (and_terms - 1)  # Each additional AND reduces by 40%
+
+        # OR terms within concepts increase specificity slightly
+        or_factor = max(0.7, 1.0 - (or_terms_total * 0.05))  # Small reduction for more ORs
+
+        final_estimate = int(base_estimate * and_factor * or_factor)
+
+        logger.info(f"Scholar estimation: {and_terms} AND terms, {or_terms_total} OR terms -> {final_estimate} results")
+        logger.info(f"Factors: base={base_estimate}, and_factor={and_factor:.3f}, or_factor={or_factor:.3f}")
+
+        return final_estimate
 
     async def _find_optimal_combination(
         self,
@@ -1235,6 +1251,7 @@ class SmartSearchService:
         Test combining multiple Boolean expressions with AND.
         """
         logger.info(f"Testing combination of {len(expressions)} expressions for {source}")
+        logger.info(f"Individual expressions: {expressions}")
 
         if len(expressions) == 1:
             combined_query = expressions[0]
@@ -1248,6 +1265,8 @@ class SmartSearchService:
                     formatted_expressions.append(f"({expr.strip()})")
             combined_query = " AND ".join(formatted_expressions)
 
+        logger.info(f"Combined query before testing: {combined_query}")
+
         # Test the combined query
         if source == 'pubmed':
             estimated_results = await self._test_pubmed_query_count(combined_query)
@@ -1255,6 +1274,7 @@ class SmartSearchService:
             estimated_results = await self._estimate_scholar_count(combined_query)
 
         logger.info(f"Combined query: {combined_query[:200]}... ({estimated_results} estimated results)")
+        logger.info(f"LOGIC CHECK: {len(expressions)} expressions ANDed together = {estimated_results} results")
 
         return {
             'combined_query': combined_query,

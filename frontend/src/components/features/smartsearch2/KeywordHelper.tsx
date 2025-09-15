@@ -18,6 +18,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [error, setError] = useState<string | null>(null);
     const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([]);
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+    const [estimatedResults, setEstimatedResults] = useState<number | null>(null);
 
     const {
         // Research data from context (persistent)
@@ -485,6 +486,9 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                                 const newExpressions = [...expandedExpressions];
                                                 newExpressions[index] = { ...expression, selected: e.target.checked };
                                                 setExpandedExpressions(newExpressions);
+                                                // Reset generated query and results when selection changes
+                                                setGeneratedKeywords('');
+                                                setEstimatedResults(null);
                                             }}
                                             className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                                         />
@@ -499,6 +503,9 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                                     const newExpressions = [...expandedExpressions];
                                                     newExpressions[index] = { ...expression, expression: e.target.value };
                                                     setExpandedExpressions(newExpressions);
+                                                    // Reset generated query and results when expression text changes
+                                                    setGeneratedKeywords('');
+                                                    setEstimatedResults(null);
                                                 }}
                                                 className="w-full text-sm font-mono px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100"
                                                 placeholder="Boolean expression..."
@@ -531,7 +538,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                             />
                                             {generatedKeywords && (
                                                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                                    ✓ Query tested and optimized
+                                                    ✓ Query tested and optimized {estimatedResults !== null && `(~${estimatedResults.toLocaleString()} results)`}
                                                 </p>
                                             )}
                                         </div>
@@ -544,11 +551,18 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                                         setIsGenerating(true);
                                                         setError(null);
                                                         try {
+                                                            console.log('Testing combination:', {
+                                                                selectedCount: selectedExpressions.length,
+                                                                expressions: selectedExpressions.map(exp => exp.expression),
+                                                                source: selectedSource
+                                                            });
                                                             const response = await testKeywordCombination(
                                                                 selectedExpressions.map(exp => exp.expression),
                                                                 selectedSource
                                                             );
+                                                            console.log('Test response:', response);
                                                             setGeneratedKeywords(response.combined_query);
+                                                            setEstimatedResults(response.estimated_results);
                                                         } catch (err) {
                                                             const errorMessage = err instanceof Error ? err.message : 'Failed to test combination';
                                                             setError(errorMessage);

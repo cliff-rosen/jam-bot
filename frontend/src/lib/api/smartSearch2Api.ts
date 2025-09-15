@@ -94,6 +94,33 @@ export interface KeywordGenerationResponse {
     optimization_strategy: string;
 }
 
+// Article filtering types
+export interface ArticleFilterRequest {
+    evidence_specification: string;
+    articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly (no session needed)
+    strictness?: 'low' | 'medium' | 'high';
+    discriminator_prompt?: string;  // Optional - will be auto-generated if not provided
+}
+
+export interface ArticleFilterResponse {
+    filtered_articles: Array<{
+        id: string;
+        title: string;
+        abstract?: string;
+        authors?: string[];
+        journal?: string;
+        publication_year?: number;
+        url?: string;
+        relevance_reasoning: string;
+        relevance_score: number;
+        meets_criteria: boolean;
+    }>;
+    total_processed: number;
+    total_accepted: number;
+    total_rejected: number;
+    discriminator_used: string;
+}
+
 // SmartSearch2-specific types (no session_id required)
 export interface FeatureExtractionRequest extends Omit<BaseFeatureExtractionRequest, 'session_id'> {
     articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly
@@ -154,6 +181,14 @@ class SmartSearch2Api {
      */
     async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
         const response = await api.post('/api/smart-search-2/generate-keywords', request);
+        return response.data;
+    }
+
+    /**
+     * Filter articles using semantic discriminator (no session required)
+     */
+    async filterArticles(request: ArticleFilterRequest): Promise<ArticleFilterResponse> {
+        const response = await api.post('/api/smart-search-2/filter-articles', request);
         return response.data;
     }
 

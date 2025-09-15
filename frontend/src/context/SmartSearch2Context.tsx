@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
-import type { DirectSearchResponse, FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
+import type { DirectSearchResponse, FeatureExtractionResponse, ArticleFilterResponse } from '@/lib/api/smartSearch2Api';
 import type { FeatureDefinition } from '@/types/workbench';
 import { api } from '@/lib/api';
 
@@ -21,6 +21,10 @@ interface SmartSearch2State {
     // SEARCH EXECUTION
     searchResults: DirectSearchResponse | null;
     isSearching: boolean;
+
+    // ARTICLE FILTERING
+    filteredArticles: ArticleFilterResponse | null;
+    isFiltering: boolean;
 
     // FEATURE EXTRACTION
     appliedFeatures: FeatureDefinition[];
@@ -95,6 +99,9 @@ interface SmartSearch2Actions {
     search: () => Promise<void>;
     resetSearch: () => void;
 
+    // ARTICLE FILTERING
+    filterArticles: (evidenceSpec?: string, strictness?: 'low' | 'medium' | 'high') => Promise<ArticleFilterResponse>;
+
     // FEATURE EXTRACTION
     addPendingFeature: (feature: FeatureDefinition) => void;
     removePendingFeature: (featureId: string) => void;
@@ -145,6 +152,10 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Article filtering state
+    const [filteredArticles, setFilteredArticles] = useState<ArticleFilterResponse | null>(null);
+    const [isFiltering, setIsFiltering] = useState(false);
 
     // Research journey state (persistent data)
     const [researchQuestion, setResearchQuestion] = useState('');
@@ -213,6 +224,9 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setPendingFeatures([]);
         setExtractedData({});
         setIsExtracting(false);
+        // Clear filtering state
+        setFilteredArticles(null);
+        setIsFiltering(false);
     }, []);
 
     const resetResearchJourney = useCallback(() => {
@@ -373,6 +387,41 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
+    const filterArticles = useCallback(async (
+        evidenceSpecOverride?: string,
+        strictness: 'low' | 'medium' | 'high' = 'medium'
+    ): Promise<ArticleFilterResponse> => {
+        const finalEvidenceSpec = evidenceSpecOverride || evidenceSpec;
+
+        if (!finalEvidenceSpec.trim()) {
+            throw new Error('Evidence specification is required for filtering');
+        }
+
+        if (!searchResults?.articles.length) {
+            throw new Error('No articles available to filter');
+        }
+
+        setIsFiltering(true);
+        setError(null);
+
+        try {
+            const response = await smartSearch2Api.filterArticles({
+                evidence_specification: finalEvidenceSpec,
+                articles: searchResults.articles,
+                strictness: strictness
+            });
+
+            setFilteredArticles(response);
+            return response;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to filter articles';
+            setError(errorMessage);
+            throw err;
+        } finally {
+            setIsFiltering(false);
+        }
+    }, [evidenceSpec, searchResults?.articles]);
+
     // ================== CONTEXT VALUE ==================
 
     const contextValue: SmartSearch2ContextType = {
@@ -383,6 +432,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         isSearching,
         hasSearched,
         error,
+        filteredArticles,
+        isFiltering,
         appliedFeatures,
         pendingFeatures,
         extractedData,
@@ -408,6 +459,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         generateKeywords,
         search,
         resetSearch,
+        filterArticles,
         addPendingFeature,
         removePendingFeature,
         extractFeatures,

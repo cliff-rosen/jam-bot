@@ -23,8 +23,7 @@ function SmartSearch2Content() {
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Filter and enrichment state
-  const [isFiltering, setIsFiltering] = useState(false);
+  // Enrichment state
   const [isAddingScholar, setIsAddingScholar] = useState(false);
 
   const {
@@ -34,6 +33,8 @@ function SmartSearch2Content() {
     isSearching,
     hasSearched,
     error,
+    filteredArticles,
+    isFiltering,
     appliedFeatures,
     pendingFeatures,
     extractedData,
@@ -45,7 +46,8 @@ function SmartSearch2Content() {
     updateSearchQuery,
     addPendingFeature,
     removePendingFeature,
-    extractFeatures
+    extractFeatures,
+    filterArticles
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -142,31 +144,51 @@ function SmartSearch2Content() {
   // Filter and enrichment handlers
   const handleFilter = async () => {
     if (!evidenceSpec) {
-      toast({
-        title: 'Evidence Specification Required',
-        description: 'Please use the keyword helper to create an evidence specification first, or enter one manually.',
-        variant: 'destructive'
-      });
-      return;
-    }
+      // Prompt user to enter evidence specification if not available
+      const userEvidenceSpec = window.prompt(
+        'Evidence Specification Required\n\nPlease enter an evidence specification describing what types of articles you want to filter for:\n\nExample: "Studies examining the effectiveness of meditation on anxiety levels in adults, including randomized controlled trials and meta-analyses published in the last 10 years."'
+      );
 
-    setIsFiltering(true);
-    try {
-      // TODO: Implement filtering logic using smartSearch2Api
-      // This would call the same filtering functionality as regular smart search
-      toast({
-        title: 'Filtering Implementation',
-        description: 'Filter functionality will be implemented to use the evidence specification to filter current results.',
-        variant: 'default'
-      });
-    } catch (error) {
-      toast({
-        title: 'Filtering Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsFiltering(false);
+      if (!userEvidenceSpec?.trim()) {
+        toast({
+          title: 'Filtering Cancelled',
+          description: 'Evidence specification is required for filtering.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Use the user-provided evidence spec for this filtering operation
+      try {
+        await filterArticles(userEvidenceSpec.trim());
+        toast({
+          title: 'Filtering Complete',
+          description: `Filtered ${searchResults?.articles.length || 0} articles using custom evidence specification.`,
+          variant: 'default'
+        });
+      } catch (error) {
+        toast({
+          title: 'Filtering Failed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive'
+        });
+      }
+    } else {
+      // Use the existing evidence spec from keyword helper workflow
+      try {
+        await filterArticles();
+        toast({
+          title: 'Filtering Complete',
+          description: `Filtered ${searchResults?.articles.length || 0} articles using existing evidence specification.`,
+          variant: 'default'
+        });
+      } catch (error) {
+        toast({
+          title: 'Filtering Failed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -278,7 +300,7 @@ function SmartSearch2Content() {
             </div>
           ) : (
             <SearchResults
-              articles={searchResults?.articles || []}
+              articles={filteredArticles?.filtered_articles || searchResults?.articles || []}
               pagination={searchResults?.pagination || null}
               query={searchQuery}
               source={selectedSource}

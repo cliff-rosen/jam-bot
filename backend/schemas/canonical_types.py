@@ -39,6 +39,80 @@ Type for extracted feature values:
 - float: for 'score' type features (continuous values)
 """
 
+class CanonicalResearchArticle(BaseModel):
+    """
+    Unified canonical schema for research articles from any source (PubMed, Google Scholar, etc).
+    This provides a consistent interface for the research workbench regardless of the data source.
+    """
+    model_config = ConfigDict(extra='forbid')
+    
+    # Core identification fields  
+    id: Optional[str] = Field(default=None, description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
+    source: str = Field(description="Data source (e.g., 'pubmed', 'google_scholar')")
+    title: str = Field(description="Article title")
+    
+    # Legacy fields for backward compatibility with existing session data
+    # TODO: Remove these once all sessions are migrated to proper field names
+    year: Optional[int] = Field(default=None, description="DEPRECATED: Use publication_year instead")
+    pmid: Optional[str] = Field(default=None, description="DEPRECATED: Use id instead for PubMed articles")
+    
+    # Core metadata
+    authors: List[str] = Field(default=[], description="List of author names")
+    publication_date: Optional[str] = Field(default=None, description="Publication date (ISO format preferred)")
+    publication_year: Optional[int] = Field(default=None, description="Publication year")
+    journal: Optional[str] = Field(default=None, description="Journal or publication venue name")
+    
+    # PubMed-specific date fields (always populated for PubMed articles)
+    date_completed: Optional[str] = Field(default=None, description="Date record was completed (YYYY-MM-DD)")
+    date_revised: Optional[str] = Field(default=None, description="Date record was last revised (YYYY-MM-DD)")
+    date_entered: Optional[str] = Field(default=None, description="Date entered into PubMed (YYYY-MM-DD)")
+    date_published: Optional[str] = Field(default=None, description="Publication date with full precision (YYYY-MM-DD)")
+    
+    # Article content
+    abstract: Optional[str] = Field(default=None, description="Full abstract text")
+    snippet: Optional[str] = Field(default=None, description="Brief excerpt or summary")
+    
+    # Identifiers and links
+    doi: Optional[str] = Field(default=None, description="Digital Object Identifier")
+    url: Optional[str] = Field(default=None, description="Direct link to article")
+    pdf_url: Optional[str] = Field(default=None, description="Direct link to PDF version")
+    
+    # Classification and indexing
+    keywords: List[str] = Field(default=[], description="Article keywords")
+    mesh_terms: List[str] = Field(default=[], description="MeSH terms (for biomedical articles)")
+    categories: List[str] = Field(default=[], description="Article categories or classifications")
+    
+    # Metrics and citations
+    citation_count: Optional[int] = Field(default=None, description="Number of citations")
+    cited_by_url: Optional[str] = Field(default=None, description="Link to citing articles")
+    
+    # Related content
+    related_articles_url: Optional[str] = Field(default=None, description="Link to related articles")
+    versions_url: Optional[str] = Field(default=None, description="Link to different versions")
+    
+    # Search context
+    search_position: Optional[int] = Field(default=None, description="Position in search results")
+    relevance_score: Optional[float] = Field(default=None, description="Search relevance score")
+    
+    # Source-specific data
+    source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
+    
+    # Extraction and analysis results (if applicable)
+    extracted_features: Optional[Dict[str, CanonicalFeatureValue]] = Field(default=None, description="Extracted feature data keyed by feature.id -> CanonicalFeatureValue")
+    quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
+    
+    # Timestamps
+    indexed_at: Optional[str] = Field(default=None, description="When article was indexed by source")
+    retrieved_at: Optional[str] = Field(default=None, description="When article was retrieved")
+
+    @model_validator(mode='after')
+    def generate_id_if_missing(self) -> 'CanonicalResearchArticle':
+        """Generate an ID if missing, for backward compatibility with legacy session data."""
+        if not self.id:
+            # Generate a consistent ID based on title and source
+            content = f"{self.title}|{self.source}"
+            self.id = hashlib.md5(content.encode()).hexdigest()[:16]
+        return self
 
 class CanonicalExtractedFeature(BaseModel):
     """
@@ -150,81 +224,6 @@ class CanonicalScoredArticle(BaseModel):
     score_breakdown: Dict[str, float] = Field(description="Breakdown of score components")
     percentile_rank: Optional[float] = Field(default=None, description="Percentile rank among all scored articles")
     scoring_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Scoring methodology metadata")
-
-class CanonicalResearchArticle(BaseModel):
-    """
-    Unified canonical schema for research articles from any source (PubMed, Google Scholar, etc).
-    This provides a consistent interface for the research workbench regardless of the data source.
-    """
-    model_config = ConfigDict(extra='forbid')
-    
-    # Core identification fields  
-    id: Optional[str] = Field(default=None, description="Unique identifier (e.g., PMID for PubMed, URL for Scholar)")
-    source: str = Field(description="Data source (e.g., 'pubmed', 'google_scholar')")
-    title: str = Field(description="Article title")
-    
-    # Legacy fields for backward compatibility with existing session data
-    # TODO: Remove these once all sessions are migrated to proper field names
-    year: Optional[int] = Field(default=None, description="DEPRECATED: Use publication_year instead")
-    pmid: Optional[str] = Field(default=None, description="DEPRECATED: Use id instead for PubMed articles")
-    
-    # Core metadata
-    authors: List[str] = Field(default=[], description="List of author names")
-    publication_date: Optional[str] = Field(default=None, description="Publication date (ISO format preferred)")
-    publication_year: Optional[int] = Field(default=None, description="Publication year")
-    journal: Optional[str] = Field(default=None, description="Journal or publication venue name")
-    
-    # PubMed-specific date fields (always populated for PubMed articles)
-    date_completed: Optional[str] = Field(default=None, description="Date record was completed (YYYY-MM-DD)")
-    date_revised: Optional[str] = Field(default=None, description="Date record was last revised (YYYY-MM-DD)")
-    date_entered: Optional[str] = Field(default=None, description="Date entered into PubMed (YYYY-MM-DD)")
-    date_published: Optional[str] = Field(default=None, description="Publication date with full precision (YYYY-MM-DD)")
-    
-    # Article content
-    abstract: Optional[str] = Field(default=None, description="Full abstract text")
-    snippet: Optional[str] = Field(default=None, description="Brief excerpt or summary")
-    
-    # Identifiers and links
-    doi: Optional[str] = Field(default=None, description="Digital Object Identifier")
-    url: Optional[str] = Field(default=None, description="Direct link to article")
-    pdf_url: Optional[str] = Field(default=None, description="Direct link to PDF version")
-    
-    # Classification and indexing
-    keywords: List[str] = Field(default=[], description="Article keywords")
-    mesh_terms: List[str] = Field(default=[], description="MeSH terms (for biomedical articles)")
-    categories: List[str] = Field(default=[], description="Article categories or classifications")
-    
-    # Metrics and citations
-    citation_count: Optional[int] = Field(default=None, description="Number of citations")
-    cited_by_url: Optional[str] = Field(default=None, description="Link to citing articles")
-    
-    # Related content
-    related_articles_url: Optional[str] = Field(default=None, description="Link to related articles")
-    versions_url: Optional[str] = Field(default=None, description="Link to different versions")
-    
-    # Search context
-    search_position: Optional[int] = Field(default=None, description="Position in search results")
-    relevance_score: Optional[float] = Field(default=None, description="Search relevance score")
-    
-    # Source-specific data
-    source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
-    
-    # Extraction and analysis results (if applicable)
-    extracted_features: Optional[Dict[str, CanonicalFeatureValue]] = Field(default=None, description="Extracted feature data keyed by feature.id -> CanonicalFeatureValue")
-    quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
-    
-    # Timestamps
-    indexed_at: Optional[str] = Field(default=None, description="When article was indexed by source")
-    retrieved_at: Optional[str] = Field(default=None, description="When article was retrieved")
-
-    @model_validator(mode='after')
-    def generate_id_if_missing(self) -> 'CanonicalResearchArticle':
-        """Generate an ID if missing, for backward compatibility with legacy session data."""
-        if not self.id:
-            # Generate a consistent ID based on title and source
-            content = f"{self.title}|{self.source}"
-            self.id = hashlib.md5(content.encode()).hexdigest()[:16]
-        return self
 
 class CanonicalNewsletter(BaseModel):
     """

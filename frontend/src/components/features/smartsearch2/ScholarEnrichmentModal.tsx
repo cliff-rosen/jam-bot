@@ -256,7 +256,7 @@ export function ScholarEnrichmentModal({
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Search Keywords:</label>
+                                        <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Search Keywords:</label>
                                         <Textarea
                                             value={editedKeywords}
                                             onChange={(e) => setEditedKeywords(e.target.value)}
@@ -340,7 +340,7 @@ export function ScholarEnrichmentModal({
                                             checked={selectedArticles.size === uniqueArticles.length && uniqueArticles.length > 0}
                                             onCheckedChange={toggleAllSelection}
                                         />
-                                        <label className="text-sm font-medium">Select All</label>
+                                        <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Select All</label>
                                     </div>
                                 </div>
 

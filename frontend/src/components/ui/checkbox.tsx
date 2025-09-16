@@ -2,38 +2,42 @@ import * as React from "react"
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface CheckboxProps {
+  checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
+  className?: string;
+  disabled?: boolean;
+  id?: string;
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, onCheckedChange, onChange, ...props }, ref) => {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange?.(e);
-      onCheckedChange?.(e.target.checked);
-    };
-
+  ({ className, checked, onCheckedChange, disabled, ...props }, ref) => {
     return (
-      <div className="relative">
+      <div
+        className={cn(
+          "relative h-4 w-4 shrink-0 rounded-sm border border-gray-300 bg-white cursor-pointer transition-colors hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2",
+          checked && "bg-blue-600 border-blue-600",
+          disabled && "cursor-not-allowed opacity-50",
+          className
+        )}
+        onClick={() => !disabled && onCheckedChange?.(!checked)}
+      >
         <input
-          type="checkbox"
           ref={ref}
-          className={cn(
-            "peer h-4 w-4 shrink-0 rounded-sm border border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            "dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-blue-500 dark:checked:border-blue-500",
-            className
-          )}
-          onChange={handleChange}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onCheckedChange?.(e.target.checked)}
+          disabled={disabled}
+          className="absolute inset-0 opacity-0 cursor-pointer"
           {...props}
         />
-        {props.checked && (
-          <Check className="absolute top-0 left-0 h-4 w-4 text-white pointer-events-none" />
+        {checked && (
+          <Check className="h-3 w-3 text-white absolute inset-0 m-auto" />
         )}
       </div>
-    );
+    )
   }
-);
-
-Checkbox.displayName = "Checkbox";
+)
+Checkbox.displayName = "Checkbox"
 
 export { Checkbox }

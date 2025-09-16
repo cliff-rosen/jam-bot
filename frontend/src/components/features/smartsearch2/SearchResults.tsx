@@ -23,9 +23,11 @@ import {
     FileText,
     Copy
 } from 'lucide-react';
+
+import { exportToCSV, copyPMIDsToClipboard, exportToPDF } from '@/lib/utils/exportUtils';
+
 import type { SmartSearchArticle, SearchPaginationInfo } from '@/types/smart-search';
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
-import { exportToCSV, copyPMIDsToClipboard, exportToPDF } from '@/lib/utils/exportUtils';
 
 
 interface SearchResultsProps {
@@ -65,12 +67,7 @@ interface SearchResultsProps {
     onAcceptFilter?: () => void;
     onUndoFilter?: () => void;
 
-    // UI state (now managed by parent)
-    displayMode: 'table' | 'card-compressed' | 'card-full';
-    sortColumn: string;
-    sortDirection: 'asc' | 'desc';
-    onDisplayModeChange: (mode: 'table' | 'card-compressed' | 'card-full') => void;
-    onSort: (column: string) => void;
+    // UI state is now managed internally
 
     // Export props (optional for backward compatibility)
     searchQuery?: string;
@@ -98,14 +95,14 @@ export function SearchResults({
     hasPendingFilter,
     onAcceptFilter,
     onUndoFilter,
-    displayMode,
-    sortColumn,
-    sortDirection,
-    onDisplayModeChange,
-    onSort,
     searchQuery
 }: SearchResultsProps) {
     const { toast } = useToast();
+
+    // UI State - now managed internally
+    const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
+    const [sortColumn, setSortColumn] = useState<string>('');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
     // AI Columns State
     const [showColumns, setShowColumns] = useState(false);
@@ -135,6 +132,16 @@ export function SearchResults({
             description: '',
             type: 'text'
         });
+    };
+
+    // Sort handler
+    const handleSort = (column: string) => {
+        if (sortColumn === column) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
     };
 
     // Export handlers
@@ -250,141 +257,141 @@ export function SearchResults({
 
         return (
             <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-                <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                            <button
-                                onClick={() => onSort('title')}
-                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-                            >
-                                Title
-                                {sortColumn === 'title' && (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                )}
-                            </button>
-                        </th>
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                            <button
-                                onClick={() => onSort('authors')}
-                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-                            >
-                                Authors
-                                {sortColumn === 'authors' && (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                )}
-                            </button>
-                        </th>
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                            <button
-                                onClick={() => onSort('year')}
-                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-                            >
-                                Year
-                                {sortColumn === 'year' && (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                )}
-                            </button>
-                        </th>
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                            <button
-                                onClick={() => onSort('journal')}
-                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-                            >
-                                Journal
-                                {sortColumn === 'journal' && (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                )}
-                            </button>
-                        </th>
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                            <button
-                                onClick={() => onSort('pmid')}
-                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-                            >
-                                PMID
-                                {sortColumn === 'pmid' && (
-                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                                )}
-                            </button>
-                        </th>
-                        {appliedFeatures.map(feature => (
-                            <th key={feature.id} className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
-                                {feature.name}
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                <button
+                                    onClick={() => handleSort('title')}
+                                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                                >
+                                    Title
+                                    {sortColumn === 'title' && (
+                                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    )}
+                                </button>
                             </th>
-                        ))}
-                        {hasPendingFilter && (
-                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Filter Status</th>
-                        )}
-                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Link</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {sortedArticles.map((article, index) => {
-                        const hasFilterResult = article.filterStatus !== null;
-                        const passed = hasFilterResult ? article.filterStatus!.passed : null;
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                <button
+                                    onClick={() => handleSort('authors')}
+                                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                                >
+                                    Authors
+                                    {sortColumn === 'authors' && (
+                                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    )}
+                                </button>
+                            </th>
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                <button
+                                    onClick={() => handleSort('year')}
+                                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                                >
+                                    Year
+                                    {sortColumn === 'year' && (
+                                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    )}
+                                </button>
+                            </th>
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                <button
+                                    onClick={() => handleSort('journal')}
+                                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                                >
+                                    Journal
+                                    {sortColumn === 'journal' && (
+                                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    )}
+                                </button>
+                            </th>
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                <button
+                                    onClick={() => handleSort('pmid')}
+                                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                                >
+                                    PMID
+                                    {sortColumn === 'pmid' && (
+                                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    )}
+                                </button>
+                            </th>
+                            {appliedFeatures.map(feature => (
+                                <th key={feature.id} className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                                    {feature.name}
+                                </th>
+                            ))}
+                            {hasPendingFilter && (
+                                <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Filter Status</th>
+                            )}
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Link</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sortedArticles.map((article, index) => {
+                            const hasFilterResult = article.filterStatus !== null;
+                            const passed = hasFilterResult ? article.filterStatus!.passed : null;
 
-                        return (
-                            <tr key={index} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${hasFilterResult ? (passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20') : ''
-                                }`}>
-                                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
-                                    {article.title}
-                                </td>
-                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {article.authors?.slice(0, 2).join(', ')}
-                                    {article.authors && article.authors.length > 2 && ' et al.'}
-                                </td>
-                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {article.publication_year}
-                                </td>
-                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {article.journal}
-                                </td>
-                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {article.pmid || '-'}
-                                </td>
-                                {appliedFeatures.map(feature => (
-                                    <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                        {article.extracted_features?.[feature.id] || '-'}
+                            return (
+                                <tr key={index} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${hasFilterResult ? (passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20') : ''
+                                    }`}>
+                                    <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                                        {article.title}
                                     </td>
-                                ))}
-                                {hasPendingFilter && (
-                                    <td className="p-3 text-sm">
-                                        {hasFilterResult ? (
-                                            <div className="flex items-center gap-2">
-                                                <Badge
-                                                    variant={passed ? "default" : "destructive"}
-                                                    className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
-                                                >
-                                                    {passed ? "✓ Accepted" : "✗ Rejected"}
-                                                </Badge>
-                                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {Math.round(article.filterStatus!.confidence * 100)}%
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-500">Not filtered</span>
+                                    <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {article.authors?.slice(0, 2).join(', ')}
+                                        {article.authors && article.authors.length > 2 && ' et al.'}
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {article.publication_year}
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {article.journal}
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {article.pmid || '-'}
+                                    </td>
+                                    {appliedFeatures.map(feature => (
+                                        <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                            {article.extracted_features?.[feature.id] || '-'}
+                                        </td>
+                                    ))}
+                                    {hasPendingFilter && (
+                                        <td className="p-3 text-sm">
+                                            {hasFilterResult ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Badge
+                                                        variant={passed ? "default" : "destructive"}
+                                                        className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                                                    >
+                                                        {passed ? "✓ Accepted" : "✗ Rejected"}
+                                                    </Badge>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {Math.round(article.filterStatus!.confidence * 100)}%
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400 dark:text-gray-500">Not filtered</span>
+                                            )}
+                                        </td>
+                                    )}
+                                    <td className="p-3">
+                                        {article.url && (
+                                            <a
+                                                href={article.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                            </a>
                                         )}
                                     </td>
-                                )}
-                                <td className="p-3">
-                                    {article.url && (
-                                        <a
-                                            href={article.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                        >
-                                            <ExternalLink className="w-4 h-4" />
-                                        </a>
-                                    )}
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
         );
     };
 
@@ -625,21 +632,21 @@ export function SearchResults({
                             <Button
                                 variant={displayMode === 'table' ? 'default' : 'ghost'}
                                 size="sm"
-                                onClick={() => onDisplayModeChange('table')}
+                                onClick={() => setDisplayMode('table')}
                             >
                                 <Table className="w-4 h-4" />
                             </Button>
                             <Button
                                 variant={displayMode === 'card-compressed' ? 'default' : 'ghost'}
                                 size="sm"
-                                onClick={() => onDisplayModeChange('card-compressed')}
+                                onClick={() => setDisplayMode('card-compressed')}
                             >
                                 <List className="w-4 h-4" />
                             </Button>
                             <Button
                                 variant={displayMode === 'card-full' ? 'default' : 'ghost'}
                                 size="sm"
-                                onClick={() => onDisplayModeChange('card-full')}
+                                onClick={() => setDisplayMode('card-full')}
                             >
                                 <Grid className="w-4 h-4" />
                             </Button>

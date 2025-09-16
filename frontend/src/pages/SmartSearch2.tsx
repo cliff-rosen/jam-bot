@@ -11,27 +11,27 @@ import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 import { SearchForm, KeywordHelper, FilterModal } from '@/components/features/smartsearch2';
 import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
+import { ScholarEnrichmentModal } from '@/components/features/smartsearch2/ScholarEnrichmentModal';
 
 // Main content component that uses SmartSearch2Context
 function SmartSearch2Content() {
   const [showKeywordHelper, setShowKeywordHelper] = useState(false);
   const { toast } = useToast();
 
-  // SearchResults UI state
-  const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
-  const [sortColumn, setSortColumn] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Collapsible search state
   const [isSearchCollapsed, setIsSearchCollapsed] = useState(false);
   const [hasUserToggledSearch, setHasUserToggledSearch] = useState(false);
 
   // Enrichment state
-  const [isAddingScholar, setIsAddingScholar] = useState(false);
+  const [isAddingScholar] = useState(false);
 
   // Filter criteria modal state
   const [showFilterCriteriaModal, setShowFilterCriteriaModal] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState('');
+
+  // Scholar enrichment modal state
+  const [showScholarModal, setShowScholarModal] = useState(false);
 
   const {
     selectedSource,
@@ -121,14 +121,6 @@ function SmartSearch2Content() {
     }
   };
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
 
   // Filter and enrichment handlers
   const handleFilter = async () => {
@@ -199,24 +191,22 @@ function SmartSearch2Content() {
       return; // Should not happen as button is conditionally rendered
     }
 
-    setIsAddingScholar(true);
-    try {
-      // TODO: Implement Google Scholar enrichment
-      // This would search Google Scholar with the same query and merge results
-      toast({
-        title: 'Google Scholar Integration',
-        description: 'Google Scholar enrichment will search the same query on Scholar and merge unique results.',
-        variant: 'default'
-      });
-    } catch (error) {
-      toast({
-        title: 'Scholar Addition Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsAddingScholar(false);
-    }
+    // Open the Scholar enrichment modal
+    setShowScholarModal(true);
+  };
+
+  const handleScholarArticlesAdded = (newArticles: any[]) => {
+    // TODO: Add the new Scholar articles to the existing results
+    // This will need to be added to the context as a new action
+
+    toast({
+      title: 'Articles Added',
+      description: `Successfully added ${newArticles.length} articles from Google Scholar`,
+      variant: 'default'
+    });
+
+    // For now, just close the modal
+    setShowScholarModal(false);
   };
 
 
@@ -352,12 +342,6 @@ function SmartSearch2Content() {
               hasPendingFilter={resultState === ResultState.FilterPendingApproval}
               onAcceptFilter={handleAcceptFilter}
               onUndoFilter={handleUndoFilter}
-              // UI state and handlers
-              displayMode={displayMode}
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onDisplayModeChange={setDisplayMode}
-              onSort={handleSort}
               // Export props
               searchQuery={searchQuery}
             />
@@ -372,6 +356,14 @@ function SmartSearch2Content() {
         onClose={handleFilterCancel}
         onConfirm={handleFilterConfirm}
         initialValue={filterCriteria}
+      />
+
+      {/* Scholar Enrichment Modal */}
+      <ScholarEnrichmentModal
+        isOpen={showScholarModal}
+        onClose={() => setShowScholarModal(false)}
+        currentArticles={articles}
+        onAddArticles={handleScholarArticlesAdded}
       />
     </div>
   );

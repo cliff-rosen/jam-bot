@@ -362,7 +362,6 @@ function SmartSearch2Content() {
       <ScholarEnrichmentModal
         isOpen={showScholarModal}
         onClose={() => setShowScholarModal(false)}
-        currentArticles={articles}
         onAddArticles={handleScholarArticlesAdded}
       />
     </div>

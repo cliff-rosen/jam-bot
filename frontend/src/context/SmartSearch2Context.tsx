@@ -191,8 +191,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     } | null>(null);
 
     // FEATURE EXTRACTION STATE
-    const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
-    const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
+    const [appliedFeatures, setAppliedFeatures] = useState<CanonicalFeatureDefinition[]>([]);
+    const [pendingFeatures, setPendingFeatures] = useState<CanonicalFeatureDefinition[]>([]);
 
     // Research journey state (persistent data)
     const [researchQuestion, setResearchQuestion] = useState('');
@@ -401,7 +401,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
-    const addPendingFeature = useCallback((feature: FeatureDefinition) => {
+    const addPendingFeature = useCallback((feature: CanonicalFeatureDefinition) => {
         setPendingFeatures(prev => [...prev, feature]);
     }, []);
 

@@ -353,7 +353,6 @@ async def test_keyword_combination(
         raise HTTPException(status_code=500, detail=f"Keyword combination test failed: {str(e)}")
 
 
-
 @router.post("/extract-features", response_model=FeatureExtractionResponse)
 async def extract_features(
     request: FeatureExtractionRequest,

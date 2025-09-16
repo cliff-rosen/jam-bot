@@ -102,7 +102,8 @@ export function SearchResults({
     sortColumn,
     sortDirection,
     onDisplayModeChange,
-    onSort
+    onSort,
+    searchQuery
 }: SearchResultsProps) {
     const { toast } = useToast();
 

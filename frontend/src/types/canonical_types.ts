@@ -100,7 +100,8 @@ export interface CanonicalResearchArticle {
     // Core identification
     id: string;
     source: 'pubmed' | 'scholar';
-    
+    pmid?: string; // PubMed ID (for PubMed articles)
+
     // Core metadata
     title: string;
     authors: string[];

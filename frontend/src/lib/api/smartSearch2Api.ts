@@ -9,7 +9,6 @@ import type { CanonicalResearchArticle } from '@/types/canonical_types';
 import type { SearchPaginationInfo, FilteredArticle } from '@/types/smart-search';
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type {
-    FeatureExtractionRequest as BaseFeatureExtractionRequest,
     FeatureExtractionResponse as BaseFeatureExtractionResponse
 } from './smartSearchApi';
 
@@ -103,7 +102,7 @@ export interface ArticleFilterResponse {
 }
 
 // SmartSearch2-specific types (no session_id required)
-export interface FeatureExtractionRequest extends Omit<BaseFeatureExtractionRequest, 'session_id'> {
+export interface FeatureExtractionRequest {
     articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly
     features: CanonicalFeatureDefinition[];
 }

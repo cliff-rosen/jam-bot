@@ -474,11 +474,19 @@ class PubMedService:
         
         logger.info(f'Retrieving article IDs for query: {search_term}')
         logger.debug(f'Parameters: {params}')
-        
+
+        # Check if the URL is too long (PubMed has a limit of about 2000-3000 characters)
+        # Build the full URL to check its length
+        from urllib.parse import urlencode
+        full_url = f"{url}?{urlencode(params)}"
+        if len(full_url) > 2000:
+            logger.error(f"URL too long ({len(full_url)} characters): Query is too complex")
+            raise ValueError(f"Search query is too long ({len(full_url)} characters). PubMed has a URL length limit. Please simplify your search by reducing the number of terms.")
+
         # Retry logic with exponential backoff
         max_retries = 3
         retry_delay = 1
-        
+
         for attempt in range(max_retries):
             try:
                 response = requests.get(url, params, headers=headers, timeout=30)

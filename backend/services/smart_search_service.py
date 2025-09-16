@@ -1207,8 +1207,12 @@ class SmartSearchService:
             _, count = pubmed_service._get_article_ids(query, max_results=1)
             return count
         except Exception as e:
-            logger.warning(f"Failed to test PubMed query count: {e}")
-            return 1000  # Conservative fallback
+            logger.error(f"Failed to test PubMed query count: {e}")
+            # Check if it's a 414 URI too long error
+            if "414" in str(e) or "Request-URI Too Long" in str(e):
+                raise ValueError("Query is too long for PubMed. Try reducing the number of search terms or simplifying the query.")
+            # Re-raise the error instead of returning fake data
+            raise ValueError(f"Unable to test query on PubMed: {str(e)}")
 
     async def _find_optimal_combination(
         self,

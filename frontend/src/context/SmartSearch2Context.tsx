@@ -19,7 +19,8 @@ export enum ResultState {
     None = 'none',                           // No results yet
     PartialSearchResult = 'partial_search',  // Search results with more available
     FullSearchResult = 'full_search',        // All search results retrieved (or hit limit)
-    FilteredResult = 'filtered'              // Filtered results (no longer a search result)
+    FilteredResult = 'filtered',             // Filtered results (no longer a search result)
+    FilterPendingApproval = 'filter_pending' // Filter completed, awaiting user approval
 }
 
 // ================== STATE INTERFACE ==================
@@ -114,7 +115,8 @@ interface SmartSearch2Actions {
 
     // ARTICLE FILTERING
     filterArticles: (filterCondition?: string, strictness?: 'low' | 'medium' | 'high') => Promise<{ autoRetrieved: number; totalAvailable: number; limitApplied: boolean }>;
-    clearFilter: () => void;
+    acceptFilter: () => void;
+    undoFilter: () => void;
 
     // FEATURE EXTRACTION
     addPendingFeature: (feature: FeatureDefinition) => void;
@@ -602,7 +604,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 average_confidence: response.average_confidence,
                 duration_seconds: response.duration_seconds
             });
-            setResultState(ResultState.FilteredResult);  // Mark as filtered result
+            setResultState(ResultState.FilterPendingApproval);  // Mark as pending approval
 
             return {
                 autoRetrieved: autoRetrievedCount,
@@ -618,8 +620,21 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, [evidenceSpec, articles, pagination, resultState, selectedSource, searchQuery]);
 
-    const clearFilter = useCallback(() => {
-        // Clear filter status from all articles
+    const acceptFilter = useCallback(() => {
+        // Remove rejected articles and clear filter status from accepted ones
+        const acceptedArticles = articles
+            .filter(article => article.filterStatus?.passed !== false)
+            .map(article => ({
+                ...article,
+                filterStatus: null  // Hide filter status after acceptance
+            }));
+        setArticles(acceptedArticles);
+        setFilteringStats(null);
+        setResultState(ResultState.FilteredResult);  // Final filtered state
+    }, [articles]);
+
+    const undoFilter = useCallback(() => {
+        // Clear filter status from all articles (keep all articles)
         const clearedArticles = articles.map(article => ({
             ...article,
             filterStatus: null
@@ -678,7 +693,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         loadMoreArticles,
         resetSearch,
         filterArticles,
-        clearFilter,
+        acceptFilter,
+        undoFilter,
         addPendingFeature,
         removePendingFeature,
         extractFeatures,

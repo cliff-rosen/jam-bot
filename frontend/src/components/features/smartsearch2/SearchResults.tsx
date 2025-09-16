@@ -58,7 +58,9 @@ interface SearchResultsProps {
         duration_seconds: number;
     } | null;
     hasFiltered?: boolean;
-    onClearFilter?: () => void;
+    hasPendingFilter?: boolean;
+    onAcceptFilter?: () => void;
+    onUndoFilter?: () => void;
 
     // UI state (now managed by parent)
     displayMode: 'table' | 'card-compressed' | 'card-full';
@@ -87,7 +89,9 @@ export function SearchResults({
     isAddingScholar,
     filteringStats,
     hasFiltered,
-    onClearFilter,
+    hasPendingFilter,
+    onAcceptFilter,
+    onUndoFilter,
     displayMode,
     sortColumn,
     sortDirection,
@@ -126,7 +130,7 @@ export function SearchResults({
     };
 
     // Check if any articles have been filtered
-    const hasFilteredResults = filteringStats !== null;
+    const hasFilteredResults = hasPendingFilter || hasFiltered;
 
     const getSortedArticles = () => {
         if (!sortColumn) return articles;
@@ -385,16 +389,30 @@ export function SearchResults({
                                 {filteringStats ? `${filteringStats.total_accepted} of ${filteringStats.total_processed} articles passed filter (${Math.round(filteringStats.average_confidence * 100)}% avg confidence)` : 'Custom filtered article group'}
                             </span>
                         </div>
-                        {onClearFilter && (
-                            <Button
-                                onClick={onClearFilter}
-                                variant="outline"
-                                size="sm"
-                                className="flex-shrink-0 border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                            >
-                                <X className="w-3 h-3 mr-1" />
-                                Clear Filter
-                            </Button>
+                        {hasPendingFilter && (onAcceptFilter || onUndoFilter) && (
+                            <div className="flex gap-2">
+                                {onAcceptFilter && (
+                                    <Button
+                                        onClick={onAcceptFilter}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-shrink-0 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                    >
+                                        Accept
+                                    </Button>
+                                )}
+                                {onUndoFilter && (
+                                    <Button
+                                        onClick={onUndoFilter}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-shrink-0 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                        <X className="w-3 h-3 mr-1" />
+                                        Undo
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
                 )}
@@ -410,16 +428,30 @@ export function SearchResults({
                                     <Filter className="w-3 h-3 mr-1" />
                                     Filtered
                                 </Badge>
-                                {onClearFilter && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={onClearFilter}
-                                        className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                    >
-                                        <X className="w-3 h-3 mr-1" />
-                                        Clear Filter
-                                    </Button>
+                                {hasPendingFilter && (onAcceptFilter || onUndoFilter) && (
+                                    <div className="flex gap-1">
+                                        {onAcceptFilter && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={onAcceptFilter}
+                                                className="h-6 px-2 text-xs text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200"
+                                            >
+                                                Accept
+                                            </Button>
+                                        )}
+                                        {onUndoFilter && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={onUndoFilter}
+                                                className="h-6 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+                                            >
+                                                <X className="w-3 h-3 mr-1" />
+                                                Undo
+                                            </Button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}

@@ -56,7 +56,8 @@ function SmartSearch2Content() {
     removePendingFeature,
     extractFeatures,
     filterArticles,
-    clearFilter
+    acceptFilter,
+    undoFilter
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -178,8 +179,12 @@ function SmartSearch2Content() {
     setFilterCriteria('');
   };
 
-  const handleClearFilter = () => {
-    clearFilter();
+  const handleAcceptFilter = () => {
+    acceptFilter();
+  };
+
+  const handleUndoFilter = () => {
+    undoFilter();
   };
 
   // Auto-collapse search form when we get articles for the first time (only if user hasn't manually toggled)
@@ -344,7 +349,9 @@ function SmartSearch2Content() {
               // Filter state
               filteringStats={filteringStats}
               hasFiltered={resultState === ResultState.FilteredResult}
-              onClearFilter={handleClearFilter}
+              hasPendingFilter={resultState === ResultState.FilterPendingApproval}
+              onAcceptFilter={handleAcceptFilter}
+              onUndoFilter={handleUndoFilter}
               // UI state and handlers
               displayMode={displayMode}
               sortColumn={sortColumn}

@@ -38,7 +38,8 @@ interface SmartSearch2State {
         total_processed: number;
         total_accepted: number;
         total_rejected: number;
-        discriminator_used: string;
+        average_confidence: number;
+        duration_seconds: number;
     } | null;
 
     // RESEARCH JOURNEY STATE (persistent data)
@@ -169,7 +170,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         total_processed: number;
         total_accepted: number;
         total_rejected: number;
-        discriminator_used: string;
+        average_confidence: number;
+        duration_seconds: number;
     } | null>(null);
 
     // FEATURE EXTRACTION STATE
@@ -459,7 +461,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 total_processed: response.total_processed,
                 total_accepted: response.total_accepted,
                 total_rejected: response.total_rejected,
-                discriminator_used: response.discriminator_used
+                average_confidence: response.average_confidence,
+                duration_seconds: response.duration_seconds
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to filter articles';

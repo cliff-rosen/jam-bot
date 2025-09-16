@@ -651,8 +651,8 @@ class SmartSearchService:
             )
     
     async def generate_semantic_discriminator(
-        self, 
-        refined_question: str, 
+        self,
+        refined_question: str,
         search_query: str,
         strictness: str = "medium"
     ) -> str:
@@ -661,7 +661,7 @@ class SmartSearchService:
         This creates the evaluation criteria that will be used to filter each article
         """
         logger.info(f"Step 5 - Generating semantic discriminator with strictness: {strictness}")
-        
+
         discriminator_prompt = f"""You are evaluating whether a research article matches a specific research question. The article in question was retrieved as follows: First, the below Research Question was converted to keywords using an LLM. Then these keywords were used to search for articles in the search query. As a result, not all results will actually be a correct semantic match to the research question. Your job is to determine if the article is a correct semantic match to the research question.
 
         Research Question: {refined_question}
@@ -669,31 +669,14 @@ class SmartSearchService:
         Search Query Used: {search_query}
 
         """
-        
+
         return discriminator_prompt
-    
-    async def _evaluate_article(self, article: CanonicalResearchArticle, discriminator: str) -> Tuple[FilteredArticle, LLMUsage]:
-        """
-        Evaluate a single article against the discriminator
-        """
-        # Prepare article text for evaluation
-        article_text = f"""Title: {article.title}
-                        Abstract: {article.abstract or "No abstract available"}"""
-        
-        # Create evaluation prompt
-        eval_prompt = f"""{discriminator}
 
-        Article to evaluate:
-        {article_text}
-
-        Respond in JSON format:
-        {{
-            "decision": "Yes" or "No",
-            "confidence": 0.0 to 1.0,
-            "reasoning": "Brief explanation"
-        }}"""
-        
-        # Create prompt caller for structured response
+    async def _evaluate_article(self, article: CanonicalResearchArticle, filter_criteria: str) -> Tuple[FilteredArticle, LLMUsage]:
+        """
+        Evaluate a single article against the filter criteria using clean prompt structure
+        """
+        # Create prompt caller for structured response with improved system message
         response_schema = {
             "type": "object",
             "properties": {
@@ -703,28 +686,49 @@ class SmartSearchService:
             },
             "required": ["decision", "confidence", "reasoning"]
         }
-        
+
         # Get model config for discriminator (filtering)
         task_config = get_task_config("smart_search", "discriminator")
-        
+
+        # Enhanced system message that provides clear context and instructions
+        system_message = """You are a research article evaluator. Your task is to determine whether research articles are relevant to specific research criteria.
+
+            Evaluate each article based on its title and abstract, and determine if it addresses or is relevant to the given research criteria.
+
+            Respond in JSON format:
+            {
+            "decision": "Yes" or "No",
+            "confidence": 0.0 to 1.0,
+            "reasoning": "Brief explanation"
+            }"""
+
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
-            system_message="You are a research article evaluator. Evaluate articles based on the given criteria.",
+            system_message=system_message,
             model=task_config["model"],
             temperature=task_config.get("temperature", 0.0),
             reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
         )
         
+        # Create clean user message with filter criteria and article content
+        user_message_content = f"""Research Criteria: {filter_criteria}
+
+            Article to evaluate:
+            Title: {article.title}
+            Abstract: {article.abstract or "No abstract available"}"""
+
+        user_message = ChatMessage(
+            id="temp_id",
+            chat_id="temp_chat",
+            role=MessageRole.USER,
+            content=user_message_content,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        # We now have a prompt_caller configured with the system message and response schema
+        # We can now use it to evaluate the article
         try:
-            # Get LLM evaluation
-            user_message = ChatMessage(
-                id="temp_id",
-                chat_id="temp_chat", 
-                role=MessageRole.USER,
-                content=eval_prompt,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
             result = await prompt_caller.invoke(
                 messages=[user_message],
                 return_usage=True
@@ -757,6 +761,7 @@ class SmartSearchService:
             )
             return filtered_article, LLMUsage()
     
+    #TODO: This has been replaced with the filter_articles_with_criteria method for SmartSearch2
     async def filter_articles_parallel(
         self,
         articles: List[CanonicalResearchArticle],
@@ -831,6 +836,83 @@ class SmartSearchService:
         
         logger.info(f"Parallel filtering results: {accepted_count} accepted, {rejected_count} rejected")
         
+        return filtered_articles, total_usage
+
+    async def filter_articles_with_criteria(
+        self,
+        articles: List[CanonicalResearchArticle],
+        filter_condition: str
+    ) -> Tuple[List[FilteredArticle], LLMUsage]:
+        """
+        Clean filtering method for SmartSearch2 - uses direct filter condition without discriminator generation.
+
+        Args:
+            articles: List of articles to filter
+            filter_condition: The research criteria to filter against
+
+        Returns:
+            Tuple of (filtered articles list, aggregated token usage)
+        """
+        logger.info(f"Starting clean filtering of {len(articles)} articles with criteria: {filter_condition[:100]}...")
+
+        if not filter_condition.strip():
+            raise ValueError("Filter condition is required for filtering")
+
+        if not articles:
+            return [], LLMUsage()
+
+        # Create semaphore to limit concurrent LLM calls (avoid rate limits)
+        semaphore = asyncio.Semaphore(500)
+
+        async def evaluate_with_semaphore(article: CanonicalResearchArticle) -> Tuple[FilteredArticle, LLMUsage]:
+            async with semaphore:
+                return await self._evaluate_article(article, filter_condition)
+
+        # Execute all evaluations in parallel
+        logger.info(f"Executing {len(articles)} evaluations in parallel (max {semaphore._value} concurrent)")
+        start_time = datetime.utcnow()
+
+        results = await asyncio.gather(
+            *[evaluate_with_semaphore(article) for article in articles],
+            return_exceptions=True
+        )
+
+        duration = datetime.utcnow() - start_time
+        logger.info(f"Clean filtering completed in {duration.total_seconds():.2f} seconds")
+
+        # Process results and aggregate token usage
+        filtered_articles = []
+        total_usage = LLMUsage()
+        failed_count = 0
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to evaluate article {i}: {result}")
+                failed_count += 1
+                # Create a failed/rejected article entry
+                filtered_articles.append(FilteredArticle(
+                    article=articles[i],
+                    passed=False,
+                    confidence=0.0,
+                    reasoning=f"Evaluation failed: {str(result)}"
+                ))
+            else:
+                filtered_article, usage = result
+                filtered_articles.append(filtered_article)
+
+                # Aggregate token usage
+                total_usage.prompt_tokens += usage.prompt_tokens
+                total_usage.completion_tokens += usage.completion_tokens
+                total_usage.total_tokens += usage.total_tokens
+
+        if failed_count > 0:
+            logger.warning(f"{failed_count} articles failed evaluation")
+
+        accepted_count = sum(1 for fa in filtered_articles if fa.passed)
+        rejected_count = len(filtered_articles) - accepted_count
+
+        logger.info(f"Clean filtering results: {accepted_count} accepted, {rejected_count} rejected")
+
         return filtered_articles, total_usage
 
     async def refine_evidence_specification(

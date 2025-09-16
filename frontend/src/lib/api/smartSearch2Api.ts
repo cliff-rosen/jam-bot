@@ -93,7 +93,13 @@ export interface ArticleFilterResponse {
     total_processed: number;
     total_accepted: number;
     total_rejected: number;
-    discriminator_used: string;
+    average_confidence: number;
+    duration_seconds: number;
+    token_usage: {
+        prompt_tokens: number;
+        completion_tokens: number;
+        total_tokens: number;
+    };
 }
 
 // SmartSearch2-specific types (no session_id required)

@@ -467,23 +467,13 @@ async def filter_articles(
         if not request.articles:
             raise HTTPException(status_code=400, detail="At least one article is required")
 
-        # Generate discriminator prompt from filter condition
-        logger.info("Generating discriminator prompt from filter condition")
-        service = SmartSearchService()
-        discriminator_prompt = await service.generate_semantic_discriminator(
-            refined_question=request.filter_condition,
-            search_query="",  # Not needed for SmartSearch2 discriminator generation
-            strictness=request.strictness or "medium"
-        )
-        logger.info("Generated discriminator prompt successfully")
-
-        # Use SmartSearchService to filter articles
+        # Use SmartSearchService to filter articles with clean approach
         service = SmartSearchService()
 
-        # Filter articles using the parallel filtering method
-        filtered_articles, usage = await service.filter_articles_parallel(
-            articles=request.articles,  # Pass the CanonicalResearchArticle objects directly
-            custom_discriminator=discriminator_prompt
+        # Filter articles using the clean filtering method (no discriminator generation needed)
+        filtered_articles, usage = await service.filter_articles_with_criteria(
+            articles=request.articles,
+            filter_condition=request.filter_condition
         )
 
         # Calculate statistics

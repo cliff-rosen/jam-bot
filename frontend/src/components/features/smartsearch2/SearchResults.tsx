@@ -56,7 +56,8 @@ interface SearchResultsProps {
         total_processed: number;
         total_accepted: number;
         total_rejected: number;
-        discriminator_used: string;
+        average_confidence: number;
+        duration_seconds: number;
     } | null;
     onClearFilter?: () => void;
 

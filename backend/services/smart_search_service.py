@@ -693,14 +693,14 @@ class SmartSearchService:
         # Enhanced system message that provides clear context and instructions
         system_message = """You are a research article evaluator. Your task is to determine whether research articles are relevant to specific research criteria.
 
-            Evaluate each article based on its title and abstract, and determine if it addresses or is relevant to the given research criteria.
+Evaluate each article based on its title and abstract, and determine if it addresses or is relevant to the given research criteria.
 
-            Respond in JSON format:
-            {
-            "decision": "Yes" or "No",
-            "confidence": 0.0 to 1.0,
-            "reasoning": "Brief explanation"
-            }"""
+Respond in JSON format:
+{{
+  "decision": "Yes" or "No",
+  "confidence": 0.0 to 1.0,
+  "reasoning": "Brief explanation"
+}}"""
 
         prompt_caller = BasePromptCaller(
             response_model=response_schema,
@@ -713,9 +713,9 @@ class SmartSearchService:
         # Create clean user message with filter criteria and article content
         user_message_content = f"""Research Criteria: {filter_criteria}
 
-            Article to evaluate:
-            Title: {article.title}
-            Abstract: {article.abstract or "No abstract available"}"""
+Article to evaluate:
+Title: {article.title}
+Abstract: {article.abstract or "No abstract available"}"""
 
         user_message = ChatMessage(
             id="temp_id",

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { useToast } from '@/components/ui/use-toast';
 import {
     ExternalLink,
     Grid,
@@ -103,6 +104,7 @@ export function SearchResults({
     onDisplayModeChange,
     onSort
 }: SearchResultsProps) {
+    const { toast } = useToast();
 
     // AI Columns State
     const [showColumns, setShowColumns] = useState(false);
@@ -138,20 +140,44 @@ export function SearchResults({
     const handleExportCSV = () => {
         try {
             const result = exportToCSV(articles, appliedFeatures);
-            // Optional: Show success toast if available
-            console.log(result.message);
+            toast({
+                title: 'Export Successful',
+                description: result.message,
+                variant: 'default'
+            });
         } catch (error) {
             console.error('Export to CSV failed:', error);
+            toast({
+                title: 'Export Failed',
+                description: 'Failed to export articles to CSV',
+                variant: 'destructive'
+            });
         }
     };
 
     const handleCopyPMIDs = async () => {
         try {
             const result = await copyPMIDsToClipboard(articles);
-            // Optional: Show success toast if available
-            console.log(result.message);
+            if (result.success) {
+                toast({
+                    title: 'PMIDs Copied',
+                    description: result.message,
+                    variant: 'default'
+                });
+            } else {
+                toast({
+                    title: 'Copy Failed',
+                    description: result.message,
+                    variant: 'destructive'
+                });
+            }
         } catch (error) {
             console.error('Copy PMIDs failed:', error);
+            toast({
+                title: 'Copy Failed',
+                description: 'Failed to copy PubMed IDs to clipboard',
+                variant: 'destructive'
+            });
         }
     };
 
@@ -163,10 +189,18 @@ export function SearchResults({
                 evidenceSpec,
                 appliedFeatures
             );
-            // Optional: Show success toast if available
-            console.log(result.message);
+            toast({
+                title: 'PDF Export',
+                description: result.message,
+                variant: 'default'
+            });
         } catch (error) {
             console.error('Export to PDF failed:', error);
+            toast({
+                title: 'Export Failed',
+                description: 'Failed to open PDF export dialog',
+                variant: 'destructive'
+            });
         }
     };
 

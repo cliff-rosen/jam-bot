@@ -19,14 +19,25 @@ import hashlib
 
 class CanonicalFeatureDefinition(BaseModel):
     """
-    Canonical Feature Definition schema - the definitive structure for feature 
+    Canonical Feature Definition schema - the definitive structure for feature
     definitions across the entire system (Smart Search, Workbench, etc.).
     """
     id: str = Field(description="Stable UUID for feature identification")
-    name: str = Field(description="Feature display name") 
+    name: str = Field(description="Feature display name")
     description: str = Field(description="Feature description for LLM extraction")
     type: Literal['boolean', 'text', 'score', 'number'] = Field(description="Feature data type")
     options: Optional[Dict[str, Any]] = Field(None, description="Feature options (e.g., min/max for score)")
+
+
+# Type alias for feature values - aligned with CanonicalFeatureDefinition.type
+CanonicalFeatureValue = Union[str, float, int, bool]
+"""
+Type for extracted feature values:
+- bool: for 'boolean' type features
+- str: for 'text' type features
+- int: for 'number' type features (discrete values)
+- float: for 'score' type features (continuous values)
+"""
 
 
 class CanonicalExtractedFeature(BaseModel):
@@ -40,7 +51,6 @@ class CanonicalExtractedFeature(BaseModel):
     extraction_method: Literal['ai', 'manual', 'computed'] = Field(description="How the feature was extracted")
     extracted_at: str = Field(description="ISO timestamp when feature was extracted")
     error_message: Optional[str] = Field(None, description="Error message if extraction failed")
-
 
 class CanonicalEmail(BaseModel):
     """
@@ -200,7 +210,7 @@ class CanonicalResearchArticle(BaseModel):
     source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
     
     # Extraction and analysis results (if applicable)
-    extracted_features: Optional[Dict[str, Any]] = Field(default=None, description="Extracted feature data keyed by feature.id -> simple values")
+    extracted_features: Optional[Dict[str, CanonicalFeatureValue]] = Field(default=None, description="Extracted feature data keyed by feature.id -> CanonicalFeatureValue")
     quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
     
     # Timestamps

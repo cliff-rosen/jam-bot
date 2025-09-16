@@ -9,6 +9,20 @@ import { SchemaType } from './base';
 
 // --- Canonical Type Interfaces ---
 
+export interface CanonicalFeatureDefinition {
+    id: string;
+    name: string;
+    description: string;
+    type: 'boolean' | 'text' | 'score' | 'number';
+    options?: Record<string, any>;
+}
+
+// Type for extracted feature values - aligned with CanonicalFeatureDefinition.type
+export type CanonicalFeatureValue = boolean | string | number;
+// - boolean: for 'boolean' type features
+// - string: for 'text' type features
+// - number: for 'score' and 'number' type features
+
 export interface CanonicalEmail {
     id: string;
     subject: string;
@@ -125,7 +139,7 @@ export interface CanonicalResearchArticle {
     relevance_score?: number;
     
     // Research analysis results
-    extracted_features?: Record<string, any>;
+    extracted_features?: Record<string, CanonicalFeatureValue>;
     quality_scores?: Record<string, number>;
     
     // Source preservation

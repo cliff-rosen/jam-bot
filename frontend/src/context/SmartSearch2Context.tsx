@@ -552,17 +552,18 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                         generatedKeywords = topConcepts.map(concept => `"${concept}"`).join(' AND ');
                     } catch (error) {
                         console.error('Failed to extract concepts:', error);
-                        generatedKeywords = 'machine learning artificial intelligence biomedical';
+                        throw new Error('No research context available to generate keywords');
                     }
                 } else {
-                    generatedKeywords = 'machine learning artificial intelligence biomedical';
+                    throw new Error('No research context available to generate keywords');
                 }
             }
 
             return generatedKeywords;
         } catch (error) {
             console.error('Failed to generate keywords:', error);
-            return 'machine learning artificial intelligence biomedical';
+            // Re-throw error to let UI handle it appropriately
+            throw error;
         }
     }, [extractedConcepts, expandedExpressions, searchQuery, evidenceSpec]);
 
@@ -580,8 +581,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             return estimatedCount;
         } catch (error) {
             console.error('Error testing keywords:', error);
-            // Fallback to a simulated count
-            return Math.floor(Math.random() * 500) + 50;
+            // Return 0 on error instead of fake data
+            return 0;
         }
     }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +49,7 @@ export function ScholarEnrichmentModal({
     const [isTestingKeywords, setIsTestingKeywords] = useState(false);
     const [testResultCount, setTestResultCount] = useState<number | null>(null);
     const [filterCriteria, setFilterCriteria] = useState('');
+    const [searchError, setSearchError] = useState<string | null>(null);
 
     // Initialize filter criteria from context when modal opens
     React.useEffect(() => {
@@ -64,8 +65,8 @@ export function ScholarEnrichmentModal({
             setEditedKeywords(keywords);
         } catch (error) {
             console.error('Failed to generate keywords:', error);
-            // Fallback to a generic Scholar query
-            setEditedKeywords('machine learning artificial intelligence biomedical');
+            // Leave keywords empty and let user enter manually
+            setEditedKeywords('');
         } finally {
             setIsGeneratingKeywords(false);
         }
@@ -80,8 +81,8 @@ export function ScholarEnrichmentModal({
             setTestResultCount(count);
         } catch (error) {
             console.error('Error testing keywords:', error);
-            // Fallback to a simulated count
-            setTestResultCount(Math.floor(Math.random() * 500) + 50);
+            // On error, clear the test result
+            setTestResultCount(null);
         } finally {
             setIsTestingKeywords(false);
         }
@@ -89,6 +90,7 @@ export function ScholarEnrichmentModal({
 
     const handleBrowseResults = async () => {
         setIsProcessing(true);
+        setSearchError(null);
         setCurrentStep('browse');
 
         try {
@@ -96,43 +98,23 @@ export function ScholarEnrichmentModal({
             setUniqueArticles(scholarArticles);
         } catch (error) {
             console.error('Error browsing Scholar results:', error);
-            // Fallback to mock data
-            setUniqueArticles(mockScholarResults as SmartSearchArticle[]);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to search Google Scholar';
+            setSearchError(errorMessage);
+            setUniqueArticles([]);
         } finally {
             setIsProcessing(false);
         }
     };
 
-    // Mock data for demonstration
-    const mockScholarResults = [
-        {
-            id: 'scholar_001',
-            source: 'scholar' as const,
-            title: 'Novel approaches in stroke rehabilitation: A systematic review',
-            authors: ['Smith, J.', 'Johnson, K.'],
-            journal: 'Journal of Rehabilitation Medicine',
-            publication_year: 2023,
-            abstract: 'This systematic review examines novel approaches...',
-            url: 'https://scholar.google.com/...',
-            citation_count: 15
-        },
-        {
-            id: 'scholar_002',
-            source: 'scholar' as const,
-            title: 'Machine learning applications in stroke recovery prediction',
-            authors: ['Davis, M.', 'Wilson, R.'],
-            journal: 'AI in Medicine',
-            publication_year: 2024,
-            abstract: 'Recent advances in machine learning have enabled...',
-            url: 'https://scholar.google.com/...',
-            citation_count: 8
-        }
-    ];
-
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col">
+                <DialogTitle className="sr-only">Google Scholar Enrichment</DialogTitle>
+                <DialogDescription className="sr-only">
+                    Find additional relevant articles from Google Scholar to supplement your PubMed results
+                </DialogDescription>
+
                 <div className="pb-4 relative">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                         <BookOpen className="w-5 h-5" />
@@ -335,6 +317,23 @@ export function ScholarEnrichmentModal({
                                     <div className="text-center">
                                         <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
                                         <p className="text-gray-600 dark:text-gray-400">Searching Google Scholar and identifying duplicates...</p>
+                                    </div>
+                                </div>
+                            ) : searchError ? (
+                                <div className="flex-1 flex items-center justify-center">
+                                    <div className="text-center max-w-md">
+                                        <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
+                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Search Failed</h4>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{searchError}</p>
+                                        <Button
+                                            onClick={() => {
+                                                setSearchError(null);
+                                                setCurrentStep('keywords');
+                                            }}
+                                            variant="outline"
+                                        >
+                                            Back to Keywords
+                                        </Button>
                                     </div>
                                 </div>
                             ) : (

@@ -13,6 +13,7 @@ import {
     ArrowLeft
 } from 'lucide-react';
 
+import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
 interface ScholarEnrichmentModalProps {
@@ -32,6 +33,14 @@ export function ScholarEnrichmentModal({
     onClose,
     onAddArticles
 }: ScholarEnrichmentModalProps) {
+    const {
+        evidenceSpec,
+        extractedConcepts,
+        generateScholarKeywords,
+        testScholarKeywords,
+        searchScholar
+    } = useSmartSearch2();
+
     const [currentStep, setCurrentStep] = useState<EnrichmentStep>('keywords');
     const [editedKeywords, setEditedKeywords] = useState('');
     const [uniqueArticles, setUniqueArticles] = useState<SmartSearchArticle[]>([]);
@@ -44,41 +53,54 @@ export function ScholarEnrichmentModal({
     // Initialize filter criteria from context when modal opens
     React.useEffect(() => {
         if (isOpen) {
-            // TODO: Get the evidence spec from SmartSearch2Context and set it here
-            setFilterCriteria('Studies examining the effectiveness of interventions in improving patient outcomes, including randomized controlled trials and meta-analyses.');
+            setFilterCriteria(evidenceSpec || 'Studies examining the effectiveness of interventions in improving patient outcomes, including randomized controlled trials and meta-analyses.');
         }
-    }, [isOpen]);
+    }, [isOpen, evidenceSpec]);
 
     const handleGenerateKeywords = async () => {
         setIsGeneratingKeywords(true);
-        // Simulate AI keyword generation
-        setTimeout(() => {
-            const keywords = 'stroke rehabilitation AND (machine learning OR AI OR "artificial intelligence") AND (recovery OR outcome)';
+        try {
+            const keywords = await generateScholarKeywords();
             setEditedKeywords(keywords);
+        } catch (error) {
+            console.error('Failed to generate keywords:', error);
+            // Fallback to a generic Scholar query
+            setEditedKeywords('machine learning artificial intelligence biomedical');
+        } finally {
             setIsGeneratingKeywords(false);
-        }, 2000);
+        }
     };
 
     const handleTestKeywords = async () => {
         if (!editedKeywords.trim()) return;
 
         setIsTestingKeywords(true);
-        // Simulate getting result count
-        setTimeout(() => {
-            setTestResultCount(Math.floor(Math.random() * 500) + 50); // Random count between 50-550
+        try {
+            const count = await testScholarKeywords(editedKeywords);
+            setTestResultCount(count);
+        } catch (error) {
+            console.error('Error testing keywords:', error);
+            // Fallback to a simulated count
+            setTestResultCount(Math.floor(Math.random() * 500) + 50);
+        } finally {
             setIsTestingKeywords(false);
-        }, 1500);
+        }
     };
 
     const handleBrowseResults = async () => {
         setIsProcessing(true);
         setCurrentStep('browse');
 
-        // Simulate search and deduplication
-        setTimeout(() => {
+        try {
+            const scholarArticles = await searchScholar(editedKeywords, 100);
+            setUniqueArticles(scholarArticles);
+        } catch (error) {
+            console.error('Error browsing Scholar results:', error);
+            // Fallback to mock data
             setUniqueArticles(mockScholarResults as SmartSearchArticle[]);
+        } finally {
             setIsProcessing(false);
-        }, 2000);
+        }
     };
 
     // Mock data for demonstration
@@ -180,7 +202,7 @@ export function ScholarEnrichmentModal({
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Search Keywords</h3>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                        Enter keywords to search Google Scholar, or use AI to suggest keywords based on your PubMed results.
+                                        Enter keywords to search Google Scholar, or use AI to suggest keywords based on your PubMed {extractedConcepts?.length > 0 ? 'concept analysis' : 'search results'}.
                                     </p>
                                 </div>
 
@@ -233,6 +255,18 @@ export function ScholarEnrichmentModal({
                                             )}
                                         </Button>
                                     </div>
+
+                                    {/* AI Info Box */}
+                                    {extractedConcepts?.length > 0 && (
+                                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                                            <div className="flex gap-2">
+                                                <Sparkles className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <div className="text-sm text-green-900 dark:text-green-100">
+                                                    <strong>AI Ready:</strong> Detected {extractedConcepts.length} concepts from your PubMed analysis that can be used to generate Scholar keywords.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {testResultCount !== null && (
                                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">

@@ -100,7 +100,7 @@ export function SearchResults({
     const { toast } = useToast();
 
     // UI State - now managed internally
-    const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
+    const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('table');
     const [sortColumn, setSortColumn] = useState<string>('');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 

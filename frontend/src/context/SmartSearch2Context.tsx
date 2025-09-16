@@ -1,6 +1,6 @@
 /**
  * SmartSearch2Context - Lightweight state management for SmartSearch2
- * 
+ *
  * Optimized for direct search functionality without the guided workflow complexity.
  * Focuses on: source selection, query input, search execution, and results display.
  */
@@ -12,6 +12,15 @@ import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
 
 import type { FeatureDefinition } from '@/types/workbench';
 import type { SmartSearchArticle } from '@/types/smart-search';
+
+// ================== RESULT STATE ENUM ==================
+
+export enum ResultState {
+    None = 'none',                           // No results yet
+    PartialSearchResult = 'partial_search',  // Search results with more available
+    FullSearchResult = 'full_search',        // All search results retrieved (or hit limit)
+    FilteredResult = 'filtered'              // Filtered results (no longer a search result)
+}
 
 // ================== STATE INTERFACE ==================
 
@@ -56,6 +65,7 @@ interface SmartSearch2State {
 
     // UI STATE
     hasSearched: boolean;
+    resultState: ResultState;  // Track the current state of results
     error: string | null;
 }
 
@@ -99,10 +109,11 @@ interface SmartSearch2Actions {
 
     // SEARCH EXECUTION
     search: () => Promise<void>;
+    loadMoreArticles: (count?: number) => Promise<void>;
     resetSearch: () => void;
 
     // ARTICLE FILTERING
-    filterArticles: (filterCondition?: string, strictness?: 'low' | 'medium' | 'high') => Promise<void>;
+    filterArticles: (filterCondition?: string, strictness?: 'low' | 'medium' | 'high') => Promise<{ autoRetrieved: number; totalAvailable: number; limitApplied: boolean }>;
     clearFilter: () => void;
 
     // FEATURE EXTRACTION
@@ -163,6 +174,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
     // UI STATE
     const [hasSearched, setHasSearched] = useState(false);
+    const [resultState, setResultState] = useState<ResultState>(ResultState.None);
     const [error, setError] = useState<string | null>(null);
 
     // FILTERING STATS
@@ -229,6 +241,13 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             setArticles(smartSearchArticles);
             setPagination(results.pagination);
 
+            // Set result state based on whether all results are retrieved
+            if (results.pagination.has_more) {
+                setResultState(ResultState.PartialSearchResult);
+            } else {
+                setResultState(ResultState.FullSearchResult);
+            }
+
             // Clear any previous filtering
             setFilteringStats(null);
         } catch (err) {
@@ -240,11 +259,62 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, [searchQuery, selectedSource]);
 
+    const loadMoreArticles = useCallback(async (count?: number) => {
+        if (!pagination || !pagination.has_more) {
+            return;
+        }
+
+        setIsSearching(true);
+        setError(null);
+
+        try {
+            const batchSize = count || (selectedSource === 'google_scholar' ? 20 : 50);
+            const offset = articles.length;
+
+            const results = await smartSearch2Api.search({
+                query: searchQuery,
+                source: selectedSource,
+                max_results: batchSize,
+                offset: offset
+            });
+
+            // Add new articles to existing ones
+            const newArticles: SmartSearchArticle[] = results.articles.map(article => ({
+                ...article,
+                filterStatus: null
+            }));
+
+            const combinedArticles = [...articles, ...newArticles];
+            setArticles(combinedArticles);
+
+            // Update pagination
+            const newPagination = {
+                ...results.pagination,
+                returned: combinedArticles.length
+            };
+            setPagination(newPagination);
+
+            // Update result state based on whether all results are now retrieved
+            if (newPagination.has_more) {
+                setResultState(ResultState.PartialSearchResult);
+            } else {
+                setResultState(ResultState.FullSearchResult);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to load more results';
+            setError(errorMessage);
+            console.error('Load more failed:', err);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [pagination, articles, searchQuery, selectedSource]);
+
     const resetSearch = useCallback(() => {
         setSearchQuery('');
         setArticles([]);
         setPagination(null);
         setHasSearched(false);
+        setResultState(ResultState.None);
         setError(null);
         // Clear feature extraction state
         setAppliedFeatures([]);
@@ -413,7 +483,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const filterArticles = useCallback(async (
         filterConditionOverride?: string,
         strictness: 'low' | 'medium' | 'high' = 'medium'
-    ): Promise<void> => {
+    ): Promise<{ autoRetrieved: number; totalAvailable: number; limitApplied: boolean }> => {
         const finalFilterCondition = filterConditionOverride || evidenceSpec;
 
         if (!finalFilterCondition.trim()) {
@@ -428,8 +498,73 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
 
         try {
+            // Check if we need to retrieve more articles before filtering
+            let articlesToFilter = articles;
+            let autoRetrievedCount = 0;
+            const totalAvailable = pagination?.total_available || articles.length;
+            let limitApplied = false;
+
+            // Only auto-retrieve if we're in a partial search state
+            if (pagination && pagination.has_more && resultState === ResultState.PartialSearchResult) {
+                // Calculate how many more articles to retrieve (up to 300 total)
+                const currentCount = articles.length;
+                const availableCount = pagination.total_available;
+                const targetCount = Math.min(availableCount, 300);
+                const remainingToFetch = targetCount - currentCount;
+
+                // Check if we're hitting the 300 limit
+                limitApplied = availableCount > 300;
+
+                if (remainingToFetch > 0) {
+                    console.log(`Auto-retrieving ${remainingToFetch} more articles before filtering (${currentCount} -> ${targetCount})`);
+
+                    // Fetch remaining articles in batches
+                    const batchSize = selectedSource === 'google_scholar' ? 20 : 50;
+                    let offset = currentCount;
+                    const additionalArticles: SmartSearchArticle[] = [];
+
+                    while (offset < targetCount) {
+                        const resultsToFetch = Math.min(batchSize, targetCount - offset);
+
+                        const batchResults = await smartSearch2Api.search({
+                            query: searchQuery,
+                            source: selectedSource,
+                            max_results: resultsToFetch,
+                            offset: offset
+                        });
+
+                        const batchArticles: SmartSearchArticle[] = batchResults.articles.map(article => ({
+                            ...article,
+                            filterStatus: null
+                        }));
+
+                        additionalArticles.push(...batchArticles);
+                        offset += batchArticles.length;
+                        autoRetrievedCount = additionalArticles.length;
+
+                        // Break if we got fewer results than expected (no more available)
+                        if (batchArticles.length < resultsToFetch) {
+                            break;
+                        }
+                    }
+
+                    // Combine all articles
+                    articlesToFilter = [...articles, ...additionalArticles];
+
+                    // Update the articles state with all retrieved articles
+                    setArticles(articlesToFilter);
+
+                    // Update pagination to reflect all retrieved articles
+                    setPagination(prev => prev ? {
+                        ...prev,
+                        returned: articlesToFilter.length,
+                        has_more: availableCount > articlesToFilter.length
+                    } : null);
+                }
+            }
+
             // Extract raw articles for the API call
-            const rawArticles = articles.map(article => {
+            const rawArticles = articlesToFilter.map(article => {
                 const { filterStatus, ...rawArticle } = article;
                 return rawArticle;
             });
@@ -441,7 +576,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             });
 
             // Update articles in place with filter results
-            const updatedArticles = articles.map(article => {
+            const updatedArticles = articlesToFilter.map(article => {
                 const filterResult = response.filtered_articles.find(fa =>
                     fa.article.url === article.url || fa.article.title === article.title
                 );
@@ -464,6 +599,13 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 average_confidence: response.average_confidence,
                 duration_seconds: response.duration_seconds
             });
+            setResultState(ResultState.FilteredResult);  // Mark as filtered result
+
+            return {
+                autoRetrieved: autoRetrievedCount,
+                totalAvailable: totalAvailable,
+                limitApplied: limitApplied
+            };
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to filter articles';
             setError(errorMessage);
@@ -471,7 +613,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         } finally {
             setIsFiltering(false);
         }
-    }, [evidenceSpec, articles]);
+    }, [evidenceSpec, articles, pagination, resultState, selectedSource, searchQuery]);
 
     const clearFilter = useCallback(() => {
         // Clear filter status from all articles
@@ -481,7 +623,18 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }));
         setArticles(clearedArticles);
         setFilteringStats(null);
-    }, [articles]);
+
+        // Reset to appropriate search state based on pagination
+        if (pagination) {
+            if (pagination.has_more) {
+                setResultState(ResultState.PartialSearchResult);
+            } else {
+                setResultState(ResultState.FullSearchResult);
+            }
+        } else {
+            setResultState(ResultState.None);
+        }
+    }, [articles, pagination]);
 
     // ================== CONTEXT VALUE ==================
 
@@ -495,6 +648,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         isFiltering,
         isExtracting,
         hasSearched,
+        resultState,
         error,
         appliedFeatures,
         pendingFeatures,
@@ -518,6 +672,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         expandConcepts,
         testKeywordCombination,
         search,
+        loadMoreArticles,
         resetSearch,
         filterArticles,
         clearFilter,

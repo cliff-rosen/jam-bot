@@ -59,6 +59,7 @@ interface SearchResultsProps {
         average_confidence: number;
         duration_seconds: number;
     } | null;
+    hasFiltered?: boolean;
     onClearFilter?: () => void;
 
     // UI state (now managed by parent)
@@ -93,6 +94,7 @@ export function SearchResults({
     isFiltering,
     isAddingScholar,
     filteringStats,
+    hasFiltered,
     onClearFilter,
     isEditingQuery,
     editedQuery,
@@ -432,8 +434,8 @@ export function SearchResults({
 
             {/* Enhanced Controls Bar with Query, Actions, and View Controls */}
             <div className="flex flex-col gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Top Row: Query Display */}
-                {!isEditingQuery && (
+                {/* Top Row: Query Display or Filtered Group Indicator */}
+                {!isEditingQuery && !hasFiltered && (
                     <div className="flex items-center gap-2">
                         <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">Query:</Label>
                         <div className="flex-1 px-2 py-1 bg-white dark:bg-gray-700 rounded border text-xs font-mono text-gray-900 dark:text-gray-100 truncate">
@@ -447,6 +449,30 @@ export function SearchResults({
                         >
                             <Edit className="w-3 h-3" />
                         </Button>
+                    </div>
+                )}
+
+                {/* Filtered Group Indicator */}
+                {hasFiltered && !isEditingQuery && (
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <Label className="text-sm font-medium text-purple-600 dark:text-purple-400">Filtered Group</Label>
+                        <div className="flex-1 px-2 py-1 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
+                            <span className="text-xs text-purple-700 dark:text-purple-300">
+                                {filteringStats ? `${filteringStats.total_accepted} of ${filteringStats.total_processed} articles passed filter (${Math.round(filteringStats.average_confidence * 100)}% avg confidence)` : 'Custom filtered article group'}
+                            </span>
+                        </div>
+                        {onClearFilter && (
+                            <Button
+                                onClick={onClearFilter}
+                                variant="outline"
+                                size="sm"
+                                className="flex-shrink-0 border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                            >
+                                <X className="w-3 h-3 mr-1" />
+                                Clear Filter
+                            </Button>
+                        )}
                     </div>
                 )}
 

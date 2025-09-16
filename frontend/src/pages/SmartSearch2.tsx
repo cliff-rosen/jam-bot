@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 
-import { SmartSearch2Provider, useSmartSearch2 } from '@/context/SmartSearch2Context';
+import { SmartSearch2Provider, useSmartSearch2, ResultState } from '@/context/SmartSearch2Context';
 import type { FeatureDefinition } from '@/types/workbench';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
@@ -37,6 +37,7 @@ function SmartSearch2Content() {
     pagination,
     isSearching,
     hasSearched,
+    resultState,
     error,
     isFiltering,
     appliedFeatures,
@@ -158,9 +159,23 @@ function SmartSearch2Content() {
     setShowFilterCriteriaModal(false);
 
     try {
-      await filterArticles(confirmedFilterCriteria);
+      const result = await filterArticles(confirmedFilterCriteria);
 
-      if (filteringStats) {
+      // Show detailed notification about what happened
+      if (result.autoRetrieved > 0 && result.limitApplied) {
+        toast({
+          title: 'Filtering Complete (300 Article Limit Applied)',
+          description: `Auto-retrieved ${result.autoRetrieved} more articles before filtering. Note: Only the first 300 of ${result.totalAvailable} available articles were processed due to system limits.`,
+          variant: 'default',
+          duration: 8000
+        });
+      } else if (result.autoRetrieved > 0) {
+        toast({
+          title: 'Filtering Complete',
+          description: `Auto-retrieved ${result.autoRetrieved} more articles before filtering. All ${result.totalAvailable} available articles were processed.`,
+          variant: 'default'
+        });
+      } else if (filteringStats) {
         toast({
           title: 'Filtering Complete',
           description: `Filtered ${filteringStats.total_processed} articles. ${filteringStats.total_accepted} accepted, ${filteringStats.total_rejected} rejected.`,
@@ -314,6 +329,7 @@ function SmartSearch2Content() {
               isAddingScholar={isAddingScholar}
               // Filter state
               filteringStats={filteringStats}
+              hasFiltered={resultState === ResultState.FilteredResult}
               onClearFilter={handleClearFilter}
               // UI state and handlers
               isEditingQuery={isEditingQuery}

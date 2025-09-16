@@ -275,7 +275,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
 
         try {
-            const batchSize = count || (selectedSource === 'google_scholar' ? 20 : 50);
+            const batchSize = count || (selectedSource === 'google_scholar' ? 20 : 100);
             const offset = articles.length;
 
             const results = await smartSearch2Api.search({
@@ -523,20 +523,30 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
             // Only auto-retrieve if we're in a partial search state
             if (pagination && pagination.has_more && resultState === ResultState.PartialSearchResult) {
-                // Calculate how many more articles to retrieve (up to 300 total)
+                // Calculate how many more articles to retrieve (up to MAX_ARTICLES_TO_FILTER total)
                 const currentCount = articles.length;
                 const availableCount = pagination.total_available;
                 const targetCount = Math.min(availableCount, MAX_ARTICLES_TO_FILTER);
                 const remainingToFetch = targetCount - currentCount;
 
-                // Check if we're hitting the 300 limit
-                limitApplied = availableCount > 300;
+                // Check if we're hitting the MAX_ARTICLES_TO_FILTER limit
+                limitApplied = availableCount > MAX_ARTICLES_TO_FILTER;
+
+                console.log(`Filter auto-retrieval check:`, {
+                    currentCount,
+                    availableCount,
+                    targetCount,
+                    remainingToFetch,
+                    limitApplied,
+                    hasMore: pagination.has_more,
+                    resultState
+                });
 
                 if (remainingToFetch > 0) {
                     console.log(`Auto-retrieving ${remainingToFetch} more articles before filtering (${currentCount} -> ${targetCount})`);
 
-                    // Fetch remaining articles in batches
-                    const batchSize = selectedSource === 'google_scholar' ? 20 : 50;
+                    // Fetch remaining articles in batches - use max allowed by backend
+                    const batchSize = selectedSource === 'google_scholar' ? 20 : 100;
                     let offset = currentCount;
                     const additionalArticles: SmartSearchArticle[] = [];
 
@@ -559,14 +569,32 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                         offset += batchArticles.length;
                         autoRetrievedCount = additionalArticles.length;
 
-                        // Break if we got fewer results than expected (no more available)
-                        if (batchArticles.length < resultsToFetch) {
+                        console.log(`Batch retrieval:`, {
+                            requestedOffset: offset - batchArticles.length,
+                            requestedCount: resultsToFetch,
+                            receivedCount: batchArticles.length,
+                            totalAdditional: additionalArticles.length,
+                            newOffset: offset,
+                            targetCount,
+                            willContinue: offset < targetCount && batchArticles.length >= resultsToFetch
+                        });
+
+                        // Break if we got zero results or significantly fewer (indicating end of dataset)
+                        if (batchArticles.length === 0) {
+                            console.log(`Breaking loop: no more articles available`);
                             break;
                         }
                     }
 
                     // Combine all articles
                     articlesToFilter = [...articles, ...additionalArticles];
+
+                    console.log(`Auto-retrieval completed:`, {
+                        originalCount: articles.length,
+                        additionalRetrieved: additionalArticles.length,
+                        totalArticles: articlesToFilter.length,
+                        targetWas: targetCount
+                    });
 
                     // Update the articles state with all retrieved articles
                     setArticles(articlesToFilter);

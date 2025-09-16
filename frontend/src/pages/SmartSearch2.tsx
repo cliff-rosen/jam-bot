@@ -147,8 +147,8 @@ function SmartSearch2Content() {
       // Show detailed notification about what happened
       if (result.autoRetrieved > 0 && result.limitApplied) {
         toast({
-          title: 'Filtering Complete (300 Article Limit Applied)',
-          description: `Auto-retrieved ${result.autoRetrieved} more articles before filtering. Note: Only the first 300 of ${result.totalAvailable} available articles were processed due to system limits.`,
+          title: 'Filtering Complete (3000 Article Limit Applied)',
+          description: `Auto-retrieved ${result.autoRetrieved} more articles before filtering. Note: Only the first 3000 of ${result.totalAvailable} available articles were processed due to system limits.`,
           variant: 'default',
           duration: 8000
         });

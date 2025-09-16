@@ -35,7 +35,7 @@ class DirectSearchRequest(BaseModel):
     """Request for direct search without session management"""
     query: str = Field(..., description="Search query")
     source: str = Field(..., description="Search source: 'pubmed' or 'google_scholar'")
-    max_results: int = Field(50, ge=1, le=100, description="Maximum results to return")
+    max_results: int = Field(50, ge=1, le=1000, description="Maximum results to return")
     offset: int = Field(0, ge=0, description="Offset for pagination")
 
 class DirectSearchResponse(BaseModel):

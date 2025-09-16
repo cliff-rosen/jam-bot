@@ -251,10 +251,6 @@ export function SearchResults({
     const sortedArticles = getSortedArticles();
 
     const renderTableView = () => {
-        // Debug: Log applied features and article data
-        console.log('Table rendering - Applied features:', appliedFeatures);
-        console.log('Table rendering - First article:', articles[0]);
-
         return (
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse">

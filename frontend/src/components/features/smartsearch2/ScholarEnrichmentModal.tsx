@@ -43,7 +43,7 @@ export function ScholarEnrichmentModal({
 
     const [currentStep, setCurrentStep] = useState<EnrichmentStep>('keywords');
     const [editedKeywords, setEditedKeywords] = useState('');
-    const [uniqueArticles, setUniqueArticles] = useState<SmartSearchArticle[]>([]);
+    const [scholarArticles, setScholarArticles] = useState<SmartSearchArticle[]>([]); // All Scholar results (includes duplicates marked with isDuplicate flag)
     const [isProcessing, setIsProcessing] = useState(false);
     const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
     const [isTestingKeywords, setIsTestingKeywords] = useState(false);
@@ -94,13 +94,13 @@ export function ScholarEnrichmentModal({
         setCurrentStep('browse');
 
         try {
-            const scholarArticles = await searchScholar(editedKeywords, 100);
-            setUniqueArticles(scholarArticles);
+            const results = await searchScholar(editedKeywords, 100);
+            setScholarArticles(results);
         } catch (error) {
             console.error('Error browsing Scholar results:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to search Google Scholar';
             setSearchError(errorMessage);
-            setUniqueArticles([]);
+            setScholarArticles([]);
         } finally {
             setIsProcessing(false);
         }
@@ -273,30 +273,30 @@ export function ScholarEnrichmentModal({
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Browse Scholar Results</h3>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {isProcessing ? 'Searching Google Scholar...' : `Found ${uniqueArticles.length} unique articles from Google Scholar`}
+                                        {isProcessing ? 'Searching Google Scholar...' : `Found ${scholarArticles.length} articles from Google Scholar`}
                                     </p>
                                 </div>
                             </div>
 
                             {/* Search Metadata */}
-                            {!isProcessing && uniqueArticles.length > 0 && (
+                            {!isProcessing && scholarArticles.length > 0 && (
                                 <div className="space-y-3 mb-4">
                                     {/* Search Results Summary */}
                                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
                                         <div className="flex gap-2 items-center text-sm text-blue-900 dark:text-blue-100">
                                             <Search className="w-4 h-4 text-blue-600" />
                                             <div>
-                                                <strong>Search completed:</strong> Retrieved {uniqueArticles.length} articles from Google Scholar.
+                                                <strong>Search completed:</strong> Retrieved {scholarArticles.length} articles from Google Scholar.
                                                 {testResultCount && ` Estimated total: ${testResultCount} results available.`}
-                                                {uniqueArticles.length === 100 && ' (Limited to first 100 results)'}
+                                                {scholarArticles.length === 100 && ' (Limited to first 100 results)'}
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Duplicate Detection Summary */}
                                     {(() => {
-                                        const duplicates = uniqueArticles.filter(article => article.isDuplicate);
-                                        const unique = uniqueArticles.filter(article => !article.isDuplicate);
+                                        const duplicates = scholarArticles.filter(article => article.isDuplicate);
+                                        const unique = scholarArticles.filter(article => !article.isDuplicate);
 
                                         return (
                                             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
@@ -339,7 +339,7 @@ export function ScholarEnrichmentModal({
                             ) : (
                                 <div className="flex-1 overflow-y-auto">
                                     <div className="space-y-3">
-                                        {uniqueArticles.map(article => (
+                                        {scholarArticles.map(article => (
                                             <div
                                                 key={article.id}
                                                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
@@ -508,7 +508,9 @@ export function ScholarEnrichmentModal({
                                 <Button
                                     onClick={() => {
                                         // Add the filtered articles to PubMed results
-                                        onAddArticles(uniqueArticles);
+                                        // Only add the unique articles (not duplicates)
+                                        const uniqueOnly = scholarArticles.filter(article => !article.isDuplicate);
+                                        onAddArticles(uniqueOnly);
                                         setCurrentStep('complete');
                                     }}
                                     className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"

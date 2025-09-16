@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { SmartSearch2Provider, useSmartSearch2, ResultState } from '@/context/SmartSearch2Context';
 import type { FeatureDefinition } from '@/types/workbench';
@@ -20,6 +21,9 @@ function SmartSearch2Content() {
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Collapsible search state
+  const [isSearchCollapsed, setIsSearchCollapsed] = useState(false);
 
   // Enrichment state
   const [isAddingScholar, setIsAddingScholar] = useState(false);
@@ -56,10 +60,15 @@ function SmartSearch2Content() {
 
   const handleSearch = async () => {
     await search();
+    // Auto-collapse search form after first search with results
+    if (!hasSearched && articles.length > 0) {
+      setIsSearchCollapsed(true);
+    }
   };
 
   const handleNewSearch = () => {
     setShowKeywordHelper(false);
+    setIsSearchCollapsed(false); // Expand search form for new search
     resetSearch();
   };
 
@@ -249,32 +258,59 @@ function SmartSearch2Content() {
 
           {/* Main Content */}
           <div className="space-y-6">
-            {/* Search Form - Always visible */}
-            {showKeywordHelper ? (
-              <Card className="p-6">
-                <div className="mb-4">
+            {/* Search Form - Collapsible after search results */}
+            <Collapsible
+              open={!isSearchCollapsed}
+              onOpenChange={(open) => setIsSearchCollapsed(!open)}
+            >
+              {hasSearched && articles.length > 0 && (
+                <CollapsibleTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowKeywordHelper(false)}
-                    className="mb-4"
+                    variant="outline"
+                    className="w-full mb-4 dark:border-gray-600 dark:text-gray-300"
                   >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Direct Search
+                    {isSearchCollapsed ? (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-2" />
+                        Show Search Form
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-2" />
+                        Hide Search Form
+                      </>
+                    )}
                   </Button>
-                </div>
-                <KeywordHelper
-                  onComplete={handleKeywordHelperComplete}
-                  onCancel={() => setShowKeywordHelper(false)}
-                />
-              </Card>
-            ) : (
-              <SearchForm
-                onSearch={handleSearch}
-                onToggleKeywordHelper={() => setShowKeywordHelper(true)}
-                isSearching={isSearching}
-              />
-            )}
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent>
+                {showKeywordHelper ? (
+                  <Card className="p-6">
+                    <div className="mb-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowKeywordHelper(false)}
+                        className="mb-4"
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Direct Search
+                      </Button>
+                    </div>
+                    <KeywordHelper
+                      onComplete={handleKeywordHelperComplete}
+                      onCancel={() => setShowKeywordHelper(false)}
+                    />
+                  </Card>
+                ) : (
+                  <SearchForm
+                    onSearch={handleSearch}
+                    onToggleKeywordHelper={() => setShowKeywordHelper(true)}
+                    isSearching={isSearching}
+                  />
+                )}
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Search Results - Only when we have searched */}
             {hasSearched && (

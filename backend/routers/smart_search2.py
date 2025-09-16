@@ -13,9 +13,8 @@ from pydantic import BaseModel, Field
 
 from database import get_db
 
-from schemas.canonical_types import CanonicalResearchArticle
+from schemas.canonical_types import CanonicalResearchArticle, CanonicalFeatureDefinition
 from schemas.smart_search import SearchPaginationInfo, FilteredArticle
-from schemas.workbench import FeatureDefinition
 
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
@@ -46,7 +45,6 @@ class DirectSearchResponse(BaseModel):
     source: str = Field(..., description="Source that was searched")
     query: str = Field(..., description="Query that was executed")
 
-
 class ConceptExpansionRequest(BaseModel):
     """Request for expanding concepts to Boolean expressions"""
     concepts: List[str] = Field(..., description="Concepts to expand")
@@ -68,11 +66,10 @@ class KeywordCombinationResponse(BaseModel):
     estimated_results: int = Field(..., description="Estimated number of results")
     source: str = Field(..., description="Source")
 
-
 class FeatureExtractionRequest(BaseModel):
     """Request for feature extraction from articles"""
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles to extract features from")
-    features: List[FeatureDefinition] = Field(..., description="Feature definitions to extract")
+    features: List[CanonicalFeatureDefinition] = Field(..., description="Feature definitions to extract")
 
 class FeatureExtractionResponse(BaseModel):
     """Response from feature extraction"""

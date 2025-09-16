@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
 
-import type { FeatureDefinition } from '@/types/workbench';
+import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
 // ================== RESULT STATE ENUM ==================
@@ -40,8 +40,8 @@ interface SmartSearch2State {
     isExtracting: boolean;
 
     // FEATURE EXTRACTION
-    appliedFeatures: FeatureDefinition[];
-    pendingFeatures: FeatureDefinition[];
+    appliedFeatures: CanonicalFeatureDefinition[];
+    pendingFeatures: CanonicalFeatureDefinition[];
 
     // FILTERING STATS
     filteringStats: {
@@ -119,7 +119,7 @@ interface SmartSearch2Actions {
     undoFilter: () => void;
 
     // FEATURE EXTRACTION
-    addPendingFeature: (feature: FeatureDefinition) => void;
+    addPendingFeature: (feature: CanonicalFeatureDefinition) => void;
     removePendingFeature: (featureId: string) => void;
     extractFeatures: () => Promise<FeatureExtractionResponse>;
 

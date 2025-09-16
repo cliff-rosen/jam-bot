@@ -11,7 +11,7 @@ import re
 from typing import List, Dict, Any, AsyncGenerator, Tuple, Union, Optional, Set
 from datetime import datetime
 
-from schemas.features import FeatureDefinition
+from schemas.canonical_types import CanonicalFeatureDefinition
 from schemas.smart_search import (
     SearchPaginationInfo,
     FilteredArticle,
@@ -1485,14 +1485,14 @@ class SmartSearchService:
     async def extract_features_parallel(
         self,
         articles: List[Dict[str, Any]],
-        features: List[FeatureDefinition]
+        features: List[CanonicalFeatureDefinition]
     ) -> Dict[str, Dict[str, Any]]:
         """
         Extract custom features from articles using parallel processing.
         
         Args:
             articles: List of accepted articles from filtered results  
-            features: List of FeatureDefinition objects
+            features: List of CanonicalFeatureDefinition objects
             
         Returns:
             Dict mapping article_id to extracted features {feature_id: value}
@@ -1651,7 +1651,7 @@ class SmartSearchService:
             authors = article_data.get('authors', [])
             return f"{title[:50]}_{','.join(authors[:2])}"
     
-    def _build_feature_schema(self, feature: FeatureDefinition) -> Dict[str, Any]:
+    def _build_feature_schema(self, feature: CanonicalFeatureDefinition) -> Dict[str, Any]:
         """Build JSON schema for a single feature."""
         if feature.type == 'boolean':
             return {

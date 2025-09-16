@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { SmartSearch2Provider, useSmartSearch2, ResultState } from '@/context/SmartSearch2Context';
-import type { FeatureDefinition } from '@/types/workbench';
+import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 import { SearchForm, KeywordHelper, FilterModal } from '@/components/features/smartsearch2';
@@ -77,7 +77,7 @@ function SmartSearch2Content() {
   };
 
   // Feature extraction handlers
-  const handleAddFeature = (newFeature: Omit<FeatureDefinition, 'id'>) => {
+  const handleAddFeature = (newFeature: Omit<CanonicalFeatureDefinition, 'id'>) => {
     if (!newFeature.name.trim() || !newFeature.description.trim()) {
       toast({
         title: 'Invalid Feature',
@@ -87,7 +87,7 @@ function SmartSearch2Content() {
       return;
     }
 
-    const feature: FeatureDefinition = {
+    const feature: CanonicalFeatureDefinition = {
       ...newFeature,
       id: generatePrefixedUUID('feat')
     };

@@ -49,8 +49,6 @@ class FilteredArticle(BaseModel):
     reasoning: str = Field(..., description="Brief explanation of decision")
 
 
-
-
 class FilteringProgress(BaseModel):
     """Progress update for filtering operations"""
     total: int

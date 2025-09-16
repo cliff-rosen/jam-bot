@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,7 +9,6 @@ import {
     Sparkles,
     Search,
     Plus,
-    ChevronRight,
     AlertCircle,
     CheckCircle
 } from 'lucide-react';
@@ -138,54 +136,68 @@ export function ScholarEnrichmentModal({
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                <div className="pb-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                         <BookOpen className="w-5 h-5" />
                         Google Scholar Enrichment
-                    </DialogTitle>
-                    <DialogDescription>
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
                         Find additional relevant articles from Google Scholar to supplement your PubMed results
-                    </DialogDescription>
-                </DialogHeader>
+                    </p>
+                </div>
 
                 {/* Progress Indicator */}
-                <div className="flex items-center gap-2 py-4">
-                    <div className={`flex items-center gap-2 ${currentStep === 'analyzing' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                            currentStep === 'analyzing' ? 'border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600'
+                <div className="flex items-center justify-between py-4">
+                    <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                            currentStep === 'analyzing' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
                             1
                         </div>
-                        <span className="text-sm">Analyze</span>
+                        <div className="ml-3">
+                            <p className={`text-sm font-medium ${currentStep === 'analyzing' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                Analyze
+                            </p>
+                        </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <div className={`flex items-center gap-2 ${currentStep === 'keywords' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                            currentStep === 'keywords' ? 'border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600'
+                    <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
+                    <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                            currentStep === 'keywords' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
                             2
                         </div>
-                        <span className="text-sm">Keywords</span>
+                        <div className="ml-3">
+                            <p className={`text-sm font-medium ${currentStep === 'keywords' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                Keywords
+                            </p>
+                        </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <div className={`flex items-center gap-2 ${
-                        ['searching', 'deduplicating'].includes(currentStep) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
-                    }`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                            ['searching', 'deduplicating'].includes(currentStep) ? 'border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600'
+                    <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
+                    <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                            ['searching', 'deduplicating'].includes(currentStep) ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
                             3
                         </div>
-                        <span className="text-sm">Search</span>
+                        <div className="ml-3">
+                            <p className={`text-sm font-medium ${['searching', 'deduplicating'].includes(currentStep) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                Search
+                            </p>
+                        </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <div className={`flex items-center gap-2 ${currentStep === 'filtering' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                            currentStep === 'filtering' ? 'border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600'
+                    <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
+                    <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                            currentStep === 'filtering' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
                             4
                         </div>
-                        <span className="text-sm">Filter</span>
+                        <div className="ml-3">
+                            <p className={`text-sm font-medium ${currentStep === 'filtering' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                Filter
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -193,17 +205,16 @@ export function ScholarEnrichmentModal({
                 <div className="flex-1 overflow-y-auto">
                     {/* Step 1: Analyzing */}
                     {currentStep === 'analyzing' && (
-                        <div className="space-y-4">
-                            <Card className="p-6">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                                 <div className="text-center space-y-4">
                                     <Sparkles className="w-12 h-12 mx-auto text-blue-600" />
-                                    <h3 className="text-lg font-semibold">Analyze Current Results</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Analyze Current Results</h3>
                                     <p className="text-gray-600 dark:text-gray-400">
                                         We'll analyze your {currentArticles.length} PubMed articles to generate
                                         optimal search keywords for Google Scholar
                                     </p>
-                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                                        <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Current search contains:</div>
+                                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Current search contains:</div>
                                         <div className="flex gap-2 justify-center flex-wrap">
                                             <Badge variant="secondary">{currentArticles.length} articles</Badge>
                                             <Badge variant="secondary">
@@ -214,7 +225,7 @@ export function ScholarEnrichmentModal({
                                     <Button
                                         onClick={handleAnalyze}
                                         disabled={isProcessing}
-                                        className="w-full max-w-xs mx-auto"
+                                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 w-full max-w-xs mx-auto"
                                     >
                                         {isProcessing ? (
                                             <>
@@ -229,17 +240,15 @@ export function ScholarEnrichmentModal({
                                         )}
                                     </Button>
                                 </div>
-                            </Card>
                         </div>
                     )}
 
                     {/* Step 2: Keywords */}
                     {currentStep === 'keywords' && (
-                        <div className="space-y-4">
-                            <Card className="p-6">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                                 <div className="space-y-4">
                                     <div>
-                                        <h3 className="text-lg font-semibold mb-2">Generated Keywords</h3>
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Generated Keywords</h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                             Based on your PubMed results, we've generated these search keywords for Google Scholar.
                                             You can edit them before searching.
@@ -251,7 +260,7 @@ export function ScholarEnrichmentModal({
                                         <Textarea
                                             value={editedKeywords}
                                             onChange={(e) => setEditedKeywords(e.target.value)}
-                                            className="min-h-[100px] font-mono text-sm"
+                                            className="min-h-[100px] font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                             placeholder="Enter search keywords..."
                                         />
                                         {editedKeywords !== generatedKeywords && (
@@ -265,10 +274,10 @@ export function ScholarEnrichmentModal({
                                         )}
                                     </div>
 
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
                                         <div className="flex gap-2">
-                                            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                                            <div className="text-sm text-blue-900 dark:text-blue-200">
+                                            <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <div className="text-sm text-blue-900 dark:text-blue-100">
                                                 <strong>Note:</strong> Google Scholar has different search syntax than PubMed.
                                                 Complex boolean queries may be simplified automatically.
                                             </div>
@@ -278,25 +287,23 @@ export function ScholarEnrichmentModal({
                                     <Button
                                         onClick={handleSearch}
                                         disabled={!editedKeywords.trim()}
-                                        className="w-full"
+                                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 w-full"
                                     >
                                         <Search className="w-4 h-4 mr-2" />
                                         Search Google Scholar
                                     </Button>
                                 </div>
-                            </Card>
                         </div>
                     )}
 
                     {/* Step 3: Searching & Deduplicating */}
                     {(currentStep === 'searching' || currentStep === 'deduplicating') && (
-                        <div className="space-y-4">
-                            <Card className="p-6">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                                 <div className="text-center space-y-4">
                                     <div className="relative">
                                         <Search className="w-12 h-12 mx-auto text-blue-600 animate-pulse" />
                                     </div>
-                                    <h3 className="text-lg font-semibold">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                         {currentStep === 'searching' ? 'Searching Google Scholar...' : 'Finding Unique Articles...'}
                                     </h3>
                                     <p className="text-gray-600 dark:text-gray-400">
@@ -315,17 +322,15 @@ export function ScholarEnrichmentModal({
                                         />
                                     </div>
                                 </div>
-                            </Card>
                         </div>
                     )}
 
                     {/* Step 4: Filtering */}
                     {currentStep === 'filtering' && (
-                        <div className="space-y-4">
-                            <Card className="p-4">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
-                                        <h3 className="text-lg font-semibold">New Articles from Google Scholar</h3>
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">New Articles from Google Scholar</h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
                                             Found {uniqueArticles.length} articles not in your PubMed results
                                         </p>
@@ -343,10 +348,10 @@ export function ScholarEnrichmentModal({
                                     {uniqueArticles.map(article => (
                                         <div
                                             key={article.id}
-                                            className={`border rounded-lg p-3 cursor-pointer transition-colors dark:border-gray-700 ${
+                                            className={`border border-gray-200 dark:border-gray-700 rounded-lg p-3 cursor-pointer transition-colors ${
                                                 selectedArticles.has(article.id)
                                                     ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-600'
-                                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                                                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                                             }`}
                                             onClick={() => toggleArticleSelection(article.id)}
                                         >
@@ -358,7 +363,7 @@ export function ScholarEnrichmentModal({
                                                     />
                                                 </div>
                                                 <div className="flex-1 space-y-1">
-                                                    <div className="font-medium text-sm">{article.title}</div>
+                                                    <div className="font-medium text-sm text-gray-900 dark:text-white">{article.title}</div>
                                                     <div className="text-xs text-gray-600 dark:text-gray-400">
                                                         {article.authors?.join(', ')}
                                                     </div>
@@ -399,22 +404,19 @@ export function ScholarEnrichmentModal({
                                         Skip
                                     </Button>
                                 </div>
-                            </Card>
                         </div>
                     )}
 
                     {/* Step 5: Complete */}
                     {currentStep === 'complete' && (
-                        <div className="space-y-4">
-                            <Card className="p-6">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                                 <div className="text-center space-y-4">
                                     <CheckCircle className="w-12 h-12 mx-auto text-green-600" />
-                                    <h3 className="text-lg font-semibold">Articles Added Successfully!</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Articles Added Successfully!</h3>
                                     <p className="text-gray-600 dark:text-gray-400">
                                         {selectedArticles.size} new articles from Google Scholar have been added to your results
                                     </p>
                                 </div>
-                            </Card>
                         </div>
                     )}
                 </div>

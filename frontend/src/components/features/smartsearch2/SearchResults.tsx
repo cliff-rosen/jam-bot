@@ -469,15 +469,26 @@ export function SearchResults({
                         {onFilter && (
                             <Button
                                 onClick={onFilter}
-                                disabled={isFiltering}
+                                disabled={isFiltering || hasPendingFilter}
                                 variant="outline"
                                 size="sm"
-                                title={evidenceSpec ? "Filter using existing evidence specification" : "Filter results (evidence spec required)"}
+                                title={
+                                    hasPendingFilter
+                                        ? "Please accept or undo the current filter before applying a new one"
+                                        : evidenceSpec
+                                            ? "Filter using existing evidence specification"
+                                            : "Filter results (evidence spec required)"
+                                }
                             >
                                 {isFiltering ? (
                                     <>
                                         <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
                                         Filtering...
+                                    </>
+                                ) : hasPendingFilter ? (
+                                    <>
+                                        <Filter className="w-3 h-3 mr-2 opacity-50" />
+                                        Filter (Pending)
                                     </>
                                 ) : (
                                     <>

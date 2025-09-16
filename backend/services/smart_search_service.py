@@ -1641,8 +1641,10 @@ Abstract: {article.abstract or "No abstract available"}"""
         else:
             article_data = article
         
-        # Use URL if available, otherwise create from title and authors
-        if article_data.get('url'):
+        # Use ID if available, fallback to URL, then create from title and authors
+        if article_data.get('id'):
+            return article_data['id']
+        elif article_data.get('url'):
             return article_data['url']
         else:
             title = article_data.get('title', '')

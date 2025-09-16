@@ -200,7 +200,7 @@ class CanonicalResearchArticle(BaseModel):
     source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
     
     # Extraction and analysis results (if applicable)
-    extracted_features: Optional[Dict[str, CanonicalExtractedFeature]] = Field(default=None, description="Extracted feature data keyed by feature.id")
+    extracted_features: Optional[Dict[str, Any]] = Field(default=None, description="Extracted feature data keyed by feature.id -> simple values")
     quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")
     
     # Timestamps

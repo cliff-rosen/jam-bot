@@ -167,8 +167,13 @@ export function SearchResults({
 
     const sortedArticles = getSortedArticles();
 
-    const renderTableView = () => (
-        <div className="overflow-x-auto">
+    const renderTableView = () => {
+        // Debug: Log applied features and article data
+        console.log('Table rendering - Applied features:', appliedFeatures);
+        console.log('Table rendering - First article:', articles[0]);
+
+        return (
+            <div className="overflow-x-auto">
             <table className="w-full border-collapse">
                 <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -216,12 +221,23 @@ export function SearchResults({
                                 )}
                             </button>
                         </th>
+                        <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
+                            <button
+                                onClick={() => onSort('pmid')}
+                                className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
+                            >
+                                PMID
+                                {sortColumn === 'pmid' && (
+                                    sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                )}
+                            </button>
+                        </th>
                         {appliedFeatures.map(feature => (
                             <th key={feature.id} className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">
                                 {feature.name}
                             </th>
                         ))}
-                        {hasFilteredResults && (
+                        {hasPendingFilter && (
                             <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Filter Status</th>
                         )}
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Link</th>
@@ -248,12 +264,15 @@ export function SearchResults({
                                 <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
                                     {article.journal}
                                 </td>
+                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                    {article.pmid || '-'}
+                                </td>
                                 {appliedFeatures.map(feature => (
                                     <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
                                         {article.extracted_features?.[feature.id] || '-'}
                                     </td>
                                 ))}
-                                {hasFilteredResults && (
+                                {hasPendingFilter && (
                                     <td className="p-3 text-sm">
                                         {hasFilterResult ? (
                                             <div className="flex items-center gap-2">
@@ -290,7 +309,8 @@ export function SearchResults({
                 </tbody>
             </table>
         </div>
-    );
+        );
+    };
 
     const renderCardView = (compressed: boolean = true) => (
         <div className={`space-y-${compressed ? '3' : '4'}`}>
@@ -340,7 +360,7 @@ export function SearchResults({
                                     </div>
                                 )}
 
-                                {hasFilteredResults && hasFilterResult && (
+                                {hasPendingFilter && hasFilterResult && (
                                     <div className={`${compressed ? 'mt-2' : 'mt-4'} flex items-center gap-2`}>
                                         <Badge
                                             variant={passed ? "default" : "destructive"}

@@ -399,7 +399,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
-
     const addPendingFeature = useCallback((feature: FeatureDefinition) => {
         setPendingFeatures(prev => [...prev, feature]);
     }, []);
@@ -434,14 +433,25 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
             setPendingFeatures([]);
 
+            // Debug: Log the extraction response
+            console.log('Feature extraction response:', response);
+            console.log('Applied features will be:', [...appliedFeatures, ...pendingFeatures]);
+
             // Update articles with extracted features
-            const updatedArticles = articles.map(article => ({
-                ...article,
-                extracted_features: {
-                    ...article.extracted_features,
-                    ...response.results[article.id]
-                }
-            }));
+            const updatedArticles = articles.map(article => {
+                const extractedForArticle = response.results[article.id];
+                console.log(`Article ${article.id} - extracted features:`, extractedForArticle);
+
+                return {
+                    ...article,
+                    extracted_features: {
+                        ...article.extracted_features,
+                        ...extractedForArticle
+                    }
+                };
+            });
+
+            console.log('Updated articles with features:', updatedArticles.slice(0, 2)); // Log first 2 articles
             setArticles(updatedArticles);
 
             return response;

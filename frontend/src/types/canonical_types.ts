@@ -21,7 +21,62 @@ export interface CanonicalFeatureDefinition {
 export type CanonicalFeatureValue = boolean | string | number;
 // - boolean: for 'boolean' type features
 // - string: for 'text' type features
-// - number: for 'score' and 'number' type features
+// - number: for 'score' and 'number' type featuress
+
+export interface CanonicalResearchArticle {
+    // Core identification
+    id: string;
+    source: 'pubmed' | 'scholar';
+    pmid?: string; // PubMed ID (for PubMed articles)
+
+    // Core metadata
+    title: string;
+    authors: string[];
+    abstract?: string;
+    snippet?: string;
+    
+    // Publication details
+    journal?: string;
+    publication_date?: string;
+    publication_year?: number;
+    
+    // PubMed-specific date fields (always populated for PubMed articles)
+    date_completed?: string;     // Date record was completed (YYYY-MM-DD)
+    date_revised?: string;       // Date record was last revised (YYYY-MM-DD)
+    date_entered?: string;       // Date entered into PubMed (YYYY-MM-DD)
+    date_published?: string;     // Publication date with full precision (YYYY-MM-DD)
+    
+    // Identifiers and links
+    doi?: string;
+    url?: string;
+    pdf_url?: string;
+    
+    // Classification and keywords
+    keywords: string[];
+    mesh_terms: string[];
+    categories: string[];
+    
+    // Citation and related content
+    citation_count?: number;
+    cited_by_url?: string;
+    related_articles_url?: string;
+    versions_url?: string;
+    
+    // Search context
+    search_position?: number;
+    relevance_score?: number;
+    
+    // Research analysis results
+    extracted_features?: Record<string, CanonicalFeatureValue>;
+    quality_scores?: Record<string, number>;
+    
+    // Source preservation
+    source_metadata?: Record<string, any>;
+    
+    // System metadata
+    indexed_at?: string;
+    retrieved_at?: string;
+}
 
 export interface CanonicalEmail {
     id: string;
@@ -94,61 +149,6 @@ export interface CanonicalDailyNewsletterRecap {
     key_topics: string[];
     summary: string;
     newsletters: CanonicalNewsletter[];
-}
-
-export interface CanonicalResearchArticle {
-    // Core identification
-    id: string;
-    source: 'pubmed' | 'scholar';
-    pmid?: string; // PubMed ID (for PubMed articles)
-
-    // Core metadata
-    title: string;
-    authors: string[];
-    abstract?: string;
-    snippet?: string;
-    
-    // Publication details
-    journal?: string;
-    publication_date?: string;
-    publication_year?: number;
-    
-    // PubMed-specific date fields (always populated for PubMed articles)
-    date_completed?: string;     // Date record was completed (YYYY-MM-DD)
-    date_revised?: string;       // Date record was last revised (YYYY-MM-DD)
-    date_entered?: string;       // Date entered into PubMed (YYYY-MM-DD)
-    date_published?: string;     // Publication date with full precision (YYYY-MM-DD)
-    
-    // Identifiers and links
-    doi?: string;
-    url?: string;
-    pdf_url?: string;
-    
-    // Classification and keywords
-    keywords: string[];
-    mesh_terms: string[];
-    categories: string[];
-    
-    // Citation and related content
-    citation_count?: number;
-    cited_by_url?: string;
-    related_articles_url?: string;
-    versions_url?: string;
-    
-    // Search context
-    search_position?: number;
-    relevance_score?: number;
-    
-    // Research analysis results
-    extracted_features?: Record<string, CanonicalFeatureValue>;
-    quality_scores?: Record<string, number>;
-    
-    // Source preservation
-    source_metadata?: Record<string, any>;
-    
-    // System metadata
-    indexed_at?: string;
-    retrieved_at?: string;
 }
 
 export interface CanonicalScholarArticle {

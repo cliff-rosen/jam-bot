@@ -1541,8 +1541,11 @@ class SmartSearchService:
         async def extract_for_article(article: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
             async with semaphore:
                 article_content = self._get_article_content(article)
-                # Use the actual article ID from the data
-                article_id = article['article']['id']
+                # Use the actual article ID from the data - handle both nested and direct formats
+                if 'article' in article:
+                    article_id = article['article']['id']
+                else:
+                    article_id = article['id']
                 
                 try:
                     # Perform extraction for this article

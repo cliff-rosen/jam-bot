@@ -107,6 +107,7 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     result = CanonicalResearchArticle(
         id=f"pubmed_{pubmed_article.pmid}",  # Use consistent ID format
         source="pubmed",
+        pmid=pubmed_article.pmid,  # Include PMID field for easy access
         title=pubmed_article.title,
         authors=pubmed_article.authors,
         abstract=pubmed_article.abstract,

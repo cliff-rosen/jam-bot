@@ -54,11 +54,6 @@ export interface ConceptExtractionResponse {
     evidence_specification: string;
 }
 
-export interface KeywordGenerationRequest {
-    concepts: string[];
-    source: 'pubmed' | 'google_scholar';
-    target_result_count?: number;
-}
 
 export interface ConceptExpansionRequest {
     concepts: string[];
@@ -85,21 +80,12 @@ export interface KeywordCombinationResponse {
     source: string;
 }
 
-export interface KeywordGenerationResponse {
-    concepts: string[];
-    search_keywords: string;
-    source: string;
-    estimated_results: number;
-    concept_counts: Record<string, number>;
-    optimization_strategy: string;
-}
 
 // Article filtering types
 export interface ArticleFilterRequest {
-    evidence_specification: string;
+    filter_condition: string;
     articles: CanonicalResearchArticle[];  // SmartSearch2 passes articles directly (no session needed)
     strictness?: 'low' | 'medium' | 'high';
-    discriminator_prompt?: string;  // Optional - will be auto-generated if not provided
 }
 
 export interface ArticleFilterResponse {
@@ -166,13 +152,6 @@ class SmartSearch2Api {
         return response.data;
     }
 
-    /**
-     * Generate optimized search keywords from extracted concepts
-     */
-    async generateKeywords(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
-        const response = await api.post('/api/smart-search-2/generate-keywords', request);
-        return response.data;
-    }
 
     /**
      * Filter articles using semantic discriminator (no session required)

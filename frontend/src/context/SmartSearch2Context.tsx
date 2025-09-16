@@ -4,12 +4,14 @@
  * Optimized for direct search functionality without the guided workflow complexity.
  * Focuses on: source selection, query input, search execution, and results display.
  */
-
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
-import type { DirectSearchResponse, FeatureExtractionResponse, ArticleFilterResponse } from '@/lib/api/smartSearch2Api';
-import type { FeatureDefinition } from '@/types/workbench';
+
 import { api } from '@/lib/api';
+import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
+import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
+
+import type { FeatureDefinition } from '@/types/workbench';
+import type { SmartSearchArticle } from '@/types/smart-search';
 
 // ================== STATE INTERFACE ==================
 
@@ -18,19 +20,26 @@ interface SmartSearch2State {
     selectedSource: 'pubmed' | 'google_scholar';
     searchQuery: string;
 
-    // SEARCH EXECUTION
-    searchResults: DirectSearchResponse | null;
-    isSearching: boolean;
+    // ARTICLES - Single source of truth
+    articles: SmartSearchArticle[];
+    pagination: { total_available: number; returned: number; offset: number; has_more: boolean } | null;
 
-    // ARTICLE FILTERING
-    filteredArticles: ArticleFilterResponse | null;
+    // PROCESSING STATE
+    isSearching: boolean;
     isFiltering: boolean;
+    isExtracting: boolean;
 
     // FEATURE EXTRACTION
     appliedFeatures: FeatureDefinition[];
     pendingFeatures: FeatureDefinition[];
-    extractedData: Record<string, Record<string, any>>;
-    isExtracting: boolean;
+
+    // FILTERING STATS
+    filteringStats: {
+        total_processed: number;
+        total_accepted: number;
+        total_rejected: number;
+        discriminator_used: string;
+    } | null;
 
     // RESEARCH JOURNEY STATE (persistent data)
     researchQuestion: string;
@@ -75,14 +84,6 @@ interface SmartSearch2Actions {
         estimated_results: number;
         source: string;
     }>;
-    generateKeywords: (concepts: string[], source: 'pubmed' | 'google_scholar', targetResultCount?: number) => Promise<{
-        concepts: string[];
-        search_keywords: string;
-        source: string;
-        estimated_results: number;
-        concept_counts: Record<string, number>;
-        optimization_strategy: string;
-    }>;
 
     // RESEARCH JOURNEY MANAGEMENT
     setResearchQuestion: (question: string) => void;
@@ -100,7 +101,7 @@ interface SmartSearch2Actions {
     resetSearch: () => void;
 
     // ARTICLE FILTERING
-    filterArticles: (evidenceSpec?: string, strictness?: 'low' | 'medium' | 'high') => Promise<ArticleFilterResponse>;
+    filterArticles: (filterCondition?: string, strictness?: 'low' | 'medium' | 'high') => Promise<void>;
     clearFilter: () => void;
 
     // FEATURE EXTRACTION
@@ -149,14 +150,31 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
     const [selectedSource, setSelectedSource] = useState<'pubmed' | 'google_scholar'>('pubmed');
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<DirectSearchResponse | null>(null);
+
+    // UNIFIED ARTICLE STATE - Single source of truth
+    const [articles, setArticles] = useState<SmartSearchArticle[]>([]);
+    const [pagination, setPagination] = useState<{ total_available: number; returned: number; offset: number; has_more: boolean } | null>(null);
+
+    // PROCESSING STATE
     const [isSearching, setIsSearching] = useState(false);
+    const [isFiltering, setIsFiltering] = useState(false);
+    const [isExtracting, setIsExtracting] = useState(false);
+
+    // UI STATE
     const [hasSearched, setHasSearched] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Article filtering state
-    const [filteredArticles, setFilteredArticles] = useState<ArticleFilterResponse | null>(null);
-    const [isFiltering, setIsFiltering] = useState(false);
+    // FILTERING STATS
+    const [filteringStats, setFilteringStats] = useState<{
+        total_processed: number;
+        total_accepted: number;
+        total_rejected: number;
+        discriminator_used: string;
+    } | null>(null);
+
+    // FEATURE EXTRACTION STATE
+    const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
+    const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
 
     // Research journey state (persistent data)
     const [researchQuestion, setResearchQuestion] = useState('');
@@ -170,11 +188,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [completenessScore, setCompletenessScore] = useState(0);
     const [missingElements, setMissingElements] = useState<string[]>([]);
 
-    // Feature extraction state
-    const [appliedFeatures, setAppliedFeatures] = useState<FeatureDefinition[]>([]);
-    const [pendingFeatures, setPendingFeatures] = useState<FeatureDefinition[]>([]);
-    const [extractedData, setExtractedData] = useState<Record<string, Record<string, any>>>({});
-    const [isExtracting, setIsExtracting] = useState(false);
 
     // ================== ACTIONS ==================
 
@@ -205,7 +218,17 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 offset: 0
             });
 
-            setSearchResults(results);
+            // Convert to unified article format
+            const smartSearchArticles: SmartSearchArticle[] = results.articles.map(article => ({
+                ...article,
+                filterStatus: null
+            }));
+
+            setArticles(smartSearchArticles);
+            setPagination(results.pagination);
+
+            // Clear any previous filtering
+            setFilteringStats(null);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Search failed';
             setError(errorMessage);
@@ -217,16 +240,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
     const resetSearch = useCallback(() => {
         setSearchQuery('');
-        setSearchResults(null);
+        setArticles([]);
+        setPagination(null);
         setHasSearched(false);
         setError(null);
         // Clear feature extraction state
         setAppliedFeatures([]);
         setPendingFeatures([]);
-        setExtractedData({});
         setIsExtracting(false);
         // Clear filtering state
-        setFilteredArticles(null);
+        setFilteringStats(null);
         setIsFiltering(false);
     }, []);
 
@@ -299,24 +322,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
-    const generateKeywords = useCallback(async (
-        concepts: string[],
-        source: 'pubmed' | 'google_scholar',
-        targetResultCount: number = 200
-    ) => {
-        try {
-            const response = await smartSearch2Api.generateKeywords({
-                concepts,
-                source,
-                target_result_count: targetResultCount
-            });
-            return response;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to generate keywords';
-            setError(errorMessage);
-            throw err;
-        }
-    }, []);
 
     const addPendingFeature = useCallback((feature: FeatureDefinition) => {
         setPendingFeatures(prev => [...prev, feature]);
@@ -327,7 +332,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     }, []);
 
     const extractFeatures = useCallback(async (): Promise<FeatureExtractionResponse> => {
-        if (!searchResults?.articles.length) {
+        if (!articles.length) {
             throw new Error('No articles available for feature extraction');
         }
 
@@ -337,15 +342,30 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
         setIsExtracting(true);
         try {
+            // Extract raw articles for the API call
+            const rawArticles = articles.map(article => {
+                const { filterStatus, ...rawArticle } = article;
+                return rawArticle;
+            });
+
             const response = await smartSearch2Api.extractFeatures({
-                articles: searchResults.articles,
+                articles: rawArticles,
                 features: pendingFeatures
             });
 
-            // Move pending features to applied and store extracted data
+            // Move pending features to applied
             setAppliedFeatures(prev => [...prev, ...pendingFeatures]);
             setPendingFeatures([]);
-            setExtractedData(response.results);
+
+            // Update articles with extracted features
+            const updatedArticles = articles.map(article => ({
+                ...article,
+                extracted_features: {
+                    ...article.extracted_features,
+                    ...response.results[article.id]
+                }
+            }));
+            setArticles(updatedArticles);
 
             return response;
         } catch (err) {
@@ -355,7 +375,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         } finally {
             setIsExtracting(false);
         }
-    }, [searchResults?.articles, pendingFeatures]);
+    }, [articles, pendingFeatures]);
 
     const clearError = useCallback(() => {
         setError(null);
@@ -389,16 +409,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     }, []);
 
     const filterArticles = useCallback(async (
-        evidenceSpecOverride?: string,
+        filterConditionOverride?: string,
         strictness: 'low' | 'medium' | 'high' = 'medium'
-    ): Promise<ArticleFilterResponse> => {
-        const finalEvidenceSpec = evidenceSpecOverride || evidenceSpec;
+    ): Promise<void> => {
+        const finalFilterCondition = filterConditionOverride || evidenceSpec;
 
-        if (!finalEvidenceSpec.trim()) {
-            throw new Error('Evidence specification is required for filtering');
+        if (!finalFilterCondition.trim()) {
+            throw new Error('Filter condition is required for filtering');
         }
 
-        if (!searchResults?.articles.length) {
+        if (!articles.length) {
             throw new Error('No articles available to filter');
         }
 
@@ -406,27 +426,41 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
 
         try {
-            console.log('Starting article filtering...', {
-                evidenceSpec: finalEvidenceSpec,
-                articleCount: searchResults.articles.length,
-                strictness: strictness
+            // Extract raw articles for the API call
+            const rawArticles = articles.map(article => {
+                const { filterStatus, ...rawArticle } = article;
+                return rawArticle;
             });
 
             const response = await smartSearch2Api.filterArticles({
-                evidence_specification: finalEvidenceSpec,
-                articles: searchResults.articles,
+                filter_condition: finalFilterCondition,
+                articles: rawArticles,
                 strictness: strictness
             });
 
-            console.log('Filtering response received:', {
-                totalProcessed: response.total_processed,
-                totalAccepted: response.total_accepted,
-                totalRejected: response.total_rejected,
-                filteredArticles: response.filtered_articles.length
+            // Update articles in place with filter results
+            const updatedArticles = articles.map(article => {
+                const filterResult = response.filtered_articles.find(fa =>
+                    fa.article.url === article.url || fa.article.title === article.title
+                );
+
+                return {
+                    ...article,
+                    filterStatus: filterResult ? {
+                        passed: filterResult.passed,
+                        confidence: filterResult.confidence,
+                        reasoning: filterResult.reasoning
+                    } : null
+                };
             });
 
-            setFilteredArticles(response);
-            return response;
+            setArticles(updatedArticles);
+            setFilteringStats({
+                total_processed: response.total_processed,
+                total_accepted: response.total_accepted,
+                total_rejected: response.total_rejected,
+                discriminator_used: response.discriminator_used
+            });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to filter articles';
             setError(errorMessage);
@@ -434,11 +468,17 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         } finally {
             setIsFiltering(false);
         }
-    }, [evidenceSpec, searchResults?.articles]);
+    }, [evidenceSpec, articles]);
 
     const clearFilter = useCallback(() => {
-        setFilteredArticles(null);
-    }, []);
+        // Clear filter status from all articles
+        const clearedArticles = articles.map(article => ({
+            ...article,
+            filterStatus: null
+        }));
+        setArticles(clearedArticles);
+        setFilteringStats(null);
+    }, [articles]);
 
     // ================== CONTEXT VALUE ==================
 
@@ -446,16 +486,16 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // State
         selectedSource,
         searchQuery,
-        searchResults,
+        articles,
+        pagination,
         isSearching,
+        isFiltering,
+        isExtracting,
         hasSearched,
         error,
-        filteredArticles,
-        isFiltering,
         appliedFeatures,
         pendingFeatures,
-        extractedData,
-        isExtracting,
+        filteringStats,
 
         // Research journey state
         researchQuestion,
@@ -474,7 +514,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         extractConcepts,
         expandConcepts,
         testKeywordCombination,
-        generateKeywords,
         search,
         resetSearch,
         filterArticles,

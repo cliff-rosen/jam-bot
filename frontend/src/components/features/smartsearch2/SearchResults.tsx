@@ -22,13 +22,12 @@ import {
     Filter,
     BookOpen
 } from 'lucide-react';
-import type { CanonicalResearchArticle } from '@/types/canonical_types';
-import type { SearchPaginationInfo } from '@/types/smart-search';
+import type { SmartSearchArticle, SearchPaginationInfo } from '@/types/smart-search';
 import type { FeatureDefinition } from '@/types/workbench';
 
 
 interface SearchResultsProps {
-    articles: CanonicalResearchArticle[];
+    articles: SmartSearchArticle[];
     pagination: SearchPaginationInfo | null;
     query: string;
     source: 'pubmed' | 'google_scholar';
@@ -40,7 +39,6 @@ interface SearchResultsProps {
     // Feature extraction props
     appliedFeatures: FeatureDefinition[];
     pendingFeatures: FeatureDefinition[];
-    extractedData: Record<string, Record<string, any>>;
     isExtracting: boolean;
     onAddFeature: (feature: Omit<FeatureDefinition, 'id'>) => void;
     onRemovePendingFeature: (featureId: string) => void;
@@ -54,7 +52,12 @@ interface SearchResultsProps {
     isAddingScholar?: boolean;
 
     // Filter state
-    filteredArticles?: any; // ArticleFilterResponse | null
+    filteringStats?: {
+        total_processed: number;
+        total_accepted: number;
+        total_rejected: number;
+        discriminator_used: string;
+    } | null;
     onClearFilter?: () => void;
 
     // UI state (now managed by parent)
@@ -79,7 +82,6 @@ export function SearchResults({
     onLoadMore,
     appliedFeatures,
     pendingFeatures,
-    extractedData,
     isExtracting,
     onAddFeature,
     onRemovePendingFeature,
@@ -89,7 +91,7 @@ export function SearchResults({
     onAddGoogleScholar,
     isFiltering,
     isAddingScholar,
-    filteredArticles,
+    filteringStats,
     onClearFilter,
     isEditingQuery,
     editedQuery,
@@ -132,6 +134,9 @@ export function SearchResults({
             type: 'text'
         });
     };
+
+    // Check if any articles have been filtered
+    const hasFilteredResults = filteringStats !== null;
 
     const getSortedArticles = () => {
         if (!sortColumn) return articles;
@@ -222,12 +227,21 @@ export function SearchResults({
                                 {feature.name}
                             </th>
                         ))}
+                        {hasFilteredResults && (
+                            <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Filter Status</th>
+                        )}
                         <th className="text-left p-3 font-medium text-gray-900 dark:text-gray-100">Link</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {sortedArticles.map((article, index) => (
-                        <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    {sortedArticles.map((article, index) => {
+                        const hasFilterResult = article.filterStatus !== null;
+                        const passed = hasFilterResult ? article.filterStatus!.passed : null;
+
+                        return (
+                        <tr key={index} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                            hasFilterResult ? (passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20') : ''
+                        }`}>
                             <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
                                 {article.title}
                             </td>
@@ -243,9 +257,28 @@ export function SearchResults({
                             </td>
                             {appliedFeatures.map(feature => (
                                 <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {extractedData[article.id]?.[feature.id] || '-'}
+                                    {article.extracted_features?.[feature.id] || '-'}
                                 </td>
                             ))}
+                            {hasFilteredResults && (
+                                <td className="p-3 text-sm">
+                                    {hasFilterResult ? (
+                                        <div className="flex items-center gap-2">
+                                            <Badge
+                                                variant={passed ? "default" : "destructive"}
+                                                className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                                            >
+                                                {passed ? "✓ Accepted" : "✗ Rejected"}
+                                            </Badge>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                {Math.round(article.filterStatus!.confidence * 100)}%
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 dark:text-gray-500">Not filtered</span>
+                                    )}
+                                </td>
+                            )}
                             <td className="p-3">
                                 {article.url && (
                                     <a
@@ -259,7 +292,8 @@ export function SearchResults({
                                 )}
                             </td>
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -267,10 +301,16 @@ export function SearchResults({
 
     const renderCardView = (compressed: boolean = true) => (
         <div className={`space-y-${compressed ? '3' : '4'}`}>
-            {sortedArticles.map((article, index) => (
+            {sortedArticles.map((article, index) => {
+                const hasFilterResult = article.filterStatus !== null;
+                const passed = hasFilterResult ? article.filterStatus!.passed : null;
+
+                return (
                 <div
                     key={index}
-                    className={`border border-gray-200 dark:border-gray-700 rounded-lg ${compressed ? 'p-4' : 'p-6'} hover:bg-gray-50 dark:hover:bg-gray-800`}
+                    className={`border border-gray-200 dark:border-gray-700 rounded-lg ${compressed ? 'p-4' : 'p-6'} hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                        hasFilterResult ? (passed ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20') : ''
+                    }`}
                 >
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -301,28 +341,45 @@ export function SearchResults({
                                         <div key={feature.id} className="flex items-center gap-2 text-xs">
                                             <span className="font-medium text-gray-700 dark:text-gray-300">{feature.name}:</span>
                                             <span className="text-gray-600 dark:text-gray-400">
-                                                {extractedData[article.id]?.[feature.id] || '-'}
+                                                {article.extracted_features?.[feature.id] || '-'}
                                             </span>
                                         </div>
                                     ))}
                                 </div>
                             )}
+
+                            {hasFilteredResults && hasFilterResult && (
+                                <div className={`${compressed ? 'mt-2' : 'mt-4'} flex items-center gap-2`}>
+                                    <Badge
+                                        variant={passed ? "default" : "destructive"}
+                                        className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                                    >
+                                        {passed ? "✓ Accepted" : "✗ Rejected"}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        Confidence: {Math.round(article.filterStatus!.confidence * 100)}%
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
-                        {article.url && (
-                            <a
-                                href={article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0"
-                                title="View article"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        )}
+                        <div className="flex flex-col items-end gap-2">
+                            {article.url && (
+                                <a
+                                    href={article.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0"
+                                    title="View article"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                </a>
+                            )}
+                        </div>
                     </div>
                 </div>
-            ))}
+                );
+            })}
         </div>
     );
 
@@ -397,7 +454,7 @@ export function SearchResults({
                     {/* Left: Source and Counts */}
                     <div className="flex items-center gap-4 text-sm">
                         <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
-                        {filteredArticles && (
+                        {hasFilteredResults && (
                             <div className="flex items-center gap-2">
                                 <Badge variant="default" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                     <Filter className="w-3 h-3 mr-1" />
@@ -417,8 +474,8 @@ export function SearchResults({
                             </div>
                         )}
                         <span className="text-gray-600 dark:text-gray-400">
-                            {filteredArticles ? (
-                                `${filteredArticles.total_accepted}/${filteredArticles.total_processed} articles (${Math.round((filteredArticles.total_accepted / filteredArticles.total_processed) * 100)}% passed)`
+                            {filteringStats ? (
+                                `${filteringStats.total_accepted}/${filteringStats.total_processed} articles (${Math.round((filteringStats.total_accepted / filteringStats.total_processed) * 100)}% passed)`
                             ) : (
                                 `${pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}${articles.length.toLocaleString()} retrieved`
                             )}

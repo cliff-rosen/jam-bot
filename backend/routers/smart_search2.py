@@ -46,11 +46,6 @@ class DirectSearchResponse(BaseModel):
     source: str = Field(..., description="Source that was searched")
     query: str = Field(..., description="Query that was executed")
 
-class KeywordGenerationRequest(BaseModel):
-    """Request for keyword generation"""
-    concepts: List[str] = Field(..., description="Extracted concepts to generate keywords from")
-    source: str = Field(..., description="Target source: 'pubmed' or 'google_scholar'")
-    target_result_count: int = Field(200, description="Target number of results to aim for")
 
 class ConceptExpansionRequest(BaseModel):
     """Request for expanding concepts to Boolean expressions"""
@@ -73,14 +68,6 @@ class KeywordCombinationResponse(BaseModel):
     estimated_results: int = Field(..., description="Estimated number of results")
     source: str = Field(..., description="Source")
 
-class KeywordGenerationResponse(BaseModel):
-    """Response from keyword generation"""
-    concepts: List[str] = Field(..., description="Input concepts")
-    search_keywords: str = Field(..., description="Generated optimized search keywords")
-    source: str = Field(..., description="Target source")
-    estimated_results: int = Field(..., description="Estimated number of results")
-    concept_counts: Dict[str, int] = Field(..., description="Individual concept result counts")
-    optimization_strategy: str = Field(..., description="Description of the optimization approach used")
 
 class FeatureExtractionRequest(BaseModel):
     """Request for feature extraction from articles"""
@@ -95,9 +82,8 @@ class FeatureExtractionResponse(BaseModel):
 class ArticleFilterRequest(BaseModel):
     """Request for filtering articles using semantic discriminator"""
     articles: List[CanonicalResearchArticle] = Field(..., description="Articles to filter")
-    evidence_specification: str = Field(..., description="Evidence specification for filtering")
+    filter_condition: str = Field(..., description="Filter condition for evaluating articles")
     strictness: str = Field("medium", description="Filtering strictness: low, medium, or high")
-    discriminator_prompt: Optional[str] = Field(None, description="Custom discriminator prompt (auto-generated if not provided)")
 
 class ArticleFilterResponse(BaseModel):
     """Response from article filtering"""
@@ -370,62 +356,6 @@ async def test_keyword_combination(
         raise HTTPException(status_code=500, detail=f"Keyword combination test failed: {str(e)}")
 
 
-@router.post("/generate-keywords", response_model=KeywordGenerationResponse)
-async def generate_keywords(
-    request: KeywordGenerationRequest,
-    current_user = Depends(validate_token),
-    db: Session = Depends(get_db)
-) -> KeywordGenerationResponse:
-    """
-    Generate search keywords from evidence specification.
-    
-    This is a simplified version of keyword generation that doesn't require
-    session management - perfect for SmartSearch2.
-    
-    Args:
-        request: Keyword generation request
-        current_user: Authenticated user
-        db: Database session
-        
-    Returns:
-        KeywordGenerationResponse with generated keywords
-        
-    Raises:
-        HTTPException: If generation fails
-    """
-    try:
-        logger.info(f"User {current_user.user_id} generating optimized keywords from {len(request.concepts)} concepts for {request.source}")
-
-        # Validate source
-        if request.source not in ['pubmed', 'google_scholar']:
-            raise HTTPException(status_code=400, detail="Source must be 'pubmed' or 'google_scholar'")
-
-        if not request.concepts:
-            raise HTTPException(status_code=400, detail="At least one concept is required")
-
-        # Use SmartSearchService to generate optimized keywords
-        service = SmartSearchService()
-        result = await service.generate_optimized_keywords(
-            concepts=request.concepts,
-            source=request.source,
-            target_result_count=request.target_result_count
-        )
-
-        logger.info(f"Optimized keywords generated for user {current_user.user_id}: {result['estimated_results']} estimated results")
-
-        return KeywordGenerationResponse(
-            concepts=request.concepts,
-            search_keywords=result['search_keywords'],
-            source=request.source,
-            estimated_results=result['estimated_results'],
-            concept_counts=result['concept_counts'],
-            optimization_strategy=result['optimization_strategy']
-        )
-        
-    except Exception as e:
-        logger.error(f"Keyword generation failed for user {current_user.user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Keyword generation failed: {str(e)}")
-
 
 @router.post("/extract-features", response_model=FeatureExtractionResponse)
 async def extract_features(
@@ -537,17 +467,15 @@ async def filter_articles(
         if not request.articles:
             raise HTTPException(status_code=400, detail="At least one article is required")
 
-        # Generate discriminator prompt if not provided
-        discriminator_prompt = request.discriminator_prompt
-        if not discriminator_prompt:
-            logger.info("Generating discriminator prompt from evidence specification")
-            service = SmartSearchService()
-            discriminator_prompt = await service.generate_semantic_discriminator(
-                refined_question=request.evidence_specification,
-                search_query="",  # Not needed for SmartSearch2 discriminator generation
-                strictness=request.strictness or "medium"
-            )
-            logger.info("Generated discriminator prompt successfully")
+        # Generate discriminator prompt from filter condition
+        logger.info("Generating discriminator prompt from filter condition")
+        service = SmartSearchService()
+        discriminator_prompt = await service.generate_semantic_discriminator(
+            refined_question=request.filter_condition,
+            search_query="",  # Not needed for SmartSearch2 discriminator generation
+            strictness=request.strictness or "medium"
+        )
+        logger.info("Generated discriminator prompt successfully")
 
         # Use SmartSearchService to filter articles
         service = SmartSearchService()

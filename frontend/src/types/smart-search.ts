@@ -21,11 +21,24 @@ export interface SearchPaginationInfo {
   has_more: boolean;
 }
 
+// Legacy type for backward compatibility
 export interface FilteredArticle {
   article: CanonicalResearchArticle;
   passed: boolean;
   confidence: number;
   reasoning: string;
+}
+
+// Unified article type that holds everything
+export interface SmartSearchArticle extends CanonicalResearchArticle {
+  // Filter status (null when not filtered)
+  filterStatus?: {
+    passed: boolean;
+    confidence: number;
+    reasoning: string;
+  } | null;
+
+  // Note: extracted_features is already defined in CanonicalResearchArticle
 }
 
 export interface FilteringProgress {

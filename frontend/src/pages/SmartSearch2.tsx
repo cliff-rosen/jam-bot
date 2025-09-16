@@ -33,16 +33,16 @@ function SmartSearch2Content() {
   const {
     selectedSource,
     searchQuery,
-    searchResults,
+    articles,
+    pagination,
     isSearching,
     hasSearched,
     error,
-    filteredArticles,
     isFiltering,
     appliedFeatures,
     pendingFeatures,
-    extractedData,
     isExtracting,
+    filteringStats,
     evidenceSpec,
     search,
     resetSearch,
@@ -158,17 +158,16 @@ function SmartSearch2Content() {
     setShowFilterCriteriaModal(false);
 
     try {
-      console.log('handleFilterConfirm: Starting filter with criteria:', confirmedFilterCriteria);
-      const response = await filterArticles(confirmedFilterCriteria);
-      console.log('handleFilterConfirm: Filter completed with response:', response);
+      await filterArticles(confirmedFilterCriteria);
 
-      toast({
-        title: 'Filtering Complete',
-        description: `Filtered ${response.total_processed} articles. ${response.total_accepted} accepted, ${response.total_rejected} rejected.`,
-        variant: 'default'
-      });
+      if (filteringStats) {
+        toast({
+          title: 'Filtering Complete',
+          description: `Filtered ${filteringStats.total_processed} articles. ${filteringStats.total_accepted} accepted, ${filteringStats.total_rejected} rejected.`,
+          variant: 'default'
+        });
+      }
     } catch (error) {
-      console.error('handleFilterConfirm: Filtering failed:', error);
       toast({
         title: 'Filtering Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -294,8 +293,8 @@ function SmartSearch2Content() {
             </div>
           ) : (
             <SearchResults
-              articles={filteredArticles?.filtered_articles.map(fa => fa.article) || searchResults?.articles || []}
-              pagination={searchResults?.pagination || null}
+              articles={articles}
+              pagination={pagination}
               query={searchQuery}
               source={selectedSource}
               isSearching={isSearching}
@@ -303,7 +302,6 @@ function SmartSearch2Content() {
               onSearch={handleSearch}
               appliedFeatures={appliedFeatures}
               pendingFeatures={pendingFeatures}
-              extractedData={extractedData}
               isExtracting={isExtracting}
               onAddFeature={handleAddFeature}
               onRemovePendingFeature={removePendingFeature}
@@ -315,7 +313,7 @@ function SmartSearch2Content() {
               isFiltering={isFiltering}
               isAddingScholar={isAddingScholar}
               // Filter state
-              filteredArticles={filteredArticles}
+              filteringStats={filteringStats}
               onClearFilter={handleClearFilter}
               // UI state and handlers
               isEditingQuery={isEditingQuery}

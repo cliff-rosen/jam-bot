@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,6 +24,7 @@ function SmartSearch2Content() {
 
   // Collapsible search state
   const [isSearchCollapsed, setIsSearchCollapsed] = useState(false);
+  const [hasUserToggledSearch, setHasUserToggledSearch] = useState(false);
 
   // Enrichment state
   const [isAddingScholar, setIsAddingScholar] = useState(false);
@@ -60,15 +61,12 @@ function SmartSearch2Content() {
 
   const handleSearch = async () => {
     await search();
-    // Auto-collapse search form after first search with results
-    if (!hasSearched && articles.length > 0) {
-      setIsSearchCollapsed(true);
-    }
   };
 
   const handleNewSearch = () => {
     setShowKeywordHelper(false);
     setIsSearchCollapsed(false); // Expand search form for new search
+    setHasUserToggledSearch(false); // Reset user toggle state for new search
     resetSearch();
   };
 
@@ -184,6 +182,13 @@ function SmartSearch2Content() {
     clearFilter();
   };
 
+  // Auto-collapse search form when we get articles for the first time (only if user hasn't manually toggled)
+  useEffect(() => {
+    if (hasSearched && articles.length > 0 && !isSearchCollapsed && !hasUserToggledSearch) {
+      setIsSearchCollapsed(true);
+    }
+  }, [hasSearched, articles.length, isSearchCollapsed, hasUserToggledSearch]);
+
   const handleAddGoogleScholar = async () => {
     if (selectedSource !== 'pubmed') {
       return; // Should not happen as button is conditionally rendered
@@ -261,7 +266,10 @@ function SmartSearch2Content() {
             {/* Search Form - Collapsible after search results */}
             <Collapsible
               open={!isSearchCollapsed}
-              onOpenChange={(open) => setIsSearchCollapsed(!open)}
+              onOpenChange={(open) => {
+                setIsSearchCollapsed(!open);
+                setHasUserToggledSearch(true);
+              }}
             >
               {hasSearched && articles.length > 0 && (
                 <CollapsibleTrigger asChild>

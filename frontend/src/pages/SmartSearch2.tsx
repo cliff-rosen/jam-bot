@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,8 +17,6 @@ function SmartSearch2Content() {
   const { toast } = useToast();
 
   // SearchResults UI state
-  const [isEditingQuery, setIsEditingQuery] = useState(false);
-  const [editedQuery, setEditedQuery] = useState('');
   const [displayMode, setDisplayMode] = useState<'table' | 'card-compressed' | 'card-full'>('card-compressed');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -115,29 +113,6 @@ function SmartSearch2Content() {
     }
   };
 
-  // SearchResults handlers
-  const handleQueryEdit = () => {
-    if (isEditingQuery) {
-      if (editedQuery.trim() !== searchQuery.trim()) {
-        updateSearchQuery(editedQuery.trim());
-        handleSearch();
-      }
-      setIsEditingQuery(false);
-    } else {
-      setEditedQuery(searchQuery);
-      setIsEditingQuery(true);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditedQuery(searchQuery);
-    setIsEditingQuery(false);
-  };
-
-  const handleEditedQueryChange = (value: string) => {
-    setEditedQuery(value);
-  };
-
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -225,10 +200,6 @@ function SmartSearch2Content() {
     }
   };
 
-  // Update editedQuery when searchQuery changes
-  useEffect(() => {
-    setEditedQuery(searchQuery);
-  }, [searchQuery]);
 
   return (
     <div className="flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -277,40 +248,39 @@ function SmartSearch2Content() {
           )}
 
           {/* Main Content */}
-          {!hasSearched ? (
-            <div className="space-y-6">
-              {/* Search or Keyword Helper */}
-              {showKeywordHelper ? (
-                <Card className="p-6">
-                  <div className="mb-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowKeywordHelper(false)}
-                      className="mb-4"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back to Direct Search
-                    </Button>
-                  </div>
-                  <KeywordHelper
-                    onComplete={handleKeywordHelperComplete}
-                    onCancel={() => setShowKeywordHelper(false)}
-                  />
-                </Card>
-              ) : (
-                <SearchForm
-                  onSearch={handleSearch}
-                  onToggleKeywordHelper={() => setShowKeywordHelper(true)}
-                  isSearching={isSearching}
+          <div className="space-y-6">
+            {/* Search Form - Always visible */}
+            {showKeywordHelper ? (
+              <Card className="p-6">
+                <div className="mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowKeywordHelper(false)}
+                    className="mb-4"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Direct Search
+                  </Button>
+                </div>
+                <KeywordHelper
+                  onComplete={handleKeywordHelperComplete}
+                  onCancel={() => setShowKeywordHelper(false)}
                 />
-              )}
-            </div>
-          ) : (
+              </Card>
+            ) : (
+              <SearchForm
+                onSearch={handleSearch}
+                onToggleKeywordHelper={() => setShowKeywordHelper(true)}
+                isSearching={isSearching}
+              />
+            )}
+
+            {/* Search Results - Only when we have searched */}
+            {hasSearched && (
             <SearchResults
               articles={articles}
               pagination={pagination}
-              query={searchQuery}
               source={selectedSource}
               isSearching={isSearching}
               onQueryUpdate={updateSearchQuery}
@@ -332,18 +302,14 @@ function SmartSearch2Content() {
               hasFiltered={resultState === ResultState.FilteredResult}
               onClearFilter={handleClearFilter}
               // UI state and handlers
-              isEditingQuery={isEditingQuery}
-              editedQuery={editedQuery}
               displayMode={displayMode}
               sortColumn={sortColumn}
               sortDirection={sortDirection}
-              onQueryEdit={handleQueryEdit}
-              onCancelEdit={handleCancelEdit}
-              onEditedQueryChange={handleEditedQueryChange}
               onDisplayModeChange={setDisplayMode}
               onSort={handleSort}
             />
-          )}
+            )}
+          </div>
         </div>
       </div>
 

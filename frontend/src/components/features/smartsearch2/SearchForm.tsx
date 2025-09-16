@@ -1,7 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Search, Sparkles } from 'lucide-react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
@@ -18,9 +17,7 @@ export function SearchForm({
   isSearching
 }: SearchFormProps) {
   const {
-    selectedSource,
     searchQuery,
-    updateSelectedSource,
     updateSearchQuery
   } = useSmartSearch2();
 
@@ -32,48 +29,12 @@ export function SearchForm({
   };
 
   const getPlaceholderText = () => {
-    return selectedSource === 'google_scholar'
-      ? '"machine learning" healthcare diagnosis'
-      : '(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)';
+    return '(cannabis OR marijuana) AND (motivation OR apathy) AND (study OR research)';
   };
 
   return (
     <Card className="p-6 dark:bg-gray-800">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Source Selection */}
-        <div>
-          <Label className="text-base font-semibold mb-3 block">
-            Select Source
-          </Label>
-          <RadioGroup
-            value={selectedSource}
-            onValueChange={(value) => {
-              const newSource = value as 'pubmed' | 'google_scholar';
-              updateSelectedSource(newSource);
-            }}
-            className="flex gap-6"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pubmed" id="pubmed" />
-              <Label
-                htmlFor="pubmed"
-                className="cursor-pointer font-normal"
-              >
-                PubMed
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="google_scholar" id="google_scholar" />
-              <Label
-                htmlFor="google_scholar"
-                className="cursor-pointer font-normal"
-              >
-                Google Scholar
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-
         {/* Search Query Input */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -103,10 +64,7 @@ export function SearchForm({
             placeholder={getPlaceholderText()}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {selectedSource === 'google_scholar'
-              ? 'Enter natural language search terms'
-              : 'Enter boolean search query with AND, OR, NOT operators'
-            }
+            Enter boolean search query with AND, OR, NOT operators
           </p>
         </div>
 

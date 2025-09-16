@@ -223,6 +223,12 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
         setHasSearched(true);
 
+        // Clear any existing state when starting a new search
+        setFilteringStats(null);
+        setAppliedFeatures([]);
+        setPendingFeatures([]);
+        setIsExtracting(false);
+
         try {
             // Execute direct search using SmartSearch2 API (no session required)
             const results = await smartSearch2Api.search({
@@ -247,9 +253,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             } else {
                 setResultState(ResultState.FullSearchResult);
             }
-
-            // Clear any previous filtering
-            setFilteringStats(null);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Search failed';
             setError(errorMessage);

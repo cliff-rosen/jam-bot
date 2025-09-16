@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
     ExternalLink,
-    Edit,
     Search,
     Grid,
     List,
@@ -29,7 +28,6 @@ import type { FeatureDefinition } from '@/types/workbench';
 interface SearchResultsProps {
     articles: SmartSearchArticle[];
     pagination: SearchPaginationInfo | null;
-    query: string;
     source: 'pubmed' | 'google_scholar';
     isSearching: boolean;
     onQueryUpdate: (newQuery: string) => void;
@@ -63,14 +61,9 @@ interface SearchResultsProps {
     onClearFilter?: () => void;
 
     // UI state (now managed by parent)
-    isEditingQuery: boolean;
-    editedQuery: string;
     displayMode: 'table' | 'card-compressed' | 'card-full';
     sortColumn: string;
     sortDirection: 'asc' | 'desc';
-    onQueryEdit: () => void;
-    onCancelEdit: () => void;
-    onEditedQueryChange: (value: string) => void;
     onDisplayModeChange: (mode: 'table' | 'card-compressed' | 'card-full') => void;
     onSort: (column: string) => void;
 }
@@ -78,7 +71,6 @@ interface SearchResultsProps {
 export function SearchResults({
     articles,
     pagination,
-    query,
     source,
     isSearching,
     onLoadMore,
@@ -96,14 +88,9 @@ export function SearchResults({
     filteringStats,
     hasFiltered,
     onClearFilter,
-    isEditingQuery,
-    editedQuery,
     displayMode,
     sortColumn,
     sortDirection,
-    onQueryEdit,
-    onCancelEdit,
-    onEditedQueryChange,
     onDisplayModeChange,
     onSort
 }: SearchResultsProps) {
@@ -242,59 +229,58 @@ export function SearchResults({
                         const passed = hasFilterResult ? article.filterStatus!.passed : null;
 
                         return (
-                        <tr key={index} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                            hasFilterResult ? (passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20') : ''
-                        }`}>
-                            <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
-                                {article.title}
-                            </td>
-                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                {article.authors?.slice(0, 2).join(', ')}
-                                {article.authors && article.authors.length > 2 && ' et al.'}
-                            </td>
-                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                {article.publication_year}
-                            </td>
-                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                {article.journal}
-                            </td>
-                            {appliedFeatures.map(feature => (
-                                <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                    {article.extracted_features?.[feature.id] || '-'}
+                            <tr key={index} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${hasFilterResult ? (passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20') : ''
+                                }`}>
+                                <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                                    {article.title}
                                 </td>
-                            ))}
-                            {hasFilteredResults && (
-                                <td className="p-3 text-sm">
-                                    {hasFilterResult ? (
-                                        <div className="flex items-center gap-2">
-                                            <Badge
-                                                variant={passed ? "default" : "destructive"}
-                                                className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
-                                            >
-                                                {passed ? "✓ Accepted" : "✗ Rejected"}
-                                            </Badge>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                {Math.round(article.filterStatus!.confidence * 100)}%
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400 dark:text-gray-500">Not filtered</span>
+                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                    {article.authors?.slice(0, 2).join(', ')}
+                                    {article.authors && article.authors.length > 2 && ' et al.'}
+                                </td>
+                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                    {article.publication_year}
+                                </td>
+                                <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                    {article.journal}
+                                </td>
+                                {appliedFeatures.map(feature => (
+                                    <td key={feature.id} className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {article.extracted_features?.[feature.id] || '-'}
+                                    </td>
+                                ))}
+                                {hasFilteredResults && (
+                                    <td className="p-3 text-sm">
+                                        {hasFilterResult ? (
+                                            <div className="flex items-center gap-2">
+                                                <Badge
+                                                    variant={passed ? "default" : "destructive"}
+                                                    className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                                                >
+                                                    {passed ? "✓ Accepted" : "✗ Rejected"}
+                                                </Badge>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {Math.round(article.filterStatus!.confidence * 100)}%
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 dark:text-gray-500">Not filtered</span>
+                                        )}
+                                    </td>
+                                )}
+                                <td className="p-3">
+                                    {article.url && (
+                                        <a
+                                            href={article.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                        </a>
                                     )}
                                 </td>
-                            )}
-                            <td className="p-3">
-                                {article.url && (
-                                    <a
-                                        href={article.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                    >
-                                        <ExternalLink className="w-4 h-4" />
-                                    </a>
-                                )}
-                            </td>
-                        </tr>
+                            </tr>
                         );
                     })}
                 </tbody>
@@ -309,78 +295,77 @@ export function SearchResults({
                 const passed = hasFilterResult ? article.filterStatus!.passed : null;
 
                 return (
-                <div
-                    key={index}
-                    className={`border border-gray-200 dark:border-gray-700 rounded-lg ${compressed ? 'p-4' : 'p-6'} hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                        hasFilterResult ? (passed ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20') : ''
-                    }`}
-                >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                            <h4 className={`font-medium text-gray-900 dark:text-white ${compressed ? 'mb-2' : 'mb-3'}`}>
-                                {article.title || 'Untitled'}
-                            </h4>
-                            <p className={`text-sm text-gray-600 dark:text-gray-400 ${compressed ? 'mb-2' : 'mb-3'}`}>
-                                {article.authors?.slice(0, 3).join(', ')}
-                                {article.authors && article.authors.length > 3 && ' et al.'}
-                            </p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
-                                {article.journal && <span>{article.journal}</span>}
-                                {article.publication_year && <span>{article.publication_year}</span>}
-                                <Badge variant="outline" className="text-xs">
-                                    {source === 'pubmed' ? 'PubMed' : 'Google Scholar'}
-                                </Badge>
+                    <div
+                        key={index}
+                        className={`border border-gray-200 dark:border-gray-700 rounded-lg ${compressed ? 'p-4' : 'p-6'} hover:bg-gray-50 dark:hover:bg-gray-800 ${hasFilterResult ? (passed ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20') : ''
+                            }`}
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                                <h4 className={`font-medium text-gray-900 dark:text-white ${compressed ? 'mb-2' : 'mb-3'}`}>
+                                    {article.title || 'Untitled'}
+                                </h4>
+                                <p className={`text-sm text-gray-600 dark:text-gray-400 ${compressed ? 'mb-2' : 'mb-3'}`}>
+                                    {article.authors?.slice(0, 3).join(', ')}
+                                    {article.authors && article.authors.length > 3 && ' et al.'}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
+                                    {article.journal && <span>{article.journal}</span>}
+                                    {article.publication_year && <span>{article.publication_year}</span>}
+                                    <Badge variant="outline" className="text-xs">
+                                        {source === 'pubmed' ? 'PubMed' : 'Google Scholar'}
+                                    </Badge>
+                                </div>
+
+                                {!compressed && article.abstract && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 line-clamp-3">
+                                        {article.abstract}
+                                    </p>
+                                )}
+
+                                {appliedFeatures.length > 0 && (
+                                    <div className={`${compressed ? 'mt-2' : 'mt-4'} space-y-1`}>
+                                        {appliedFeatures.map(feature => (
+                                            <div key={feature.id} className="flex items-center gap-2 text-xs">
+                                                <span className="font-medium text-gray-700 dark:text-gray-300">{feature.name}:</span>
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    {article.extracted_features?.[feature.id] || '-'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {hasFilteredResults && hasFilterResult && (
+                                    <div className={`${compressed ? 'mt-2' : 'mt-4'} flex items-center gap-2`}>
+                                        <Badge
+                                            variant={passed ? "default" : "destructive"}
+                                            className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                                        >
+                                            {passed ? "✓ Accepted" : "✗ Rejected"}
+                                        </Badge>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            Confidence: {Math.round(article.filterStatus!.confidence * 100)}%
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
-                            {!compressed && article.abstract && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 line-clamp-3">
-                                    {article.abstract}
-                                </p>
-                            )}
-
-                            {appliedFeatures.length > 0 && (
-                                <div className={`${compressed ? 'mt-2' : 'mt-4'} space-y-1`}>
-                                    {appliedFeatures.map(feature => (
-                                        <div key={feature.id} className="flex items-center gap-2 text-xs">
-                                            <span className="font-medium text-gray-700 dark:text-gray-300">{feature.name}:</span>
-                                            <span className="text-gray-600 dark:text-gray-400">
-                                                {article.extracted_features?.[feature.id] || '-'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {hasFilteredResults && hasFilterResult && (
-                                <div className={`${compressed ? 'mt-2' : 'mt-4'} flex items-center gap-2`}>
-                                    <Badge
-                                        variant={passed ? "default" : "destructive"}
-                                        className={passed ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}
+                            <div className="flex flex-col items-end gap-2">
+                                {article.url && (
+                                    <a
+                                        href={article.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0"
+                                        title="View article"
                                     >
-                                        {passed ? "✓ Accepted" : "✗ Rejected"}
-                                    </Badge>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                        Confidence: {Math.round(article.filterStatus!.confidence * 100)}%
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                            {article.url && (
-                                <a
-                                    href={article.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex-shrink-0"
-                                    title="View article"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                </a>
-                            )}
+                                        <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
                 );
             })}
         </div>
@@ -388,72 +373,10 @@ export function SearchResults({
 
     return (
         <div className="space-y-3">
-            {/* Compact Query Display (only when editing) */}
-            {isEditingQuery && (
-                <Card className="p-4">
-                    <div className="space-y-3">
-                        <Label className="text-sm font-medium text-gray-900 dark:text-white">Edit Search Query</Label>
-                        <div className="flex gap-2">
-                            <Textarea
-                                value={editedQuery}
-                                onChange={(e) => onEditedQueryChange(e.target.value)}
-                                rows={2}
-                                className="flex-1 font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                            />
-                            <div className="flex flex-col gap-2">
-                                <Button
-                                    onClick={onQueryEdit}
-                                    disabled={isSearching || !editedQuery.trim()}
-                                    size="sm"
-                                    className="whitespace-nowrap"
-                                >
-                                    {isSearching ? (
-                                        <>
-                                            <div className="animate-spin mr-2 h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                            Searching...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Search className="w-3 h-3 mr-2" />
-                                            Search
-                                        </>
-                                    )}
-                                </Button>
-                                <Button
-                                    onClick={onCancelEdit}
-                                    variant="outline"
-                                    size="sm"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-            )}
-
-            {/* Enhanced Controls Bar with Query, Actions, and View Controls */}
+            {/* Enhanced Controls Bar with Actions and View Controls */}
             <div className="flex flex-col gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Top Row: Query Display or Filtered Group Indicator */}
-                {!isEditingQuery && !hasFiltered && (
-                    <div className="flex items-center gap-2">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">Query:</Label>
-                        <div className="flex-1 px-2 py-1 bg-white dark:bg-gray-700 rounded border text-xs font-mono text-gray-900 dark:text-gray-100 truncate">
-                            {query}
-                        </div>
-                        <Button
-                            onClick={onQueryEdit}
-                            variant="ghost"
-                            size="sm"
-                            className="flex-shrink-0"
-                        >
-                            <Edit className="w-3 h-3" />
-                        </Button>
-                    </div>
-                )}
-
-                {/* Filtered Group Indicator */}
-                {hasFiltered && !isEditingQuery && (
+                {/* Filtered Group Indicator - Only show when filtered */}
+                {hasFiltered && (
                     <div className="flex items-center gap-2">
                         <Filter className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         <Label className="text-sm font-medium text-purple-600 dark:text-purple-400">Filtered Group</Label>

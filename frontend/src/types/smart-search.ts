@@ -38,6 +38,12 @@ export interface SmartSearchArticle extends CanonicalResearchArticle {
     reasoning: string;
   } | null;
 
+  // Duplicate detection (for Scholar results compared against PubMed)
+  isDuplicate?: boolean;
+  duplicateReason?: string;
+  duplicateMatch?: SmartSearchArticle | null;
+  similarityScore?: number;
+
   // Note: extracted_features is already defined in CanonicalResearchArticle
 }
 

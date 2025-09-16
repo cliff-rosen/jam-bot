@@ -153,6 +153,7 @@ interface SmartSearch2Actions {
     generateScholarKeywords: () => Promise<string>;
     testScholarKeywords: (keywords: string) => Promise<number>;
     searchScholar: (keywords: string, maxResults?: number) => Promise<SmartSearchArticle[]>;
+    detectDuplicates: (scholarArticles: SmartSearchArticle[]) => SmartSearchArticle[];
 }
 
 // ================== CONTEXT ==================
@@ -584,6 +585,116 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, []);
 
+    const detectDuplicates = useCallback((scholarArticles: SmartSearchArticle[]): SmartSearchArticle[] => {
+        // Helper function to normalize text for comparison
+        const normalizeText = (text: string): string => {
+            return text
+                .toLowerCase()
+                .replace(/[^\w\s]/g, '') // Remove punctuation
+                .replace(/\s+/g, ' ') // Normalize whitespace
+                .trim();
+        };
+
+        // Helper function to extract meaningful words from title
+        const extractKeywords = (title: string): string[] => {
+            const normalized = normalizeText(title);
+            const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']);
+            return normalized
+                .split(' ')
+                .filter(word => word.length > 2 && !stopWords.has(word))
+                .slice(0, 10); // Take first 10 meaningful words
+        };
+
+        // Helper function to calculate similarity score between two titles
+        const calculateTitleSimilarity = (title1: string, title2: string): number => {
+            const keywords1 = new Set(extractKeywords(title1));
+            const keywords2 = new Set(extractKeywords(title2));
+
+            const intersection = new Set([...keywords1].filter(x => keywords2.has(x)));
+            const union = new Set([...keywords1, ...keywords2]);
+
+            return union.size > 0 ? intersection.size / union.size : 0;
+        };
+
+        // Helper function to check author overlap
+        const calculateAuthorSimilarity = (authors1: string[], authors2: string[]): number => {
+            if (!authors1?.length || !authors2?.length) return 0;
+
+            const normalizeAuthor = (author: string) => normalizeText(author.replace(/[,.]$/, ''));
+            const norm1 = authors1.map(normalizeAuthor);
+            const norm2 = authors2.map(normalizeAuthor);
+
+            const matches = norm1.filter(a1 =>
+                norm2.some(a2 =>
+                    a1 === a2 || // Exact match
+                    (a1.includes(a2) && a2.length > 4) || // One contains the other
+                    (a2.includes(a1) && a1.length > 4)
+                )
+            ).length;
+
+            return Math.max(norm1.length, norm2.length) > 0 ? matches / Math.max(norm1.length, norm2.length) : 0;
+        };
+
+        // Helper function to check year similarity
+        const calculateYearSimilarity = (year1?: number, year2?: number): number => {
+            if (!year1 || !year2) return 0.5; // Neutral if missing
+            const diff = Math.abs(year1 - year2);
+            if (diff === 0) return 1;
+            if (diff === 1) return 0.8;
+            if (diff <= 2) return 0.5;
+            return 0;
+        };
+
+        // Main deduplication logic
+        return scholarArticles.map(scholarArticle => {
+            let isDuplicate = false;
+            let duplicateReason = '';
+            let bestMatch: SmartSearchArticle | null = null;
+            let highestScore = 0;
+
+            // Compare with each PubMed article
+            for (const pubmedArticle of articles) {
+                if (pubmedArticle.source !== 'pubmed') continue;
+
+                const titleSim = calculateTitleSimilarity(scholarArticle.title, pubmedArticle.title);
+                const authorSim = calculateAuthorSimilarity(scholarArticle.authors || [], pubmedArticle.authors || []);
+                const yearSim = calculateYearSimilarity(scholarArticle.publication_year, pubmedArticle.publication_year);
+
+                // Weighted scoring system
+                const overallScore = titleSim * 0.6 + authorSim * 0.3 + yearSim * 0.1;
+
+                if (overallScore > highestScore) {
+                    highestScore = overallScore;
+                    bestMatch = pubmedArticle;
+                }
+
+                // Determine if it's a duplicate based on different criteria
+                if (titleSim >= 0.85) {
+                    isDuplicate = true;
+                    duplicateReason = `Very similar title (${Math.round(titleSim * 100)}% match)`;
+                    break;
+                } else if (titleSim >= 0.7 && authorSim >= 0.5) {
+                    isDuplicate = true;
+                    duplicateReason = `Similar title (${Math.round(titleSim * 100)}%) and authors (${Math.round(authorSim * 100)}%)`;
+                    break;
+                } else if (titleSim >= 0.6 && authorSim >= 0.7 && yearSim >= 0.8) {
+                    isDuplicate = true;
+                    duplicateReason = `Good match across title, authors, and year`;
+                    break;
+                }
+            }
+
+            // Return article with duplicate detection metadata
+            return {
+                ...scholarArticle,
+                isDuplicate,
+                duplicateReason,
+                duplicateMatch: bestMatch,
+                similarityScore: highestScore
+            };
+        });
+    }, [articles]);
+
     const searchScholar = useCallback(async (keywords: string, maxResults: number = 100): Promise<SmartSearchArticle[]> => {
         try {
             // Search Google Scholar with the user's keywords
@@ -608,15 +719,14 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 categories: [] // Scholar doesn't have PubMed-style categories
             }));
 
-            // TODO: Implement deduplication logic against existing PubMed results
-            // For now, assume all are unique
-            return scholarArticles;
+            // Apply duplicate detection against existing PubMed results
+            return detectDuplicates(scholarArticles);
         } catch (error) {
             console.error('Error searching Scholar:', error);
             // Return empty array on error
             return [];
         }
-    }, []);
+    }, [detectDuplicates]);
 
     const filterArticles = useCallback(async (
         filterConditionOverride?: string,
@@ -877,6 +987,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         generateScholarKeywords,
         testScholarKeywords,
         searchScholar,
+        detectDuplicates,
 
         // Research journey actions
         setResearchQuestion,

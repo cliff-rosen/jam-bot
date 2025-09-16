@@ -298,15 +298,35 @@ export function ScholarEnrichmentModal({
 
                             {/* Search Metadata */}
                             {!isProcessing && uniqueArticles.length > 0 && (
-                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
-                                    <div className="flex gap-2 items-center text-sm text-blue-900 dark:text-blue-100">
-                                        <Search className="w-4 h-4 text-blue-600" />
-                                        <div>
-                                            <strong>Search completed:</strong> Retrieved {uniqueArticles.length} articles from Google Scholar.
-                                            {testResultCount && ` Estimated total: ${testResultCount} results available.`}
-                                            {uniqueArticles.length === 100 && ' (Limited to first 100 results)'}
+                                <div className="space-y-3 mb-4">
+                                    {/* Search Results Summary */}
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                                        <div className="flex gap-2 items-center text-sm text-blue-900 dark:text-blue-100">
+                                            <Search className="w-4 h-4 text-blue-600" />
+                                            <div>
+                                                <strong>Search completed:</strong> Retrieved {uniqueArticles.length} articles from Google Scholar.
+                                                {testResultCount && ` Estimated total: ${testResultCount} results available.`}
+                                                {uniqueArticles.length === 100 && ' (Limited to first 100 results)'}
+                                            </div>
                                         </div>
                                     </div>
+
+                                    {/* Duplicate Detection Summary */}
+                                    {(() => {
+                                        const duplicates = uniqueArticles.filter(article => article.isDuplicate);
+                                        const unique = uniqueArticles.filter(article => !article.isDuplicate);
+
+                                        return (
+                                            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                                                <div className="flex gap-2 items-center text-sm text-green-900 dark:text-green-100">
+                                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                                    <div>
+                                                        <strong>Duplicate detection:</strong> Found {unique.length} unique articles and {duplicates.length} potential duplicates of your PubMed results.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -330,13 +350,25 @@ export function ScholarEnrichmentModal({
                                                         <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
                                                             {article.title}
                                                         </div>
-                                                        <Badge variant="outline" className="text-xs flex-shrink-0">
-                                                            Unique
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`text-xs flex-shrink-0 ${
+                                                                article.isDuplicate
+                                                                    ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
+                                                                    : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
+                                                            }`}
+                                                        >
+                                                            {article.isDuplicate ? 'Duplicate' : 'Unique'}
                                                         </Badge>
                                                     </div>
                                                     <div className="text-xs text-gray-600 dark:text-gray-400">
                                                         {article.authors?.join(', ')}
                                                     </div>
+                                                    {article.isDuplicate && article.duplicateReason && (
+                                                        <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10 rounded px-2 py-1">
+                                                            <strong>Duplicate reason:</strong> {article.duplicateReason}
+                                                        </div>
+                                                    )}
                                                     <div className="flex gap-2 flex-wrap">
                                                         <Badge variant="outline" className="text-xs">
                                                             {article.journal}
@@ -349,6 +381,11 @@ export function ScholarEnrichmentModal({
                                                         {article.citation_count !== undefined && (
                                                             <Badge variant="outline" className="text-xs">
                                                                 {article.citation_count} citations
+                                                            </Badge>
+                                                        )}
+                                                        {article.similarityScore !== undefined && (
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {Math.round(article.similarityScore * 100)}% similarity
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -417,15 +454,6 @@ export function ScholarEnrichmentModal({
                     <div className="flex justify-between">
                         {/* Left side - Back button (conditional) */}
                         <div>
-                            {currentStep === 'evidence' && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setCurrentStep('keywords')}
-                                >
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Back to Keywords
-                                </Button>
-                            )}
                             {currentStep === 'browse' && (
                                 <Button
                                     variant="outline"

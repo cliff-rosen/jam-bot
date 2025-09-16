@@ -630,6 +630,15 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             }));
         setArticles(acceptedArticles);
         setFilteringStats(null);
+
+        // Update pagination to reflect new article count (no longer a search result)
+        setPagination({
+            total_available: acceptedArticles.length,
+            returned: acceptedArticles.length,
+            offset: 0,
+            has_more: false
+        });
+
         setResultState(ResultState.FilteredResult);  // Final filtered state
     }, [articles]);
 

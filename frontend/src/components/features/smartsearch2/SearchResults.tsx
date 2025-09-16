@@ -458,6 +458,8 @@ export function SearchResults({
                         <span className="text-gray-600 dark:text-gray-400">
                             {filteringStats ? (
                                 `${filteringStats.total_accepted}/${filteringStats.total_processed} articles (${Math.round((filteringStats.total_accepted / filteringStats.total_processed) * 100)}% passed)`
+                            ) : hasFiltered ? (
+                                `${articles.length.toLocaleString()} filtered articles`
                             ) : (
                                 `${pagination ? `${pagination.total_available.toLocaleString()} total • ` : ''}${articles.length.toLocaleString()} retrieved`
                             )}

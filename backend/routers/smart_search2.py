@@ -398,7 +398,7 @@ async def extract_features(
                 'abstract': article.abstract or "",
                 'authors': article.authors,
                 'journal': article.journal,
-                'publication_date': article.publication_date.isoformat() if article.publication_date else None,
+                'publication_date': article.publication_date,
                 'url': article.url
             }
             articles_dict.append(article_dict)

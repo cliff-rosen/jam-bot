@@ -4,12 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
     ExternalLink,
-    Search,
     Grid,
     List,
     Table,
@@ -19,10 +17,14 @@ import {
     ArrowDown,
     X,
     Filter,
-    BookOpen
+    BookOpen,
+    FileSpreadsheet,
+    FileText,
+    Copy
 } from 'lucide-react';
 import type { SmartSearchArticle, SearchPaginationInfo } from '@/types/smart-search';
-import type { FeatureDefinition } from '@/types/workbench';
+import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
+import { exportToCSV, copyPMIDsToClipboard, exportToPDF } from '@/lib/utils/exportUtils';
 
 
 interface SearchResultsProps {
@@ -35,10 +37,10 @@ interface SearchResultsProps {
     onLoadMore?: () => void;
 
     // Feature extraction props
-    appliedFeatures: FeatureDefinition[];
-    pendingFeatures: FeatureDefinition[];
+    appliedFeatures: CanonicalFeatureDefinition[];
+    pendingFeatures: CanonicalFeatureDefinition[];
     isExtracting: boolean;
-    onAddFeature: (feature: Omit<FeatureDefinition, 'id'>) => void;
+    onAddFeature: (feature: Omit<CanonicalFeatureDefinition, 'id'>) => void;
     onRemovePendingFeature: (featureId: string) => void;
     onExtractFeatures: () => void;
 
@@ -68,6 +70,9 @@ interface SearchResultsProps {
     sortDirection: 'asc' | 'desc';
     onDisplayModeChange: (mode: 'table' | 'card-compressed' | 'card-full') => void;
     onSort: (column: string) => void;
+
+    // Export props (optional for backward compatibility)
+    searchQuery?: string;
 }
 
 export function SearchResults({
@@ -101,7 +106,7 @@ export function SearchResults({
 
     // AI Columns State
     const [showColumns, setShowColumns] = useState(false);
-    const [newFeature, setNewFeature] = useState<FeatureDefinition>({
+    const [newFeature, setNewFeature] = useState<CanonicalFeatureDefinition>({
         id: '',
         name: '',
         description: '',
@@ -127,6 +132,42 @@ export function SearchResults({
             description: '',
             type: 'text'
         });
+    };
+
+    // Export handlers
+    const handleExportCSV = () => {
+        try {
+            const result = exportToCSV(articles, appliedFeatures);
+            // Optional: Show success toast if available
+            console.log(result.message);
+        } catch (error) {
+            console.error('Export to CSV failed:', error);
+        }
+    };
+
+    const handleCopyPMIDs = async () => {
+        try {
+            const result = await copyPMIDsToClipboard(articles);
+            // Optional: Show success toast if available
+            console.log(result.message);
+        } catch (error) {
+            console.error('Copy PMIDs failed:', error);
+        }
+    };
+
+    const handleExportPDF = () => {
+        try {
+            const result = exportToPDF(
+                articles,
+                searchQuery,
+                evidenceSpec,
+                appliedFeatures
+            );
+            // Optional: Show success toast if available
+            console.log(result.message);
+        } catch (error) {
+            console.error('Export to PDF failed:', error);
+        }
     };
 
     // Check if any articles have been filtered
@@ -568,6 +609,38 @@ export function SearchResults({
                                 <Grid className="w-4 h-4" />
                             </Button>
                         </div>
+
+                        {/* Export buttons */}
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleExportCSV}
+                                disabled={articles.length === 0}
+                                title="Export as CSV"
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopyPMIDs}
+                                disabled={articles.length === 0}
+                                title="Copy PubMed IDs to clipboard"
+                            >
+                                <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleExportPDF}
+                                disabled={articles.length === 0}
+                                title="Export as PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                            </Button>
+                        </div>
+
                         <Button
                             variant={showColumns ? 'default' : 'ghost'}
                             size="sm"

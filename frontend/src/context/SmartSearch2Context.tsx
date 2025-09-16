@@ -13,6 +13,8 @@ import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
+const MAX_ARTICLES_TO_FILTER = 3000;
+
 // ================== RESULT STATE ENUM ==================
 
 export enum ResultState {
@@ -524,7 +526,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 // Calculate how many more articles to retrieve (up to 300 total)
                 const currentCount = articles.length;
                 const availableCount = pagination.total_available;
-                const targetCount = Math.min(availableCount, 300);
+                const targetCount = Math.min(availableCount, MAX_ARTICLES_TO_FILTER);
                 const remainingToFetch = targetCount - currentCount;
 
                 // Check if we're hitting the 300 limit
@@ -583,6 +585,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 const { filterStatus, ...rawArticle } = article;
                 return rawArticle;
             });
+            console.log('Raw article count:', rawArticles.length);
 
             const response = await smartSearch2Api.filterArticles({
                 filter_condition: finalFilterCondition,

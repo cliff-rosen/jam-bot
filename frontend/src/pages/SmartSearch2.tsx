@@ -358,6 +358,8 @@ function SmartSearch2Content() {
               sortDirection={sortDirection}
               onDisplayModeChange={setDisplayMode}
               onSort={handleSort}
+              // Export props
+              searchQuery={searchQuery}
             />
             )}
           </div>

@@ -279,25 +279,6 @@ export function ScholarEnrichmentModal({
                                         </div>
                                     )}
 
-                                    <div className="flex justify-end">
-                                        <Button
-                                            onClick={handleBrowseResults}
-                                            disabled={!editedKeywords.trim() || isProcessing}
-                                            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        >
-                                            {isProcessing ? (
-                                                <>
-                                                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                                                    Searching...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Search className="w-4 h-4 mr-2" />
-                                                    Browse Results
-                                                </>
-                                            )}
-                                        </Button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -305,80 +286,78 @@ export function ScholarEnrichmentModal({
 
                     {/* Step 2: Browse Results */}
                     {currentStep === 'browse' && (
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Browse Scholar Results</h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Found {uniqueArticles.length} articles from Google Scholar (showing up to 100). Articles marked as duplicates already exist in your PubMed results.
-                                        </p>
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-full overflow-hidden flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Browse Scholar Results</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        {isProcessing ? 'Searching Google Scholar...' : `Found ${uniqueArticles.length} unique articles from Google Scholar`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Search Metadata */}
+                            {!isProcessing && uniqueArticles.length > 0 && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
+                                    <div className="flex gap-2 items-center text-sm text-blue-900 dark:text-blue-100">
+                                        <Search className="w-4 h-4 text-blue-600" />
+                                        <div>
+                                            <strong>Search completed:</strong> Retrieved {uniqueArticles.length} articles from Google Scholar.
+                                            {testResultCount && ` Estimated total: ${testResultCount} results available.`}
+                                            {uniqueArticles.length === 100 && ' (Limited to first 100 results)'}
+                                        </div>
                                     </div>
                                 </div>
+                            )}
 
-                                {isProcessing ? (
-                                    <div className="text-center py-12">
+                            {isProcessing ? (
+                                <div className="flex-1 flex items-center justify-center">
+                                    <div className="text-center">
                                         <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
                                         <p className="text-gray-600 dark:text-gray-400">Searching Google Scholar and identifying duplicates...</p>
                                     </div>
-                                ) : (
-                                    <>
-                                        <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                                            {uniqueArticles.map(article => (
-                                                <div
-                                                    key={article.id}
-                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
-                                                                {article.title}
-                                                            </div>
-                                                            <Badge variant="outline" className="text-xs flex-shrink-0">
-                                                                Unique
-                                                            </Badge>
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="space-y-3">
+                                        {uniqueArticles.map(article => (
+                                            <div
+                                                key={article.id}
+                                                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                                            >
+                                                <div className="space-y-2">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
+                                                            {article.title}
                                                         </div>
-                                                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                            {article.authors?.join(', ')}
-                                                        </div>
-                                                        <div className="flex gap-2">
+                                                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                                                            Unique
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                        {article.authors?.join(', ')}
+                                                    </div>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {article.journal}
+                                                        </Badge>
+                                                        {article.publication_year && (
                                                             <Badge variant="outline" className="text-xs">
-                                                                {article.journal}
+                                                                {article.publication_year}
                                                             </Badge>
-                                                            {article.publication_year && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {article.publication_year}
-                                                                </Badge>
-                                                            )}
-                                                            {article.citation_count !== undefined && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {article.citation_count} citations
-                                                                </Badge>
-                                                            )}
-                                                        </div>
+                                                        )}
+                                                        {article.citation_count !== undefined && (
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {article.citation_count} citations
+                                                            </Badge>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="flex gap-3">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setCurrentStep('keywords')}
-                                            >
-                                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                                Back to Keywords
-                                            </Button>
-                                            <Button
-                                                onClick={() => setCurrentStep('filtering')}
-                                                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 flex-1"
-                                            >
-                                                Continue to Filter
-                                            </Button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -413,25 +392,6 @@ export function ScholarEnrichmentModal({
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-3">
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setCurrentStep('browse')}
-                                        >
-                                            <ArrowLeft className="w-4 h-4 mr-2" />
-                                            Back to Browse
-                                        </Button>
-                                        <Button
-                                            onClick={() => {
-                                                // Add the filtered articles to PubMed results
-                                                onAddArticles(uniqueArticles);
-                                                setCurrentStep('complete');
-                                            }}
-                                            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 flex-1"
-                                        >
-                                            Apply Filter & Add Results
-                                        </Button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -446,16 +406,100 @@ export function ScholarEnrichmentModal({
                                 <p className="text-gray-600 dark:text-gray-400">
                                     The filtered Google Scholar articles have been added to your PubMed search results.
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Action Buttons - Fixed at Bottom */}
+                <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-4">
+                    <div className="flex justify-between">
+                        {/* Left side - Back button (conditional) */}
+                        <div>
+                            {currentStep === 'evidence' && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentStep('keywords')}
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Keywords
+                                </Button>
+                            )}
+                            {currentStep === 'browse' && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentStep('keywords')}
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Keywords
+                                </Button>
+                            )}
+                            {currentStep === 'filtering' && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentStep('browse')}
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Browse
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Right side - Primary action buttons */}
+                        <div className="flex gap-3">
+                            {currentStep === 'keywords' && (
+                                <Button
+                                    onClick={handleBrowseResults}
+                                    disabled={!editedKeywords.trim() || isProcessing}
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                            Searching...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Search className="w-4 h-4 mr-2" />
+                                            Browse Results
+                                        </>
+                                    )}
+                                </Button>
+                            )}
+
+                            {currentStep === 'browse' && !isProcessing && (
+                                <Button
+                                    onClick={() => setCurrentStep('filtering')}
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                >
+                                    Continue to Filter
+                                </Button>
+                            )}
+
+                            {currentStep === 'filtering' && (
+                                <Button
+                                    onClick={() => {
+                                        // Add the filtered articles to PubMed results
+                                        onAddArticles(uniqueArticles);
+                                        setCurrentStep('complete');
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                >
+                                    Apply Filter & Add Results
+                                </Button>
+                            )}
+
+                            {currentStep === 'complete' && (
                                 <Button
                                     onClick={onClose}
                                     className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                                 >
                                     Close
                                 </Button>
-                            </div>
+                            )}
                         </div>
-                    )}
-
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

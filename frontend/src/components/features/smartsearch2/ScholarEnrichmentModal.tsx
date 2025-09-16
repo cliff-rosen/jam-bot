@@ -10,7 +10,9 @@ import {
     Search,
     Plus,
     AlertCircle,
-    CheckCircle
+    CheckCircle,
+    X,
+    ArrowLeft
 } from 'lucide-react';
 
 import type { SmartSearchArticle } from '@/types/smart-search';
@@ -136,7 +138,7 @@ export function ScholarEnrichmentModal({
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col">
-                <div className="pb-4">
+                <div className="pb-4 relative">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                         <BookOpen className="w-5 h-5" />
                         Google Scholar Enrichment
@@ -144,6 +146,14 @@ export function ScholarEnrichmentModal({
                     <p className="text-gray-600 dark:text-gray-400">
                         Find additional relevant articles from Google Scholar to supplement your PubMed results
                     </p>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onClose}
+                        className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        <X className="w-5 h-5" />
+                    </Button>
                 </div>
 
                 {/* Progress Indicator */}
@@ -284,14 +294,24 @@ export function ScholarEnrichmentModal({
                                         </div>
                                     </div>
 
-                                    <Button
-                                        onClick={handleSearch}
-                                        disabled={!editedKeywords.trim()}
-                                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 w-full"
-                                    >
-                                        <Search className="w-4 h-4 mr-2" />
-                                        Search Google Scholar
-                                    </Button>
+                                    <div className="flex gap-3">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setCurrentStep('analyzing')}
+                                            disabled={isProcessing}
+                                        >
+                                            <ArrowLeft className="w-4 h-4 mr-2" />
+                                            Back
+                                        </Button>
+                                        <Button
+                                            onClick={handleSearch}
+                                            disabled={!editedKeywords.trim()}
+                                            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 flex-1"
+                                        >
+                                            <Search className="w-4 h-4 mr-2" />
+                                            Search Google Scholar
+                                        </Button>
+                                    </div>
                                 </div>
                         </div>
                     )}

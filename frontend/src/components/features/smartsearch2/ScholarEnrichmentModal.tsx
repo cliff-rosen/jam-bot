@@ -19,6 +19,9 @@ import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import type { SmartSearchArticle } from '@/types/smart-search';
 import type { CanonicalResearchArticle } from '@/types/canonical_types';
 
+// Max number of Google Scholar results to browse in this modal
+const SCHOLAR_BROWSE_MAX = 100;
+
 interface ScholarEnrichmentModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -27,7 +30,7 @@ interface ScholarEnrichmentModalProps {
 
 type EnrichmentStep =
     | 'keywords'       // User enters/AI suggests keywords
-    | 'browse'         // Browse Scholar results (up to 100)
+    | 'browse'         // Browse Scholar results (up to SCHOLAR_BROWSE_MAX)
     | 'filtering'      // User filtering Scholar results
     | 'complete';      // Done
 
@@ -112,7 +115,7 @@ export function ScholarEnrichmentModal({
         setCurrentStep('browse');
 
         try {
-            const results = await searchScholar(editedKeywords, 100);
+            const results = await searchScholar(editedKeywords, SCHOLAR_BROWSE_MAX);
 
             // Ensure unique articles by ID to prevent React key conflicts
             const uniqueResults = results.filter((article, index, arr) =>
@@ -410,7 +413,7 @@ export function ScholarEnrichmentModal({
                                             <div>
                                                 <strong>Search completed:</strong> Retrieved {scholarArticles.length} articles from Google Scholar.
                                                 {testResultCount && ` Estimated total: ${testResultCount} results available.`}
-                                                {scholarArticles.length === 100 && ' (Limited to first 100 results)'}
+                                                {scholarArticles.length === SCHOLAR_BROWSE_MAX && ` (Limited to first ${SCHOLAR_BROWSE_MAX} results)`}
                                             </div>
                                         </div>
                                     </div>
@@ -486,8 +489,8 @@ export function ScholarEnrichmentModal({
                                                         <Badge
                                                             variant="outline"
                                                             className={`text-xs flex-shrink-0 ${article.isDuplicate
-                                                                    ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
-                                                                    : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
+                                                                ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
+                                                                : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
                                                                 }`}
                                                         >
                                                             {article.isDuplicate ? 'Duplicate' : 'Unique'}

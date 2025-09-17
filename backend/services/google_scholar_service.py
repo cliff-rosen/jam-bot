@@ -12,6 +12,8 @@ import re
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
 import logging
+import html
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from schemas.canonical_types import CanonicalResearchArticle
@@ -220,6 +222,7 @@ class GoogleScholarArticle:
             authors=authors,
             publication_info=pub_info_str,
             snippet=snippet,
+            abstract=snippet,
             year=year,
             journal=journal,
             doi=doi,
@@ -238,6 +241,7 @@ class GoogleScholarArticle:
         self.authors: List[str] = kwargs.get('authors', [])
         self.publication_info: str = kwargs.get('publication_info', '')
         self.snippet: str = kwargs.get('snippet', '')
+        self.abstract: str = kwargs.get('abstract', '')
         self.year: Optional[int] = kwargs.get('year')
         self.journal: Optional[str] = kwargs.get('journal')
         self.doi: Optional[str] = kwargs.get('doi')
@@ -280,6 +284,7 @@ class GoogleScholarArticle:
             'authors': self.authors,
             'publication_info': self.publication_info,
             'snippet': self.snippet,
+            'abstract': self.abstract,
             'year': self.year,
             'journal': self.journal,
             'doi': self.doi,
@@ -527,6 +532,20 @@ class GoogleScholarService:
         scholar_articles = self._parse_search_results(data)
         metadata = self._extract_search_metadata(data, query, search_time_ms)
         
+        # Enrich articles with better summaries/abstracts when possible
+        try:
+            max_enrichment = 10
+            for i, article in enumerate(scholar_articles):
+                needs_enrichment = not article.snippet or not article.snippet.strip()
+                if i < max_enrichment or needs_enrichment:
+                    enriched = self._enrich_article_summary(article)
+                    if enriched:
+                        article.abstract = enriched
+                    elif not article.abstract:
+                        article.abstract = article.snippet
+        except Exception as e:
+            logger.warning(f"Summary enrichment step failed: {e}")
+
         # Convert GoogleScholarArticle objects to CanonicalResearchArticle
         from schemas.research_article_converters import scholar_to_research_article
         canonical_articles = []
@@ -599,6 +618,111 @@ class GoogleScholarService:
         }
         
         return metadata
+
+    # --- Summary/Abstract Enrichment Helpers ---
+
+    def _enrich_article_summary(self, article: 'GoogleScholarArticle') -> Optional[str]:
+        """
+        Attempt to retrieve a fuller abstract/summary for a Scholar result.
+        Tries Semantic Scholar and Crossref via DOI, then page meta tags.
+        """
+        # Try DOI-based services first
+        if article.doi:
+            try:
+                abstract_text = self._try_semantic_scholar_abstract(article.doi)
+                if abstract_text:
+                    return abstract_text
+            except Exception:
+                pass
+            try:
+                abstract_text = self._try_crossref_abstract(article.doi)
+                if abstract_text:
+                    return abstract_text
+            except Exception:
+                pass
+
+        # Fallback to meta description from landing page
+        if article.link:
+            try:
+                meta_desc = self._try_fetch_meta_description(article.link)
+                if meta_desc:
+                    return meta_desc
+            except Exception:
+                pass
+
+        return None
+
+    def _try_semantic_scholar_abstract(self, doi: str) -> Optional[str]:
+        """Fetch abstract via Semantic Scholar Graph API if available."""
+        url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}?fields=title,abstract"
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            abstract = data.get('abstract') or data.get('paperAbstract')
+            if isinstance(abstract, str) and abstract.strip():
+                return self._normalize_whitespace(abstract)
+            return None
+        except Exception:
+            return None
+
+    def _try_crossref_abstract(self, doi: str) -> Optional[str]:
+        """Fetch abstract via Crossref API if available (often JATS XML)."""
+        safe_doi = quote(doi, safe='')
+        url = f"https://api.crossref.org/works/{safe_doi}"
+        headers = {"Accept": "application/json"}
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code != 200:
+                return None
+            message = resp.json().get('message', {})
+            abstract = message.get('abstract')
+            if not abstract:
+                return None
+            text = self._strip_html(abstract)
+            return self._normalize_whitespace(text)
+        except Exception:
+            return None
+
+    def _try_fetch_meta_description(self, url: str) -> Optional[str]:
+        """Fetch landing page and extract description/abstract-like meta tags."""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; JamBot/1.0; +https://example.com/bot)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+        except Exception:
+            return None
+
+        content_type = resp.headers.get('Content-Type', '').lower()
+        if 'text/html' not in content_type:
+            return None
+
+        html_content = resp.text or ''
+        if not html_content:
+            return None
+
+        # Extract description-like meta tags
+        for tag in re.findall(r'<meta[^>]+>', html_content, flags=re.IGNORECASE):
+            if re.search(r'(name|property)\s*=\s*["\'](description|og:description|dc\.description|citation_abstract|abstract)["\']', tag, flags=re.IGNORECASE):
+                m = re.search(r'content\s*=\s*["\'](.*?)["\']', tag, flags=re.IGNORECASE)
+                if m:
+                    content = html.unescape(m.group(1))
+                    content = self._normalize_whitespace(self._strip_html(content))
+                    if content:
+                        return content
+        return None
+
+    def _strip_html(self, text: str) -> str:
+        """Remove HTML tags and unescape entities."""
+        no_tags = re.sub(r'<[^>]+>', ' ', text)
+        return html.unescape(no_tags)
+
+    def _normalize_whitespace(self, text: str) -> str:
+        """Collapse whitespace and trim."""
+        return re.sub(r'\s+', ' ', text).strip()
     
     def get_article_by_id(self, article_id: str) -> Optional[GoogleScholarArticle]:
         """

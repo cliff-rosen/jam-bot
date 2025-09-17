@@ -166,7 +166,7 @@ def scholar_to_research_article(scholar_article: 'GoogleScholarArticle', positio
         source="google_scholar",
         title=scholar_article.title,
         authors=scholar_article.authors,
-        abstract=scholar_article.snippet,  # Use snippet as abstract
+        abstract=(getattr(scholar_article, 'abstract', None) or scholar_article.snippet),
         snippet=scholar_article.snippet,
         journal=scholar_article.journal,  # GoogleScholarArticle extracts this
         publication_date=None,  # Scholar doesn't provide structured dates

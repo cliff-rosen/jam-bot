@@ -154,6 +154,7 @@ interface SmartSearch2Actions {
     testScholarKeywords: (keywords: string) => Promise<number>;
     searchScholar: (keywords: string, maxResults?: number) => Promise<SmartSearchArticle[]>;
     detectDuplicates: (scholarArticles: SmartSearchArticle[]) => SmartSearchArticle[];
+    addScholarArticles: (scholarArticles: SmartSearchArticle[]) => void;
 }
 
 // ================== CONTEXT ==================
@@ -729,6 +730,28 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, [detectDuplicates]);
 
+    const addScholarArticles = useCallback((scholarArticles: SmartSearchArticle[]) => {
+        // Add Scholar articles to the existing articles array
+        setArticles(prevArticles => {
+            // Ensure no duplicates by ID
+            const existingIds = new Set(prevArticles.map(a => a.id));
+            const newArticles = scholarArticles.filter(article => !existingIds.has(article.id));
+
+            // Combine articles
+            const combinedArticles = [...prevArticles, ...newArticles];
+
+            console.log(`Added ${newArticles.length} new Scholar articles (${scholarArticles.length - newArticles.length} duplicates filtered out)`);
+
+            return combinedArticles;
+        });
+
+        // Update pagination to reflect the new total
+        setPagination(prev => prev ? {
+            ...prev,
+            returned: prev.returned + scholarArticles.length
+        } : null);
+    }, []);
+
     const filterArticles = useCallback(async (
         filterConditionOverride?: string,
         strictness: 'low' | 'medium' | 'high' = 'medium'
@@ -989,6 +1012,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         testScholarKeywords,
         searchScholar,
         detectDuplicates,
+        addScholarArticles,
 
         // Research journey actions
         setResearchQuestion,

@@ -7,6 +7,7 @@ import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { SmartSearch2Provider, useSmartSearch2, ResultState } from '@/context/SmartSearch2Context';
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
+import type { SmartSearchArticle } from '@/types/smart-search';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
 
 import { SearchForm, KeywordHelper, FilterModal } from '@/components/features/smartsearch2';
@@ -57,7 +58,8 @@ function SmartSearch2Content() {
     extractFeatures,
     filterArticles,
     acceptFilter,
-    undoFilter
+    undoFilter,
+    addScholarArticles
   } = useSmartSearch2();
 
   const handleSearch = async () => {
@@ -195,9 +197,9 @@ function SmartSearch2Content() {
     setShowScholarModal(true);
   };
 
-  const handleScholarArticlesAdded = (newArticles: any[]) => {
-    // TODO: Add the new Scholar articles to the existing results
-    // This will need to be added to the context as a new action
+  const handleScholarArticlesAdded = (newArticles: SmartSearchArticle[]) => {
+    // Add the new Scholar articles to the existing results
+    addScholarArticles(newArticles);
 
     toast({
       title: 'Articles Added',
@@ -205,7 +207,6 @@ function SmartSearch2Content() {
       variant: 'default'
     });
 
-    // For now, just close the modal
     setShowScholarModal(false);
   };
 

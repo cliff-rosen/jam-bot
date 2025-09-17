@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
+import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
 interface ScholarEnrichmentModalProps {
@@ -50,6 +51,8 @@ export function ScholarEnrichmentModal({
     const [testResultCount, setTestResultCount] = useState<number | null>(null);
     const [filterCriteria, setFilterCriteria] = useState('');
     const [searchError, setSearchError] = useState<string | null>(null);
+    const [isFiltering, setIsFiltering] = useState(false);
+    const [filterError, setFilterError] = useState<string | null>(null);
 
     // Initialize filter criteria from context when modal opens
     React.useEffect(() => {
@@ -103,6 +106,73 @@ export function ScholarEnrichmentModal({
             setScholarArticles([]);
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const handleFilterScholarResults = async () => {
+        setIsFiltering(true);
+        setFilterError(null);
+
+        try {
+            // Only filter unique articles (not duplicates)
+            const uniqueScholarArticles = scholarArticles.filter(article => !article.isDuplicate);
+
+            if (uniqueScholarArticles.length === 0) {
+                throw new Error('No unique articles to filter');
+            }
+
+            // Prepare articles for filtering (remove local metadata)
+            const rawArticles = uniqueScholarArticles.map(article => {
+                const { filterStatus, isDuplicate, duplicateReason, similarityScore, ...rawArticle } = article;
+                return rawArticle;
+            });
+
+            // Call the backend filter endpoint directly
+            const filterResponse = await smartSearch2Api.filterArticles({
+                filter_condition: filterCriteria,
+                articles: rawArticles,
+                strictness: 'medium'
+            });
+
+            // Update Scholar articles with filter results
+            const updatedScholarArticles = scholarArticles.map(article => {
+                // Keep duplicates unchanged
+                if (article.isDuplicate) {
+                    return article;
+                }
+
+                // Find the corresponding filter result
+                const filterResult = filterResponse.filtered_articles.find(fa =>
+                    fa.article.url === article.url ||
+                    (fa.article.title === article.title && fa.article.authors?.join(',') === article.authors?.join(','))
+                );
+
+                return {
+                    ...article,
+                    filterStatus: filterResult ? {
+                        passed: filterResult.passed,
+                        confidence: filterResult.confidence,
+                        reasoning: filterResult.reasoning
+                    } : null
+                };
+            });
+
+            setScholarArticles(updatedScholarArticles);
+
+            // Only add the articles that passed filtering to the main results
+            const passedArticles = updatedScholarArticles.filter(article =>
+                !article.isDuplicate && article.filterStatus?.passed
+            );
+
+            onAddArticles(passedArticles);
+            setCurrentStep('complete');
+
+        } catch (error) {
+            console.error('Error filtering Scholar results:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to filter Scholar results';
+            setFilterError(errorMessage);
+        } finally {
+            setIsFiltering(false);
         }
     };
 
@@ -408,27 +478,70 @@ export function ScholarEnrichmentModal({
                                     </p>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Filter Criteria:</label>
-                                        <Textarea
-                                            value={filterCriteria}
-                                            onChange={(e) => setFilterCriteria(e.target.value)}
-                                            className="min-h-[120px] text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                            placeholder="Enter filter criteria to apply to Scholar results..."
-                                        />
-                                    </div>
+                                {/* Article counts information */}
+                                {(() => {
+                                    const uniqueArticles = scholarArticles.filter(article => !article.isDuplicate);
+                                    const duplicateArticles = scholarArticles.filter(article => article.isDuplicate);
 
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
-                                        <div className="flex gap-2">
-                                            <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                                            <div className="text-sm text-blue-900 dark:text-blue-100">
-                                                <strong>Using PubMed Filter:</strong> The same filter criteria from your original PubMed search will be applied to these Scholar results.
+                                    return (
+                                        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                            <div className="space-y-2">
+                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    Articles to filter:
+                                                </div>
+                                                <div className="flex gap-4 text-sm">
+                                                    <span className="text-green-700 dark:text-green-300">
+                                                        <strong>{uniqueArticles.length}</strong> unique articles will be filtered
+                                                    </span>
+                                                    <span className="text-orange-700 dark:text-orange-300">
+                                                        <strong>{duplicateArticles.length}</strong> duplicates excluded
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {filterError && (
+                                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3">
+                                        <div className="flex gap-2 items-center text-sm text-red-900 dark:text-red-100">
+                                            <AlertCircle className="w-4 h-4 text-red-600" />
+                                            <div>
+                                                <strong>Filter Error:</strong> {filterError}
                                             </div>
                                         </div>
                                     </div>
+                                )}
 
-                                </div>
+                                {isFiltering ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <div className="text-center">
+                                            <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
+                                            <p className="text-gray-600 dark:text-gray-400">Filtering Scholar articles...</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Filter Criteria:</label>
+                                            <Textarea
+                                                value={filterCriteria}
+                                                onChange={(e) => setFilterCriteria(e.target.value)}
+                                                className="min-h-[120px] text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                                                placeholder="Enter filter criteria to apply to Scholar results..."
+                                            />
+                                        </div>
+
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                                            <div className="flex gap-2">
+                                                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                <div className="text-sm text-blue-900 dark:text-blue-100">
+                                                    <strong>Using PubMed Filter:</strong> The same filter criteria from your original PubMed search will be applied to these Scholar results.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -439,6 +552,39 @@ export function ScholarEnrichmentModal({
                             <div className="text-center space-y-4">
                                 <CheckCircle className="w-12 h-12 mx-auto text-green-600" />
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Scholar Articles Added Successfully!</h3>
+
+                                {/* Filter results summary */}
+                                {(() => {
+                                    const passedArticles = scholarArticles.filter(article =>
+                                        !article.isDuplicate && article.filterStatus?.passed
+                                    );
+                                    const rejectedArticles = scholarArticles.filter(article =>
+                                        !article.isDuplicate && article.filterStatus?.passed === false
+                                    );
+                                    const duplicates = scholarArticles.filter(article => article.isDuplicate);
+
+                                    return (
+                                        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                                            <div className="text-sm space-y-2">
+                                                <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                    Filter Results:
+                                                </div>
+                                                <div className="flex gap-4 justify-center text-sm">
+                                                    <span className="text-green-700 dark:text-green-300">
+                                                        <strong>{passedArticles.length}</strong> articles added
+                                                    </span>
+                                                    <span className="text-red-700 dark:text-red-300">
+                                                        <strong>{rejectedArticles.length}</strong> articles filtered out
+                                                    </span>
+                                                    <span className="text-orange-700 dark:text-orange-300">
+                                                        <strong>{duplicates.length}</strong> duplicates excluded
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 <p className="text-gray-600 dark:text-gray-400">
                                     The filtered Google Scholar articles have been added to your PubMed search results.
                                 </p>
@@ -506,16 +652,18 @@ export function ScholarEnrichmentModal({
 
                             {currentStep === 'filtering' && (
                                 <Button
-                                    onClick={() => {
-                                        // Add the filtered articles to PubMed results
-                                        // Only add the unique articles (not duplicates)
-                                        const uniqueOnly = scholarArticles.filter(article => !article.isDuplicate);
-                                        onAddArticles(uniqueOnly);
-                                        setCurrentStep('complete');
-                                    }}
+                                    onClick={handleFilterScholarResults}
+                                    disabled={isFiltering || !filterCriteria.trim()}
                                     className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                                 >
-                                    Apply Filter & Add Results
+                                    {isFiltering ? (
+                                        <>
+                                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                            Filtering...
+                                        </>
+                                    ) : (
+                                        'Apply Filter & Add Results'
+                                    )}
                                 </Button>
                             )}
 

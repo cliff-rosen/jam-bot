@@ -95,6 +95,7 @@ export function SearchResults({
     onUndoFilter,
     searchQuery
 }: SearchResultsProps) {
+    
     const resolveArticleSourceLabel = (article: SmartSearchArticle): string => {
         const src = (article.source || '').toLowerCase();
         if (src.includes('pubmed')) return 'PubMed';

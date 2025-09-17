@@ -6,6 +6,7 @@ This module provides REST API endpoints for Google Scholar search functionality.
 
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -52,6 +53,17 @@ class GoogleScholarEnrichResponse(BaseModel):
     article: CanonicalResearchArticle = Field(..., description="Enriched article")
     metadata: dict = Field(..., description="Enrichment metadata")
     success: bool = Field(..., description="Whether enrichment succeeded")
+
+
+class GoogleScholarStreamRequest(BaseModel):
+    """Request model for streaming Google Scholar search."""
+    query: str = Field(..., description="Search query for academic literature")
+    num_results: Optional[int] = Field(10, ge=1, le=500, description="Number of results to return")
+    year_low: Optional[int] = Field(None, description="Filter results from this year onwards")
+    year_high: Optional[int] = Field(None, description="Filter results up to this year")
+    sort_by: Optional[str] = Field("relevance", pattern="^(relevance|date)$", description="Sort order")
+    start_index: Optional[int] = Field(0, ge=0, description="Starting index for pagination")
+    enrich_summaries: Optional[bool] = Field(False, description="If true, attempt to enrich abstracts/summaries for returned results")
 
 
 @router.post("/search", response_model=GoogleScholarSearchResponse)
@@ -203,3 +215,85 @@ async def enrich_article(
         return GoogleScholarEnrichResponse(article=article, metadata=metadata, success=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")
+
+
+def _sse_format(data: dict) -> str:
+    import json
+    return f"data: {json.dumps(data)}\n\n"
+
+
+@router.post("/stream")
+async def stream_google_scholar(
+    request: GoogleScholarStreamRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(validate_token)
+):
+    """
+    Stream Google Scholar search progress and article batches via SSE.
+    """
+    service = GoogleScholarService()
+
+    async def event_generator():
+        try:
+            # Announce start
+            yield _sse_format({"status": "starting", "payload": {"query": request.query}})
+
+            batch_size = service._get_max_results_per_call()
+            target = request.num_results or 10
+            accumulated = 0
+            start_index = request.start_index or 0
+
+            while accumulated < target:
+                remaining = target - accumulated
+                current_batch = min(batch_size, remaining)
+
+                # Emit progress before batch
+                yield _sse_format({
+                    "status": "progress",
+                    "payload": {
+                        "message": "requesting_batch",
+                        "start_index": start_index,
+                        "batch_size": current_batch
+                    }
+                })
+
+                articles, meta = service._search_single_batch(
+                    query=request.query,
+                    num_results=current_batch,
+                    year_low=request.year_low,
+                    year_high=request.year_high,
+                    sort_by=request.sort_by or "relevance",
+                    start_index=start_index,
+                    enrich_summaries=bool(request.enrich_summaries)
+                )
+
+                if not articles:
+                    yield _sse_format({"status": "complete", "payload": {"returned": accumulated, "metadata": meta}})
+                    break
+
+                accumulated += len(articles)
+                start_index += current_batch
+
+                # Emit batch of articles
+                # Note: Pydantic models -> dict via model_dump
+                yield _sse_format({
+                    "status": "articles",
+                    "payload": {
+                        "articles": [a.model_dump() for a in articles],
+                        "metadata": meta
+                    }
+                })
+
+                # If we hit total available or target, stop
+                total_available = meta.get("total_results", 0)
+                if total_available and accumulated >= min(total_available, target):
+                    yield _sse_format({"status": "complete", "payload": {"returned": accumulated, "metadata": meta}})
+                    break
+
+            # Final completion if loop exits normally
+            yield _sse_format({"status": "complete", "payload": {"returned": accumulated}})
+
+        except Exception as e:
+            yield _sse_format({"status": "error", "error": str(e)})
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

@@ -318,34 +318,33 @@ function SmartSearch2Content() {
 
             {/* Search Results - Only when we have searched */}
             {hasSearched && (
-            <SearchResults
-              articles={articles}
-              pagination={pagination}
-              source={selectedSource}
-              isSearching={isSearching}
-              onQueryUpdate={updateSearchQuery}
-              onSearch={handleSearch}
-              appliedFeatures={appliedFeatures}
-              pendingFeatures={pendingFeatures}
-              isExtracting={isExtracting}
-              onAddFeature={handleAddFeature}
-              onRemovePendingFeature={removePendingFeature}
-              onExtractFeatures={handleExtractFeatures}
-              // New functionality props
-              evidenceSpec={evidenceSpec}
-              onFilter={handleFilter}
-              onAddGoogleScholar={handleAddGoogleScholar}
-              isFiltering={isFiltering}
-              isAddingScholar={isAddingScholar}
-              // Filter state
-              filteringStats={filteringStats}
-              hasFiltered={resultState === ResultState.FilteredResult}
-              hasPendingFilter={resultState === ResultState.FilterPendingApproval}
-              onAcceptFilter={handleAcceptFilter}
-              onUndoFilter={handleUndoFilter}
-              // Export props
-              searchQuery={searchQuery}
-            />
+              <SearchResults
+                articles={articles}
+                pagination={pagination}
+                isSearching={isSearching}
+                onQueryUpdate={updateSearchQuery}
+                onSearch={handleSearch}
+                appliedFeatures={appliedFeatures}
+                pendingFeatures={pendingFeatures}
+                isExtracting={isExtracting}
+                onAddFeature={handleAddFeature}
+                onRemovePendingFeature={removePendingFeature}
+                onExtractFeatures={handleExtractFeatures}
+                // New functionality props
+                evidenceSpec={evidenceSpec}
+                onFilter={handleFilter}
+                onAddGoogleScholar={handleAddGoogleScholar}
+                isFiltering={isFiltering}
+                isAddingScholar={isAddingScholar}
+                // Filter state
+                filteringStats={filteringStats}
+                hasFiltered={resultState === ResultState.FilteredResult}
+                hasPendingFilter={resultState === ResultState.FilterPendingApproval}
+                onAcceptFilter={handleAcceptFilter}
+                onUndoFilter={handleUndoFilter}
+                // Export props
+                searchQuery={searchQuery}
+              />
             )}
           </div>
         </div>

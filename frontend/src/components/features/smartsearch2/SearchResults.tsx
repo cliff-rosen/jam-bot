@@ -33,7 +33,6 @@ import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 interface SearchResultsProps {
     articles: SmartSearchArticle[];
     pagination: SearchPaginationInfo | null;
-    source: 'pubmed' | 'google_scholar';
     isSearching: boolean;
     onQueryUpdate: (newQuery: string) => void;
     onSearch: () => void;
@@ -76,7 +75,6 @@ interface SearchResultsProps {
 export function SearchResults({
     articles,
     pagination,
-    source,
     isSearching,
     onLoadMore,
     appliedFeatures,
@@ -97,6 +95,32 @@ export function SearchResults({
     onUndoFilter,
     searchQuery
 }: SearchResultsProps) {
+    const resolveArticleSourceLabel = (article: SmartSearchArticle): string => {
+        const src = (article.source || '').toLowerCase();
+        if (src.includes('pubmed')) return 'PubMed';
+        if (src.includes('scholar')) return 'Google Scholar';
+        // Fallback: inspect metadata hints
+        const provider = (article.source_metadata as any)?.provider || '';
+        const providerLc = (provider || '').toLowerCase();
+        if (providerLc.includes('pubmed')) return 'PubMed';
+        if (providerLc.includes('scholar')) return 'Google Scholar';
+        return 'Unknown Source';
+    };
+
+    const resolveCollectionSourceLabel = (): string => {
+        const unique = new Set<string>();
+        for (const a of articles) {
+            const label = resolveArticleSourceLabel(a);
+            unique.add(label);
+            if (unique.size > 1) break;
+        }
+        if (unique.size === 0) return 'No Source';
+        if (unique.size === 1) return Array.from(unique)[0];
+        return 'Mixed Sources';
+    };
+
+    const isPubMedOnly = articles.length > 0 && articles.every(a => resolveArticleSourceLabel(a) === 'PubMed');
+
     const { toast } = useToast();
 
     // UI State - now managed internally
@@ -416,7 +440,7 @@ export function SearchResults({
                                     {article.journal && <span>{article.journal}</span>}
                                     {article.publication_year && <span>{article.publication_year}</span>}
                                     <Badge variant="outline" className="text-xs">
-                                        {source === 'pubmed' ? 'PubMed' : 'Google Scholar'}
+                                        {resolveArticleSourceLabel(article)}
                                     </Badge>
                                 </div>
 
@@ -520,7 +544,7 @@ export function SearchResults({
                 <div className="flex items-center justify-between">
                     {/* Left: Source and Counts */}
                     <div className="flex items-center gap-4 text-sm">
-                        <Badge variant="outline">{source === 'pubmed' ? 'PubMed' : 'Google Scholar'}</Badge>
+                        <Badge variant="outline">{resolveCollectionSourceLabel()}</Badge>
                         {hasFilteredResults && (
                             <div className="flex items-center gap-2">
                                 <Badge variant="default" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -599,7 +623,7 @@ export function SearchResults({
                                 )}
                             </Button>
                         )}
-                        {onAddGoogleScholar && source === 'pubmed' && (
+                        {onAddGoogleScholar && isPubMedOnly && (
                             <Button
                                 onClick={onAddGoogleScholar}
                                 disabled={isAddingScholar}

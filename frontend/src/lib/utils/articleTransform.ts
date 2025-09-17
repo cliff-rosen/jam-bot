@@ -46,4 +46,19 @@ export function _toCanonicalResearchArticles(articles: SmartSearchArticle[]): Ca
     return articles.map(_toCanonicalResearchArticle);
 }
 
+export function _fromCanonicalToSmartArticle(article: CanonicalResearchArticle): SmartSearchArticle {
+    return {
+        ...article,
+        filterStatus: null,
+        isDuplicate: false,
+        duplicateReason: undefined,
+        duplicateMatch: null,
+        similarityScore: undefined
+    } as SmartSearchArticle;
+}
+
+export function _fromCanonicalToSmartArticles(articles: CanonicalResearchArticle[]): SmartSearchArticle[] {
+    return articles.map(_fromCanonicalToSmartArticle);
+}
+
 

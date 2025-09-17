@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import { googleScholarApi } from '@/lib/api/googleScholarApi';
 import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
+import { _fromCanonicalToSmartArticles } from '@/lib/utils/articleTransform';
 
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
@@ -707,21 +708,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 enrich_summaries: true
             });
 
-            // Convert Google Scholar articles to SmartSearchArticle format
-            const scholarArticles: SmartSearchArticle[] = response.articles.map((article: any) => ({
-                id: article.id || `scholar_${Math.random().toString(36).substr(2, 9)}`,
-                source: 'scholar' as const,
-                title: article.title,
-                authors: article.authors || [],
-                journal: article.journal || article.venue || 'Unknown',
-                publication_year: article.publication_date ? new Date(article.publication_date).getFullYear() : article.year,
-                abstract: article.abstract || '',
-                url: article.url,
-                citation_count: article.citations_count || article.citation_count || 0,
-                keywords: [], // Scholar articles don't typically have structured keywords
-                mesh_terms: [], // Scholar doesn't use MeSH terms
-                categories: [] // Scholar doesn't have PubMed-style categories
-            }));
+            // Convert canonical articles to SmartSearchArticle format
+            const scholarArticles: SmartSearchArticle[] = _fromCanonicalToSmartArticles(response.articles);
 
             // Apply duplicate detection against existing PubMed results
             return detectDuplicates(scholarArticles);

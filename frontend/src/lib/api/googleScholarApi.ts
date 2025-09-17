@@ -1,5 +1,5 @@
 import { api, handleApiError } from './index';
-import { CanonicalScholarArticle } from '@/types/canonical_types';
+import { CanonicalResearchArticle } from '@/types/canonical_types';
 
 export interface GoogleScholarSearchRequest {
     query: string;
@@ -11,7 +11,7 @@ export interface GoogleScholarSearchRequest {
 }
 
 export interface GoogleScholarSearchResponse {
-    articles: CanonicalScholarArticle[];
+    articles: CanonicalResearchArticle[];
     metadata: Record<string, any>;
     success: boolean;
 }

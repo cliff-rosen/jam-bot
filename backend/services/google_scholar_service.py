@@ -744,6 +744,97 @@ class GoogleScholarService:
         logger.warning(f"Direct article lookup not available for Google Scholar. ID: {article_id}")
         return None
 
+    def enrich_single_article(
+        self,
+        doi: Optional[str] = None,
+        link: Optional[str] = None,
+        title: Optional[str] = None
+    ) -> Tuple['CanonicalResearchArticle', Dict[str, Any]]:
+        """
+        Enrich a single article identified by DOI or link by attempting to fetch a summary/abstract.
+        Returns a CanonicalResearchArticle with abstract populated when possible, along with metadata.
+        """
+        # Resolve DOI from link if missing
+        if not doi and link:
+            doi = self._extract_doi_from_text(link)
+
+        # Build a minimal GoogleScholarArticle
+        article = GoogleScholarArticle(
+            title=title or (f"DOI {doi}" if doi else (link or "Unknown title")),
+            link=link or "",
+            authors=[],
+            publication_info="",
+            snippet="",
+            abstract="",
+            year=None,
+            journal=None,
+            doi=doi,
+            cited_by_count=None,
+            cited_by_link="",
+            related_pages_link="",
+            versions_link="",
+            pdf_link="",
+            position=1
+        )
+
+        enrichment_source = None
+        abstract_text = None
+
+        # Try Semantic Scholar
+        if doi and not abstract_text:
+            try:
+                s2 = self._try_semantic_scholar_abstract(doi)
+                if s2:
+                    abstract_text = s2
+                    enrichment_source = "semantic_scholar"
+            except Exception:
+                pass
+
+        # Try Crossref
+        if doi and not abstract_text:
+            try:
+                cr = self._try_crossref_abstract(doi)
+                if cr:
+                    abstract_text = cr
+                    enrichment_source = "crossref"
+            except Exception:
+                pass
+
+        # Try meta description from landing page
+        if link and not abstract_text:
+            try:
+                md = self._try_fetch_meta_description(link)
+                if md:
+                    abstract_text = md
+                    enrichment_source = "meta"
+            except Exception:
+                pass
+
+        # Populate article abstracts
+        if abstract_text:
+            article.abstract = abstract_text
+            article.snippet = abstract_text
+
+        # Convert to CanonicalResearchArticle
+        from schemas.research_article_converters import scholar_to_research_article
+        canonical = scholar_to_research_article(article, position=1)
+
+        metadata = {
+            "source": "google_scholar",
+            "enrichment_source": enrichment_source,
+            "had_doi": bool(doi),
+            "had_link": bool(link)
+        }
+
+        return canonical, metadata
+
+    def _extract_doi_from_text(self, text: str) -> Optional[str]:
+        """Extract DOI from a text or URL if present."""
+        if not text:
+            return None
+        match = re.search(r'10\.[0-9]{4,}(?:\.[0-9]+)*/[-._;()/:A-Za-z0-9]+', text)
+        return match.group(0) if match else None
+
 
 # Module-level function to match PubMed pattern
 def search_articles(

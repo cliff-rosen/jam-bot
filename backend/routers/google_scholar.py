@@ -40,6 +40,20 @@ class GoogleScholarSearchResponse(BaseModel):
     success: bool = Field(..., description="Whether the search was successful")
 
 
+class GoogleScholarEnrichRequest(BaseModel):
+    """Request to enrich a single article by DOI or link."""
+    doi: Optional[str] = Field(None, description="Article DOI")
+    link: Optional[str] = Field(None, description="Article landing page URL")
+    title: Optional[str] = Field(None, description="Optional title to include in response")
+
+
+class GoogleScholarEnrichResponse(BaseModel):
+    """Response with a single enriched article."""
+    article: CanonicalResearchArticle = Field(..., description="Enriched article")
+    metadata: dict = Field(..., description="Enrichment metadata")
+    success: bool = Field(..., description="Whether enrichment succeeded")
+
+
 @router.post("/search", response_model=GoogleScholarSearchResponse)
 async def search_google_scholar(
     request: GoogleScholarSearchRequest,
@@ -165,3 +179,27 @@ async def test_google_scholar_connection(
             "message": f"Service initialization failed: {str(e)}",
             "api_configured": False
         }
+
+
+@router.post("/enrich", response_model=GoogleScholarEnrichResponse)
+async def enrich_article(
+    request: GoogleScholarEnrichRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(validate_token)
+):
+    """
+    Enrich a single article identified by DOI or URL by attempting to fetch a summary/abstract.
+    """
+    if not request.doi and not request.link:
+        raise HTTPException(status_code=400, detail="Either 'doi' or 'link' is required")
+
+    try:
+        service = GoogleScholarService()
+        article, metadata = service.enrich_single_article(
+            doi=request.doi,
+            link=request.link,
+            title=request.title
+        )
+        return GoogleScholarEnrichResponse(article=article, metadata=metadata, success=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")

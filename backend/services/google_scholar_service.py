@@ -777,43 +777,12 @@ class GoogleScholarService:
             position=1
         )
 
-        enrichment_source = None
-        abstract_text = None
-
-        # Try Semantic Scholar
-        if doi and not abstract_text:
-            try:
-                s2 = self._try_semantic_scholar_abstract(doi)
-                if s2:
-                    abstract_text = s2
-                    enrichment_source = "semantic_scholar"
-            except Exception:
-                pass
-
-        # Try Crossref
-        if doi and not abstract_text:
-            try:
-                cr = self._try_crossref_abstract(doi)
-                if cr:
-                    abstract_text = cr
-                    enrichment_source = "crossref"
-            except Exception:
-                pass
-
-        # Try meta description from landing page
-        if link and not abstract_text:
-            try:
-                md = self._try_fetch_meta_description(link)
-                if md:
-                    abstract_text = md
-                    enrichment_source = "meta"
-            except Exception:
-                pass
-
-        # Populate article abstracts
+        # Use the shared enrichment helper to avoid duplication
+        abstract_text = self._enrich_article_summary(article)
         if abstract_text:
             article.abstract = abstract_text
-            article.snippet = abstract_text
+            if not article.snippet:
+                article.snippet = abstract_text
 
         # Convert to CanonicalResearchArticle
         from schemas.research_article_converters import scholar_to_research_article
@@ -821,7 +790,7 @@ class GoogleScholarService:
 
         metadata = {
             "source": "google_scholar",
-            "enrichment_source": enrichment_source,
+            "enrichment_source": None,  # Source not tracked by helper
             "had_doi": bool(doi),
             "had_link": bool(link)
         }

@@ -10,7 +10,8 @@ import {
     AlertCircle,
     CheckCircle,
     X,
-    ArrowLeft
+    ArrowLeft,
+    ExternalLink
 } from 'lucide-react';
 
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
@@ -55,10 +56,23 @@ export function ScholarEnrichmentModal({
     const [isFiltering, setIsFiltering] = useState(false);
     const [filterError, setFilterError] = useState<string | null>(null);
 
-    // Initialize filter criteria from context when modal opens
+    // Reset flow and initialize filter criteria when modal opens
     React.useEffect(() => {
         if (isOpen) {
-            setFilterCriteria(evidenceSpec || 'Studies examining the effectiveness of interventions in improving patient outcomes, including randomized controlled trials and meta-analyses.');
+            // Reset the entire flow to start fresh
+            setCurrentStep('keywords');
+            setEditedKeywords('');
+            setScholarArticles([]);
+            setIsProcessing(false);
+            setIsGeneratingKeywords(false);
+            setIsTestingKeywords(false);
+            setTestResultCount(null);
+            setSearchError(null);
+            setIsFiltering(false);
+            setFilterError(null);
+
+            // Initialize filter criteria
+            setFilterCriteria(evidenceSpec || '?');
         }
     }, [isOpen, evidenceSpec]);
 
@@ -99,7 +113,13 @@ export function ScholarEnrichmentModal({
 
         try {
             const results = await searchScholar(editedKeywords, 100);
-            setScholarArticles(results);
+
+            // Ensure unique articles by ID to prevent React key conflicts
+            const uniqueResults = results.filter((article, index, arr) =>
+                arr.findIndex(a => a.id === article.id) === index
+            );
+
+            setScholarArticles(uniqueResults);
         } catch (error) {
             console.error('Error browsing Scholar results:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to search Google Scholar';
@@ -194,14 +214,12 @@ export function ScholarEnrichmentModal({
                 };
             });
 
-            setScholarArticles(updatedScholarArticles);
-
-            // Only add the articles that passed filtering to the main results
-            const passedArticles = updatedScholarArticles.filter(article =>
-                !article.isDuplicate && article.filterStatus?.passed
+            // Ensure unique articles by ID to prevent React key conflicts
+            const uniqueUpdatedArticles = updatedScholarArticles.filter((article, index, arr) =>
+                arr.findIndex(a => a.id === article.id) === index
             );
 
-            onAddArticles(passedArticles);
+            setScholarArticles(uniqueUpdatedArticles);
             setCurrentStep('complete');
 
         } catch (error) {
@@ -243,9 +261,8 @@ export function ScholarEnrichmentModal({
                 {/* Progress Indicator */}
                 <div className="flex items-center justify-between py-4">
                     <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                            currentStep === 'keywords' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${currentStep === 'keywords' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}>
                             1
                         </div>
                         <div className="ml-3">
@@ -256,9 +273,8 @@ export function ScholarEnrichmentModal({
                     </div>
                     <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
                     <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                            currentStep === 'browse' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${currentStep === 'browse' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}>
                             2
                         </div>
                         <div className="ml-3">
@@ -269,9 +285,8 @@ export function ScholarEnrichmentModal({
                     </div>
                     <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
                     <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                            currentStep === 'filtering' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${currentStep === 'filtering' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}>
                             3
                         </div>
                         <div className="ml-3">
@@ -454,15 +469,26 @@ export function ScholarEnrichmentModal({
                                                 <div className="space-y-2">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
-                                                            {article.title}
+                                                            {article.url ? (
+                                                                <a
+                                                                    href={article.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
+                                                                >
+                                                                    {article.title}
+                                                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                                                </a>
+                                                            ) : (
+                                                                article.title
+                                                            )}
                                                         </div>
                                                         <Badge
                                                             variant="outline"
-                                                            className={`text-xs flex-shrink-0 ${
-                                                                article.isDuplicate
+                                                            className={`text-xs flex-shrink-0 ${article.isDuplicate
                                                                     ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
                                                                     : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {article.isDuplicate ? 'Duplicate' : 'Unique'}
                                                         </Badge>
@@ -586,9 +612,13 @@ export function ScholarEnrichmentModal({
                     {/* Complete Step */}
                     {currentStep === 'complete' && (
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                            <div className="text-center space-y-4">
-                                <CheckCircle className="w-12 h-12 mx-auto text-green-600" />
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Scholar Articles Added Successfully!</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Review Filtered Results</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        Review the articles that passed filtering and choose whether to add them to your search results.
+                                    </p>
+                                </div>
 
                                 {/* Filter results summary */}
                                 {(() => {
@@ -608,7 +638,7 @@ export function ScholarEnrichmentModal({
                                                 </div>
                                                 <div className="flex gap-4 justify-center text-sm">
                                                     <span className="text-green-700 dark:text-green-300">
-                                                        <strong>{passedArticles.length}</strong> articles added
+                                                        <strong>{passedArticles.length}</strong> articles passed filter
                                                     </span>
                                                     <span className="text-red-700 dark:text-red-300">
                                                         <strong>{rejectedArticles.length}</strong> articles filtered out
@@ -622,9 +652,82 @@ export function ScholarEnrichmentModal({
                                     );
                                 })()}
 
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    The filtered Google Scholar articles have been added to your PubMed search results.
-                                </p>
+                                {/* Articles that passed filtering */}
+                                {(() => {
+                                    const passedArticles = scholarArticles.filter(article =>
+                                        !article.isDuplicate && article.filterStatus?.passed
+                                    );
+
+                                    if (passedArticles.length === 0) {
+                                        return (
+                                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                                                <div className="flex gap-2 items-center text-sm text-yellow-900 dark:text-yellow-100">
+                                                    <AlertCircle className="w-4 h-4 text-yellow-600" />
+                                                    <div>
+                                                        <strong>No articles passed the filter.</strong> You may want to adjust your filter criteria and try again.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="space-y-4">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                Articles that passed filtering ({passedArticles.length}):
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto space-y-3">
+                                                {passedArticles.map(article => (
+                                                    <div
+                                                        key={article.id}
+                                                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                                                    >
+                                                        <div className="space-y-2">
+                                                            <div className="font-medium text-sm text-gray-900 dark:text-white">
+                                                                {article.url ? (
+                                                                    <a
+                                                                        href={article.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
+                                                                    >
+                                                                        {article.title}
+                                                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                                                    </a>
+                                                                ) : (
+                                                                    article.title
+                                                                )}
+                                                            </div>
+                                                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                                {article.authors?.join(', ')}
+                                                            </div>
+                                                            <div className="flex gap-2 flex-wrap">
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {article.journal}
+                                                                </Badge>
+                                                                {article.publication_year && (
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {article.publication_year}
+                                                                    </Badge>
+                                                                )}
+                                                                {article.filterStatus && (
+                                                                    <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
+                                                                        {Math.round(article.filterStatus.confidence * 100)}% confidence
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            {article.filterStatus?.reasoning && (
+                                                                <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded px-2 py-1">
+                                                                    <strong>Filter reasoning:</strong> {article.filterStatus.reasoning}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
@@ -652,6 +755,15 @@ export function ScholarEnrichmentModal({
                                 >
                                     <ArrowLeft className="w-4 h-4 mr-2" />
                                     Back to Browse
+                                </Button>
+                            )}
+                            {currentStep === 'complete' && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentStep('filtering')}
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Filter
                                 </Button>
                             )}
                         </div>
@@ -705,12 +817,44 @@ export function ScholarEnrichmentModal({
                             )}
 
                             {currentStep === 'complete' && (
-                                <Button
-                                    onClick={onClose}
-                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                >
-                                    Close
-                                </Button>
+                                <>
+                                    {(() => {
+                                        const passedArticles = scholarArticles.filter(article =>
+                                            !article.isDuplicate && article.filterStatus?.passed
+                                        );
+
+                                        if (passedArticles.length > 0) {
+                                            return (
+                                                <>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={onClose}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => {
+                                                            onAddArticles(passedArticles);
+                                                            onClose();
+                                                        }}
+                                                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                    >
+                                                        Add {passedArticles.length} Article{passedArticles.length === 1 ? '' : 's'}
+                                                    </Button>
+                                                </>
+                                            );
+                                        } else {
+                                            return (
+                                                <Button
+                                                    onClick={onClose}
+                                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                >
+                                                    Close
+                                                </Button>
+                                            );
+                                        }
+                                    })()}
+                                </>
                             )}
                         </div>
                     </div>

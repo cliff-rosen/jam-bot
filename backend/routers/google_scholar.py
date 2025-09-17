@@ -30,6 +30,7 @@ class GoogleScholarSearchRequest(BaseModel):
     year_high: Optional[int] = Field(None, description="Filter results up to this year")
     sort_by: Optional[str] = Field("relevance", pattern="^(relevance|date)$", description="Sort order")
     start_index: Optional[int] = Field(0, ge=0, description="Starting index for pagination")
+    enrich_summaries: Optional[bool] = Field(False, description="If true, attempt to enrich abstracts/summaries for returned results")
 
 
 class GoogleScholarSearchResponse(BaseModel):
@@ -73,7 +74,8 @@ async def search_google_scholar(
             year_low=request.year_low,
             year_high=request.year_high,
             sort_by=request.sort_by,
-            start_index=request.start_index
+            start_index=request.start_index,
+            enrich_summaries=bool(request.enrich_summaries)
         )
         
         return GoogleScholarSearchResponse(
@@ -96,6 +98,7 @@ async def search_google_scholar_get(
     year_high: Optional[int] = Query(None, description="End year filter"),
     sort_by: Optional[str] = Query("relevance", pattern="^(relevance|date)$", description="Sort order"),
     start_index: Optional[int] = Query(0, ge=0, description="Starting index for pagination"),
+    enrich_summaries: Optional[bool] = Query(False, description="If true, attempt to enrich abstracts/summaries for returned results"),
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):
@@ -111,7 +114,8 @@ async def search_google_scholar_get(
         year_low=year_low,
         year_high=year_high,
         sort_by=sort_by,
-        start_index=start_index
+        start_index=start_index,
+        enrich_summaries=enrich_summaries
     )
     
     return await search_google_scholar(request, db, current_user)

@@ -574,7 +574,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             // We'll do a minimal search (1 result) just to get the metadata with total count
             const response = await googleScholarApi.search({
                 query: keywords,
-                num_results: 1
+                num_results: 1,
+                enrich_summaries: false
             });
 
             // Extract estimated count from metadata
@@ -702,7 +703,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             // Search Google Scholar with the user's keywords
             const response = await googleScholarApi.search({
                 query: keywords,
-                num_results: maxResults
+                num_results: maxResults,
+                enrich_summaries: true
             });
 
             // Convert Google Scholar articles to SmartSearchArticle format

@@ -328,7 +328,8 @@ class GoogleScholarService:
         year_low: Optional[int] = None,
         year_high: Optional[int] = None,
         sort_by: str = "relevance",
-        start_index: int = 0
+        start_index: int = 0,
+        enrich_summaries: bool = False
     ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
         """
         Search Google Scholar for academic articles.
@@ -371,7 +372,8 @@ class GoogleScholarService:
                     year_low=year_low,
                     year_high=year_high,
                     sort_by=sort_by,
-                    start_index=current_start_index
+                    start_index=current_start_index,
+                    enrich_summaries=enrich_summaries
                 )
                 
                 total_api_calls += 1
@@ -446,7 +448,8 @@ class GoogleScholarService:
         year_low: Optional[int] = None,
         year_high: Optional[int] = None,
         sort_by: str = "relevance",
-        start_index: int = 0
+        start_index: int = 0,
+        enrich_summaries: bool = False
     ) -> Tuple[List['CanonicalResearchArticle'], Dict[str, Any]]:
         """
         Make a single API call to Google Scholar.
@@ -532,19 +535,22 @@ class GoogleScholarService:
         scholar_articles = self._parse_search_results(data)
         metadata = self._extract_search_metadata(data, query, search_time_ms)
         
-        # Enrich articles with better summaries/abstracts when possible
-        try:
-            max_enrichment = 10
-            for i, article in enumerate(scholar_articles):
-                needs_enrichment = not article.snippet or not article.snippet.strip()
-                if i < max_enrichment or needs_enrichment:
+        # Enrich articles with better summaries/abstracts when requested
+        if enrich_summaries:
+            try:
+                for i, article in enumerate(scholar_articles):
                     enriched = self._enrich_article_summary(article)
                     if enriched:
                         article.abstract = enriched
                     elif not article.abstract:
                         article.abstract = article.snippet
-        except Exception as e:
-            logger.warning(f"Summary enrichment step failed: {e}")
+            except Exception as e:
+                logger.warning(f"Summary enrichment step failed: {e}")
+        else:
+            # Ensure abstract at least mirrors snippet for consistency
+            for article in scholar_articles:
+                if not getattr(article, 'abstract', None):
+                    article.abstract = article.snippet
 
         # Convert GoogleScholarArticle objects to CanonicalResearchArticle
         from schemas.research_article_converters import scholar_to_research_article

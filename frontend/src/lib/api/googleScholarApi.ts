@@ -7,6 +7,7 @@ export interface GoogleScholarSearchRequest {
     year_low?: number;
     year_high?: number;
     sort_by?: 'relevance' | 'date';
+    enrich_summaries?: boolean;
 }
 
 export interface GoogleScholarSearchResponse {

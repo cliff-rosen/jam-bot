@@ -45,7 +45,8 @@ export function ScholarEnrichmentModal({
         extractedConcepts,
         generateScholarKeywords,
         testScholarKeywords,
-        searchScholar
+        // searchScholar,
+        searchScholarStream
     } = useSmartSearch2();
 
     const [currentStep, setCurrentStep] = useState<EnrichmentStep>('keywords');
@@ -59,6 +60,7 @@ export function ScholarEnrichmentModal({
     const [searchError, setSearchError] = useState<string | null>(null);
     const [isFiltering, setIsFiltering] = useState(false);
     const [filterError, setFilterError] = useState<string | null>(null);
+    // const [returnedCount, setReturnedCount] = useState(0);
 
     // Reset flow and initialize filter criteria when modal opens
     React.useEffect(() => {
@@ -74,6 +76,7 @@ export function ScholarEnrichmentModal({
             setSearchError(null);
             setIsFiltering(false);
             setFilterError(null);
+            // setReturnedCount(0);
 
             // Initialize filter criteria
             setFilterCriteria(evidenceSpec || '?');
@@ -116,14 +119,23 @@ export function ScholarEnrichmentModal({
         setCurrentStep('browse');
 
         try {
-            const results = await searchScholar(editedKeywords, SCHOLAR_BROWSE_MAX);
-
-            // Ensure unique articles by ID to prevent React key conflicts
-            const uniqueResults = results.filter((article, index, arr) =>
-                arr.findIndex(a => a.id === article.id) === index
+            // Stream results progressively
+            await searchScholarStream(
+                editedKeywords,
+                SCHOLAR_BROWSE_MAX,
+                (batch) => {
+                    // Ensure unique by ID and append
+                    setScholarArticles(prev => {
+                        const combined = [...prev, ...batch];
+                        const unique = combined.filter((article, index, arr) => arr.findIndex(a => a.id === article.id) === index);
+                        return unique;
+                    });
+                    // Optionally track running count (disabled)
+                },
+                () => {
+                    // Could display progress info if desired
+                }
             );
-
-            setScholarArticles(uniqueResults);
         } catch (error) {
             console.error('Error browsing Scholar results:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to search Google Scholar';

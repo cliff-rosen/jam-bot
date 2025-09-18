@@ -154,6 +154,12 @@ interface SmartSearch2Actions {
     generateScholarKeywords: () => Promise<string>;
     testScholarKeywords: (keywords: string) => Promise<number>;
     searchScholar: (keywords: string, maxResults?: number) => Promise<SmartSearchArticle[]>;
+    searchScholarStream: (
+        keywords: string,
+        maxResults: number | undefined,
+        onBatch?: (batch: SmartSearchArticle[]) => void,
+        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void
+    ) => Promise<SmartSearchArticle[]>;
     detectDuplicates: (scholarArticles: SmartSearchArticle[]) => SmartSearchArticle[];
     addScholarArticles: (scholarArticles: SmartSearchArticle[]) => void;
 }
@@ -720,6 +726,38 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         }
     }, [detectDuplicates]);
 
+    const searchScholarStream = useCallback(async (
+        keywords: string,
+        maxResults: number = 100,
+        onBatch?: (batch: SmartSearchArticle[]) => void,
+        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void
+    ): Promise<SmartSearchArticle[]> => {
+        const aggregated: SmartSearchArticle[] = [];
+        try {
+            const stream = googleScholarApi.stream({
+                query: keywords,
+                num_results: maxResults,
+                enrich_summaries: true
+            });
+
+            for await (const update of stream) {
+                if (update.status === 'progress' && onProgress) {
+                    onProgress(update.payload || {});
+                }
+                if (update.status === 'articles' && update.articles) {
+                    const batchCanonical = update.articles;
+                    const batchSmart: SmartSearchArticle[] = _fromCanonicalToSmartArticles(batchCanonical);
+                    const batchWithDupes = detectDuplicates(batchSmart);
+                    aggregated.push(...batchWithDupes);
+                    if (onBatch) onBatch(batchWithDupes);
+                }
+            }
+        } catch (error) {
+            console.error('Scholar streaming error:', error);
+        }
+        return aggregated;
+    }, [detectDuplicates]);
+
     const addScholarArticles = useCallback((scholarArticles: SmartSearchArticle[]) => {
         // Add Scholar articles to the existing articles array
         setArticles(prevArticles => {
@@ -1001,6 +1039,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         generateScholarKeywords,
         testScholarKeywords,
         searchScholar,
+        searchScholarStream,
         detectDuplicates,
         addScholarArticles,
 

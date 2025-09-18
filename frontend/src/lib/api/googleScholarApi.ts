@@ -1,5 +1,6 @@
 import { api, handleApiError } from './index';
 import { CanonicalResearchArticle } from '@/types/canonical_types';
+import { makeStreamRequest } from './streamUtils';
 
 export interface GoogleScholarSearchRequest {
     query: string;
@@ -29,6 +30,37 @@ export const googleScholarApi = {
             return response.data;
         } catch (error) {
             throw new Error(handleApiError(error));
+        }
+    },
+
+    /**
+     * Stream Google Scholar search via SSE
+     */
+    async *stream(params: GoogleScholarSearchRequest): AsyncGenerator<{
+        status: string | null;
+        articles?: CanonicalResearchArticle[];
+        metadata?: Record<string, any>;
+        error?: string | null;
+        payload?: any;
+    }> {
+        const rawStream = makeStreamRequest('/api/google-scholar/stream', params, 'POST');
+        for await (const update of rawStream) {
+            const lines = update.data.split('\n');
+            for (const line of lines) {
+                if (!line.trim().startsWith('data: ')) continue;
+                try {
+                    const json = JSON.parse(line.replace(/^data:\s*/, ''));
+                    if (json.status === 'articles') {
+                        yield { status: json.status, articles: json.payload?.articles || [], metadata: json.payload?.metadata };
+                    } else if (json.status === 'progress' || json.status === 'starting' || json.status === 'complete') {
+                        yield { status: json.status, payload: json.payload };
+                    } else if (json.status === 'error') {
+                        yield { status: 'error', error: json.error || 'Unknown error' };
+                    }
+                } catch (e) {
+                    // Ignore malformed lines
+                }
+            }
         }
     },
 

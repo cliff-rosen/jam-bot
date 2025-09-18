@@ -379,14 +379,21 @@ export function ScholarEnrichmentModal({
                                             <div className="flex items-center gap-2">
                                                 <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
                                                 <span>
-                                                    Streaming results{testResultCount ? ` (approx ${testResultCount} available)` : ''}...
+                                                    {testResultCount
+                                                        ? `Streaming results (approx ${testResultCount} available, retrieving up to ${SCHOLAR_BROWSE_MAX})...`
+                                                        : `Streaming results (retrieving up to ${SCHOLAR_BROWSE_MAX})...`}
                                                 </span>
                                                 <span className="text-gray-500">Retrieved {returnedCount}</span>
-                                                {progressInfo?.startIndex !== undefined && progressInfo?.batchSize !== undefined && (
-                                                    <span className="text-gray-500">
-                                                        Retrieving records {progressInfo.startIndex + 1}–{progressInfo.startIndex + progressInfo.batchSize}
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const batchSize = progressInfo?.batchSize || 20;
+                                                    const rangeStart = returnedCount + 1;
+                                                    const rangeEnd = Math.min(returnedCount + batchSize, SCHOLAR_BROWSE_MAX);
+                                                    return (
+                                                        <span className="text-gray-500">
+                                                            Retrieving records {rangeStart}–{rangeEnd} out of {SCHOLAR_BROWSE_MAX}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         ) : (
                                             <span>{`Found ${scholarArticles.length} articles from Google Scholar`}</span>

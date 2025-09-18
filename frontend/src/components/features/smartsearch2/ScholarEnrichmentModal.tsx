@@ -132,7 +132,8 @@ export function ScholarEnrichmentModal({
                         const unique = combined.filter((article, index, arr) => arr.findIndex(a => a.id === article.id) === index);
                         return unique;
                     });
-                    // Optionally track running count (disabled)
+                    // Track running count of retrieved items
+                    setReturnedCount(prev => prev + batch.length);
                 },
                 (progress) => {
                     setProgressInfo({ startIndex: progress.start_index, batchSize: progress.batch_size });
@@ -383,7 +384,7 @@ export function ScholarEnrichmentModal({
                                                 <span className="text-gray-500">Retrieved {returnedCount}</span>
                                                 {progressInfo?.startIndex !== undefined && progressInfo?.batchSize !== undefined && (
                                                     <span className="text-gray-500">
-                                                        Batch {progressInfo.startIndex}–{progressInfo.startIndex + progressInfo.batchSize - 1}
+                                                        Retrieving records {progressInfo.startIndex + 1}–{progressInfo.startIndex + progressInfo.batchSize}
                                                     </span>
                                                 )}
                                             </div>

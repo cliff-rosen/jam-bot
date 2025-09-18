@@ -60,7 +60,8 @@ export function ScholarEnrichmentModal({
     const [searchError, setSearchError] = useState<string | null>(null);
     const [isFiltering, setIsFiltering] = useState(false);
     const [filterError, setFilterError] = useState<string | null>(null);
-    // const [returnedCount, setReturnedCount] = useState(0);
+    const [returnedCount, setReturnedCount] = useState(0);
+    const [progressInfo, setProgressInfo] = useState<{ startIndex?: number; batchSize?: number } | null>(null);
 
     // Reset flow and initialize filter criteria when modal opens
     React.useEffect(() => {
@@ -76,7 +77,8 @@ export function ScholarEnrichmentModal({
             setSearchError(null);
             setIsFiltering(false);
             setFilterError(null);
-            // setReturnedCount(0);
+            setReturnedCount(0);
+            setProgressInfo(null);
 
             // Initialize filter criteria
             setFilterCriteria(evidenceSpec || '?');
@@ -132,8 +134,8 @@ export function ScholarEnrichmentModal({
                     });
                     // Optionally track running count (disabled)
                 },
-                () => {
-                    // Could display progress info if desired
+                (progress) => {
+                    setProgressInfo({ startIndex: progress.start_index, batchSize: progress.batch_size });
                 }
             );
         } catch (error) {
@@ -371,14 +373,29 @@ export function ScholarEnrichmentModal({
                             <div className="flex items-center justify-between mb-4">
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Browse Scholar Results</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {isProcessing ? 'Searching Google Scholar...' : `Found ${scholarArticles.length} articles from Google Scholar`}
-                                    </p>
+                                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                        {isProcessing ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+                                                <span>
+                                                    Streaming results{testResultCount ? ` (approx ${testResultCount} available)` : ''}...
+                                                </span>
+                                                <span className="text-gray-500">Retrieved {returnedCount}</span>
+                                                {progressInfo?.startIndex !== undefined && progressInfo?.batchSize !== undefined && (
+                                                    <span className="text-gray-500">
+                                                        Batch {progressInfo.startIndex}–{progressInfo.startIndex + progressInfo.batchSize - 1}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span>{`Found ${scholarArticles.length} articles from Google Scholar`}</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Search Metadata */}
-                            {!isProcessing && scholarArticles.length > 0 && (
+                            {scholarArticles.length > 0 && (
                                 <div className="space-y-3 mb-4">
                                     {/* Search Results Summary */}
                                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
@@ -411,14 +428,7 @@ export function ScholarEnrichmentModal({
                                 </div>
                             )}
 
-                            {isProcessing ? (
-                                <div className="flex-1 flex items-center justify-center">
-                                    <div className="text-center">
-                                        <div className="animate-spin mx-auto h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
-                                        <p className="text-gray-600 dark:text-gray-400">Searching Google Scholar and identifying duplicates...</p>
-                                    </div>
-                                </div>
-                            ) : searchError ? (
+                            {searchError ? (
                                 <div className="flex-1 flex items-center justify-center">
                                     <div className="text-center max-w-md">
                                         <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />

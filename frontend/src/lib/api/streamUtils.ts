@@ -42,8 +42,12 @@ export async function* makeStreamRequest(endpoint: string, params: Record<string
             headers: {
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 ...(usePost ? { 'Content-Type': 'application/json' } : {}),
+                'Accept': 'text/event-stream'
             },
             ...(usePost ? { body: JSON.stringify(params) } : {}),
+            // Important for some proxies (HTTP/2) to keep stream open
+            cache: 'no-cache',
+            redirect: 'follow'
         }
     );
 

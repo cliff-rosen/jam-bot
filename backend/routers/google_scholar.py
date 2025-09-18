@@ -296,4 +296,33 @@ async def stream_google_scholar(
         except Exception as e:
             yield _sse_format({"status": "error", "error": str(e)})
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)
+
+
+@router.get("/stream")
+async def stream_google_scholar_get(
+    query: str = Query(..., description="Search query"),
+    num_results: Optional[int] = Query(10, ge=1, le=500, description="Number of results"),
+    year_low: Optional[int] = Query(None, description="Start year filter"),
+    year_high: Optional[int] = Query(None, description="End year filter"),
+    sort_by: Optional[str] = Query("relevance", pattern="^(relevance|date)$", description="Sort order"),
+    start_index: Optional[int] = Query(0, ge=0, description="Starting index for pagination"),
+    enrich_summaries: Optional[bool] = Query(False, description="If true, attempt to enrich abstracts/summaries for returned results"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(validate_token)
+):
+    req = GoogleScholarStreamRequest(
+        query=query,
+        num_results=num_results,
+        year_low=year_low,
+        year_high=year_high,
+        sort_by=sort_by,
+        start_index=start_index,
+        enrich_summaries=enrich_summaries
+    )
+    return await stream_google_scholar(req, db, current_user)

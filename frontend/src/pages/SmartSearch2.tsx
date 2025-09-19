@@ -238,7 +238,7 @@ function SmartSearch2Content() {
       </div>
 
       <div className="flex-1 p-6">
-        <div className="w-full space-y-6">
+        <div className="w-full max-w-6xl mx-auto space-y-6">
 
           {/* Error Display */}
           {error && (
@@ -316,38 +316,40 @@ function SmartSearch2Content() {
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Search Results - Only when we have searched */}
-            {hasSearched && (
-              <SearchResults
-                articles={articles}
-                pagination={pagination}
-                isSearching={isSearching}
-                onQueryUpdate={updateSearchQuery}
-                onSearch={handleSearch}
-                appliedFeatures={appliedFeatures}
-                pendingFeatures={pendingFeatures}
-                isExtracting={isExtracting}
-                onAddFeature={handleAddFeature}
-                onRemovePendingFeature={removePendingFeature}
-                onExtractFeatures={handleExtractFeatures}
-                // New functionality props
-                evidenceSpec={evidenceSpec}
-                onFilter={handleFilter}
-                onAddGoogleScholar={handleAddGoogleScholar}
-                isFiltering={isFiltering}
-                isAddingScholar={isAddingScholar}
-                // Filter state
-                filteringStats={filteringStats}
-                hasFiltered={resultState === ResultState.FilteredResult}
-                hasPendingFilter={resultState === ResultState.FilterPendingApproval}
-                onAcceptFilter={handleAcceptFilter}
-                onUndoFilter={handleUndoFilter}
-                // Export props
-                searchQuery={searchQuery}
-              />
-            )}
+            {/* Results moved below to allow full-width table */}
           </div>
         </div>
+        {hasSearched && (
+          <div className="mt-6">
+            <SearchResults
+              articles={articles}
+              pagination={pagination}
+              isSearching={isSearching}
+              onQueryUpdate={updateSearchQuery}
+              onSearch={handleSearch}
+              appliedFeatures={appliedFeatures}
+              pendingFeatures={pendingFeatures}
+              isExtracting={isExtracting}
+              onAddFeature={handleAddFeature}
+              onRemovePendingFeature={removePendingFeature}
+              onExtractFeatures={handleExtractFeatures}
+              // New functionality props
+              evidenceSpec={evidenceSpec}
+              onFilter={handleFilter}
+              onAddGoogleScholar={handleAddGoogleScholar}
+              isFiltering={isFiltering}
+              isAddingScholar={isAddingScholar}
+              // Filter state
+              filteringStats={filteringStats}
+              hasFiltered={resultState === ResultState.FilteredResult}
+              hasPendingFilter={resultState === ResultState.FilterPendingApproval}
+              onAcceptFilter={handleAcceptFilter}
+              onUndoFilter={handleUndoFilter}
+              // Export props
+              searchQuery={searchQuery}
+            />
+          </div>
+        )}
       </div>
 
       {/* Filter Modal */}

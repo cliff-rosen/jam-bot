@@ -33,7 +33,7 @@ export function SearchForm({
   };
 
   return (
-    <Card className="p-6 dark:bg-gray-800">
+    <Card className="p-6 dark:bg-gray-800 max-w-4xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Search Query Input */}
         <div>

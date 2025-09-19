@@ -117,6 +117,9 @@ export function ExpressionsStep({
     const currentCombinedQuery = generatedKeywords ||
         (hasSelectedExpressions ? expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ') : '');
 
+    // Check if current query matches the last tested query
+    const currentQueryMatchesLastTested = generatedKeywords && generatedKeywords === currentCombinedQuery;
+
     return (
         <>
             <div className="space-y-4">
@@ -191,7 +194,7 @@ export function ExpressionsStep({
                                 <div className="flex items-center gap-3">
                                     <Button
                                         onClick={handleTestCombination}
-                                        disabled={isGenerating || selectedCount === 0}
+                                        disabled={isGenerating || selectedCount === 0 || currentQueryMatchesLastTested}
                                         variant="outline"
                                         size="sm"
                                     >
@@ -200,6 +203,8 @@ export function ExpressionsStep({
                                                 <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
                                                 Testing...
                                             </>
+                                        ) : currentQueryMatchesLastTested ? (
+                                            <>Already Tested</>
                                         ) : (
                                             <>Test Combination</>
                                         )}

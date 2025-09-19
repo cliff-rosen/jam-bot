@@ -11,6 +11,7 @@ interface EvidenceStepProps {
     clarificationQuestions?: string[];
     userAnswers?: Record<number, string>;
     setUserAnswers?: (answers: Record<number, string>) => void;
+    researchQuestion?: string;
 }
 
 export function EvidenceStep({
@@ -20,9 +21,21 @@ export function EvidenceStep({
     missingElements,
     clarificationQuestions = [],
     userAnswers = {},
-    setUserAnswers
+    setUserAnswers,
+    researchQuestion
 }: EvidenceStepProps) {
     const showRefinementSuggestion = completenessScore !== undefined && completenessScore < 1;
+
+    // Check if the evidence spec is just the user's original question (fallback case)
+    const isGeneratedSpec = evidenceSpec !== researchQuestion;
+
+    const getDescription = () => {
+        if (clarificationQuestions.length > 0) {
+            return "Review your evidence specification below. You can edit it directly and proceed, or answer the optional questions to refine it further.";
+        } else {
+            return "Review your evidence specification below. Edit it if needed, then proceed to extract concepts.";
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -32,7 +45,7 @@ export function EvidenceStep({
                     Review Evidence Specification
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    The AI has created an evidence specification from your research question. Review and edit it if needed before generating keywords.
+                    {getDescription()}
                 </p>
             </div>
 
@@ -59,10 +72,10 @@ export function EvidenceStep({
                         <MessageCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
                         <div>
                             <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
-                                Optional Refinement Questions
+                                Alternative: Refine with Questions
                             </p>
                             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                Answer these to improve the specification, or proceed with the current version.
+                                Instead of editing above, you can answer these questions to automatically improve the specification.
                             </p>
                         </div>
                     </div>
@@ -78,7 +91,7 @@ export function EvidenceStep({
                                     onChange={(e) => setUserAnswers && setUserAnswers({ ...userAnswers, [index]: e.target.value })}
                                     rows={2}
                                     className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                    placeholder="Type your answer here (optional)..."
+                                    placeholder="Type your answer here..."
                                 />
                             </div>
                         ))}

@@ -233,6 +233,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         clarificationQuestions={clarificationQuestions}
                         userAnswers={userAnswers}
                         setUserAnswers={setUserAnswers}
+                        researchQuestion={researchQuestion}
                     />
                 );
             case 'concepts':
@@ -383,8 +384,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             {step === 'evidence' && clarificationQuestions.length > 0 && (
                                 <Button
                                     onClick={() => {
-                                        // Go back to question step to refine with answers
-                                        setStep('question');
                                         handleRefineEvidenceSpec();
                                     }}
                                     variant="outline"
@@ -422,7 +421,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                             {step === 'evidence' && (
                                                 <>
                                                     <Sparkles className="w-4 h-4 mr-2" />
-                                                    {clarificationQuestions.length > 0 ? 'Skip & Extract Concepts' : 'Extract Concepts'}
+                                                    Proceed & Extract Concepts
                                                 </>
                                             )}
                                             {step === 'concepts' && (

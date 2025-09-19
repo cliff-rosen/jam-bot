@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,25 +63,49 @@ export function ScholarEnrichmentModal({
     const [returnedCount, setReturnedCount] = useState(0);
     const [progressInfo, setProgressInfo] = useState<{ startIndex?: number; batchSize?: number } | null>(null);
 
+    // Abort controller for streaming requests
+    const streamAbortRef = useRef<AbortController | null>(null);
+
+    // Helper: reset modal-local state back to initial
+    const _resetFlowState = () => {
+        setCurrentStep('keywords');
+        setEditedKeywords('');
+        setScholarArticles([]);
+        setIsProcessing(false);
+        setIsGeneratingKeywords(false);
+        setIsTestingKeywords(false);
+        setTestResultCount(null);
+        setSearchError(null);
+        setIsFiltering(false);
+        setFilterError(null);
+        setReturnedCount(0);
+        setProgressInfo(null);
+        setFilterCriteria('');
+    };
+
+    // Close handler: abort any in-flight streams, reset, notify parent
+    const handleClose = () => {
+        if (streamAbortRef.current) {
+            try { streamAbortRef.current.abort(); } catch { }
+            streamAbortRef.current = null;
+        }
+        _resetFlowState();
+        onClose();
+    };
+
     // Reset flow and initialize filter criteria when modal opens
     React.useEffect(() => {
         if (isOpen) {
-            // Reset the entire flow to start fresh
-            setCurrentStep('keywords');
-            setEditedKeywords('');
-            setScholarArticles([]);
-            setIsProcessing(false);
-            setIsGeneratingKeywords(false);
-            setIsTestingKeywords(false);
-            setTestResultCount(null);
-            setSearchError(null);
-            setIsFiltering(false);
-            setFilterError(null);
-            setReturnedCount(0);
-            setProgressInfo(null);
-
-            // Initialize filter criteria
+            _resetFlowState();
+            // Initialize filter criteria from context on open
             setFilterCriteria(evidenceSpec || '?');
+        } else {
+            // When closed, abort and reset
+            if (streamAbortRef.current) {
+                try { streamAbortRef.current.abort(); } catch { }
+                streamAbortRef.current = null;
+            }
+            _resetFlowState();
         }
     }, [isOpen, evidenceSpec]);
 
@@ -121,6 +145,12 @@ export function ScholarEnrichmentModal({
         setCurrentStep('browse');
 
         try {
+            // Abort any existing stream before starting a new one
+            if (streamAbortRef.current) {
+                try { streamAbortRef.current.abort(); } catch { }
+            }
+            streamAbortRef.current = new AbortController();
+
             // Stream results progressively
             await searchScholarStream(
                 editedKeywords,
@@ -137,7 +167,8 @@ export function ScholarEnrichmentModal({
                 },
                 (progress) => {
                     setProgressInfo({ startIndex: progress.start_index, batchSize: progress.batch_size });
-                }
+                },
+                { signal: streamAbortRef.current.signal }
             );
         } catch (error) {
             console.error('Error browsing Scholar results:', error);
@@ -146,6 +177,8 @@ export function ScholarEnrichmentModal({
             setScholarArticles([]);
         } finally {
             setIsProcessing(false);
+            // Clear controller after completion
+            streamAbortRef.current = null;
         }
     };
 
@@ -213,7 +246,7 @@ export function ScholarEnrichmentModal({
 
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
             <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col">
                 <DialogTitle className="sr-only">Google Scholar Enrichment</DialogTitle>
                 <DialogDescription className="sr-only">
@@ -231,7 +264,7 @@ export function ScholarEnrichmentModal({
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                         <X className="w-5 h-5" />
@@ -823,14 +856,14 @@ export function ScholarEnrichmentModal({
                                                 <>
                                                     <Button
                                                         variant="outline"
-                                                        onClick={onClose}
+                                                        onClick={handleClose}
                                                     >
                                                         Cancel
                                                     </Button>
                                                     <Button
                                                         onClick={() => {
                                                             onAddArticles(passedArticles);
-                                                            onClose();
+                                                            handleClose();
                                                         }}
                                                         className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                                                     >
@@ -841,7 +874,7 @@ export function ScholarEnrichmentModal({
                                         } else {
                                             return (
                                                 <Button
-                                                    onClick={onClose}
+                                                    onClick={handleClose}
                                                     className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                                                 >
                                                     Close

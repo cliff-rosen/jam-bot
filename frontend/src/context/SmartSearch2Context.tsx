@@ -158,7 +158,8 @@ interface SmartSearch2Actions {
         keywords: string,
         maxResults: number | undefined,
         onBatch?: (batch: SmartSearchArticle[]) => void,
-        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void
+        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void,
+        options?: { signal?: AbortSignal }
     ) => Promise<SmartSearchArticle[]>;
     detectDuplicates: (scholarArticles: SmartSearchArticle[]) => SmartSearchArticle[];
     addScholarArticles: (scholarArticles: SmartSearchArticle[]) => void;
@@ -730,7 +731,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         keywords: string,
         maxResults: number = 100,
         onBatch?: (batch: SmartSearchArticle[]) => void,
-        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void
+        onProgress?: (info: { start_index?: number; batch_size?: number; returned?: number }) => void,
+        options?: { signal?: AbortSignal }
     ): Promise<SmartSearchArticle[]> => {
         const aggregated: SmartSearchArticle[] = [];
         try {
@@ -738,9 +740,10 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 query: keywords,
                 num_results: maxResults,
                 enrich_summaries: true
-            });
+            }, { signal: options?.signal });
 
             for await (const update of stream) {
+                console.log('Context received stream update:', update);
                 if (update.status === 'progress' && onProgress) {
                     onProgress(update.payload || {});
                 }

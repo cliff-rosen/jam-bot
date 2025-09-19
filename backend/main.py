@@ -86,6 +86,11 @@ async def startup_event():
     #logger.info(f"ACCESS_TOKEN_EXPIRE_MINUTES value: {settings.ACCESS_TOKEN_EXPIRE_MINUTES}")
 
 
+@app.get("/")
+async def root():
+    """Root endpoint - redirects to API health check"""
+    return {"message": "JamBot API", "health": "/api/health", "docs": "/docs"}
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint for monitoring"""

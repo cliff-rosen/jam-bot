@@ -14,6 +14,8 @@ from datetime import datetime
 import logging
 import html
 from urllib.parse import quote
+import asyncio
+import aiohttp
 
 if TYPE_CHECKING:
     from schemas.canonical_types import CanonicalResearchArticle
@@ -627,6 +629,100 @@ class GoogleScholarService:
 
     # --- Summary/Abstract Enrichment Helpers ---
 
+    async def _enrich_article_summary_async(self, article: 'GoogleScholarArticle', session: aiohttp.ClientSession) -> Optional[str]:
+        """
+        Async version: Attempt to retrieve a fuller abstract/summary for a Scholar result.
+        Tries Semantic Scholar and Crossref via DOI, then page meta tags.
+        """
+        # Try DOI-based services first
+        if article.doi:
+            try:
+                abstract_text = await self._try_semantic_scholar_abstract_async(article.doi, session)
+                if abstract_text:
+                    return abstract_text
+            except Exception:
+                pass
+            try:
+                abstract_text = await self._try_crossref_abstract_async(article.doi, session)
+                if abstract_text:
+                    return abstract_text
+            except Exception:
+                pass
+
+        # Fallback to meta description from landing page
+        if article.link:
+            try:
+                meta_desc = await self._try_fetch_meta_description_async(article.link, session)
+                if meta_desc:
+                    return meta_desc
+            except Exception:
+                pass
+
+        return None
+
+    async def _try_semantic_scholar_abstract_async(self, doi: str, session: aiohttp.ClientSession) -> Optional[str]:
+        """Async: Fetch abstract via Semantic Scholar Graph API if available."""
+        url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}?fields=title,abstract"
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                abstract = data.get('abstract') or data.get('paperAbstract')
+                if isinstance(abstract, str) and abstract.strip():
+                    return self._normalize_whitespace(abstract)
+                return None
+        except Exception:
+            return None
+
+    async def _try_crossref_abstract_async(self, doi: str, session: aiohttp.ClientSession) -> Optional[str]:
+        """Async: Fetch abstract via Crossref API if available (often JATS XML)."""
+        safe_doi = quote(doi, safe='')
+        url = f"https://api.crossref.org/works/{safe_doi}"
+        headers = {"Accept": "application/json"}
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                message = data.get('message', {})
+                abstract = message.get('abstract')
+                if not abstract:
+                    return None
+                text = self._strip_html(abstract)
+                return self._normalize_whitespace(text)
+        except Exception:
+            return None
+
+    async def _try_fetch_meta_description_async(self, url: str, session: aiohttp.ClientSession) -> Optional[str]:
+        """Async: Fetch landing page and extract description/abstract-like meta tags."""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; JamBot/1.0; +https://example.com/bot)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
+                content_type = resp.headers.get('Content-Type', '').lower()
+                if 'text/html' not in content_type:
+                    return None
+
+                html_content = await resp.text()
+                if not html_content:
+                    return None
+
+                # Extract description-like meta tags
+                for tag in re.findall(r'<meta[^>]+>', html_content, flags=re.IGNORECASE):
+                    if re.search(r'(name|property)\s*=\s*["\']?(description|og:description|dc\.description|citation_abstract|abstract)["\']?', tag, flags=re.IGNORECASE):
+                        m = re.search(r'content\s*=\s*["\']?(.*?)["\']?', tag, flags=re.IGNORECASE)
+                        if m:
+                            content = html.unescape(m.group(1))
+                            content = self._normalize_whitespace(self._strip_html(content))
+                            if content:
+                                return content
+                return None
+        except Exception:
+            return None
+
     def _enrich_article_summary(self, article: 'GoogleScholarArticle') -> Optional[str]:
         """
         Attempt to retrieve a fuller abstract/summary for a Scholar result.
@@ -803,6 +899,73 @@ class GoogleScholarService:
             return None
         match = re.search(r'10\.[0-9]{4,}(?:\.[0-9]+)*/[-._;()/:A-Za-z0-9]+', text)
         return match.group(0) if match else None
+
+    async def enrich_articles_batch_async(
+        self,
+        scholar_articles: List[GoogleScholarArticle],
+        max_concurrent: int = 5,
+        progress_callback: Optional[callable] = None
+    ) -> None:
+        """
+        Enrich a batch of articles with abstracts using concurrent async requests.
+
+        Args:
+            scholar_articles: List of GoogleScholarArticle objects to enrich
+            max_concurrent: Maximum number of concurrent enrichment tasks
+            progress_callback: Optional async callback to report progress
+        """
+        if not scholar_articles:
+            return
+
+        connector = aiohttp.TCPConnector(limit=max_concurrent)
+        timeout = aiohttp.ClientTimeout(total=30, connect=5, sock_read=5)
+
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            # Process articles in batches to avoid overwhelming the system
+            batch_size = max_concurrent
+            for i in range(0, len(scholar_articles), batch_size):
+                batch = scholar_articles[i:i + batch_size]
+
+                # Create enrichment tasks for this batch
+                tasks = []
+                for article in batch:
+                    # Skip if already has abstract
+                    if article.abstract and article.abstract.strip():
+                        continue
+                    tasks.append(self._enrich_single_article_async(article, session))
+
+                # Execute batch concurrently
+                if tasks:
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                    # Apply results
+                    task_idx = 0
+                    for article in batch:
+                        if article.abstract and article.abstract.strip():
+                            continue
+                        if task_idx < len(results) and not isinstance(results[task_idx], Exception):
+                            enriched_abstract = results[task_idx]
+                            if enriched_abstract:
+                                article.abstract = enriched_abstract
+                            elif not article.abstract:
+                                article.abstract = article.snippet
+                        task_idx += 1
+
+                # Report progress if callback provided
+                if progress_callback:
+                    await progress_callback(i + len(batch), len(scholar_articles))
+
+    async def _enrich_single_article_async(
+        self,
+        article: GoogleScholarArticle,
+        session: aiohttp.ClientSession
+    ) -> Optional[str]:
+        """Enrich a single article asynchronously."""
+        try:
+            return await self._enrich_article_summary_async(article, session)
+        except Exception as e:
+            logger.debug(f"Failed to enrich article: {e}")
+            return None
 
 
 # Module-level function to match PubMed pattern

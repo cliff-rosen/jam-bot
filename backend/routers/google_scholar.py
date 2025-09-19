@@ -9,6 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+import asyncio
+import time
+import logging
+from config.timeout_settings import get_streaming_config
+
+logger = logging.getLogger(__name__)
 
 from database import get_db
 from models import User
@@ -242,8 +248,26 @@ async def stream_google_scholar(
             target = request.num_results or 10
             accumulated = 0
             start_index = request.start_index or 0
+            last_heartbeat = time.time()
+
+            # Track when to send next heartbeat
+            next_heartbeat = time.time() + 3
 
             while accumulated < target:
+                # Send heartbeat if needed
+                current_time = time.time()
+                if current_time >= next_heartbeat:
+                    yield _sse_format({
+                        "status": "heartbeat",
+                        "payload": {
+                            "message": "keep_alive",
+                            "timestamp": current_time,
+                            "accumulated": accumulated,
+                            "target": target
+                        }
+                    })
+                    next_heartbeat = current_time + 3
+
                 remaining = target - accumulated
                 current_batch = min(batch_size, remaining)
 
@@ -257,25 +281,104 @@ async def stream_google_scholar(
                     }
                 })
 
-                articles, meta = service._search_single_batch(
-                    query=request.query,
-                    num_results=current_batch,
-                    year_low=request.year_low,
-                    year_high=request.year_high,
-                    sort_by=request.sort_by or "relevance",
-                    start_index=start_index,
-                    enrich_summaries=bool(request.enrich_summaries)
+                # Get articles synchronously (SerpAPI call)
+                articles, meta = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    service._search_single_batch,
+                    request.query,
+                    current_batch,
+                    request.year_low,
+                    request.year_high,
+                    request.sort_by or "relevance",
+                    start_index,
+                    False  # Never enrich during initial fetch
                 )
 
                 if not articles:
                     yield _sse_format({"status": "complete", "payload": {"returned": accumulated, "metadata": meta}})
                     break
 
+                # If enrichment is requested, do it asynchronously with progress updates
+                if request.enrich_summaries:
+                    # Convert canonical articles back to GoogleScholarArticles for enrichment
+                    from services.google_scholar_service import GoogleScholarArticle
+                    scholar_articles = []
+                    for art in articles:
+                        scholar_art = GoogleScholarArticle(
+                            title=art.title,
+                            link=art.url or "",
+                            authors=art.authors,
+                            publication_info="",
+                            snippet=art.abstract or "",
+                            abstract=art.abstract or "",
+                            year=art.publication_year,
+                            journal=art.journal,
+                            doi=art.doi,
+                            cited_by_count=None,
+                            cited_by_link="",
+                            related_pages_link="",
+                            versions_link="",
+                            pdf_link="",
+                            position=art.search_position or 0
+                        )
+                        scholar_articles.append(scholar_art)
+
+                    # Track enrichment progress
+                    enrichment_status = {"completed": 0, "total": len(scholar_articles)}
+
+                    async def enrichment_progress(completed: int, total: int):
+                        enrichment_status["completed"] = completed
+                        enrichment_status["total"] = total
+
+                    # Perform async enrichment with progress tracking
+                    yield _sse_format({
+                        "status": "progress",
+                        "payload": {"message": "starting_enrichment", "count": len(scholar_articles)}
+                    })
+
+                    # Get streaming config
+                    stream_config = get_streaming_config()
+
+                    # Create enrichment task
+                    enrichment_task = asyncio.create_task(
+                        service.enrich_articles_batch_async(
+                            scholar_articles,
+                            max_concurrent=stream_config["max_concurrent_enrichment"],
+                            progress_callback=enrichment_progress
+                        )
+                    )
+
+                    # Send progress updates while enrichment runs
+                    while not enrichment_task.done():
+                        await asyncio.sleep(0.5)  # Check every 500ms
+
+                        # Send progress update
+                        yield _sse_format({
+                            "status": "enrichment_progress",
+                            "payload": {
+                                "message": "enriching_abstracts",
+                                "completed": enrichment_status["completed"],
+                                "total": enrichment_status["total"],
+                                "timestamp": time.time()
+                            }
+                        })
+
+                    # Wait for enrichment to complete
+                    try:
+                        await asyncio.wait_for(enrichment_task, timeout=stream_config["enrichment_batch_timeout"])
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Enrichment timeout for batch starting at {start_index}")
+                        # Continue with partial enrichment
+
+                    # Update canonical articles with enriched abstracts
+                    for i, scholar_art in enumerate(scholar_articles):
+                        if scholar_art.abstract and i < len(articles):
+                            articles[i].abstract = scholar_art.abstract
+
                 accumulated += len(articles)
                 start_index += current_batch
 
                 # Emit batch of articles
-                # Note: Pydantic models -> dict via model_dump
                 yield _sse_format({
                     "status": "articles",
                     "payload": {
@@ -295,6 +398,9 @@ async def stream_google_scholar(
 
         except Exception as e:
             yield _sse_format({"status": "error", "error": str(e)})
+        finally:
+            # Cleanup completed
+            pass
 
     headers = {
         "Cache-Control": "no-cache",

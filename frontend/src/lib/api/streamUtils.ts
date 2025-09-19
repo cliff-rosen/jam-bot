@@ -19,7 +19,13 @@ export const setStreamSessionExpiredHandler = (handler: () => void) => {
     sessionExpiredHandler = handler;
 };
 
-export async function* makeStreamRequest(endpoint: string, params: Record<string, any>, method: 'GET' | 'POST' = 'GET'): AsyncGenerator<StreamUpdate> {
+export async function* makeStreamRequest(
+    endpoint: string,
+    params: Record<string, any>,
+    method: 'GET' | 'POST' = 'GET',
+    signal?: AbortSignal
+): AsyncGenerator<StreamUpdate> {
+
     const queryString = Object.entries(params)
         .map(([key, value]) => {
             if (Array.isArray(value) || method === 'POST' || typeof value !== 'string') {
@@ -35,21 +41,33 @@ export async function* makeStreamRequest(endpoint: string, params: Record<string
     const hasComplexParams = Object.values(params).some(value => Array.isArray(value) || typeof value !== 'string');
     const usePost = method === 'POST' || hasComplexParams;
 
-    const response = await fetch(
-        `${settings.apiUrl}${endpoint}${!usePost && queryString ? `?${queryString}` : ''}`,
-        {
-            method: usePost ? 'POST' : 'GET',
-            headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                ...(usePost ? { 'Content-Type': 'application/json' } : {}),
-                'Accept': 'text/event-stream'
-            },
-            ...(usePost ? { body: JSON.stringify(params) } : {}),
-            // Important for some proxies (HTTP/2) to keep stream open
-            cache: 'no-cache',
-            redirect: 'follow'
+    console.log("Making stream request of type:", usePost ? 'POST' : 'GET');
+    let response: Response;
+    try {
+        response = await fetch(
+            `${settings.apiUrl}${endpoint}${!usePost && queryString ? `?${queryString}` : ''}`,
+            {
+                method: usePost ? 'POST' : 'GET',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    ...(usePost ? { 'Content-Type': 'application/json' } : {}),
+                    'Accept': 'text/event-stream'
+                },
+                ...(usePost ? { body: JSON.stringify(params) } : {}),
+                // Important for some proxies (HTTP/2) to keep stream open
+                cache: 'no-cache',
+                redirect: 'follow',
+                ...(signal ? { signal } : {})
+            }
+        );
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            // Gracefully end generator on abort
+            return;
         }
-    );
+        throw err;
+    }
+    console.log("Stream request response:", response);
 
     if (!response.ok) {
         // Handle authentication/authorization errors
@@ -74,7 +92,16 @@ export async function* makeStreamRequest(endpoint: string, params: Record<string
     try {
         console.log("Streaming response loop starting, waiting for data...");
         while (true) {
-            const { done, value } = await reader.read();
+            let done: boolean, value: Uint8Array | undefined;
+            try {
+                ({ done, value } = await reader.read());
+            } catch (err: any) {
+                if (err?.name === 'AbortError') {
+                    // Abort during read; stop quietly
+                    break;
+                }
+                throw err;
+            }
             console.log("Stream read, done:", done);
             if (done) {
                 console.log("Stream ended, flushing remaining data...");

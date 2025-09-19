@@ -335,6 +335,13 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         // Clear filtering state
         setFilteringStats(null);
         setIsFiltering(false);
+        // Clear research journey state
+        setResearchQuestion('');
+        setEvidenceSpec('');
+        setExtractedConcepts([]);
+        setExpandedExpressions([]);
+        setGeneratedKeywords('');
+
     }, []);
 
     const resetResearchJourney = useCallback(() => {

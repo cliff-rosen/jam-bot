@@ -49,8 +49,16 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         resetResearchJourney,
     } = useSmartSearch2();
 
-    const handleRefineEvidenceSpec = async () => {
+    const handleRefineEvidenceSpec = async (skipClarifications = false) => {
         if (!researchQuestion.trim() && conversationHistory.length === 0) {
+            return;
+        }
+
+        // If skipping clarifications and we have a previous evidence spec, use it
+        if (skipClarifications && evidenceSpec) {
+            setClarificationQuestions([]);
+            setUserAnswers({});
+            setStep('evidence');
             return;
         }
 
@@ -365,6 +373,16 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             >
                                 Cancel
                             </Button>
+                            {step === 'question' && clarificationQuestions.length > 0 && evidenceSpec && (
+                                <Button
+                                    onClick={() => handleRefineEvidenceSpec(true)}
+                                    variant="outline"
+                                    disabled={isGenerating}
+                                    className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                                >
+                                    Skip & Use Last Version
+                                </Button>
+                            )}
                             {step !== 'expressions' && (
                                 <Button
                                     onClick={handleNext}

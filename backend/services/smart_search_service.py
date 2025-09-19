@@ -1150,28 +1150,44 @@ class SmartSearchService:
         return f" {operator} ".join(f"({term})" if " OR " in term else term for term in terms)
 
     async def _expand_concept_to_mesh_term(self, concept: str, source: str) -> str:
-        """Map a concept to a single MeSH term or simple term combination."""
+        """Map a concept to a single MeSH term or simple term for PubMed searches.
+
+        Prioritizes simple, precise MeSH terms to minimize type 2 errors (missing relevant studies).
+        Complex boolean expressions with synonyms often miss studies due to indexing variations.
+        """
 
         # Create prompt for simple MeSH mapping
-        system_prompt = f"""Map this biomedical concept to a single MeSH (Medical Subject Headings) term or a very simple search expression for {source}.
+        system_prompt = f"""Map this biomedical concept to the most appropriate single MeSH term for {source} search.
 
-        RULES:
-        1. Prefer a single MeSH term when possible
-        2. If no perfect MeSH term exists, use the simplest common term
-        3. Only use OR if absolutely necessary (max 2-3 terms)
-        4. Keep it focused and specific
+        CRITICAL: Avoid complex boolean expressions - they cause type 2 errors (missing relevant studies).
+        Simple MeSH terms are more reliable than expanded synonym lists.
 
-        For PubMed: Use MeSH terms with [MeSH] tag when appropriate
-        For Google Scholar: Use the plain term without MeSH tags
+        RULES FOR PUBMED:
+        1. Find the single best MeSH term that captures this concept
+        2. Use exact MeSH headings with [MeSH] tag
+        3. If no perfect MeSH exists, use the simplest scientific term
+        4. NEVER create complex OR expressions with synonyms
+        5. Trust MeSH indexing over manual synonym expansion
 
-        Examples:
-        - "diabetes" → "Diabetes Mellitus"[MeSH] (for PubMed) or "diabetes mellitus" (for Scholar)
-        - "mice" → "Mice"[MeSH] (for PubMed) or "mice" (for Scholar)
-        - "cannabis" → "Cannabis"[MeSH] (for PubMed) or "cannabis" (for Scholar)
-        - "heart attack" → "Myocardial Infarction"[MeSH] (for PubMed) or "myocardial infarction" (for Scholar)
-        - "motivation" → "Motivation"[MeSH] (for PubMed) or "motivation" (for Scholar)
+        RULES FOR GOOGLE SCHOLAR:
+        1. Use the simplest, most common term for the concept
+        2. No MeSH tags needed
+        3. Single term preferred over combinations
 
-        Respond in JSON format with a "search_term" field."""
+        Examples for PubMed:
+        - "diabetes" → "Diabetes Mellitus"[MeSH]
+        - "mice" → "Mice"[MeSH]
+        - "cannabis" → "Cannabis"[MeSH]
+        - "mesothelioma" → "Mesothelioma"[MeSH] (NOT "asbestos OR pleural OR lung cancer")
+        - "motivation" → "Motivation"[MeSH]
+        - "young adults" → "Young Adult"[MeSH]
+
+        Why simple terms work better:
+        - MeSH indexers already capture synonyms and related terms
+        - Complex OR expressions miss studies indexed with unexpected terms
+        - Single precise terms have better recall in PubMed
+
+        Respond in JSON format with "search_term" and "is_mesh" fields."""
 
         # Response schema for BasePromptCaller
         response_schema = {
@@ -1224,82 +1240,6 @@ class SmartSearchService:
             logger.error(f"Failed to map concept '{concept}': {e}")
             # Fallback to the original concept
             return concept
-
-    async def _expand_concept_to_boolean(self, concept: str, source: str) -> str:
-        """[DEPRECATED] Expand a single concept into a generous Boolean OR with synonyms.
-
-        This function is kept for backwards compatibility but should not be used.
-        Use _expand_concept_to_mesh_term instead for simpler, more effective searches.
-        """
-
-        # Create prompt for concept expansion
-        system_prompt = f"""Generate a comprehensive Boolean search expression for {source} that captures all relevant studies for this biomedical concept.
-
-        Create a generous OR expression with:
-        - The main term
-        - Common synonyms and variations
-        - Related terms and abbreviations
-        - Alternative spellings
-
-        For PubMed: Use proper Boolean syntax with OR and quoted phrases
-        For Google Scholar: Use simpler OR syntax
-
-        Examples:
-        - "diabetes" → (diabetes OR "diabetes mellitus" OR diabetic OR "type 2 diabetes" OR T2DM)
-        - "mice" → (mice OR mouse OR murine OR "laboratory mice" OR "transgenic mice")
-
-        Respond in JSON format."""
-
-        # Response schema for BasePromptCaller
-        response_schema = {
-            "type": "object",
-            "properties": {
-                "boolean_expression": {"type": "string"}
-            },
-            "required": ["boolean_expression"]
-        }
-
-        # Get model config
-        task_config = get_task_config("smart_search", "keyword_generation")
-
-        prompt_caller = BasePromptCaller(
-            response_model=response_schema,
-            system_message=system_prompt,
-            model=task_config["model"],
-            temperature=task_config.get("temperature", 0.0),
-            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
-        )
-
-        try:
-            user_message = ChatMessage(
-                id="temp_id",
-                chat_id="temp_chat",
-                role=MessageRole.USER,
-                content=f"Concept: {concept}\n\nGenerate a comprehensive Boolean OR expression for {source}.",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-
-            result = await prompt_caller.invoke(
-                messages=[user_message],
-                return_usage=True
-            )
-
-            # Extract result
-            llm_response = result.result
-            if hasattr(llm_response, 'model_dump'):
-                response_data = llm_response.model_dump()
-            elif hasattr(llm_response, 'dict'):
-                response_data = llm_response.dict()
-            else:
-                response_data = llm_response
-
-            return response_data.get('boolean_expression', concept)
-
-        except Exception as e:
-            logger.error(f"Concept expansion failed for '{concept}': {e}")
-            # Fallback to simple parentheses
-            return f"({concept})"
 
     async def _test_pubmed_query_count(self, query: str) -> int:
         """Test a PubMed query to get result count."""

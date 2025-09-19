@@ -32,6 +32,31 @@ export function ExpressionsStep({
 }: ExpressionsStepProps) {
     const [showCoverageModal, setShowCoverageModal] = useState(false);
     const [hasAutoTested, setHasAutoTested] = useState(false);
+    const [queryCandidate, setQueryCandidate] = useState('');
+
+    // Calculate the default combined query from selected expressions
+    const getDefaultCombinedQuery = () => {
+        const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
+        return selectedExpressions.length > 0
+            ? selectedExpressions.map(exp => `(${exp.expression})`).join(' AND ')
+            : '';
+    };
+
+    // Initialize query candidate ONLY on first mount
+    useEffect(() => {
+        const defaultQuery = getDefaultCombinedQuery();
+        if (!queryCandidate) {
+            setQueryCandidate(defaultQuery);
+        }
+    }, []); // Empty dependency array - only runs once on mount
+
+    const handleRefreshFromExpressions = () => {
+        const defaultQuery = getDefaultCombinedQuery();
+        setQueryCandidate(defaultQuery);
+        // Clear test results since we have a new candidate
+        setGeneratedKeywords('');
+        setEstimatedResults(null);
+    };
 
     const handleTestCombination = async () => {
         const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
@@ -95,36 +120,25 @@ export function ExpressionsStep({
         const newExpressions = [...expandedExpressions];
         newExpressions[index] = { ...newExpressions[index], selected: checked };
         setExpandedExpressions(newExpressions);
-        // Reset generated query and results when selection changes
-        setGeneratedKeywords('');
-        setEstimatedResults(null);
-        // DON'T reset auto-test flag - user must manually test after changes
+        // DON'T automatically update query candidate - user controls when to refresh
     };
 
     const handleExpressionTextChange = (index: number, text: string) => {
         const newExpressions = [...expandedExpressions];
         newExpressions[index] = { ...newExpressions[index], expression: text };
         setExpandedExpressions(newExpressions);
-        // Reset generated query and results when expression text changes
-        setGeneratedKeywords('');
-        setEstimatedResults(null);
-        // DON'T reset auto-test flag - user must manually test after changes
+        // DON'T automatically update query candidate - user controls when to refresh
     };
 
     const selectedCount = expandedExpressions.filter(exp => exp.selected).length;
     const hasSelectedExpressions = selectedCount > 0;
-    const defaultCombinedQuery = hasSelectedExpressions
-        ? expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ')
-        : '';
-    const currentCombinedQuery = generatedKeywords || defaultCombinedQuery;
 
-    // Check if current query matches the last tested query
-    const currentQueryMatchesLastTested = generatedKeywords && generatedKeywords === currentCombinedQuery;
+    // Check if current candidate matches any previously tested query
+    const candidateMatchesLastTested = generatedKeywords && generatedKeywords === queryCandidate;
 
-    const handleCombinedQueryChange = (newQuery: string) => {
-        setGeneratedKeywords(newQuery);
-        // When user manually edits the combined query, clear the results since it's no longer tested
-        setEstimatedResults(null);
+    const handleCandidateChange = (newCandidate: string) => {
+        setQueryCandidate(newCandidate);
+        // When user manually edits the candidate, it may no longer match tested results
     };
 
     return (
@@ -177,21 +191,21 @@ export function ExpressionsStep({
                     {hasSelectedExpressions && (
                         <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                                Combined Search Query
+                                Current Query Candidate
                             </h4>
                             <div className="space-y-3">
                                 <div>
                                     <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                                        Query {currentQueryMatchesLastTested && estimatedResults !== null && '(Tested)'}
+                                        Query {candidateMatchesLastTested && estimatedResults !== null && '(Tested)'}
                                     </Label>
                                     <Textarea
-                                        value={currentCombinedQuery}
-                                        onChange={(e) => handleCombinedQueryChange(e.target.value)}
+                                        value={queryCandidate}
+                                        onChange={(e) => handleCandidateChange(e.target.value)}
                                         rows={3}
                                         className="text-sm font-mono dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                                        placeholder="Combined query will appear here..."
+                                        placeholder="Query candidate will appear here..."
                                     />
-                                    {currentQueryMatchesLastTested && estimatedResults !== null && (
+                                    {candidateMatchesLastTested && estimatedResults !== null && (
                                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                                             ✓ Query tested and optimized (~{estimatedResults.toLocaleString()} results)
                                         </p>
@@ -200,8 +214,17 @@ export function ExpressionsStep({
 
                                 <div className="flex items-center gap-3">
                                     <Button
+                                        onClick={handleRefreshFromExpressions}
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={!hasSelectedExpressions}
+                                    >
+                                        Refresh from Selected Expressions
+                                    </Button>
+
+                                    <Button
                                         onClick={handleTestCombination}
-                                        disabled={isGenerating || selectedCount === 0 || currentQueryMatchesLastTested}
+                                        disabled={isGenerating || !queryCandidate.trim() || candidateMatchesLastTested}
                                         variant="outline"
                                         size="sm"
                                     >
@@ -210,16 +233,16 @@ export function ExpressionsStep({
                                                 <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
                                                 Testing...
                                             </>
-                                        ) : currentQueryMatchesLastTested ? (
+                                        ) : candidateMatchesLastTested ? (
                                             <>Already Tested</>
                                         ) : (
-                                            <>Test Combination</>
+                                            <>Test Candidate</>
                                         )}
                                     </Button>
 
                                     <Button
                                         onClick={() => setShowCoverageModal(true)}
-                                        disabled={!currentCombinedQuery.trim()}
+                                        disabled={!queryCandidate.trim()}
                                         variant="outline"
                                         size="sm"
                                     >
@@ -239,7 +262,7 @@ export function ExpressionsStep({
             {/* Coverage Test Modal */}
             {showCoverageModal && (
                 <CoverageTestModal
-                    query={currentCombinedQuery}
+                    query={queryCandidate}
                     source={selectedSource}
                     onClose={() => setShowCoverageModal(false)}
                 />

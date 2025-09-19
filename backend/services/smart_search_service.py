@@ -1016,14 +1016,26 @@ class SmartSearchService:
         logger.info(f"Extracting concepts from evidence specification: {evidence_specification[:100]}...")
 
         # Create prompt for concept extraction
-        system_prompt = """Extract 2-4 key biomedical concepts from this evidence specification that would be good for a literature search.
+        system_prompt = """Extract exactly 3 orthogonal biomedical concepts from this evidence specification for creating an effective AND-based search strategy.
 
-        Return only the most important, specific terms that define what studies they're looking for.
-        Focus on: organisms, interventions, diseases, outcomes, or study types.
+        CRITICAL REQUIREMENTS:
+        1. Extract EXACTLY 3 concepts (4 only if absolutely essential)
+        2. Concepts must be ORTHOGONAL - representing independent dimensions that don't overlap
+        3. Think Venn diagram - each concept is a separate circle that will intersect via AND
+        4. Avoid redundant or overlapping terms
+
+        Choose concepts from different dimensions like:
+        - Population/Subject (who): "adolescents", "mice", "patients with diabetes"
+        - Intervention/Exposure (what): "cannabis use", "exercise training", "chemotherapy"
+        - Outcome/Measure (result): "motivation", "tumor growth", "blood pressure"
+        - Condition/Disease (context): "depression", "diabetes", "cardiovascular disease"
 
         Examples:
-        - "Studies that examine cancer treatment in mice" → ["cancer", "treatment", "mice"]
-        - "Studies that evaluate insulin therapy in diabetes patients" → ["insulin therapy", "diabetes", "patients"]
+        - "Studies examining cannabis effects on motivation in young adults" → ["cannabis", "motivation", "young adults"]
+        - "Research on exercise therapy for depression in elderly patients" → ["exercise therapy", "depression", "elderly"]
+        - "Insulin treatment outcomes in type 2 diabetes" → ["insulin", "type 2 diabetes", "treatment outcomes"]
+
+        The goal: When combined with AND, these 3 concepts should precisely target the research intersection.
 
         Respond in JSON format with the "concepts" field."""
 

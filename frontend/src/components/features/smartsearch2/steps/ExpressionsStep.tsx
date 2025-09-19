@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { CoverageTestModal } from './CoverageTestModal';
 
 interface ExpressionsStepProps {
@@ -16,6 +17,7 @@ interface ExpressionsStepProps {
     selectedSource: 'pubmed' | 'google_scholar';
     testKeywordCombination: (expressions: string[], source: 'pubmed' | 'google_scholar') => Promise<{ combined_query: string; estimated_results: number; source: string; }>;
     setError: (error: string | null) => void;
+    evidenceSpec?: string;
 }
 
 export function ExpressionsStep({
@@ -28,11 +30,13 @@ export function ExpressionsStep({
     isGenerating,
     selectedSource,
     testKeywordCombination,
-    setError
+    setError,
+    evidenceSpec
 }: ExpressionsStepProps) {
     const [showCoverageModal, setShowCoverageModal] = useState(false);
     const [hasAutoTested, setHasAutoTested] = useState(false);
     const [queryCandidate, setQueryCandidate] = useState('');
+    const [showEvidenceSpec, setShowEvidenceSpec] = useState(false);
 
     // Calculate the default combined query from selected expressions
     const getDefaultCombinedQuery = () => {
@@ -134,6 +138,35 @@ export function ExpressionsStep({
                         Select expressions and test their combination. When you find a combination you like, accept it to use for your search.
                     </p>
                 </div>
+
+                {/* Evidence Spec Reference */}
+                {evidenceSpec && (
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <button
+                            onClick={() => setShowEvidenceSpec(!showEvidenceSpec)}
+                            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Evidence Specification Reference
+                                </span>
+                            </div>
+                            {showEvidenceSpec ? (
+                                <ChevronUp className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            )}
+                        </button>
+                        {showEvidenceSpec && (
+                            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {evidenceSpec}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div>
                     <Label className="text-sm font-medium mb-3 block">

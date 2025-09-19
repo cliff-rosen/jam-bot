@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
 interface ConceptsStepProps {
     extractedConcepts: string[];
     setExtractedConcepts: (concepts: string[]) => void;
+    evidenceSpec?: string;
 }
 
 export function ConceptsStep({
     extractedConcepts,
-    setExtractedConcepts
+    setExtractedConcepts,
+    evidenceSpec
 }: ConceptsStepProps) {
+    const [showEvidenceSpec, setShowEvidenceSpec] = useState(false);
     return (
         <div className="space-y-4">
             <div>
@@ -22,6 +26,35 @@ export function ConceptsStep({
                     Review and edit the key concepts. You can modify, add, or remove concepts before expanding them to Boolean expressions.
                 </p>
             </div>
+
+            {/* Evidence Spec Reference */}
+            {evidenceSpec && (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <button
+                        onClick={() => setShowEvidenceSpec(!showEvidenceSpec)}
+                        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Evidence Specification Reference
+                            </span>
+                        </div>
+                        {showEvidenceSpec ? (
+                            <ChevronUp className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        )}
+                    </button>
+                    {showEvidenceSpec && (
+                        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                {evidenceSpec}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div>
                 <Label className="text-sm font-medium mb-2 block">

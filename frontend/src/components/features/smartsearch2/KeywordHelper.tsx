@@ -244,6 +244,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                     <ConceptsStep
                         extractedConcepts={extractedConcepts}
                         setExtractedConcepts={setExtractedConcepts}
+                        evidenceSpec={evidenceSpec}
                     />
                 );
             case 'expressions':
@@ -259,6 +260,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         selectedSource={selectedSource}
                         testKeywordCombination={testKeywordCombination}
                         setError={setError}
+                        evidenceSpec={evidenceSpec}
                     />
                 );
             default:

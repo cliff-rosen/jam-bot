@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -31,24 +31,7 @@ export function ExpressionsStep({
     setError
 }: ExpressionsStepProps) {
     const [showCoverageModal, setShowCoverageModal] = useState(false);
-
-    const handleExpressionSelectionChange = (index: number, checked: boolean) => {
-        const newExpressions = [...expandedExpressions];
-        newExpressions[index] = { ...newExpressions[index], selected: checked };
-        setExpandedExpressions(newExpressions);
-        // Reset generated query and results when selection changes
-        setGeneratedKeywords('');
-        setEstimatedResults(null);
-    };
-
-    const handleExpressionTextChange = (index: number, text: string) => {
-        const newExpressions = [...expandedExpressions];
-        newExpressions[index] = { ...newExpressions[index], expression: text };
-        setExpandedExpressions(newExpressions);
-        // Reset generated query and results when expression text changes
-        setGeneratedKeywords('');
-        setEstimatedResults(null);
-    };
+    const [hasAutoTested, setHasAutoTested] = useState(false);
 
     const handleTestCombination = async () => {
         const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
@@ -94,6 +77,39 @@ export function ExpressionsStep({
                 console.error('Test combination error:', err);
             }
         }
+    };
+
+    // Automatically test combination when step loads with selected expressions
+    useEffect(() => {
+        const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
+
+        // Auto-test if we have selected expressions, no current generated keywords, and haven't auto-tested yet
+        if (selectedExpressions.length > 0 && !generatedKeywords && !hasAutoTested && !isGenerating) {
+            setHasAutoTested(true);
+            handleTestCombination();
+        }
+    }, [expandedExpressions, generatedKeywords, hasAutoTested, isGenerating]);
+
+    const handleExpressionSelectionChange = (index: number, checked: boolean) => {
+        const newExpressions = [...expandedExpressions];
+        newExpressions[index] = { ...newExpressions[index], selected: checked };
+        setExpandedExpressions(newExpressions);
+        // Reset generated query and results when selection changes
+        setGeneratedKeywords('');
+        setEstimatedResults(null);
+        // Reset auto-test flag so it can test again
+        setHasAutoTested(false);
+    };
+
+    const handleExpressionTextChange = (index: number, text: string) => {
+        const newExpressions = [...expandedExpressions];
+        newExpressions[index] = { ...newExpressions[index], expression: text };
+        setExpandedExpressions(newExpressions);
+        // Reset generated query and results when expression text changes
+        setGeneratedKeywords('');
+        setEstimatedResults(null);
+        // Reset auto-test flag so it can test again
+        setHasAutoTested(false);
     };
 
     const selectedCount = expandedExpressions.filter(exp => exp.selected).length;

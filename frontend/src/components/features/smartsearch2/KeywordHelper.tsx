@@ -144,6 +144,10 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         try {
             // Context now handles state updates including marking expressions as selected
             await expandConcepts(extractedConcepts, selectedSource);
+
+            // Clear any previous generated keywords when entering expressions step
+            setGeneratedKeywords('');
+
             setStep('expressions');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to expand expressions';

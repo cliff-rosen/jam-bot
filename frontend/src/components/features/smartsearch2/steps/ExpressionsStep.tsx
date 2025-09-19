@@ -79,16 +79,17 @@ export function ExpressionsStep({
         }
     };
 
-    // Automatically test combination when step loads with selected expressions
+    // Automatically test combination ONLY when step first loads with selected expressions
     useEffect(() => {
         const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
 
-        // Auto-test if we have selected expressions, no current generated keywords, and haven't auto-tested yet
+        // Auto-test ONLY on initial load: has expressions, no keywords, hasn't tested, not generating
+        // Don't auto-test when expressions change after initial load
         if (selectedExpressions.length > 0 && !generatedKeywords && !hasAutoTested && !isGenerating) {
             setHasAutoTested(true);
             handleTestCombination();
         }
-    }, [expandedExpressions, generatedKeywords, hasAutoTested, isGenerating]);
+    }, [hasAutoTested, isGenerating]); // Removed expandedExpressions from dependencies
 
     const handleExpressionSelectionChange = (index: number, checked: boolean) => {
         const newExpressions = [...expandedExpressions];
@@ -97,8 +98,7 @@ export function ExpressionsStep({
         // Reset generated query and results when selection changes
         setGeneratedKeywords('');
         setEstimatedResults(null);
-        // Reset auto-test flag so it can test again
-        setHasAutoTested(false);
+        // DON'T reset auto-test flag - user must manually test after changes
     };
 
     const handleExpressionTextChange = (index: number, text: string) => {
@@ -108,17 +108,24 @@ export function ExpressionsStep({
         // Reset generated query and results when expression text changes
         setGeneratedKeywords('');
         setEstimatedResults(null);
-        // Reset auto-test flag so it can test again
-        setHasAutoTested(false);
+        // DON'T reset auto-test flag - user must manually test after changes
     };
 
     const selectedCount = expandedExpressions.filter(exp => exp.selected).length;
     const hasSelectedExpressions = selectedCount > 0;
-    const currentCombinedQuery = generatedKeywords ||
-        (hasSelectedExpressions ? expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ') : '');
+    const defaultCombinedQuery = hasSelectedExpressions
+        ? expandedExpressions.filter(exp => exp.selected).map(exp => `(${exp.expression})`).join(' AND ')
+        : '';
+    const currentCombinedQuery = generatedKeywords || defaultCombinedQuery;
 
     // Check if current query matches the last tested query
     const currentQueryMatchesLastTested = generatedKeywords && generatedKeywords === currentCombinedQuery;
+
+    const handleCombinedQueryChange = (newQuery: string) => {
+        setGeneratedKeywords(newQuery);
+        // When user manually edits the combined query, clear the results since it's no longer tested
+        setEstimatedResults(null);
+    };
 
     return (
         <>
@@ -175,18 +182,18 @@ export function ExpressionsStep({
                             <div className="space-y-3">
                                 <div>
                                     <Label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                                        Query {generatedKeywords && '(Tested)'}
+                                        Query {currentQueryMatchesLastTested && estimatedResults !== null && '(Tested)'}
                                     </Label>
                                     <Textarea
                                         value={currentCombinedQuery}
-                                        onChange={(e) => setGeneratedKeywords(e.target.value)}
+                                        onChange={(e) => handleCombinedQueryChange(e.target.value)}
                                         rows={3}
                                         className="text-sm font-mono dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                                         placeholder="Combined query will appear here..."
                                     />
-                                    {generatedKeywords && (
+                                    {currentQueryMatchesLastTested && estimatedResults !== null && (
                                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                            ✓ Query tested and optimized {estimatedResults !== null && `(~${estimatedResults.toLocaleString()} results)`}
+                                            ✓ Query tested and optimized (~{estimatedResults.toLocaleString()} results)
                                         </p>
                                     )}
                                 </div>

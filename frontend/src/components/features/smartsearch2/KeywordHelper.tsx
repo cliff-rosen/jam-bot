@@ -49,16 +49,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         resetResearchJourney,
     } = useSmartSearch2();
 
-    const handleRefineEvidenceSpec = async (skipClarifications = false) => {
+    const handleRefineEvidenceSpec = async () => {
         if (!researchQuestion.trim() && conversationHistory.length === 0) {
-            return;
-        }
-
-        // If skipping clarifications and we have a previous evidence spec, use it
-        if (skipClarifications && evidenceSpec) {
-            setClarificationQuestions([]);
-            setUserAnswers({});
-            setStep('evidence');
             return;
         }
 
@@ -92,16 +84,19 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
             setCompletenessScore(response.completeness_score);
             setMissingElements(response.missing_elements || []);
 
-            if (response.is_complete && response.evidence_specification) {
-                // Evidence spec is complete
-                setClarificationQuestions([]);
-                setUserAnswers({});
-                setStep('evidence');
-            } else if (response.clarification_questions) {
-                // Need more information
+            // Always proceed to evidence step after generating
+            if (response.clarification_questions) {
+                // Store clarification questions for the evidence step
                 setClarificationQuestions(response.clarification_questions);
                 setUserAnswers({});
+            } else {
+                // No clarification questions needed
+                setClarificationQuestions([]);
+                setUserAnswers({});
             }
+
+            // Always go to evidence step to show the spec
+            setStep('evidence');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to refine evidence specification';
             setError(errorMessage);
@@ -227,6 +222,11 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                     <EvidenceStep
                         evidenceSpec={evidenceSpec}
                         setEvidenceSpec={setEvidenceSpec}
+                        completenessScore={completenessScore}
+                        missingElements={missingElements}
+                        clarificationQuestions={clarificationQuestions}
+                        userAnswers={userAnswers}
+                        setUserAnswers={setUserAnswers}
                     />
                 );
             case 'concepts':
@@ -373,14 +373,20 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                             >
                                 Cancel
                             </Button>
-                            {step === 'question' && clarificationQuestions.length > 0 && evidenceSpec && (
+                            {/* For evidence step with clarification questions, show refine button */}
+                            {step === 'evidence' && clarificationQuestions.length > 0 && (
                                 <Button
-                                    onClick={() => handleRefineEvidenceSpec(true)}
+                                    onClick={() => {
+                                        // Go back to question step to refine with answers
+                                        setStep('question');
+                                        handleRefineEvidenceSpec();
+                                    }}
                                     variant="outline"
-                                    disabled={isGenerating}
-                                    className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                                    disabled={isGenerating || Object.keys(userAnswers).length === 0}
+                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                 >
-                                    Skip & Use Last Version
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Refine with Answers
                                 </Button>
                             )}
                             {step !== 'expressions' && (
@@ -388,8 +394,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                     onClick={handleNext}
                                     disabled={
                                         isGenerating ||
-                                        (step === 'question' && !researchQuestion.trim() && clarificationQuestions.length === 0) ||
-                                        (step === 'question' && clarificationQuestions.length > 0 && Object.keys(userAnswers).length === 0) ||
+                                        (step === 'question' && !researchQuestion.trim()) ||
                                         (step === 'evidence' && !evidenceSpec.trim()) ||
                                         (step === 'concepts' && extractedConcepts.length === 0)
                                     }
@@ -405,13 +410,13 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                                             {step === 'question' && (
                                                 <>
                                                     <Sparkles className="w-4 h-4 mr-2" />
-                                                    {clarificationQuestions.length > 0 ? 'Continue Refining' : 'Generate Evidence Spec'}
+                                                    Generate Evidence Spec
                                                 </>
                                             )}
                                             {step === 'evidence' && (
                                                 <>
                                                     <Sparkles className="w-4 h-4 mr-2" />
-                                                    Extract Concepts
+                                                    {clarificationQuestions.length > 0 ? 'Skip & Extract Concepts' : 'Extract Concepts'}
                                                 </>
                                             )}
                                             {step === 'concepts' && (

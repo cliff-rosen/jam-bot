@@ -49,7 +49,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         resetResearchJourney,
     } = useSmartSearch2();
 
-    const handleGenerateEvidenceSpec = async () => {
+    const handleRefineEvidenceSpec = async () => {
         if (!researchQuestion.trim() && conversationHistory.length === 0) {
             return;
         }
@@ -168,7 +168,7 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
 
     const handleNext = () => {
         if (step === 'question') {
-            handleGenerateEvidenceSpec();
+            handleRefineEvidenceSpec();
         } else if (step === 'evidence') {
             handleExtractConcepts();
         } else if (step === 'concepts') {

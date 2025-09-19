@@ -379,11 +379,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 evidence_specification: evidenceSpecification
             });
 
-            // Update context state
+            // Update context state with extracted concepts only
             setExtractedConcepts(response.concepts);
-            if (response.evidence_specification) {
-                setEvidenceSpec(response.evidence_specification);
-            }
 
             return response;
         } catch (err) {

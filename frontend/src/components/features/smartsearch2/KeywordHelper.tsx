@@ -21,6 +21,11 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
     const [estimatedResults, setEstimatedResults] = useState<number | null>(null);
 
+    // Conversation refinement state (local to this flow)
+    const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
+    const [completenessScore, setCompletenessScore] = useState(0);
+    const [missingElements, setMissingElements] = useState<string[]>([]);
+
     const {
         // Research data from context (persistent)
         selectedSource,
@@ -29,9 +34,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         extractedConcepts,
         expandedExpressions,
         generatedKeywords,
-        conversationHistory,
-        completenessScore,
-        missingElements,
 
         // Actions from context
         updateSearchQuery,
@@ -44,9 +46,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setExtractedConcepts,
         setExpandedExpressions,
         setGeneratedKeywords,
-        setConversationHistory,
-        setCompletenessScore,
-        setMissingElements,
         resetResearchJourney,
     } = useSmartSearch2();
 
@@ -72,7 +71,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         });
                     }
                 });
-                setConversationHistory(updatedHistory);
             }
 
             // Use conversational refinement
@@ -81,12 +79,13 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                 updatedHistory.length > 0 ? updatedHistory : undefined
             );
 
+            // Update local state
+            setConversationHistory(updatedHistory);
             setCompletenessScore(response.completeness_score);
             setMissingElements(response.missing_elements || []);
 
             if (response.is_complete && response.evidence_specification) {
                 // Evidence spec is complete
-                setEvidenceSpec(response.evidence_specification);
                 setClarificationQuestions([]);
                 setUserAnswers({});
                 setStep('evidence');
@@ -113,8 +112,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            const response = await extractConcepts(evidenceSpec);
-            setExtractedConcepts(response.concepts);
+            // Context now handles state updates
+            await extractConcepts(evidenceSpec);
             setStep('concepts');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to extract concepts';
@@ -134,10 +133,8 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
         setError(null);
 
         try {
-            const response = await expandConcepts(extractedConcepts, selectedSource);
-            // Mark all expressions as selected by default
-            const expressionsWithSelection = response.expansions.map(exp => ({ ...exp, selected: true }));
-            setExpandedExpressions(expressionsWithSelection);
+            // Context now handles state updates including marking expressions as selected
+            await expandConcepts(extractedConcepts, selectedSource);
             setStep('expressions');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to expand expressions';

@@ -67,6 +67,11 @@ TASK_CONFIGS = {
             "reasoning_effort": "minimal",
             "description": "Generate structured evidence specifications"
         },
+        "extract_concepts": {
+            "model": "gpt-4.1",
+            "reasoning_effort": "low",
+            "description": "Generate precise boolean search queries"
+        },
         "keyword_generation": {
             "model": "gpt-4.1",
             "reasoning_effort": "low",

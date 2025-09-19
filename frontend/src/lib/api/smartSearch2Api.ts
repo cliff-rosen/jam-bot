@@ -124,9 +124,9 @@ class SmartSearch2Api {
         return response.data;
     }
 
-
     /**
      * Refine evidence specification from user description (conversational)
+     * Can be used for both initial generation and iterative refinement
      */
     async refineEvidenceSpec(request: EvidenceSpecRequest): Promise<EvidenceSpecResponse> {
         const response = await api.post('/api/smart-search-2/evidence-spec', request);

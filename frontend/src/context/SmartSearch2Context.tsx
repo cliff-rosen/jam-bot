@@ -63,11 +63,6 @@ interface SmartSearch2State {
     expandedExpressions: Array<{ concept: string; expression: string; count: number; selected?: boolean }>;
     generatedKeywords: string;
 
-    // CONVERSATIONAL REFINEMENT STATE (persistent data)
-    conversationHistory: Array<{ question: string; answer: string }>;
-    completenessScore: number;
-    missingElements: string[];
-
     // UI STATE
     hasSearched: boolean;
     resultState: ResultState;  // Track the current state of results
@@ -107,9 +102,6 @@ interface SmartSearch2Actions {
     setExtractedConcepts: (concepts: string[]) => void;
     setExpandedExpressions: (expressions: Array<{ concept: string; expression: string; count: number; selected?: boolean }>) => void;
     setGeneratedKeywords: (keywords: string) => void;
-    setConversationHistory: (history: Array<{ question: string; answer: string }>) => void;
-    setCompletenessScore: (score: number) => void;
-    setMissingElements: (elements: string[]) => void;
     resetResearchJourney: () => void;
 
     // SEARCH EXECUTION
@@ -218,9 +210,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [generatedKeywords, setGeneratedKeywords] = useState('');
 
     // Conversational refinement state (persistent data)
-    const [conversationHistory, setConversationHistory] = useState<Array<{ question: string; answer: string }>>([]);
-    const [completenessScore, setCompletenessScore] = useState(0);
-    const [missingElements, setMissingElements] = useState<string[]>([]);
 
 
     // ================== ACTIONS ==================
@@ -354,9 +343,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setExtractedConcepts([]);
         setExpandedExpressions([]);
         setGeneratedKeywords('');
-        setConversationHistory([]);
-        setCompletenessScore(0);
-        setMissingElements([]);
     }, []);
 
     const refineEvidenceSpec = useCallback(async (
@@ -364,10 +350,21 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         conversationHistory?: Array<{ question: string; answer: string }>
     ) => {
         try {
+            // Set research question if this is the first call (no conversation history)
+            if (!conversationHistory || conversationHistory.length === 0) {
+                setResearchQuestion(userDescription);
+            }
+
             const response = await smartSearch2Api.refineEvidenceSpec({
                 user_description: userDescription,
                 conversation_history: conversationHistory
             });
+
+            if (response.is_complete && response.evidence_specification) {
+                // Evidence spec is complete - update it
+                setEvidenceSpec(response.evidence_specification);
+            }
+
             return response;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to refine evidence specification';
@@ -381,6 +378,13 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             const response = await smartSearch2Api.extractConcepts({
                 evidence_specification: evidenceSpecification
             });
+
+            // Update context state
+            setExtractedConcepts(response.concepts);
+            if (response.evidence_specification) {
+                setEvidenceSpec(response.evidence_specification);
+            }
+
             return response;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to extract concepts';
@@ -395,6 +399,14 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 concepts,
                 source
             });
+
+            // Update context state with expanded expressions (all selected by default)
+            const expressionsWithSelection = response.expansions.map(exp => ({
+                ...exp,
+                selected: true
+            }));
+            setExpandedExpressions(expressionsWithSelection);
+
             return response;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to expand concepts';
@@ -1014,9 +1026,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         extractedConcepts,
         expandedExpressions,
         generatedKeywords,
-        conversationHistory,
-        completenessScore,
-        missingElements,
 
         // Actions
         updateSelectedSource,
@@ -1052,9 +1061,6 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setExtractedConcepts,
         setExpandedExpressions,
         setGeneratedKeywords,
-        setConversationHistory,
-        setCompletenessScore,
-        setMissingElements,
         resetResearchJourney,
     };
 

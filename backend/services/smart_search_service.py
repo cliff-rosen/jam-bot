@@ -1037,7 +1037,7 @@ class SmartSearchService:
         }
 
         # Get model config for concept extraction
-        task_config = get_task_config("smart_search", "evidence_spec")
+        task_config = get_task_config("smart_search", "extract_concepts")
 
         prompt_caller = BasePromptCaller(
             response_model=response_schema,

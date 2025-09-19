@@ -932,7 +932,7 @@ class GoogleScholarService:
                     # Skip if already has abstract
                     if article.abstract and article.abstract.strip():
                         continue
-                    tasks.append(self._enrich_single_article_async(article, session))
+                    tasks.append(self._enrich_article_summary_async(article, session))
 
                 # Execute batch concurrently
                 if tasks:
@@ -955,17 +955,6 @@ class GoogleScholarService:
                 if progress_callback:
                     await progress_callback(i + len(batch), len(scholar_articles))
 
-    async def _enrich_single_article_async(
-        self,
-        article: GoogleScholarArticle,
-        session: aiohttp.ClientSession
-    ) -> Optional[str]:
-        """Enrich a single article asynchronously."""
-        try:
-            return await self._enrich_article_summary_async(article, session)
-        except Exception as e:
-            logger.debug(f"Failed to enrich article: {e}")
-            return None
 
 
 # Module-level function to match PubMed pattern

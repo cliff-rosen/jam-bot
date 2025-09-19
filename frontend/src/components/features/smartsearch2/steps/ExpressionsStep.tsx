@@ -58,63 +58,44 @@ export function ExpressionsStep({
         setEstimatedResults(null);
     };
 
-    const handleTestCombination = async () => {
-        const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
-        if (selectedExpressions.length > 0) {
-            try {
-                // Log what we're sending
-                console.log('Testing combination:', {
-                    selectedCount: selectedExpressions.length,
-                    expressions: selectedExpressions.map(exp => ({
-                        concept: exp.concept,
-                        expression: exp.expression,
-                        individualCount: exp.count
-                    })),
-                    source: selectedSource
-                });
+    const handleTestCandidate = async () => {
+        if (!queryCandidate.trim()) return;
 
-                const response = await testKeywordCombination(
-                    selectedExpressions.map(exp => exp.expression),
-                    selectedSource
-                );
+        try {
+            // Test the actual query candidate string directly
+            console.log('Testing query candidate:', queryCandidate);
 
-                console.log('Test response:', {
-                    combined_query: response.combined_query,
-                    estimated_results: response.estimated_results,
-                    source: response.source
-                });
+            // We need to test the candidate as a single query string
+            // The API expects an array of expressions, so we pass the candidate as a single item
+            const response = await testKeywordCombination(
+                [queryCandidate], // Pass the candidate as a single expression
+                selectedSource
+            );
 
-                // Log the Boolean logic check
-                console.log('BOOLEAN LOGIC CHECK:', {
-                    individualCounts: selectedExpressions.map(exp => `${exp.concept}: ${exp.count}`),
-                    combinedCount: response.estimated_results,
-                    isLogicallyCorrect: response.estimated_results <= Math.min(...selectedExpressions.map(exp => exp.count)),
-                    message: response.estimated_results > Math.min(...selectedExpressions.map(exp => exp.count))
-                        ? '⚠️ WARNING: Combined count is higher than smallest individual count - Boolean AND logic may be incorrect!'
-                        : '✓ Boolean AND logic appears correct'
-                });
+            console.log('Test response:', {
+                combined_query: response.combined_query,
+                estimated_results: response.estimated_results,
+                source: response.source
+            });
 
-                setGeneratedKeywords(response.combined_query);
-                setEstimatedResults(response.estimated_results);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : 'Failed to test combination';
-                setError(errorMessage);
-                console.error('Test combination error:', err);
-            }
+            // Store the tested query and its results
+            setGeneratedKeywords(queryCandidate); // Store what we actually tested
+            setEstimatedResults(response.estimated_results);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to test candidate';
+            setError(errorMessage);
+            console.error('Test candidate error:', err);
         }
     };
 
-    // Automatically test combination ONLY when step first loads with selected expressions
+    // Automatically test candidate ONLY when step first loads
     useEffect(() => {
-        const selectedExpressions = expandedExpressions.filter(exp => exp.selected);
-
-        // Auto-test ONLY on initial load: has expressions, no keywords, hasn't tested, not generating
-        // Don't auto-test when expressions change after initial load
-        if (selectedExpressions.length > 0 && !generatedKeywords && !hasAutoTested && !isGenerating) {
+        // Auto-test ONLY on initial load: has candidate, no keywords, hasn't tested, not generating
+        if (queryCandidate && !generatedKeywords && !hasAutoTested && !isGenerating) {
             setHasAutoTested(true);
-            handleTestCombination();
+            handleTestCandidate();
         }
-    }, [hasAutoTested, isGenerating]); // Removed expandedExpressions from dependencies
+    }, [queryCandidate, hasAutoTested, isGenerating]); // Include queryCandidate to test once it's set
 
     const handleExpressionSelectionChange = (index: number, checked: boolean) => {
         const newExpressions = [...expandedExpressions];
@@ -223,7 +204,7 @@ export function ExpressionsStep({
                                     </Button>
 
                                     <Button
-                                        onClick={handleTestCombination}
+                                        onClick={handleTestCandidate}
                                         disabled={isGenerating || !queryCandidate.trim() || candidateMatchesLastTested}
                                         variant="outline"
                                         size="sm"

@@ -233,7 +233,6 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                         clarificationQuestions={clarificationQuestions}
                         userAnswers={userAnswers}
                         setUserAnswers={setUserAnswers}
-                        researchQuestion={researchQuestion}
                     />
                 );
             case 'concepts':

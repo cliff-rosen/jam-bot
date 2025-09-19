@@ -11,7 +11,6 @@ interface EvidenceStepProps {
     clarificationQuestions?: string[];
     userAnswers?: Record<number, string>;
     setUserAnswers?: (answers: Record<number, string>) => void;
-    researchQuestion?: string;
 }
 
 export function EvidenceStep({
@@ -21,13 +20,9 @@ export function EvidenceStep({
     missingElements,
     clarificationQuestions = [],
     userAnswers = {},
-    setUserAnswers,
-    researchQuestion
+    setUserAnswers
 }: EvidenceStepProps) {
     const showRefinementSuggestion = completenessScore !== undefined && completenessScore < 1;
-
-    // Check if the evidence spec is just the user's original question (fallback case)
-    const isGeneratedSpec = evidenceSpec !== researchQuestion;
 
     const getDescription = () => {
         if (clarificationQuestions.length > 0) {

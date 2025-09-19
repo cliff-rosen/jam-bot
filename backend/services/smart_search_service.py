@@ -1164,7 +1164,7 @@ class SmartSearchService:
 
         RULES FOR PUBMED:
         1. Find the single best MeSH term that captures this concept
-        2. Use exact MeSH headings with [MeSH] tag
+        2. Return the exact MeSH heading as plain text (no [MeSH] tags)
         3. If no perfect MeSH exists, use the simplest scientific term
         4. NEVER create complex OR expressions with synonyms
         5. Trust MeSH indexing over manual synonym expansion
@@ -1175,12 +1175,12 @@ class SmartSearchService:
         3. Single term preferred over combinations
 
         Examples for PubMed:
-        - "diabetes" → "Diabetes Mellitus"[MeSH]
-        - "mice" → "Mice"[MeSH]
-        - "cannabis" → "Cannabis"[MeSH]
-        - "mesothelioma" → "Mesothelioma"[MeSH] (NOT "asbestos OR pleural OR lung cancer")
-        - "motivation" → "Motivation"[MeSH]
-        - "young adults" → "Young Adult"[MeSH]
+        - "diabetes" → "Diabetes Mellitus"
+        - "mice" → "Mice"
+        - "cannabis" → "Cannabis"
+        - "mesothelioma" → "Mesothelioma" (NOT "asbestos OR pleural OR lung cancer")
+        - "motivation" → "Motivation"
+        - "young adults" → "Young Adult"
 
         Why simple terms work better:
         - MeSH indexers already capture synonyms and related terms
@@ -1220,18 +1220,24 @@ class SmartSearchService:
                 updated_at=datetime.utcnow()
             )
 
-            response, usage = await prompt_caller.call(messages=[user_message])
+            result = await prompt_caller.invoke(
+                messages=[user_message],
+                return_usage=True
+            )
 
-            search_term = response.get("search_term", concept)
+            # Extract result following the working pattern
+            llm_response = result.result
+            if hasattr(llm_response, 'model_dump'):
+                response_data = llm_response.model_dump()
+            elif hasattr(llm_response, 'dict'):
+                response_data = llm_response.dict()
+            else:
+                response_data = llm_response
 
-            # Format appropriately for the source
-            if source == "pubmed" and response.get("is_mesh", False):
-                # Ensure MeSH formatting for PubMed
-                if "[MeSH]" not in search_term:
-                    search_term = f'"{search_term}"[MeSH]'
-            elif source == "google_scholar":
-                # Remove any MeSH tags for Google Scholar
-                search_term = search_term.replace("[MeSH]", "").strip('"')
+            search_term = response_data.get("search_term", concept)
+
+            # Use the search term as-is (plain text MeSH terms or simple terms)
+            # No special formatting needed for either PubMed or Google Scholar
 
             logger.info(f"Mapped concept '{concept}' to: {search_term}")
             return search_term

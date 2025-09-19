@@ -95,6 +95,12 @@ export function KeywordHelper({ onComplete, onCancel }: KeywordHelperProps) {
                 setUserAnswers({});
             }
 
+            // Set the evidence spec if we got one (even if incomplete)
+            if (response.evidence_specification) {
+                // This should be set by the context, but ensure it's set
+                // Context should already handle this, but we'll make sure
+            }
+
             // Always go to evidence step to show the spec
             setStep('evidence');
         } catch (err) {

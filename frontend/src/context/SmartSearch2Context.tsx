@@ -367,9 +367,12 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 conversation_history: conversationHistory
             });
 
-            if (response.is_complete && response.evidence_specification) {
-                // Evidence spec is complete - update it
+            // Always set an evidence spec - use API response or fallback to user question
+            if (response.evidence_specification) {
                 setEvidenceSpec(response.evidence_specification);
+            } else {
+                // Fallback to user's original question if no evidence spec returned
+                setEvidenceSpec(userDescription);
             }
 
             return response;

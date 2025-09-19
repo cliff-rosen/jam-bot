@@ -37,6 +37,7 @@ export function ExpressionsStep({
     const [hasAutoTested, setHasAutoTested] = useState(false);
     const [queryCandidate, setQueryCandidate] = useState('');
     const [showEvidenceSpec, setShowEvidenceSpec] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
 
     // Calculate the default combined query from selected expressions
     const getDefaultCombinedQuery = () => {
@@ -65,6 +66,7 @@ export function ExpressionsStep({
     const handleTestCandidate = async () => {
         if (!queryCandidate.trim()) return;
 
+        setIsTesting(true);
         try {
             // Test the actual query candidate string directly
             console.log('Testing query candidate:', queryCandidate);
@@ -89,6 +91,8 @@ export function ExpressionsStep({
             const errorMessage = err instanceof Error ? err.message : 'Failed to test candidate';
             setError(errorMessage);
             console.error('Test candidate error:', err);
+        } finally {
+            setIsTesting(false);
         }
     };
 
@@ -238,14 +242,14 @@ export function ExpressionsStep({
 
                                     <Button
                                         onClick={handleTestCandidate}
-                                        disabled={isGenerating || !queryCandidate.trim() || candidateMatchesLastTested}
+                                        disabled={isTesting || isGenerating || !queryCandidate.trim() || candidateMatchesLastTested}
                                         variant="outline"
                                         size="sm"
                                     >
-                                        {isGenerating ? (
+                                        {isTesting ? (
                                             <>
                                                 <div className="animate-spin mr-2 h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
-                                                Testing...
+                                                Processing...
                                             </>
                                         ) : candidateMatchesLastTested ? (
                                             <>Already Tested</>

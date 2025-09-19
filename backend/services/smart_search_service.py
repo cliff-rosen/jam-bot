@@ -1101,8 +1101,8 @@ class SmartSearchService:
             concept_counts = {}
 
             for concept in concepts:
-                # Generate synonyms and Boolean OR for this concept
-                expansion = await self._expand_concept_to_boolean(concept, source)
+                # Map concept to MeSH term or simple search term
+                expansion = await self._expand_concept_to_mesh_term(concept, source)
                 concept_expansions[concept] = expansion
 
                 # Test the count for this concept expansion - always use PubMed for accurate counts
@@ -1127,8 +1127,98 @@ class SmartSearchService:
             logger.error(f"Optimized keyword generation failed: {e}")
             raise
 
+    def _combine_mesh_terms(self, terms: List[str], operator: str = "AND") -> str:
+        """Combine MeSH terms using Boolean operators."""
+        if not terms:
+            return ""
+        if len(terms) == 1:
+            return terms[0]
+
+        # Join terms with the specified operator
+        return f" {operator} ".join(f"({term})" if " OR " in term else term for term in terms)
+
+    async def _expand_concept_to_mesh_term(self, concept: str, source: str) -> str:
+        """Map a concept to a single MeSH term or simple term combination."""
+
+        # Create prompt for simple MeSH mapping
+        system_prompt = f"""Map this biomedical concept to a single MeSH (Medical Subject Headings) term or a very simple search expression for {source}.
+
+        RULES:
+        1. Prefer a single MeSH term when possible
+        2. If no perfect MeSH term exists, use the simplest common term
+        3. Only use OR if absolutely necessary (max 2-3 terms)
+        4. Keep it focused and specific
+
+        For PubMed: Use MeSH terms with [MeSH] tag when appropriate
+        For Google Scholar: Use the plain term without MeSH tags
+
+        Examples:
+        - "diabetes" → "Diabetes Mellitus"[MeSH] (for PubMed) or "diabetes mellitus" (for Scholar)
+        - "mice" → "Mice"[MeSH] (for PubMed) or "mice" (for Scholar)
+        - "cannabis" → "Cannabis"[MeSH] (for PubMed) or "cannabis" (for Scholar)
+        - "heart attack" → "Myocardial Infarction"[MeSH] (for PubMed) or "myocardial infarction" (for Scholar)
+        - "motivation" → "Motivation"[MeSH] (for PubMed) or "motivation" (for Scholar)
+
+        Respond in JSON format with a "search_term" field."""
+
+        # Response schema for BasePromptCaller
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "search_term": {"type": "string"},
+                "is_mesh": {"type": "boolean", "description": "True if this is a MeSH term"}
+            },
+            "required": ["search_term", "is_mesh"]
+        }
+
+        # Get model config
+        task_config = get_task_config("smart_search", "keyword_generation")
+
+        prompt_caller = BasePromptCaller(
+            response_model=response_schema,
+            system_message=system_prompt,
+            model=task_config["model"],
+            temperature=task_config.get("temperature", 0.0),
+            reasoning_effort=task_config.get("reasoning_effort") if supports_reasoning_effort(task_config["model"]) else None
+        )
+
+        try:
+            user_message = ChatMessage(
+                id="temp_id",
+                chat_id="temp_chat",
+                role=MessageRole.USER,
+                content=f"Concept: {concept}\n\nMap to a MeSH term or simple search term for {source}.",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            response, usage = await prompt_caller.call(messages=[user_message])
+
+            search_term = response.get("search_term", concept)
+
+            # Format appropriately for the source
+            if source == "pubmed" and response.get("is_mesh", False):
+                # Ensure MeSH formatting for PubMed
+                if "[MeSH]" not in search_term:
+                    search_term = f'"{search_term}"[MeSH]'
+            elif source == "google_scholar":
+                # Remove any MeSH tags for Google Scholar
+                search_term = search_term.replace("[MeSH]", "").strip('"')
+
+            logger.info(f"Mapped concept '{concept}' to: {search_term}")
+            return search_term
+
+        except Exception as e:
+            logger.error(f"Failed to map concept '{concept}': {e}")
+            # Fallback to the original concept
+            return concept
+
     async def _expand_concept_to_boolean(self, concept: str, source: str) -> str:
-        """Expand a single concept into a generous Boolean OR with synonyms."""
+        """[DEPRECATED] Expand a single concept into a generous Boolean OR with synonyms.
+
+        This function is kept for backwards compatibility but should not be used.
+        Use _expand_concept_to_mesh_term instead for simpler, more effective searches.
+        """
 
         # Create prompt for concept expansion
         system_prompt = f"""Generate a comprehensive Boolean search expression for {source} that captures all relevant studies for this biomedical concept.
@@ -1220,43 +1310,74 @@ class SmartSearchService:
         concept_counts: Dict[str, int],
         target_count: int
     ) -> Dict[str, Any]:
-        """Find the optimal combination of concepts to reach target result count."""
+        """Find the optimal combination of concepts to reach target result count.
+
+        With simplified MeSH terms, we can be more precise in our combinations.
+        """
 
         concepts = list(concept_expansions.keys())
         sorted_concepts = sorted(concepts, key=lambda c: concept_counts[c])
 
-        # Strategy 1: Try the two smallest concepts first
+        # Since we're using simpler MeSH terms now, we can be more aggressive with ANDs
+
+        # Strategy 1: Try combining ALL concepts with AND for maximum precision
         if len(concepts) >= 2:
-            concept1, concept2 = sorted_concepts[0], sorted_concepts[1]
-            query = f"({concept_expansions[concept1]}) AND ({concept_expansions[concept2]})"
+            # Build query by combining all MeSH terms with AND
+            all_terms = [concept_expansions[c] for c in concepts]
+            query = self._combine_mesh_terms(all_terms, "AND")
 
-            # Estimate combined count (rough heuristic)
-            estimated_count = min(concept_counts[concept1], concept_counts[concept2]) // 2
+            # Estimate count - with MeSH terms, AND combinations are more predictable
+            # Use geometric mean for estimation
+            import math
+            if all(concept_counts[c] > 0 for c in concepts):
+                geometric_mean = math.exp(sum(math.log(concept_counts[c]) for c in concepts) / len(concepts))
+                estimated_count = int(geometric_mean / (len(concepts) * 2))  # Divide by factor for AND operations
+            else:
+                estimated_count = 0
 
-            if estimated_count <= target_count * 1.5:  # Within reasonable range
+            if 10 <= estimated_count <= target_count * 2:  # Good range for focused results
                 return {
                     'query': query,
                     'estimated_count': estimated_count,
-                    'strategy': f'Combined two smallest concepts: "{concept1}" AND "{concept2}"'
+                    'strategy': f'Combined all {len(concepts)} MeSH concepts with AND for precision'
                 }
 
-        # Strategy 2: Use single smallest concept if combination is too restrictive
+        # Strategy 2: Try the two most specific (smallest count) concepts
+        if len(concepts) >= 2:
+            concept1, concept2 = sorted_concepts[0], sorted_concepts[1]
+            terms = [concept_expansions[concept1], concept_expansions[concept2]]
+            query = self._combine_mesh_terms(terms, "AND")
+
+            # Better estimation for MeSH term combinations
+            estimated_count = min(concept_counts[concept1], concept_counts[concept2]) // 3
+
+            if estimated_count >= 10:  # Ensure we have meaningful results
+                return {
+                    'query': query,
+                    'estimated_count': estimated_count,
+                    'strategy': f'Combined two most specific MeSH terms: "{concept1}" AND "{concept2}"'
+                }
+
+        # Strategy 3: Use single most specific MeSH term
         if len(concepts) >= 1:
             smallest_concept = sorted_concepts[0]
             query = concept_expansions[smallest_concept]
             estimated_count = concept_counts[smallest_concept]
 
-            return {
-                'query': query,
-                'estimated_count': estimated_count,
-                'strategy': f'Single most specific concept: "{smallest_concept}"'
-            }
+            if estimated_count > 0:
+                return {
+                    'query': query,
+                    'estimated_count': estimated_count,
+                    'strategy': f'Single most specific MeSH term: "{smallest_concept}"'
+                }
 
-        # Fallback
+        # Fallback: Combine with OR if all else fails
+        all_terms = [concept_expansions[c] for c in concepts]
+        query = self._combine_mesh_terms(all_terms, "OR")
         return {
-            'query': ' OR '.join(f"({exp})" for exp in concept_expansions.values()),
+            'query': query,
             'estimated_count': sum(concept_counts.values()),
-            'strategy': 'OR of all concepts (fallback)'
+            'strategy': 'OR combination of MeSH terms (fallback)'
         }
 
     async def expand_concepts_with_counts(
@@ -1272,8 +1393,8 @@ class SmartSearchService:
         expansions = []
         for concept in concepts:
             try:
-                # Expand concept to Boolean expression
-                expression = await self._expand_concept_to_boolean(concept, source)
+                # Map concept to MeSH term or simple search term
+                expression = await self._expand_concept_to_mesh_term(concept, source)
 
                 # Get result count - always use PubMed for accurate Boolean testing
                 # Even for Google Scholar concepts, we test against PubMed for real counts

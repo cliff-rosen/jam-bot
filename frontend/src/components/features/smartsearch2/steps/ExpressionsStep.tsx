@@ -134,7 +134,7 @@ export function ExpressionsStep({
     const hasSelectedExpressions = selectedCount > 0;
 
     // Check if current candidate matches any previously tested query
-    const candidateMatchesLastTested = generatedKeywords && generatedKeywords === queryCandidate;
+    const candidateMatchesLastTested = !!(generatedKeywords && generatedKeywords === queryCandidate);
 
     const handleCandidateChange = (newCandidate: string) => {
         setQueryCandidate(newCandidate);

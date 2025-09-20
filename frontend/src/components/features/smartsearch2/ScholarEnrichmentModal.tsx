@@ -13,7 +13,8 @@ import {
     ArrowLeft,
     ExternalLink,
     List,
-    Grid
+    Grid,
+    Table
 } from 'lucide-react';
 
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
@@ -64,7 +65,7 @@ export function ScholarEnrichmentModal({
     const [filterError, setFilterError] = useState<string | null>(null);
     const [returnedCount, setReturnedCount] = useState(0);
     const [progressInfo, setProgressInfo] = useState<{ startIndex?: number; batchSize?: number } | null>(null);
-    const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
+    const [viewMode, setViewMode] = useState<'table' | 'expanded'>('table');
 
     // Abort controller for streaming requests
     const streamAbortRef = useRef<AbortController | null>(null);
@@ -453,13 +454,13 @@ export function ScholarEnrichmentModal({
                                 {!isProcessing && scholarArticles.length > 0 && (
                                     <div className="flex items-center gap-2">
                                         <Button
-                                            variant={viewMode === 'compact' ? 'default' : 'outline'}
+                                            variant={viewMode === 'table' ? 'default' : 'outline'}
                                             size="sm"
-                                            onClick={() => setViewMode('compact')}
+                                            onClick={() => setViewMode('table')}
                                             className="gap-1"
                                         >
-                                            <List className="w-4 h-4" />
-                                            Compact
+                                            <Table className="w-4 h-4" />
+                                            Table
                                         </Button>
                                         <Button
                                             variant={viewMode === 'expanded' ? 'default' : 'outline'}
@@ -531,44 +532,82 @@ export function ScholarEnrichmentModal({
                                 </div>
                             ) : (
                                 <div className="flex-1 overflow-y-auto">
-                                    <div className="space-y-3">
-                                        {scholarArticles.map(article => (
-                                            viewMode === 'compact' ? (
-                                                // Compact View - minimal information
-                                                <div
-                                                    key={article.id}
-                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
-                                                                {article.url ? (
+                                    {viewMode === 'table' ? (
+                                        // Table View - Clean and simple like PubMed
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+                                                    <tr>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Title</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Authors</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Year</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Source</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">DOI</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Status</th>
+                                                        <th className="text-left p-3 text-sm font-medium text-gray-700 dark:text-gray-300">Link</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {scholarArticles.map(article => (
+                                                        <tr key={article.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                            <td className="p-3 text-sm text-gray-900 dark:text-gray-100">
+                                                                {article.title}
+                                                            </td>
+                                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                                                {article.authors?.slice(0, 2).join(', ')}
+                                                                {article.authors && article.authors.length > 2 && ' et al.'}
+                                                            </td>
+                                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                                                {article.publication_year || '-'}
+                                                            </td>
+                                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                                                {article.journal || 'Google Scholar'}
+                                                            </td>
+                                                            <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
+                                                                {article.doi || '-'}
+                                                            </td>
+                                                            <td className="p-3">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={`text-xs ${article.isDuplicate
+                                                                        ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
+                                                                        : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
+                                                                        }`}
+                                                                >
+                                                                    {article.isDuplicate ? 'Duplicate' : 'Unique'}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="p-3">
+                                                                {article.url && (
                                                                     <a
                                                                         href={article.url}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 inline-flex items-center gap-1 hover:underline"
+                                                                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                                                     >
-                                                                        {article.title}
-                                                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                                                        <ExternalLink className="w-4 h-4" />
                                                                     </a>
-                                                                ) : (
-                                                                    article.title
                                                                 )}
-                                                            </div>
-                                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                                {article.authors?.slice(0, 3).join(', ')}
-                                                                {article.authors && article.authors.length > 3 && ' et al.'}
-                                                                {article.publication_year && ` • ${article.publication_year}`}
-                                                                {article.journal && ` • ${article.journal}`}
-                                                            </div>
-                                                        </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        // Expanded Card View - Full information with all details
+                                        <div className="space-y-4">
+                                            {scholarArticles.map(article => (
+                                                <div
+                                                    key={article.id}
+                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-5 hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+                                                >
+                                                    {/* Header with title and badges */}
+                                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                                        <h4 className="font-medium text-gray-900 dark:text-white text-base">
+                                                            {article.title || 'Untitled'}
+                                                        </h4>
                                                         <div className="flex items-center gap-2 flex-shrink-0">
-                                                            {article.citation_count !== undefined && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {article.citation_count} cit.
-                                                                </Badge>
-                                                            )}
                                                             <Badge
                                                                 variant="outline"
                                                                 className={`text-xs ${article.isDuplicate
@@ -576,151 +615,92 @@ export function ScholarEnrichmentModal({
                                                                     : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
                                                                     }`}
                                                             >
-                                                                {article.isDuplicate ? 'Dup' : 'New'}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                // Expanded View - full information with abstract, snippet, and metadata
-                                                <div
-                                                    key={article.id}
-                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
-                                                                {article.url ? (
-                                                                    <a
-                                                                        href={article.url}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
-                                                                    >
-                                                                        {article.title}
-                                                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                                                                    </a>
-                                                                ) : (
-                                                                    article.title
-                                                                )}
-                                                            </div>
-                                                            <Badge
-                                                                variant="outline"
-                                                                className={`text-xs flex-shrink-0 ${article.isDuplicate
-                                                                    ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
-                                                                    : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
-                                                                    }`}
-                                                            >
                                                                 {article.isDuplicate ? 'Duplicate' : 'Unique'}
                                                             </Badge>
-                                                        </div>
-                                                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                            {article.authors?.join(', ')}
-                                                        </div>
-                                                        {article.isDuplicate && article.duplicateReason && (
-                                                            <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10 rounded px-2 py-1">
-                                                                <strong>Duplicate reason:</strong> {article.duplicateReason}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex gap-2 flex-wrap">
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {article.journal}
-                                                            </Badge>
-                                                            {article.publication_year && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {article.publication_year}
-                                                                </Badge>
-                                                            )}
-                                                            {article.citation_count !== undefined && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {article.citation_count} citations
-                                                                </Badge>
-                                                            )}
-                                                            {article.similarityScore !== undefined && (
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {Math.round(article.similarityScore * 100)}% similarity
-                                                                </Badge>
+                                                            {article.url && (
+                                                                <a
+                                                                    href={article.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                                    title="View article"
+                                                                >
+                                                                    <ExternalLink className="w-4 h-4" />
+                                                                </a>
                                                             )}
                                                         </div>
+                                                    </div>
 
-                                                        {/* Snippet (if different from abstract) */}
-                                                        {article.snippet && article.snippet !== article.abstract && (
-                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Snippet:</div>
-                                                                <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                                                                    {article.snippet}
-                                                                </p>
-                                                            </div>
+                                                    {/* Authors */}
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                                        {article.authors?.join(', ') || 'No authors listed'}
+                                                    </p>
+
+                                                    {/* Publication info */}
+                                                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-500 mb-3">
+                                                        {article.journal && (
+                                                            <span className="font-medium">{article.journal}</span>
                                                         )}
-
-                                                        {/* Abstract */}
-                                                        {article.abstract && (
-                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Abstract:</div>
-                                                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                                    {article.abstract}
-                                                                </p>
-                                                            </div>
+                                                        {article.publication_year && (
+                                                            <span>Year: {article.publication_year}</span>
                                                         )}
-
-                                                        {/* Enrichment Metadata */}
-                                                        {article.metadata?.enrichment && (
-                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                    <span className="font-medium">Abstract source: </span>
-                                                                    {(() => {
-                                                                        const enrichment = article.metadata.enrichment;
-                                                                        const sources = [];
-
-                                                                        if (enrichment.semantic_scholar?.called) {
-                                                                            sources.push(
-                                                                                <span key="ss" className={`inline-flex items-center gap-1 mr-2 ${
-                                                                                    enrichment.successful_source === 'semantic_scholar' ? 'text-green-600 dark:text-green-400' : ''
-                                                                                }`}>
-                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                        enrichment.semantic_scholar.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                    }`} />
-                                                                                    Semantic Scholar
-                                                                                </span>
-                                                                            );
-                                                                        }
-
-                                                                        if (enrichment.crossref?.called) {
-                                                                            sources.push(
-                                                                                <span key="cr" className={`inline-flex items-center gap-1 mr-2 ${
-                                                                                    enrichment.successful_source === 'crossref' ? 'text-green-600 dark:text-green-400' : ''
-                                                                                }`}>
-                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                        enrichment.crossref.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                    }`} />
-                                                                                    Crossref
-                                                                                </span>
-                                                                            );
-                                                                        }
-
-                                                                        if (enrichment.meta_description?.called) {
-                                                                            sources.push(
-                                                                                <span key="md" className={`inline-flex items-center gap-1 ${
-                                                                                    enrichment.successful_source === 'meta_description' ? 'text-green-600 dark:text-green-400' : ''
-                                                                                }`}>
-                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                        enrichment.meta_description.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                    }`} />
-                                                                                    Meta Tags
-                                                                                </span>
-                                                                            );
-                                                                        }
-
-                                                                        return sources.length > 0 ? sources : <span className="text-gray-400">No enrichment attempted</span>;
-                                                                    })()}
-                                                                </div>
-                                                            </div>
+                                                        {article.doi && (
+                                                            <span className="text-xs">DOI: {article.doi}</span>
+                                                        )}
+                                                        {article.citation_count !== undefined && (
+                                                            <span className="text-xs">Citations: {article.citation_count}</span>
                                                         )}
                                                     </div>
+
+                                                    {/* Snippet (if available) */}
+                                                    {article.snippet && (
+                                                        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                                                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                                                Google Scholar Snippet:
+                                                            </div>
+                                                            <p className="text-sm text-gray-700 dark:text-gray-300 italic">
+                                                                {article.snippet}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Abstract (if available and different from snippet) */}
+                                                    {article.abstract && article.abstract !== article.snippet && (
+                                                        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                                                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                                                Full Abstract:
+                                                            </div>
+                                                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                {article.abstract}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Enrichment metadata in clear terms */}
+                                                    {article.metadata?.enrichment && (
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                            <span className="font-medium">Abstract source: </span>
+                                                            {(() => {
+                                                                const enr = article.metadata.enrichment;
+                                                                if (enr.successful_source === 'semantic_scholar') return 'Semantic Scholar API';
+                                                                if (enr.successful_source === 'crossref') return 'Crossref API';
+                                                                if (enr.successful_source === 'meta_description') return 'Article webpage metadata';
+                                                                if (enr.successful_source) return enr.successful_source;
+                                                                return 'Not enriched';
+                                                            })()}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Duplicate info */}
+                                                    {article.isDuplicate && article.duplicateReason && (
+                                                        <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 p-2 bg-orange-50 dark:bg-orange-900/20 rounded">
+                                                            <strong>Duplicate detected:</strong> {article.duplicateReason}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

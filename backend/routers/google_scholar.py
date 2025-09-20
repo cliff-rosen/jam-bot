@@ -280,7 +280,7 @@ async def stream_google_scholar(
                     }
                 })
 
-                # Get articles synchronously (SerpAPI call)
+                # Get articles synchronously (SerpAPI call), optionally enriching within batch
                 articles, meta = await asyncio.get_event_loop().run_in_executor(
                     None,
                     service._search_single_batch,
@@ -290,112 +290,14 @@ async def stream_google_scholar(
                     request.year_high,
                     request.sort_by or "relevance",
                     start_index,
-                    False  # Never enrich during initial fetch
+                    bool(request.enrich_summaries)
                 )
 
                 if not articles:
                     yield _sse_format({"status": "complete", "payload": {"returned": accumulated, "metadata": meta}})
                     break
 
-                # If enrichment is requested, do it asynchronously with progress updates
-                if request.enrich_summaries:
-                    # Convert canonical articles back to GoogleScholarArticles for enrichment
-                    from services.google_scholar_service import GoogleScholarArticle
-                    scholar_articles = []
-                    for art in articles:
-                        scholar_art = GoogleScholarArticle(
-                            title=art.title,
-                            link=art.url or "",
-                            authors=art.authors,
-                            publication_info="",
-                            snippet=art.snippet or "",  # Use original snippet, not abstract
-                            abstract="",  # Clear abstract so enrichment can happen
-                            year=art.publication_year,
-                            journal=art.journal,
-                            doi=art.doi,
-                            cited_by_count=None,
-                            cited_by_link="",
-                            related_pages_link="",
-                            versions_link="",
-                            pdf_link="",
-                            position=art.search_position or 0
-                        )
-                        scholar_articles.append(scholar_art)
-
-                    # Track enrichment progress
-                    enrichment_status = {"completed": 0, "total": len(scholar_articles)}
-
-                    async def enrichment_progress(completed: int, total: int):
-                        enrichment_status["completed"] = completed
-                        enrichment_status["total"] = total
-
-                    # Perform async enrichment with progress tracking
-                    yield _sse_format({
-                        "status": "progress",
-                        "payload": {"message": "starting_enrichment", "count": len(scholar_articles)}
-                    })
-
-                    # Get streaming config
-                    stream_config = get_streaming_config()
-
-                    # Create enrichment task
-                    enrichment_task = asyncio.create_task(
-                        service.enrich_articles_batch_async(
-                            scholar_articles,
-                            max_concurrent=stream_config["max_concurrent_enrichment"],
-                            progress_callback=enrichment_progress
-                        )
-                    )
-
-                    # Wait for enrichment with progress updates
-                    start_time = time.time()
-                    timeout = stream_config["enrichment_batch_timeout"]
-
-                    try:
-                        while True:
-                            # Check if task is done or timed out
-                            remaining_time = timeout - (time.time() - start_time)
-                            if remaining_time <= 0:
-                                raise asyncio.TimeoutError()
-
-                            # Wait with a short timeout for progress updates
-                            try:
-                                await asyncio.wait_for(
-                                    asyncio.shield(enrichment_task),
-                                    timeout=min(0.5, remaining_time)
-                                )
-                                break  # Task completed successfully
-                            except asyncio.TimeoutError:
-                                # Send progress update if task is still running
-                                if not enrichment_task.done():
-                                    yield _sse_format({
-                                        "status": "enrichment_progress",
-                                        "payload": {
-                                            "message": "enriching_abstracts",
-                                            "completed": enrichment_status["completed"],
-                                            "total": enrichment_status["total"],
-                                            "timestamp": time.time()
-                                        }
-                                    })
-                                else:
-                                    break  # Task completed between checks
-
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Enrichment timeout for batch starting at {start_index}")
-                        enrichment_task.cancel()
-                        try:
-                            await enrichment_task
-                        except asyncio.CancelledError:
-                            pass  # Expected when cancelled
-
-                    # Update canonical articles with enriched abstracts and metadata
-                    for i, scholar_art in enumerate(scholar_articles):
-                        if i < len(articles):
-                            if scholar_art.abstract:
-                                articles[i].abstract = scholar_art.abstract
-                            # Also transfer the enrichment metadata
-                            if hasattr(scholar_art, 'metadata') and scholar_art.metadata:
-                                articles[i].metadata = scholar_art.metadata
+                # Enrichment already handled inside _search_single_batch when requested
 
                 accumulated += len(articles)
                 start_index += current_batch

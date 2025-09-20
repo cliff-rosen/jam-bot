@@ -549,6 +549,69 @@ export function ScholarEnrichmentModal({
                                                             </Badge>
                                                         )}
                                                     </div>
+
+                                                    {/* Abstract */}
+                                                    {article.abstract && (
+                                                        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
+                                                                {article.abstract}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Enrichment Metadata */}
+                                                    {article.metadata?.enrichment && (
+                                                        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                <span className="font-medium">Abstract source: </span>
+                                                                {(() => {
+                                                                    const enrichment = article.metadata.enrichment;
+                                                                    const sources = [];
+
+                                                                    if (enrichment.semantic_scholar?.called) {
+                                                                        sources.push(
+                                                                            <span key="ss" className={`inline-flex items-center gap-1 mr-2 ${
+                                                                                enrichment.successful_source === 'semantic_scholar' ? 'text-green-600 dark:text-green-400' : ''
+                                                                            }`}>
+                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                    enrichment.semantic_scholar.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                }`} />
+                                                                                Semantic Scholar
+                                                                            </span>
+                                                                        );
+                                                                    }
+
+                                                                    if (enrichment.crossref?.called) {
+                                                                        sources.push(
+                                                                            <span key="cr" className={`inline-flex items-center gap-1 mr-2 ${
+                                                                                enrichment.successful_source === 'crossref' ? 'text-green-600 dark:text-green-400' : ''
+                                                                            }`}>
+                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                    enrichment.crossref.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                }`} />
+                                                                                Crossref
+                                                                            </span>
+                                                                        );
+                                                                    }
+
+                                                                    if (enrichment.meta_description?.called) {
+                                                                        sources.push(
+                                                                            <span key="md" className={`inline-flex items-center gap-1 ${
+                                                                                enrichment.successful_source === 'meta_description' ? 'text-green-600 dark:text-green-400' : ''
+                                                                            }`}>
+                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                    enrichment.meta_description.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                }`} />
+                                                                                Meta Tags
+                                                                            </span>
+                                                                        );
+                                                                    }
+
+                                                                    return sources.length > 0 ? sources : <span className="text-gray-400">No enrichment attempted</span>;
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

@@ -96,7 +96,10 @@ class CanonicalResearchArticle(BaseModel):
     
     # Source-specific data
     source_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional source-specific metadata")
-    
+
+    # Enrichment metadata (e.g., abstract source tracking)
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="General metadata including enrichment information")
+
     # Extraction and analysis results (if applicable)
     extracted_features: Optional[Dict[str, CanonicalFeatureValue]] = Field(default=None, description="Extracted feature data keyed by feature.id -> CanonicalFeatureValue")
     quality_scores: Optional[Dict[str, float]] = Field(default=None, description="Various quality and relevance scores")

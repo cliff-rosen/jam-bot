@@ -369,10 +369,14 @@ async def stream_google_scholar(
                         logger.warning(f"Enrichment timeout for batch starting at {start_index}")
                         # Continue with partial enrichment
 
-                    # Update canonical articles with enriched abstracts
+                    # Update canonical articles with enriched abstracts and metadata
                     for i, scholar_art in enumerate(scholar_articles):
-                        if scholar_art.abstract and i < len(articles):
-                            articles[i].abstract = scholar_art.abstract
+                        if i < len(articles):
+                            if scholar_art.abstract:
+                                articles[i].abstract = scholar_art.abstract
+                            # Also transfer the enrichment metadata
+                            if hasattr(scholar_art, 'metadata') and scholar_art.metadata:
+                                articles[i].metadata = scholar_art.metadata
 
                 accumulated += len(articles)
                 start_index += current_batch

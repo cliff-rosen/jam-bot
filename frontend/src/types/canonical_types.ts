@@ -72,7 +72,10 @@ export interface CanonicalResearchArticle {
     
     // Source preservation
     source_metadata?: Record<string, any>;
-    
+
+    // Enrichment metadata (e.g., abstract source tracking)
+    metadata?: Record<string, any>;
+
     // System metadata
     indexed_at?: string;
     retrieved_at?: string;

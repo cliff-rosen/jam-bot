@@ -189,6 +189,7 @@ def scholar_to_research_article(scholar_article: 'GoogleScholarArticle', positio
             "position": scholar_article.position,
             "publication_info": scholar_article.publication_info
         },
+        metadata=getattr(scholar_article, 'metadata', None),  # Pass through enrichment metadata
         indexed_at=None,
         retrieved_at=datetime.utcnow().isoformat()
     )

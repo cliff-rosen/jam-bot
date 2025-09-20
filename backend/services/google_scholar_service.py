@@ -253,7 +253,8 @@ class GoogleScholarArticle:
         self.versions_link: str = kwargs.get('versions_link', '')
         self.pdf_link: str = kwargs.get('pdf_link', '')
         self.position: int = kwargs.get('position', 0)
-        
+        self.metadata: Dict[str, Any] = kwargs.get('metadata', {})
+
         # Generate a unique ID for this article
         self.id = self._generate_id()
     
@@ -629,36 +630,74 @@ class GoogleScholarService:
 
     # --- Summary/Abstract Enrichment Helpers ---
 
-    async def _enrich_article_summary_async(self, article: 'GoogleScholarArticle', session: aiohttp.ClientSession) -> Optional[str]:
+    async def _enrich_article_summary_async(self, article: 'GoogleScholarArticle', session: aiohttp.ClientSession) -> None:
         """
         Async version: Attempt to retrieve a fuller abstract/summary for a Scholar result.
         Tries Semantic Scholar and Crossref via DOI, then page meta tags.
+
+        Sets article.abstract directly and stores enrichment metadata in article.metadata.
         """
-        # Try DOI-based services first
-        if article.doi:
-            try:
-                abstract_text = await self._try_semantic_scholar_abstract_async(article.doi, session)
-                if abstract_text:
-                    return abstract_text
-            except Exception:
-                pass
-            try:
-                abstract_text = await self._try_crossref_abstract_async(article.doi, session)
-                if abstract_text:
-                    return abstract_text
-            except Exception:
-                pass
+        enrichment_metadata = {
+            'semantic_scholar': {'called': False, 'success': False, 'error': None},
+            'crossref': {'called': False, 'success': False, 'error': None},
+            'meta_description': {'called': False, 'success': False, 'error': None},
+            'successful_source': None
+        }
 
-        # Fallback to meta description from landing page
-        if article.link:
-            try:
-                meta_desc = await self._try_fetch_meta_description_async(article.link, session)
-                if meta_desc:
-                    return meta_desc
-            except Exception:
-                pass
+        # Initialize metadata if not exists
+        if not hasattr(article, 'metadata') or article.metadata is None:
+            article.metadata = {}
 
-        return None
+        try:
+            # Try DOI-based services first
+            if article.doi:
+                # Try Semantic Scholar
+                enrichment_metadata['semantic_scholar']['called'] = True
+                try:
+                    abstract_text = await self._try_semantic_scholar_abstract_async(article.doi, session)
+                    if abstract_text:
+                        enrichment_metadata['semantic_scholar']['success'] = True
+                        enrichment_metadata['successful_source'] = 'semantic_scholar'
+                        article.abstract = abstract_text
+                        article.metadata['enrichment'] = enrichment_metadata
+                        return
+                except Exception as e:
+                    enrichment_metadata['semantic_scholar']['error'] = str(e)
+
+                # Try Crossref
+                enrichment_metadata['crossref']['called'] = True
+                try:
+                    abstract_text = await self._try_crossref_abstract_async(article.doi, session)
+                    if abstract_text:
+                        enrichment_metadata['crossref']['success'] = True
+                        enrichment_metadata['successful_source'] = 'crossref'
+                        article.abstract = abstract_text
+                        article.metadata['enrichment'] = enrichment_metadata
+                        return
+                except Exception as e:
+                    enrichment_metadata['crossref']['error'] = str(e)
+
+            # Fallback to meta description from landing page
+            if article.link:
+                enrichment_metadata['meta_description']['called'] = True
+                try:
+                    meta_desc = await self._try_fetch_meta_description_async(article.link, session)
+                    if meta_desc:
+                        enrichment_metadata['meta_description']['success'] = True
+                        enrichment_metadata['successful_source'] = 'meta_description'
+                        article.abstract = meta_desc
+                        article.metadata['enrichment'] = enrichment_metadata
+                        return
+                except Exception as e:
+                    enrichment_metadata['meta_description']['error'] = str(e)
+
+        finally:
+            # Always store the metadata, even if all methods failed
+            article.metadata['enrichment'] = enrichment_metadata
+
+            # If no abstract was found and article doesn't have one, use snippet as fallback
+            if not article.abstract and article.snippet:
+                article.abstract = article.snippet
 
     async def _try_semantic_scholar_abstract_async(self, doi: str, session: aiohttp.ClientSession) -> Optional[str]:
         """Async: Fetch abstract via Semantic Scholar Graph API if available."""
@@ -936,20 +975,8 @@ class GoogleScholarService:
 
                 # Execute batch concurrently
                 if tasks:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                    # Apply results
-                    task_idx = 0
-                    for article in batch:
-                        if article.abstract and article.abstract.strip():
-                            continue
-                        if task_idx < len(results) and not isinstance(results[task_idx], Exception):
-                            enriched_abstract = results[task_idx]
-                            if enriched_abstract:
-                                article.abstract = enriched_abstract
-                            elif not article.abstract:
-                                article.abstract = article.snippet
-                        task_idx += 1
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    # Articles are modified in-place, no need to process results
 
                 # Report progress if callback provided
                 if progress_callback:

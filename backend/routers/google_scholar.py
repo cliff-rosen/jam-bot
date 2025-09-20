@@ -248,7 +248,6 @@ async def stream_google_scholar(
             target = request.num_results or 10
             accumulated = 0
             start_index = request.start_index or 0
-            last_heartbeat = time.time()
 
             # Track when to send next heartbeat
             next_heartbeat = time.time() + 3

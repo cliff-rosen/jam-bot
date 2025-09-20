@@ -11,7 +11,9 @@ import {
     CheckCircle,
     X,
     ArrowLeft,
-    ExternalLink
+    ExternalLink,
+    List,
+    Grid
 } from 'lucide-react';
 
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
@@ -62,6 +64,7 @@ export function ScholarEnrichmentModal({
     const [filterError, setFilterError] = useState<string | null>(null);
     const [returnedCount, setReturnedCount] = useState(0);
     const [progressInfo, setProgressInfo] = useState<{ startIndex?: number; batchSize?: number } | null>(null);
+    const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
 
     // Abort controller for streaming requests
     const streamAbortRef = useRef<AbortController | null>(null);
@@ -433,6 +436,29 @@ export function ScholarEnrichmentModal({
                                         )}
                                     </div>
                                 </div>
+                                {/* View Mode Toggle */}
+                                {!isProcessing && scholarArticles.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant={viewMode === 'compact' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setViewMode('compact')}
+                                            className="gap-1"
+                                        >
+                                            <List className="w-4 h-4" />
+                                            Compact
+                                        </Button>
+                                        <Button
+                                            variant={viewMode === 'expanded' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setViewMode('expanded')}
+                                            className="gap-1"
+                                        >
+                                            <Grid className="w-4 h-4" />
+                                            Expanded
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Search Metadata */}
@@ -490,130 +516,192 @@ export function ScholarEnrichmentModal({
                                 <div className="flex-1 overflow-y-auto">
                                     <div className="space-y-3">
                                         {scholarArticles.map(article => (
-                                            <div
-                                                key={article.id}
-                                                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-                                            >
-                                                <div className="space-y-2">
+                                            viewMode === 'compact' ? (
+                                                // Compact View - minimal information
+                                                <div
+                                                    key={article.id}
+                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                                                >
                                                     <div className="flex items-start justify-between gap-3">
-                                                        <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
-                                                            {article.url ? (
-                                                                <a
-                                                                    href={article.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
-                                                                >
-                                                                    {article.title}
-                                                                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                                                                </a>
-                                                            ) : (
-                                                                article.title
-                                                            )}
-                                                        </div>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={`text-xs flex-shrink-0 ${article.isDuplicate
-                                                                ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
-                                                                : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
-                                                                }`}
-                                                        >
-                                                            {article.isDuplicate ? 'Duplicate' : 'Unique'}
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                        {article.authors?.join(', ')}
-                                                    </div>
-                                                    {article.isDuplicate && article.duplicateReason && (
-                                                        <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10 rounded px-2 py-1">
-                                                            <strong>Duplicate reason:</strong> {article.duplicateReason}
-                                                        </div>
-                                                    )}
-                                                    <div className="flex gap-2 flex-wrap">
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {article.journal}
-                                                        </Badge>
-                                                        {article.publication_year && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {article.publication_year}
-                                                            </Badge>
-                                                        )}
-                                                        {article.citation_count !== undefined && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {article.citation_count} citations
-                                                            </Badge>
-                                                        )}
-                                                        {article.similarityScore !== undefined && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {Math.round(article.similarityScore * 100)}% similarity
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Abstract */}
-                                                    {article.abstract && (
-                                                        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-                                                                {article.abstract}
-                                                            </p>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Enrichment Metadata */}
-                                                    {article.metadata?.enrichment && (
-                                                        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                <span className="font-medium">Abstract source: </span>
-                                                                {(() => {
-                                                                    const enrichment = article.metadata.enrichment;
-                                                                    const sources = [];
-
-                                                                    if (enrichment.semantic_scholar?.called) {
-                                                                        sources.push(
-                                                                            <span key="ss" className={`inline-flex items-center gap-1 mr-2 ${
-                                                                                enrichment.successful_source === 'semantic_scholar' ? 'text-green-600 dark:text-green-400' : ''
-                                                                            }`}>
-                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                    enrichment.semantic_scholar.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                }`} />
-                                                                                Semantic Scholar
-                                                                            </span>
-                                                                        );
-                                                                    }
-
-                                                                    if (enrichment.crossref?.called) {
-                                                                        sources.push(
-                                                                            <span key="cr" className={`inline-flex items-center gap-1 mr-2 ${
-                                                                                enrichment.successful_source === 'crossref' ? 'text-green-600 dark:text-green-400' : ''
-                                                                            }`}>
-                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                    enrichment.crossref.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                }`} />
-                                                                                Crossref
-                                                                            </span>
-                                                                        );
-                                                                    }
-
-                                                                    if (enrichment.meta_description?.called) {
-                                                                        sources.push(
-                                                                            <span key="md" className={`inline-flex items-center gap-1 ${
-                                                                                enrichment.successful_source === 'meta_description' ? 'text-green-600 dark:text-green-400' : ''
-                                                                            }`}>
-                                                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                                                                                    enrichment.meta_description.success ? 'bg-green-500' : 'bg-red-500'
-                                                                                }`} />
-                                                                                Meta Tags
-                                                                            </span>
-                                                                        );
-                                                                    }
-
-                                                                    return sources.length > 0 ? sources : <span className="text-gray-400">No enrichment attempted</span>;
-                                                                })()}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                                                                {article.url ? (
+                                                                    <a
+                                                                        href={article.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 inline-flex items-center gap-1 hover:underline"
+                                                                    >
+                                                                        {article.title}
+                                                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                                                    </a>
+                                                                ) : (
+                                                                    article.title
+                                                                )}
+                                                            </div>
+                                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                                {article.authors?.slice(0, 3).join(', ')}
+                                                                {article.authors && article.authors.length > 3 && ' et al.'}
+                                                                {article.publication_year && ` • ${article.publication_year}`}
+                                                                {article.journal && ` • ${article.journal}`}
                                                             </div>
                                                         </div>
-                                                    )}
+                                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                                            {article.citation_count !== undefined && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {article.citation_count} cit.
+                                                                </Badge>
+                                                            )}
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`text-xs ${article.isDuplicate
+                                                                    ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
+                                                                    : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
+                                                                    }`}
+                                                            >
+                                                                {article.isDuplicate ? 'Dup' : 'New'}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                // Expanded View - full information with abstract, snippet, and metadata
+                                                <div
+                                                    key={article.id}
+                                                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="font-medium text-sm text-gray-900 dark:text-white flex-1">
+                                                                {article.url ? (
+                                                                    <a
+                                                                        href={article.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
+                                                                    >
+                                                                        {article.title}
+                                                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                                                    </a>
+                                                                ) : (
+                                                                    article.title
+                                                                )}
+                                                            </div>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`text-xs flex-shrink-0 ${article.isDuplicate
+                                                                    ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200'
+                                                                    : 'border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200'
+                                                                    }`}
+                                                            >
+                                                                {article.isDuplicate ? 'Duplicate' : 'Unique'}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                            {article.authors?.join(', ')}
+                                                        </div>
+                                                        {article.isDuplicate && article.duplicateReason && (
+                                                            <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10 rounded px-2 py-1">
+                                                                <strong>Duplicate reason:</strong> {article.duplicateReason}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {article.journal}
+                                                            </Badge>
+                                                            {article.publication_year && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {article.publication_year}
+                                                                </Badge>
+                                                            )}
+                                                            {article.citation_count !== undefined && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {article.citation_count} citations
+                                                                </Badge>
+                                                            )}
+                                                            {article.similarityScore !== undefined && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {Math.round(article.similarityScore * 100)}% similarity
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Snippet (if different from abstract) */}
+                                                        {article.snippet && article.snippet !== article.abstract && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Snippet:</div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-400 italic">
+                                                                    {article.snippet}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Abstract */}
+                                                        {article.abstract && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Abstract:</div>
+                                                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                    {article.abstract}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Enrichment Metadata */}
+                                                        {article.metadata?.enrichment && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    <span className="font-medium">Abstract source: </span>
+                                                                    {(() => {
+                                                                        const enrichment = article.metadata.enrichment;
+                                                                        const sources = [];
+
+                                                                        if (enrichment.semantic_scholar?.called) {
+                                                                            sources.push(
+                                                                                <span key="ss" className={`inline-flex items-center gap-1 mr-2 ${
+                                                                                    enrichment.successful_source === 'semantic_scholar' ? 'text-green-600 dark:text-green-400' : ''
+                                                                                }`}>
+                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                        enrichment.semantic_scholar.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                    }`} />
+                                                                                    Semantic Scholar
+                                                                                </span>
+                                                                            );
+                                                                        }
+
+                                                                        if (enrichment.crossref?.called) {
+                                                                            sources.push(
+                                                                                <span key="cr" className={`inline-flex items-center gap-1 mr-2 ${
+                                                                                    enrichment.successful_source === 'crossref' ? 'text-green-600 dark:text-green-400' : ''
+                                                                                }`}>
+                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                        enrichment.crossref.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                    }`} />
+                                                                                    Crossref
+                                                                                </span>
+                                                                            );
+                                                                        }
+
+                                                                        if (enrichment.meta_description?.called) {
+                                                                            sources.push(
+                                                                                <span key="md" className={`inline-flex items-center gap-1 ${
+                                                                                    enrichment.successful_source === 'meta_description' ? 'text-green-600 dark:text-green-400' : ''
+                                                                                }`}>
+                                                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                                                                        enrichment.meta_description.success ? 'bg-green-500' : 'bg-red-500'
+                                                                                    }`} />
+                                                                                    Meta Tags
+                                                                                </span>
+                                                                            );
+                                                                        }
+
+                                                                        return sources.length > 0 ? sources : <span className="text-gray-400">No enrichment attempted</span>;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )
                                         ))}
                                     </div>
                                 </div>

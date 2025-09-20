@@ -541,12 +541,11 @@ class GoogleScholarService:
         # Enrich articles with better summaries/abstracts when requested
         if enrich_summaries:
             try:
-                for i, article in enumerate(scholar_articles):
-                    enriched = self._enrich_article_summary(article)
-                    if enriched:
-                        article.abstract = enriched
-                    elif not article.abstract:
-                        article.abstract = article.snippet
+                # Use parallel async enrichment to speed up batch processing
+                from config.timeout_settings import get_streaming_config
+                stream_cfg = get_streaming_config()
+                max_concurrent = stream_cfg.get("max_concurrent_enrichment", 5)
+                self._enrich_articles_in_parallel(scholar_articles, max_concurrent=max_concurrent)
             except Exception as e:
                 logger.warning(f"Summary enrichment step failed: {e}")
         else:
@@ -941,6 +940,45 @@ class GoogleScholarService:
             return None
         match = re.search(r'10\.[0-9]{4,}(?:\.[0-9]+)*/[-._;()/:A-Za-z0-9]+', text)
         return match.group(0) if match else None
+
+    def _enrich_articles_in_parallel(
+        self,
+        scholar_articles: List[GoogleScholarArticle],
+        max_concurrent: int = 5
+    ) -> None:
+        """Run async batch enrichment from sync context, safely in all environments.
+
+        Creates a dedicated event loop when a loop is already running (e.g., inside FastAPI),
+        otherwise uses asyncio.run(). Articles are modified in-place.
+        """
+        if not scholar_articles:
+            return
+
+        try:
+            # If a loop is already running, run enrichment in a dedicated loop
+            asyncio.get_running_loop()
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(
+                    self.enrich_articles_batch_async(
+                        scholar_articles,
+                        max_concurrent=max_concurrent
+                    )
+                )
+            finally:
+                try:
+                    loop.stop()
+                except Exception:
+                    pass
+                loop.close()
+        except RuntimeError:
+            # No running loop; safe to use asyncio.run
+            asyncio.run(
+                self.enrich_articles_batch_async(
+                    scholar_articles,
+                    max_concurrent=max_concurrent
+                )
+            )
 
     async def enrich_articles_batch_async(
         self,

@@ -411,7 +411,7 @@ class GoogleScholarService:
                 # Small delay between requests to be respectful to the API
                 if len(all_articles) < target_results:
                     import time
-                    time.sleep(0.5)
+                    time.sleep(0.25)
                     
             except Exception as e:
                 logger.warning(f"Google Scholar API call {total_api_calls + 1} failed at start_index={current_start_index}: {e}")
@@ -678,10 +678,12 @@ class GoogleScholarService:
                     enrichment_metadata['crossref']['error'] = str(e)
 
             # Fallback to meta description from landing page
-            if article.link:
+            # Check both 'link' and 'url' properties for compatibility
+            article_url = getattr(article, 'link', None) or getattr(article, 'url', None)
+            if article_url:
                 enrichment_metadata['meta_description']['called'] = True
                 try:
-                    meta_desc = await self._try_fetch_meta_description_async(article.link, session)
+                    meta_desc = await self._try_fetch_meta_description_async(article_url, session)
                     if meta_desc:
                         enrichment_metadata['meta_description']['success'] = True
                         enrichment_metadata['successful_source'] = 'meta_description'

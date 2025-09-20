@@ -676,18 +676,114 @@ export function ScholarEnrichmentModal({
                                                         </div>
                                                     )}
 
-                                                    {/* Enrichment metadata in clear terms */}
+                                                    {/* Enrichment metadata table */}
                                                     {article.metadata?.enrichment && (
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                            <span className="font-medium">Abstract source: </span>
-                                                            {(() => {
-                                                                const enr = article.metadata.enrichment;
-                                                                if (enr.successful_source === 'semantic_scholar') return 'Semantic Scholar API';
-                                                                if (enr.successful_source === 'crossref') return 'Crossref API';
-                                                                if (enr.successful_source === 'meta_description') return 'Article webpage metadata';
-                                                                if (enr.successful_source) return enr.successful_source;
-                                                                return 'Not enriched';
-                                                            })()}
+                                                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-3">
+                                                                Enrichment Details:
+                                                            </div>
+
+                                                            {/* Overall status */}
+                                                            <div className="mb-3 text-xs">
+                                                                <span className="font-medium text-gray-600 dark:text-gray-400">Status: </span>
+                                                                <span className={article.metadata.enrichment.success ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}>
+                                                                    {article.metadata.enrichment.success ? 'Successfully enriched' : 'Enrichment attempted'}
+                                                                </span>
+                                                                {article.metadata.enrichment.successful_source && (
+                                                                    <span className="ml-2 text-green-600 dark:text-green-400">
+                                                                        via {
+                                                                            article.metadata.enrichment.successful_source === 'semantic_scholar' ? 'Semantic Scholar' :
+                                                                            article.metadata.enrichment.successful_source === 'crossref' ? 'Crossref' :
+                                                                            article.metadata.enrichment.successful_source === 'meta_description' ? 'Web Metadata' :
+                                                                            article.metadata.enrichment.successful_source
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Enrichment sources table */}
+                                                            <div className="overflow-x-auto">
+                                                                <table className="w-full text-xs">
+                                                                    <thead className="bg-gray-100 dark:bg-gray-700">
+                                                                        <tr>
+                                                                            <th className="text-left py-1 px-2 font-medium text-gray-600 dark:text-gray-300">Source</th>
+                                                                            <th className="text-center py-1 px-2 font-medium text-gray-600 dark:text-gray-300">Called</th>
+                                                                            <th className="text-center py-1 px-2 font-medium text-gray-600 dark:text-gray-300">Success</th>
+                                                                            <th className="text-left py-1 px-2 font-medium text-gray-600 dark:text-gray-300">Details</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="text-gray-700 dark:text-gray-300">
+                                                                        {/* Semantic Scholar row */}
+                                                                        {article.metadata.enrichment.semantic_scholar && (
+                                                                            <tr className="border-t border-gray-200 dark:border-gray-600">
+                                                                                <td className="py-1 px-2">Semantic Scholar</td>
+                                                                                <td className="py-1 px-2 text-center">
+                                                                                    {article.metadata.enrichment.semantic_scholar.called ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className={`py-1 px-2 text-center ${article.metadata.enrichment.semantic_scholar.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                                                    {article.metadata.enrichment.semantic_scholar.success ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className="py-1 px-2">
+                                                                                    {article.metadata.enrichment.semantic_scholar.abstract_length &&
+                                                                                        `${article.metadata.enrichment.semantic_scholar.abstract_length} chars`
+                                                                                    }
+                                                                                    {article.metadata.enrichment.semantic_scholar.error && (
+                                                                                        <span className="text-red-600 dark:text-red-400">
+                                                                                            {article.metadata.enrichment.semantic_scholar.error}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        )}
+
+                                                                        {/* Crossref row */}
+                                                                        {article.metadata.enrichment.crossref && (
+                                                                            <tr className="border-t border-gray-200 dark:border-gray-600">
+                                                                                <td className="py-1 px-2">Crossref</td>
+                                                                                <td className="py-1 px-2 text-center">
+                                                                                    {article.metadata.enrichment.crossref.called ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className={`py-1 px-2 text-center ${article.metadata.enrichment.crossref.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                                                    {article.metadata.enrichment.crossref.success ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className="py-1 px-2">
+                                                                                    {article.metadata.enrichment.crossref.abstract_length &&
+                                                                                        `${article.metadata.enrichment.crossref.abstract_length} chars`
+                                                                                    }
+                                                                                    {article.metadata.enrichment.crossref.error && (
+                                                                                        <span className="text-red-600 dark:text-red-400">
+                                                                                            {article.metadata.enrichment.crossref.error}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        )}
+
+                                                                        {/* Web Metadata row */}
+                                                                        {article.metadata.enrichment.meta_description && (
+                                                                            <tr className="border-t border-gray-200 dark:border-gray-600">
+                                                                                <td className="py-1 px-2">Web Metadata</td>
+                                                                                <td className="py-1 px-2 text-center">
+                                                                                    {article.metadata.enrichment.meta_description.called ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className={`py-1 px-2 text-center ${article.metadata.enrichment.meta_description.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                                                    {article.metadata.enrichment.meta_description.success ? '✓' : '✗'}
+                                                                                </td>
+                                                                                <td className="py-1 px-2">
+                                                                                    {article.metadata.enrichment.meta_description.description_length &&
+                                                                                        `${article.metadata.enrichment.meta_description.description_length} chars`
+                                                                                    }
+                                                                                    {article.metadata.enrichment.meta_description.error && (
+                                                                                        <span className="text-red-600 dark:text-red-400">
+                                                                                            {article.metadata.enrichment.meta_description.error}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        )}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
                                                         </div>
                                                     )}
 

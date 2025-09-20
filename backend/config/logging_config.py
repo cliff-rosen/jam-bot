@@ -67,21 +67,30 @@ def setup_logging():
     # Create request ID filter
     request_id_filter = RequestIdFilter()
 
-    # Create file handler with rotation
+    # Create file handler with rotation and UTF-8 encoding
     file_handler = logging.handlers.TimedRotatingFileHandler(
         log_filename,
         when='midnight',
-        backupCount=settings.LOG_BACKUP_COUNT
+        backupCount=settings.LOG_BACKUP_COUNT,
+        encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(json_formatter if settings.LOG_FORMAT == 'json' else standard_formatter)
     file_handler.addFilter(request_id_filter)
 
-    # Create console handler
-    console_handler = logging.StreamHandler()
+    # Create console handler with UTF-8 encoding for Windows compatibility
+    import sys
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter('%(levelname)s - [%(request_id)s] - %(message)s'))
     console_handler.addFilter(request_id_filter)
+
+    # Force UTF-8 encoding on Windows to handle Unicode characters
+    if hasattr(console_handler.stream, 'reconfigure'):
+        console_handler.stream.reconfigure(encoding='utf-8')
+    elif sys.platform == 'win32':
+        import io
+        console_handler.stream = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
     # Remove existing handlers to avoid duplicates
     root_logger.handlers = []

@@ -294,7 +294,11 @@ function SmartSearch2Content() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setShowKeywordHelper(false)}
+                        onClick={() => {
+                          setShowKeywordHelper(false);
+                          // Clear any Scholar articles that were added
+                          resetSearch();
+                        }}
                         className="mb-4"
                       >
                         <ArrowLeft className="w-4 h-4 mr-2" />
@@ -303,7 +307,11 @@ function SmartSearch2Content() {
                     </div>
                     <KeywordHelper
                       onComplete={handleKeywordHelperComplete}
-                      onCancel={() => setShowKeywordHelper(false)}
+                      onCancel={() => {
+                        setShowKeywordHelper(false);
+                        // Clear any Scholar articles that were added
+                        resetSearch();
+                      }}
                     />
                   </Card>
                 ) : (

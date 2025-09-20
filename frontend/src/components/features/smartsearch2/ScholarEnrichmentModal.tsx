@@ -505,6 +505,10 @@ export function ScholarEnrichmentModal({
                                             onClick={() => {
                                                 setSearchError(null);
                                                 setCurrentStep('keywords');
+                                                // Clear Scholar articles when going back to keywords
+                                                setScholarArticles([]);
+                                                setReturnedCount(0);
+                                                setProgressInfo(null);
                                             }}
                                             variant="outline"
                                         >
@@ -921,7 +925,13 @@ export function ScholarEnrichmentModal({
                             {currentStep === 'browse' && (
                                 <Button
                                     variant="outline"
-                                    onClick={() => setCurrentStep('keywords')}
+                                    onClick={() => {
+                                        setCurrentStep('keywords');
+                                        // Clear Scholar articles when going back to keywords
+                                        setScholarArticles([]);
+                                        setReturnedCount(0);
+                                        setProgressInfo(null);
+                                    }}
                                 >
                                     <ArrowLeft className="w-4 h-4 mr-2" />
                                     Back to Keywords

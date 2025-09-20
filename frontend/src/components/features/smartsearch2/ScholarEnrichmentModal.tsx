@@ -311,10 +311,23 @@ export function ScholarEnrichmentModal({
                             </p>
                         </div>
                     </div>
+                    <div className={`flex-1 h-px mx-4 bg-gray-200 dark:bg-gray-700`} />
+                    <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${currentStep === 'complete' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}>
+                            4
+                        </div>
+                        <div className="ml-3">
+                            <p className={`text-sm font-medium ${currentStep === 'complete' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                Review & Apply
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto">
+                    
                     {/* Step 1: Keywords */}
                     {currentStep === 'keywords' && (
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">

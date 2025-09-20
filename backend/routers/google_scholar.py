@@ -308,8 +308,8 @@ async def stream_google_scholar(
                             link=art.url or "",
                             authors=art.authors,
                             publication_info="",
-                            snippet=art.abstract or "",
-                            abstract=art.abstract or "",
+                            snippet=art.snippet or "",  # Use original snippet, not abstract
+                            abstract="",  # Clear abstract so enrichment can happen
                             year=art.publication_year,
                             journal=art.journal,
                             doi=art.doi,
@@ -347,27 +347,46 @@ async def stream_google_scholar(
                         )
                     )
 
-                    # Send progress updates while enrichment runs
-                    while not enrichment_task.done():
-                        await asyncio.sleep(0.5)  # Check every 500ms
+                    # Wait for enrichment with progress updates
+                    start_time = time.time()
+                    timeout = stream_config["enrichment_batch_timeout"]
 
-                        # Send progress update
-                        yield _sse_format({
-                            "status": "enrichment_progress",
-                            "payload": {
-                                "message": "enriching_abstracts",
-                                "completed": enrichment_status["completed"],
-                                "total": enrichment_status["total"],
-                                "timestamp": time.time()
-                            }
-                        })
-
-                    # Wait for enrichment to complete
                     try:
-                        await asyncio.wait_for(enrichment_task, timeout=stream_config["enrichment_batch_timeout"])
+                        while True:
+                            # Check if task is done or timed out
+                            remaining_time = timeout - (time.time() - start_time)
+                            if remaining_time <= 0:
+                                raise asyncio.TimeoutError()
+
+                            # Wait with a short timeout for progress updates
+                            try:
+                                await asyncio.wait_for(
+                                    asyncio.shield(enrichment_task),
+                                    timeout=min(0.5, remaining_time)
+                                )
+                                break  # Task completed successfully
+                            except asyncio.TimeoutError:
+                                # Send progress update if task is still running
+                                if not enrichment_task.done():
+                                    yield _sse_format({
+                                        "status": "enrichment_progress",
+                                        "payload": {
+                                            "message": "enriching_abstracts",
+                                            "completed": enrichment_status["completed"],
+                                            "total": enrichment_status["total"],
+                                            "timestamp": time.time()
+                                        }
+                                    })
+                                else:
+                                    break  # Task completed between checks
+
                     except asyncio.TimeoutError:
                         logger.warning(f"Enrichment timeout for batch starting at {start_index}")
-                        # Continue with partial enrichment
+                        enrichment_task.cancel()
+                        try:
+                            await enrichment_task
+                        except asyncio.CancelledError:
+                            pass  # Expected when cancelled
 
                     # Update canonical articles with enriched abstracts and metadata
                     for i, scholar_art in enumerate(scholar_articles):

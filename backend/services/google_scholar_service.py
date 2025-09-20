@@ -694,6 +694,7 @@ class GoogleScholarService:
         finally:
             # Always store the metadata, even if all methods failed
             article.metadata['enrichment'] = enrichment_metadata
+            logger.info(f"Set enrichment metadata for {article.title}: {enrichment_metadata}")
 
             # If no abstract was found and article doesn't have one, use snippet as fallback
             if not article.abstract and article.snippet:
@@ -970,7 +971,9 @@ class GoogleScholarService:
                 for article in batch:
                     # Skip if already has abstract
                     if article.abstract and article.abstract.strip():
+                        logger.info(f"Skipping enrichment for article {article.title} - already has abstract: {article.abstract[:50]}...")
                         continue
+                    logger.info(f"Adding enrichment task for article {article.title} - DOI: {article.doi}, Link: {article.link}")
                     tasks.append(self._enrich_article_summary_async(article, session))
 
                 # Execute batch concurrently

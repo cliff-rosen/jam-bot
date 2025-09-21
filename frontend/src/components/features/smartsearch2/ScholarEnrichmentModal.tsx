@@ -328,7 +328,7 @@ export function ScholarEnrichmentModal({
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto">
-                    
+
                     {/* Step 1: Keywords */}
                     {currentStep === 'keywords' && (
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
@@ -483,7 +483,7 @@ export function ScholarEnrichmentModal({
                                         <div className="flex gap-2 items-center text-sm text-blue-900 dark:text-blue-100">
                                             <Search className="w-4 h-4 text-blue-600" />
                                             <div>
-                                                <strong>Search completed:</strong> Retrieved {scholarArticles.length} articles from Google Scholar.
+                                                <strong>Search {isProcessing ? 'progress' : 'completed'}:</strong> Retrieved {scholarArticles.length} articles from Google Scholar.
                                                 {testResultCount && ` Estimated total: ${testResultCount} results available.`}
                                                 {scholarArticles.length === SCHOLAR_BROWSE_MAX && ` (Limited to first ${SCHOLAR_BROWSE_MAX} results)`}
                                             </div>
@@ -693,9 +693,9 @@ export function ScholarEnrichmentModal({
                                                                     <span className="ml-2 text-green-600 dark:text-green-400">
                                                                         via {
                                                                             article.metadata.enrichment.successful_source === 'semantic_scholar' ? 'Semantic Scholar' :
-                                                                            article.metadata.enrichment.successful_source === 'crossref' ? 'Crossref' :
-                                                                            article.metadata.enrichment.successful_source === 'meta_description' ? 'Web Metadata' :
-                                                                            article.metadata.enrichment.successful_source
+                                                                                article.metadata.enrichment.successful_source === 'crossref' ? 'Crossref' :
+                                                                                    article.metadata.enrichment.successful_source === 'meta_description' ? 'Web Metadata' :
+                                                                                        article.metadata.enrichment.successful_source
                                                                         }
                                                                     </span>
                                                                 )}

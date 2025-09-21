@@ -867,20 +867,6 @@ class GoogleScholarService:
         """Collapse whitespace and trim."""
         return re.sub(r'\s+', ' ', text).strip()
     
-    def get_article_by_id(self, article_id: str) -> Optional[GoogleScholarArticle]:
-        """
-        Get detailed article information by ID.
-        Note: This is a placeholder - Google Scholar doesn't provide a direct article lookup API.
-        
-        Args:
-            article_id: Article identifier
-            
-        Returns:
-            GoogleScholarArticle or None if not found
-        """
-        logger.warning(f"Direct article lookup not available for Google Scholar. ID: {article_id}")
-        return None
-
     def enrich_single_article(
         self,
         doi: Optional[str] = None,

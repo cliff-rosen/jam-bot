@@ -29,7 +29,7 @@ def _get_pubmed_max_results() -> int:
     from config.settings import settings
     return settings.PUBMED_MAX_RESULTS_PER_CALL
 
-class Article():
+class PubMedArticle():
     """
     PubmedArticle
         MedlineCitation
@@ -49,7 +49,7 @@ class Article():
     """
 
     @classmethod
-    def from_xml(cls, article_xml: bytes) -> 'Article':
+    def from_xml(cls, article_xml: bytes) -> 'PubMedArticle':
         pubmed_article_node = ET.fromstring(article_xml)
         medline_citation_node = pubmed_article_node.find('.//MedlineCitation')
 
@@ -178,7 +178,7 @@ class Article():
 
         citation = f"{authors} {title} {journal}. {year};{volume}({issue}):{pages}."
 
-        return Article(
+        return PubMedArticle(
                     PMID=PMID,
                     comp_date=date_completed,
                     date_revised=date_revised,
@@ -262,7 +262,7 @@ class Article():
         return result
 
 
-def get_citation_from_article(article: Article) -> str:
+def get_citation_from_article(article: PubMedArticle) -> str:
     authors = article.authors
     title = article.title
     journal = article.journal
@@ -530,7 +530,7 @@ class PubMedService:
             logger.error(f"Error in PubMed search: {e}", exc_info=True)
             raise
     
-    def _get_articles_from_ids(self, ids: List[str]) -> List[Article]:
+    def _get_articles_from_ids(self, ids: List[str]) -> List[PubMedArticle]:
         """Fetch full article data from PubMed IDs."""
         BATCH_SIZE = 100
         articles = []
@@ -558,7 +558,7 @@ class PubMedService:
             root = ET.fromstring(xml)
             
             for article_node in root.findall(".//PubmedArticle"):
-                articles.append(Article.from_xml(ET.tostring(article_node)))
+                articles.append(PubMedArticle.from_xml(ET.tostring(article_node)))
 
             low += batch_size
             high += batch_size
@@ -586,7 +586,7 @@ def search_articles_by_date_range(filter_term: str, start_date: str, end_date: s
     return articles
 
 
-def fetch_articles_by_ids(pubmed_ids: List[str]) -> List[Article]:
+def fetch_articles_by_ids(pubmed_ids: List[str]) -> List[PubMedArticle]:
     """
     Fetch PubMed articles by their PMID.
 
@@ -594,7 +594,7 @@ def fetch_articles_by_ids(pubmed_ids: List[str]) -> List[Article]:
         pubmed_ids: List of PubMed IDs to fetch
 
     Returns:
-        List of Article objects
+        List of PubMedArticle objects
     """
     service = PubMedService()
     return service._get_articles_from_ids(pubmed_ids)

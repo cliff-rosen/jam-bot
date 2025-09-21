@@ -17,7 +17,7 @@ from schemas.tool_handler_schema import ToolHandlerInput, ToolExecutionHandler, 
 from schemas.canonical_types import CanonicalPubMedArticle, CanonicalPubMedExtraction, CanonicalScoredArticle
 from schemas.schema_utils import create_typed_response
 from tools.tool_registry import register_tool_handler
-from services.pubmed_service import PubMedService, Article
+from services.pubmed_service import PubMedService, PubMedArticle
 from agents.prompts.base_prompt_caller import BasePromptCaller
 
 

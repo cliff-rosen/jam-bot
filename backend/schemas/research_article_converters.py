@@ -17,16 +17,16 @@ from schemas.canonical_types import (
 )
 
 if TYPE_CHECKING:
-    from services.pubmed_service import Article
+    from services.pubmed_service import PubMedArticle
     from services.google_scholar_service import GoogleScholarArticle
 
 
-def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArticle:
+def legacy_article_to_canonical_pubmed(article: 'PubMedArticle') -> CanonicalPubMedArticle:
     """
-    Convert legacy PubMed Article to CanonicalPubMedArticle.
+    Convert legacy PubMed PubMedArticle to CanonicalPubMedArticle.
     
     Args:
-        article: Legacy Article object from pubmed_service
+        article: Legacy PubMedArticle object from pubmed_service
         
     Returns:
         CanonicalPubMedArticle
@@ -35,7 +35,7 @@ def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArt
     publication_date = None
     if hasattr(article, 'year') and article.year and article.year.strip():
         publication_date = article.year.strip()
-        # Add month/day if available (not implemented in current Article class)
+        # Add month/day if available (not implemented in current PubMedArticle class)
     
     # Convert authors string to list
     authors = []
@@ -53,10 +53,10 @@ def legacy_article_to_canonical_pubmed(article: 'Article') -> CanonicalPubMedArt
         authors=authors,
         journal=article.journal if article.journal else "",
         publication_date=publication_date,
-        doi=None,  # Not available in legacy Article
-        keywords=[],  # Not available in legacy Article
-        mesh_terms=[],  # Not available in legacy Article
-        citation_count=None,  # Not available in legacy Article
+        doi=None,  # Not available in legacy PubMedArticle
+        keywords=[],  # Not available in legacy PubMedArticle
+        mesh_terms=[],  # Not available in legacy PubMedArticle
+        citation_count=None,  # Not available in legacy PubMedArticle
         metadata={
             'volume': article.volume if hasattr(article, 'volume') else None,
             'issue': article.issue if hasattr(article, 'issue') else None,

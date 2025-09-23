@@ -82,11 +82,17 @@ def auto_track(
             # Also check kwargs for Request (FastAPI might pass it as kwarg)
             if not request:
                 request = kwargs.get('req')  # The parameter name in the function signature is 'req'
+                if request:
+                    print(f"[AUTO_TRACK] Found Request in kwargs as 'req'")
 
             if db:
                 print(f"[AUTO_TRACK] Found db in kwargs")
             if current_user:
                 print(f"[AUTO_TRACK] Found current_user in kwargs: {current_user}")
+            if request:
+                print(f"[AUTO_TRACK] Request object found: {type(request)}")
+            else:
+                print(f"[AUTO_TRACK] No Request object found")
 
             # Execute the original function first
             result = await func(*args, **kwargs)

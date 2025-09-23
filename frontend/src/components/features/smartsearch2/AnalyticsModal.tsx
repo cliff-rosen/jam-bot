@@ -25,22 +25,20 @@ export function AnalyticsModal({ isOpen, onClose }: AnalyticsModalProps) {
         />
 
         {/* Modal */}
-        <div className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+        <div className="relative w-full max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Journey Analytics
-            </h2>
+          <div className="flex items-center justify-between px-6 py-3 border-b dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Journey Analytics</h2>
             <button
               onClick={onClose}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="h-[80vh] overflow-y-auto">
             <JourneyAnalytics />
           </div>
         </div>

@@ -14,7 +14,7 @@ from database import get_db
 from models import UserEvent, EventType
 from services.auth_service import validate_token
 
-router = APIRouter(tags=["analytics"])
+router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/journey/{journey_id}")

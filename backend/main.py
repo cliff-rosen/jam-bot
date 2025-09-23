@@ -73,7 +73,7 @@ app.include_router(smart_search2.router, prefix="/api")
 app.include_router(workbench.router, prefix="/api")        # /api/workbench (unified)
 app.include_router(article_chat.router, prefix="/api")     # /api/article-chat
 app.include_router(pubmed_search_designer.router, prefix="/api/pubmed")  # /api/pubmed/fetch-articles, /api/pubmed/test-search
-app.include_router(analytics.router)                       # /api/analytics (includes prefix)
+app.include_router(analytics.router, prefix="/api")  # /api/analytics
 
 logger.info("Routers included")
 

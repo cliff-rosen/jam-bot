@@ -102,25 +102,45 @@ def create_journey_context(request: Request) -> dict:
 def extract_search_data(result, *args, **kwargs) -> dict:
     """Extract data from search endpoint result"""
     # Get request from kwargs (FastAPI passes it as keyword argument)
-    request = kwargs.get('request')
+    request = kwargs.get('request')  # DirectSearchRequest
 
     data = {
         'source': 'unknown',
         'query': 'unknown',
-        'results_count': 0
+        'results_count': 0,
+        'page': 1,
+        'page_size': 20
     }
 
-    # Try to extract from request
-    if request and hasattr(request, 'query'):
-        data['query'] = request.query
-    if request and hasattr(request, 'source'):
-        data['source'] = request.source
+    # Extract from request (DirectSearchRequest)
+    if request:
+        if hasattr(request, 'query'):
+            data['query'] = request.query
+        if hasattr(request, 'source'):
+            data['source'] = request.source
+        if hasattr(request, 'page'):
+            data['page'] = request.page
+        if hasattr(request, 'page_size'):
+            data['page_size'] = request.page_size
 
-    # Try to extract from result
-    if hasattr(result, 'articles'):
-        data['results_count'] = len(result.articles)
-    elif hasattr(result, 'pagination'):
-        data['results_count'] = result.pagination.returned if hasattr(result.pagination, 'returned') else 0
+    # Extract from result (DirectSearchResponse)
+    if result:
+        if hasattr(result, 'articles'):
+            data['results_count'] = len(result.articles)
+        if hasattr(result, 'pagination'):
+            pagination = result.pagination
+            if hasattr(pagination, 'returned'):
+                data['results_count'] = pagination.returned
+            if hasattr(pagination, 'total'):
+                data['total_available'] = pagination.total
+            if hasattr(pagination, 'page'):
+                data['result_page'] = pagination.page
+            if hasattr(pagination, 'page_size'):
+                data['result_page_size'] = pagination.page_size
+        if hasattr(result, 'source'):
+            data['result_source'] = result.source
+        if hasattr(result, 'query'):
+            data['result_query'] = result.query
 
     return data
 
@@ -128,31 +148,41 @@ def extract_search_data(result, *args, **kwargs) -> dict:
 def extract_filter_data(result, *args, **kwargs) -> dict:
     """Extract data from filter endpoint result"""
     # Get request from kwargs (FastAPI passes it as keyword argument)
-    request = kwargs.get('request')
+    request = kwargs.get('request')  # ArticleFilterRequest
     data = {
         'filter_condition': 'unknown',
         'strictness': 'medium',
         'input_count': 0,
         'accepted': 0,
-        'rejected': 0
+        'rejected': 0,
+        'input_articles_count': 0
     }
 
-    # Extract from request
+    # Extract from request (ArticleFilterRequest)
     if request:
         if hasattr(request, 'filter_condition'):
             data['filter_condition'] = request.filter_condition
         if hasattr(request, 'strictness'):
             data['strictness'] = request.strictness
+        if hasattr(request, 'articles'):
+            data['input_articles_count'] = len(request.articles)
 
-    # Extract from result
-    if hasattr(result, 'total_processed'):
-        data['input_count'] = result.total_processed
-    if hasattr(result, 'total_accepted'):
-        data['accepted'] = result.total_accepted
-    if hasattr(result, 'total_rejected'):
-        data['rejected'] = result.total_rejected
-    if hasattr(result, 'average_confidence'):
-        data['average_confidence'] = result.average_confidence
+    # Extract from result (ArticleFilterResponse)
+    if result:
+        if hasattr(result, 'total_processed'):
+            data['input_count'] = result.total_processed
+        if hasattr(result, 'total_accepted'):
+            data['accepted'] = result.total_accepted
+        if hasattr(result, 'total_rejected'):
+            data['rejected'] = result.total_rejected
+        if hasattr(result, 'average_confidence'):
+            data['average_confidence'] = result.average_confidence
+        if hasattr(result, 'duration_seconds'):
+            data['duration_seconds'] = result.duration_seconds
+        if hasattr(result, 'token_usage'):
+            data['token_usage'] = result.token_usage
+        if hasattr(result, 'filtered_articles'):
+            data['filtered_articles_count'] = len(result.filtered_articles)
 
     return data
 
@@ -160,28 +190,35 @@ def extract_filter_data(result, *args, **kwargs) -> dict:
 def extract_columns_data(result, *args, **kwargs) -> dict:
     """Extract data from column extraction endpoint result"""
     # Get request from kwargs (FastAPI passes it as keyword argument)
-    request = kwargs.get('request')
+    request = kwargs.get('request')  # FeatureExtractionRequest
     data = {
         'features_count': 0,
         'articles_processed': 0,
-        'success_rate': 0.0
+        'success_rate': 0.0,
+        'input_articles_count': 0
     }
 
-    # Extract from request
-    if request and hasattr(request, 'features'):
-        data['features_count'] = len(request.features)
-        data['features'] = [
-            {'name': f.name, 'description': f.description}
-            for f in request.features
-            if hasattr(f, 'name') and hasattr(f, 'description')
-        ]
+    # Extract from request (FeatureExtractionRequest)
+    if request:
+        if hasattr(request, 'features'):
+            data['features_count'] = len(request.features)
+            data['features'] = [
+                {'name': f.name, 'description': f.description}
+                for f in request.features
+                if hasattr(f, 'name') and hasattr(f, 'description')
+            ]
+        if hasattr(request, 'articles'):
+            data['input_articles_count'] = len(request.articles)
 
-    # Extract from result
-    if hasattr(result, 'results'):
-        data['articles_processed'] = len(result.results)
-        # Calculate success rate
-        successful = sum(1 for r in result.results.values() if r and not r.get('error'))
-        data['success_rate'] = successful / len(result.results) if result.results else 0
+    # Extract from result (FeatureExtractionResponse)
+    if result:
+        if hasattr(result, 'results'):
+            data['articles_processed'] = len(result.results)
+            # Calculate success rate
+            successful = sum(1 for r in result.results.values() if r and not r.get('error'))
+            data['success_rate'] = successful / len(result.results) if result.results else 0
+        if hasattr(result, 'extraction_metadata'):
+            data['extraction_metadata'] = result.extraction_metadata
 
     return data
 
@@ -236,13 +273,19 @@ def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
         'user_description': 'unknown',
         'is_complete': False,
         'completeness_score': 0.0,
-        'evidence_spec_length': 0
+        'evidence_spec_length': 0,
+        'has_conversation_history': False,
+        'missing_elements_count': 0,
+        'clarification_questions_count': 0
     }
 
     # Extract from request (EvidenceSpecRequest)
-    if evidence_request and hasattr(evidence_request, 'user_description'):
-        desc = evidence_request.user_description
-        data['user_description'] = desc[:100] + "..." if len(desc) > 100 else desc
+    if evidence_request:
+        if hasattr(evidence_request, 'user_description'):
+            desc = evidence_request.user_description
+            data['user_description'] = desc[:100] + "..." if len(desc) > 100 else desc
+        if hasattr(evidence_request, 'conversation_history'):
+            data['has_conversation_history'] = bool(evidence_request.conversation_history)
 
     # Extract from result (EvidenceSpecResponse)
     if result:
@@ -252,6 +295,11 @@ def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
             data['completeness_score'] = result.completeness_score
         if hasattr(result, 'evidence_specification') and result.evidence_specification:
             data['evidence_spec_length'] = len(result.evidence_specification)
+        if hasattr(result, 'missing_elements'):
+            data['missing_elements_count'] = len(result.missing_elements)
+            data['missing_elements'] = result.missing_elements
+        if hasattr(result, 'clarification_questions'):
+            data['clarification_questions_count'] = len(result.clarification_questions) if result.clarification_questions else 0
 
     return data
 
@@ -264,7 +312,8 @@ def extract_concepts_data(result, *args, **kwargs) -> dict:
     concept_request = kwargs.get('request')  # ConceptExtractionRequest
     data = {
         'evidence_spec': 'unknown',
-        'concepts_count': 0
+        'concepts_count': 0,
+        'concepts': []
     }
 
     # Extract from request (ConceptExtractionRequest)
@@ -273,8 +322,14 @@ def extract_concepts_data(result, *args, **kwargs) -> dict:
         data['evidence_spec'] = spec[:100] + "..." if len(spec) > 100 else spec
 
     # Extract from result (ConceptExtractionResponse)
-    if result and hasattr(result, 'concepts'):
-        data['concepts_count'] = len(result.concepts)
+    if result:
+        if hasattr(result, 'concepts'):
+            data['concepts_count'] = len(result.concepts)
+            data['concepts'] = result.concepts  # Store the actual concepts list
+        if hasattr(result, 'evidence_specification'):
+            # Also capture the evidence_specification from result if available
+            spec = result.evidence_specification
+            data['result_evidence_spec'] = spec[:100] + "..." if len(spec) > 100 else spec
 
     return data
 
@@ -286,19 +341,26 @@ def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
     data = {
         'concepts_count': 0,
         'source': 'unknown',
-        'expansions_count': 0
+        'expansions_count': 0,
+        'input_concepts': [],
+        'expansions': []
     }
 
     # Extract from request (ConceptExpansionRequest)
     if expansion_request:
         if hasattr(expansion_request, 'concepts'):
             data['concepts_count'] = len(expansion_request.concepts)
+            data['input_concepts'] = expansion_request.concepts  # Store actual concepts
         if hasattr(expansion_request, 'source'):
             data['source'] = expansion_request.source
 
     # Extract from result (ConceptExpansionResponse)
-    if result and hasattr(result, 'expansions'):
-        data['expansions_count'] = len(result.expansions)
+    if result:
+        if hasattr(result, 'expansions'):
+            data['expansions_count'] = len(result.expansions)
+            data['expansions'] = result.expansions  # Store actual expansions
+        if hasattr(result, 'source'):
+            data['result_source'] = result.source  # Capture source from result too
 
     return data
 
@@ -311,13 +373,15 @@ def extract_keyword_test_data(result, *args, **kwargs) -> dict:
         'expressions_count': 0,
         'source': 'unknown',
         'combined_query': 'unknown',
-        'estimated_results': 0
+        'estimated_results': 0,
+        'input_expressions': []
     }
 
     # Extract from request (KeywordCombinationRequest)
     if keyword_request:
         if hasattr(keyword_request, 'expressions'):
             data['expressions_count'] = len(keyword_request.expressions)
+            data['input_expressions'] = keyword_request.expressions  # Store actual expressions
         if hasattr(keyword_request, 'source'):
             data['source'] = keyword_request.source
 
@@ -326,7 +390,10 @@ def extract_keyword_test_data(result, *args, **kwargs) -> dict:
         if hasattr(result, 'combined_query'):
             query = result.combined_query
             data['combined_query'] = query[:100] + "..." if len(query) > 100 else query
+            data['full_combined_query'] = query  # Store full query too
         if hasattr(result, 'estimated_results'):
             data['estimated_results'] = result.estimated_results
+        if hasattr(result, 'source'):
+            data['result_source'] = result.source  # Capture source from result
 
     return data

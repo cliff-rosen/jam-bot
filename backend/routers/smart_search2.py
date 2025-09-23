@@ -7,7 +7,7 @@ Optimized for simple, direct search functionality.
 
 import logging
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,11 @@ from schemas.smart_search import SearchPaginationInfo, FilteredArticle
 
 from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
+
+# Event tracking imports
+from utils.tracking_decorator import auto_track
+from utils.tracking_helpers import extract_search_data
+from models import EventType
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +124,20 @@ class ConceptExtractionResponse(BaseModel):
 # ============================================================================
 
 @router.post("/search", response_model=DirectSearchResponse)
+@auto_track(
+    EventType.SEARCH_EXECUTE,
+    extract_data_fn=lambda result, *args, **kwargs: {
+        "query": args[0].query if args and hasattr(args[0], 'query') else "unknown",
+        "source": args[0].source if args and hasattr(args[0], 'source') else "unknown",
+        "results_count": len(result.articles) if hasattr(result, 'articles') else 0,
+        "offset": args[0].offset if args and hasattr(args[0], 'offset') else 0,
+        "max_results": args[0].max_results if args and hasattr(args[0], 'max_results') else 0,
+        "has_more": result.pagination.has_more if hasattr(result, 'pagination') and result.pagination and hasattr(result.pagination, 'has_more') else False
+    }
+)
 async def search(
     request: DirectSearchRequest,
+    req: Request,  # Added for tracking
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> DirectSearchResponse:
@@ -427,9 +444,63 @@ async def extract_features(
         raise HTTPException(status_code=500, detail=f"Feature extraction failed: {str(e)}")
 
 
+# ============================================================================
+# Analytics Endpoints
+# ============================================================================
+
+@router.get("/analytics/journey/{journey_id}")
+async def get_journey_analytics(
+    journey_id: str,
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get analytics for a specific journey
+
+    Returns timeline of events and metrics for the journey.
+    """
+    from services.event_tracking import EventTracker
+
+    tracker = EventTracker(db)
+    analytics = tracker.get_journey_analytics(journey_id)
+    return analytics
+
+
+@router.get("/analytics/my-journeys")
+async def get_my_journeys(
+    limit: int = Query(10, ge=1, le=50),
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get recent journeys for the current user
+
+    Returns list of recent journey summaries.
+    """
+    from services.event_tracking import EventTracker
+
+    tracker = EventTracker(db)
+    # Use the authenticated user's ID
+    user_id = current_user.user_id if hasattr(current_user, 'user_id') else str(current_user)
+    journeys = tracker.get_user_journeys(user_id, limit)
+    return {"journeys": journeys}
+
+
 @router.post("/filter-articles", response_model=ArticleFilterResponse)
+@auto_track(
+    EventType.FILTER_APPLY,
+    extract_data_fn=lambda result, *args, **kwargs: {
+        "filter_condition": args[0].filter_condition,
+        "strictness": args[0].strictness,
+        "input_count": result.total_processed,
+        "accepted": result.total_accepted,
+        "rejected": result.total_rejected,
+        "confidence": result.average_confidence
+    }
+)
 async def filter_articles(
     request: ArticleFilterRequest,
+    req: Request,  # Added for tracking
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> ArticleFilterResponse:

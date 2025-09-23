@@ -124,17 +124,7 @@ class ConceptExtractionResponse(BaseModel):
 # ============================================================================
 
 @router.post("/search", response_model=DirectSearchResponse)
-@auto_track(
-    EventType.SEARCH_EXECUTE,
-    extract_data_fn=lambda result, *args, **kwargs: {
-        "query": args[0].query if args and hasattr(args[0], 'query') else "unknown",
-        "source": args[0].source if args and hasattr(args[0], 'source') else "unknown",
-        "results_count": len(result.articles) if hasattr(result, 'articles') else 0,
-        "offset": args[0].offset if args and hasattr(args[0], 'offset') else 0,
-        "max_results": args[0].max_results if args and hasattr(args[0], 'max_results') else 0,
-        "has_more": result.pagination.has_more if hasattr(result, 'pagination') and result.pagination and hasattr(result.pagination, 'has_more') else False
-    }
-)
+@auto_track(EventType.SEARCH_EXECUTE, extract_data_fn=extract_search_data)
 async def search(
     request: DirectSearchRequest,
     req: Request,  # Added for tracking

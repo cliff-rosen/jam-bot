@@ -98,12 +98,8 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
     # Log debug info about date extraction
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"Converting PubMed article {pubmed_article.pmid} - metadata: {metadata}")
-    logger.info(f"  pub_date from metadata: {metadata.get('pub_date')}")
-    logger.info(f"  comp_date from metadata: {metadata.get('comp_date')}")
-    logger.info(f"  date_revised from metadata: {metadata.get('date_revised')}")
-    logger.info(f"  entry_date from metadata: {metadata.get('entry_date')}")
-    
+    logger.info(f"Converting PubMed article {pubmed_article.pmid}")
+  
     result = CanonicalResearchArticle(
         id=f"pubmed_{pubmed_article.pmid}",  # Use consistent ID format
         source="pubmed",
@@ -138,14 +134,6 @@ def pubmed_to_research_article(pubmed_article: CanonicalPubMedArticle) -> Canoni
         indexed_at=None,
         retrieved_at=datetime.utcnow().isoformat()
     )
-    
-    # Log the final result to verify dates are populated
-    logger.info(f"Final CanonicalResearchArticle for {pubmed_article.pmid}:")
-    logger.info(f"  publication_date: {result.publication_date}")
-    logger.info(f"  date_published: {result.date_published}")
-    logger.info(f"  date_completed: {result.date_completed}")
-    logger.info(f"  date_revised: {result.date_revised}")
-    logger.info(f"  date_entered: {result.date_entered}")
     
     return result
 

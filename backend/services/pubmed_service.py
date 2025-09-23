@@ -122,13 +122,6 @@ class PubMedArticle():
         article_date = cls._get_date_from_node(article_date_node)
         entry_date = cls._get_date_from_node(entry_date_node)
         
-        # Add debug logging for date extraction
-        logger.info(f"PMID {PMID} - Extracted dates:")
-        logger.info(f"  date_completed: {date_completed}")
-        logger.info(f"  date_revised: {date_revised}")
-        logger.info(f"  article_date: {article_date}")
-        logger.info(f"  entry_date: {entry_date}")
-        
         # Debug logging
         logger.debug(f"PMID {PMID} - Date extraction:")
         logger.debug(f"  date_completed: {date_completed}")

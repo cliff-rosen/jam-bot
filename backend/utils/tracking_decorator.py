@@ -83,7 +83,12 @@ def auto_track(
                 try:
                     # Get tracking identifiers
                     user_id = getattr(current_user, 'user_id', str(current_user))
-                    journey_id = get_journey_id_from_request(request) if request else str(uuid4())
+                    journey_id = get_journey_id_from_request(request) if request else None
+
+                    # Skip tracking if no valid journey ID
+                    if not journey_id:
+                        print(f"[TRACKING ERROR] Skipping event tracking - no valid journey ID for {event_type}")
+                        return await func(*args, **kwargs)
 
                     # Execute the actual function
                     result = await func(*args, **kwargs)
@@ -111,12 +116,7 @@ def auto_track(
                         # Don't let tracking failure break the endpoint
                         print(f"Failed to track event: {e}")
 
-                    # Add journey ID to response headers if response object is available
-                    if response:
-                        try:
-                            response.headers['X-Journey-Id'] = journey_id
-                        except Exception as e:
-                            print(f"Failed to set journey ID header: {e}")
+                    # DO NOT set response headers - frontend owns journey ID management
 
                     return result
 
@@ -156,7 +156,12 @@ def auto_track(
             if db and current_user:
                 try:
                     user_id = getattr(current_user, 'user_id', str(current_user))
-                    journey_id = get_journey_id_from_request(request) if request else str(uuid4())
+                    journey_id = get_journey_id_from_request(request) if request else None
+
+                    # Skip tracking if no valid journey ID
+                    if not journey_id:
+                        print(f"[TRACKING ERROR] Skipping event tracking - no valid journey ID for {event_type}")
+                        return func(*args, **kwargs)
 
                     # Execute function
                     result = func(*args, **kwargs)
@@ -181,12 +186,7 @@ def auto_track(
                     except:
                         pass
 
-                    # Add journey ID to response headers if response object is available
-                    if response:
-                        try:
-                            response.headers['X-Journey-Id'] = journey_id
-                        except:
-                            pass
+                    # DO NOT set response headers - frontend owns journey ID management
 
                     return result
                 except:

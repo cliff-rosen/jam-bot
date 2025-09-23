@@ -4,7 +4,7 @@
  * Optimized for direct search functionality without the guided workflow complexity.
  * Focuses on: source selection, query input, search execution, and results display.
  */
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useEffect, useContext, useState, useCallback } from 'react';
 
 import { api } from '@/lib/api';
 import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
@@ -224,12 +224,34 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [expandedExpressions, setExpandedExpressions] = useState<Array<{ concept: string; expression: string; count: number; selected?: boolean }>>([]);
     const [generatedKeywords, setGeneratedKeywords] = useState('');
 
-    // Journey tracking state
-    const [currentJourneyId, setCurrentJourneyId] = useState<string>(getCurrentJourneyId());
+    // Journey tracking state - initialized from localStorage
+    const [currentJourneyId, setCurrentJourneyId] = useState<string>(() => {
+        const journeyId = getCurrentJourneyId();
+        return journeyId;
+    });
     const [journeyStartTime, setJourneyStartTime] = useState<string | null>(() => {
         const info = getCurrentJourneyInfo();
         return info?.startedAt || null;
     });
+
+    // Make the context's getOrCreateJourneyId available globally for API interceptor
+    const getOrCreateJourneyId = useCallback((): string => {
+        let journeyId = localStorage.getItem('currentJourneyId');
+
+        if (!journeyId) {
+            // Create new journey and update context state
+            journeyId = startNewJourney('auto', 'Auto-created');
+            setCurrentJourneyId(journeyId);
+            const info = getCurrentJourneyInfo();
+            setJourneyStartTime(info?.startedAt || null);
+            console.log('Context created new journey:', journeyId);
+        }
+
+        return journeyId;
+    }, []);
+
+    // Make this available globally for the API interceptor
+    (window as any).__getOrCreateJourneyId = getOrCreateJourneyId;
 
     // ================== JOURNEY MANAGEMENT ACTIONS ==================
 
@@ -244,8 +266,11 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
     const clearJourney = useCallback(() => {
         clearCurrentJourney();
-        setCurrentJourneyId(null);
-        setJourneyStartTime(null);
+        // Start a new journey immediately after clearing
+        const newJourneyId = getCurrentJourneyId();
+        setCurrentJourneyId(newJourneyId);
+        const info = getCurrentJourneyInfo();
+        setJourneyStartTime(info?.startedAt || null);
     }, []);
 
     const getJourneyId = useCallback((): string => {

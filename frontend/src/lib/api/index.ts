@@ -30,7 +30,11 @@ api.interceptors.request.use((config) => {
   // Add journey tracking header for SmartSearch2 endpoints only
   // Analytics endpoints don't need this header since they get journey ID from URL parameter
   if (config.url?.includes('/smart-search2/')) {
-    config.headers['X-Journey-Id'] = getCurrentJourneyId();
+    // Use the context's function that properly syncs state
+    const getOrCreateJourneyId = (window as any).__getOrCreateJourneyId || getCurrentJourneyId;
+    const journeyId = getOrCreateJourneyId();
+    config.headers['X-Journey-Id'] = journeyId;
+    console.log('[API] SmartSearch2 request with journey ID:', journeyId);
   } else {
     // For other endpoints, only add header if journey exists (don't create new one)
     const journeyId = localStorage.getItem('currentJourneyId');
@@ -44,11 +48,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    // Capture journey ID from response headers if present
-    const journeyId = response.headers['x-journey-id'];
-    if (journeyId) {
-      localStorage.setItem('currentJourneyId', journeyId);
-    }
+    // Frontend owns journey ID - do not overwrite from backend
     return response;
   },
   (error) => {

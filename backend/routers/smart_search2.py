@@ -7,7 +7,7 @@ Optimized for simple, direct search functionality.
 
 import logging
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -128,6 +128,7 @@ class ConceptExtractionResponse(BaseModel):
 async def search(
     request: DirectSearchRequest,
     req: Request,  # Added for tracking
+    response: Response,  # Added for journey ID response header
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> DirectSearchResponse:

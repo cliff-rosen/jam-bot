@@ -8,7 +8,7 @@ import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 import { getJourneyAnalytics, type JourneyAnalyticsData } from '@/lib/api/smartSearch2Api';
 
 export function JourneyAnalytics() {
-    const { currentJourneyId, journeyStartTime } = useSmartSearch2();
+    const { journeyStartTime, getJourneyId } = useSmartSearch2();
     const [analyticsData, setAnalyticsData] = useState<JourneyAnalyticsData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,8 @@ export function JourneyAnalytics() {
         setError(null);
 
         try {
-            const data = await getJourneyAnalytics(currentJourneyId);
+            const journeyId = getJourneyId(); // Use latest journey ID from localStorage
+            const data = await getJourneyAnalytics(journeyId);
             setAnalyticsData(data);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch analytics';
@@ -31,7 +32,7 @@ export function JourneyAnalytics() {
 
     useEffect(() => {
         fetchAnalytics();
-    }, [currentJourneyId]);
+    }, []); // Remove dependency since getJourneyId() always gets latest value
 
     if (loading) {
         return (
@@ -66,7 +67,7 @@ export function JourneyAnalytics() {
                     <div className="grid grid-cols-4 gap-6 text-sm">
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Journey ID:</span>
-                            <p className="text-gray-600 dark:text-gray-400 font-mono text-xs">{currentJourneyId}</p>
+                            <p className="text-gray-600 dark:text-gray-400 font-mono text-xs">{getJourneyId()}</p>
                         </div>
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Started:</span>

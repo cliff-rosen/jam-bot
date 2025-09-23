@@ -45,18 +45,26 @@ def get_journey_id_from_request(request: Request) -> str:
     # Try headers (primary method)
     if 'X-Journey-Id' in request.headers:
         journey_id = request.headers['X-Journey-Id']
-        if journey_id:  # Make sure it's not empty
+        print(f"[TRACKING ERROR] Found X-Journey-Id header: '{journey_id}'")
+        if journey_id and journey_id.strip():  # Make sure it's not empty or whitespace
+            print(f"[TRACKING] Using journey ID from header: {journey_id}")
             return journey_id
+        else:
+            print(f"[TRACKING ERROR] Header journey ID was empty or whitespace")
 
     # Try query parameters (backup method)
     if 'journey_id' in request.query_params:
         journey_id = request.query_params['journey_id']
-        if journey_id:  # Make sure it's not empty
+        print(f"[TRACKING] Found journey_id in query params: '{journey_id}'")
+        if journey_id and journey_id.strip():  # Make sure it's not empty or whitespace
+            print(f"[TRACKING] Using journey ID from query: {journey_id}")
             return journey_id
 
-    # Generate new journey ID and store it in localStorage on frontend
-    # The frontend will pick this up from response headers
-    return str(uuid4())
+    # TRACKING ERROR: Frontend should ALWAYS provide journey ID
+    # Log this as an error and return None to skip tracking
+    print(f"[TRACKING ERROR] No valid journey ID provided by frontend! Request path: {request.url.path if request else 'unknown'}")
+    print(f"[TRACKING ERROR] Headers: {dict(request.headers) if request else 'no request'}")
+    return None  # Return None to indicate tracking should be skipped
 
 
 def add_journey_to_response_header(response, journey_id: str):

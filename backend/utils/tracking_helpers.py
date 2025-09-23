@@ -203,3 +203,74 @@ def extract_scholar_data(result, *args, **kwargs) -> dict:
         data['keywords'] = request.keywords
 
     return data
+
+
+def extract_concepts_data(result, *args, **kwargs) -> dict:
+    """Extract data from concept extraction result"""
+    request = args[0] if args else None
+    data = {
+        'evidence_spec': 'unknown',
+        'concepts_count': 0
+    }
+
+    # Extract from request
+    if request and hasattr(request, 'evidence_specification'):
+        spec = request.evidence_specification
+        data['evidence_spec'] = spec[:100] + "..." if len(spec) > 100 else spec
+
+    # Extract from result
+    if hasattr(result, 'concepts'):
+        data['concepts_count'] = len(result.concepts)
+
+    return data
+
+
+def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
+    """Extract data from concept expansion result"""
+    request = args[0] if args else None
+    data = {
+        'concepts_count': 0,
+        'source': 'unknown',
+        'expansions_count': 0
+    }
+
+    # Extract from request
+    if request:
+        if hasattr(request, 'concepts'):
+            data['concepts_count'] = len(request.concepts)
+        if hasattr(request, 'source'):
+            data['source'] = request.source
+
+    # Extract from result
+    if hasattr(result, 'expansions'):
+        data['expansions_count'] = len(result.expansions)
+
+    return data
+
+
+def extract_keyword_test_data(result, *args, **kwargs) -> dict:
+    """Extract data from keyword combination test result"""
+    request = args[0] if args else None
+    data = {
+        'expressions_count': 0,
+        'source': 'unknown',
+        'combined_query': 'unknown',
+        'estimated_results': 0
+    }
+
+    # Extract from request
+    if request:
+        if hasattr(request, 'expressions'):
+            data['expressions_count'] = len(request.expressions)
+        if hasattr(request, 'source'):
+            data['source'] = request.source
+
+    # Extract from result
+    if result:
+        if hasattr(result, 'combined_query'):
+            query = result.combined_query
+            data['combined_query'] = query[:100] + "..." if len(query) > 100 else query
+        if hasattr(result, 'estimated_results'):
+            data['estimated_results'] = result.estimated_results
+
+    return data

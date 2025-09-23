@@ -21,7 +21,10 @@ from services.smart_search_service import SmartSearchService
 
 # Event tracking imports
 from utils.tracking_decorator import auto_track, auto_track_test
-from utils.tracking_helpers import extract_search_data
+from utils.tracking_helpers import (
+    extract_search_data, extract_filter_data, extract_columns_data,
+    extract_concepts_data, extract_concept_expansion_data, extract_keyword_test_data
+)
 from models import EventType
 
 logger = logging.getLogger(__name__)
@@ -181,8 +184,10 @@ async def search(
 
 
 @router.post("/evidence-spec", response_model=EvidenceSpecResponse)
+@auto_track(EventType.EVIDENCE_SPEC_CREATE)
 async def create_evidence_spec(
     request: EvidenceSpecRequest,
+    req: Request,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> EvidenceSpecResponse:
@@ -215,8 +220,10 @@ async def create_evidence_spec(
 
 
 @router.post("/extract-concepts", response_model=ConceptExtractionResponse)
+@auto_track(EventType.CONCEPTS_EXTRACT, extract_data_fn=extract_concepts_data)
 async def extract_concepts(
     request: ConceptExtractionRequest,
+    req: Request,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> ConceptExtractionResponse:
@@ -259,8 +266,10 @@ async def extract_concepts(
 
 
 @router.post("/expand-concepts", response_model=ConceptExpansionResponse)
+@auto_track(EventType.CONCEPTS_EXPAND, extract_data_fn=extract_concept_expansion_data)
 async def expand_concepts(
     request: ConceptExpansionRequest,
+    req: Request,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> ConceptExpansionResponse:
@@ -310,8 +319,10 @@ async def expand_concepts(
 
 
 @router.post("/test-keyword-combination", response_model=KeywordCombinationResponse)
+@auto_track(EventType.KEYWORDS_TEST, extract_data_fn=extract_keyword_test_data)
 async def test_keyword_combination(
     request: KeywordCombinationRequest,
+    req: Request,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> KeywordCombinationResponse:
@@ -362,8 +373,10 @@ async def test_keyword_combination(
 
 
 @router.post("/extract-features", response_model=FeatureExtractionResponse)
+@auto_track(EventType.COLUMNS_ADD, extract_data_fn=extract_columns_data)
 async def extract_features(
     request: FeatureExtractionRequest,
+    req: Request,
     current_user = Depends(validate_token),
     db: Session = Depends(get_db)
 ) -> FeatureExtractionResponse:

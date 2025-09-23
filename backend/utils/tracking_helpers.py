@@ -244,8 +244,6 @@ def extract_scholar_data(result, *args, **kwargs) -> dict:
     return data
 
 
-
-
 def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
     """Extract data from evidence specification result"""
     # kwargs['request'] = EvidenceSpecRequest (Pydantic model with user data)

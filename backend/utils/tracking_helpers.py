@@ -225,7 +225,11 @@ def extract_scholar_stream_data(result, *args, **kwargs) -> dict:
 
 def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
     """Extract data from evidence specification result"""
-    request = args[0] if args else None
+    # args[0] = EvidenceSpecRequest (Pydantic model with user data)
+    # args[1] = Request (FastAPI request object)
+    # result = EvidenceSpecResponse (Pydantic response model)
+
+    evidence_request = args[0] if args else None  # EvidenceSpecRequest
     data = {
         'user_description': 'unknown',
         'is_complete': False,
@@ -233,12 +237,12 @@ def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
         'evidence_spec_length': 0
     }
 
-    # Extract from request
-    if request and hasattr(request, 'user_description'):
-        desc = request.user_description
+    # Extract from request (EvidenceSpecRequest)
+    if evidence_request and hasattr(evidence_request, 'user_description'):
+        desc = evidence_request.user_description
         data['user_description'] = desc[:100] + "..." if len(desc) > 100 else desc
 
-    # Extract from result
+    # Extract from result (EvidenceSpecResponse)
     if result:
         if hasattr(result, 'is_complete'):
             data['is_complete'] = result.is_complete
@@ -252,19 +256,23 @@ def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
 
 def extract_concepts_data(result, *args, **kwargs) -> dict:
     """Extract data from concept extraction result"""
-    request = args[0] if args else None
+    # args[0] = ConceptExtractionRequest (Pydantic model)
+    # args[1] = Request (FastAPI request object)
+    # result = ConceptExtractionResponse (Pydantic response model)
+
+    concept_request = args[0] if args else None  # ConceptExtractionRequest
     data = {
         'evidence_spec': 'unknown',
         'concepts_count': 0
     }
 
-    # Extract from request
-    if request and hasattr(request, 'evidence_specification'):
-        spec = request.evidence_specification
+    # Extract from request (ConceptExtractionRequest)
+    if concept_request and hasattr(concept_request, 'evidence_specification'):
+        spec = concept_request.evidence_specification
         data['evidence_spec'] = spec[:100] + "..." if len(spec) > 100 else spec
 
-    # Extract from result
-    if hasattr(result, 'concepts'):
+    # Extract from result (ConceptExtractionResponse)
+    if result and hasattr(result, 'concepts'):
         data['concepts_count'] = len(result.concepts)
 
     return data
@@ -272,22 +280,23 @@ def extract_concepts_data(result, *args, **kwargs) -> dict:
 
 def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
     """Extract data from concept expansion result"""
-    request = args[0] if args else None
+    # args[0] = ConceptExpansionRequest (Pydantic model)
+    expansion_request = args[0] if args else None
     data = {
         'concepts_count': 0,
         'source': 'unknown',
         'expansions_count': 0
     }
 
-    # Extract from request
-    if request:
-        if hasattr(request, 'concepts'):
-            data['concepts_count'] = len(request.concepts)
-        if hasattr(request, 'source'):
-            data['source'] = request.source
+    # Extract from request (ConceptExpansionRequest)
+    if expansion_request:
+        if hasattr(expansion_request, 'concepts'):
+            data['concepts_count'] = len(expansion_request.concepts)
+        if hasattr(expansion_request, 'source'):
+            data['source'] = expansion_request.source
 
-    # Extract from result
-    if hasattr(result, 'expansions'):
+    # Extract from result (ConceptExpansionResponse)
+    if result and hasattr(result, 'expansions'):
         data['expansions_count'] = len(result.expansions)
 
     return data
@@ -295,7 +304,8 @@ def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
 
 def extract_keyword_test_data(result, *args, **kwargs) -> dict:
     """Extract data from keyword combination test result"""
-    request = args[0] if args else None
+    # args[0] = KeywordCombinationRequest (Pydantic model)
+    keyword_request = args[0] if args else None
     data = {
         'expressions_count': 0,
         'source': 'unknown',
@@ -303,14 +313,14 @@ def extract_keyword_test_data(result, *args, **kwargs) -> dict:
         'estimated_results': 0
     }
 
-    # Extract from request
-    if request:
-        if hasattr(request, 'expressions'):
-            data['expressions_count'] = len(request.expressions)
-        if hasattr(request, 'source'):
-            data['source'] = request.source
+    # Extract from request (KeywordCombinationRequest)
+    if keyword_request:
+        if hasattr(keyword_request, 'expressions'):
+            data['expressions_count'] = len(keyword_request.expressions)
+        if hasattr(keyword_request, 'source'):
+            data['source'] = keyword_request.source
 
-    # Extract from result
+    # Extract from result (KeywordCombinationResponse)
     if result:
         if hasattr(result, 'combined_query'):
             query = result.combined_query

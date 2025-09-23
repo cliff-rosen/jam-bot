@@ -88,26 +88,20 @@ def create_journey_context(request: Request) -> dict:
 
 def extract_search_data(result, *args, **kwargs) -> dict:
     """Extract data from search endpoint result"""
-    request = args[0] if args else None
+    # Try to get request from args first, then kwargs
+    request = args[0] if args else kwargs.get('request')
+
     data = {
         'source': 'unknown',
         'query': 'unknown',
         'results_count': 0
     }
 
-    # Debug: log what we're getting
-    if request:
-        print(f"DEBUG extract_search_data: request type = {type(request)}")
-        print(f"DEBUG extract_search_data: request attributes = {dir(request)}")
-    else:
-        print(f"DEBUG extract_search_data: request is None")
     # Try to extract from request
     if request and hasattr(request, 'query'):
         data['query'] = request.query
-        print(f"DEBUG: Found query = {request.query}")
     if request and hasattr(request, 'source'):
         data['source'] = request.source
-        print(f"DEBUG: Found source = {request.source}")
 
     # Try to extract from result
     if hasattr(result, 'articles'):

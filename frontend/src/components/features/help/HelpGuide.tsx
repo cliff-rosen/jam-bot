@@ -293,6 +293,307 @@ const sections: Section[] = [
         )
     },
     {
+        id: 'smartsearch2',
+        title: 'SmartSearch2',
+        subsections: [
+            {
+                id: 'overview',
+                title: '1. Overview',
+                content: (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                        <p className="text-gray-700 dark:text-gray-300 mb-4">
+                            SmartSearch2 is a comprehensive research workflow system that combines AI-powered search assistance with
+                            multiple data sources to help you find, filter, and analyze research literature efficiently.
+                        </p>
+                        <div className="space-y-4">
+                            <div>
+                                <h5 className="font-medium text-gray-900 dark:text-white mb-2">Key Features:</h5>
+                                <ul className="list-disc pl-6 space-y-1 text-gray-700 dark:text-gray-300">
+                                    <li><strong>Multi-source Search:</strong> Search across PubMed, Google Scholar, and other academic databases</li>
+                                    <li><strong>AI-Powered Filtering:</strong> Use natural language to filter results by relevance and criteria</li>
+                                    <li><strong>Smart Keyword Assistant:</strong> Get AI help to develop comprehensive search strategies</li>
+                                    <li><strong>Column Extraction:</strong> Extract specific data points from research articles using AI</li>
+                                    <li><strong>Google Scholar Enrichment:</strong> Enhance your search results with additional academic sources</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h5 className="font-medium text-gray-900 dark:text-white mb-2">Perfect For:</h5>
+                                <ul className="list-disc pl-6 space-y-1 text-gray-700 dark:text-gray-300">
+                                    <li>Systematic literature reviews</li>
+                                    <li>Research discovery and exploration</li>
+                                    <li>Evidence synthesis and meta-analysis preparation</li>
+                                    <li>Academic research and writing support</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )
+            },
+            {
+                id: 'basic-workflow',
+                title: '2. Basic Research Workflow',
+                content: (
+                    <div className="space-y-6">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <h5 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">🔍 Step 1: Start Your Search</h5>
+                            <p className="text-blue-800 dark:text-blue-200 mb-3">
+                                Begin by entering your research keywords and selecting your preferred data source (PubMed, Google Scholar, etc.).
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-blue-700 dark:text-blue-300">
+                                <li>Enter keywords that describe your research topic</li>
+                                <li>Choose your data source based on your field (PubMed for medical, Google Scholar for broader academic)</li>
+                                <li>Set pagination to control how many results to retrieve initially</li>
+                                <li>Use Boolean operators (AND, OR, NOT) for more precise searches</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
+                            <h5 className="font-semibold text-green-900 dark:text-green-100 mb-3">🎯 Step 2: Apply AI Filtering</h5>
+                            <p className="text-green-800 dark:text-green-200 mb-3">
+                                Use natural language to describe what you're looking for, and let AI filter your results for relevance.
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-green-700 dark:text-green-300">
+                                <li>Describe your research criteria in plain English</li>
+                                <li>Examples: "Studies with randomized controlled trials", "Papers about machine learning in healthcare"</li>
+                                <li>Choose strictness level: Low (inclusive), Medium (balanced), High (strict)</li>
+                                <li>Review filtered results and confidence scores</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <h5 className="font-semibold text-gray-900 dark:text-white mb-3">🔄 Typical Workflow Pattern</h5>
+                            <div className="space-y-3">
+                                <div className="flex items-center space-x-3">
+                                    <span className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full flex items-center justify-center text-sm font-medium">1</span>
+                                    <span className="text-gray-700 dark:text-gray-300">Search with initial keywords → Get broad results</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <span className="flex-shrink-0 w-8 h-8 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full flex items-center justify-center text-sm font-medium">2</span>
+                                    <span className="text-gray-700 dark:text-gray-300">Apply AI filter → Narrow to relevant papers</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <span className="flex-shrink-0 w-8 h-8 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full flex items-center justify-center text-sm font-medium">3</span>
+                                    <span className="text-gray-700 dark:text-gray-300">Use optional features as needed (AI keywords, Google enrichment, column extraction)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            },
+            {
+                id: 'ai-keyword-helper',
+                title: '3. AI Keyword Helper',
+                content: (
+                    <div className="space-y-6">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <p className="text-gray-700 dark:text-gray-300 mb-4">
+                                The AI Keyword Helper guides you through developing comprehensive search strategies by breaking down your research question into systematic components.
+                            </p>
+                        </div>
+
+                        <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+                            <h5 className="font-semibold text-purple-900 dark:text-purple-100 mb-3">📋 Step 1: Evidence Specification</h5>
+                            <p className="text-purple-800 dark:text-purple-200 mb-3">
+                                Describe what you're looking for in natural language. The AI helps you refine this into a clear, comprehensive evidence specification.
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-purple-700 dark:text-purple-300">
+                                <li>Example: "I want studies about the effectiveness of meditation on anxiety in college students"</li>
+                                <li>AI will ask clarifying questions to complete your specification</li>
+                                <li>Helps identify population, intervention, comparison, and outcomes (PICO framework)</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <h5 className="font-semibold text-amber-900 dark:text-amber-100 mb-3">🔑 Step 2: Concept Extraction</h5>
+                            <p className="text-amber-800 dark:text-amber-200 mb-3">
+                                AI extracts key searchable concepts from your evidence specification.
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-amber-700 dark:text-amber-300">
+                                <li>Automatically identifies main concepts and themes</li>
+                                <li>Examples: "meditation", "anxiety", "college students", "effectiveness"</li>
+                                <li>Forms the foundation for your search strategy</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-cyan-50 dark:bg-cyan-900/20 p-6 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                            <h5 className="font-semibold text-cyan-900 dark:text-cyan-100 mb-3">🌐 Step 3: Concept Expansion</h5>
+                            <p className="text-cyan-800 dark:text-cyan-200 mb-3">
+                                Each concept is expanded into comprehensive search expressions with synonyms, related terms, and variations.
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-cyan-700 dark:text-cyan-300">
+                                <li>"meditation" → "meditation OR mindfulness OR contemplative practice"</li>
+                                <li>"anxiety" → "anxiety OR stress OR worry OR psychological distress"</li>
+                                <li>Includes both MeSH terms and free text variations</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                            <h5 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🧪 Step 4: Coverage Testing</h5>
+                            <p className="text-indigo-800 dark:text-indigo-200 mb-3">
+                                Test your search strategy by combining concepts and checking estimated results.
+                            </p>
+                            <ul className="list-disc pl-6 space-y-1 text-indigo-700 dark:text-indigo-300">
+                                <li>Combines all concept expressions with AND logic</li>
+                                <li>Shows estimated number of results for your database</li>
+                                <li>Helps you balance comprehensiveness with manageability</li>
+                                <li>Can refine concepts if results are too broad or narrow</li>
+                            </ul>
+                        </div>
+                    </div>
+                )
+            },
+            {
+                id: 'google-enrichment',
+                title: '4. Google Scholar Enrichment',
+                content: (
+                    <div className="space-y-6">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <p className="text-gray-700 dark:text-gray-300 mb-4">
+                                Google Scholar Enrichment expands your research by finding additional relevant papers that might not appear in your initial database search.
+                            </p>
+                        </div>
+
+                        <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-lg border border-orange-200 dark:border-orange-800">
+                            <h5 className="font-semibold text-orange-900 dark:text-orange-100 mb-3">📚 When to Use Google Enrichment</h5>
+                            <ul className="list-disc pl-6 space-y-2 text-orange-700 dark:text-orange-300">
+                                <li><strong>After Initial Search:</strong> Use it to supplement results from PubMed or other databases</li>
+                                <li><strong>Interdisciplinary Research:</strong> Google Scholar covers broader academic sources beyond medical literature</li>
+                                <li><strong>Gray Literature:</strong> Find reports, theses, and conference papers not in traditional databases</li>
+                                <li><strong>Citation Discovery:</strong> Identify highly-cited papers you might have missed</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-teal-50 dark:bg-teal-900/20 p-6 rounded-lg border border-teal-200 dark:border-teal-800">
+                            <h5 className="font-semibold text-teal-900 dark:text-teal-100 mb-3">⚙️ How It Works</h5>
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3">
+                                    <span className="flex-shrink-0 w-6 h-6 bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 rounded-full flex items-center justify-center text-xs font-medium">1</span>
+                                    <div>
+                                        <strong className="text-teal-800 dark:text-teal-200">Search Google Scholar:</strong>
+                                        <p className="text-teal-700 dark:text-teal-300 text-sm">Uses your keywords to search Google Scholar's vast academic database</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <span className="flex-shrink-0 w-6 h-6 bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 rounded-full flex items-center justify-center text-xs font-medium">2</span>
+                                    <div>
+                                        <strong className="text-teal-800 dark:text-teal-200">Real-time Streaming:</strong>
+                                        <p className="text-teal-700 dark:text-teal-300 text-sm">Results stream in real-time so you can see progress</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <span className="flex-shrink-0 w-6 h-6 bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 rounded-full flex items-center justify-center text-xs font-medium">3</span>
+                                    <div>
+                                        <strong className="text-teal-800 dark:text-teal-200">Optional Enhancement:</strong>
+                                        <p className="text-teal-700 dark:text-teal-300 text-sm">Can enrich abstracts and summaries for better analysis</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <h5 className="font-semibold text-gray-900 dark:text-white mb-3">💡 Best Practices</h5>
+                            <ul className="list-disc pl-6 space-y-1 text-gray-700 dark:text-gray-300">
+                                <li>Use after you've filtered your initial results to avoid overwhelming data</li>
+                                <li>Set year filters to focus on recent or historical research as needed</li>
+                                <li>Enable summary enrichment if you need better abstracts for analysis</li>
+                                <li>Consider Google Scholar results alongside, not instead of, database searches</li>
+                            </ul>
+                        </div>
+                    </div>
+                )
+            },
+            {
+                id: 'column-extraction',
+                title: '5. AI Column Extraction',
+                content: (
+                    <div className="space-y-6">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <p className="text-gray-700 dark:text-gray-300 mb-4">
+                                AI Column Extraction automatically extracts specific data points from your research articles, creating structured datasets for analysis.
+                            </p>
+                        </div>
+
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                            <h5 className="font-semibold text-emerald-900 dark:text-emerald-100 mb-3">📊 What You Can Extract</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <strong className="text-emerald-800 dark:text-emerald-200 block mb-2">Study Characteristics:</strong>
+                                    <ul className="list-disc pl-6 space-y-1 text-emerald-700 dark:text-emerald-300 text-sm">
+                                        <li>Sample size</li>
+                                        <li>Study design</li>
+                                        <li>Population demographics</li>
+                                        <li>Duration of study</li>
+                                        <li>Geographic location</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong className="text-emerald-800 dark:text-emerald-200 block mb-2">Results & Outcomes:</strong>
+                                    <ul className="list-disc pl-6 space-y-1 text-emerald-700 dark:text-emerald-300 text-sm">
+                                        <li>Primary outcomes</li>
+                                        <li>Effect sizes</li>
+                                        <li>P-values and confidence intervals</li>
+                                        <li>Side effects or adverse events</li>
+                                        <li>Key findings</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-lg border border-rose-200 dark:border-rose-800">
+                            <h5 className="font-semibold text-rose-900 dark:text-rose-100 mb-3">🎯 How to Define Features</h5>
+                            <div className="space-y-3">
+                                <p className="text-rose-800 dark:text-rose-200">For each feature you want to extract, provide:</p>
+                                <ul className="list-disc pl-6 space-y-2 text-rose-700 dark:text-rose-300">
+                                    <li>
+                                        <strong>Feature Name:</strong> A clear, concise name for your data point
+                                        <span className="block text-sm italic mt-1">Example: "Sample_Size"</span>
+                                    </li>
+                                    <li>
+                                        <strong>Description:</strong> Detailed description of what to extract and how
+                                        <span className="block text-sm italic mt-1">Example: "Total number of participants in the study. If multiple groups, report the total across all groups."</span>
+                                    </li>
+                                    <li>
+                                        <strong>Be Specific:</strong> Include format preferences, units, and edge cases
+                                        <span className="block text-sm italic mt-1">Example: "Report as number only. If range given, use the midpoint."</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="bg-violet-50 dark:bg-violet-900/20 p-6 rounded-lg border border-violet-200 dark:border-violet-800">
+                            <h5 className="font-semibold text-violet-900 dark:text-violet-100 mb-3">📈 Working with Results</h5>
+                            <ul className="list-disc pl-6 space-y-2 text-violet-700 dark:text-violet-300">
+                                <li><strong>Structured Output:</strong> Results appear as a table with your articles as rows and features as columns</li>
+                                <li><strong>Download Options:</strong> Export to CSV or Excel for further analysis</li>
+                                <li><strong>Quality Indicators:</strong> AI provides confidence scores for each extraction</li>
+                                <li><strong>Missing Data:</strong> Clearly indicates when information isn't available in the source</li>
+                                <li><strong>Review & Validate:</strong> Always review AI extractions for accuracy before using in analysis</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                            <h5 className="font-semibold text-gray-900 dark:text-white mb-3">🔄 Typical Use Cases</h5>
+                            <div className="space-y-3">
+                                <div>
+                                    <strong className="text-gray-800 dark:text-gray-200">Systematic Reviews:</strong>
+                                    <p className="text-gray-700 dark:text-gray-300 text-sm">Extract standardized data for evidence tables and meta-analysis</p>
+                                </div>
+                                <div>
+                                    <strong className="text-gray-800 dark:text-gray-200">Literature Analysis:</strong>
+                                    <p className="text-gray-700 dark:text-gray-300 text-sm">Compare methodologies, populations, and outcomes across studies</p>
+                                </div>
+                                <div>
+                                    <strong className="text-gray-800 dark:text-gray-200">Research Planning:</strong>
+                                    <p className="text-gray-700 dark:text-gray-300 text-sm">Identify gaps in existing research and inform study design</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        ]
+    },
+    {
         id: 'best-practices',
         title: 'Best Practices',
         content: (
@@ -363,7 +664,7 @@ export const HelpGuide: React.FC = () => {
                         >
                             {section.title}
                         </button>
-                        {section.id === 'core-concepts' && section.subsections && (
+                        {(section.id === 'core-concepts' || section.id === 'smartsearch2') && section.subsections && (
                             <div className="pl-4 mt-1 space-y-1">
                                 {section.subsections.map(subsection => (
                                     <button
@@ -393,7 +694,7 @@ export const HelpGuide: React.FC = () => {
         const section = sections.find(s => s.id === activeSection);
         if (!section) return null;
 
-        if (section.id === 'core-concepts' && activeSubsection) {
+        if ((section.id === 'core-concepts' || section.id === 'smartsearch2') && activeSubsection) {
             const subsection = section.subsections?.find(s => s.id === activeSubsection);
             return subsection?.content;
         }

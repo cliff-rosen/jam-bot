@@ -490,6 +490,28 @@ async def get_my_journeys(
     return {"journeys": journeys}
 
 
+@router.get("/analytics/all-journeys")
+async def get_all_journeys(
+    limit: int = Query(50, ge=1, le=100),
+    current_user = Depends(validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get recent journeys from all users (admin only)
+
+    Returns list of recent journey summaries from all users with user info.
+    """
+    # Check if user is admin
+    if not hasattr(current_user, 'role') or current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from services.event_tracking import EventTracker
+
+    tracker = EventTracker(db)
+    journeys = tracker.get_all_user_journeys(limit)
+    return {"journeys": journeys}
+
+
 @router.post("/filter-articles", response_model=ArticleFilterResponse)
 @auto_track(EventType.FILTER_APPLY, extract_data_fn=extract_filter_data)
 async def filter_articles(

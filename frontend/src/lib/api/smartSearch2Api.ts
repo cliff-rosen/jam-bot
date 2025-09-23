@@ -207,3 +207,28 @@ export async function getJourneyAnalytics(journeyId: string): Promise<JourneyAna
   const response = await api.get(`/api/analytics/journey/${journeyId}`);
   return response.data;
 }
+
+export interface UserJourney {
+  journey_id: string;
+  user_id?: number;
+  username?: string;
+  start_time: string;
+  last_time: string;
+  duration: string;
+  event_count: number;
+  last_event_type: string;
+}
+
+export interface UserJourneysResponse {
+  journeys: UserJourney[];
+}
+
+export async function getUserJourneys(): Promise<UserJourneysResponse> {
+  const response = await api.get('/api/smart-search-2/analytics/my-journeys');
+  return response.data;
+}
+
+export async function getAllUserJourneys(): Promise<UserJourneysResponse> {
+  const response = await api.get('/api/smart-search-2/analytics/all-journeys');
+  return response.data;
+}

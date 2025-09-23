@@ -5,21 +5,32 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
-import { getJourneyAnalytics, type JourneyAnalyticsData } from '@/lib/api/smartSearch2Api';
+import { useAuth } from '@/context/AuthContext';
+import {
+    getJourneyAnalytics,
+    getUserJourneys,
+    getAllUserJourneys,
+    type JourneyAnalyticsData,
+    type UserJourney
+} from '@/lib/api/smartSearch2Api';
 
 export function JourneyAnalytics() {
     const { journeyStartTime, getJourneyId } = useSmartSearch2();
+    const { user } = useAuth();
     const [analyticsData, setAnalyticsData] = useState<JourneyAnalyticsData | null>(null);
+    const [availableJourneys, setAvailableJourneys] = useState<UserJourney[]>([]);
+    const [selectedJourneyId, setSelectedJourneyId] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const [journeysLoading, setJourneysLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = async (journeyId?: string) => {
         setLoading(true);
         setError(null);
 
         try {
-            const journeyId = getJourneyId(); // Use latest journey ID from localStorage
-            const data = await getJourneyAnalytics(journeyId);
+            const targetJourneyId = journeyId || selectedJourneyId || getJourneyId();
+            const data = await getJourneyAnalytics(targetJourneyId);
             setAnalyticsData(data);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch analytics';
@@ -30,9 +41,40 @@ export function JourneyAnalytics() {
         }
     };
 
+    const fetchJourneys = async () => {
+        setJourneysLoading(true);
+        try {
+            const isAdmin = user?.role === 'admin';
+            const response = isAdmin ? await getAllUserJourneys() : await getUserJourneys();
+            setAvailableJourneys(response.journeys);
+
+            // Set current journey as selected if not already selected
+            if (!selectedJourneyId && response.journeys.length > 0) {
+                const currentJourneyId = getJourneyId();
+                const hasCurrentJourney = response.journeys.some(j => j.journey_id === currentJourneyId);
+                setSelectedJourneyId(hasCurrentJourney ? currentJourneyId : response.journeys[0].journey_id);
+            }
+        } catch (err) {
+            console.error('Failed to fetch journeys:', err);
+        } finally {
+            setJourneysLoading(false);
+        }
+    };
+
+    const handleJourneySelect = (journeyId: string) => {
+        setSelectedJourneyId(journeyId);
+        fetchAnalytics(journeyId);
+    };
+
     useEffect(() => {
-        fetchAnalytics();
-    }, []); // Remove dependency since getJourneyId() always gets latest value
+        fetchJourneys();
+    }, [user?.role]);
+
+    useEffect(() => {
+        if (selectedJourneyId) {
+            fetchAnalytics(selectedJourneyId);
+        }
+    }, [selectedJourneyId]);
 
     if (loading) {
         return (
@@ -60,18 +102,64 @@ export function JourneyAnalytics() {
 
     return (
         <div className="p-6">
-            {/* Current Journey Info */}
+            {/* Session Picker */}
             <div className="mb-6">
-                <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Current Journey</h4>
+                <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300">Select Session</h4>
+                    {user?.role === 'admin' && (
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                            Admin: All Users
+                        </span>
+                    )}
+                </div>
+                <div className="flex gap-2 items-center">
+                    <select
+                        value={selectedJourneyId}
+                        onChange={(e) => handleJourneySelect(e.target.value)}
+                        disabled={journeysLoading}
+                        className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100 disabled:opacity-50"
+                    >
+                        {journeysLoading ? (
+                            <option value="">Loading sessions...</option>
+                        ) : availableJourneys.length === 0 ? (
+                            <option value="">No sessions found</option>
+                        ) : (
+                            availableJourneys.map((journey) => (
+                                <option key={journey.journey_id} value={journey.journey_id}>
+                                    {journey.username ? `${journey.username}: ` : ''}
+                                    {journey.last_event_type} • {journey.event_count} events • {journey.duration}
+                                    {' • '}{new Date(journey.start_time).toLocaleDateString()}
+                                </option>
+                            ))
+                        )}
+                    </select>
+                    <button
+                        onClick={fetchJourneys}
+                        disabled={journeysLoading}
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 text-sm"
+                    >
+                        ↻
+                    </button>
+                </div>
+            </div>
+
+            {/* Selected Journey Info */}
+            <div className="mb-6">
+                <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Selected Session Details</h4>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="grid grid-cols-4 gap-6 text-sm">
+                    <div className={`grid gap-6 text-sm ${user?.role === 'admin' ? 'grid-cols-5' : 'grid-cols-4'}`}>
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Journey ID:</span>
-                            <p className="text-gray-600 dark:text-gray-400 font-mono text-xs">{getJourneyId()}</p>
+                            <p className="text-gray-600 dark:text-gray-400 font-mono text-xs">{selectedJourneyId || 'None selected'}</p>
                         </div>
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Started:</span>
-                            <p className="text-gray-600 dark:text-gray-400">{journeyStartTime ? new Date(journeyStartTime).toLocaleString() : 'Unknown'}</p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                {selectedJourneyId && availableJourneys.find(j => j.journey_id === selectedJourneyId)?.start_time
+                                    ? new Date(availableJourneys.find(j => j.journey_id === selectedJourneyId)!.start_time).toLocaleString()
+                                    : 'Unknown'
+                                }
+                            </p>
                         </div>
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Total Events:</span>
@@ -79,8 +167,18 @@ export function JourneyAnalytics() {
                         </div>
                         <div>
                             <span className="font-medium text-gray-700 dark:text-gray-300">Duration:</span>
-                            <p className="text-gray-600 dark:text-gray-400">{analyticsData?.current_journey ? analyticsData.current_journey.duration : '0s'}</p>
+                            <p className="text-gray-600 dark:text-gray-400">
+                                {selectedJourneyId && availableJourneys.find(j => j.journey_id === selectedJourneyId)?.duration || '0s'}
+                            </p>
                         </div>
+                        {user?.role === 'admin' && selectedJourneyId && (
+                            <div>
+                                <span className="font-medium text-gray-700 dark:text-gray-300">User:</span>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    {availableJourneys.find(j => j.journey_id === selectedJourneyId)?.username || 'Unknown'}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -135,33 +233,12 @@ export function JourneyAnalytics() {
                 </div>
             )}
 
-            {/* Recent Journeys */}
-            {analyticsData?.recent_journeys && analyticsData.recent_journeys.length > 0 && (
-                <div className="mb-6">
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Recent Journeys</h4>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        {analyticsData.recent_journeys.slice(0, 5).map((journey) => (
-                            <div key={journey.journey_id} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400">{journey.journey_id}</p>
-                                        <p className="text-sm text-gray-900 dark:text-gray-100">{journey.event_count} events • {journey.duration}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(journey.start_time).toLocaleDateString()}</p>
-                                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{journey.last_event_type}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             <div className="mt-6 text-center">
                 <button
-                    onClick={fetchAnalytics}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                    onClick={() => fetchAnalytics()}
+                    disabled={loading || !selectedJourneyId}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     Refresh Analytics
                 </button>

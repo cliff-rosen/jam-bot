@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from uuid import uuid4
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from models import UserEvent, EventType
 
@@ -163,42 +163,87 @@ class EventTracker:
         Returns:
             List of journey summaries
         """
-        # Get distinct journey IDs with their start times
+        # Get distinct journey IDs with their first event times
+        # Since we don't always have JOURNEY_START events, use the earliest event per journey
         journeys = self.db.query(
             UserEvent.journey_id,
-            UserEvent.timestamp,
-            UserEvent.event_data
+            func.min(UserEvent.timestamp).label('start_time'),
+            func.max(UserEvent.timestamp).label('last_time'),
+            func.count(UserEvent.event_id).label('event_count'),
+            func.max(UserEvent.event_type).label('last_event_type')
         ).filter(
-            and_(
-                UserEvent.user_id == user_id,
-                UserEvent.event_type == EventType.JOURNEY_START
-            )
+            UserEvent.user_id == user_id
+        ).group_by(
+            UserEvent.journey_id
         ).order_by(
-            UserEvent.timestamp.desc()
+            func.min(UserEvent.timestamp).desc()
         ).limit(limit).all()
 
         journey_summaries = []
-        for journey_id, start_time, start_data in journeys:
-            # Get event count for this journey
-            event_count = self.db.query(UserEvent).filter(
-                UserEvent.journey_id == journey_id
-            ).count()
-
-            # Check if journey is complete
-            is_complete = self.db.query(UserEvent).filter(
-                and_(
-                    UserEvent.journey_id == journey_id,
-                    UserEvent.event_type == EventType.JOURNEY_COMPLETE
-                )
-            ).first() is not None
+        for journey_id, start_time, last_time, event_count, last_event_type in journeys:
+            # Calculate duration
+            duration_seconds = (last_time - start_time).total_seconds()
+            duration_str = f"{int(duration_seconds//60)}m {int(duration_seconds%60)}s" if duration_seconds >= 60 else f"{int(duration_seconds)}s"
 
             journey_summaries.append({
                 "journey_id": journey_id,
-                "started_at": start_time.isoformat(),
-                "source": start_data.get("source"),
-                "initial_query": start_data.get("initial_query"),
+                "start_time": start_time.isoformat(),
+                "last_time": last_time.isoformat(),
+                "duration": duration_str,
                 "event_count": event_count,
-                "is_complete": is_complete
+                "last_event_type": last_event_type.value if last_event_type else "unknown"
+            })
+
+        return journey_summaries
+
+    def get_all_user_journeys(
+        self,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get recent journeys from all users (admin only)
+
+        Args:
+            limit: Maximum number of journeys to return
+
+        Returns:
+            List of journey summaries with user info
+        """
+        from models import User
+
+        # Get distinct journey IDs with their first event times and user info
+        # Since we don't always have JOURNEY_START events, use the earliest event per journey
+        journeys = self.db.query(
+            UserEvent.journey_id,
+            UserEvent.user_id,
+            func.min(UserEvent.timestamp).label('start_time'),
+            func.max(UserEvent.timestamp).label('last_time'),
+            func.count(UserEvent.event_id).label('event_count'),
+            func.max(UserEvent.event_type).label('last_event_type'),
+            User.username
+        ).join(
+            User, User.user_id == UserEvent.user_id
+        ).group_by(
+            UserEvent.journey_id, UserEvent.user_id, User.username
+        ).order_by(
+            func.min(UserEvent.timestamp).desc()
+        ).limit(limit).all()
+
+        journey_summaries = []
+        for journey_id, user_id, start_time, last_time, event_count, last_event_type, username in journeys:
+            # Calculate duration
+            duration_seconds = (last_time - start_time).total_seconds()
+            duration_str = f"{int(duration_seconds//60)}m {int(duration_seconds%60)}s" if duration_seconds >= 60 else f"{int(duration_seconds)}s"
+
+            journey_summaries.append({
+                "journey_id": journey_id,
+                "user_id": user_id,
+                "username": username,
+                "start_time": start_time.isoformat(),
+                "last_time": last_time.isoformat(),
+                "duration": duration_str,
+                "event_count": event_count,
+                "last_event_type": last_event_type.value if last_event_type else "unknown"
             })
 
         return journey_summaries

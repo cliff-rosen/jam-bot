@@ -44,13 +44,18 @@ def get_journey_id_from_request(request: Request) -> str:
     """
     # Try headers (primary method)
     if 'X-Journey-Id' in request.headers:
-        return request.headers['X-Journey-Id']
+        journey_id = request.headers['X-Journey-Id']
+        if journey_id:  # Make sure it's not empty
+            return journey_id
 
     # Try query parameters (backup method)
     if 'journey_id' in request.query_params:
-        return request.query_params['journey_id']
+        journey_id = request.query_params['journey_id']
+        if journey_id:  # Make sure it's not empty
+            return journey_id
 
-    # Generate new journey ID
+    # Generate new journey ID and store it in localStorage on frontend
+    # The frontend will pick this up from response headers
     return str(uuid4())
 
 

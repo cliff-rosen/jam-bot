@@ -11,6 +11,12 @@ import { smartSearch2Api } from '@/lib/api/smartSearch2Api';
 import { googleScholarApi } from '@/lib/api/googleScholarApi';
 import type { FeatureExtractionResponse } from '@/lib/api/smartSearch2Api';
 import { _fromCanonicalToSmartArticles } from '@/lib/utils/articleTransform';
+import {
+    startNewJourney,
+    getCurrentJourneyId,
+    clearCurrentJourney,
+    getCurrentJourneyInfo
+} from '@/lib/utils/journeyTracking';
 
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
@@ -67,6 +73,10 @@ interface SmartSearch2State {
     hasSearched: boolean;
     resultState: ResultState;  // Track the current state of results
     error: string | null;
+
+    // JOURNEY TRACKING
+    currentJourneyId: string | null;
+    journeyStartTime: string | null;
 }
 
 // ================== ACTIONS INTERFACE ==================
@@ -121,6 +131,11 @@ interface SmartSearch2Actions {
 
     // ERROR HANDLING
     clearError: () => void;
+
+    // JOURNEY MANAGEMENT
+    startJourney: (source?: string, initialQuery?: string) => string;
+    clearJourney: () => void;
+    getJourneyId: () => string;
 
     // COVERAGE TESTING
     testCoverage: (query: string, targetPmids: string[]) => Promise<{
@@ -209,8 +224,33 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [expandedExpressions, setExpandedExpressions] = useState<Array<{ concept: string; expression: string; count: number; selected?: boolean }>>([]);
     const [generatedKeywords, setGeneratedKeywords] = useState('');
 
-    // Conversational refinement state (persistent data)
+    // Journey tracking state
+    const [currentJourneyId, setCurrentJourneyId] = useState<string | null>(getCurrentJourneyId());
+    const [journeyStartTime, setJourneyStartTime] = useState<string | null>(() => {
+        const info = getCurrentJourneyInfo();
+        return info?.startedAt || null;
+    });
 
+    // ================== JOURNEY MANAGEMENT ACTIONS ==================
+
+
+    const startJourney = useCallback((source?: string, initialQuery?: string) => {
+        const journeyId = startNewJourney(source || 'smartsearch2', initialQuery || searchQuery || 'New Search');
+        setCurrentJourneyId(journeyId);
+        setJourneyStartTime(new Date().toISOString());
+        return journeyId;
+    }, [searchQuery]);
+
+
+    const clearJourney = useCallback(() => {
+        clearCurrentJourney();
+        setCurrentJourneyId(null);
+        setJourneyStartTime(null);
+    }, []);
+
+    const getJourneyId = useCallback((): string => {
+        return getCurrentJourneyId();
+    }, []);
 
     // ================== ACTIONS ==================
 
@@ -322,26 +362,28 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     }, [pagination, articles, searchQuery, selectedSource]);
 
     const resetSearch = useCallback(() => {
+        // Clear all existing state
         setSearchQuery('');
         setArticles([]);
         setPagination(null);
         setHasSearched(false);
         setResultState(ResultState.None);
         setError(null);
-        // Clear feature extraction state
         setAppliedFeatures([]);
         setPendingFeatures([]);
         setIsExtracting(false);
-        // Clear filtering state
         setFilteringStats(null);
         setIsFiltering(false);
-        // Clear research journey state
         setResearchQuestion('');
         setEvidenceSpec('');
         setExtractedConcepts([]);
         setExpandedExpressions([]);
         setGeneratedKeywords('');
 
+        // Start fresh journey
+        const journeyId = startNewJourney('smartsearch2_reset', 'Reset Search Session');
+        setCurrentJourneyId(journeyId);
+        setJourneyStartTime(new Date().toISOString());
     }, []);
 
     const resetResearchJourney = useCallback(() => {
@@ -1034,6 +1076,10 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         expandedExpressions,
         generatedKeywords,
 
+        // Journey tracking state
+        currentJourneyId,
+        journeyStartTime,
+
         // Actions
         updateSelectedSource,
         updateSearchQuery,
@@ -1069,6 +1115,11 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setExpandedExpressions,
         setGeneratedKeywords,
         resetResearchJourney,
+
+        // Journey management actions
+        startJourney,
+        clearJourney,
+        getJourneyId,
     };
 
     return (

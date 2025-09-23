@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 # from routers import search, auth, workflow, tools, files, bot, email, asset
-from routers import auth, email, asset, chat, llm, tools, search, web_retrieval, mission, hop, tool_step, user_session, state_transition, pubmed, google_scholar, extraction, unified_search, lab, article_chat, workbench, smart_search, smart_search2, pubmed_search_designer
+from routers import auth, email, asset, chat, llm, tools, search, web_retrieval, mission, hop, tool_step, user_session, state_transition, pubmed, google_scholar, extraction, unified_search, lab, article_chat, workbench, smart_search, smart_search2, pubmed_search_designer, analytics
 from database import init_db
 from config import settings, setup_logging
 from middleware import LoggingMiddleware
@@ -73,6 +73,7 @@ app.include_router(smart_search2.router, prefix="/api")
 app.include_router(workbench.router, prefix="/api")        # /api/workbench (unified)
 app.include_router(article_chat.router, prefix="/api")     # /api/article-chat
 app.include_router(pubmed_search_designer.router, prefix="/api/pubmed")  # /api/pubmed/fetch-articles, /api/pubmed/test-search
+app.include_router(analytics.router)                       # /api/analytics (includes prefix)
 
 logger.info("Routers included")
 

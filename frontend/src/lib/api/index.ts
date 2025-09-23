@@ -1,5 +1,6 @@
 import axios from 'axios';
 import settings from '../../config/settings';
+import { getCurrentJourneyId } from '../utils/journeyTracking';
 
 // Add this to store the handleSessionExpired callback
 let sessionExpiredHandler: (() => void) | null = null;
@@ -25,11 +26,30 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Add journey tracking header - getCurrentJourneyId handles creation if needed
+  if (config.url?.includes('/smart-search2/')) {
+    config.headers['X-Journey-Id'] = getCurrentJourneyId();
+  } else {
+    // For non-SmartSearch2 endpoints, only add header if journey exists
+    const journeyId = localStorage.getItem('currentJourneyId');
+    if (journeyId) {
+      config.headers['X-Journey-Id'] = journeyId;
+    }
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Capture journey ID from response headers if present
+    const journeyId = response.headers['x-journey-id'];
+    if (journeyId) {
+      localStorage.setItem('currentJourneyId', journeyId);
+    }
+    return response;
+  },
   (error) => {
     console.log('API Error:', error);
     // Check for authentication/authorization errors

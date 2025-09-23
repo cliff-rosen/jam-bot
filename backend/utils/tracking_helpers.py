@@ -205,6 +205,51 @@ def extract_scholar_data(result, *args, **kwargs) -> dict:
     return data
 
 
+def extract_scholar_stream_data(result, *args, **kwargs) -> dict:
+    """Extract data from Google Scholar stream request"""
+    request = args[0] if args else None
+    data = {
+        'query': 'unknown',
+        'num_results': 0
+    }
+
+    # Extract from request
+    if request:
+        if hasattr(request, 'query'):
+            data['query'] = request.query
+        if hasattr(request, 'num_results'):
+            data['num_results'] = request.num_results
+
+    return data
+
+
+def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
+    """Extract data from evidence specification result"""
+    request = args[0] if args else None
+    data = {
+        'user_description': 'unknown',
+        'is_complete': False,
+        'completeness_score': 0.0,
+        'evidence_spec_length': 0
+    }
+
+    # Extract from request
+    if request and hasattr(request, 'user_description'):
+        desc = request.user_description
+        data['user_description'] = desc[:100] + "..." if len(desc) > 100 else desc
+
+    # Extract from result
+    if result:
+        if hasattr(result, 'is_complete'):
+            data['is_complete'] = result.is_complete
+        if hasattr(result, 'completeness_score'):
+            data['completeness_score'] = result.completeness_score
+        if hasattr(result, 'evidence_specification') and result.evidence_specification:
+            data['evidence_spec_length'] = len(result.evidence_specification)
+
+    return data
+
+
 def extract_concepts_data(result, *args, **kwargs) -> dict:
     """Extract data from concept extraction result"""
     request = args[0] if args else None

@@ -5,7 +5,7 @@ This module provides REST API endpoints for Google Scholar search functionality.
 """
 
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -22,6 +22,11 @@ from schemas.canonical_types import CanonicalResearchArticle
 
 from services.auth_service import validate_token
 from services.google_scholar_service import GoogleScholarService
+
+# Event tracking imports
+from utils.tracking_decorator import auto_track
+from utils.tracking_helpers import extract_scholar_data, extract_scholar_stream_data
+from models import EventType
 
 router = APIRouter(
     prefix="/google-scholar",
@@ -229,8 +234,10 @@ def _sse_format(data: dict) -> str:
 
 
 @router.post("/stream")
+@auto_track(EventType.SCHOLAR_ENRICH_START, extract_data_fn=extract_scholar_stream_data)
 async def stream_google_scholar(
     request: GoogleScholarStreamRequest,
+    req: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):

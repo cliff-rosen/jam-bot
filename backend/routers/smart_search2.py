@@ -23,7 +23,7 @@ from services.smart_search_service import SmartSearchService
 from utils.tracking_decorator import auto_track, auto_track_test
 from utils.tracking_helpers import (
     extract_search_data, extract_filter_data, extract_columns_data,
-    extract_concepts_data, extract_concept_expansion_data, extract_keyword_test_data
+    extract_evidence_spec_data, extract_concepts_data, extract_concept_expansion_data, extract_keyword_test_data
 )
 from models import EventType
 
@@ -184,7 +184,7 @@ async def search(
 
 
 @router.post("/evidence-spec", response_model=EvidenceSpecResponse)
-@auto_track(EventType.EVIDENCE_SPEC_CREATE)
+@auto_track(EventType.KEYWORD_HELPER_EVIDENCE_SPEC, extract_data_fn=extract_evidence_spec_data)
 async def create_evidence_spec(
     request: EvidenceSpecRequest,
     req: Request,
@@ -220,7 +220,7 @@ async def create_evidence_spec(
 
 
 @router.post("/extract-concepts", response_model=ConceptExtractionResponse)
-@auto_track(EventType.CONCEPTS_EXTRACT, extract_data_fn=extract_concepts_data)
+@auto_track(EventType.KEYWORD_HELPER_CONCEPTS, extract_data_fn=extract_concepts_data)
 async def extract_concepts(
     request: ConceptExtractionRequest,
     req: Request,
@@ -266,7 +266,7 @@ async def extract_concepts(
 
 
 @router.post("/expand-concepts", response_model=ConceptExpansionResponse)
-@auto_track(EventType.CONCEPTS_EXPAND, extract_data_fn=extract_concept_expansion_data)
+@auto_track(EventType.KEYWORD_HELPER_EXPRESSIONS, extract_data_fn=extract_concept_expansion_data)
 async def expand_concepts(
     request: ConceptExpansionRequest,
     req: Request,
@@ -319,7 +319,7 @@ async def expand_concepts(
 
 
 @router.post("/test-keyword-combination", response_model=KeywordCombinationResponse)
-@auto_track(EventType.KEYWORDS_TEST, extract_data_fn=extract_keyword_test_data)
+@auto_track(EventType.COVERAGE_TEST, extract_data_fn=extract_keyword_test_data)
 async def test_keyword_combination(
     request: KeywordCombinationRequest,
     req: Request,

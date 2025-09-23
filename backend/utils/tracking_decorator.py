@@ -50,10 +50,11 @@ def auto_track(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            # Find Request, Session, and current_user objects
+            # Find Request, Session, Response, and current_user objects
             request = None
             db = None
             current_user = None
+            response = None
 
             # Check args for Request and other objects
             for arg in args:
@@ -65,12 +66,17 @@ def auto_track(
                 # Check if this looks like a user object
                 elif hasattr(arg, 'user_id') or hasattr(arg, 'id'):
                     current_user = arg
+                # Check if this looks like a Response object
+                elif hasattr(arg, 'headers') and hasattr(arg, 'status_code'):
+                    response = arg
 
-            # Also check kwargs for db Session and current_user
+            # Also check kwargs for db Session, current_user, and response
             if not db:
                 db = kwargs.get('db')
             if not current_user:
                 current_user = kwargs.get('current_user')
+            if not response:
+                response = kwargs.get('response')
 
             # If we have db and user, we can track
             if db and current_user:
@@ -105,6 +111,13 @@ def auto_track(
                         # Don't let tracking failure break the endpoint
                         print(f"Failed to track event: {e}")
 
+                    # Add journey ID to response headers if response object is available
+                    if response:
+                        try:
+                            response.headers['X-Journey-Id'] = journey_id
+                        except Exception as e:
+                            print(f"Failed to set journey ID header: {e}")
+
                     return result
 
                 except Exception as e:
@@ -121,6 +134,7 @@ def auto_track(
             request = None
             db = None
             current_user = None
+            response = None
 
             for arg in args:
                 if isinstance(arg, Request):
@@ -129,11 +143,15 @@ def auto_track(
                     db = arg
                 elif hasattr(arg, 'user_id') or hasattr(arg, 'id'):
                     current_user = arg
+                elif hasattr(arg, 'headers') and hasattr(arg, 'status_code'):
+                    response = arg
 
             if not db:
                 db = kwargs.get('db')
             if not current_user:
                 current_user = kwargs.get('current_user')
+            if not response:
+                response = kwargs.get('response')
 
             if db and current_user:
                 try:
@@ -162,6 +180,13 @@ def auto_track(
                         )
                     except:
                         pass
+
+                    # Add journey ID to response headers if response object is available
+                    if response:
+                        try:
+                            response.headers['X-Journey-Id'] = journey_id
+                        except:
+                            pass
 
                     return result
                 except:

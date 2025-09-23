@@ -14,8 +14,6 @@ export function JourneyAnalytics() {
     const [error, setError] = useState<string | null>(null);
 
     const fetchAnalytics = async () => {
-        if (!currentJourneyId) return;
-
         setLoading(true);
         setError(null);
 
@@ -34,15 +32,6 @@ export function JourneyAnalytics() {
     useEffect(() => {
         fetchAnalytics();
     }, [currentJourneyId]);
-
-    if (!currentJourneyId) {
-        return (
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Journey Analytics</h3>
-                <p className="text-gray-500 dark:text-gray-400">No active journey. Start a search to begin tracking.</p>
-            </div>
-        );
-    }
 
     if (loading) {
         return (

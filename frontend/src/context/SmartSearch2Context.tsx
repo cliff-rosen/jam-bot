@@ -75,7 +75,7 @@ interface SmartSearch2State {
     error: string | null;
 
     // JOURNEY TRACKING
-    currentJourneyId: string | null;
+    currentJourneyId: string;
     journeyStartTime: string | null;
 }
 
@@ -225,7 +225,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
     const [generatedKeywords, setGeneratedKeywords] = useState('');
 
     // Journey tracking state
-    const [currentJourneyId, setCurrentJourneyId] = useState<string | null>(getCurrentJourneyId());
+    const [currentJourneyId, setCurrentJourneyId] = useState<string>(getCurrentJourneyId());
     const [journeyStartTime, setJourneyStartTime] = useState<string | null>(() => {
         const info = getCurrentJourneyInfo();
         return info?.startedAt || null;

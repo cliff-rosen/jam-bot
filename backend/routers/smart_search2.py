@@ -20,7 +20,7 @@ from services.auth_service import validate_token
 from services.smart_search_service import SmartSearchService
 
 # Event tracking imports
-from utils.tracking_decorator import auto_track, auto_track_test
+from utils.tracking_decorator import auto_track
 from utils.tracking_helpers import (
     extract_search_data, extract_filter_data, extract_columns_data,
     extract_evidence_spec_data, extract_concepts_data, extract_concept_expansion_data, extract_keyword_test_data

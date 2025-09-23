@@ -45,11 +45,9 @@ export const googleScholarApi = {
     }> {
         const rawStream = makeStreamRequest('/api/google-scholar/stream', params, 'POST', options?.signal);
         for await (const update of rawStream) {
-            console.log('Received update from rawStream: ', update)
             const lines = update.data.split('\n');
             for (const line of lines) {
                 if (!line.trim().startsWith('data: ')) continue;
-                console.log('Processing stream line:', line.substring(0, 50)); // First 50 characters
                 try {
                     const json = JSON.parse(line.replace(/^data:\s*/, ''));
                     if (json.status === 'articles') {

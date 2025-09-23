@@ -34,7 +34,6 @@ api.interceptors.request.use((config) => {
     const getOrCreateJourneyId = (window as any).__getOrCreateJourneyId || getCurrentJourneyId;
     const journeyId = getOrCreateJourneyId();
     config.headers['X-Journey-Id'] = journeyId;
-    console.log('[API] SmartSearch2/Scholar request with journey ID:', journeyId);
   } else {
     // For other endpoints, only add header if journey exists (don't create new one)
     const journeyId = localStorage.getItem('currentJourneyId');

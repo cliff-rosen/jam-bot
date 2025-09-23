@@ -42,7 +42,6 @@ export async function* makeStreamRequest(
     const hasComplexParams = Object.values(params).some(value => Array.isArray(value) || typeof value !== 'string');
     const usePost = method === 'POST' || hasComplexParams;
 
-    console.log("Making stream request of type:", usePost ? 'POST' : 'GET');
 
     // Add journey tracking header for SmartSearch2 and Google Scholar endpoints
     const journeyHeaders: Record<string, string> = {};
@@ -51,7 +50,6 @@ export async function* makeStreamRequest(
         const getOrCreateJourneyId = (window as any).__getOrCreateJourneyId || getCurrentJourneyId;
         const journeyId = getOrCreateJourneyId();
         journeyHeaders['X-Journey-Id'] = journeyId;
-        console.log('[STREAM] SmartSearch2/Scholar request with journey ID:', journeyId);
     } else {
         // For other endpoints, only add header if journey exists (don't create new one)
         const journeyId = localStorage.getItem('currentJourneyId');
@@ -86,7 +84,6 @@ export async function* makeStreamRequest(
         }
         throw err;
     }
-    console.log("Stream request response:", response);
 
     if (!response.ok) {
         // Handle authentication/authorization errors
@@ -109,7 +106,6 @@ export async function* makeStreamRequest(
     const decoder = new TextDecoder();
 
     try {
-        console.log("Streaming response loop starting, waiting for data...");
         while (true) {
             let done: boolean, value: Uint8Array | undefined;
             try {
@@ -121,9 +117,7 @@ export async function* makeStreamRequest(
                 }
                 throw err;
             }
-            console.log("Stream read, done:", done);
             if (done) {
-                console.log("Stream ended, flushing remaining data...");
                 const final = decoder.decode(); // Flush any remaining bytes
                 if (final) yield { data: final };
                 break;

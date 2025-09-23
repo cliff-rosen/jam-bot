@@ -45,19 +45,13 @@ def get_journey_id_from_request(request: Request) -> str:
     # Try headers (primary method)
     if 'X-Journey-Id' in request.headers:
         journey_id = request.headers['X-Journey-Id']
-        print(f"[TRACKING ERROR] Found X-Journey-Id header: '{journey_id}'")
         if journey_id and journey_id.strip():  # Make sure it's not empty or whitespace
-            print(f"[TRACKING] Using journey ID from header: {journey_id}")
             return journey_id
-        else:
-            print(f"[TRACKING ERROR] Header journey ID was empty or whitespace")
 
     # Try query parameters (backup method)
     if 'journey_id' in request.query_params:
         journey_id = request.query_params['journey_id']
-        print(f"[TRACKING] Found journey_id in query params: '{journey_id}'")
         if journey_id and journey_id.strip():  # Make sure it's not empty or whitespace
-            print(f"[TRACKING] Using journey ID from query: {journey_id}")
             return journey_id
 
     # TRACKING ERROR: Frontend should ALWAYS provide journey ID

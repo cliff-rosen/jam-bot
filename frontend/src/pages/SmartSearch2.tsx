@@ -13,6 +13,7 @@ import { generatePrefixedUUID } from '@/lib/utils/uuid';
 import { SearchForm, KeywordHelper, FilterModal } from '@/components/features/smartsearch2';
 import { SearchResults } from '@/components/features/smartsearch2/SearchResults';
 import { ScholarEnrichmentModal } from '@/components/features/smartsearch2/ScholarEnrichmentModal';
+import { AnalyticsModal } from '@/components/features/smartsearch2/AnalyticsModal';
 
 // Main content component that uses SmartSearch2Context
 function SmartSearch2Content() {
@@ -33,6 +34,9 @@ function SmartSearch2Content() {
 
   // Scholar enrichment modal state
   const [showScholarModal, setShowScholarModal] = useState(false);
+
+  // Analytics modal state
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
 
   const {
     selectedSource,
@@ -227,6 +231,13 @@ function SmartSearch2Content() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => setShowAnalyticsModal(true)}
+              className="dark:border-gray-600 dark:text-gray-300"
+            >
+              Show Analytics
+            </Button>
+            <Button
+              variant="outline"
               onClick={handleNewSearch}
               className="dark:border-gray-600 dark:text-gray-300"
             >
@@ -373,6 +384,12 @@ function SmartSearch2Content() {
         isOpen={showScholarModal}
         onClose={() => setShowScholarModal(false)}
         onAddArticles={handleScholarArticlesAdded}
+      />
+
+      {/* Analytics Modal */}
+      <AnalyticsModal
+        isOpen={showAnalyticsModal}
+        onClose={() => setShowAnalyticsModal(false)}
       />
     </div>
   );

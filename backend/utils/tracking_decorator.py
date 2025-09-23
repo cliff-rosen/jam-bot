@@ -16,95 +16,99 @@ from models import EventType
 from utils.tracking_helpers import get_journey_id_from_request
 
 
+def auto_track_test():
+    """
+    Minimal test decorator to debug why decorators aren't working
+    """
+    print("[AUTO_TRACK_TEST] Decorator function called")
+
+    def decorator(func: Callable) -> Callable:
+        print(f"[AUTO_TRACK_TEST] Decorating function: {func.__name__}")
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            print(f"[AUTO_TRACK_TEST] Wrapper executing for {func.__name__}")
+            print(f"[AUTO_TRACK_TEST] Args count: {len(args)}")
+            print(f"[AUTO_TRACK_TEST] Kwargs keys: {list(kwargs.keys())}")
+
+            # Just call the original function
+            result = await func(*args, **kwargs)
+
+            print(f"[AUTO_TRACK_TEST] Function {func.__name__} completed")
+            return result
+
+        print(f"[AUTO_TRACK_TEST] Returning wrapper for {func.__name__}")
+        return wrapper
+
+    print("[AUTO_TRACK_TEST] Returning decorator")
+    return decorator
+
+
 def auto_track(
     event_type: EventType,
     extract_data_fn: Optional[Callable] = None
 ):
     """
-    Decorator that automatically tracks events for API endpoints
+    Simplified decorator that automatically tracks events for API endpoints
 
-    Args:
-        event_type: The EventType to track
-        extract_data_fn: Optional function to extract event data from the result
-                        Function signature: (result, *args, **kwargs) -> dict
-
-    Example:
-        @auto_track(
-            EventType.SEARCH_EXECUTE,
-            extract_data_fn=lambda result, *args, **kwargs: {
-                "query": args[0].query,
-                "results_count": len(result.articles)
-            }
-        )
-        async def search(request: SearchRequest, req: Request, db: Session):
-            # Your normal endpoint code
-            return results
-
-    The decorator will:
-    1. Extract user_id and journey_id from the request
-    2. Execute your function
-    3. Optionally extract data from the result
-    4. Track the event automatically
+    Only supports async functions (all FastAPI endpoints are async)
     """
+    print(f"[AUTO_TRACK] Decorator function called with event type: {event_type}")
 
     def decorator(func: Callable) -> Callable:
+        print(f"[AUTO_TRACK] Decorating function: {func.__name__}")
+
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs):
-            # Find Request, Session, Response, and current_user objects
+        async def wrapper(*args, **kwargs):
+            print(f"[AUTO_TRACK] Wrapper executing for {func.__name__}")
+            print(f"[AUTO_TRACK] Args count: {len(args)}")
+            print(f"[AUTO_TRACK] Kwargs keys: {list(kwargs.keys())}")
+
+            # Find Request, db Session, and current_user
             request = None
             db = None
             current_user = None
-            response = None
 
-            # Check args for Request and other objects
-            for arg in args:
+            # Check positional args
+            for i, arg in enumerate(args):
                 if isinstance(arg, Request):
                     request = arg
-                # Check if this is a database session (has query method)
-                elif hasattr(arg, 'query') and hasattr(arg, 'add'):
-                    db = arg
-                # Check if this looks like a user object
-                elif hasattr(arg, 'user_id') or hasattr(arg, 'id'):
-                    current_user = arg
-                # Check if this looks like a Response object
-                elif hasattr(arg, 'headers') and hasattr(arg, 'status_code'):
-                    response = arg
+                    print(f"[AUTO_TRACK] Found Request at arg[{i}]")
 
-            # Also check kwargs for db Session, current_user, and response
-            if not db:
-                db = kwargs.get('db')
-            if not current_user:
-                current_user = kwargs.get('current_user')
-            if not response:
-                response = kwargs.get('response')
+            # Check kwargs (FastAPI passes dependencies as kwargs)
+            db = kwargs.get('db')
+            current_user = kwargs.get('current_user')
 
-            # If we have db and user, we can track
-            if db and current_user:
+            # Also check kwargs for Request (FastAPI might pass it as kwarg)
+            if not request:
+                request = kwargs.get('req')  # The parameter name in the function signature is 'req'
+
+            if db:
+                print(f"[AUTO_TRACK] Found db in kwargs")
+            if current_user:
+                print(f"[AUTO_TRACK] Found current_user in kwargs: {current_user}")
+
+            # Execute the original function first
+            result = await func(*args, **kwargs)
+
+            # Track if we have what we need
+            if db and current_user and request:
                 try:
-                    # Get tracking identifiers
                     user_id = getattr(current_user, 'user_id', str(current_user))
-                    journey_id = get_journey_id_from_request(request) if request else None
+                    journey_id = get_journey_id_from_request(request)
 
-                    # Skip tracking if no valid journey ID
-                    if not journey_id:
-                        print(f"[TRACKING ERROR] Skipping event tracking - no valid journey ID for {event_type}")
-                        return await func(*args, **kwargs)
+                    if journey_id:
+                        print(f"[AUTO_TRACK] Tracking event: user={user_id}, journey={journey_id}, type={event_type}")
 
-                    # Execute the actual function
-                    result = await func(*args, **kwargs)
+                        # Extract event data if function provided
+                        event_data = {}
+                        if extract_data_fn:
+                            try:
+                                event_data = extract_data_fn(result, *args, **kwargs)
+                            except Exception as e:
+                                print(f"[AUTO_TRACK] Failed to extract event data: {e}")
 
-                    # Extract event data if function provided
-                    event_data = {}
-                    if extract_data_fn:
-                        try:
-                            event_data = extract_data_fn(result, *args, **kwargs)
-                        except Exception as e:
-                            # Don't let data extraction failure break the endpoint
-                            print(f"Failed to extract event data: {e}")
-                            event_data = {"error": "Failed to extract data"}
-
-                    # Track the event
-                    try:
+                        # Track the event
                         tracker = EventTracker(db)
                         tracker.track_event(
                             user_id=user_id,
@@ -112,94 +116,20 @@ def auto_track(
                             event_type=event_type,
                             event_data=event_data
                         )
-                    except Exception as e:
-                        # Don't let tracking failure break the endpoint
-                        print(f"Failed to track event: {e}")
-
-                    # DO NOT set response headers - frontend owns journey ID management
-
-                    return result
-
+                        print(f"[AUTO_TRACK] Event tracked successfully")
+                    else:
+                        print(f"[AUTO_TRACK ERROR] No journey ID found - skipping tracking")
                 except Exception as e:
-                    # If anything goes wrong, still execute the function
-                    print(f"Tracking decorator error: {e}")
-                    return await func(*args, **kwargs)
+                    print(f"[AUTO_TRACK ERROR] Failed to track event: {e}")
             else:
-                # No tracking possible, just execute function
-                return await func(*args, **kwargs)
+                print(f"[AUTO_TRACK] Missing requirements - db: {bool(db)}, user: {bool(current_user)}, request: {bool(request)}")
 
-        @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
-            # Similar logic for sync functions
-            request = None
-            db = None
-            current_user = None
-            response = None
+            return result
 
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                elif hasattr(arg, 'query') and hasattr(arg, 'add'):
-                    db = arg
-                elif hasattr(arg, 'user_id') or hasattr(arg, 'id'):
-                    current_user = arg
-                elif hasattr(arg, 'headers') and hasattr(arg, 'status_code'):
-                    response = arg
+        print(f"[AUTO_TRACK] Returning wrapper for {func.__name__}")
+        return wrapper
 
-            if not db:
-                db = kwargs.get('db')
-            if not current_user:
-                current_user = kwargs.get('current_user')
-            if not response:
-                response = kwargs.get('response')
-
-            if db and current_user:
-                try:
-                    user_id = getattr(current_user, 'user_id', str(current_user))
-                    journey_id = get_journey_id_from_request(request) if request else None
-
-                    # Skip tracking if no valid journey ID
-                    if not journey_id:
-                        print(f"[TRACKING ERROR] Skipping event tracking - no valid journey ID for {event_type}")
-                        return func(*args, **kwargs)
-
-                    # Execute function
-                    result = func(*args, **kwargs)
-
-                    # Extract data
-                    event_data = {}
-                    if extract_data_fn:
-                        try:
-                            event_data = extract_data_fn(result, *args, **kwargs)
-                        except:
-                            event_data = {"error": "Failed to extract data"}
-
-                    # Track event
-                    try:
-                        tracker = EventTracker(db)
-                        tracker.track_event(
-                            user_id=user_id,
-                            journey_id=journey_id,
-                            event_type=event_type,
-                            event_data=event_data
-                        )
-                    except:
-                        pass
-
-                    # DO NOT set response headers - frontend owns journey ID management
-
-                    return result
-                except:
-                    return func(*args, **kwargs)
-            else:
-                return func(*args, **kwargs)
-
-        # Return appropriate wrapper based on function type
-        if asyncio.iscoroutinefunction(func):
-            return async_wrapper
-        else:
-            return sync_wrapper
-
+    print("[AUTO_TRACK] Returning decorator")
     return decorator
 
 

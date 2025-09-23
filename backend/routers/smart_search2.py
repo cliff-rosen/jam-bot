@@ -491,17 +491,7 @@ async def get_my_journeys(
 
 
 @router.post("/filter-articles", response_model=ArticleFilterResponse)
-@auto_track(
-    EventType.FILTER_APPLY,
-    extract_data_fn=lambda result, *args, **kwargs: {
-        "filter_condition": args[0].filter_condition,
-        "strictness": args[0].strictness,
-        "input_count": result.total_processed,
-        "accepted": result.total_accepted,
-        "rejected": result.total_rejected,
-        "confidence": result.average_confidence
-    }
-)
+@auto_track(EventType.FILTER_APPLY, extract_data_fn=extract_filter_data)
 async def filter_articles(
     request: ArticleFilterRequest,
     req: Request,  # Added for tracking

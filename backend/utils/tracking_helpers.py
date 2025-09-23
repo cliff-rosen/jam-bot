@@ -101,8 +101,8 @@ def create_journey_context(request: Request) -> dict:
 
 def extract_search_data(result, *args, **kwargs) -> dict:
     """Extract data from search endpoint result"""
-    # Try to get request from args first, then kwargs
-    request = args[0] if args else kwargs.get('request')
+    # Get request from kwargs (FastAPI passes it as keyword argument)
+    request = kwargs.get('request')
 
     data = {
         'source': 'unknown',
@@ -127,7 +127,8 @@ def extract_search_data(result, *args, **kwargs) -> dict:
 
 def extract_filter_data(result, *args, **kwargs) -> dict:
     """Extract data from filter endpoint result"""
-    request = args[0] if args else None
+    # Get request from kwargs (FastAPI passes it as keyword argument)
+    request = kwargs.get('request')
     data = {
         'filter_condition': 'unknown',
         'strictness': 'medium',
@@ -158,7 +159,8 @@ def extract_filter_data(result, *args, **kwargs) -> dict:
 
 def extract_columns_data(result, *args, **kwargs) -> dict:
     """Extract data from column extraction endpoint result"""
-    request = args[0] if args else None
+    # Get request from kwargs (FastAPI passes it as keyword argument)
+    request = kwargs.get('request')
     data = {
         'features_count': 0,
         'articles_processed': 0,
@@ -207,7 +209,8 @@ def extract_scholar_data(result, *args, **kwargs) -> dict:
 
 def extract_scholar_stream_data(result, *args, **kwargs) -> dict:
     """Extract data from Google Scholar stream request"""
-    request = args[0] if args else None
+    # Get request from kwargs (FastAPI passes it as keyword argument)
+    request = kwargs.get('request')
     data = {
         'query': 'unknown',
         'num_results': 0
@@ -225,11 +228,10 @@ def extract_scholar_stream_data(result, *args, **kwargs) -> dict:
 
 def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
     """Extract data from evidence specification result"""
-    # args[0] = EvidenceSpecRequest (Pydantic model with user data)
-    # args[1] = Request (FastAPI request object)
+    # kwargs['request'] = EvidenceSpecRequest (Pydantic model with user data)
     # result = EvidenceSpecResponse (Pydantic response model)
 
-    evidence_request = args[0] if args else None  # EvidenceSpecRequest
+    evidence_request = kwargs.get('request')  # EvidenceSpecRequest
     data = {
         'user_description': 'unknown',
         'is_complete': False,
@@ -256,11 +258,10 @@ def extract_evidence_spec_data(result, *args, **kwargs) -> dict:
 
 def extract_concepts_data(result, *args, **kwargs) -> dict:
     """Extract data from concept extraction result"""
-    # args[0] = ConceptExtractionRequest (Pydantic model)
-    # args[1] = Request (FastAPI request object)
+    # kwargs['request'] = ConceptExtractionRequest (Pydantic model)
     # result = ConceptExtractionResponse (Pydantic response model)
 
-    concept_request = args[0] if args else None  # ConceptExtractionRequest
+    concept_request = kwargs.get('request')  # ConceptExtractionRequest
     data = {
         'evidence_spec': 'unknown',
         'concepts_count': 0
@@ -280,8 +281,8 @@ def extract_concepts_data(result, *args, **kwargs) -> dict:
 
 def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
     """Extract data from concept expansion result"""
-    # args[0] = ConceptExpansionRequest (Pydantic model)
-    expansion_request = args[0] if args else None
+    # kwargs['request'] = ConceptExpansionRequest (Pydantic model)
+    expansion_request = kwargs.get('request')
     data = {
         'concepts_count': 0,
         'source': 'unknown',
@@ -304,8 +305,8 @@ def extract_concept_expansion_data(result, *args, **kwargs) -> dict:
 
 def extract_keyword_test_data(result, *args, **kwargs) -> dict:
     """Extract data from keyword combination test result"""
-    # args[0] = KeywordCombinationRequest (Pydantic model)
-    keyword_request = args[0] if args else None
+    # kwargs['request'] = KeywordCombinationRequest (Pydantic model)
+    keyword_request = kwargs.get('request')
     data = {
         'expressions_count': 0,
         'source': 'unknown',

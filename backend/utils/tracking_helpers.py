@@ -244,23 +244,6 @@ def extract_scholar_data(result, *args, **kwargs) -> dict:
     return data
 
 
-def extract_scholar_stream_data(result, *args, **kwargs) -> dict:
-    """Extract data from Google Scholar stream request"""
-    # Get request from kwargs (FastAPI passes it as keyword argument)
-    request = kwargs.get('request')
-    data = {
-        'query': 'unknown',
-        'num_results': 0
-    }
-
-    # Extract from request
-    if request:
-        if hasattr(request, 'query'):
-            data['query'] = request.query
-        if hasattr(request, 'num_results'):
-            data['num_results'] = request.num_results
-
-    return data
 
 
 def extract_evidence_spec_data(result, *args, **kwargs) -> dict:

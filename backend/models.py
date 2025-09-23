@@ -927,3 +927,73 @@ class SmartSearchSession(Base):
             "total_completion_tokens": self.total_completion_tokens,
             "total_tokens": self.total_tokens
         }
+
+
+# ============================================================================
+# SmartSearch2 Event-Based Tracking Model
+# ============================================================================
+
+class EventType(str, PyEnum):
+    """Event types for SmartSearch2 user journey tracking"""
+
+    # Journey lifecycle
+    JOURNEY_START = "journey_start"
+    JOURNEY_COMPLETE = "journey_complete"
+
+    # Search operations
+    SEARCH_EXECUTE = "search_execute"
+    SEARCH_LOAD_MORE = "search_load_more"
+    SOURCE_CHANGE = "source_change"
+
+    # AI Keyword Helper flow
+    KEYWORD_HELPER_START = "keyword_helper_start"
+    KEYWORD_HELPER_EVIDENCE_SPEC = "keyword_helper_evidence_spec"
+    KEYWORD_HELPER_CONCEPTS = "keyword_helper_concepts"
+    KEYWORD_HELPER_EXPRESSIONS = "keyword_helper_expressions"
+    KEYWORD_HELPER_COMPLETE = "keyword_helper_complete"
+
+    # Google Scholar enrichment
+    SCHOLAR_ENRICH_START = "scholar_enrich_start"
+    SCHOLAR_ENRICH_COMPLETE = "scholar_enrich_complete"
+
+    # Filtering
+    FILTER_APPLY = "filter_apply"
+    FILTER_ACCEPT = "filter_accept"
+    FILTER_REJECT = "filter_reject"
+    FILTER_UNDO = "filter_undo"
+
+    # Feature extraction (AI columns)
+    COLUMNS_ADD = "columns_add"
+    COLUMNS_EXTRACT = "columns_extract"
+
+    # User interactions
+    ARTICLE_VIEW = "article_view"
+    ARTICLE_EXPORT = "article_export"
+
+    # Coverage testing
+    COVERAGE_TEST = "coverage_test"
+
+
+class UserEvent(Base):
+    """Event-based tracking for SmartSearch2 user actions"""
+    __tablename__ = "user_events"
+
+    # Composite primary key
+    user_id = Column(String(255), nullable=False, primary_key=True)
+    journey_id = Column(String(36), nullable=False, primary_key=True)
+    event_id = Column(String(36), nullable=False, primary_key=True, default=lambda: str(uuid4()))
+
+    # Event metadata
+    event_type = Column(Enum(EventType), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    # Event data (flexible JSON)
+    event_data = Column(JSON, default=dict)  # All event-specific data
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        Index('idx_journey_events', 'journey_id', 'timestamp'),
+        Index('idx_user_events_time', 'user_id', 'timestamp'),
+        Index('idx_event_type_time', 'event_type', 'timestamp'),
+        Index('idx_user_journey', 'user_id', 'journey_id'),
+    )

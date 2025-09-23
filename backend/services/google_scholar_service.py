@@ -639,7 +639,7 @@ class GoogleScholarService:
         """
         # Resolve DOI from link if missing
         if not doi and link:
-            doi = self._extract_doi_from_text(link)
+            doi = self.enrichment_service.extract_doi_from_text(link)
 
         # Build a minimal GoogleScholarArticle
         article = GoogleScholarArticle(
@@ -680,9 +680,6 @@ class GoogleScholarService:
 
         return canonical, metadata
 
-    def _extract_doi_from_text(self, text: str) -> Optional[str]:
-        """Extract DOI from a text or URL if present."""
-        return self.enrichment_service.extract_doi_from_text(text)
 
 
 

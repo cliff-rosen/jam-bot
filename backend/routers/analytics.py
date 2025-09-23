@@ -14,7 +14,7 @@ from database import get_db
 from models import UserEvent, EventType
 from services.auth_service import validate_token
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+router = APIRouter(tags=["analytics"])
 
 
 @router.get("/journey/{journey_id}")
@@ -32,7 +32,16 @@ async def get_journey_analytics(
     ).order_by(UserEvent.timestamp).all()
 
     if not current_journey_events:
-        raise HTTPException(status_code=404, detail="Journey not found")
+        # Return empty journey data instead of 404
+        return {
+            "current_journey": {
+                "journey_id": journey_id,
+                "event_count": 0,
+                "duration": "0s",
+                "events": []
+            },
+            "recent_journeys": []
+        }
 
     # Calculate journey duration
     start_time = current_journey_events[0].timestamp

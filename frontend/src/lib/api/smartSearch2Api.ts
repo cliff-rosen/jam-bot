@@ -177,3 +177,33 @@ class SmartSearch2Api {
 
 // Export singleton instance
 export const smartSearch2Api = new SmartSearch2Api();
+
+// ============= ANALYTICS =============
+
+export interface JourneyAnalyticsData {
+  current_journey: {
+    journey_id: string;
+    event_count: number;
+    duration: string;
+    events: Array<{
+      user_id: string;
+      journey_id: string;
+      event_id: string;
+      event_type: string;
+      timestamp: string;
+      event_data: any;
+    }>;
+  } | null;
+  recent_journeys: Array<{
+    journey_id: string;
+    event_count: number;
+    start_time: string;
+    duration: string;
+    last_event_type: string;
+  }>;
+}
+
+export async function getJourneyAnalytics(journeyId: string): Promise<JourneyAnalyticsData> {
+  const response = await api.get(`/api/analytics/journey/${journeyId}`);
+  return response.data;
+}

@@ -5,32 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
-import { api } from '@/lib/api';
-
-interface JourneyEvent {
-    user_id: string;
-    journey_id: string;
-    event_id: string;
-    event_type: string;
-    timestamp: string;
-    event_data: any;
-}
-
-interface JourneyAnalyticsData {
-    current_journey: {
-        journey_id: string;
-        event_count: number;
-        duration: string;
-        events: JourneyEvent[];
-    } | null;
-    recent_journeys: Array<{
-        journey_id: string;
-        event_count: number;
-        start_time: string;
-        duration: string;
-        last_event_type: string;
-    }>;
-}
+import { getJourneyAnalytics, type JourneyAnalyticsData } from '@/lib/api/smartSearch2Api';
 
 export function JourneyAnalytics() {
     const { currentJourneyId, journeyStartTime } = useSmartSearch2();
@@ -45,8 +20,8 @@ export function JourneyAnalytics() {
         setError(null);
 
         try {
-            const response = await api.get(`/api/analytics/journey/${currentJourneyId}`);
-            setAnalyticsData(response.data);
+            const data = await getJourneyAnalytics(currentJourneyId);
+            setAnalyticsData(data);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch analytics';
             setError(errorMessage);

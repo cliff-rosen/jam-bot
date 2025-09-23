@@ -1,4 +1,5 @@
 import settings from '../../config/settings';
+import { getCurrentJourneyId } from '../utils/journeyTracking';
 
 export interface StreamUpdate {
     data: string;
@@ -42,6 +43,23 @@ export async function* makeStreamRequest(
     const usePost = method === 'POST' || hasComplexParams;
 
     console.log("Making stream request of type:", usePost ? 'POST' : 'GET');
+
+    // Add journey tracking header for SmartSearch2 and Google Scholar endpoints
+    const journeyHeaders: Record<string, string> = {};
+    if (endpoint.includes('/smart-search2/') || endpoint.includes('/google-scholar/')) {
+        // Use the same logic as axios interceptor
+        const getOrCreateJourneyId = (window as any).__getOrCreateJourneyId || getCurrentJourneyId;
+        const journeyId = getOrCreateJourneyId();
+        journeyHeaders['X-Journey-Id'] = journeyId;
+        console.log('[STREAM] SmartSearch2/Scholar request with journey ID:', journeyId);
+    } else {
+        // For other endpoints, only add header if journey exists (don't create new one)
+        const journeyId = localStorage.getItem('currentJourneyId');
+        if (journeyId) {
+            journeyHeaders['X-Journey-Id'] = journeyId;
+        }
+    }
+
     let response: Response;
     try {
         response = await fetch(
@@ -51,7 +69,8 @@ export async function* makeStreamRequest(
                 headers: {
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                     ...(usePost ? { 'Content-Type': 'application/json' } : {}),
-                    'Accept': 'text/event-stream'
+                    'Accept': 'text/event-stream',
+                    ...journeyHeaders
                 },
                 ...(usePost ? { body: JSON.stringify(params) } : {}),
                 // Important for some proxies (HTTP/2) to keep stream open

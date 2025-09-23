@@ -241,47 +241,16 @@ async def stream_google_scholar(
     """
     Stream Google Scholar search progress and article batches via SSE.
     """
-    # Manual tracking for streaming endpoint
-    try:
-        from services.event_tracking import EventTracker
-        from utils.tracking_helpers import get_journey_id_from_request
-
-        journey_id = get_journey_id_from_request(req)
-        if journey_id and db and current_user:
-            user_id = getattr(current_user, 'user_id', str(current_user))
-
-            # Extract event data from request
-            event_data = {
-                'query': request.query,
-                'num_results': request.num_results or 10,
-                'year_low': request.year_low,
-                'year_high': request.year_high,
-                'sort_by': request.sort_by or 'relevance',
-                'start_index': request.start_index or 0,
-                'enrich_summaries': bool(request.enrich_summaries)
-            }
-
-            # Track the event
-            tracker = EventTracker(db)
-            tracker.track_event(
-                user_id=user_id,
-                journey_id=journey_id,
-                event_type=EventType.SCHOLAR_ENRICH_START,
-                event_data=event_data
-            )
-    except Exception as e:
-        print(f"[TRACKING ERROR] Failed to track Google Scholar stream event: {e}")
-
     service = GoogleScholarService()
 
     async def event_generator():
+        accumulated = 0
         try:
             # Announce start
             yield _sse_format({"status": "starting", "payload": {"query": request.query}})
 
             batch_size = service._get_max_results_per_call()
             target = request.num_results or 10
-            accumulated = 0
             start_index = request.start_index or 0
 
             # Track when to send next heartbeat
@@ -358,8 +327,37 @@ async def stream_google_scholar(
         except Exception as e:
             yield _sse_format({"status": "error", "error": str(e)})
         finally:
-            # Cleanup completed
-            pass
+            # Track completion event with results
+            try:
+                from services.event_tracking import EventTracker
+                from utils.tracking_helpers import get_journey_id_from_request
+
+                journey_id = get_journey_id_from_request(req)
+                if journey_id and db and current_user:
+                    user_id = getattr(current_user, 'user_id', str(current_user))
+
+                    # Create completion event data
+                    completion_data = {
+                        'query': request.query,
+                        'num_results_requested': request.num_results or 10,
+                        'num_results_returned': accumulated,
+                        'year_low': request.year_low,
+                        'year_high': request.year_high,
+                        'sort_by': request.sort_by or 'relevance',
+                        'start_index': request.start_index or 0,
+                        'enrich_summaries': bool(request.enrich_summaries)
+                    }
+
+                    # Track completion event
+                    tracker = EventTracker(db)
+                    tracker.track_event(
+                        user_id=user_id,
+                        journey_id=journey_id,
+                        event_type=EventType.SCHOLAR_ENRICH_COMPLETE,
+                        event_data=completion_data
+                    )
+            except Exception as e:
+                print(f"[TRACKING ERROR] Failed to track Google Scholar completion event: {e}")
 
     headers = {
         "Cache-Control": "no-cache",
@@ -371,6 +369,7 @@ async def stream_google_scholar(
 
 @router.get("/stream")
 async def stream_google_scholar_get(
+    request: Request,
     query: str = Query(..., description="Search query"),
     num_results: Optional[int] = Query(10, ge=1, le=500, description="Number of results"),
     year_low: Optional[int] = Query(None, description="Start year filter"),
@@ -378,7 +377,6 @@ async def stream_google_scholar_get(
     sort_by: Optional[str] = Query("relevance", pattern="^(relevance|date)$", description="Sort order"),
     start_index: Optional[int] = Query(0, ge=0, description="Starting index for pagination"),
     enrich_summaries: Optional[bool] = Query(False, description="If true, attempt to enrich abstracts/summaries for returned results"),
-    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(validate_token)
 ):

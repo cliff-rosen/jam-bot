@@ -220,17 +220,17 @@ class EventTracker:
             func.max(UserEvent.timestamp).label('last_time'),
             func.count(UserEvent.event_id).label('event_count'),
             func.max(UserEvent.event_type).label('last_event_type'),
-            User.username
+            User.email
         ).join(
             User, User.user_id == UserEvent.user_id
         ).group_by(
-            UserEvent.journey_id, UserEvent.user_id, User.username
+            UserEvent.journey_id, UserEvent.user_id, User.email
         ).order_by(
             func.min(UserEvent.timestamp).desc()
         ).limit(limit).all()
 
         journey_summaries = []
-        for journey_id, user_id, start_time, last_time, event_count, last_event_type, username in journeys:
+        for journey_id, user_id, start_time, last_time, event_count, last_event_type, email in journeys:
             # Calculate duration
             duration_seconds = (last_time - start_time).total_seconds()
             duration_str = f"{int(duration_seconds//60)}m {int(duration_seconds%60)}s" if duration_seconds >= 60 else f"{int(duration_seconds)}s"
@@ -238,7 +238,7 @@ class EventTracker:
             journey_summaries.append({
                 "journey_id": journey_id,
                 "user_id": user_id,
-                "username": username,
+                "username": email,
                 "start_time": start_time.isoformat(),
                 "last_time": last_time.isoformat(),
                 "duration": duration_str,

@@ -1,5 +1,16 @@
 ## Smart Search 2 — Filtering and Retrieval Limits
 
+
+On PubMed initial search
+- we retrieve up to 50 records
+- we show the total available
+- if lt total and lt 500 have been retrieved, allow retrieve next page?
+- we need to communicate if total >500 that only first 500 are filtered
+
+
+
+
+
 ### Summary
 - Frontend pre-filter cap: MAX_ARTICLES_TO_FILTER = 500 in `frontend/src/context/SmartSearch2Context.tsx`.
 - Backend SmartSearch2 filter endpoint: no server-side count cap; concurrency limited to 500 evaluations.

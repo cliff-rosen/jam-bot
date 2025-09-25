@@ -15,7 +15,7 @@ import {
     startNewJourney,
     getCurrentJourneyId,
     clearCurrentJourney,
-    getCurrentJourneyInfo
+    getCurrentJourneyInfo 
 } from '@/lib/utils/journeyTracking';
 
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';

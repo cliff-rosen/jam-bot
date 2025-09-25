@@ -15,13 +15,14 @@ import {
     startNewJourney,
     getCurrentJourneyId,
     clearCurrentJourney,
-    getCurrentJourneyInfo 
+    getCurrentJourneyInfo
 } from '@/lib/utils/journeyTracking';
 
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
 const MAX_ARTICLES_TO_FILTER = 500;
+const PAGE_SIZE = 50;
 
 // ================== RESULT STATE ENUM ==================
 
@@ -308,7 +309,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             const results = await smartSearch2Api.search({
                 query: searchQuery,
                 source: selectedSource,
-                max_results: selectedSource === 'google_scholar' ? 20 : 50,
+                max_results: PAGE_SIZE,
                 offset: 0
             });
 
@@ -345,7 +346,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
         setError(null);
 
         try {
-            const batchSize = count || (selectedSource === 'google_scholar' ? 20 : 100);
+            const batchSize = count || PAGE_SIZE;
             const offset = articles.length;
 
             const results = await smartSearch2Api.search({

@@ -3,7 +3,7 @@
  *
  * Displays journey analytics in a modal dialog
  */
-import React from 'react';
+
 import { X } from 'lucide-react';
 import { JourneyAnalytics } from '@/components/analytics/JourneyAnalytics';
 

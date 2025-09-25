@@ -3,7 +3,7 @@
  *
  * Displays analytics data for user journeys and events
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSmartSearch2 } from '@/context/SmartSearch2Context';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/lib/api/smartSearch2Api';
 
 export function JourneyAnalytics() {
-    const { journeyStartTime, getJourneyId } = useSmartSearch2();
+    const { getJourneyId } = useSmartSearch2();
     const { user } = useAuth();
     const [analyticsData, setAnalyticsData] = useState<JourneyAnalyticsData | null>(null);
     const [availableJourneys, setAvailableJourneys] = useState<UserJourney[]>([]);

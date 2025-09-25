@@ -21,7 +21,7 @@ import {
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
-const MAX_ARTICLES_TO_FILTER = 3000;
+const MAX_ARTICLES_TO_FILTER = 500;
 
 // ================== RESULT STATE ENUM ==================
 

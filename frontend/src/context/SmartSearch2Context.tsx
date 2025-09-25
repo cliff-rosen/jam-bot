@@ -894,26 +894,24 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             const totalAvailable = pagination?.total_available || articles.length;
             let limitApplied = false;
 
-            // Scholar-aware source counts
-            const currentSourceCount = articles.filter(a => a.source === selectedSource).length;
-            const totalCurrentCount = articles.length; // includes mixed sources
-            const availableCountForSource = pagination ? pagination.total_available : currentSourceCount;
-
-            // Cap applies to total across sources
+            // Compute remaining based on authoritative pagination for the current search source,
+            // not by counting items in the mixed articles list.
+            const totalCurrentCount = articles.length; // may include mixed sources
             const allowableByCap = Math.max(0, MAX_ARTICLES_TO_FILTER - totalCurrentCount);
-            const sourceRemainingAvailable = Math.max(0, availableCountForSource - currentSourceCount);
+
+            const sourceReturned = pagination?.returned ?? 0;
+            const sourceTotalAvailable = pagination?.total_available ?? totalCurrentCount;
+            const sourceRemainingAvailable = Math.max(0, sourceTotalAvailable - sourceReturned);
             let remainingToFetch = Math.min(allowableByCap, sourceRemainingAvailable);
 
-            // Limit flag considers mixed sources too
-            limitApplied = pagination
-                ? (pagination.total_available + (totalCurrentCount - currentSourceCount)) > MAX_ARTICLES_TO_FILTER
-                : totalCurrentCount >= MAX_ARTICLES_TO_FILTER;
+            // Limit flag: even if we fetch all allowed by cap, we won't reach total available
+            limitApplied = (sourceTotalAvailable > (sourceReturned + allowableByCap)) || (allowableByCap === 0);
 
             console.log(`Filter auto-retrieval check:`, {
                 selectedSource,
-                currentSourceCount,
+                sourceReturned,
+                sourceTotalAvailable,
                 totalCurrentCount,
-                availableCountForSource,
                 allowableByCap,
                 sourceRemainingAvailable,
                 remainingToFetch,
@@ -928,7 +926,7 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
                 // Fetch remaining articles in batches - use max allowed by backend
                 const batchSize = selectedSource === 'google_scholar' ? 20 : 100;
-                let offset = currentSourceCount; // offset is per selected source
+                let offset = sourceReturned; // authoritative offset for this source
                 const additionalArticles: SmartSearchArticle[] = [];
 
                 while (remainingToFetch > 0) {
@@ -973,9 +971,9 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
 
                 console.log(`Auto-retrieval completed:`, {
                     originalTotalCount: articles.length,
-                    originalSourceCount: currentSourceCount,
+                    originalSourceReturned: sourceReturned,
                     additionalRetrieved: additionalArticles.length,
-                    newSourceCount: currentSourceCount + additionalArticles.length,
+                    newSourceReturned: sourceReturned + additionalArticles.length,
                     newTotalCount: articlesToFilter.length
                 });
 
@@ -985,8 +983,8 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
                 // Update pagination for the selected source only
                 setPagination(prev => prev ? {
                     ...prev,
-                    returned: currentSourceCount + additionalArticles.length,
-                    has_more: availableCountForSource > (currentSourceCount + additionalArticles.length)
+                    returned: prev.returned + additionalArticles.length,
+                    has_more: prev.total_available > (prev.returned + additionalArticles.length)
                 } : null);
             }
 

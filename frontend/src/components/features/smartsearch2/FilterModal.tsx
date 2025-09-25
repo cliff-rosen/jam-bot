@@ -11,6 +11,10 @@ interface FilterModalProps {
     initialValue?: string;
     title?: string;
     description?: string;
+    // Article count information
+    currentArticleCount?: number;
+    totalAvailable?: number;
+    maxArticlesToFilter?: number;
 }
 
 export function FilterModal({
@@ -19,10 +23,18 @@ export function FilterModal({
     onConfirm,
     initialValue = '',
     title = 'AI Filter',
-    description = 'Define what types of articles you want to keep from your search results.'
+    description = 'Define what types of articles you want to keep from your search results.',
+    currentArticleCount = 0,
+    totalAvailable = 0,
+    maxArticlesToFilter = 500
 }: FilterModalProps) {
     const [filterCriteria, setFilterCriteria] = useState('');
     const [isValid, setIsValid] = useState(false);
+
+    // Calculate how many articles will actually be filtered
+    const articlesToFilter = Math.min(totalAvailable, maxArticlesToFilter);
+    const willHitLimit = totalAvailable > maxArticlesToFilter;
+    const needsAutoRetrieval = currentArticleCount < articlesToFilter;
 
     // Initialize with default value when modal opens
     useEffect(() => {
@@ -75,6 +87,36 @@ export function FilterModal({
                             {description}
                         </p>
                     </div>
+
+                    {/* Article Count Information */}
+                    {totalAvailable > 0 && (
+                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                <div className="text-sm">
+                                    <p className="text-blue-900 dark:text-blue-100 font-medium mb-1">
+                                        Filtering Information
+                                    </p>
+                                    <div className="text-blue-700 dark:text-blue-200 space-y-1">
+                                        <p>
+                                            <strong>{articlesToFilter.toLocaleString()}</strong> articles will be filtered
+                                            {willHitLimit && (
+                                                <span className="text-blue-600 dark:text-blue-300"> (limited from {totalAvailable.toLocaleString()} total available)</span>
+                                            )}
+                                        </p>
+                                        {needsAutoRetrieval && (
+                                            <p>
+                                                Auto-retrieval: {(articlesToFilter - currentArticleCount).toLocaleString()} additional articles will be fetched
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                                            Currently loaded: {currentArticleCount.toLocaleString()} • Total available: {totalAvailable.toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex-1 flex flex-col">
                         <Label htmlFor="filter-criteria" className="text-sm font-medium mb-3 block">

@@ -21,7 +21,7 @@ import {
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 
-const MAX_ARTICLES_TO_FILTER = 500;
+export const MAX_ARTICLES_TO_FILTER = 500;
 const PAGE_SIZE = 50;
 
 // ================== RESULT STATE ENUM ==================
@@ -894,91 +894,100 @@ export function SmartSearch2Provider({ children }: SmartSearch2ProviderProps) {
             const totalAvailable = pagination?.total_available || articles.length;
             let limitApplied = false;
 
-            // Only auto-retrieve if we're in a partial search state
-            if (pagination && pagination.has_more && resultState === ResultState.PartialSearchResult) {
-                // Calculate how many more articles to retrieve (up to MAX_ARTICLES_TO_FILTER total)
-                const currentCount = articles.length;
-                const availableCount = pagination.total_available;
-                const targetCount = Math.min(availableCount, MAX_ARTICLES_TO_FILTER);
-                const remainingToFetch = targetCount - currentCount;
+            // Scholar-aware source counts
+            const currentSourceCount = articles.filter(a => a.source === selectedSource).length;
+            const totalCurrentCount = articles.length; // includes mixed sources
+            const availableCountForSource = pagination ? pagination.total_available : currentSourceCount;
 
-                // Check if we're hitting the MAX_ARTICLES_TO_FILTER limit
-                limitApplied = availableCount > MAX_ARTICLES_TO_FILTER;
+            // Cap applies to total across sources
+            const allowableByCap = Math.max(0, MAX_ARTICLES_TO_FILTER - totalCurrentCount);
+            const sourceRemainingAvailable = Math.max(0, availableCountForSource - currentSourceCount);
+            let remainingToFetch = Math.min(allowableByCap, sourceRemainingAvailable);
 
-                console.log(`Filter auto-retrieval check:`, {
-                    currentCount,
-                    availableCount,
-                    targetCount,
-                    remainingToFetch,
-                    limitApplied,
-                    hasMore: pagination.has_more,
-                    resultState
-                });
+            // Limit flag considers mixed sources too
+            limitApplied = pagination
+                ? (pagination.total_available + (totalCurrentCount - currentSourceCount)) > MAX_ARTICLES_TO_FILTER
+                : totalCurrentCount >= MAX_ARTICLES_TO_FILTER;
 
-                if (remainingToFetch > 0) {
-                    console.log(`Auto-retrieving ${remainingToFetch} more articles before filtering (${currentCount} -> ${targetCount})`);
+            console.log(`Filter auto-retrieval check:`, {
+                selectedSource,
+                currentSourceCount,
+                totalCurrentCount,
+                availableCountForSource,
+                allowableByCap,
+                sourceRemainingAvailable,
+                remainingToFetch,
+                limitApplied,
+                hasMore: !!pagination?.has_more,
+                resultState
+            });
 
-                    // Fetch remaining articles in batches - use max allowed by backend
-                    const batchSize = selectedSource === 'google_scholar' ? 20 : 100;
-                    let offset = currentCount;
-                    const additionalArticles: SmartSearchArticle[] = [];
+            // Only auto-retrieve if we're in a partial search state for the selected source
+            if (pagination && pagination.has_more && resultState === ResultState.PartialSearchResult && remainingToFetch > 0) {
+                console.log(`Auto-retrieving up to ${remainingToFetch} ${selectedSource} articles before filtering (currently have ${currentSourceCount} from this source, ${totalCurrentCount} total)`);
 
-                    while (offset < targetCount) {
-                        const resultsToFetch = Math.min(batchSize, targetCount - offset);
+                // Fetch remaining articles in batches - use max allowed by backend
+                const batchSize = selectedSource === 'google_scholar' ? 20 : 100;
+                let offset = currentSourceCount; // offset is per selected source
+                const additionalArticles: SmartSearchArticle[] = [];
 
-                        const batchResults = await smartSearch2Api.search({
-                            query: searchQuery,
-                            source: selectedSource,
-                            max_results: resultsToFetch,
-                            offset: offset
-                        });
+                while (remainingToFetch > 0) {
+                    const resultsToFetch = Math.min(batchSize, remainingToFetch);
 
-                        const batchArticles: SmartSearchArticle[] = batchResults.articles.map(article => ({
-                            ...article,
-                            filterStatus: null
-                        }));
-
-                        additionalArticles.push(...batchArticles);
-                        offset += batchArticles.length;
-                        autoRetrievedCount = additionalArticles.length;
-
-                        console.log(`Batch retrieval:`, {
-                            requestedOffset: offset - batchArticles.length,
-                            requestedCount: resultsToFetch,
-                            receivedCount: batchArticles.length,
-                            totalAdditional: additionalArticles.length,
-                            newOffset: offset,
-                            targetCount,
-                            willContinue: offset < targetCount && batchArticles.length >= resultsToFetch
-                        });
-
-                        // Break if we got zero results or significantly fewer (indicating end of dataset)
-                        if (batchArticles.length === 0) {
-                            console.log(`Breaking loop: no more articles available`);
-                            break;
-                        }
-                    }
-
-                    // Combine all articles
-                    articlesToFilter = [...articles, ...additionalArticles];
-
-                    console.log(`Auto-retrieval completed:`, {
-                        originalCount: articles.length,
-                        additionalRetrieved: additionalArticles.length,
-                        totalArticles: articlesToFilter.length,
-                        targetWas: targetCount
+                    const batchResults = await smartSearch2Api.search({
+                        query: searchQuery,
+                        source: selectedSource,
+                        max_results: resultsToFetch,
+                        offset: offset
                     });
 
-                    // Update the articles state with all retrieved articles
-                    setArticles(articlesToFilter);
+                    const batchArticles: SmartSearchArticle[] = batchResults.articles.map(article => ({
+                        ...article,
+                        filterStatus: null
+                    }));
 
-                    // Update pagination to reflect all retrieved articles
-                    setPagination(prev => prev ? {
-                        ...prev,
-                        returned: articlesToFilter.length,
-                        has_more: availableCount > articlesToFilter.length
-                    } : null);
+                    additionalArticles.push(...batchArticles);
+                    offset += batchArticles.length;
+                    remainingToFetch -= batchArticles.length;
+                    autoRetrievedCount = additionalArticles.length;
+
+                    console.log(`Batch retrieval:`, {
+                        requestedOffset: offset - batchArticles.length,
+                        requestedCount: resultsToFetch,
+                        receivedCount: batchArticles.length,
+                        totalAdditional: additionalArticles.length,
+                        newOffset: offset,
+                        remainingToFetch,
+                        willContinue: remainingToFetch > 0 && batchArticles.length >= resultsToFetch
+                    });
+
+                    // Break if we got zero results (end of dataset)
+                    if (batchArticles.length === 0) {
+                        console.log(`Breaking loop: no more ${selectedSource} articles available`);
+                        break;
+                    }
                 }
+
+                // Combine all articles (preserve already-added Scholar items)
+                articlesToFilter = [...articles, ...additionalArticles];
+
+                console.log(`Auto-retrieval completed:`, {
+                    originalTotalCount: articles.length,
+                    originalSourceCount: currentSourceCount,
+                    additionalRetrieved: additionalArticles.length,
+                    newSourceCount: currentSourceCount + additionalArticles.length,
+                    newTotalCount: articlesToFilter.length
+                });
+
+                // Update the articles state with all retrieved articles
+                setArticles(articlesToFilter);
+
+                // Update pagination for the selected source only
+                setPagination(prev => prev ? {
+                    ...prev,
+                    returned: currentSourceCount + additionalArticles.length,
+                    has_more: availableCountForSource > (currentSourceCount + additionalArticles.length)
+                } : null);
             }
 
             // Extract raw articles for the API call

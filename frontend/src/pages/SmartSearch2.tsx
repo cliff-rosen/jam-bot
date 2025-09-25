@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ArrowLeft, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
-import { SmartSearch2Provider, useSmartSearch2, ResultState } from '@/context/SmartSearch2Context';
+import { SmartSearch2Provider, useSmartSearch2, ResultState, MAX_ARTICLES_TO_FILTER } from '@/context/SmartSearch2Context';
 import type { CanonicalFeatureDefinition } from '@/types/canonical_types';
 import type { SmartSearchArticle } from '@/types/smart-search';
 import { generatePrefixedUUID } from '@/lib/utils/uuid';
@@ -377,6 +377,9 @@ function SmartSearch2Content() {
         onClose={handleFilterCancel}
         onConfirm={handleFilterConfirm}
         initialValue={filterCriteria}
+        currentArticleCount={articles.length}
+        totalAvailable={pagination?.total_available || 0}
+        maxArticlesToFilter={MAX_ARTICLES_TO_FILTER}
       />
 
       {/* Scholar Enrichment Modal */}
